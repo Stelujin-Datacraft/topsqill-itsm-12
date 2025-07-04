@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 const ReportEditorPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { reports } = useReports();
+  const { reports, createReport } = useReports();
   const { toast } = useToast();
   
   const [report, setReport] = useState<Report | null>(null);
@@ -59,11 +59,40 @@ const ReportEditorPage = () => {
     }
   };
 
-  const handleSave = () => {
-    toast({
-      title: "Success",
-      description: "Report saved successfully",
-    });
+  const handleSave = async () => {
+    if (!report) return;
+
+    try {
+      if (id === 'new') {
+        // Create new report
+        const newReport = await createReport({
+          name: report.name,
+          description: report.description || ''
+        });
+        
+        if (newReport) {
+          toast({
+            title: "Success",
+            description: "Report created successfully",
+          });
+          // Navigate to the newly created report
+          navigate(`/report-editor/${newReport.id}`);
+        }
+      } else {
+        // Update existing report logic would go here
+        toast({
+          title: "Success",
+          description: "Report saved successfully",
+        });
+      }
+    } catch (error) {
+      console.error('Error saving report:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save report",
+        variant: "destructive",
+      });
+    }
   };
 
   if (loading) {
