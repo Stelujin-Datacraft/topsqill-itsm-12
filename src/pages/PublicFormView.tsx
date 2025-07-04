@@ -1,6 +1,6 @@
 
 import { useParams } from 'react-router-dom';
-import { FormViewLayoutRenderer } from '@/components/FormViewLayoutRenderer';
+import { FormPreview } from '@/components/FormPreview';
 import { FormLoadingView } from '@/components/FormLoadingView';
 import { FormErrorView } from '@/components/FormErrorView';
 import { useFormLoader } from '@/hooks/useFormLoader';
@@ -19,14 +19,7 @@ const PublicFormView = () => {
     return <FormErrorView error={error || 'Form not found'} />;
   }
 
-  return (
-    <FormViewLayoutRenderer 
-      form={form} 
-      onSubmit={handleFormSubmit}
-      showNavigation={true}
-      showPublicHeader={true}
-    />
-  );
+  return <FormPreview form={form} showNavigation={true} />;
 };
 
 export default PublicFormView;

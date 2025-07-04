@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFormWithFields } from '@/hooks/useFormWithFields';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
-import { PublicFormView } from '@/components/PublicFormView';
+import { FormPreview } from '@/components/FormPreview';
 import { FormAccessRequest } from '@/components/FormAccessRequest';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -159,9 +159,8 @@ const FormView = () => {
     return (
       <div className="min-h-screen bg-gray-50 py-12 px-4">
         <div className="max-w-7xl mx-auto">
-          <PublicFormView 
+          <FormPreview 
             form={form} 
-            onSubmit={handleFormSubmit}
             showNavigation={true}
           />
         </div>
@@ -297,9 +296,8 @@ const FormView = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-7xl mx-auto">
-        <PublicFormView 
+        <FormPreview 
           form={form} 
-          onSubmit={handleFormSubmit}
           showNavigation={true}
         />
       </div>
