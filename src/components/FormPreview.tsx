@@ -28,9 +28,12 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
     errorMessage?: string;
   }>>({});
 
-  // Initialize pages and current page
-  const pages = form.pages || [{ id: 'default', name: 'Form', order: 0, fields: form.fields.map(f => f.id) }];
-  const currentPageIndex = pages.findIndex(p => p.id === currentPageId);
+  // Initialize pages and current page with proper array checks
+  const formFields = Array.isArray(form.fields) ? form.fields : [];
+  const pages = Array.isArray(form.pages) && form.pages.length > 0 
+    ? form.pages 
+    : [{ id: 'default', name: 'Form', order: 0, fields: formFields.map(f => f.id) }];
+  const currentPageIndex = Array.isArray(pages) ? pages.findIndex(p => p.id === currentPageId) : -1;
 
   useEffect(() => {
     if (pages.length > 0 && !currentPageId) {
@@ -41,30 +44,32 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
   // Initialize field states
   useEffect(() => {
     const initialStates: Record<string, any> = {};
-    form.fields.forEach(field => {
-      initialStates[field.id] = {
-        isVisible: field.isVisible ?? true,
-        isEnabled: field.isEnabled ?? true,
-        label: field.label,
-        options: field.options,
-        tooltip: field.tooltip,
-        errorMessage: field.errorMessage,
-      };
-    });
+    if (Array.isArray(form.fields)) {
+      form.fields.forEach(field => {
+        initialStates[field.id] = {
+          isVisible: field.isVisible ?? true,
+          isEnabled: field.isEnabled ?? true,
+          label: field.label,
+          options: field.options,
+          tooltip: field.tooltip,
+          errorMessage: field.errorMessage,
+        };
+      });
+    }
     setFieldStates(initialStates);
   }, [form.fields]);
 
   // Process field rules when form data changes
   useEffect(() => {
-    if (!form.fieldRules || form.fieldRules.length === 0) return;
+    if (!Array.isArray(form.fieldRules) || form.fieldRules.length === 0) return;
 
     const newFieldStates = { ...fieldStates };
     
     form.fieldRules.forEach((rule) => {
       if (!rule.isActive) return;
 
-      const conditionField = form.fields.find(f => f.id === rule.condition.fieldId);
-      const targetField = form.fields.find(f => f.id === rule.targetFieldId);
+      const conditionField = Array.isArray(form.fields) ? form.fields.find(f => f.id === rule.condition.fieldId) : null;
+      const targetField = Array.isArray(form.fields) ? form.fields.find(f => f.id === rule.targetFieldId) : null;
       
       if (!conditionField || !targetField) return;
 
@@ -189,7 +194,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
         }
       } else {
         // Reset to original field state if condition is not met
-        const originalField = form.fields.find(f => f.id === rule.targetFieldId);
+        const originalField = Array.isArray(form.fields) ? form.fields.find(f => f.id === rule.targetFieldId) : null;
         if (originalField) {
           newFieldStates[rule.targetFieldId] = {
             ...newFieldStates[rule.targetFieldId],
@@ -215,12 +220,13 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
   };
 
   const getCurrentPageFields = () => {
-    if (!currentPageId || pages.length === 0) return form.fields;
+    const safeFormFields = Array.isArray(form.fields) ? form.fields : [];
+    if (!currentPageId || !Array.isArray(pages) || pages.length === 0) return safeFormFields;
     
     const currentPage = pages.find(p => p.id === currentPageId);
-    if (!currentPage) return form.fields;
+    if (!currentPage || !Array.isArray(currentPage.fields)) return safeFormFields;
     
-    return form.fields.filter(field => currentPage.fields.includes(field.id));
+    return safeFormFields.filter(field => currentPage.fields.includes(field.id));
   };
 
   const handlePageChange = (pageId: string) => {
@@ -228,13 +234,13 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
   };
 
   const handlePrevious = () => {
-    if (currentPageIndex > 0) {
+    if (Array.isArray(pages) && currentPageIndex > 0) {
       setCurrentPageId(pages[currentPageIndex - 1].id);
     }
   };
 
   const handleNext = () => {
-    if (currentPageIndex < pages.length - 1) {
+    if (Array.isArray(pages) && currentPageIndex < pages.length - 1) {
       setCurrentPageId(pages[currentPageIndex + 1].id);
     }
   };
@@ -341,8 +347,8 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
         {/* Navigation Panel */}
         <div className={navigationVisible ? "lg:col-span-1" : ""}>
           <FormNavigationPanel
-            pages={pages}
-            fields={form.fields}
+            pages={Array.isArray(pages) ? pages : []}
+            fields={Array.isArray(form.fields) ? form.fields : []}
             currentPageId={currentPageId}
             selectedField={selectedField}
             onPageChange={handlePageChange}
