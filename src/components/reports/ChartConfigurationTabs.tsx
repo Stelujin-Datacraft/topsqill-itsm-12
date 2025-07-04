@@ -1,15 +1,18 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import { ChartConfig } from '@/types/reports';
 import { FormField } from '@/types/form';
 import { ChartTypeSelector } from './ChartTypeSelector';
 import { ChartPreview } from './ChartPreview';
 import { GenericFieldSelector } from './GenericFieldSelector';
+import { Database, Sparkles } from 'lucide-react';
 
 interface ChartConfigurationTabsProps {
   config: ChartConfig;
@@ -18,14 +21,54 @@ interface ChartConfigurationTabsProps {
   forms: Array<{ id: string; name: string; description?: string }>;
 }
 
-// Sample data for chart preview
-const SAMPLE_DATA = [
-  { name: 'Product A', sales: 120, revenue: 15000, customers: 45 },
-  { name: 'Product B', sales: 98, revenue: 12500, customers: 32 },
-  { name: 'Product C', sales: 86, revenue: 9800, customers: 28 },
-  { name: 'Product D', sales: 145, revenue: 18200, customers: 56 },
-  { name: 'Product E', sales: 73, revenue: 8900, customers: 21 }
-];
+// Generate realistic sample data based on chart type and selected fields
+const generateSampleData = (config: ChartConfig, formFields: FormField[]) => {
+  const dimensionField = formFields.find(f => f.id === (config.dimensions?.[0] || config.xAxis));
+  const metricField = formFields.find(f => f.id === (config.metrics?.[0] || config.yAxis));
+  
+  // Base categories - use dimension field options if available, otherwise generic categories
+  let categories = ['Category A', 'Category B', 'Category C', 'Category D', 'Category E'];
+  
+  if (dimensionField?.options && dimensionField.options.length > 0) {
+    categories = dimensionField.options.slice(0, 5).map(opt => opt.label || opt.value);
+  } else if (dimensionField?.type === 'date') {
+    categories = ['Jan 2024', 'Feb 2024', 'Mar 2024', 'Apr 2024', 'May 2024'];
+  } else if (dimensionField?.type === 'select') {
+    categories = ['Option A', 'Option B', 'Option C', 'Option D', 'Option E'];
+  }
+
+  // Generate realistic metric values based on field type
+  const generateMetricValue = (index: number) => {
+    if (metricField?.type === 'currency') {
+      return Math.floor(Math.random() * 50000) + 10000; // $10k-$60k
+    } else if (metricField?.type === 'rating') {
+      return Math.floor(Math.random() * 5) + 1; // 1-5 rating
+    } else if (metricField?.type === 'number') {
+      return Math.floor(Math.random() * 1000) + 100; // 100-1100
+    } else {
+      return Math.floor(Math.random() * 200) + 50; // Default range
+    }
+  };
+
+  return categories.map((name, index) => {
+    const baseValue = generateMetricValue(index);
+    const secondaryValue = generateMetricValue(index);
+    const sizeValue = Math.floor(Math.random() * 100) + 20;
+    
+    return {
+      name,
+      [config.metrics?.[0] || config.yAxis || 'value']: baseValue,
+      [config.sizeField || 'size']: sizeValue,
+      [config.heatmapIntensityField || 'intensity']: baseValue,
+      // Add some additional sample fields
+      sales: baseValue,
+      revenue: baseValue * 100,
+      customers: Math.floor(baseValue / 3),
+      rating: Math.floor(Math.random() * 5) + 1,
+      count: Math.floor(Math.random() * 50) + 10
+    };
+  });
+};
 
 export function ChartConfigurationTabs({ 
   config, 
@@ -33,6 +76,9 @@ export function ChartConfigurationTabs({
   formFields, 
   forms 
 }: ChartConfigurationTabsProps) {
+  const [useStaticData, setUseStaticData] = useState(true);
+  
+  const sampleData = useMemo(() => generateSampleData(config, formFields), [config, formFields]);
   
   const handleConfigUpdate = (updates: Partial<ChartConfig>) => {
     onConfigChange({ ...config, ...updates });
@@ -271,19 +317,57 @@ export function ChartConfigurationTabs({
       <TabsContent value="preview" className="space-y-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Live Preview</CardTitle>
+            <CardTitle className="text-sm flex items-center justify-between">
+              <span>Chart Preview</span>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Database className="h-4 w-4 text-muted-foreground" />
+                  <Label htmlFor="data-toggle" className="text-sm font-normal">Real Data</Label>
+                </div>
+                <Switch
+                  id="data-toggle"
+                  checked={useStaticData}
+                  onCheckedChange={setUseStaticData}
+                />
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-muted-foreground" />
+                  <Label htmlFor="data-toggle" className="text-sm font-normal">Sample Data</Label>
+                </div>
+              </div>
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ChartPreview 
-                config={{
-                  ...config,
-                  // Use sample data for preview
-                  formId: 'sample',
-                  data: SAMPLE_DATA
-                } as any}
-              />
+          <CardContent className="p-6">
+            <div className="bg-muted/30 rounded-lg p-6 min-h-[300px] flex items-center justify-center">
+              <div className="w-full h-full">
+                <ChartPreview 
+                  config={{
+                    ...config,
+                    // Use sample data for preview when toggle is on, otherwise use real data
+                    ...(useStaticData ? { data: sampleData } : {})
+                  } as any}
+                />
+              </div>
             </div>
+            
+            {useStaticData && (
+              <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
+                  <Sparkles className="h-4 w-4" />
+                  <span className="font-medium">Preview Mode:</span>
+                  <span>Using sample data that matches your selected fields and configuration</span>
+                </div>
+              </div>
+            )}
+            
+            {!useStaticData && !config.formId && (
+              <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
+                  <Database className="h-4 w-4" />
+                  <span className="font-medium">Real Data Mode:</span>
+                  <span>Please select a form to view real data</span>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -291,21 +375,34 @@ export function ChartConfigurationTabs({
           <CardHeader>
             <CardTitle className="text-sm">Configuration Summary</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="font-medium">Chart Type:</span> {config.chartType || 'Not selected'}
+              <div className="space-y-1">
+                <span className="font-medium text-muted-foreground">Chart Type:</span>
+                <div className="font-medium">{config.chartType || 'Not selected'}</div>
               </div>
-              <div>
-                <span className="font-medium">Color Theme:</span> {config.colorTheme || 'Default'}
+              <div className="space-y-1">
+                <span className="font-medium text-muted-foreground">Color Theme:</span>
+                <div className="font-medium">{config.colorTheme || 'Default'}</div>
               </div>
-              <div>
-                <span className="font-medium">Metrics:</span> {config.metrics?.length || 0} selected
+              <div className="space-y-1">
+                <span className="font-medium text-muted-foreground">Metrics:</span>
+                <div className="font-medium">{config.metrics?.length || 0} selected</div>
               </div>
-              <div>
-                <span className="font-medium">Dimensions:</span> {config.dimensions?.length || 0} selected
+              <div className="space-y-1">
+                <span className="font-medium text-muted-foreground">Dimensions:</span>
+                <div className="font-medium">{config.dimensions?.length || 0} selected</div>
               </div>
             </div>
+            
+            {config.formId && (
+              <div className="pt-3 border-t">
+                <div className="space-y-1">
+                  <span className="font-medium text-muted-foreground">Data Source:</span>
+                  <div className="font-medium">{forms.find(f => f.id === config.formId)?.name || 'Unknown Form'}</div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </TabsContent>
