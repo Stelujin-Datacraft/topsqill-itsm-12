@@ -71,15 +71,18 @@ export function FormViewLayoutRenderer({
 
   // Process field rules when form data changes
   useEffect(() => {
-    if (!form.fieldRules || form.fieldRules.length === 0) return;
+    // Ensure fieldRules is an array before processing
+    const fieldRules = Array.isArray(form.fieldRules) ? form.fieldRules : [];
+    
+    if (fieldRules.length === 0) return;
 
     const newFieldStates = { ...fieldStates };
     
-    form.fieldRules.forEach((rule) => {
+    fieldRules.forEach((rule) => {
       if (!rule.isActive) return;
 
-      const conditionField = form.fields.find(f => f.id === rule.condition.fieldId);
-      const targetField = form.fields.find(f => f.id === rule.targetFieldId);
+      const conditionField = form.fields?.find(f => f.id === rule.condition.fieldId);
+      const targetField = form.fields?.find(f => f.id === rule.targetFieldId);
       
       if (!conditionField || !targetField) return;
 
@@ -204,7 +207,7 @@ export function FormViewLayoutRenderer({
         }
       } else {
         // Reset to original field state if condition is not met
-        const originalField = form.fields.find(f => f.id === rule.targetFieldId);
+        const originalField = form.fields?.find(f => f.id === rule.targetFieldId);
         if (originalField) {
           newFieldStates[rule.targetFieldId] = {
             ...newFieldStates[rule.targetFieldId],
@@ -220,7 +223,7 @@ export function FormViewLayoutRenderer({
     });
 
     setFieldStates(newFieldStates);
-  }, [formData, form.fieldRules, form.fields]);
+  }, [formData, form.fieldRules, form.fields, fieldStates]);
 
   const handleFieldChange = (fieldId: string, value: any) => {
     setFormData(prev => ({
