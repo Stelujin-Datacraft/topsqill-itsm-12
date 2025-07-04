@@ -60,17 +60,21 @@ const ReportEditorPage = () => {
   };
 
   const handleSave = async () => {
+    console.log("CALLING HANDLE SAVE ")
     if (!report) return;
 
     try {
       if (id === 'new') {
+            console.log("ID NEW")
         // Create new report
         const newReport = await createReport({
           name: report.name,
           description: report.description || ''
         });
-        
+            console.log("NEW REPORT CREATED ")
         if (newReport) {
+              console.log("UPDATING REPORT") 
+              
           // Update the local report state with the new report data
           setReport(newReport);
           toast({
@@ -81,6 +85,7 @@ const ReportEditorPage = () => {
           navigate(`/report-editor/${newReport.id}`, { replace: true });
         }
       } else {
+                      console.log("NOT NEW REPRT SO UPDATING REPORT ONLY TOAST")
         // Update existing report logic would go here
         toast({
           title: "Success",
