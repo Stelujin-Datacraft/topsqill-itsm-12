@@ -124,21 +124,43 @@ export function useFormSnapshot(initialForm: Form | null) {
       const page = prev.form.pages.find(p => p.id === pageId);
       if (!page) return prev;
 
-      const pageFields = prev.form.fields.filter(field => {
-        return field.pageId === pageId || page.fields.includes(field.id);
-      });
+      // Get all fields for this page, maintaining the current order
+      const pageFields = prev.form.fields
+        .filter(field => field.pageId === pageId || page.fields.includes(field.id))
+        .sort((a, b) => {
+          // Get current index from the fields array to maintain order
+          const aIndex = prev.form!.fields.findIndex(f => f.id === a.id);
+          const bIndex = prev.form!.fields.findIndex(f => f.id === b.id);
+          return aIndex - bIndex;
+        });
 
-      const reorderedFields = [...pageFields];
-      const [movedField] = reorderedFields.splice(sourceIndex, 1);
-      reorderedFields.splice(destinationIndex, 0, movedField);
+      if (sourceIndex >= pageFields.length || destinationIndex >= pageFields.length) {
+        return prev; // Invalid indices
+      }
 
-      const updatedFields = prev.form.fields.map(field => {
-        const newIndex = reorderedFields.findIndex(rf => rf.id === field.id);
-        if (newIndex !== -1) {
-          return reorderedFields[newIndex];
-        }
-        return field;
-      });
+      // Perform the reordering
+      const reorderedPageFields = [...pageFields];
+      const [movedField] = reorderedPageFields.splice(sourceIndex, 1);
+      reorderedPageFields.splice(destinationIndex, 0, movedField);
+
+      // Update the main fields array with new order
+      const otherFields = prev.form.fields.filter(field => 
+        field.pageId !== pageId && !page.fields.includes(field.id)
+      );
+
+      // Combine other fields with reordered page fields, maintaining positions
+      const updatedFields = [...otherFields];
+      
+      // Find where to insert the reordered fields (preserve original position block)
+      const firstPageFieldIndex = prev.form.fields.findIndex(field => 
+        field.pageId === pageId || page.fields.includes(field.id)
+      );
+      
+      if (firstPageFieldIndex >= 0) {
+        updatedFields.splice(firstPageFieldIndex, 0, ...reorderedPageFields);
+      } else {
+        updatedFields.push(...reorderedPageFields);
+      }
 
       return {
         ...prev,

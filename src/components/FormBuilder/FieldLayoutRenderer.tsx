@@ -40,63 +40,74 @@ export function FieldLayoutRenderer({
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="space-y-4">
-        {/* Render full-width fields first */}
-        {fullWidthFields.length > 0 && (
-          <Droppable droppableId="fullwidth-fields">
-            {(provided) => (
-              <div
-                ref={provided.innerRef}
-                {...provided.droppableProps}
-                className="space-y-4"
-              >
-                {fullWidthFields.map((field, index) => (
-                  <FieldRenderer
-                    key={field.id}
-                    field={field}
-                    index={index}
-                    selectedFieldId={selectedFieldId}
-                    highlightedFieldId={highlightedFieldId}
-                    onFieldClick={onFieldClick}
-                    onFieldDelete={onFieldDelete}
-                  />
-                ))}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
+      <Droppable droppableId="all-fields">
+        {(provided) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className="space-y-4"
+          >
+            {/* Render all fields in their original order but with layout separation */}
+            {fields.map((field, index) => {
+              if (field.isFullWidth) {
+                // Full-width fields take full width
+                return (
+                  <div key={field.id} className="w-full">
+                    <FieldRenderer
+                      field={field}
+                      index={index}
+                      selectedFieldId={selectedFieldId}
+                      highlightedFieldId={highlightedFieldId}
+                      onFieldClick={onFieldClick}
+                      onFieldDelete={onFieldDelete}
+                    />
+                  </div>
+                );
+              } else {
+                // Check if this is the start of a group of standard fields
+                const isStartOfStandardGroup = index === 0 || fields[index - 1].isFullWidth;
+                const isEndOfStandardGroup = index === fields.length - 1 || fields[index + 1].isFullWidth;
+                
+                // Get consecutive standard fields starting from this one
+                if (isStartOfStandardGroup) {
+                  const standardFieldsGroup = [];
+                  let currentIndex = index;
+                  while (currentIndex < fields.length && !fields[currentIndex].isFullWidth) {
+                    standardFieldsGroup.push(fields[currentIndex]);
+                    currentIndex++;
+                  }
+                  
+                  return (
+                    <div
+                      key={`standard-group-${index}`}
+                      className={`grid gap-4 ${
+                        columnLayout === 1 ? 'grid-cols-1' : 
+                        columnLayout === 2 ? 'grid-cols-1 md:grid-cols-2' : 
+                        'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+                      }`}
+                    >
+                      {standardFieldsGroup.map((groupField, groupIndex) => (
+                        <FieldRenderer
+                          key={groupField.id}
+                          field={groupField}
+                          index={index + groupIndex}
+                          selectedFieldId={selectedFieldId}
+                          highlightedFieldId={highlightedFieldId}
+                          onFieldClick={onFieldClick}
+                          onFieldDelete={onFieldDelete}
+                        />
+                      ))}
+                    </div>
+                  );
+                }
+                // Return null for standard fields that are part of a group (already rendered above)
+                return null;
+              }
+            })}
+            {provided.placeholder}
+          </div>
         )}
-
-        {/* Render standard fields in grid */}
-        {standardFields.length > 0 && (
-          <Droppable droppableId="standard-fields">
-            {(provided) => (
-              <div
-                ref={provided.innerRef}
-                {...provided.droppableProps}
-                className={`grid gap-4 ${
-                  columnLayout === 1 ? 'grid-cols-1' : 
-                  columnLayout === 2 ? 'grid-cols-1 md:grid-cols-2' : 
-                  'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
-                }`}
-              >
-                {standardFields.map((field, index) => (
-                  <FieldRenderer
-                    key={field.id}
-                    field={field}
-                    index={fullWidthFields.length + index}
-                    selectedFieldId={selectedFieldId}
-                    highlightedFieldId={highlightedFieldId}
-                    onFieldClick={onFieldClick}
-                    onFieldDelete={onFieldDelete}
-                  />
-                ))}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
-        )}
-      </div>
+      </Droppable>
     </DragDropContext>
   );
 }
