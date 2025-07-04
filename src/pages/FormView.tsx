@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFormWithFields } from '@/hooks/useFormWithFields';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
-import { FormPreview } from '@/components/FormPreview';
+import { FormViewLayoutRenderer } from '@/components/FormViewLayoutRenderer';
+import { FormSubmissionSuccess } from '@/components/FormSubmissionSuccess';
+import { useFormSubmissionHandler } from '@/hooks/useFormSubmissionHandler';
 import { FormAccessRequest } from '@/components/FormAccessRequest';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,12 +18,16 @@ const FormView = () => {
   const { id } = useParams<{ id: string }>();
   const { user, userProfile } = useAuth();
   const navigate = useNavigate();
+  const [submissionResult, setSubmissionResult] = useState<{submissionId: string, submissionRefId: string} | null>(null);
 
   // Load form with fields using the dedicated hook
   const { form, loading: formLoading, error: formError } = useFormWithFields(id);
   
   // Use unified access control for proper permission checking
   const { hasPermission, loading: accessLoading, isOrgAdmin, isProjectAdmin } = useUnifiedAccessControl(form?.projectId);
+  
+  // Form submission handler
+  const { handleFormSubmit } = useFormSubmissionHandler(id);
 
   // Handle redirect to login for private forms
   useEffect(() => {
@@ -149,21 +155,43 @@ const FormView = () => {
   const hasFormReadAccess = user ? hasPermission('forms', 'read', form.id) : false;
   const canAccessForm = isPublic || isFormCreator || hasFormReadAccess || isOrgAdmin || isProjectAdmin;
   
+  // Show submission success if form was submitted
+  if (submissionResult) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12 px-4">
+        <PublicHeader />
+        <div className="max-w-7xl mx-auto">
+          <FormSubmissionSuccess 
+            submissionRefId={submissionResult.submissionRefId}
+            submissionId={submissionResult.submissionId}
+            formName={form.name}
+            onClose={() => setSubmissionResult(null)}
+          />
+        </div>
+      </div>
+    );
+  }
+
   // Allow submission if user has access and form is active, or if user is form creator/admin
   if (canAccessForm && (form.status === 'active' || isFormCreator || isOrgAdmin || isProjectAdmin)) {
-    const handleFormSubmit = (formData: Record<string, any>) => {
-      console.log('Form submitted:', formData);
-      // Here you would typically send the data to your backend
+    const onFormSubmit = async (formData: Record<string, any>) => {
+      try {
+        const result = await handleFormSubmit(formData);
+        setSubmissionResult(result);
+      } catch (error) {
+        console.error('Form submission failed:', error);
+      }
     };
 
     return (
       <div className="min-h-screen bg-gray-50 py-12 px-4">
-      
-              <PublicHeader />
+        <PublicHeader />
         <div className="max-w-7xl mx-auto">
-          <FormPreview 
-            form={form} 
+          <FormViewLayoutRenderer 
+            form={form}
+            onSubmit={onFormSubmit}
             showNavigation={true}
+            showPublicHeader={false}
           />
         </div>
       </div>
@@ -290,18 +318,24 @@ const FormView = () => {
     );
   }
 
-  const handleFormSubmit = (formData: Record<string, any>) => {
-    console.log('Form submitted:', formData);
-    // Here you would typically send the data to your backend
+  const onFormSubmit = async (formData: Record<string, any>) => {
+    try {
+      const result = await handleFormSubmit(formData);
+      setSubmissionResult(result);
+    } catch (error) {
+      console.error('Form submission failed:', error);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
-            <PublicHeader />
+      <PublicHeader />
       <div className="max-w-7xl mx-auto">
-        <FormPreview 
-          form={form} 
+        <FormViewLayoutRenderer 
+          form={form}
+          onSubmit={onFormSubmit}
           showNavigation={true}
+          showPublicHeader={false}
         />
       </div>
     </div>
