@@ -50,6 +50,13 @@ export function ChartPreview({ config, onEdit }: ChartPreviewProps) {
 
   useEffect(() => {
     const loadChartData = async () => {
+      // Use sample data if provided, otherwise fetch from form
+      if ((config as any).data) {
+        setChartData((config as any).data);
+        setLoading(false);
+        return;
+      }
+
       if (!config.formId || (!config.dimensions?.length && !config.xAxis) || (!config.metrics?.length && !config.yAxis && config.aggregationType !== 'count')) {
         setLoading(false);
         return;
@@ -67,7 +74,7 @@ export function ChartPreview({ config, onEdit }: ChartPreviewProps) {
     };
 
     loadChartData();
-  }, [config.formId, config.dimensions, config.metrics, config.filters, config.xAxis, config.yAxis, config.aggregationType]);
+  }, [config.formId, config.dimensions, config.metrics, config.filters, config.xAxis, config.yAxis, config.aggregationType, (config as any).data]);
 
   const processSubmissionData = (submissions: any[]) => {
     if (!submissions.length) return [];
@@ -143,7 +150,7 @@ export function ChartPreview({ config, onEdit }: ChartPreviewProps) {
     return Object.values(processedData);
   };
 
-  const colors = colorSchemes[config.colors?.scheme || 'default'];
+  const colors = colorSchemes[config.colorTheme || 'default'];
 
   const renderChart = () => {
     if (loading) {
@@ -188,6 +195,24 @@ export function ChartPreview({ config, onEdit }: ChartPreviewProps) {
             ))}
           </BarChart>
         );
+
+      case 'column':
+        return (
+          <BarChart data={chartData} layout="horizontal">
+            <XAxis type="number" />
+            <YAxis dataKey="name" type="category" width={80} />
+            <Tooltip />
+            <Legend />
+            {(config.metrics || [primaryMetric]).map((metric, index) => (
+              <Bar 
+                key={metric} 
+                dataKey={metric} 
+                fill={colors[index % colors.length]} 
+                name={metric}
+              />
+            ))}
+          </BarChart>
+        );
       
       case 'pie':
         return (
@@ -196,6 +221,27 @@ export function ChartPreview({ config, onEdit }: ChartPreviewProps) {
               data={chartData}
               cx="50%"
               cy="50%"
+              outerRadius={80}
+              fill="#8884d8"
+              dataKey={primaryMetric}
+              label={({ name, value }) => `${name}: ${value}`}
+            >
+              {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+              ))}
+            </Pie>
+            <Tooltip />
+          </RechartsPieChart>
+        );
+
+      case 'donut':
+        return (
+          <RechartsPieChart>
+            <Pie
+              data={chartData}
+              cx="50%"
+              cy="50%"
+              innerRadius={config.innerRadius || 40}
               outerRadius={80}
               fill="#8884d8"
               dataKey={primaryMetric}
@@ -259,51 +305,100 @@ export function ChartPreview({ config, onEdit }: ChartPreviewProps) {
             <Scatter dataKey={primaryMetric} fill={colors[0]} />
           </RechartsScatterChart>
         );
-      
-      case 'radar':
+
+      case 'bubble':
+        // For bubble chart, use multiple scatter components with different sizes
+        const sizeField = config.sizeField || primaryMetric;
+        const bubbleData = chartData.map(item => ({
+          ...item,
+          size: item[sizeField] || 10
+        }));
+        
         return (
-          <RadarChart data={chartData}>
-            <PolarGrid />
-            <PolarAngleAxis dataKey="name" />
-            <PolarRadiusAxis />
-            <Tooltip />
-            {(config.metrics || [primaryMetric]).map((metric, index) => (
-              <Radar 
-                key={metric}
-                dataKey={metric} 
-                stroke={colors[index % colors.length]} 
-                fill={colors[index % colors.length]} 
-                fillOpacity={0.6}
-                name={metric}
+          <RechartsScatterChart data={bubbleData}>
+            <XAxis dataKey="name" />
+            <YAxis dataKey={primaryMetric} />
+            <Tooltip 
+              formatter={(value, name, props) => [
+                `${name}: ${value}`,
+                `Size: ${props.payload.size}`
+              ]}
+            />
+            {bubbleData.map((entry, index) => (
+              <Scatter
+                key={index}
+                data={[entry]}
+                fill={colors[index % colors.length]}
+                r={Math.max(5, Math.min(20, entry.size / 2))}
               />
             ))}
-          </RadarChart>
+          </RechartsScatterChart>
         );
-      
-      case 'funnel':
+
+      case 'heatmap':
+        // Generate heatmap data grid
+        const heatmapData = chartData.map((item, index) => ({
+          ...item,
+          x: index % (config.gridColumns || 5),
+          y: Math.floor(index / (config.gridColumns || 5)),
+          value: item[config.heatmapIntensityField || primaryMetric]
+        }));
+        
         return (
-          <FunnelChart>
-            <Tooltip />
-            <Funnel
-              dataKey={primaryMetric}
-              data={chartData}
-              isAnimationActive
-            >
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+          <div className="relative">
+            <div className="grid gap-1" style={{ 
+              gridTemplateColumns: `repeat(${config.gridColumns || 5}, 1fr)`,
+              maxWidth: '100%'
+            }}>
+              {heatmapData.map((cell, index) => (
+                <div
+                  key={index}
+                  className="aspect-square rounded-sm flex items-center justify-center text-xs font-medium"
+                  style={{
+                    backgroundColor: colors[Math.floor((cell.value / Math.max(...heatmapData.map(d => d.value))) * (colors.length - 1))],
+                    color: cell.value > (Math.max(...heatmapData.map(d => d.value)) / 2) ? 'white' : 'black'
+                  }}
+                  title={`${cell.name}: ${cell.value}`}
+                >
+                  {cell.value}
+                </div>
               ))}
-            </Funnel>
-          </FunnelChart>
+            </div>
+          </div>
         );
-      
-      case 'treemap':
+
+      case 'table':
         return (
-          <Treemap
-            data={chartData}
-            dataKey={primaryMetric}
-            stroke="#fff"
-            fill={colors[0]}
-          />
+          <div className="overflow-auto">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Category
+                  </th>
+                  {(config.metrics || [primaryMetric]).map((metric) => (
+                    <th key={metric} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      {metric}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-background divide-y divide-border">
+                {chartData.map((row, index) => (
+                  <tr key={index} className="hover:bg-muted/50">
+                    <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">
+                      {row.name}
+                    </td>
+                    {(config.metrics || [primaryMetric]).map((metric) => (
+                      <td key={metric} className="px-4 py-2 whitespace-nowrap text-sm">
+                        {row[metric]}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         );
       
       default:

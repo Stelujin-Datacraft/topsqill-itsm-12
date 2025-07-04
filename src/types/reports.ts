@@ -30,7 +30,7 @@ export interface ReportComponent {
 
 export interface ChartConfig {
   formId: string;
-  chartType: 'bar' | 'line' | 'pie' | 'area' | 'scatter' | 'radar' | 'funnel' | 'treemap';
+  chartType: 'bar' | 'column' | 'line' | 'area' | 'pie' | 'donut' | 'scatter' | 'bubble' | 'heatmap' | 'table';
   title: string;
   description?: string;
   xAxis?: string;
@@ -45,6 +45,12 @@ export interface ChartConfig {
     operator: string;
     value: any;
   }>;
+  // Chart-specific configurations
+  innerRadius?: number; // For donut charts
+  sizeField?: string; // For bubble charts
+  heatmapIntensityField?: string; // For heatmap
+  gridColumns?: number; // For heatmap
+  gridRows?: number; // For heatmap
   [key: string]: any;
 }
 

@@ -34,6 +34,7 @@ import {
   Link,
   Loader2
 } from 'lucide-react';
+import { ChartPreview } from './ChartPreview';
 import { FormField } from '@/types/form';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -376,8 +377,8 @@ export function ComponentConfigDialog({
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="basic">Basic</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
-          <TabsTrigger value="advanced">Advanced</TabsTrigger>
-          <TabsTrigger value="join">Join</TabsTrigger>
+          <TabsTrigger value="style">Style</TabsTrigger>
+          <TabsTrigger value="preview">Preview</TabsTrigger>
         </TabsList>
 
         <TabsContent value="basic" className="space-y-4">
@@ -474,7 +475,7 @@ export function ComponentConfigDialog({
           )}
         </TabsContent>
 
-        <TabsContent value="advanced" className="space-y-4">
+        <TabsContent value="style" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="text-sm flex items-center gap-2">
@@ -517,6 +518,129 @@ export function ComponentConfigDialog({
                     <SelectItem value="monochrome">Monochrome</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Chart-specific configurations */}
+              {config.chartType === 'donut' && (
+                <div>
+                  <Label>Inner Radius</Label>
+                  <Input
+                    type="number"
+                    value={config.innerRadius || 40}
+                    onChange={(e) => setConfig({ ...config, innerRadius: parseInt(e.target.value) })}
+                    min={20}
+                    max={80}
+                    placeholder="Inner radius (20-80)"
+                  />
+                </div>
+              )}
+
+              {config.chartType === 'bubble' && formFields.length > 0 && (
+                <div>
+                  <Label>Size Field</Label>
+                  <Select 
+                    value={config.sizeField || ''} 
+                    onValueChange={(value) => setConfig({ ...config, sizeField: value })}
+                  >
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Select size field" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border shadow-lg z-50">
+                      {formFields
+                        .filter(field => ['number', 'currency', 'rating', 'slider'].includes(field.type))
+                        .map(field => (
+                          <SelectItem key={field.id} value={field.id}>
+                            {field.label}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {config.chartType === 'heatmap' && (
+                <>
+                  {formFields.length > 0 && (
+                    <div>
+                      <Label>Intensity Field</Label>
+                      <Select 
+                        value={config.heatmapIntensityField || ''} 
+                        onValueChange={(value) => setConfig({ ...config, heatmapIntensityField: value })}
+                      >
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder="Select intensity field" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-lg z-50">
+                          {formFields
+                            .filter(field => ['number', 'currency', 'rating', 'slider'].includes(field.type))
+                            .map(field => (
+                              <SelectItem key={field.id} value={field.id}>
+                                {field.label}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div>
+                    <Label>Grid Columns</Label>
+                    <Input
+                      type="number"
+                      value={config.gridColumns || 5}
+                      onChange={(e) => setConfig({ ...config, gridColumns: parseInt(e.target.value) })}
+                      min={3}
+                      max={10}
+                      placeholder="Number of columns (3-10)"
+                    />
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="preview" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Chart Preview</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                {/* Sample data for preview */}
+                <ChartPreview 
+                  config={{
+                    ...config,
+                    data: [
+                      { name: 'Product A', sales: 120, revenue: 15000, customers: 45 },
+                      { name: 'Product B', sales: 98, revenue: 12500, customers: 32 },
+                      { name: 'Product C', sales: 86, revenue: 9800, customers: 28 },
+                      { name: 'Product D', sales: 145, revenue: 18200, customers: 56 },
+                      { name: 'Product E', sales: 73, revenue: 8900, customers: 21 }
+                    ]
+                  }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Configuration Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium">Chart Type:</span> {config.chartType || 'Not selected'}
+                </div>
+                <div>
+                  <span className="font-medium">Color Theme:</span> {config.colorTheme || 'Default'}
+                </div>
+                <div>
+                  <span className="font-medium">Metrics:</span> {config.metrics?.length || 0} selected
+                </div>
+                <div>
+                  <span className="font-medium">Dimensions:</span> {config.dimensions?.length || 0} selected
+                </div>
               </div>
             </CardContent>
           </Card>

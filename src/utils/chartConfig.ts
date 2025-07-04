@@ -32,6 +32,13 @@ export const CHART_TYPES: ChartTypeOption[] = [
     supportedDimensions: 2
   },
   {
+    value: 'column',
+    label: 'Column Chart',
+    description: 'Vertical bar chart',
+    supportedMetrics: 3,
+    supportedDimensions: 2
+  },
+  {
     value: 'line',
     label: 'Line Chart',
     description: 'Show trends over time',
@@ -39,17 +46,24 @@ export const CHART_TYPES: ChartTypeOption[] = [
     supportedDimensions: 1
   },
   {
+    value: 'area',
+    label: 'Area Chart',
+    description: 'Filled line chart',
+    supportedMetrics: 3,
+    supportedDimensions: 1
+  },
+  {
     value: 'pie',
     label: 'Pie Chart',
-    description: 'Show proportions of a whole',
+    description: 'Show parts of a whole',
     supportedMetrics: 1,
     supportedDimensions: 1
   },
   {
-    value: 'area',
-    label: 'Area Chart',
-    description: 'Show cumulative totals over time',
-    supportedMetrics: 3,
+    value: 'donut',
+    label: 'Donut Chart',
+    description: 'Pie chart with hollow center',
+    supportedMetrics: 1,
     supportedDimensions: 1
   },
   {
@@ -57,6 +71,27 @@ export const CHART_TYPES: ChartTypeOption[] = [
     label: 'Scatter Plot',
     description: 'Show correlation between variables',
     supportedMetrics: 2,
+    supportedDimensions: 0
+  },
+  {
+    value: 'bubble',
+    label: 'Bubble Chart',
+    description: 'Scatter plot with size dimension',
+    supportedMetrics: 3,
+    supportedDimensions: 1
+  },
+  {
+    value: 'heatmap',
+    label: 'Heatmap',
+    description: 'Show intensity across dimensions',
+    supportedMetrics: 1,
+    supportedDimensions: 2
+  },
+  {
+    value: 'table',
+    label: 'Table',
+    description: 'Tabular data display',
+    supportedMetrics: 0,
     supportedDimensions: 0
   }
 ];
