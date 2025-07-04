@@ -6,7 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Form } from '@/types/form';
 import { useFormAccess } from '@/hooks/useFormAccess';
-import { Lock, Send, ArrowLeft } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Lock, Send, ArrowLeft, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface FormAccessRequestProps {
@@ -18,6 +19,15 @@ export function FormAccessRequest({ form }: FormAccessRequestProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const { requestAccess } = useFormAccess(form.id);
+  const { userProfile } = useAuth();
+
+  // Determine the reason for access denial
+  const getAccessDenialReason = () => {
+    if (!userProfile?.organization_id || userProfile.organization_id !== form.organizationId) {
+      return "You are not a member of the organization that owns this form.";
+    }
+    return "This form requires specific permissions that you currently don't have.";
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,9 +79,20 @@ export function FormAccessRequest({ form }: FormAccessRequestProps) {
         <CardHeader className="text-center">
           <Lock className="h-16 w-16 text-orange-600 mx-auto mb-4" />
           <CardTitle className="text-2xl text-orange-600">Access Required</CardTitle>
-          <p className="text-muted-foreground">
-            This form requires permission to access. Request access from the form owner.
-          </p>
+          <div className="space-y-2">
+            <p className="text-muted-foreground">
+              {getAccessDenialReason()}
+            </p>
+            {userProfile?.organization_id !== form.organizationId && (
+              <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm">
+                <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                <p className="text-yellow-800">
+                  This form belongs to a different organization. You may need to contact your administrator 
+                  or request to join the correct organization first.
+                </p>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

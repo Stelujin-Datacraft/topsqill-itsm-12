@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -6,15 +6,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Building2, Mail, UserPlus } from 'lucide-react';
 
 const Auth = () => {
   const [activeTab, setActiveTab] = useState('signin');
-  const { signIn, signUp, registerOrganization, requestToJoinOrganization, isLoading } = useAuth();
+  const { signIn, signUp, registerOrganization, requestToJoinOrganization, isLoading, user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get('returnTo');
+
+  // Redirect authenticated users
+  useEffect(() => {
+    if (user && !isLoading) {
+      const redirectPath = returnTo || '/dashboard';
+      navigate(redirectPath, { replace: true });
+    }
+  }, [user, isLoading, navigate, returnTo]);
 
   // Sign in form state
   const [signInData, setSignInData] = useState({
@@ -57,7 +67,8 @@ const Auth = () => {
         title: "Welcome back!",
         description: "You have been successfully signed in.",
       });
-      navigate('/dashboard');
+      const redirectPath = returnTo || '/dashboard';
+      navigate(redirectPath, { replace: true });
     }
   };
 

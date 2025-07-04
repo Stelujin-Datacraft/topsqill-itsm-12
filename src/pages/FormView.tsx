@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFormWithFields } from '@/hooks/useFormWithFields';
+import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { PublicFormView } from '@/components/PublicFormView';
 import { FormAccessRequest } from '@/components/FormAccessRequest';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,47 +16,32 @@ const FormView = () => {
   const { id } = useParams<{ id: string }>();
   const { user, userProfile } = useAuth();
   const navigate = useNavigate();
-  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
-  const [accessLoading, setAccessLoading] = useState(true);
 
   // Load form with fields using the dedicated hook
   const { form, loading: formLoading, error: formError } = useFormWithFields(id);
+  
+  // Use unified access control for proper permission checking
+  const { hasPermission, loading: accessLoading, isOrgAdmin, isProjectAdmin } = useUnifiedAccessControl(form?.projectId);
 
-  const checkUserAccess = async () => {
-    if (!form || !user) {
-      setAccessLoading(false);
-      return;
-    }
-
-    try {
-      // Check if user has specific access to this form
-      const { data: userAccess, error } = await supabase
-        .from('form_user_access')
-        .select('*')
-        .eq('form_id', form.id)
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error checking user access:', error);
-      }
-
-      setHasAccess(!!userAccess);
-    } catch (error) {
-      console.error('Error checking user access:', error);
-      setHasAccess(false);
-    } finally {
-      setAccessLoading(false);
-    }
-  };
-
+  // Handle redirect to login for private forms
   useEffect(() => {
-    checkUserAccess();
-  }, [form, user]);
+    if (!user && form && !formLoading && !formError) {
+      // Check if form is public
+      const isPublic = form.permissions?.view?.includes?.('*') || 
+                       form.permissions?.submit?.includes?.('*') || 
+                       form.isPublic === true;
+      
+      if (!isPublic) {
+        // Form is private, redirect to login with return URL
+        const currentUrl = window.location.pathname;
+        navigate(`/auth?returnTo=${encodeURIComponent(currentUrl)}`, { replace: true });
+        return;
+      }
+    }
+  }, [user, form, formLoading, formError, navigate]);
 
-  // Show loading state while form is being loaded
-  if (formLoading) {
+  // Show loading state while form or access control is being loaded
+  if (formLoading || (user && accessLoading)) {
     return <FormLoadingView />;
   }
 
@@ -152,19 +138,19 @@ const FormView = () => {
     );
   }
 
-  // Check if form is public or user has access
+  // Determine form access based on unified access control and form properties
   const isPublic = form.permissions?.view?.includes?.('*') || 
                    form.permissions?.submit?.includes?.('*') || 
                    form.isPublic === true;
 
-  // Check if user is the form creator
   const isFormCreator = user?.id === form.createdBy;
   
-  // Allow access if form is public, user is form creator
-  const hasBasicAccess = isPublic || isFormCreator;
+  // Check permissions using unified access control
+  const hasFormReadAccess = user ? hasPermission('forms', 'read', form.id) : false;
+  const canAccessForm = isPublic || isFormCreator || hasFormReadAccess || isOrgAdmin || isProjectAdmin;
   
-  // If form has basic access and is active, OR if user is form creator, allow submission
-  if ((hasBasicAccess && form.status === 'active') || isFormCreator) {
+  // Allow submission if user has access and form is active, or if user is form creator/admin
+  if (canAccessForm && (form.status === 'active' || isFormCreator || isOrgAdmin || isProjectAdmin)) {
     const handleFormSubmit = (formData: Record<string, any>) => {
       console.log('Form submitted:', formData);
       // Here you would typically send the data to your backend
@@ -248,17 +234,13 @@ const FormView = () => {
     );
   }
 
-  if (accessLoading) {
-    return <FormLoadingView />;
-  }
-
-  // If user is logged in but doesn't have access, show access request form
-  if (!hasAccess) {
+  // If user is logged in but doesn't have access to private form, show access request form
+  if (user && !canAccessForm && !isPublic) {
     return <FormAccessRequest form={form} />;
   }
 
-  // User has access or is form creator, show the form
-  if (form.status !== 'active') {
+  // Show form unavailable message if form is inactive and user is not creator/admin
+  if (form.status !== 'active' && !isFormCreator && !isOrgAdmin && !isProjectAdmin) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="max-w-md mx-auto">
