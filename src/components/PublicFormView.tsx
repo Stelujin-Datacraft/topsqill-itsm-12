@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FormFieldsRenderer } from './FormFieldsRenderer';
+import { SmartFormLayoutRenderer } from './SmartFormLayoutRenderer';
 import { Form, FormField } from '@/types/form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -242,12 +242,12 @@ export function PublicFormView({ form, onSubmit, showNavigation = true }: Public
                 </div>
               )}
               
-              <FormFieldsRenderer
+              <SmartFormLayoutRenderer
                 fields={getCurrentPageFields()}
                 formData={formData}
                 errors={errors}
                 fieldStates={fieldStates}
-                columns={(form.layout?.columns as number) || 1}
+                columns={(form.layout?.columns as 1 | 2 | 3) || 1}
                 onFieldChange={handleFieldChange}
                 onSubmit={handleFormSubmit}
                 onSave={handleSave}
@@ -268,12 +268,12 @@ export function PublicFormView({ form, onSubmit, showNavigation = true }: Public
         )}
       </CardHeader>
       <CardContent>
-        <FormFieldsRenderer
+        <SmartFormLayoutRenderer
           fields={Array.isArray(form.fields) ? form.fields : []}
           formData={formData}
           errors={errors}
           fieldStates={fieldStates}
-          columns={(form.layout?.columns as number) || 1}
+          columns={(form.layout?.columns as 1 | 2 | 3) || 1}
           onFieldChange={handleFieldChange}
           onSubmit={handleFormSubmit}
           onSave={handleSave}
