@@ -54,6 +54,7 @@ export function PublicFormView({ form, onSubmit, showNavigation = true }: Public
     setFieldStates(initialStates);
   }, [form.fields]);
 
+
   const handleFieldChange = (fieldId: string, value: any) => {
     setFormData(prev => ({
       ...prev,

@@ -60,6 +60,8 @@ export function SmartFormLayoutRenderer({
                         columns === 2 ? 'grid-cols-1 md:grid-cols-2' : 
                         'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
         
+        
+        
         renderedElements.push(
           <div key={`standard-grid-${elementIndex++}`} className={`grid ${gridCols} gap-6`}>
             {standardFieldsBuffer.map(field => (
