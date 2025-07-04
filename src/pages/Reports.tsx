@@ -2,6 +2,7 @@
 import React from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { ReportsList } from '@/components/reports/ReportsList';
+import { CreateReportDialog } from '@/components/reports/CreateReportDialog';
 import { useReports } from '@/hooks/useReports';
 import { useNavigate } from 'react-router-dom';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
@@ -56,9 +57,8 @@ const Reports = () => {
   };
 
   const handleCreateReport = () => {
-    if (checkPermissionWithAlert('reports', 'create')) {
-      navigate('/report-editor/new');
-    }
+    // Permission check is handled inside CreateReportDialog
+    return checkPermissionWithAlert('reports', 'create');
   };
 
   const getReportPermissions = (report: Report) => ({
@@ -70,16 +70,25 @@ const Reports = () => {
   // Filter reports based on user's permissions
   const visibleReports = getVisibleResources('reports', reports);
 
+  const canCreateReport = hasPermission('reports', 'create');
+
   return (
     <DashboardLayout title="Reports">
-      <ReportsList
-        reports={visibleReports}
-        onView={handleViewReport}
-        onEdit={handleEditReport}
-        onDelete={handleDeleteReport}
-        onCreate={handleCreateReport}
-        getPermissions={getReportPermissions}
-      />
+      <div className="space-y-6">
+        {canCreateReport && (
+          <div className="flex justify-end">
+            <CreateReportDialog />
+          </div>
+        )}
+        <ReportsList
+          reports={visibleReports}
+          onView={handleViewReport}
+          onEdit={handleEditReport}
+          onDelete={handleDeleteReport}
+          onCreate={handleCreateReport}
+          getPermissions={getReportPermissions}
+        />
+      </div>
     </DashboardLayout>
   );
 };

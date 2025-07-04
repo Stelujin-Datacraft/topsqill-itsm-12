@@ -48,6 +48,26 @@ export function useReports() {
       .single();
 
     if (error) throw error;
+    
+    // Invalidate queries to refresh the reports list
+    await queryClient.invalidateQueries({ queryKey: ['reports'] });
+    
+    return data;
+  };
+
+  const updateReport = async (reportId: string, updates: { name?: string; description?: string }) => {
+    const { data, error } = await supabase
+      .from('reports')
+      .update(updates)
+      .eq('id', reportId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    // Invalidate queries to refresh the reports list
+    await queryClient.invalidateQueries({ queryKey: ['reports'] });
+    
     return data;
   };
 
@@ -148,6 +168,7 @@ export function useReports() {
     forms,
     refetchReports,
     createReport,
+    updateReport,
     deleteReport,
     loadReports,
     fetchReportComponents,

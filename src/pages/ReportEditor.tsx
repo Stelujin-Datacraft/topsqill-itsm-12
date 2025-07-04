@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 const ReportEditorPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { reports, createReport } = useReports();
+  const { reports, updateReport } = useReports();
   const { toast } = useToast();
   
   const [report, setReport] = useState<Report | null>(null);
@@ -28,19 +28,10 @@ const ReportEditorPage = () => {
     try {
       setLoading(true);
       
-      // Handle "new" report creation
+      // Handle "new" report creation - redirect to reports page
       if (id === 'new') {
-        setReport({
-          id: 'new',
-          name: 'New Report',
-          description: '',
-          project_id: '',
-          organization_id: '',
-          created_by: '',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          is_public: false
-        });
+        navigate('/reports');
+        return;
       } else {
         const foundReport = reports.find(r => r.id === id);
         if (foundReport) {
@@ -60,33 +51,23 @@ const ReportEditorPage = () => {
   };
 
   const handleSave = async () => {
-    console.log("CALLING HANDLE SAVE ")
-    if (!report) return;
+    if (!report || !id || id === 'new') {
+      toast({
+        title: "Error",
+        description: "Cannot save report. Please create the report first.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
-      if (id === 'new') {
-            console.log("ID NEW")
-        // Create new report
-        const newReport = await createReport({
-          name: report.name,
-          description: report.description || ''
-        });
-            console.log("NEW REPORT CREATED ")
-        if (newReport) {
-              console.log("UPDATING REPORT") 
-              
-          // Update the local report state with the new report data
-          setReport(newReport);
-          toast({
-            title: "Success",
-            description: "Report created successfully",
-          });
-          // Navigate to the newly created report
-          navigate(`/report-editor/${newReport.id}`, { replace: true });
-        }
-      } else {
-                      console.log("NOT NEW REPRT SO UPDATING REPORT ONLY TOAST")
-        // Update existing report logic would go here
+      const updatedReport = await updateReport(id, {
+        name: report.name,
+        description: report.description || ''
+      });
+
+      if (updatedReport) {
+        setReport(updatedReport);
         toast({
           title: "Success",
           description: "Report saved successfully",
