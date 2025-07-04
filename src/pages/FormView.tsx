@@ -11,7 +11,6 @@ import { AlertCircle, LogIn, ArrowLeft, Home, HelpCircle, Info } from 'lucide-re
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { FormLoadingView } from '@/components/FormLoadingView';
-import DashboardLayout from '@/components/DashboardLayout';
 
 const FormView = () => {
   const { id } = useParams<{ id: string }>();
@@ -158,13 +157,15 @@ const FormView = () => {
     };
 
     return (
-      <DashboardLayout title={form.name}>
-        <PublicFormView 
-          form={form} 
-          onSubmit={handleFormSubmit}
-          showNavigation={false}
-        />
-      </DashboardLayout>
+      <div className="min-h-screen bg-gray-50 py-12 px-4">
+        <div className="max-w-7xl mx-auto">
+          <PublicFormView 
+            form={form} 
+            onSubmit={handleFormSubmit}
+            showNavigation={true}
+          />
+        </div>
+      </div>
     );
   }
 
@@ -294,13 +295,15 @@ const FormView = () => {
   };
 
   return (
-    <DashboardLayout title={form.name}>
-      <PublicFormView 
-        form={form} 
-        onSubmit={handleFormSubmit}
-        showNavigation={false}
-      />
-    </DashboardLayout>
+    <div className="min-h-screen bg-gray-50 py-12 px-4">
+      <div className="max-w-7xl mx-auto">
+        <PublicFormView 
+          form={form} 
+          onSubmit={handleFormSubmit}
+          showNavigation={true}
+        />
+      </div>
+    </div>
   );
 };
 
