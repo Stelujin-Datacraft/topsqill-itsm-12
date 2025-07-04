@@ -320,44 +320,41 @@ function FormBuilderContent({ formId }: FormBuilderProps) {
       <div className="min-h-screen bg-gray-50">
         {/* Header Section */}
         <div className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">
-                {state.isCreating ? 'Create New Form' : `Edit: ${workingForm?.name || 'Loading...'}`}
-              </h1>
-              {snapshot.isDirty && (
-                <p className="text-sm text-orange-600 mt-1">
-                  Unsaved changes - Click save to persist to database
-                </p>
-              )}
-            </div>
-            <div className="flex gap-2">
-              {snapshot.isDirty && (
-                <Button
-                  variant="outline"
-                  onClick={resetSnapshot}
-                  disabled={state.isSaving || state.isPublishing}
-                >
-                  Discard Changes
-                </Button>
-              )}
-              <Button
-                onClick={() => handleSave(false)}
-                disabled={state.isSaving || state.isPublishing || !snapshot.isDirty}
-                className="flex items-center gap-2"
-              >
-                <Save className="h-4 w-4" />
-                {state.isSaving ? 'Saving...' : 'Save Form'}
-              </Button>
-              <Button
-                onClick={() => handleSave(true)}
-                disabled={state.isSaving || state.isPublishing || !workingForm}
-                variant="default"
-              >
-                {state.isPublishing ? 'Publishing...' : 'Publish'}
-              </Button>
-            </div>
+          <div className="mb-2">
+            <h1 className="text-2xl font-bold">
+              {state.isCreating ? 'Create New Form' : `Edit: ${workingForm?.name || 'Loading...'}`}
+            </h1>
+            {snapshot.isDirty && (
+              <p className="text-sm text-orange-600 mt-1">
+                Unsaved changes - Click save to persist to database
+              </p>
+            )}
           </div>
+          <FormBuilderHeader
+            onSave={handleSave}
+            isSaving={state.isSaving}
+            isPublishing={state.isPublishing}
+            isCreating={state.isCreating}
+            currentForm={workingForm}
+            formStatus={workingForm?.status || state.formStatus}
+            onStatusChange={handleStatusChange}
+            onUpdateForm={(updates) => {
+              if (currentForm) {
+                updateForm(currentForm.id, updates);
+              }
+            }}
+          />
+          {snapshot.isDirty && (
+            <div className="flex gap-2 mt-3">
+              <Button
+                variant="outline"
+                onClick={resetSnapshot}
+                disabled={state.isSaving || state.isPublishing}
+              >
+                Discard Changes
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Main Content */}
