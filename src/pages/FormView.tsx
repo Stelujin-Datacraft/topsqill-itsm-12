@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { useForm } from '@/contexts/FormContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFormWithFields } from '@/hooks/useFormWithFields';
 import { PublicFormView } from '@/components/PublicFormView';
 import { FormAccessRequest } from '@/components/FormAccessRequest';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,20 +9,21 @@ import { Button } from '@/components/ui/button';
 import { AlertCircle, LogIn, ArrowLeft, Home, HelpCircle, Info } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { FormLoadingView } from '@/components/FormLoadingView';
 
 const FormView = () => {
   const { id } = useParams<{ id: string }>();
-  const { getFormById } = useForm();
   const { user, userProfile } = useAuth();
   const navigate = useNavigate();
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [accessLoading, setAccessLoading] = useState(true);
 
-  const form = id ? getFormById(id) : null;
+  // Load form with fields using the dedicated hook
+  const { form, loading: formLoading, error: formError } = useFormWithFields(id);
 
   const checkUserAccess = async () => {
     if (!form || !user) {
-      setLoading(false);
+      setAccessLoading(false);
       return;
     }
 
@@ -45,13 +46,46 @@ const FormView = () => {
       console.error('Error checking user access:', error);
       setHasAccess(false);
     } finally {
-      setLoading(false);
+      setAccessLoading(false);
     }
   };
 
   useEffect(() => {
     checkUserAccess();
   }, [form, user]);
+
+  // Show loading state while form is being loaded
+  if (formLoading) {
+    return <FormLoadingView />;
+  }
+
+  // Show error if there was an error loading the form
+  if (formError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md mx-auto">
+          <Card>
+            <CardContent className="text-center py-12">
+              <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-red-600 mb-2">Error Loading Form</h2>
+              <p className="text-muted-foreground mb-6">
+                {formError}
+              </p>
+              
+              <div className="space-y-3">
+                <Link to="/" className="block">
+                  <Button className="w-full">
+                    <Home className="h-4 w-4 mr-2" />
+                    Go to Homepage
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   // Themed error page for form not found
   if (!form) {
@@ -214,12 +248,8 @@ const FormView = () => {
     );
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div>Loading...</div>
-      </div>
-    );
+  if (accessLoading) {
+    return <FormLoadingView />;
   }
 
   // If user is logged in but doesn't have access, show access request form

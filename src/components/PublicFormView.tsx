@@ -25,10 +25,10 @@ export function PublicFormView({ form, onSubmit, showNavigation = true }: Public
   const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(null);
   const [navigationVisible, setNavigationVisible] = useState(showNavigation);
 
-  // Initialize pages
-  const pages = form.pages || [
-    { id: 'default', name: 'Page 1', order: 0, fields: form.fields.map(f => f.id) }
-  ];
+  // Initialize pages with proper type checking
+  const pages = Array.isArray(form.pages) && form.pages.length > 0 
+    ? form.pages 
+    : [{ id: 'default', name: 'Page 1', order: 0, fields: form.fields?.map(f => f.id) || [] }];
 
   useEffect(() => {
     if (pages.length > 0 && !currentPageId) {
@@ -39,16 +39,18 @@ export function PublicFormView({ form, onSubmit, showNavigation = true }: Public
   // Initialize field states
   useEffect(() => {
     const initialStates: Record<string, any> = {};
-    form.fields.forEach(field => {
-      initialStates[field.id] = {
-        isVisible: field.isVisible ?? true,
-        isEnabled: field.isEnabled ?? true,
-        label: field.label,
-        options: field.options,
-        tooltip: field.tooltip,
-        errorMessage: field.errorMessage,
-      };
-    });
+    if (Array.isArray(form.fields)) {
+      form.fields.forEach(field => {
+        initialStates[field.id] = {
+          isVisible: field.isVisible ?? true,
+          isEnabled: field.isEnabled ?? true,
+          label: field.label,
+          options: field.options,
+          tooltip: field.tooltip,
+          errorMessage: field.errorMessage,
+        };
+      });
+    }
     setFieldStates(initialStates);
   }, [form.fields]);
 
@@ -71,7 +73,8 @@ export function PublicFormView({ form, onSubmit, showNavigation = true }: Public
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    form.fields.forEach(field => {
+    if (Array.isArray(form.fields)) {
+      form.fields.forEach(field => {
       const value = formData[field.id];
       const fieldState = fieldStates[field.id];
 
@@ -107,7 +110,8 @@ export function PublicFormView({ form, onSubmit, showNavigation = true }: Public
           }
         }
       }
-    });
+      });
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -142,12 +146,12 @@ export function PublicFormView({ form, onSubmit, showNavigation = true }: Public
   };
 
   const getCurrentPageFields = () => {
-    if (!currentPageId || pages.length === 0) return form.fields;
+    if (!currentPageId || pages.length === 0) return Array.isArray(form.fields) ? form.fields : [];
     
     const currentPage = pages.find(p => p.id === currentPageId);
-    if (!currentPage) return form.fields;
+    if (!currentPage) return Array.isArray(form.fields) ? form.fields : [];
     
-    return form.fields.filter(field => currentPage.fields.includes(field.id));
+    return Array.isArray(form.fields) ? form.fields.filter(field => currentPage.fields.includes(field.id)) : [];
   };
 
   const handlePageChange = (pageId: string) => {
@@ -204,7 +208,7 @@ export function PublicFormView({ form, onSubmit, showNavigation = true }: Public
         <div className={navigationVisible ? "lg:col-span-1" : ""}>
           <FormNavigationPanel
             pages={pages}
-            fields={form.fields}
+            fields={Array.isArray(form.fields) ? form.fields : []}
             currentPageId={currentPageId}
             selectedField={selectedField}
             onPageChange={handlePageChange}
@@ -265,7 +269,7 @@ export function PublicFormView({ form, onSubmit, showNavigation = true }: Public
       </CardHeader>
       <CardContent>
         <FormFieldsRenderer
-          fields={form.fields}
+          fields={Array.isArray(form.fields) ? form.fields : []}
           formData={formData}
           errors={errors}
           fieldStates={fieldStates}
