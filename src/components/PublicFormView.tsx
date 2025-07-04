@@ -184,6 +184,98 @@ export function PublicFormView({ form, onSubmit, showNavigation = true }: Public
     }
   };
 
+  // Enhanced field rendering logic for proper layout handling (from FormPreview.tsx)
+  const renderFieldsWithSmartLayout = () => {
+    const currentFields = getCurrentPageFields();
+    const columns = (form.layout?.columns as 1 | 2 | 3) || 1;
+    const renderedElements: React.ReactNode[] = [];
+    let standardFieldsBuffer: FormField[] = [];
+    let elementIndex = 0;
+
+    // Check if field is full-width based on type or explicit setting
+    const isFullWidthField = (field: FormField) => {
+      const fullWidthTypes = [
+        'header', 
+        'description', 
+        'section-break', 
+        'horizontal-line', 
+        'rich-text', 
+        'record-table', 
+        'matrix-grid',
+        'full-width-container'
+      ];
+      return fullWidthTypes.includes(field.type) || field.isFullWidth || field.fieldCategory === 'full-width';
+    };
+
+    // Flush standard fields into a proper grid
+    const flushStandardFields = () => {
+      if (standardFieldsBuffer.length > 0) {
+        const gridCols = columns === 1 ? 'grid-cols-1' : 
+                        columns === 2 ? 'grid-cols-1 md:grid-cols-2' : 
+                        'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+        
+        renderedElements.push(
+          <div key={`standard-grid-${elementIndex++}`} className={`grid ${gridCols} gap-6`}>
+            {standardFieldsBuffer.map(field => (
+              <div key={field.id} className="space-y-2">
+                <SmartFormLayoutRenderer
+                  fields={[field]}
+                  formData={formData}
+                  errors={errors}
+                  fieldStates={fieldStates}
+                  columns={1}
+                  onFieldChange={handleFieldChange}
+                  onSubmit={handleFormSubmit}
+                  onSave={handleSave}
+                  showButtons={false}
+                />
+              </div>
+            ))}
+          </div>
+        );
+        standardFieldsBuffer = [];
+      }
+    };
+
+    // Process each field with smart layout logic
+    currentFields.forEach((field) => {
+      const fieldState = fieldStates[field.id];
+      const isVisible = fieldState?.isVisible ?? field.isVisible ?? true;
+
+      if (!isVisible) return;
+
+      if (isFullWidthField(field)) {
+        // Flush any buffered standard fields first
+        flushStandardFields();
+        
+        // Render full-width field in its own container
+        renderedElements.push(
+          <div key={`fullwidth-${field.id}`} className="w-full">
+            <SmartFormLayoutRenderer
+              fields={[field]}
+              formData={formData}
+              errors={errors}
+              fieldStates={fieldStates}
+              columns={1}
+              onFieldChange={handleFieldChange}
+              onSubmit={handleFormSubmit}
+              onSave={handleSave}
+              showButtons={false}
+            />
+          </div>
+        );
+      } else {
+        // Buffer standard field for grid layout
+        standardFieldsBuffer.push(field);
+      }
+    });
+
+    // Flush any remaining standard fields
+    flushStandardFields();
+
+    return renderedElements;
+  };
+
   if (isSubmitted) {
     return (
       <Card>
@@ -243,16 +335,25 @@ export function PublicFormView({ form, onSubmit, showNavigation = true }: Public
                 </div>
               )}
               
-              <SmartFormLayoutRenderer
-                fields={getCurrentPageFields()}
-                formData={formData}
-                errors={errors}
-                fieldStates={fieldStates}
-                columns={(form.layout?.columns as 1 | 2 | 3) || 1}
-                onFieldChange={handleFieldChange}
-                onSubmit={handleFormSubmit}
-                onSave={handleSave}
-              />
+              <div className="space-y-8">
+                {renderFieldsWithSmartLayout()}
+                <div className="flex flex-col sm:flex-row gap-3 justify-end pt-6">
+                  <button
+                    type="button"
+                    onClick={() => handleSave(formData)}
+                    className="px-6 py-2 text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-md transition-colors duration-200"
+                  >
+                    Save Draft
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleFormSubmit(formData)}
+                    className="px-6 py-2 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors duration-200"
+                  >
+                    Submit Form
+                  </button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -269,16 +370,25 @@ export function PublicFormView({ form, onSubmit, showNavigation = true }: Public
         )}
       </CardHeader>
       <CardContent>
-        <SmartFormLayoutRenderer
-          fields={Array.isArray(form.fields) ? form.fields : []}
-          formData={formData}
-          errors={errors}
-          fieldStates={fieldStates}
-          columns={(form.layout?.columns as 1 | 2 | 3) || 1}
-          onFieldChange={handleFieldChange}
-          onSubmit={handleFormSubmit}
-          onSave={handleSave}
-        />
+        <div className="space-y-8">
+          {renderFieldsWithSmartLayout()}
+          <div className="flex flex-col sm:flex-row gap-3 justify-end pt-6">
+            <button
+              type="button"
+              onClick={() => handleSave(formData)}
+              className="px-6 py-2 text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-md transition-colors duration-200"
+            >
+              Save Draft
+            </button>
+            <button
+              type="button"
+              onClick={() => handleFormSubmit(formData)}
+              className="px-6 py-2 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors duration-200"
+            >
+              Submit Form
+            </button>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
