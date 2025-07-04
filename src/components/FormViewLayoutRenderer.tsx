@@ -352,7 +352,7 @@ export function FormViewLayoutRenderer({
     }, 3000);
   };
 
-  // Enhanced field rendering logic for proper layout handling
+  // Enhanced field rendering logic for proper layout handling - EXACT COPY from FormPreview
   const renderFieldsWithSmartLayout = () => {
     const currentFields = getCurrentPageFields();
     const columns = (form.layout?.columns as 1 | 2 | 3) || 1;
@@ -362,16 +362,7 @@ export function FormViewLayoutRenderer({
 
     // Check if field is full-width based on type or explicit setting
     const isFullWidthField = (field: FormField) => {
-      const fullWidthTypes = [
-        'header', 
-        'description', 
-        'section-break', 
-        'horizontal-line', 
-        'rich-text', 
-        'record-table', 
-        'matrix-grid',
-        'full-width-container'
-      ];
+      const fullWidthTypes = ['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'record-table', 'matrix-grid'];
       return fullWidthTypes.includes(field.type) || field.isFullWidth || field.fieldCategory === 'full-width';
     };
 
