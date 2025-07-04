@@ -158,8 +158,9 @@ const FormView = () => {
   // Show submission success if form was submitted
   if (submissionResult) {
     return (
-      <div className="min-h-screen bg-gray-50 py-12 px-4">
-        <PublicHeader />
+   <div className="min-h-screen bg-background">
+      <PublicHeader /> 
+<div className="min-h-screen bg-gray-50 py-12 px-4">
         <div className="max-w-7xl mx-auto">
           <FormSubmissionSuccess 
             submissionRefId={submissionResult.submissionRefId}
@@ -168,7 +169,7 @@ const FormView = () => {
             onClose={() => setSubmissionResult(null)}
           />
         </div>
-      </div>
+      </div></div>
     );
   }
 
@@ -184,8 +185,9 @@ const FormView = () => {
     };
 
     return (
+         <div className="min-h-screen bg-background">
+      <PublicHeader /> 
       <div className="min-h-screen bg-gray-50 py-12 px-4">
-        <PublicHeader />
         <div className="max-w-7xl mx-auto">
           <FormViewLayoutRenderer 
             form={form}
@@ -194,7 +196,7 @@ const FormView = () => {
             showPublicHeader={false}
           />
         </div>
-      </div>
+      </div>      </div>
     );
   }
 
@@ -328,8 +330,10 @@ const FormView = () => {
   };
 
   return (
+               <div className="min-h-screen bg-background">
+      <PublicHeader /> 
     <div className="min-h-screen bg-gray-50 py-12 px-4">
-      <PublicHeader />
+     
       <div className="max-w-7xl mx-auto">
         <FormViewLayoutRenderer 
           form={form}
@@ -338,7 +342,7 @@ const FormView = () => {
           showPublicHeader={false}
         />
       </div>
-    </div>
+    </div>    </div>
   );
 };
 
