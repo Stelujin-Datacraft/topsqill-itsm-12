@@ -71,12 +71,14 @@ const ReportEditorPage = () => {
         });
         
         if (newReport) {
+          // Update the local report state with the new report data
+          setReport(newReport);
           toast({
             title: "Success",
             description: "Report created successfully",
           });
           // Navigate to the newly created report
-          navigate(`/report-editor/${newReport.id}`);
+          navigate(`/report-editor/${newReport.id}`, { replace: true });
         }
       } else {
         // Update existing report logic would go here
