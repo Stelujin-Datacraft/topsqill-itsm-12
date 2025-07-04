@@ -11,7 +11,7 @@ import { AlertCircle, LogIn, ArrowLeft, Home, HelpCircle, Info } from 'lucide-re
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { FormLoadingView } from '@/components/FormLoadingView';
-
+import { PublicHeader } from '@/components/PublicHeader';
 const FormView = () => {
   const { id } = useParams<{ id: string }>();
   const { user, userProfile } = useAuth();
@@ -158,6 +158,8 @@ const FormView = () => {
 
     return (
       <div className="min-h-screen bg-gray-50 py-12 px-4">
+      
+              <PublicHeader />
         <div className="max-w-7xl mx-auto">
           <FormPreview 
             form={form} 
@@ -295,6 +297,7 @@ const FormView = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
+            <PublicHeader />
       <div className="max-w-7xl mx-auto">
         <FormPreview 
           form={form} 
