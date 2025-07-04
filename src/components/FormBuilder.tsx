@@ -19,6 +19,7 @@ import {
   Users,
   Database,
   Settings,
+  Save,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -28,10 +29,12 @@ import { FormDetailsPanel } from './FormBuilder/FormDetailsPanel';
 import { FieldTypesPanel } from './FormBuilder/FieldTypesPanel';
 import { FieldPropertiesDialog } from './FormBuilder/FieldPropertiesDialog';
 import { useFormBuilderState } from './FormBuilder/hooks/useFormBuilderState';
-import { useFieldOperations } from './FormBuilder/hooks/useFieldOperations';
+import { useOptimizedFieldOperations } from './FormBuilder/hooks/useOptimizedFieldOperations';
 import { FormBuilderProps } from './FormBuilder/types/formBuilder';
+import { FormSnapshotProvider, useFormSnapshotContext } from './FormBuilder/contexts/FormSnapshotContext';
+import { Button } from '@/components/ui/button';
 
-export function FormBuilder({ formId }: FormBuilderProps) {
+function FormBuilderContent({ formId }: FormBuilderProps) {
   const navigate = useNavigate();
   const { forms, createForm, updateForm, addField, deleteField, updateField, reorderFields, loading, loadForms } = useFormsData();
   const { userProfile } = useAuth();
@@ -39,13 +42,36 @@ export function FormBuilder({ formId }: FormBuilderProps) {
 
   // Find current form
   const currentForm = formId ? forms.find(f => f.id === formId) : null;
+  
+  // Use snapshot context
+  const {
+    snapshot,
+    initializeSnapshot,
+    updateFormDetails,
+    updateFieldInSnapshot,
+    addPageToSnapshot,
+    updatePageInSnapshot,
+    deletePageFromSnapshot,
+    markAsSaved,
+    resetSnapshot
+  } = useFormSnapshotContext();
 
   // State management
   const state = useFormBuilderState(currentForm, formId);
 
-  const pages: FormPage[] = currentForm?.pages || [
-    { id: 'default', name: 'Page 1', order: 0, fields: currentForm?.fields.map(f => f.id) || [] }
+  // Use snapshot data or fallback to current form
+  const workingForm = snapshot.form || currentForm;
+  const pages: FormPage[] = workingForm?.pages || [
+    { id: 'default', name: 'Page 1', order: 0, fields: workingForm?.fields.map(f => f.id) || [] }
   ];
+
+  // Initialize snapshot when form loads
+  useEffect(() => {
+    if (currentForm && !snapshot.isInitialized) {
+      console.log('Initializing form snapshot:', currentForm);
+      initializeSnapshot(currentForm);
+    }
+  }, [currentForm, snapshot.isInitialized, initializeSnapshot]);
 
   // Initialize current page and ensure Page 1 exists for new forms
   useEffect(() => {
@@ -55,28 +81,27 @@ export function FormBuilder({ formId }: FormBuilderProps) {
     } else if (pages.length > 0 && !state.currentPageId) {
       console.log('Setting initial page:', pages[0].id);
       state.setCurrentPageId(pages[0].id);
-    } else if (!state.isCreating && currentForm && pages.length === 0) {
+    } else if (!state.isCreating && workingForm && pages.length === 0) {
       // If form exists but has no pages, create Page 1 automatically
       handleAddPage();
     }
-  }, [pages, state.currentPageId, state.isCreating, currentForm]);
+  }, [pages, state.currentPageId, state.isCreating, workingForm]);
 
-  // Update selected field when form changes
+  // Update selected field when snapshot changes
   useEffect(() => {
-    if (state.selectedField && currentForm) {
-      const updatedField = currentForm.fields.find(f => f.id === state.selectedField.id);
+    if (state.selectedField && workingForm) {
+      const updatedField = workingForm.fields.find(f => f.id === state.selectedField.id);
       if (updatedField) {
-        console.log("-------------------------------------------------------------------------------------------------");
-        console.log("----------------",updatedField);
+        console.log("Field updated in snapshot:", updatedField);
         state.setSelectedField(updatedField);
       }
     }
-  }, [currentForm?.fields, state.selectedField?.id]);
+  }, [workingForm?.fields, state.selectedField?.id]);
 
-  // Get current page fields safely
+  // Get current page fields safely from snapshot
   const getCurrentPageFields = () => {
-    if (!state.currentPageId || !currentForm) {
-      console.log('No current page or form:', { currentPageId: state.currentPageId, hasForm: !!currentForm });
+    if (!state.currentPageId || !workingForm) {
+      console.log('No current page or form:', { currentPageId: state.currentPageId, hasForm: !!workingForm });
       return [];
     }
     
@@ -86,7 +111,7 @@ export function FormBuilder({ formId }: FormBuilderProps) {
       return [];
     }
     
-    const pageFields = currentForm.fields.filter(field => {
+    const pageFields = workingForm.fields.filter(field => {
       // Check if field is explicitly assigned to this page
       if (field.pageId === state.currentPageId) return true;
       // Check if field is in the page's field list
@@ -96,10 +121,10 @@ export function FormBuilder({ formId }: FormBuilderProps) {
       return false;
     });
     
-    console.log('Current page fields:', {
+    console.log('Current page fields from snapshot:', {
       pageId: state.currentPageId,
       page: currentPage,
-      allFields: currentForm.fields.length,
+      allFields: workingForm.fields.length,
       pageFields: pageFields.length,
       fieldIds: pageFields.map(f => f.id)
     });
@@ -109,55 +134,45 @@ export function FormBuilder({ formId }: FormBuilderProps) {
 
   const currentPageFields = getCurrentPageFields();
 
-  // Refresh form data function
-  const refreshFormData = async () => {
-    console.log('Refreshing form data...');
-    if (loadForms) {
-      await loadForms();
+  // Handle form creation for optimized operations
+  const handleCreateForm = async (formData: any) => {
+    const newForm = await createForm(formData);
+    if (newForm) {
+      initializeSnapshot(newForm);
+      navigate(`/form-builder/${newForm.id}`, { replace: true });
     }
+    return newForm;
   };
 
-  // Field operations with proper error handling and refresh capability
-  const fieldOperations = useFieldOperations(
-    currentForm,
+  // Field operations with optimized snapshot handling
+  const fieldOperations = useOptimizedFieldOperations(
     state.currentPageId,
     pages,
     state.formName,
     state.formDescription,
     state.columnLayout,
     state.setIsCreating,
-    state.setIsSaving,
     state.setSelectedField,
     state.setShowFieldProperties,
     state.setHighlightedFieldId,
-    updateForm,
-    refreshFormData
+    handleCreateForm
   );
 
-  // Safe save handler
+  // Optimized save handler - saves snapshot to database
   const handleSave = async (shouldPublish = false) => {
-    if (!state.formName.trim()) {
+    if (!snapshot.form) {
+      toast({
+        title: "No form to save",
+        description: "Please create a form first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!snapshot.form.name.trim()) {
       toast({
         title: "Form name required",
         description: "Please enter a name for your form.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!userProfile?.organization_id) {
-      toast({
-        title: "Organization required",
-        description: "You must be part of an organization to create forms.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!currentProject) {
-      toast({
-        title: "Project required",
-        description: "Please select a project before creating forms.",
         variant: "destructive",
       });
       return;
@@ -167,52 +182,41 @@ export function FormBuilder({ formId }: FormBuilderProps) {
       shouldPublish ? state.setIsPublishing(true) : state.setIsSaving(true);
 
       const formUpdates = {
-        name: state.formName,
-        description: state.formDescription,
-        layout: { columns: state.columnLayout },
-        pages: pages,
-        status: shouldPublish ? 'active' as const : state.formStatus,
-        projectId: currentProject.id,
+        name: snapshot.form.name,
+        description: snapshot.form.description,
+        layout: snapshot.form.layout,
+        pages: snapshot.form.pages,
+        status: shouldPublish ? 'active' as const : snapshot.form.status,
       };
 
       if (currentForm) {
+        // Update existing form with all snapshot data
         await updateForm(currentForm.id, formUpdates);
+        
+        // Save all field changes
+        for (const field of snapshot.form.fields) {
+          if (currentForm.fields.find(f => f.id === field.id)) {
+            await updateField(field.id, field);
+          } else {
+            await addField(currentForm.id, field);
+          }
+        }
+
+        // Delete removed fields
+        for (const oldField of currentForm.fields) {
+          if (!snapshot.form.fields.find(f => f.id === oldField.id)) {
+            await deleteField(oldField.id);
+          }
+        }
+
+        markAsSaved();
+        
         toast({
-          title: shouldPublish ? "Form published" : "Form updated",
+          title: shouldPublish ? "Form published" : "Form saved",
           description: shouldPublish 
             ? "Your form has been published successfully and is now live." 
-            : "Your form changes have been saved successfully.",
+            : "All changes have been saved to the database.",
         });
-      } else {
-        const newForm = await createForm({
-          ...formUpdates,
-          organizationId: userProfile.organization_id,
-          projectId: currentProject.id,
-          status: shouldPublish ? 'active' : 'draft',
-          createdBy: userProfile.email,
-          isPublic: false,
-          permissions: {
-            view: ['*'],
-            submit: ['*'],
-            edit: ['admin']
-          },
-          shareSettings: { allowPublicAccess: false, sharedUsers: [] },
-          fieldRules: [],
-          formRules: [],
-          // Ensure default page exists for new forms
-          pages: pages.length === 0 ? [{ id: 'default', name: 'Page 1', order: 0, fields: [] }] : pages,
-        });
-
-        if (newForm) {
-          state.setIsCreating(false);
-          navigate(`/form-builder/${newForm.id}`, { replace: true });
-          toast({
-            title: shouldPublish ? "Form created and published" : "Form created",
-            description: shouldPublish 
-              ? "Your new form has been created and published successfully."
-              : "Your new form has been created successfully.",
-          });
-        }
       }
     } catch (error) {
       console.error('Error saving form:', error);
@@ -227,71 +231,33 @@ export function FormBuilder({ formId }: FormBuilderProps) {
     }
   };
 
-  // Safe status change handler
+  // Status change handler for snapshot
   const handleStatusChange = async (newStatus: Form['status']) => {
-    if (!currentForm) return;
+    if (!snapshot.form) return;
     
     state.setFormStatus(newStatus);
-    try {
-      await updateForm(currentForm.id, { status: newStatus });
-      toast({
-        title: "Status updated",
-        description: `Form status has been changed to ${newStatus}.`,
-      });
-    } catch (error) {
-      console.error('Error updating status:', error);
-      toast({
-        title: "Error updating status",
-        description: "Failed to update form status. Please try again.",
-        variant: "destructive",
-      });
-    }
+    updateFormDetails({ status: newStatus });
   };
 
-  // Safe field configuration save
+  // Optimized field configuration save (instant update)
   const handleSaveFieldConfiguration = async (fieldId: string, updates: Partial<FormField>) => {
-    if (!currentForm) return;
+    if (!snapshot.form) return;
     
-    state.setSavingFieldConfig(fieldId);
+    // Update in snapshot immediately
+    updateFieldInSnapshot(fieldId, updates);
     
-    try {
-      await updateField(fieldId, updates);
-      
-      if (state.selectedField && state.selectedField.id === fieldId) {
-        const updatedField = currentForm.fields.find(f => f.id === fieldId);
-        if (updatedField) {
-          state.setSelectedField({ ...updatedField, ...updates });
-        }
-      }
-      
-      toast({
-        title: "Configuration saved",
-        description: "Field configuration has been saved successfully.",
-      });
-    } catch (error) {
-      console.error('Error saving field configuration:', error);
-      toast({
-        title: "Error saving configuration",
-        description: "Failed to save field configuration. Please try again.",
-        variant: "destructive",
-      });
-      throw error;
-    } finally {
-      state.setSavingFieldConfig(null);
+    if (state.selectedField && state.selectedField.id === fieldId) {
+      state.setSelectedField({ ...state.selectedField, ...updates });
     }
+    
+    toast({
+      title: "Configuration updated",
+      description: "Field configuration updated. Save form to persist changes.",
+    });
   };
 
-  // Add page handler
+  // Optimized add page handler
   const handleAddPage = async () => {
-    if (!currentForm) {
-      toast({
-        title: "Save form first",
-        description: "Please save your form before adding pages.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     const newPageId = `page-${Date.now()}`;
     const newPage: FormPage = {
       id: newPageId,
@@ -300,54 +266,28 @@ export function FormBuilder({ formId }: FormBuilderProps) {
       fields: []
     };
 
-    const updatedPages = [...pages, newPage];
+    addPageToSnapshot(newPage);
+    state.setCurrentPageId(newPageId);
     
-    try {
-      await updateForm(currentForm.id, { pages: updatedPages });
-      state.setCurrentPageId(newPageId);
-      toast({
-        title: "Page added",
-        description: "New page has been added successfully.",
-      });
-    } catch (error) {
-      console.error('Error adding page:', error);
-      toast({
-        title: "Error adding page",
-        description: "Failed to add new page. Please try again.",
-        variant: "destructive",
-      });
-    }
+    toast({
+      title: "Page added",
+      description: "New page has been added. Save form to persist changes.",
+    });
   };
 
-  // Handle page rename
+  // Optimized page rename handler
   const handlePageRename = async (pageId: string, newName: string) => {
-    if (!currentForm) return;
-
-    const updatedPages = pages.map(page => 
-      page.id === pageId ? { ...page, name: newName } : page
-    );
-
-    try {
-      await updateForm(currentForm.id, { pages: updatedPages });
-      await refreshFormData();
-      toast({
-        title: "Page renamed",
-        description: "Page has been renamed successfully.",
-      });
-    } catch (error) {
-      console.error('Error renaming page:', error);
-      toast({
-        title: "Error renaming page",
-        description: "Failed to rename page. Please try again.",
-        variant: "destructive",
-      });
-      throw error;
-    }
+    updatePageInSnapshot(pageId, { name: newName });
+    
+    toast({
+      title: "Page renamed",
+      description: "Page has been renamed. Save form to persist changes.",
+    });
   };
 
-  // Handle page delete
+  // Optimized page delete handler
   const handlePageDelete = async (pageId: string) => {
-    if (!currentForm || pages.length <= 1) return;
+    if (pages.length <= 1) return;
 
     const pageToDelete = pages.find(p => p.id === pageId);
     if (!pageToDelete) return;
@@ -355,45 +295,16 @@ export function FormBuilder({ formId }: FormBuilderProps) {
     const firstPage = pages.find(p => p.id !== pageId);
     if (!firstPage) return;
 
-    const updatedPages = pages
-      .filter(p => p.id !== pageId)
-      .map(page => {
-        if (page.id === firstPage.id) {
-          return { ...page, fields: [...page.fields, ...pageToDelete.fields] };
-        }
-        return page;
-      });
+    deletePageFromSnapshot(pageId);
 
-    const fieldsToUpdate = currentForm.fields.filter(field => 
-      pageToDelete.fields.includes(field.id)
-    );
-
-    try {
-      await updateForm(currentForm.id, { pages: updatedPages });
-
-      for (const field of fieldsToUpdate) {
-        await updateField(field.id, { pageId: firstPage.id });
-      }
-
-      if (state.currentPageId === pageId) {
-        state.setCurrentPageId(firstPage.id);
-      }
-
-      await refreshFormData();
-
-      toast({
-        title: "Page deleted",
-        description: `Page "${pageToDelete.name}" has been deleted and its fields moved to "${firstPage.name}".`,
-      });
-    } catch (error) {
-      console.error('Error deleting page:', error);
-      toast({
-        title: "Error deleting page",
-        description: "Failed to delete page. Please try again.",
-        variant: "destructive",
-      });
-      throw error;
+    if (state.currentPageId === pageId) {
+      state.setCurrentPageId(firstPage.id);
     }
+
+    toast({
+      title: "Page deleted",
+      description: `Page "${pageToDelete.name}" has been deleted. Save form to persist changes.`,
+    });
   };
 
   if (loading) {
@@ -409,16 +320,44 @@ export function FormBuilder({ formId }: FormBuilderProps) {
       <div className="min-h-screen bg-gray-50">
         {/* Header Section */}
         <div className="bg-white border-b border-gray-200 px-6 py-4">
-          <FormBuilderHeader
-            onSave={handleSave}
-            isSaving={state.isSaving}
-            isPublishing={state.isPublishing}
-            isCreating={state.isCreating}
-            currentForm={currentForm}
-            formStatus={state.formStatus}
-            onStatusChange={handleStatusChange}
-            onUpdateForm={(updates) => currentForm && updateForm(currentForm.id, updates)}
-          />
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">
+                {state.isCreating ? 'Create New Form' : `Edit: ${workingForm?.name || 'Loading...'}`}
+              </h1>
+              {snapshot.isDirty && (
+                <p className="text-sm text-orange-600 mt-1">
+                  Unsaved changes - Click save to persist to database
+                </p>
+              )}
+            </div>
+            <div className="flex gap-2">
+              {snapshot.isDirty && (
+                <Button
+                  variant="outline"
+                  onClick={resetSnapshot}
+                  disabled={state.isSaving || state.isPublishing}
+                >
+                  Discard Changes
+                </Button>
+              )}
+              <Button
+                onClick={() => handleSave(false)}
+                disabled={state.isSaving || state.isPublishing || !snapshot.isDirty}
+                className="flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" />
+                {state.isSaving ? 'Saving...' : 'Save Form'}
+              </Button>
+              <Button
+                onClick={() => handleSave(true)}
+                disabled={state.isSaving || state.isPublishing || !workingForm}
+                variant="default"
+              >
+                {state.isPublishing ? 'Publishing...' : 'Publish'}
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -450,7 +389,7 @@ export function FormBuilder({ formId }: FormBuilderProps) {
                 <div className={`${state.showNavigation ? "col-span-3" : "col-span-1"} bg-white rounded-lg shadow-sm border border-gray-200`}>
                   <FormNavigationPanel
                     pages={pages}
-                    fields={currentForm?.fields || []}
+                    fields={workingForm?.fields || []}
                     currentPageId={state.currentPageId}
                     selectedField={state.selectedField}
                     onPageChange={state.setCurrentPageId}
@@ -464,16 +403,25 @@ export function FormBuilder({ formId }: FormBuilderProps) {
                 {/* Form Details Panel */}
                 <div className={`${state.showNavigation ? "col-span-6" : "col-span-8"} bg-white rounded-lg shadow-sm border border-gray-200`}>
                   <FormDetailsPanel
-                    formName={state.formName}
-                    setFormName={state.setFormName}
-                    formDescription={state.formDescription}
-                    setFormDescription={state.setFormDescription}
-                    columnLayout={state.columnLayout}
-                    setColumnLayout={state.setColumnLayout}
+                    formName={workingForm?.name || state.formName}
+                    setFormName={(name) => {
+                      state.setFormName(name);
+                      updateFormDetails({ name });
+                    }}
+                    formDescription={workingForm?.description || state.formDescription}
+                    setFormDescription={(description) => {
+                      state.setFormDescription(description);
+                      updateFormDetails({ description });
+                    }}
+                    columnLayout={workingForm?.layout?.columns as (1 | 2 | 3) || state.columnLayout}
+                    setColumnLayout={(layout) => {
+                      state.setColumnLayout(layout);
+                      updateFormDetails({ layout: { columns: layout } });
+                    }}
                     pages={pages}
                     currentPageId={state.currentPageId}
                     setCurrentPageId={state.setCurrentPageId}
-                    currentForm={currentForm}
+                    currentForm={workingForm}
                     currentPageFieldsCount={currentPageFields.length}
                     onAddPage={handleAddPage}
                     onPageRename={handlePageRename}
@@ -511,7 +459,7 @@ export function FormBuilder({ formId }: FormBuilderProps) {
 
             <TabsContent value="rules">
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                {currentForm ? (
+                {workingForm ? (
                   <>
                     <Card className="bg-white shadow-sm">
                       <CardHeader>
@@ -522,9 +470,9 @@ export function FormBuilder({ formId }: FormBuilderProps) {
                       </CardHeader>
                       <CardContent>
                         <FieldRuleBuilder
-                          fields={currentForm.fields}
-                          rules={currentForm.fieldRules || []}
-                          onRulesChange={(fieldRules) => updateForm(currentForm.id, { fieldRules })}
+                          fields={workingForm.fields}
+                          rules={workingForm.fieldRules || []}
+                          onRulesChange={(fieldRules) => updateFormDetails({ fieldRules })}
                         />
                       </CardContent>
                     </Card>
@@ -538,9 +486,9 @@ export function FormBuilder({ formId }: FormBuilderProps) {
                       </CardHeader>
                       <CardContent>
                         <FormRuleBuilder
-                          fields={currentForm.fields}
-                          rules={currentForm.formRules || []}
-                          onRulesChange={(formRules) => updateForm(currentForm.id, { formRules })}
+                          fields={workingForm.fields}
+                          rules={workingForm.formRules || []}
+                          onRulesChange={(formRules) => updateFormDetails({ formRules })}
                         />
                       </CardContent>
                     </Card>
@@ -556,14 +504,14 @@ export function FormBuilder({ formId }: FormBuilderProps) {
             </TabsContent>
 
             <TabsContent value="preview">
-              {currentForm ? (
+              {workingForm ? (
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <FormPreview form={currentForm} showNavigation={true} />
+                  <FormPreview form={workingForm} showNavigation={true} />
                 </div>
               ) : (
                 <Card className="bg-white shadow-sm">
                   <CardContent className="py-12 text-center">
-                    <p className="text-muted-foreground">Save your form first to see the preview</p>
+                    <p className="text-muted-foreground">Create a form first to see the preview</p>
                   </CardContent>
                 </Card>
               )}
@@ -600,6 +548,25 @@ export function FormBuilder({ formId }: FormBuilderProps) {
         </div>
       </div>
     </TooltipProvider>
+  );
+}
+
+export function FormBuilder({ formId }: FormBuilderProps) {
+  const { forms, loading } = useFormsData();
+  const currentForm = formId ? forms.find(f => f.id === formId) : null;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-muted-foreground">Loading forms...</div>
+      </div>
+    );
+  }
+
+  return (
+    <FormSnapshotProvider initialForm={currentForm}>
+      <FormBuilderContent formId={formId} />
+    </FormSnapshotProvider>
   );
 }
 
