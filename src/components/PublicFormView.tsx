@@ -158,7 +158,7 @@ export function PublicFormView({ form, onSubmit, showNavigation = true }: Public
     setCurrentPageId(pageId);
   };
 
-  const currentPageIndex = pages.findIndex(p => p.id === currentPageId);
+  const currentPageIndex = Array.isArray(pages) ? pages.findIndex(p => p.id === currentPageId) : -1;
 
   const handlePrevious = () => {
     if (currentPageIndex > 0) {
