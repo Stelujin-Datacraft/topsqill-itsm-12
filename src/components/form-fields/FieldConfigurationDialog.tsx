@@ -305,14 +305,14 @@ export function FieldConfigurationDialog({ field, open, onClose, onSave }: Field
                 <div className="space-y-2">
                   <Label>Join Field (Optional)</Label>
                   <Select
-                    value={config.joinField || ''}
-                    onValueChange={(value) => setConfig({ ...config, joinField: value })}
+                    value={config.joinField || '__none__'}
+                    onValueChange={(value) => setConfig({ ...config, joinField: value === '__none__' ? '' : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select join field" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No join field</SelectItem>
+                      <SelectItem value="__none__">No join field</SelectItem>
                       {targetFormFields.map((field) => (
                         <SelectItem key={field.id} value={field.id}>
                           {field.label}

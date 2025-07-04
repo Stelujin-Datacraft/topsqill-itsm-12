@@ -140,8 +140,8 @@ export function DynamicDropdownField({
       <Label htmlFor={field.id}>{field.label}</Label>
       
       <Select
-        value={value || ''}
-        onValueChange={onChange}
+        value={value === '' ? '__empty__' : value || '__empty__'}
+        onValueChange={(val) => onChange?.(val === '__empty__' ? '' : val)}
         disabled={disabled || loading}
       >
         <SelectTrigger>
@@ -154,7 +154,7 @@ export function DynamicDropdownField({
         </SelectTrigger>
         <SelectContent>
           {config.allowEmpty !== false && (
-            <SelectItem value="">
+            <SelectItem value="__empty__">
               <em>None selected</em>
             </SelectItem>
           )}
@@ -164,7 +164,7 @@ export function DynamicDropdownField({
             </SelectItem>
           ))}
           {!loading && options.length === 0 && (
-            <SelectItem value="" disabled>
+            <SelectItem value="__no_options__" disabled>
               <em>No options available</em>
             </SelectItem>
           )}
