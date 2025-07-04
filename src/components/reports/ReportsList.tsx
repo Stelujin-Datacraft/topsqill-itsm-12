@@ -153,13 +153,7 @@ export function ReportsList({ reports = [], onView, onEdit, onDelete, onCreate, 
             variant="outline"
             onClick={() => navigate('/analytics-dashboard')}
           >
-            Form Analytics
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => navigate('/reports/analytics')}
-          >
-            Basic Analytics
+            Form Analysis
           </Button>
           {createButtonState.disabled ? (
             <TooltipProvider>

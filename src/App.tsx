@@ -29,6 +29,7 @@ import WorkflowDesignerPage from "./pages/WorkflowDesignerPage";
 import WorkflowAccessManagement from "./pages/WorkflowAccessManagement";
 import Reports from "./pages/Reports";
 import ReportEditor from "./pages/ReportEditor";
+import ReportViewerPage from "./pages/ReportViewer";
 import ReportAccessManagement from "./pages/ReportAccessManagement";
 import Users from "./pages/Users";
 import UserRequests from "./pages/UserRequests";
@@ -75,9 +76,10 @@ const App = () => (
                     <Route path="/workflows" element={<ProtectedRoute><Workflows /></ProtectedRoute>} />
                     <Route path="/workflow-designer/:id" element={<ProtectedRoute><WorkflowDesignerPage /></ProtectedRoute>} />
                     <Route path="/workflow/:id/access" element={<ProtectedRoute><WorkflowAccessManagement /></ProtectedRoute>} />
-                    <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-                    <Route path="/report-editor/:id" element={<ProtectedRoute><ReportEditor /></ProtectedRoute>} />
-                    <Route path="/report/:id/access" element={<ProtectedRoute><ReportAccessManagement /></ProtectedRoute>} />
+                     <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+                     <Route path="/report-editor/:id" element={<ProtectedRoute><ReportEditor /></ProtectedRoute>} />
+                     <Route path="/report-view/:id" element={<ProtectedRoute><ReportViewerPage /></ProtectedRoute>} />
+                     <Route path="/report/:id/access" element={<ProtectedRoute><ReportAccessManagement /></ProtectedRoute>} />
                     <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
                     <Route path="/user-requests" element={<ProtectedRoute><UserRequests /></ProtectedRoute>} />
                     <Route path="/roles-and-access" element={<ProtectedRoute><RolesAndAccess /></ProtectedRoute>} />
@@ -86,7 +88,7 @@ const App = () => (
                     <Route path="/projects/:projectId/overview" element={<ProtectedRoute><ProjectOverview /></ProtectedRoute>} />
                     <Route path="/organizations" element={<ProtectedRoute><Organizations /></ProtectedRoute>} />
                     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                    <Route path="/analytics" element={<ProtectedRoute><AnalyticsDashboard /></ProtectedRoute>} />
+                    <Route path="/analytics-dashboard" element={<ProtectedRoute><AnalyticsDashboard /></ProtectedRoute>} />
                     <Route path="/data-table-builder" element={<ProtectedRoute><DataTableBuilder /></ProtectedRoute>} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>

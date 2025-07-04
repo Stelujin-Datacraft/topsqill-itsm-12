@@ -41,7 +41,7 @@ const Reports = () => {
   }
 
   const handleViewReport = (report: Report) => {
-    navigate(`/report-editor/${report.id}`);
+    navigate(`/report-view/${report.id}`);
   };
 
   const handleEditReport = (report: Report) => {
