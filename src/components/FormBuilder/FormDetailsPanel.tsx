@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { FormPagination } from '@/components/FormPagination';
 import { FieldLayoutRenderer } from './FieldLayoutRenderer';
 import { Form, FormPage, FormField } from '@/types/form';
-import { FileStack } from 'lucide-react';
+import { FileStack, ChevronUp, ChevronDown } from 'lucide-react';
 
 interface FormDetailsPanelProps {
   formName: string;
@@ -34,6 +34,9 @@ interface FormDetailsPanelProps {
   onFieldClick: (field: FormField) => void;
   onFieldDelete: (fieldId: string) => void;
   onDragEnd: (result: any) => void;
+  // Show/hide form details
+  showFormDetails: boolean;
+  setShowFormDetails: (show: boolean) => void;
 }
 
 export function FormDetailsPanel({
@@ -57,6 +60,8 @@ export function FormDetailsPanel({
   onFieldClick,
   onFieldDelete,
   onDragEnd,
+  showFormDetails,
+  setShowFormDetails,
 }: FormDetailsPanelProps) {
   
   console.log('FormDetailsPanel - Current page:', currentPageId);
@@ -68,7 +73,21 @@ export function FormDetailsPanel({
     <div className="flex flex-col gap-6 h-full">
       {/* Form Details Section */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium">Form Details</h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowFormDetails(!showFormDetails)}
+              className="h-8 w-8 p-0"
+            >
+              {showFormDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          </div>
+        </CardHeader>
+        {showFormDetails && (
+        <CardContent>
           <div className="space-y-5">
             <div>
               <Label htmlFor="form-name" className="block mb-2">Form Name</Label>
@@ -150,7 +169,8 @@ export function FormDetailsPanel({
               </div>
             )}
           </div>
-        </CardHeader>
+        </CardContent>
+        )}
       </Card>
 
       {/* Field Layout Section */}

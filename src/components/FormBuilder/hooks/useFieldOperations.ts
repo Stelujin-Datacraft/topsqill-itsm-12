@@ -200,7 +200,14 @@ export function useFieldOperations(
     if (sourceIndex === destinationIndex) return;
 
     console.log('Reordering fields from', sourceIndex, 'to', destinationIndex);
+    
+    // Reorder fields with the current page fields
     await reorderFields(currentForm.id, sourceIndex, destinationIndex);
+    
+    // Refresh form data to ensure UI is updated
+    if (refreshFormData) {
+      await refreshFormData();
+    }
   };
 
   return {

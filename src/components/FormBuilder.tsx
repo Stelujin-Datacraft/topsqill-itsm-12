@@ -55,8 +55,11 @@ export function FormBuilder({ formId }: FormBuilderProps) {
     } else if (pages.length > 0 && !state.currentPageId) {
       console.log('Setting initial page:', pages[0].id);
       state.setCurrentPageId(pages[0].id);
+    } else if (!state.isCreating && currentForm && pages.length === 0) {
+      // If form exists but has no pages, create Page 1 automatically
+      handleAddPage();
     }
-  }, [pages, state.currentPageId, state.isCreating]);
+  }, [pages, state.currentPageId, state.isCreating, currentForm]);
 
   // Update selected field when form changes
   useEffect(() => {
@@ -481,6 +484,8 @@ export function FormBuilder({ formId }: FormBuilderProps) {
                     onFieldClick={fieldOperations.handleFieldClick}
                     onFieldDelete={fieldOperations.handleFieldDelete}
                     onDragEnd={fieldOperations.handleDragEnd}
+                    showFormDetails={state.showFormDetails}
+                    setShowFormDetails={state.setShowFormDetails}
                   />
                 </div>
 

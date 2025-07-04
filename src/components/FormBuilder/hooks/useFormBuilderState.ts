@@ -17,6 +17,7 @@ export function useFormBuilderState(currentForm: Form | null, formId?: string) {
   const [showFieldProperties, setShowFieldProperties] = useState(false);
   const [fieldTypeSearch, setFieldTypeSearch] = useState('');
   const [savingFieldConfig, setSavingFieldConfig] = useState<string | null>(null);
+  const [showFormDetails, setShowFormDetails] = useState(true);
 
   useEffect(() => {
     if (currentForm) {
@@ -64,5 +65,7 @@ export function useFormBuilderState(currentForm: Form | null, formId?: string) {
     setFieldTypeSearch,
     savingFieldConfig,
     setSavingFieldConfig,
+    showFormDetails,
+    setShowFormDetails,
   };
 }
