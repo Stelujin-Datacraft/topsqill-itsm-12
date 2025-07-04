@@ -34,6 +34,10 @@ export function PublicFormView({ form, onSubmit, showNavigation = true }: Public
     if (pages.length > 0 && !currentPageId) {
       setCurrentPageId(pages[0].id);
     }
+    
+    console.log("---------------------------------------------------------------------------------------------------------------")
+    console.log(form)
+        console.log("---------------------------------------------------------------------------------------------------------------")
   }, [pages, currentPageId]);
 
   // Initialize field states
