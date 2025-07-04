@@ -35,7 +35,6 @@ import {
   Loader2
 } from 'lucide-react';
 import { ChartPreview } from './ChartPreview';
-import { ChartConfigurationTabs } from './ChartConfigurationTabs';
 import { FormField } from '@/types/form';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -374,12 +373,386 @@ export function ComponentConfigDialog({
 
   const renderChartConfig = () => {
     return (
-      <ChartConfigurationTabs
-        config={config}
-        onConfigChange={setConfig}
-        formFields={formFields}
-        forms={forms}
-      />
+      <Tabs defaultValue="basic" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="basic">Basic</TabsTrigger>
+          <TabsTrigger value="data">Data</TabsTrigger>
+          <TabsTrigger value="style">Style</TabsTrigger>
+          <TabsTrigger value="preview">Preview</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="basic" className="space-y-4">
+          <div>
+            <Label htmlFor="title">Chart Title</Label>
+            <Input
+              id="title"
+              value={config.title || ''}
+              onChange={(e) => setConfig({ ...config, title: e.target.value })}
+              placeholder="Enter chart title"
+            />
+          </div>
+
+          <div>
+            <Label>Chart Type</Label>
+            {renderChartTypeSelector()}
+          </div>
+
+          {renderFormSelection()}
+        </TabsContent>
+
+        <TabsContent value="data" className="space-y-4">
+          {config.formId && formFields.length > 0 && (
+            <>
+              {config.chartType !== 'table' && (
+                <>
+                  <GenericFieldSelector
+                    formFields={formFields}
+                    selectedFields={config.metrics || []}
+                    onFieldsChange={(fields) => setConfig({ ...config, metrics: fields })}
+                    label="Metrics"
+                    description="Fields to measure and aggregate"
+                    selectionType="dropdown"
+                    maxSelections={1}
+                    placeholder="Select metric field..."
+                  />
+
+                  <GenericFieldSelector
+                    formFields={formFields}
+                    selectedFields={config.dimensions || []}
+                    onFieldsChange={(fields) => setConfig({ ...config, dimensions: fields })}
+                    label="Dimensions"
+                    description="Fields to group by or categorize data"
+                    selectionType="dropdown"
+                    maxSelections={1}
+                    placeholder="Select dimension field..."
+                  />
+
+                  <div>
+                    <Label>Aggregation Function</Label>
+                    <Select 
+                      value={config.aggregation || 'count'} 
+                      onValueChange={(value) => setConfig({ ...config, aggregation: value })}
+                    >
+                      <SelectTrigger className="bg-background">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border shadow-lg z-50">
+                        {AGGREGATION_FUNCTIONS.map(agg => (
+                          <SelectItem key={agg.value} value={agg.value}>
+                            {agg.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+
+              {config.chartType === 'table' && (
+                <GenericFieldSelector
+                  formFields={formFields}
+                  selectedFields={config.selectedColumns || []}
+                  onFieldsChange={(fields) => setConfig({ ...config, selectedColumns: fields })}
+                  label="Table Columns"
+                  description="Select columns to display in the table"
+                  selectionType="checkbox"
+                  maxHeight="300px"
+                />
+              )}
+            </>
+          )}
+
+          {config.formId && formFields.length === 0 && !loadingFields && (
+            <div className="p-4 text-center text-muted-foreground">
+              The selected form has no fields configured yet.
+            </div>
+          )}
+
+          {!config.formId && (
+            <div className="p-4 text-center text-muted-foreground">
+              Please select a form to configure data fields.
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="style" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                Display Options
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="showLegend"
+                  checked={config.showLegend !== false}
+                  onCheckedChange={(checked) => setConfig({ ...config, showLegend: checked })}
+                />
+                <Label htmlFor="showLegend">Show legend</Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="enableDrilldown"
+                  checked={config.enableDrilldown || false}
+                  onCheckedChange={(checked) => setConfig({ ...config, enableDrilldown: checked })}
+                />
+                <Label htmlFor="enableDrilldown">Enable drilldown (click to view records)</Label>
+              </div>
+
+              <div>
+                <Label>Color Theme</Label>
+                <Select 
+                  value={config.colorTheme || 'default'} 
+                  onValueChange={(value) => setConfig({ ...config, colorTheme: value })}
+                >
+                  <SelectTrigger className="bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border shadow-lg z-50">
+                    <SelectItem value="default">Default</SelectItem>
+                    <SelectItem value="vibrant">Vibrant</SelectItem>
+                    <SelectItem value="pastel">Pastel</SelectItem>
+                    <SelectItem value="monochrome">Monochrome</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Chart-specific configurations */}
+              {config.chartType === 'donut' && (
+                <div>
+                  <Label>Inner Radius</Label>
+                  <Input
+                    type="number"
+                    value={config.innerRadius || 40}
+                    onChange={(e) => setConfig({ ...config, innerRadius: parseInt(e.target.value) })}
+                    min={20}
+                    max={80}
+                    placeholder="Inner radius (20-80)"
+                  />
+                </div>
+              )}
+
+              {config.chartType === 'bubble' && formFields.length > 0 && (
+                <div>
+                  <Label>Size Field</Label>
+                  <Select 
+                    value={config.sizeField || ''} 
+                    onValueChange={(value) => setConfig({ ...config, sizeField: value })}
+                  >
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Select size field" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border shadow-lg z-50">
+                      {formFields
+                        .filter(field => ['number', 'currency', 'rating', 'slider'].includes(field.type))
+                        .map(field => (
+                          <SelectItem key={field.id} value={field.id}>
+                            {field.label}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {config.chartType === 'heatmap' && (
+                <>
+                  {formFields.length > 0 && (
+                    <div>
+                      <Label>Intensity Field</Label>
+                      <Select 
+                        value={config.heatmapIntensityField || ''} 
+                        onValueChange={(value) => setConfig({ ...config, heatmapIntensityField: value })}
+                      >
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder="Select intensity field" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-lg z-50">
+                          {formFields
+                            .filter(field => ['number', 'currency', 'rating', 'slider'].includes(field.type))
+                            .map(field => (
+                              <SelectItem key={field.id} value={field.id}>
+                                {field.label}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div>
+                    <Label>Grid Columns</Label>
+                    <Input
+                      type="number"
+                      value={config.gridColumns || 5}
+                      onChange={(e) => setConfig({ ...config, gridColumns: parseInt(e.target.value) })}
+                      min={3}
+                      max={10}
+                      placeholder="Number of columns (3-10)"
+                    />
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="preview" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Chart Preview</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                {/* Sample data for preview */}
+                <ChartPreview 
+                  config={{
+                    ...config,
+                    data: [
+                      { name: 'Product A', sales: 120, revenue: 15000, customers: 45 },
+                      { name: 'Product B', sales: 98, revenue: 12500, customers: 32 },
+                      { name: 'Product C', sales: 86, revenue: 9800, customers: 28 },
+                      { name: 'Product D', sales: 145, revenue: 18200, customers: 56 },
+                      { name: 'Product E', sales: 73, revenue: 8900, customers: 21 }
+                    ]
+                  }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Configuration Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium">Chart Type:</span> {config.chartType || 'Not selected'}
+                </div>
+                <div>
+                  <span className="font-medium">Color Theme:</span> {config.colorTheme || 'Default'}
+                </div>
+                <div>
+                  <span className="font-medium">Metrics:</span> {config.metrics?.length || 0} selected
+                </div>
+                <div>
+                  <span className="font-medium">Dimensions:</span> {config.dimensions?.length || 0} selected
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="join" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Link className="h-4 w-4" />
+                Join Configuration
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="enableJoin"
+                  checked={joinEnabled}
+                  onCheckedChange={setJoinEnabled}
+                />
+                <Label htmlFor="enableJoin">Enable form join</Label>
+              </div>
+
+              {joinEnabled && (
+                <>
+                  <div>
+                    <Label>Secondary Form</Label>
+                    <Select 
+                      value={config.joinConfig?.secondaryFormId || ''} 
+                      onValueChange={handleSecondaryFormChange}
+                    >
+                      <SelectTrigger className="bg-background">
+                        <SelectValue placeholder="Select form to join" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border shadow-lg z-50">
+                        {forms.filter(f => f.id !== config.formId).map(form => (
+                          <SelectItem key={form.id} value={form.id}>
+                            {form.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {loadingSecondaryFields && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading secondary form fields...
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label>Join Type</Label>
+                    <Select 
+                      value={config.joinConfig?.joinType || 'inner'} 
+                      onValueChange={(value) => setConfig({ 
+                        ...config, 
+                        joinConfig: { ...config.joinConfig, joinType: value }
+                      })}
+                    >
+                      <SelectTrigger className="bg-background">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border shadow-lg z-50">
+                        {JOIN_TYPES.map(join => (
+                          <SelectItem key={join.value} value={join.value}>
+                            <div>
+                              <div className="font-medium">{join.label}</div>
+                              <div className="text-xs text-muted-foreground">{join.description}</div>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {config.joinConfig?.secondaryFormId && (
+                    <>
+                      <GenericFieldSelector
+                        formFields={formFields}
+                        selectedFields={config.joinConfig?.primaryFieldId ? [config.joinConfig.primaryFieldId] : []}
+                        onFieldsChange={(fields) => setConfig({ 
+                          ...config, 
+                          joinConfig: { ...config.joinConfig, primaryFieldId: fields[0] || '' }
+                        })}
+                        label="Primary Form Field"
+                        description="Field from the main form to join on"
+                        selectionType="dropdown"
+                        maxSelections={1}
+                        placeholder="Select field..."
+                      />
+
+                      <GenericFieldSelector
+                        formFields={secondaryFormFields}
+                        selectedFields={config.joinConfig?.secondaryFieldId ? [config.joinConfig.secondaryFieldId] : []}
+                        onFieldsChange={(fields) => setConfig({ 
+                          ...config, 
+                          joinConfig: { ...config.joinConfig, secondaryFieldId: fields[0] || '' }
+                        })}
+                        label="Secondary Form Field"
+                        description="Field from the secondary form to join on"
+                        selectionType="dropdown"
+                        maxSelections={1}
+                        placeholder="Select field..."
+                      />
+                    </>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     );
   };
 
