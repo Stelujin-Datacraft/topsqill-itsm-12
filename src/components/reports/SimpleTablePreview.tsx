@@ -1,0 +1,311 @@
+
+import React, { useState, useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { ChevronUp, ChevronDown, Search, Download, RefreshCw, Database } from 'lucide-react';
+import { Form } from '@/types/form';
+import { useTableData } from '@/hooks/useTableData';
+
+interface DisplayField {
+  id: string;
+  label: string;
+  type: string;
+}
+
+interface FilterGroup {
+  conditions: Array<{
+    field: string;
+    operator: string;
+    value: any;
+  }>;
+}
+
+interface SimpleTablePreviewProps {
+  selectedForm: Form | null;
+  selectedColumns: string[];
+  filters: FilterGroup[];
+  enableSearch: boolean;
+  enableSorting: boolean;
+  enableExport: boolean;
+  pageSize: number;
+  title?: string;
+}
+
+export function SimpleTablePreview({
+  selectedForm,
+  selectedColumns,
+  filters,
+  enableSearch,
+  enableSorting,
+  enableExport,
+  pageSize,
+  title
+}: SimpleTablePreviewProps) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortField, setSortField] = useState('');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  const { data, loading, totalCount, currentPage, setCurrentPage, refetch } = useTableData(
+    selectedForm?.id || '',
+    filters,
+    pageSize
+  );
+
+  const displayFields = useMemo((): DisplayField[] => {
+    if (!selectedForm) return [];
+    
+    const metadataFields: DisplayField[] = [
+      { id: 'submitted_at', label: 'Submitted At', type: 'metadata' },
+      { id: 'submitted_by', label: 'Submitted By', type: 'metadata' },
+      { id: 'submission_ref_id', label: 'Reference ID', type: 'metadata' }
+    ];
+    
+    const formFields: DisplayField[] = selectedForm.fields.map(field => ({
+      id: field.id,
+      label: field.label,
+      type: field.type
+    }));
+    
+    const allFields = [...metadataFields, ...formFields];
+    
+    if (selectedColumns.length > 0) {
+      return allFields.filter(field => selectedColumns.includes(field.id));
+    }
+    
+    return allFields;
+  }, [selectedForm, selectedColumns]);
+
+  const filteredData = useMemo(() => {
+    if (!enableSearch || !searchTerm) return data;
+    
+    return data.filter(row => {
+      return displayFields.some(field => {
+        const value = field.type === 'metadata' 
+          ? row[field.id as keyof typeof row]
+          : row.submission_data?.[field.id];
+        return value && value.toString().toLowerCase().includes(searchTerm.toLowerCase());
+      });
+    });
+  }, [data, searchTerm, enableSearch, displayFields]);
+
+  const handleSort = (fieldId: string) => {
+    if (!enableSorting) return;
+    
+    if (sortField === fieldId) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(fieldId);
+      setSortDirection('asc');
+    }
+  };
+
+  const handleExport = () => {
+    if (!enableExport) return;
+    
+    const headers = displayFields.map(f => f.label).join(',');
+    const rows = filteredData.map(row => 
+      displayFields.map(field => {
+        const value = field.type === 'metadata' 
+          ? row[field.id as keyof typeof row]
+          : row.submission_data?.[field.id];
+        return `"${value || ''}"`;
+      }).join(',')
+    );
+    
+    const csv = [headers, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title || 'table-export'}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  if (!selectedForm) {
+    return (
+      <div className="flex items-center justify-center h-64 border-2 border-dashed border-muted-foreground/25 rounded-lg">
+        <div className="text-center text-muted-foreground">
+          <Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p className="text-lg font-medium">No Form Selected</p>
+          <p className="text-sm">Select a primary form to see the preview</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (displayFields.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64 border-2 border-dashed border-muted-foreground/25 rounded-lg">
+        <div className="text-center text-muted-foreground">
+          <Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p className="text-lg font-medium">No Columns Selected</p>
+          <p className="text-sm">Select columns to display in the table</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 p-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Database className="h-5 w-5 text-primary" />
+          <div>
+            <h3 className="font-semibold">
+              {title || 'Table Preview'}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {totalCount} total records • {displayFields.length} columns
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refetch}
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          {enableExport && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              disabled={filteredData.length === 0}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+          )}
+        </div>
+      </div>
+      
+      {/* Search */}
+      {enableSearch && (
+        <div className="flex items-center space-x-2">
+          <Search className="h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search records..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-sm"
+          />
+        </div>
+      )}
+
+      {/* Table */}
+      {loading ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-muted-foreground">Loading data...</div>
+        </div>
+      ) : (
+        <div className="border rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {displayFields.map(field => (
+                    <TableHead key={field.id} className="whitespace-nowrap">
+                      <div className="flex items-center space-x-1">
+                        <span>{field.label}</span>
+                        <Badge 
+                          variant={field.type === 'metadata' ? 'secondary' : 'outline'} 
+                          className="text-xs"
+                        >
+                          {field.type === 'metadata' ? 'Meta' : field.type}
+                        </Badge>
+                        {enableSorting && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleSort(field.id)}
+                            className="h-4 w-4 p-0"
+                          >
+                            {sortField === field.id ? (
+                              sortDirection === 'asc' ? (
+                                <ChevronUp className="h-3 w-3" />
+                              ) : (
+                                <ChevronDown className="h-3 w-3" />
+                              )
+                            ) : (
+                              <ChevronUp className="h-3 w-3 opacity-50" />
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredData.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={displayFields.length} className="text-center py-8">
+                      <div className="text-muted-foreground">
+                        {data.length === 0 ? 'No data available' : 'No records match your search'}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredData.map((row) => (
+                    <TableRow key={row.id}>
+                      {displayFields.map(field => (
+                        <TableCell key={field.id} className="whitespace-nowrap">
+                          {field.type === 'metadata' 
+                            ? (field.id === 'submitted_at' 
+                                ? new Date(row[field.id as keyof typeof row] as string).toLocaleDateString()
+                                : row[field.id as keyof typeof row] || '-')
+                            : row.submission_data?.[field.id] || '-'
+                          }
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {displayFields.length > 0 && totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} results
+          </p>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <span className="text-sm">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

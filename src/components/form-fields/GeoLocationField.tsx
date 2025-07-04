@@ -1,0 +1,290 @@
+import React, { useState, useEffect } from 'react';
+import { FormField } from '@/types/form';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { MapPin, Navigation, Loader2, Map } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+
+interface GeoLocationFieldProps {
+  field: FormField;
+  value?: any;
+  onChange?: (value: any) => void;
+  error?: string;
+  disabled?: boolean;
+}
+
+interface LocationData {
+  latitude: number;
+  longitude: number;
+  address?: string;
+  accuracy?: number;
+  timestamp?: number;
+}
+
+export function GeoLocationField({ field, value, onChange, error, disabled }: GeoLocationFieldProps) {
+  const [currentLocation, setCurrentLocation] = useState<LocationData | null>(value || null);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [manualCoords, setManualCoords] = useState({ lat: '', lng: '' });
+  const config = (field.customConfig as any) || {};
+
+  useEffect(() => {
+    if (value) {
+      setCurrentLocation(value);
+      setManualCoords({
+        lat: value.latitude?.toString() || '',
+        lng: value.longitude?.toString() || ''
+      });
+    }
+  }, [value]);
+
+  const getCurrentLocation = async () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Geolocation not supported",
+        description: "Your browser doesn't support geolocation.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGettingLocation(true);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const locationData: LocationData = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: Date.now(),
+          };
+
+          // Get address if enabled
+          if (config.showAddress !== false) {
+            const address = await reverseGeocode(locationData.latitude, locationData.longitude);
+            locationData.address = address;
+          }
+
+          setCurrentLocation(locationData);
+          if (onChange) {
+            onChange(locationData);
+          }
+
+          toast({
+            title: "Location captured",
+            description: `Location captured with ${Math.round(position.coords.accuracy)}m accuracy.`,
+          });
+        } catch (error) {
+          console.error('Error processing location:', error);
+          toast({
+            title: "Error",
+            description: "Failed to process location data.",
+            variant: "destructive",
+          });
+        } finally {
+          setIsGettingLocation(false);
+        }
+      },
+      (error) => {
+        setIsGettingLocation(false);
+        let message = "Failed to get location.";
+        
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            message = "Location access denied. Please enable location permissions.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            message = "Location information unavailable.";
+            break;
+          case error.TIMEOUT:
+            message = "Location request timed out.";
+            break;
+        }
+
+        toast({
+          title: "Location Error",
+          description: message,
+          variant: "destructive",
+        });
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000,
+      }
+    );
+  };
+
+  const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+    try {
+      // Using a simple reverse geocoding service (in production, use proper API)
+      const response = await fetch(
+        `https://api.opencagedata.com/geocode/v1/json?q=${lat}+${lng}&key=demo&limit=1`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.results && data.results.length > 0) {
+          return data.results[0].formatted;
+        }
+      }
+    } catch (error) {
+      console.error('Reverse geocoding error:', error);
+    }
+    
+    return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  };
+
+  const handleManualCoordinates = () => {
+    const lat = parseFloat(manualCoords.lat);
+    const lng = parseFloat(manualCoords.lng);
+
+    if (isNaN(lat) || isNaN(lng)) {
+      toast({
+        title: "Invalid coordinates",
+        description: "Please enter valid latitude and longitude values.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      toast({
+        title: "Invalid coordinates",
+        description: "Latitude must be between -90 and 90, longitude between -180 and 180.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const locationData: LocationData = {
+      latitude: lat,
+      longitude: lng,
+      timestamp: Date.now(),
+    };
+
+    setCurrentLocation(locationData);
+    if (onChange) {
+      onChange(locationData);
+    }
+  };
+
+  const openInMaps = () => {
+    if (!currentLocation) return;
+    
+    const { latitude, longitude } = currentLocation;
+    const url = `https://www.google.com/maps?q=${latitude},${longitude}`;
+    window.open(url, '_blank');
+  };
+
+  return (
+    <div className="space-y-4">
+      <Label>{field.label}</Label>
+      
+      {currentLocation && (
+        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center space-x-2">
+              <MapPin className="h-5 w-5 text-green-600" />
+              <span className="font-medium text-green-800">Location Captured</span>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={openInMaps}
+              className="text-blue-600 border-blue-200"
+            >
+              <Map className="h-3 w-3 mr-1" />
+              View on Map
+            </Button>
+          </div>
+          
+          <div className="space-y-1 text-sm">
+            <p><strong>Coordinates:</strong> {currentLocation.latitude.toFixed(6)}, {currentLocation.longitude.toFixed(6)}</p>
+            {currentLocation.address && (
+              <p><strong>Address:</strong> {currentLocation.address}</p>
+            )}
+            {currentLocation.accuracy && (
+              <p><strong>Accuracy:</strong> ±{Math.round(currentLocation.accuracy)} meters</p>
+            )}
+            {currentLocation.timestamp && (
+              <p><strong>Captured:</strong> {new Date(currentLocation.timestamp).toLocaleString()}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {(!config.mapOnly && config.inputMethod !== 'coordinates') && (
+          <Button
+            type="button"
+            onClick={getCurrentLocation}
+            disabled={disabled || isGettingLocation}
+            className="w-full flex items-center justify-center space-x-2"
+          >
+            {isGettingLocation ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Navigation className="h-4 w-4" />
+            )}
+            <span>
+              {isGettingLocation ? 'Getting Location...' : 'Get Current Location'}
+            </span>
+          </Button>
+        )}
+
+        {config.allowManualEntry !== false && (
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Manual Coordinates</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                placeholder="Latitude"
+                value={manualCoords.lat}
+                onChange={(e) => setManualCoords(prev => ({ ...prev, lat: e.target.value }))}
+                disabled={disabled}
+                type="number"
+                step="any"
+                min="-90"
+                max="90"
+              />
+              <Input
+                placeholder="Longitude"
+                value={manualCoords.lng}
+                onChange={(e) => setManualCoords(prev => ({ ...prev, lng: e.target.value }))}
+                disabled={disabled}
+                type="number"
+                step="any"
+                min="-180"
+                max="180"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleManualCoordinates}
+              disabled={disabled || !manualCoords.lat || !manualCoords.lng}
+              className="w-full"
+            >
+              Set Manual Coordinates
+            </Button>
+          </div>
+        )}
+
+        {config.mapProvider && (
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
+            <p>Map provider: {config.mapProvider}</p>
+            {config.defaultLocation && (
+              <p>Default location: {config.defaultLocation}</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <p className="text-sm text-red-500">{error}</p>
+      )}
+    </div>
+  );
+}
