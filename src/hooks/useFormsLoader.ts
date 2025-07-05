@@ -126,17 +126,18 @@ export function useFormsLoader() {
             // Create a map of all field IDs for quick lookup
             const allFieldIds = (fieldsData || []).map(field => field.id);
             console.log('useFormsLoader: All field IDs:', allFieldIds);
-            
+            console.log()
             // Assign unassigned fields to the first page if pages exist but don't have field assignments
-            const updatedPages = parsedPages.map(page => {
-              // If page already has fields assigned, keep them
-              if (page.fields && page.fields.length > 0) {
-                // Filter to only include fields that actually exist in the database
-                const existingFields = page.fields.filter(fieldId => allFieldIds.includes(fieldId));
-                return { ...page, fields: existingFields };
-              }
-              return page;
-            });
+            // const updatedPages = parsedPages.map(page => {
+            //   // If page already has fields assigned, keep them
+            //   if (page.fields && page.fields.length > 0) {
+            //     // Filter to only include fields that actually exist in the database
+            //     const existingFields = page.fields.filter(fieldId => allFieldIds.includes(fieldId));
+            //     return { ...page, fields: existingFields };
+            //   }
+            //   return page;
+            // });
+            const updatedPages = parsedPages;
             console.log('useFormsLoader: Updated pages after filtering:', updatedPages);
 
             // Find unassigned fields (fields not in any page)
