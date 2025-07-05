@@ -27,47 +27,35 @@ export function useProjectMembership(projectId: string) {
     try {
       console.log('Loading project members for project:', projectId);
 
-      // Get project users first
-      const { data: projectUsersData, error: projectUsersError } = await supabase
+      // Get project members with their user profile information
+      const { data: members, error } = await supabase
         .from('project_users')
-        .select('id, user_id, role')
+        .select(`
+          id,
+          user_id,
+          role,
+          user_profiles!inner(
+            email,
+            first_name,
+            last_name
+          )
+        `)
         .eq('project_id', projectId);
 
-      if (projectUsersError) {
-        console.error('Error loading project users:', projectUsersError);
-        throw projectUsersError;
+      if (error) {
+        console.error('Error loading project members:', error);
+        throw error;
       }
 
-      if (!projectUsersData || projectUsersData.length === 0) {
-        console.log('No users found for project:', projectId);
-        return;
-      }
-
-      // Get user profiles separately
-      const userIds = projectUsersData.map(pu => pu.user_id);
-      
-      const { data: usersData, error: usersError } = await supabase
-        .from('user_profiles')
-        .select('id, email, first_name, last_name')
-        .in('id', userIds);
-
-      if (usersError) {
-        console.error('Error loading user profiles:', usersError);
-        throw usersError;
-      }
-
-      // Transform and combine the data
-      const transformedMembers = (projectUsersData || []).map(projectUser => {
-        const userProfile = (usersData || []).find(u => u.id === projectUser.user_id);
-        return {
-          id: projectUser.id,
-          user_id: projectUser.user_id,
-          role: projectUser.role as 'admin' | 'editor' | 'viewer' | 'member',
-          email: userProfile?.email || '',
-          first_name: userProfile?.first_name,
-          last_name: userProfile?.last_name,
-        };
-      });
+      // Transform the data to match our interface
+      const transformedMembers = (members || []).map((member: any) => ({
+        id: member.id,
+        user_id: member.user_id,
+        role: member.role,
+        email: member.user_profiles.email,
+        first_name: member.user_profiles.first_name,
+        last_name: member.user_profiles.last_name,
+      }));
 
       console.log('Project members loaded:', transformedMembers);
       setProjectMembers(transformedMembers);
