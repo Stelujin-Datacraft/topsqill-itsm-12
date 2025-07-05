@@ -119,6 +119,35 @@ export function useFormsLoader() {
               console.error('useFormsLoader: Error loading fields for form', form.id, fieldsError);
             }
 
+            // Parse pages first to determine correct field assignments
+            const parsedPages = safeParseJson(form.pages, [{ id: 'default', name: 'Page 1', order: 0, fields: [] }]);
+            
+            // Create a map of all field IDs for quick lookup
+            const allFieldIds = (fieldsData || []).map(field => field.id);
+            
+            // Assign unassigned fields to the first page if pages exist but don't have field assignments
+            const updatedPages = parsedPages.map(page => {
+              // If page already has fields assigned, keep them
+              if (page.fields && page.fields.length > 0) {
+                // Filter to only include fields that actually exist in the database
+                const existingFields = page.fields.filter(fieldId => allFieldIds.includes(fieldId));
+                return { ...page, fields: existingFields };
+              }
+              return page;
+            });
+
+            // Find unassigned fields (fields not in any page)
+            const assignedFieldIds = updatedPages.flatMap(page => page.fields || []);
+            const unassignedFields = allFieldIds.filter(fieldId => !assignedFieldIds.includes(fieldId));
+            
+            // If there are unassigned fields, assign them to the first page
+            if (unassignedFields.length > 0) {
+              const firstPage = updatedPages[0];
+              if (firstPage) {
+                firstPage.fields = [...(firstPage.fields || []), ...unassignedFields];
+              }
+            }
+
             return {
               id: form.id,
               name: form.name,
@@ -130,30 +159,41 @@ export function useFormsLoader() {
               updatedAt: form.updated_at,
               createdBy: form.created_by,
               isPublic: form.is_public || false,
-              fields: (fieldsData || []).map(field => ({
-                id: field.id,
-                type: field.field_type as FormField['type'],
-                label: field.label,
-                placeholder: field.placeholder || '',
-                required: field.required || false,
-                defaultValue: field.default_value || '',
-                options: safeParseJson(field.options, []),
-                validation: safeParseJson(field.validation, {}),
-                permissions: safeParseJson(field.permissions, { read: ['*'], write: ['*'] }),
-                triggers: safeParseJson(field.triggers, []),
-                isVisible: field.is_visible !== false,
-                isEnabled: field.is_enabled !== false,
-                currentValue: field.current_value || '',
-                tooltip: field.tooltip || '',
-                errorMessage: field.error_message || '',
-                pageId: 'default',
-              })),
+              fields: (fieldsData || []).map(field => {
+                // Find which page this field belongs to after our assignment logic
+                let assignedPageId = 'default';
+                for (const page of updatedPages) {
+                  if (page.fields && page.fields.includes(field.id)) {
+                    assignedPageId = page.id;
+                    break;
+                  }
+                }
+                
+                return {
+                  id: field.id,
+                  type: field.field_type as FormField['type'],
+                  label: field.label,
+                  placeholder: field.placeholder || '',
+                  required: field.required || false,
+                  defaultValue: field.default_value || '',
+                  options: safeParseJson(field.options, []),
+                  validation: safeParseJson(field.validation, {}),
+                  permissions: safeParseJson(field.permissions, { read: ['*'], write: ['*'] }),
+                  triggers: safeParseJson(field.triggers, []),
+                  isVisible: field.is_visible !== false,
+                  isEnabled: field.is_enabled !== false,
+                  currentValue: field.current_value || '',
+                  tooltip: field.tooltip || '',
+                  errorMessage: field.error_message || '',
+                  pageId: assignedPageId,
+                };
+              }),
               permissions: safeParseJson(form.permissions, { view: ['*'], submit: ['*'], edit: ['admin'] }),
               fieldRules: safeParseJson(form.field_rules, []),
               formRules: safeParseJson(form.form_rules, []),
               shareSettings: safeParseJson(form.share_settings, { allowPublicAccess: false, sharedUsers: [] }),
               layout: safeParseJson(form.layout, { columns: 1 }),
-              pages: safeParseJson(form.pages, [{ id: 'default', name: 'Page 1', order: 0, fields: [] }]),
+              pages: updatedPages,
             } as Form;
           })
         );
