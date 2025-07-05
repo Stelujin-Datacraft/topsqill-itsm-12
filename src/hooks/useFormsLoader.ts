@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Form, FormField } from '@/types/form';
@@ -126,43 +127,29 @@ export function useFormsLoader() {
             const allFieldIds = (fieldsData || []).map(field => field.id);
             console.log('useFormsLoader: All field IDs:', allFieldIds);
             
-            // 1) Build a map of "existing" page→fields (filtered against your DB list)
-            const pageFieldMap: Record<string, string[]> = parsedPages.reduce((map: Record<string, string[]>, page: any) => {
-              // make sure page.fields is an array
-              const raw = Array.isArray(page.fields) ? page.fields : [];
-              // keep only IDs that are truly in allFieldIds
-              map[page.id] = raw.filter((id: string) => allFieldIds.includes(id));
-              return map;
-            }, {});
-
-            // 2) Collect which IDs have already been "claimed" by any page
-            const assignedIds = new Set(
-              Object.values(pageFieldMap).flat()
-            );
-
-            // 3) Compute the "unassigned" IDs
-            const unassigned = allFieldIds.filter(id => !assignedIds.has(id));
-            console.log('useFormsLoader: Unassigned field IDs:', unassigned);
-
-            // 4) Re‑build your pages array, stuffing the leftovers into the first page only
-            const updatedPages = parsedPages.map((page: any, idx: number) => {
-              const filtered = pageFieldMap[page.id];
-
-              // if this page already had some filtered fields, keep those
-              if (filtered.length > 0) {
-                return { ...page, fields: filtered };
+            // Assign unassigned fields to the first page if pages exist but don't have field assignments
+            const updatedPages = parsedPages.map(page => {
+              // If page already has fields assigned, keep them
+              if (page.fields && page.fields.length > 0) {
+                // Filter to only include fields that actually exist in the database
+                const existingFields = page.fields.filter(fieldId => allFieldIds.includes(fieldId));
+                return { ...page, fields: existingFields };
               }
-
-              // otherwise—no fields originally assigned:
-              //   • if it's the very first page, give it all the unassigned IDs
-              //   • else leave it empty
-              return {
-                ...page,
-                fields: idx === 0 ? unassigned : [],
-              };
+              return page;
             });
+            console.log('useFormsLoader: Updated pages after filtering:', updatedPages);
 
-            console.log('useFormsLoader: Updated pages after assigning & filtering:', updatedPages);
+            // Find unassigned fields (fields not in any page)
+            const assignedFieldIds = updatedPages.flatMap(page => page.fields || []);
+            const unassignedFields = allFieldIds.filter(fieldId => !assignedFieldIds.includes(fieldId));
+            
+            // If there are unassigned fields, assign them to the first page
+            if (unassignedFields.length > 0) {
+              const firstPage = updatedPages[0];
+              if (firstPage) {
+                firstPage.fields = [...(firstPage.fields || []), ...unassignedFields];
+              }
+            }
 
             return {
               id: form.id,
