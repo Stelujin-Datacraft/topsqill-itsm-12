@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Form, FormField } from '@/types/form';
@@ -7,18 +6,18 @@ interface FormWithFields extends Omit<Form, 'fields'> {
   fields: FormField[];
 }
 
-  // Helper function to safely parse JSON - EXACT COPY from useFormsLoader
-  const safeParseJson = (jsonString: any, fallback: any = null) => {
-    if (!jsonString) return fallback;
-    if (typeof jsonString === 'object') return jsonString;
-    
-    try {
-      return JSON.parse(jsonString);
-    } catch (error) {
-      console.warn('Failed to parse JSON:', jsonString, error);
-      return fallback;
-    }
-  };
+// Helper function to safely parse JSON - EXACT COPY from useFormsLoader
+const safeParseJson = (jsonString: any, fallback: any = null) => {
+  if (!jsonString) return fallback;
+  if (typeof jsonString === 'object') return jsonString;
+  
+  try {
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.warn('Failed to parse JSON:', jsonString, error);
+    return fallback;
+  }
+};
 
 export function useFormWithFields(formId: string | undefined) {
   const [form, setForm] = useState<FormWithFields | null>(null);
@@ -66,6 +65,41 @@ export function useFormWithFields(formId: string | undefined) {
         // Transform the database data to match our Form type - EXACT LOGIC from useFormsLoader
         const parsedPages = safeParseJson(formData.pages, [{ id: 'default', name: 'Page 1', order: 0, fields: [] }]);
         
+        console.log('📄 Parsed pages from DB:', parsedPages);
+        console.log('🔧 Raw fields from DB:', fieldsData?.map(f => ({ id: f.id, label: f.label, field_order: f.field_order })));
+
+        // Create a map of all field IDs for quick lookup
+        const allFieldIds = (fieldsData || []).map(field => field.id);
+        console.log('🆔 All field IDs from DB:', allFieldIds);
+
+        // Assign fields to pages properly
+        const updatedPages = parsedPages.map(page => {
+          // If page already has fields assigned, keep them
+          if (page.fields && page.fields.length > 0) {
+            // Filter to only include fields that actually exist in the database
+            const existingFields = page.fields.filter(fieldId => allFieldIds.includes(fieldId));
+            console.log(`📋 Page ${page.name} already has fields:`, existingFields);
+            return { ...page, fields: existingFields };
+          }
+          return page;
+        });
+
+        // Find unassigned fields (fields not in any page)
+        const assignedFieldIds = updatedPages.flatMap(page => page.fields || []);
+        const unassignedFields = allFieldIds.filter(fieldId => !assignedFieldIds.includes(fieldId));
+        
+        console.log('🔍 Assigned field IDs:', assignedFieldIds);
+        console.log('❓ Unassigned field IDs:', unassignedFields);
+
+        // If there are unassigned fields, assign them to the first page
+        if (unassignedFields.length > 0) {
+          const firstPage = updatedPages[0];
+          if (firstPage) {
+            firstPage.fields = [...(firstPage.fields || []), ...unassignedFields];
+            console.log(`📋 Assigned ${unassignedFields.length} unassigned fields to ${firstPage.name}`);
+          }
+        }
+
         const transformedForm: FormWithFields = {
           id: formData.id,
           name: formData.name,
@@ -82,17 +116,19 @@ export function useFormWithFields(formId: string | undefined) {
           fieldRules: safeParseJson(formData.field_rules, []),
           formRules: safeParseJson(formData.form_rules, []),
           layout: safeParseJson(formData.layout, { columns: 1 }),
-          pages: parsedPages,
+          pages: updatedPages,
           reference_id: formData.reference_id,
           fields: (fieldsData || []).map(field => {
-            // Find which page this field belongs to
+            // Find which page this field belongs to after our assignment logic
             let assignedPageId = 'default';
-            for (const page of parsedPages) {
+            for (const page of updatedPages) {
               if (page.fields && page.fields.includes(field.id)) {
                 assignedPageId = page.id;
                 break;
               }
             }
+            
+            console.log(`🔗 Field ${field.label} (${field.id}) assigned to page: ${assignedPageId}`);
             
             return {
               id: field.id,
@@ -116,6 +152,18 @@ export function useFormWithFields(formId: string | undefined) {
             };
           })
         };
+
+        console.log('✅ Final transformed form pages:', transformedForm.pages.map(p => ({ 
+          id: p.id, 
+          name: p.name, 
+          fieldCount: p.fields.length,
+          fields: p.fields 
+        })));
+        console.log('✅ Final transformed form fields with pageIds:', transformedForm.fields.map(f => ({ 
+          id: f.id, 
+          label: f.label, 
+          pageId: f.pageId 
+        })));
 
         setForm(transformedForm);
       } catch (err) {
