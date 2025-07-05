@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Responsive, WidthProvider } from 'react-grid-layout';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useReports } from '@/hooks/useReports';
 import { Report, ReportComponent } from '@/types/reports';
@@ -21,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ChartPreview } from '@/components/reports/ChartPreview';
 import { MetricCard } from '@/components/reports/MetricCard';
+import { DynamicTable } from '@/components/reports/DynamicTable';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +30,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
+
+const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const ReportViewerPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -127,55 +133,50 @@ const ReportViewerPage = () => {
       
       case 'table':
         return (
-          <Card key={component.id}>
-            <CardContent className="p-6">
-              <p className="text-sm text-muted-foreground">Table component rendering coming soon</p>
-            </CardContent>
-          </Card>
+          <DynamicTable 
+            key={component.id}
+            config={component.config as any}
+          />
         );
       
       case 'form-submissions':
         return (
-          <Card key={component.id}>
-            <CardContent className="p-6">
-              <p className="text-sm text-muted-foreground">Form submissions table coming soon</p>
-            </CardContent>
-          </Card>
+          <div key={component.id} className="h-full flex items-center justify-center">
+            <p className="text-sm text-muted-foreground">Form submissions table coming soon</p>
+          </div>
         );
       
       case 'text':
         const textConfig = component.config as any;
         return (
-          <Card key={component.id}>
-            <CardContent 
-              className="p-6"
-              style={{
-                backgroundColor: textConfig.backgroundColor,
-                color: textConfig.color,
-                fontSize: getFontSize(textConfig.fontSize),
-                fontWeight: textConfig.fontWeight,
-                textAlign: textConfig.textAlign as any
+          <div 
+            key={component.id}
+            className="h-full"
+            style={{
+              backgroundColor: textConfig.backgroundColor,
+              color: textConfig.color,
+              fontSize: getFontSize(textConfig.fontSize),
+              fontWeight: textConfig.fontWeight,
+              textAlign: textConfig.textAlign as any,
+              padding: '1rem'
+            }}
+          >
+            <div 
+              className="prose"
+              dangerouslySetInnerHTML={{ 
+                __html: textConfig.content || 'Text content' 
               }}
-            >
-              <div 
-                className="prose"
-                dangerouslySetInnerHTML={{ 
-                  __html: textConfig.content || 'Text content' 
-                }}
-              />
-            </CardContent>
-          </Card>
+            />
+          </div>
         );
       
       default:
         return (
-          <Card key={component.id}>
-            <CardContent className="p-6">
-              <p className="text-sm text-muted-foreground">
-                Component type: {component.type}
-              </p>
-            </CardContent>
-          </Card>
+          <div key={component.id} className="h-full flex items-center justify-center">
+            <p className="text-sm text-muted-foreground">
+              Component type: {component.type}
+            </p>
+          </div>
         );
     }
   };
@@ -316,16 +317,32 @@ const ReportViewerPage = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-6">
+            <ResponsiveGridLayout
+              className="layout"
+              layouts={{ lg: components.map(component => ({
+                i: component.id,
+                x: component.layout.x,
+                y: component.layout.y,
+                w: component.layout.w,
+                h: component.layout.h,
+                static: true // Make components non-draggable and non-resizable
+              })) }}
+              breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+              cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+              rowHeight={60}
+              isDraggable={false}
+              isResizable={false}
+            >
               {components.map((component) => (
-                <div key={component.id} className="w-full">
-                  {component.config.title && (
-                    <h3 className="text-lg font-semibold mb-3">{component.config.title}</h3>
-                  )}
-                  {renderComponent(component)}
+                <div key={component.id}>
+                  <Card className="h-full overflow-hidden">
+                    <CardContent className="p-4 h-full">
+                      {renderComponent(component)}
+                    </CardContent>
+                  </Card>
                 </div>
               ))}
-            </div>
+            </ResponsiveGridLayout>
           )}
         </div>
       </div>
