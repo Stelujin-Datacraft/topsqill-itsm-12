@@ -60,19 +60,6 @@ export function useFormWithFields(formId: string | undefined) {
           return;
         }
 
-        // Parse pages first to ensure proper field assignment
-        const parsedPages = safeParseJson(formData.pages, [{ id: 'default', name: 'Page 1', order: 0, fields: [] }]);
-        
-        // Ensure all fields are assigned to pages
-        const allFieldIds = (fieldsData || []).map(f => f.id);
-        const assignedFields = parsedPages.flatMap(p => p.fields || []);
-        const unassignedFields = allFieldIds.filter(id => !assignedFields.includes(id));
-        
-        // Add unassigned fields to the first page
-        if (unassignedFields.length > 0 && parsedPages.length > 0) {
-          parsedPages[0].fields = [...(parsedPages[0].fields || []), ...unassignedFields];
-        }
-
         // Transform the database data to match our Form type - EXACT LOGIC from useFormsLoader
         const transformedForm: FormWithFields = {
           id: formData.id,
@@ -90,33 +77,28 @@ export function useFormWithFields(formId: string | undefined) {
           fieldRules: safeParseJson(formData.field_rules, []),
           formRules: safeParseJson(formData.form_rules, []),
           layout: safeParseJson(formData.layout, { columns: 1 }),
-          pages: parsedPages,
+          pages: safeParseJson(formData.pages, [{ id: 'default', name: 'Page 1', order: 0, fields: [] }]),
           reference_id: formData.reference_id,
-          fields: (fieldsData || []).map(field => {
-            // Determine which page this field belongs to
-            const fieldPageId = parsedPages.find(page => (page.fields || []).includes(field.id))?.id || 'default';
-            
-            return {
-              id: field.id,
-              type: field.field_type as FormField['type'],
-              label: field.label,
-              placeholder: field.placeholder || '',
-              required: field.required || false,
-              defaultValue: field.default_value || '',
-              options: safeParseJson(field.options, []),
-              validation: safeParseJson(field.validation, {}),
-              validationRules: [],
-              permissions: safeParseJson(field.permissions, { read: ['*'], write: ['*'] }),
-              triggers: safeParseJson(field.triggers, []),
-              isVisible: field.is_visible !== false,
-              isEnabled: field.is_enabled !== false,
-              currentValue: field.current_value || '',
-              tooltip: field.tooltip || '',
-              errorMessage: field.error_message || '',
-              customConfig: safeParseJson(field.custom_config, {}),
-              pageId: fieldPageId
-            };
-          })
+          fields: (fieldsData || []).map(field => ({
+            id: field.id,
+            type: field.field_type as FormField['type'],
+            label: field.label,
+            placeholder: field.placeholder || '',
+            required: field.required || false,
+            defaultValue: field.default_value || '',
+            options: safeParseJson(field.options, []),
+            validation: safeParseJson(field.validation, {}),
+            validationRules: [],
+            permissions: safeParseJson(field.permissions, { read: ['*'], write: ['*'] }),
+            triggers: safeParseJson(field.triggers, []),
+            isVisible: field.is_visible !== false,
+            isEnabled: field.is_enabled !== false,
+            currentValue: field.current_value || '',
+            tooltip: field.tooltip || '',
+            errorMessage: field.error_message || '',
+            customConfig: safeParseJson(field.custom_config, {}),
+            pageId: 'default'
+          }))
         };
 
         setForm(transformedForm);
