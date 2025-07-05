@@ -220,12 +220,16 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
   };
 
   const getCurrentPageFields = () => {
+    console.log("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
     const safeFormFields = Array.isArray(form.fields) ? form.fields : [];
     if (!currentPageId || !Array.isArray(pages) || pages.length === 0) return safeFormFields;
-    
+    console.log(currentPage)
     const currentPage = pages.find(p => p.id === currentPageId);
     if (!currentPage || !Array.isArray(currentPage.fields)) return safeFormFields;
-    
+    console.log(form)
+    console.log(safeFormFields)
+    console.log(safeFormFields.filter(field => currentPage.fields.includes(field.id)))
+        console.log("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
     return safeFormFields.filter(field => currentPage.fields.includes(field.id));
   };
 
