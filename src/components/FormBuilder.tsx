@@ -180,20 +180,18 @@ function FormBuilderContent({ formId }: FormBuilderProps) {
   return (
     <div className="h-full flex flex-col">
       <FormBuilderHeader
-        formName={formName}
-        setFormName={setFormName}
-        formDescription={formDescription}
-        setFormDescription={setFormDescription}
-        formStatus={formStatus}
-        setFormStatus={setFormStatus}
-        isCreating={isCreating}
+        onSave={async (shouldPublish?: boolean) => {
+          // Handle save logic here
+        }}
         isSaving={isSaving}
         isPublishing={isPublishing}
-        setIsPublishing={setIsPublishing}
+        isCreating={isCreating}
         currentForm={currentForm}
-        workingForm={workingForm}
-        showFormDetails={showFormDetails}
-        setShowFormDetails={setShowFormDetails}
+        formStatus={formStatus}
+        onStatusChange={setFormStatus}
+        onUpdateForm={async (updates: any) => {
+          // Handle form update logic here
+        }}
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
@@ -219,14 +217,28 @@ function FormBuilderContent({ formId }: FormBuilderProps) {
                 setFormName={setFormName}
                 formDescription={formDescription}
                 setFormDescription={setFormDescription}
-                formStatus={formStatus}
-                setFormStatus={setFormStatus}
                 columnLayout={columnLayout}
                 setColumnLayout={setColumnLayout}
                 pages={pages}
                 currentPageId={currentPageId}
                 setCurrentPageId={setCurrentPageId}
-                workingForm={workingForm}
+                currentForm={currentForm}
+                currentPageFieldsCount={pageFields.length}
+                onAddPage={() => {
+                  // Handle add page logic
+                }}
+                onPageRename={(pageId: string, newName: string) => {
+                  // Handle page rename logic
+                }}
+                onPageDelete={(pageId: string) => {
+                  // Handle page delete logic
+                }}
+                currentPageFields={pageFields}
+                selectedFieldId={selectedField?.id}
+                highlightedFieldId={highlightedFieldId}
+                onFieldClick={fieldOperations.handleFieldClick}
+                onFieldDelete={fieldOperations.handleFieldDelete}
+                onDragEnd={fieldOperations.handleDragEnd}
                 showFormDetails={showFormDetails}
                 setShowFormDetails={setShowFormDetails}
               />
@@ -281,7 +293,9 @@ function FormBuilderContent({ formId }: FormBuilderProps) {
             setShowFieldProperties(false);
             setSelectedField(null);
           }}
-          onSave={fieldOperations.handleFieldUpdate}
+          onSave={async (fieldId: string, updates: any) => {
+            return fieldOperations.handleFieldUpdate(fieldId, updates);
+          }}
           savingFieldConfig={savingFieldConfig}
           setSavingFieldConfig={setSavingFieldConfig}
         />
