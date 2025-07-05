@@ -138,6 +138,7 @@ export function useFormsLoader() {
             //   return page;
             // });
             const updatedPages = parsedPages;
+            console.log(" UPDATED FORM  ")
             console.log('useFormsLoader: Updated pages after filtering:', updatedPages);
 
             // Find unassigned fields (fields not in any page)
