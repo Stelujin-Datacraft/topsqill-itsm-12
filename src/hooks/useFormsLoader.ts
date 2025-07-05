@@ -121,9 +121,11 @@ export function useFormsLoader() {
 
             // Parse pages first to determine correct field assignments
             const parsedPages = safeParseJson(form.pages, [{ id: 'default', name: 'Page 1', order: 0, fields: [] }]);
+            console.log('useFormsLoader: Parsed pages:', parsedPages);
             
             // Create a map of all field IDs for quick lookup
             const allFieldIds = (fieldsData || []).map(field => field.id);
+            console.log('useFormsLoader: All field IDs:', allFieldIds);
             
             // Assign unassigned fields to the first page if pages exist but don't have field assignments
             const updatedPages = parsedPages.map(page => {
@@ -135,6 +137,7 @@ export function useFormsLoader() {
               }
               return page;
             });
+            console.log('useFormsLoader: Updated pages after filtering:', updatedPages);
 
             // Find unassigned fields (fields not in any page)
             const assignedFieldIds = updatedPages.flatMap(page => page.fields || []);
@@ -168,6 +171,7 @@ export function useFormsLoader() {
                     break;
                   }
                 }
+                console.log(`useFormsLoader: Field ${field.id} (${field.label}) assigned to page: ${assignedPageId}`);
                 
                 return {
                   id: field.id,
