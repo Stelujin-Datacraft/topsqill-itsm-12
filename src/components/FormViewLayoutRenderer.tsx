@@ -323,11 +323,14 @@ export function FormViewLayoutRenderer({
   };
 
   const getCurrentPageFields = () => {
+    console.log('+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++')
+    console.log(currentPageId)
     if (!currentPageId || pages.length === 0) return Array.isArray(form.fields) ? form.fields : [];
     
     const currentPage = pages.find(p => p.id === currentPageId);
     if (!currentPage) return Array.isArray(form.fields) ? form.fields : [];
-    
+    console.log(form)
+    console.log( Array.isArray(form.fields) ? form.fields.filter(field => currentPage.fields.includes(field.id)) : [])
     return Array.isArray(form.fields) ? form.fields.filter(field => currentPage.fields.includes(field.id)) : [];
   };
 
