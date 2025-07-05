@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -287,8 +286,8 @@ function FormBuilderContent({ formId }: FormBuilderProps) {
       {/* Field Properties Dialog */}
       {showFieldProperties && selectedField && (
         <FieldPropertiesDialog
-          field={selectedField}
-          isOpen={showFieldProperties}
+          selectedField={selectedField}
+          open={showFieldProperties}
           onClose={() => {
             setShowFieldProperties(false);
             setSelectedField(null);
@@ -296,8 +295,6 @@ function FormBuilderContent({ formId }: FormBuilderProps) {
           onSave={async (fieldId: string, updates: any) => {
             return fieldOperations.handleFieldUpdate(fieldId, updates);
           }}
-          savingFieldConfig={savingFieldConfig}
-          setSavingFieldConfig={setSavingFieldConfig}
         />
       )}
     </div>
