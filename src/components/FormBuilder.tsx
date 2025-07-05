@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,29 +22,6 @@ import {
   Save,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-=======
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { toast } from '@/hooks/use-toast';
-import { useFormWithFields } from '@/hooks/useFormWithFields';
-import { useFormsData } from '@/hooks/useFormsData';
-import { useAuth } from '@/contexts/AuthContext';
-import { useProject } from '@/contexts/ProjectContext';
-import { Form } from '@/types/form';
-import { FormBuilderHeader } from './FormBuilder/FormBuilderHeader';
-import { FormDetailsPanel } from './FormBuilder/FormDetailsPanel';
-import { FieldLayoutRenderer } from './FormBuilder/FieldLayoutRenderer';
-import { FieldTypesPanel } from './FormBuilder/FieldTypesPanel';
-import { FieldPropertiesDialog } from './FormBuilder/FieldPropertiesDialog';
-import { FormPreview } from './FormPreview';
-import { useFormBuilderState } from './FormBuilder/hooks/useFormBuilderState';
-import { useOptimizedFieldOperations } from './FormBuilder/hooks/useOptimizedFieldOperations';
-import { FormSnapshotProvider } from './FormBuilder/contexts/FormSnapshotContext';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Eye, Settings } from 'lucide-react';
->>>>>>> efb5bdda90202c39d553f20847ecd88bd706f8d4
 
 // Import optimized components
 import { FormBuilderHeader } from './FormBuilder/FormBuilderHeader';
