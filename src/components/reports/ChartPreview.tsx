@@ -106,7 +106,15 @@ export function ChartPreview({ config, onEdit }: ChartPreviewProps) {
       // Create dimension key - use xAxis if dimensions not set
       const dimensionFields = config.dimensions && config.dimensions.length > 0 ? config.dimensions : [config.xAxis];
       const dimensionKey = dimensionFields
-        .map(dim => submissionData[dim] || 'Unknown')
+        .map(dim => {
+          const val = submissionData[dim];
+          // Handle complex field types for dimensions
+          if (typeof val === 'object' && val !== null) {
+            if (val.status) return val.status; // For approval fields
+            return JSON.stringify(val);
+          }
+          return val || 'Unknown';
+        })
         .join(' - ');
 
       if (!processedData[dimensionKey]) {
@@ -138,7 +146,17 @@ export function ChartPreview({ config, onEdit }: ChartPreviewProps) {
           processedData[dimensionKey][metric] += 1;
         } else {
           const value = submissionData[metric] || submissionData[config.yAxis];
-          if (typeof value === 'number') {
+          
+          // Handle complex field types (approval, etc.)
+          if (typeof value === 'object' && value !== null) {
+            // For approval fields, count based on status
+            if (value.status) {
+              processedData[dimensionKey][metric] += value.status === 'approved' ? 1 : 0;
+            } else {
+              // For other object types, just count as 1 if present
+              processedData[dimensionKey][metric] += 1;
+            }
+          } else if (typeof value === 'number') {
             processedData[dimensionKey][metric] += value;
           } else if (value) {
             processedData[dimensionKey][metric] += 1;
