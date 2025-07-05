@@ -17,10 +17,14 @@ import {
   Settings,
   FileText,
   Workflow,
-  BarChart3
+  BarChart3,
+  Trash2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import DashboardLayout from '@/components/DashboardLayout';
+import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface ProjectUser {
   id: string;
@@ -38,6 +42,8 @@ export default function ProjectOverview() {
   const [project, setProject] = useState<Project | null>(null);
   const [teamMembers, setTeamMembers] = useState<ProjectUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+  const { isProjectAdmin, isOrgAdmin } = useUnifiedAccessControl(projectId);
 
   useEffect(() => {
     if (projectId && projects.length > 0) {
@@ -60,28 +66,48 @@ export default function ProjectOverview() {
     }
   };
 
-  const isProjectAdmin = () => {
-    if (!project || !userProfile) return false;
-    
-    console.log('Checking admin access in overview:');
-    console.log('Project created_by:', project.created_by);
-    console.log('User profile id:', userProfile.id);
-    console.log('User role:', userProfile.role);
-    
-    // Check if user is the project creator OR organization admin
-    const isCreator = project.created_by === userProfile.id;
-    const isOrgAdmin = userProfile.role === 'admin';
-    
-    console.log('Is creator:', isCreator);
-    console.log('Is org admin:', isOrgAdmin);
-    
-    return isCreator || isOrgAdmin;
+  const canDeleteProject = () => {
+    return isProjectAdmin || isOrgAdmin;
   };
 
   const handleManageAccess = () => {
     if (project) {
       console.log('Navigating to access management for project:', project.id);
       navigate(`/projects/${project.id}/access`);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!project) return;
+
+    const confirmMessage = `Are you sure you want to delete "${project.name}"? This action cannot be undone and will delete all forms, workflows, and reports in this project.`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+
+      // Delete the project
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', project.id);
+
+      if (error) {
+        console.error('Error deleting project:', error);
+        toast.error('Failed to delete project');
+        return;
+      }
+
+      toast.success('Project deleted successfully');
+      navigate('/projects');
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      toast.error('An unexpected error occurred');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -124,8 +150,8 @@ export default function ProjectOverview() {
     );
   }
 
-  const hasAdminAccess = isProjectAdmin();
-  console.log('Final admin access check result:', hasAdminAccess);
+  const hasAdminAccess = isProjectAdmin || isOrgAdmin;
+  const canDelete = canDeleteProject();
 
   return (
     <DashboardLayout 
@@ -136,6 +162,16 @@ export default function ProjectOverview() {
             <Button onClick={handleManageAccess}>
               <Shield className="h-4 w-4 mr-2" />
               Manage Access
+            </Button>
+          )}
+          {canDelete && (
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteProject}
+              disabled={deleting}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {deleting ? 'Deleting...' : 'Delete Project'}
             </Button>
           )}
           <Button variant="outline" onClick={() => navigate('/projects')}>
@@ -157,6 +193,7 @@ export default function ProjectOverview() {
                 <div>User ID: {userProfile?.id}</div>
                 <div>User Role: {userProfile?.role}</div>
                 <div>Has Admin Access: {hasAdminAccess ? 'Yes' : 'No'}</div>
+                <div>Can Delete Project: {canDelete ? 'Yes' : 'No'}</div>
               </div>
             </CardContent>
           </Card>
