@@ -120,7 +120,8 @@ function FormBuilderContent({ formId }: FormBuilderProps) {
       if (state.currentPageId === 'default' && !field.pageId) return true;
       return false;
     });
-    
+    console.log(state)
+    console.log(workingForm)
     console.log('Current page fields from snapshot:', {
       pageId: state.currentPageId,
       page: currentPage,
