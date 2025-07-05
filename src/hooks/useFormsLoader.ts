@@ -127,11 +127,11 @@ export function useFormsLoader() {
             console.log('useFormsLoader: All field IDs:', allFieldIds);
             
             // 1) Build a map of "existing" page→fields (filtered against your DB list)
-            const pageFieldMap = parsedPages.reduce<Record<string,string[]>>((map, page) => {
+            const pageFieldMap: Record<string, string[]> = parsedPages.reduce((map: Record<string, string[]>, page: any) => {
               // make sure page.fields is an array
               const raw = Array.isArray(page.fields) ? page.fields : [];
               // keep only IDs that are truly in allFieldIds
-              map[page.id] = raw.filter(id => allFieldIds.includes(id));
+              map[page.id] = raw.filter((id: string) => allFieldIds.includes(id));
               return map;
             }, {});
 
@@ -145,7 +145,7 @@ export function useFormsLoader() {
             console.log('useFormsLoader: Unassigned field IDs:', unassigned);
 
             // 4) Re‑build your pages array, stuffing the leftovers into the first page only
-            const updatedPages = parsedPages.map((page, idx) => {
+            const updatedPages = parsedPages.map((page: any, idx: number) => {
               const filtered = pageFieldMap[page.id];
 
               // if this page already had some filtered fields, keep those
