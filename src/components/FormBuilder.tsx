@@ -122,6 +122,7 @@ function FormBuilderContent({ formId }: FormBuilderProps) {
     });
     console.log(state)
     console.log(workingForm)
+    console.log(pageFields)
     console.log('Current page fields from snapshot:', {
       pageId: state.currentPageId,
       page: currentPage,
