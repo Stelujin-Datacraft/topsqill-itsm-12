@@ -49,11 +49,14 @@ export function useFormWithFields(formId: string | undefined) {
         }
 
         // Then load the form fields
+        console.log('🔍 Loading fields for form ID:', formId);
         const { data: fieldsData, error: fieldsError } = await supabase
           .from('form_fields')
           .select('*')
           .eq('form_id', formId)
           .order('field_order');
+
+        console.log('📊 Fields query result:', { fieldsData, fieldsError, count: fieldsData?.length });
 
         if (fieldsError) {
           setError('Failed to load form fields: ' + fieldsError.message);
