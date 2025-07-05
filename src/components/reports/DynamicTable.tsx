@@ -276,7 +276,16 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                   <TableRow key={row.id}>
                     {displayFields.map(field => (
                       <TableCell key={field.id}>
-                        {row.submission_data?.[field.id] || '-'}
+                        {(() => {
+                          const value = row.submission_data?.[field.id];
+                          // Handle complex field types (approval fields, etc.)
+                          if (typeof value === 'object' && value !== null) {
+                            if (value.status) return value.status; // For approval fields
+                            if (Array.isArray(value)) return value.join(', '); // For arrays
+                            return JSON.stringify(value); // Fallback for other objects
+                          }
+                          return value || '-';
+                        })()}
                       </TableCell>
                     ))}
                     {config.showMetadata && (
