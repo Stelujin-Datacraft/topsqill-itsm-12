@@ -223,10 +223,8 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
     const safeFormFields = Array.isArray(form.fields) ? form.fields : [];
     if (!currentPageId || !Array.isArray(pages) || pages.length === 0) return safeFormFields;
     
-    const currentPage = pages.find(p => p.id === currentPageId);
-    if (!currentPage || !Array.isArray(currentPage.fields)) return safeFormFields;
-    
-    return safeFormFields.filter(field => currentPage.fields.includes(field.id));
+    // Filter fields by their pageId property (new data format)
+    return safeFormFields.filter(field => field.pageId === currentPageId);
   };
 
   const handlePageChange = (pageId: string) => {
