@@ -98,40 +98,40 @@ function FormBuilderContent({ formId }: FormBuilderProps) {
     }
   }, [workingForm?.fields, state.selectedField?.id]);
 
-  // Get current page fields safely from snapshot
-  const getCurrentPageFields = () => {
-    if (!state.currentPageId || !workingForm) {
-      console.log('No current page or form:', { currentPageId: state.currentPageId, hasForm: !!workingForm });
-      return [];
-    }
+  // // Get current page fields safely from snapshot
+  // const getCurrentPageFields = () => {
+  //   if (!state.currentPageId || !workingForm) {
+  //     console.log('No current page or form:', { currentPageId: state.currentPageId, hasForm: !!workingForm });
+  //     return [];
+  //   }
     
-    const currentPage = pages.find(p => p.id === state.currentPageId);
-    if (!currentPage) {
-      console.log('Current page not found:', state.currentPageId, 'Available pages:', pages.map(p => p.id));
-      return [];
-    }
+  //   const currentPage = pages.find(p => p.id === state.currentPageId);
+  //   if (!currentPage) {
+  //     console.log('Current page not found:', state.currentPageId, 'Available pages:', pages.map(p => p.id));
+  //     return [];
+  //   }
     
-    const pageFields = workingForm.fields.filter(field => {
-      // Check if field is explicitly assigned to this page
-      if (field.pageId === state.currentPageId) return true;
-      // Check if field is in the page's field list
-      if (currentPage.fields.includes(field.id)) return true;
-      // For default page, include fields without pageId
-      if (state.currentPageId === 'default' && !field.pageId) return true;
-      return false;
-    });
-    console.log(state)
-    console.log(workingForm)
-    console.log('Current page fields from snapshot:', {
-      pageId: state.currentPageId,
-      page: currentPage,
-      allFields: workingForm.fields.length,
-      pageFields: pageFields.length,
-      fieldIds: pageFields.map(f => f.id)
-    });
+  //   const pageFields = workingForm.fields.filter(field => {
+  //     // Check if field is explicitly assigned to this page
+  //     if (field.pageId === state.currentPageId) return true;
+  //     // Check if field is in the page's field list
+  //     if (currentPage.fields.includes(field.id)) return true;
+  //     // For default page, include fields without pageId
+  //     if (state.currentPageId === 'default' && !field.pageId) return true;
+  //     return false;
+  //   });
+  //   console.log(state)
+  //   console.log(workingForm)
+  //   console.log('Current page fields from snapshot:', {
+  //     pageId: state.currentPageId,
+  //     page: currentPage,
+  //     allFields: workingForm.fields.length,
+  //     pageFields: pageFields.length,
+  //     fieldIds: pageFields.map(f => f.id)
+  //   });
     
-    return pageFields;
-  };
+  //   return pageFields;
+  // };
 
   const currentPageFields = getCurrentPageFields();
 
