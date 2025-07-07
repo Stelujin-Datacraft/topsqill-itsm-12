@@ -225,6 +225,15 @@ export function getFieldDefaults(fieldType: FieldType): Record<string, any> {
       version: 'both',
       validateFormat: true,
     },
+    'submission-access': {
+      accessLevel: 'view',
+      accessDuration: undefined,
+      notificationMessage: '',
+      requireConfirmation: false,
+      sendNotification: true,
+      allowMultiple: false,
+      logAccess: true,
+    },
   };
 
   return defaults[fieldType] || {};

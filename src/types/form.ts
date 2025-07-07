@@ -338,24 +338,12 @@ export interface FormField {
     // Submission Access specific
     accessLevel?: 'view' | 'edit' | 'admin';
     accessDuration?: number;
-    notificationMessage?: string;
-    requireConfirmation?: boolean;
     sendNotification?: boolean;
     logAccess?: boolean;
     
     // Signature specific
     canvasWidth?: number;
     canvasHeight?: number;
-    penColor?: string;
-    showTimestamp?: boolean;
-    undoEnabled?: boolean;
-    clearOnDoubleTap?: boolean;
-    
-    // Multi-select specific enhancements
-    maxSelections?: number;
-    allowOther?: boolean;
-    searchable?: boolean;
-    clearable?: boolean;
   };
 }
 
