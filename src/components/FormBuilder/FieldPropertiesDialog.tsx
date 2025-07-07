@@ -79,6 +79,20 @@ export function FieldPropertiesDialog({
   const { getFormOptions, loading } = useFormAccess();
   const { fetchFieldData, transformToFormField, loading: loadingFieldData, error: fieldDataError } = useFieldData();
 
+  // Utility function to ensure options is always an array
+  const ensureOptionsArray = (opts: any): any[] => {
+    if (Array.isArray(opts)) return opts;
+    if (typeof opts === 'string') {
+      try {
+        const parsed = JSON.parse(opts);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
   // Enhanced field data fetching with comprehensive logging
   React.useEffect(() => {
     const loadFieldConfiguration = async () => {
@@ -154,6 +168,10 @@ export function FieldPropertiesDialog({
     console.log('🔧 FieldPropertiesDialog: Initializing local config for field:', field.label);
     console.log('📊 FieldPropertiesDialog: Field customConfig:', field.customConfig);
     
+    // Ensure options are properly parsed from JSON string if needed
+    const parsedOptions = ensureOptionsArray(field.options);
+    console.log('📋 FieldPropertiesDialog: Parsed options:', parsedOptions);
+    
     setLocalConfig({
       label: field.label,
       placeholder: field.placeholder || '',
@@ -161,7 +179,7 @@ export function FieldPropertiesDialog({
       tooltip: field.tooltip || '',
       defaultValue: field.defaultValue || '',
       customConfig: field.customConfig || {},
-      options: field.options || [],
+      options: parsedOptions,
       validation: field.validation || {},
     });
 
@@ -337,7 +355,7 @@ export function FieldPropertiesDialog({
   };
 
   const handleOptionChange = (index: number, field: 'value' | 'label', value: string) => {
-    const options = [...(localConfig.options || [])];
+    const options = ensureOptionsArray(localConfig.options);
     if (options[index]) {
       options[index] = { ...options[index], [field]: value };
     }
@@ -345,7 +363,7 @@ export function FieldPropertiesDialog({
   };
 
   const addOption = () => {
-    const options = [...(localConfig.options || [])];
+    const options = ensureOptionsArray(localConfig.options);
     options.push({
       id: `option-${Date.now()}`,
       value: '',
@@ -355,7 +373,7 @@ export function FieldPropertiesDialog({
   };
 
   const removeOption = (index: number) => {
-    const options = [...(localConfig.options || [])];
+    const options = ensureOptionsArray(localConfig.options);
     options.splice(index, 1);
     updateField('options', options);
   };
@@ -369,7 +387,7 @@ export function FieldPropertiesDialog({
       tooltip: localConfig.tooltip || '',
       defaultValue: localConfig.defaultValue || '',
       customConfig: localConfig.customConfig || {},
-      options: localConfig.options || [],
+      options: ensureOptionsArray(localConfig.options),
       validation: localConfig.validation || {},
     };
   };
@@ -642,7 +660,7 @@ export function FieldPropertiesDialog({
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {(localConfig.options || []).map((option: any, index: number) => (
+                  {ensureOptionsArray(localConfig.options).map((option: any, index: number) => (
                     <div key={option.id || index} className="flex gap-3 items-center p-3 bg-gray-50 rounded-lg">
                       <div className="flex-1 grid grid-cols-2 gap-3">
                         <Input
@@ -755,300 +773,6 @@ export function FieldPropertiesDialog({
                 </CardContent>
               </Card>
             )}
-
-            {/* Record Field Configuration */}
-            {/* {(fieldType === 'record-table' || fieldType === 'matrix-grid' || fieldType === 'cross-reference') && (
-              <div className="space-y-6">
-                // Target Form Selection 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <div className="w-3 h-3 bg-teal-500 rounded-full"></div>
-                      Target Form
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <Label htmlFor="target-form">Select Form *</Label>
-                      <Select
-                        value={localConfig.customConfig?.targetFormId || ''}
-                        onValueChange={handleTargetFormChange}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={loading ? "Loading forms..." : "Select a form"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {formOptions.map((form) => (
-                            <SelectItem key={form.value} value={form.value}>
-                              <div>
-                                <div className="font-medium">{form.label}</div>
-                                {form.description && (
-                                  <div className="text-sm text-gray-500">{form.description}</div>
-                                )}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {localConfig.customConfig?.targetFormId && (
-                      <div className="p-3 bg-blue-50 rounded-md">
-                        <p className="text-sm text-blue-700">
-                          <strong>Connected to:</strong> {localConfig.customConfig.targetFormName || 'Selected form'}
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                // Column Selection - Only show when a form is selected 
-                {localConfig.customConfig?.targetFormId && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                        Display Columns
-                        {loadingFields && <Loader2 className="h-4 w-4 animate-spin" />}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {loadingFields ? (
-                        <div className="flex items-center justify-center py-8">
-                          <Loader2 className="h-6 w-6 animate-spin" />
-                          <span className="ml-2 text-sm text-gray-500">Loading form fields...</span>
-                        </div>
-                      ) : (
-                        <div className="space-y-6">
-                          // Form Fields Section 
-                          {selectedFormFields.length > 0 ? (
-                            <div>
-                              <Label className="text-sm font-medium mb-3 block">Form Fields</Label>
-                              <div className="max-h-64 overflow-y-auto space-y-3 border rounded-lg p-4 bg-gray-50">
-                                {selectedFormFields.map((field) => (
-                                  <div key={field.id} className="flex items-center space-x-3">
-                                    <Checkbox
-                                      id={`field-${field.id}`}
-                                      checked={displayColumns.includes(field.id)}
-                                      onCheckedChange={(checked) => handleColumnToggle(field.id, Boolean(checked))}
-                                    />
-                                    <Label htmlFor={`field-${field.id}`} className="text-sm flex-1 cursor-pointer">
-                                      <span className="font-medium">{field.label}</span>
-                                      <Badge variant="outline" className="ml-2 text-xs">
-                                        {field.field_type}
-                                      </Badge>
-                                    </Label>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed">
-                              <p className="font-medium">No fields found</p>
-                              <p className="text-sm">The selected form doesn't have any fields yet.</p>
-                            </div>
-                          )}
-
-                          // Metadata Columns Section 
-                          <div>
-                            <div className="flex items-center space-x-2 mb-3">
-                              <Checkbox
-                                id="include-metadata"
-                                checked={includeMetadata}
-                                onCheckedChange={(checked) => updateCustomConfig('includeMetadata', Boolean(checked))}
-                              />
-                              <Label htmlFor="include-metadata" className="text-sm font-medium cursor-pointer">
-                                Include Metadata Columns
-                              </Label>
-                            </div>
-                            
-                            {includeMetadata && (
-                              <div className="max-h-48 overflow-y-auto space-y-3 border rounded-lg p-4 bg-blue-50">
-                                {METADATA_COLUMNS.map((column) => (
-                                  <div key={column.id} className="flex items-center space-x-3">
-                                    <Checkbox
-                                      id={`metadata-${column.id}`}
-                                      checked={displayColumns.includes(`metadata_${column.id}`)}
-                                      onCheckedChange={(checked) => handleMetadataColumnToggle(column.id, Boolean(checked))}
-                                    />
-                                    <Label htmlFor={`metadata-${column.id}`} className="text-sm flex-1 cursor-pointer">
-                                      <span className="font-medium">{column.label}</span>
-                                      <Badge variant="secondary" className="ml-2 text-xs">
-                                        {column.type}
-                                      </Badge>
-                                    </Label>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-
-                          // Selected Columns Summary 
-                          {displayColumns.length > 0 && (
-                            <div>
-                              <Label className="text-sm font-medium mb-2 block">
-                                Selected Columns ({displayColumns.length})
-                              </Label>
-                              <div className="flex flex-wrap gap-2">
-                                {displayColumns.map((columnId) => {
-                                  const isMetadata = columnId.startsWith('metadata_');
-                                  const actualId = isMetadata ? columnId.replace('metadata_', '') : columnId;
-                                  
-                                  let columnLabel = '';
-                                  if (isMetadata) {
-                                    const metadataCol = METADATA_COLUMNS.find(col => col.id === actualId);
-                                    columnLabel = metadataCol?.label || actualId;
-                                  } else {
-                                    const field = selectedFormFields.find(f => f.id === actualId);
-                                    columnLabel = field?.label || actualId;
-                                  }
-
-                                  return (
-                                    <Badge key={columnId} variant={isMetadata ? "secondary" : "default"}>
-                                      {columnLabel}
-                                    </Badge>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-
-                // Filters Section 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-purple-500 rounded-full"></div>  
-                        Filters
-                      </div>
-                      <Button type="button" variant="outline" size="sm" onClick={addFilter}>
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add Filter
-                      </Button>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {(localConfig.customConfig?.filters || []).map((filter: any, index: number) => (
-                        <div key={filter.id} className="flex items-center space-x-2 p-3 border rounded-lg bg-gray-50">
-                          <Select
-                            value={filter.field}
-                            onValueChange={(value) => updateFilter(index, 'field', value)}
-                          >
-                            <SelectTrigger className="flex-1">
-                              <SelectValue placeholder="Select field" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableFilterFields.map((field) => (
-                                <SelectItem key={field.id} value={field.id}>
-                                  {field.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Select
-                            value={filter.operator}
-                            onValueChange={(value) => updateFilter(index, 'operator', value)}
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="==">=</SelectItem>
-                              <SelectItem value="!=">≠</SelectItem>
-                              <SelectItem value="<">&lt;</SelectItem>
-                              <SelectItem value=">">&gt;</SelectItem>
-                              <SelectItem value="contains">Contains</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Input
-                            placeholder="Value"
-                            value={filter.value}
-                            onChange={(e) => updateFilter(index, 'value', e.target.value)}
-                            className="flex-1"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeFilter(index)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                      
-                      {(!localConfig.customConfig?.filters || localConfig.customConfig.filters.length === 0) && (
-                        <div className="text-center py-6 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed">
-                          <p>No filters configured. Click "Add Filter" to get started.</p>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                // Display Options 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
-                      Display Options
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="enable-sorting"
-                          checked={localConfig.customConfig?.enableSorting !== false}
-                          onCheckedChange={(checked) => updateCustomConfig('enableSorting', Boolean(checked))}
-                        />
-                        <Label htmlFor="enable-sorting">Enable sorting</Label>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="enable-search"
-                          checked={localConfig.customConfig?.enableSearch !== false}
-                          onCheckedChange={(checked) => updateCustomConfig('enableSearch', Boolean(checked))}
-                        />
-                        <Label htmlFor="enable-search">Enable search</Label>
-                      </div>
-
-                      {fieldType === 'record-table' && (
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="show-user-records"
-                            checked={localConfig.customConfig?.showOnlyUserRecords || false}
-                            onCheckedChange={(checked) => updateCustomConfig('showOnlyUserRecords', Boolean(checked))}
-                          />
-                          <Label htmlFor="show-user-records">Show only user's records</Label>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="page-size">Records per page</Label>
-                      <Input
-                        id="page-size"
-                        type="number"
-                        value={localConfig.customConfig?.pageSize || 10}
-                        onChange={(e) => updateCustomConfig('pageSize', parseInt(e.target.value, 10) || 10)}
-                        min="1"
-                        max="100"
-                        className="w-32"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )} */}
 
             {/* Advanced Options */}
             <Card>
