@@ -558,7 +558,11 @@ export function FieldPropertiesDialog({
     // Record
     'record-table', 'matrix-grid', 'cross-reference',
     // New Field Types
-    'barcode', 'approval', 'dynamic-dropdown', 'calculated', 'conditional-section',
+    'barcode', 'approval', 'dynamic-dropdown', 'calculated', 'conditional-section', 'submission-access',
+    // Media Fields
+    'signature', 'color',
+    // International Fields
+    'country', 'phone',
     // Other
     'number', 'currency', 'file', 'image', 'rating', 'slider'
   ].includes(fieldType);

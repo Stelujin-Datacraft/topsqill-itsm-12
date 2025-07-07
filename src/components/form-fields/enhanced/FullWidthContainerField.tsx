@@ -68,11 +68,16 @@ export function FullWidthContainerField({ field, value, onChange, error, disable
         );
       }
     } else {
+      // Handle both base64 data URLs and regular URLs
       return (
         <img
           src={mediaUrl}
-          alt={field.label}
+          alt={field.label || 'Uploaded image'}
           className="w-full h-full object-cover rounded-lg"
+          onError={(e) => {
+            console.error('Image failed to load:', mediaUrl);
+            e.currentTarget.style.display = 'none';
+          }}
         />
       );
     }

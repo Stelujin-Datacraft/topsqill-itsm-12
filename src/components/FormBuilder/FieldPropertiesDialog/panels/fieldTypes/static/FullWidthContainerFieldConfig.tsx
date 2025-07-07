@@ -28,8 +28,16 @@ export function FullWidthContainerFieldConfig({ config, onUpdate, errors }: Full
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      handleConfigUpdate('mediaFile', file);
-      handleConfigUpdate('mediaUrl', URL.createObjectURL(file));
+      // Convert file to base64 for persistence
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64Data = e.target?.result as string;
+        handleConfigUpdate('mediaUrl', base64Data);
+        handleConfigUpdate('mediaFileName', file.name);
+        handleConfigUpdate('mediaFileType', file.type);
+        handleConfigUpdate('mediaFileSize', file.size);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -82,7 +90,9 @@ export function FullWidthContainerFieldConfig({ config, onUpdate, errors }: Full
               className="hidden"
             />
             {customConfig.mediaUrl && (
-              <span className="text-sm text-gray-500">File selected</span>
+              <span className="text-sm text-gray-500">
+                {customConfig.mediaFileName || 'File selected'}
+              </span>
             )}
           </div>
         </div>
