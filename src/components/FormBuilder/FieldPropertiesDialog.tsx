@@ -473,6 +473,8 @@ export function FieldPropertiesDialog({
         return <BarcodeFieldConfig {...props} />;
       case 'approval':
         return <ApprovalFieldConfig {...props} />;
+       case 'dynamic-dropdown':
+         return <DynamicDropdownFieldConfig {...props} />;
       case 'calculated':
         return <CalculatedFieldConfig {...props} />;
       case 'conditional-section':
