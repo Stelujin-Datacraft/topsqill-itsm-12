@@ -33,6 +33,11 @@ import { DynamicDropdownField } from './form-fields/DynamicDropdownField';
 import { CalculatedField } from './form-fields/CalculatedField';
 import { ConditionalSectionField } from './form-fields/ConditionalSectionField';
 import { GeoLocationField } from './form-fields/GeoLocationField';
+import { MultiSelectField } from './form-fields/MultiSelectField';
+import { SignatureField } from './form-fields/SignatureField';
+import { CurrencyField } from './form-fields/CurrencyField';
+import { CountryField } from './form-fields/CountryField';
+import { SubmissionAccessField } from './form-fields/SubmissionAccessField';
 
 interface FormFieldsRendererProps {
   fields: FormField[];
@@ -141,6 +146,62 @@ export function FormFieldsRenderer({
 
       case 'file':
         return <FileField {...commonProps} />;
+
+      // New Field Types
+      case 'multi-select':
+        return (
+          <MultiSelectField
+            field={field}
+            value={formData[field.id] || []}
+            onChange={(value) => onFieldChange(field.id, value)}
+            error={errors[field.id]}
+            disabled={!fieldState.isEnabled}
+          />
+        );
+
+      case 'signature':
+        return (
+          <SignatureField
+            field={field}
+            value={formData[field.id] || ''}
+            onChange={(value) => onFieldChange(field.id, value)}
+            error={errors[field.id]}
+            disabled={!fieldState.isEnabled}
+          />
+        );
+
+      case 'currency':
+        return (
+          <CurrencyField
+            field={field}
+            value={formData[field.id] || { amount: 0, currency: field.customConfig?.defaultCurrency || 'USD' }}
+            onChange={(value) => onFieldChange(field.id, value)}
+            error={errors[field.id]}
+            disabled={!fieldState.isEnabled}
+          />
+        );
+
+      case 'country':
+        return (
+          <CountryField
+            field={field}
+            value={formData[field.id] || ''}
+            onChange={(value) => onFieldChange(field.id, value)}
+            error={errors[field.id]}
+            disabled={!fieldState.isEnabled}
+          />
+        );
+
+      case 'submission-access':
+        return (
+          <SubmissionAccessField
+            field={field}
+            value={formData[field.id] || (field.customConfig?.allowMultiple ? [] : '')}
+            onChange={(value) => onFieldChange(field.id, value)}
+            error={errors[field.id]}
+            disabled={!fieldState.isEnabled}
+          />
+        );
 
       // Enhanced Email with validation
       case 'email':

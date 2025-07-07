@@ -1,35 +1,54 @@
 
 import React from 'react';
-import { FormField } from '@/types/form';
+import { FieldConfiguration } from '../../hooks/useFieldConfiguration';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface CurrencyFieldConfigProps {
-  field: FormField;
-  onConfigChange: (config: Record<string, any>) => void;
+  config: FieldConfiguration;
+  onUpdate: (updates: Partial<FieldConfiguration>) => void;
+  errors: Record<string, string>;
 }
 
-export function CurrencyFieldConfig({ field, onConfigChange }: CurrencyFieldConfigProps) {
-  const config = field.customConfig || {};
+const CURRENCIES = [
+  { code: 'USD', name: 'US Dollar', symbol: '$' },
+  { code: 'EUR', name: 'Euro', symbol: '€' },
+  { code: 'GBP', name: 'British Pound', symbol: '£' },
+  { code: 'JPY', name: 'Japanese Yen', symbol: '¥' },
+  { code: 'CAD', name: 'Canadian Dollar', symbol: 'C$' },
+  { code: 'AUD', name: 'Australian Dollar', symbol: 'A$' },
+  { code: 'CHF', name: 'Swiss Franc', symbol: 'CHF' },
+  { code: 'CNY', name: 'Chinese Yuan', symbol: '¥' },
+  { code: 'INR', name: 'Indian Rupee', symbol: '₹' },
+];
 
+export function CurrencyFieldConfig({ config, onUpdate, errors }: CurrencyFieldConfigProps) {
   return (
     <div className="space-y-4">
       <div>
         <Label htmlFor="defaultCurrency">Default Currency</Label>
-        <select
-          id="defaultCurrency"
-          value={config.defaultCurrency || 'USD'}
-          onChange={(e) => onConfigChange({ defaultCurrency: e.target.value })}
-          className="w-full px-3 py-2 border border-input rounded-md bg-background"
+        <Select
+          value={config.customConfig?.defaultCurrency || 'USD'}
+          onValueChange={(value) => onUpdate({ 
+            customConfig: { 
+              ...config.customConfig, 
+              defaultCurrency: value 
+            } 
+          })}
         >
-          <option value="USD">USD - US Dollar</option>
-          <option value="EUR">EUR - Euro</option>
-          <option value="GBP">GBP - British Pound</option>
-          <option value="JPY">JPY - Japanese Yen</option>
-          <option value="CAD">CAD - Canadian Dollar</option>
-          <option value="AUD">AUD - Australian Dollar</option>
-        </select>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {CURRENCIES.map((currency) => (
+              <SelectItem key={currency.code} value={currency.code}>
+                {currency.code} - {currency.name} ({currency.symbol})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div>
@@ -37,31 +56,47 @@ export function CurrencyFieldConfig({ field, onConfigChange }: CurrencyFieldConf
         <Input
           id="precision"
           type="number"
-          value={config.precision || 2}
-          onChange={(e) => onConfigChange({ precision: parseInt(e.target.value) || 2 })}
+          value={config.customConfig?.precision || 2}
+          onChange={(e) => onUpdate({ 
+            customConfig: { 
+              ...config.customConfig, 
+              precision: parseInt(e.target.value) || 2 
+            } 
+          })}
           min="0"
           max="4"
         />
       </div>
 
       <div>
-        <Label htmlFor="currencyList">Available Currencies</Label>
+        <Label htmlFor="allowedCurrencies">Allowed Currencies</Label>
         <Input
-          id="currencyList"
-          value={config.currencyList?.join(', ') || ''}
-          onChange={(e) => onConfigChange({ 
-            currencyList: e.target.value.split(',').map(c => c.trim()).filter(c => c) 
+          id="allowedCurrencies"
+          value={config.customConfig?.currencyList?.join(', ') || ''}
+          onChange={(e) => onUpdate({ 
+            customConfig: { 
+              ...config.customConfig, 
+              currencyList: e.target.value.split(',').map(c => c.trim()).filter(c => c) 
+            } 
           })}
           placeholder="e.g., USD, EUR, GBP (leave empty for all)"
         />
+        <p className="text-xs text-gray-500 mt-1">
+          Comma-separated list of currency codes
+        </p>
       </div>
 
       <div className="space-y-3">
         <div className="flex items-center space-x-2">
           <Checkbox
             id="showSymbol"
-            checked={config.showSymbol !== false}
-            onCheckedChange={(checked) => onConfigChange({ showSymbol: checked })}
+            checked={config.customConfig?.showSymbol !== false}
+            onCheckedChange={(checked) => onUpdate({ 
+              customConfig: { 
+                ...config.customConfig, 
+                showSymbol: Boolean(checked) 
+              } 
+            })}
           />
           <Label htmlFor="showSymbol">Show currency symbol</Label>
         </div>
@@ -69,8 +104,13 @@ export function CurrencyFieldConfig({ field, onConfigChange }: CurrencyFieldConf
         <div className="flex items-center space-x-2">
           <Checkbox
             id="showCurrencyCode"
-            checked={config.showCurrencyCode || false}
-            onCheckedChange={(checked) => onConfigChange({ showCurrencyCode: checked })}
+            checked={config.customConfig?.showCurrencyCode || false}
+            onCheckedChange={(checked) => onUpdate({ 
+              customConfig: { 
+                ...config.customConfig, 
+                showCurrencyCode: Boolean(checked) 
+              } 
+            })}
           />
           <Label htmlFor="showCurrencyCode">Show currency code</Label>
         </div>
@@ -78,8 +118,13 @@ export function CurrencyFieldConfig({ field, onConfigChange }: CurrencyFieldConf
         <div className="flex items-center space-x-2">
           <Checkbox
             id="allowCurrencyChange"
-            checked={config.allowCurrencyChange !== false}
-            onCheckedChange={(checked) => onConfigChange({ allowCurrencyChange: checked })}
+            checked={config.customConfig?.allowCurrencyChange !== false}
+            onCheckedChange={(checked) => onUpdate({ 
+              customConfig: { 
+                ...config.customConfig, 
+                allowCurrencyChange: Boolean(checked) 
+              } 
+            })}
           />
           <Label htmlFor="allowCurrencyChange">Allow currency selection</Label>
         </div>

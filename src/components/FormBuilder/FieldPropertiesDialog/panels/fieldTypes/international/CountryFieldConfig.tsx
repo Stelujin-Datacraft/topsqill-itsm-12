@@ -1,26 +1,30 @@
 
 import React from 'react';
-import { FormField } from '@/types/form';
+import { FieldConfiguration } from '../../hooks/useFieldConfiguration';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 
 interface CountryFieldConfigProps {
-  field: FormField;
-  onConfigChange: (config: Record<string, any>) => void;
+  config: FieldConfiguration;
+  onUpdate: (updates: Partial<FieldConfiguration>) => void;
+  errors: Record<string, string>;
 }
 
-export function CountryFieldConfig({ field, onConfigChange }: CountryFieldConfigProps) {
-  const config = field.customConfig || {};
-
+export function CountryFieldConfig({ config, onUpdate, errors }: CountryFieldConfigProps) {
   return (
     <div className="space-y-4">
       <div>
         <Label htmlFor="defaultCountry">Default Country</Label>
         <Input
           id="defaultCountry"
-          value={config.defaultCountry || ''}
-          onChange={(e) => onConfigChange({ defaultCountry: e.target.value })}
+          value={config.customConfig?.defaultCountry || ''}
+          onChange={(e) => onUpdate({ 
+            customConfig: { 
+              ...config.customConfig, 
+              defaultCountry: e.target.value 
+            } 
+          })}
           placeholder="e.g., US, GB, CA"
         />
       </div>
@@ -29,9 +33,12 @@ export function CountryFieldConfig({ field, onConfigChange }: CountryFieldConfig
         <Label htmlFor="allowedCountries">Allowed Countries</Label>
         <Input
           id="allowedCountries"
-          value={config.allowedCountries?.join(', ') || ''}
-          onChange={(e) => onConfigChange({ 
-            allowedCountries: e.target.value.split(',').map(c => c.trim()).filter(c => c) 
+          value={config.customConfig?.allowedCountries?.join(', ') || ''}
+          onChange={(e) => onUpdate({ 
+            customConfig: { 
+              ...config.customConfig, 
+              allowedCountries: e.target.value.split(',').map(c => c.trim()).filter(c => c) 
+            } 
           })}
           placeholder="e.g., US, CA, GB, FR (leave empty for all)"
         />
@@ -44,9 +51,12 @@ export function CountryFieldConfig({ field, onConfigChange }: CountryFieldConfig
         <Label htmlFor="preferred">Preferred Countries</Label>
         <Input
           id="preferred"
-          value={config.preferred?.join(', ') || ''}
-          onChange={(e) => onConfigChange({ 
-            preferred: e.target.value.split(',').map(c => c.trim()).filter(c => c) 
+          value={config.customConfig?.preferred?.join(', ') || ''}
+          onChange={(e) => onUpdate({ 
+            customConfig: { 
+              ...config.customConfig, 
+              preferred: e.target.value.split(',').map(c => c.trim()).filter(c => c) 
+            } 
           })}
           placeholder="e.g., US, CA, GB"
         />
@@ -59,8 +69,13 @@ export function CountryFieldConfig({ field, onConfigChange }: CountryFieldConfig
         <div className="flex items-center space-x-2">
           <Checkbox
             id="showFlags"
-            checked={config.showFlags !== false}
-            onCheckedChange={(checked) => onConfigChange({ showFlags: checked })}
+            checked={config.customConfig?.showFlags !== false}
+            onCheckedChange={(checked) => onUpdate({ 
+              customConfig: { 
+                ...config.customConfig, 
+                showFlags: Boolean(checked) 
+              } 
+            })}
           />
           <Label htmlFor="showFlags">Show country flags</Label>
         </div>
@@ -68,8 +83,13 @@ export function CountryFieldConfig({ field, onConfigChange }: CountryFieldConfig
         <div className="flex items-center space-x-2">
           <Checkbox
             id="searchable"
-            checked={config.searchable !== false}
-            onCheckedChange={(checked) => onConfigChange({ searchable: checked })}
+            checked={config.customConfig?.searchable !== false}
+            onCheckedChange={(checked) => onUpdate({ 
+              customConfig: { 
+                ...config.customConfig, 
+                searchable: Boolean(checked) 
+              } 
+            })}
           />
           <Label htmlFor="searchable">Enable search</Label>
         </div>

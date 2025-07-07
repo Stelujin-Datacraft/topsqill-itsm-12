@@ -1,20 +1,19 @@
 
 import React from 'react';
-import { FormField } from '@/types/form';
+import { FieldConfiguration } from '../../hooks/useFieldConfiguration';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Trash2, GripVertical } from 'lucide-react';
 
 interface MultiSelectFieldConfigProps {
-  field: FormField;
-  onConfigChange: (config: Record<string, any>) => void;
+  config: FieldConfiguration;
+  onUpdate: (updates: Partial<FieldConfiguration>) => void;
+  errors: Record<string, string>;
 }
 
-export function MultiSelectFieldConfig({ field, onConfigChange }: MultiSelectFieldConfigProps) {
-  const config = field.customConfig || {};
-  
+export function MultiSelectFieldConfig({ config, onUpdate, errors }: MultiSelectFieldConfigProps) {
   // Ensure options is always an array
   const ensureOptionsArray = (opts: any): any[] => {
     if (Array.isArray(opts)) return opts;
@@ -29,22 +28,22 @@ export function MultiSelectFieldConfig({ field, onConfigChange }: MultiSelectFie
     return [];
   };
   
-  const options = ensureOptionsArray(field.options);
+  const options = ensureOptionsArray(config.options);
 
   const handleOptionChange = (index: number, key: string, value: string) => {
     const newOptions = [...options];
     newOptions[index] = { ...newOptions[index], [key]: value };
-    onConfigChange({ options: newOptions });
+    onUpdate({ options: newOptions });
   };
 
   const addOption = () => {
     const newOptions = [...options, { id: `option_${Date.now()}`, value: '', label: '' }];
-    onConfigChange({ options: newOptions });
+    onUpdate({ options: newOptions });
   };
 
   const removeOption = (index: number) => {
     const newOptions = options.filter((_, i) => i !== index);
-    onConfigChange({ options: newOptions });
+    onUpdate({ options: newOptions });
   };
 
   return (
@@ -83,35 +82,50 @@ export function MultiSelectFieldConfig({ field, onConfigChange }: MultiSelectFie
         </div>
       </div>
 
+      <div>
+        <Label htmlFor="maxSelections">Maximum Selections</Label>
+        <Input
+          id="maxSelections"
+          type="number"
+          value={config.customConfig?.maxSelections || ''}
+          onChange={(e) => onUpdate({ 
+            customConfig: { 
+              ...config.customConfig, 
+              maxSelections: parseInt(e.target.value) || undefined 
+            } 
+          })}
+          placeholder="Leave empty for unlimited"
+          min="1"
+        />
+      </div>
+
       <div className="space-y-3">
-        <div>
-          <Label htmlFor="maxSelections">Max Selections</Label>
-          <Input
-            id="maxSelections"
-            type="number"
-            value={config.maxSelections || ''}
-            onChange={(e) => onConfigChange({ maxSelections: e.target.value ? parseInt(e.target.value) : undefined })}
-            placeholder="No limit"
-            min="1"
-          />
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="searchable"
-            checked={config.searchable !== false}
-            onCheckedChange={(checked) => onConfigChange({ searchable: checked })}
-          />
-          <Label htmlFor="searchable">Enable search</Label>
-        </div>
-        
         <div className="flex items-center space-x-2">
           <Checkbox
             id="allowOther"
-            checked={config.allowOther || false}
-            onCheckedChange={(checked) => onConfigChange({ allowOther: checked })}
+            checked={config.customConfig?.allowOther || false}
+            onCheckedChange={(checked) => onUpdate({ 
+              customConfig: { 
+                ...config.customConfig, 
+                allowOther: Boolean(checked) 
+              } 
+            })}
           />
           <Label htmlFor="allowOther">Allow "Other" option</Label>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="searchable"
+            checked={config.customConfig?.searchable !== false}
+            onCheckedChange={(checked) => onUpdate({ 
+              customConfig: { 
+                ...config.customConfig, 
+                searchable: Boolean(checked) 
+              } 
+            })}
+          />
+          <Label htmlFor="searchable">Enable search</Label>
         </div>
       </div>
     </div>

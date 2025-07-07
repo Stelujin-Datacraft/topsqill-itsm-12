@@ -45,6 +45,13 @@ import { SelectFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/Sel
 import { OptimizedRecordTableConfig } from './FieldPropertiesDialog/panels/fieldTypes/OptimizedRecordTableConfig';
 import { FieldConfiguration } from './FieldPropertiesDialog/hooks/useFieldConfiguration';
 
+// Import new field configurations
+import { MultiSelectFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/selection/MultiSelectFieldConfig';
+import { SignatureFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/media/SignatureFieldConfig';
+import { CurrencyFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/international/CurrencyFieldConfig';
+import { CountryFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/international/CountryFieldConfig';
+import { SubmissionAccessFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/access/SubmissionAccessFieldConfig';
+
 interface FieldPropertiesDialogProps {
   selectedField: FormField | null;
   open: boolean;
@@ -466,8 +473,6 @@ export function FieldPropertiesDialog({
         return <BarcodeFieldConfig {...props} />;
       case 'approval':
         return <ApprovalFieldConfig {...props} />;
-      // case 'dynamic-dropdown':
-      //   return <DynamicDropdownFieldConfig {...props} />;
       case 'calculated':
         return <CalculatedFieldConfig {...props} />;
       case 'conditional-section':
@@ -475,22 +480,35 @@ export function FieldPropertiesDialog({
       case 'geo-location':
         return <GeoLocationFieldConfig {...props} />;
       
-      // Matrix Grid (separate from record fields)
-      case 'matrix-grid':
-        return <SelectFieldConfig {...props} fieldType="select" />;
+      // Selection Fields
+      case 'select':
+      case 'radio':
+      case 'checkbox':
+        return <SelectFieldConfig {...props} fieldType={fieldForConfig.type as any} />;
+      
+      case 'multi-select':
+        return <MultiSelectFieldConfig {...props} />;
+      
+      // Media Fields
+      case 'signature':
+        return <SignatureFieldConfig {...props} />;
+      
+      // International Fields
+      case 'currency':
+        return <CurrencyFieldConfig {...props} />;
+      
+      case 'country':
+        return <CountryFieldConfig {...props} />;
+      
+      // Access Control Fields
+      case 'submission-access':
+        return <SubmissionAccessFieldConfig {...props} />;
       
       // Text Fields
       case 'text':
       case 'textarea':
       case 'password':
         return <TextFieldConfig {...props} />;
-      
-      // Select Fields
-      // case 'select':
-      // case 'multi-select':
-      // case 'radio':
-      // case 'checkbox':
-      //   return <SelectFieldConfig {...props} fieldType={fieldForConfig.type as any} />;
       
       // Record Fields
       case 'record-table':

@@ -56,7 +56,9 @@ export type FieldType =
   | 'ip-address' | 'barcode' | 'user-picker' | 'group-picker'
   | 'approval' | 'signature' | 'tags' | 'dynamic-dropdown'
   | 'calculated' | 'conditional-section'
-  | 'geo-location' | 'workflow-trigger' | 'lookup';
+  | 'geo-location' | 'workflow-trigger' | 'lookup'
+  // New field types
+  | 'submission-access';
 
 export interface FormField {
   id: string;
@@ -66,7 +68,8 @@ export interface FormField {
         'signature' | 'tags' | 'lookup' | 'calculated' | 'header' | 'description' | 
         'section-break' | 'horizontal-line' | 'rich-text' | 'barcode' | 'user-picker' | 
         'geo-location' | 'workflow-trigger' | 'matrix-grid' | 'record-table' | 'cross-reference' |
-        'dynamic-dropdown' | 'conditional-section' | 'ip-address' | 'full-width-container';
+        'dynamic-dropdown' | 'conditional-section' | 'ip-address' | 'full-width-container' |
+        'country' | 'submission-access';
   label: string;
   placeholder?: string;
   required?: boolean;
@@ -331,6 +334,28 @@ export interface FormField {
     stateName?: string;
     initialValue?: string;
     updateOnEvent?: string;
+    
+    // Submission Access specific
+    accessLevel?: 'view' | 'edit' | 'admin';
+    accessDuration?: number;
+    notificationMessage?: string;
+    requireConfirmation?: boolean;
+    sendNotification?: boolean;
+    logAccess?: boolean;
+    
+    // Signature specific
+    canvasWidth?: number;
+    canvasHeight?: number;
+    penColor?: string;
+    showTimestamp?: boolean;
+    undoEnabled?: boolean;
+    clearOnDoubleTap?: boolean;
+    
+    // Multi-select specific enhancements
+    maxSelections?: number;
+    allowOther?: boolean;
+    searchable?: boolean;
+    clearable?: boolean;
   };
 }
 
