@@ -67,7 +67,7 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
             {field.label}
             {field.required && <span className="text-red-500 ml-1">*</span>}
           </label>
-          {!isPreview && (
+          {/* {!isPreview && (
             <Button
               variant="outline"
               size="sm"
@@ -77,7 +77,7 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
               <Settings className="h-3 w-3 mr-1" />
               Configure
             </Button>
-          )}
+          )} */}
         </div>
         
         <div className="w-full p-4 border-2 border-dashed border-muted-foreground/30 rounded-lg text-center">

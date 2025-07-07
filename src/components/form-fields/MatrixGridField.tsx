@@ -95,7 +95,7 @@ export function MatrixGridField({ field, value, onChange, onFieldUpdate, isPrevi
           {field.label}
           {field.required && <span className="text-red-500 ml-1">*</span>}
         </label>
-        <Button
+        {/* <Button
           variant="outline"
           size="sm"
           onClick={() => setConfigOpen(true)}
@@ -103,7 +103,7 @@ export function MatrixGridField({ field, value, onChange, onFieldUpdate, isPrevi
         >
           <Settings className="h-3 w-3 mr-1" />
           Configure
-        </Button>
+        </Button> */}
       </div>
       
       <div className="p-4 border border-dashed border-gray-300 rounded-md text-center text-gray-500">

@@ -264,7 +264,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
 
     // Check if field is full-width based on type or explicit setting
     const isFullWidthField = (field: FormField) => {
-      const fullWidthTypes = ['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'record-table', 'matrix-grid'];
+      const fullWidthTypes = ['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'record-table', 'matrix-grid', 'cross-reference'];
       return fullWidthTypes.includes(field.type) || field.isFullWidth || field.fieldCategory === 'full-width';
     };
 
