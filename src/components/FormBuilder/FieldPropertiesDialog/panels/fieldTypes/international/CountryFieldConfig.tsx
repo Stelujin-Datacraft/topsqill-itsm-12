@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FieldConfiguration } from '../../hooks/useFieldConfiguration';
+import { FieldConfiguration } from '../../../hooks/useFieldConfiguration';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
