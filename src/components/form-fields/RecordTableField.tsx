@@ -260,7 +260,15 @@ export function RecordTableField({ field, value = [], onChange, disabled = false
                 />
               </div>
             )}
-            <Button variant="outline" size="sm" onClick={loadRecords}>
+            <Button 
+              type="button"
+              variant="outline" 
+              size="sm" 
+              onClick={(e) => {
+                e.preventDefault();
+                loadRecords();
+              }}
+            >
               <Filter className="h-4 w-4 mr-1" />
               Refresh
             </Button>

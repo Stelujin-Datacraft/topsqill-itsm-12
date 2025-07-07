@@ -41,7 +41,7 @@ export function DescriptionField({ field, isPreview = false }: DescriptionFieldP
             <div 
               style={styles}
               className="prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: content.replace(/\n/g, '<br />') }}
+              dangerouslySetInnerHTML={{ __html: content }}
             />
           )}
         </div>
@@ -65,7 +65,7 @@ export function DescriptionField({ field, isPreview = false }: DescriptionFieldP
         <div 
           style={styles}
           className="prose prose-sm max-w-none"
-          dangerouslySetInnerHTML={{ __html: content.replace(/\n/g, '<br />') }}
+          dangerouslySetInnerHTML={{ __html: content }}
         />
       )}
     </div>

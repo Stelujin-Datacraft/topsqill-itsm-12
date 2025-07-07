@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 
 interface DescriptionFieldConfigProps {
   config: any;
@@ -43,10 +44,10 @@ export function DescriptionFieldConfig({ config, onUpdate, errors }: Description
     <div className="space-y-4">
       <div>
         <Label htmlFor="description-content">Description Content</Label>
-        <Textarea
+        <RichTextEditor
           id="description-content"
           value={customConfig.content || ''}
-          onChange={(e) => handleConfigUpdate('content', e.target.value)}
+          onChange={(content) => handleConfigUpdate('content', content)}
           placeholder="Enter description text..."
           rows={4}
         />

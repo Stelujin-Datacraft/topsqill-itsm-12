@@ -344,6 +344,23 @@ export interface FormField {
     // Signature specific
     canvasWidth?: number;
     canvasHeight?: number;
+    
+    // Matrix Grid specific
+    matrixRows?: Array<{
+      id: string;
+      label: string;
+      required?: boolean;
+    }>;
+    matrixColumns?: Array<{
+      id: string;
+      label: string;
+      type: 'radio' | 'checkbox' | 'select';
+      options?: Array<{ value: string; label: string }>;
+    }>;
+    matrixType?: 'radio' | 'checkbox' | 'select';
+    requireAllRows?: boolean;
+    showGridLines?: boolean;
+    compactLayout?: boolean;
   };
 }
 

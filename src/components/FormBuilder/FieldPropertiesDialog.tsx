@@ -38,7 +38,8 @@ import {
   DynamicDropdownFieldConfig,
   CalculatedFieldConfig,
   ConditionalSectionFieldConfig,
-  GeoLocationFieldConfig
+  GeoLocationFieldConfig,
+  MatrixGridFieldConfig
 } from './FieldPropertiesDialog/panels/fieldTypes';
 import { TextFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/TextFieldConfig';
 import { SelectFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/SelectFieldConfig';
@@ -516,6 +517,9 @@ export function FieldPropertiesDialog({
       case 'record-table':
       case 'cross-reference':
         return <OptimizedRecordTableConfig {...props} fieldType={fieldForConfig.type as any} />;
+      
+      case 'matrix-grid':
+        return <MatrixGridFieldConfig {...props} />;
       
       default:
         return null;

@@ -7,7 +7,6 @@ export { SingleLineTextField } from './SingleLineTextField';
 export { NumberInputField } from './NumberInputField';
 export { RatingField } from './RatingField';
 export { TagsField } from './TagsField';
-export { MatrixGridField } from './MatrixGridField';
 export { RecordTableField } from './RecordTableField';
 export { CrossReferenceField } from './CrossReferenceField';
 
@@ -17,3 +16,6 @@ export { SignatureField } from './SignatureField';
 export { CurrencyField } from './CurrencyField';
 export { CountryField } from './CountryField';
 export { SubmissionAccessField } from './SubmissionAccessField';
+
+// Enhanced fields
+export { MatrixGridField } from './enhanced/MatrixGridField';
