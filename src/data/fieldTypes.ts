@@ -302,6 +302,14 @@ export const fieldTypes: FieldTypeConfig[] = [
     isFullWidth: false,
   },
   {
+    type: 'submission-access',
+    label: 'Submission Access Control',
+    icon: Users,
+    description: 'Grant users access to view or edit specific form submissions',
+    category: 'standard',
+    isFullWidth: false,
+  },
+  {
     type: 'signature',
     label: 'Signature Pad',
     icon: PenTool,

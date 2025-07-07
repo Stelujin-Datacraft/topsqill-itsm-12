@@ -54,3 +54,9 @@ export { DynamicDropdownFieldConfig } from './selection/DynamicDropdownFieldConf
 export { CalculatedFieldConfig } from './specialized/CalculatedFieldConfig';
 export { ConditionalSectionFieldConfig } from './specialized/ConditionalSectionFieldConfig';
 export { GeoLocationFieldConfig } from './geographic/GeoLocationFieldConfig';
+
+// Access Control Fields
+export { SubmissionAccessFieldConfig } from './access/SubmissionAccessFieldConfig';
+
+// Media Fields (Extended)
+export { SignatureFieldConfig } from './media/SignatureFieldConfig';
