@@ -466,8 +466,8 @@ export function FieldPropertiesDialog({
         return <BarcodeFieldConfig {...props} />;
       case 'approval':
         return <ApprovalFieldConfig {...props} />;
-      case 'dynamic-dropdown':
-        return <DynamicDropdownFieldConfig {...props} />;
+      // case 'dynamic-dropdown':
+      //   return <DynamicDropdownFieldConfig {...props} />;
       case 'calculated':
         return <CalculatedFieldConfig {...props} />;
       case 'conditional-section':
@@ -486,11 +486,11 @@ export function FieldPropertiesDialog({
         return <TextFieldConfig {...props} />;
       
       // Select Fields
-      case 'select':
-      case 'multi-select':
-      case 'radio':
-      case 'checkbox':
-        return <SelectFieldConfig {...props} fieldType={fieldForConfig.type as any} />;
+      // case 'select':
+      // case 'multi-select':
+      // case 'radio':
+      // case 'checkbox':
+      //   return <SelectFieldConfig {...props} fieldType={fieldForConfig.type as any} />;
       
       // Record Fields
       case 'record-table':
