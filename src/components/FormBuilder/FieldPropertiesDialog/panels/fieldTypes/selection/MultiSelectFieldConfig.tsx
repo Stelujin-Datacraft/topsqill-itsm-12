@@ -14,7 +14,22 @@ interface MultiSelectFieldConfigProps {
 
 export function MultiSelectFieldConfig({ field, onConfigChange }: MultiSelectFieldConfigProps) {
   const config = field.customConfig || {};
-  const options = field.options || [];
+  
+  // Ensure options is always an array
+  const ensureOptionsArray = (opts: any): any[] => {
+    if (Array.isArray(opts)) return opts;
+    if (typeof opts === 'string') {
+      try {
+        const parsed = JSON.parse(opts);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+  
+  const options = ensureOptionsArray(field.options);
 
   const handleOptionChange = (index: number, key: string, value: string) => {
     const newOptions = [...options];
@@ -38,17 +53,17 @@ export function MultiSelectFieldConfig({ field, onConfigChange }: MultiSelectFie
         <Label className="text-sm font-medium">Options</Label>
         <div className="space-y-2 mt-2">
           {options.map((option, index) => (
-            <div key={option.id} className="flex items-center gap-2 p-2 border rounded">
+            <div key={option.id || index} className="flex items-center gap-2 p-2 border rounded">
               <GripVertical className="h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Value"
-                value={option.value}
+                value={option.value || ''}
                 onChange={(e) => handleOptionChange(index, 'value', e.target.value)}
                 className="flex-1"
               />
               <Input
                 placeholder="Label"
-                value={option.label}
+                value={option.label || ''}
                 onChange={(e) => handleOptionChange(index, 'label', e.target.value)}
                 className="flex-1"
               />

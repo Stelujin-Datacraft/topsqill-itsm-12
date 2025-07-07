@@ -15,28 +15,44 @@ interface SelectFieldConfigProps {
 }
 
 export function SelectFieldConfig({ config, onUpdate, errors, fieldType }: SelectFieldConfigProps) {
+  // Ensure options is always an array
+  const ensureOptionsArray = (opts: any): any[] => {
+    if (Array.isArray(opts)) return opts;
+    if (typeof opts === 'string') {
+      try {
+        const parsed = JSON.parse(opts);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
+  const options = ensureOptionsArray(config.options);
+
   const handleOptionChange = (optionIndex: number, field: 'value' | 'label', value: string) => {
-    const options = [...(config.options || [])];
-    if (options[optionIndex]) {
-      options[optionIndex] = { ...options[optionIndex], [field]: value };
-      onUpdate({ options });
+    const newOptions = [...options];
+    if (newOptions[optionIndex]) {
+      newOptions[optionIndex] = { ...newOptions[optionIndex], [field]: value };
+      onUpdate({ options: newOptions });
     }
   };
 
   const addOption = () => {
-    const options = [...(config.options || [])];
-    options.push({
+    const newOptions = [...options];
+    newOptions.push({
       id: `option-${Date.now()}`,
       value: '',
       label: ''
     });
-    onUpdate({ options });
+    onUpdate({ options: newOptions });
   };
 
   const removeOption = (optionIndex: number) => {
-    const options = [...(config.options || [])];
-    options.splice(optionIndex, 1);
-    onUpdate({ options });
+    const newOptions = [...options];
+    newOptions.splice(optionIndex, 1);
+    onUpdate({ options: newOptions });
   };
 
   return (
@@ -57,7 +73,7 @@ export function SelectFieldConfig({ config, onUpdate, errors, fieldType }: Selec
         </div>
 
         <div className="space-y-3">
-          {(config.options || []).map((option: any, optionIndex: number) => (
+          {options.map((option: any, optionIndex: number) => (
             <Card key={option.id || optionIndex}>
               <CardContent className="p-4">
                 <div className="flex items-center space-x-3">
@@ -95,7 +111,7 @@ export function SelectFieldConfig({ config, onUpdate, errors, fieldType }: Selec
           ))}
         </div>
 
-        {(!config.options || config.options.length === 0) && (
+        {options.length === 0 && (
           <div className="text-center py-6 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed">
             <p>No options added yet. Click "Add Option" to get started.</p>
           </div>
