@@ -675,7 +675,7 @@ export function FieldPropertiesDialog({
             )}
 
             {/* Field-Specific Configuration */}
-            {['select', 'multi-select', 'radio', 'checkbox'].includes(fieldType) && (
+            {/* {['select', 'multi-select', 'radio', 'checkbox'].includes(fieldType) && (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
@@ -718,7 +718,7 @@ export function FieldPropertiesDialog({
                   </Button>
                 </CardContent>
               </Card>
-            )}
+            )} */}
 
             {/* Number Field Configuration */}
             {fieldType === 'number' && (
