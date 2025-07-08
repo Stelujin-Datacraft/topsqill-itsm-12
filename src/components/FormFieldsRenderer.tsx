@@ -14,6 +14,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
+import { HelpTooltip } from '@/components/ui/help-tooltip';
 import { 
   HeaderField, 
   DescriptionField, 
@@ -207,7 +208,10 @@ export function FormFieldsRenderer({
       case 'email':
         return (
           <div className="space-y-2">
-            <Label htmlFor={field.id}>{field.label}</Label>
+            <div className="flex items-center">
+              <Label htmlFor={field.id}>{field.label}</Label>
+              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+            </div>
             <Input
               id={field.id}
               type="email"
@@ -238,7 +242,10 @@ export function FormFieldsRenderer({
       case 'url':
         return (
           <div className="space-y-2">
-            <Label htmlFor={field.id}>{field.label}</Label>
+            <div className="flex items-center">
+              <Label htmlFor={field.id}>{field.label}</Label>
+              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+            </div>
             <Input
               id={field.id}
               type="url"
@@ -274,7 +281,10 @@ export function FormFieldsRenderer({
       case 'ip-address':
         return (
           <div className="space-y-2">
-            <Label htmlFor={field.id}>{field.label}</Label>
+            <div className="flex items-center">
+              <Label htmlFor={field.id}>{field.label}</Label>
+              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+            </div>
             <Input
               id={field.id}
               type="text"
@@ -311,7 +321,10 @@ export function FormFieldsRenderer({
         
         return (
           <div className="space-y-2">
-            <Label htmlFor={field.id}>{field.label}</Label>
+            <div className="flex items-center">
+              <Label htmlFor={field.id}>{field.label}</Label>
+              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+            </div>
             <Input
               id={field.id}
               type="date"
@@ -337,7 +350,10 @@ export function FormFieldsRenderer({
         
         return (
           <div className="space-y-2">
-            <Label htmlFor={field.id}>{field.label}</Label>
+            <div className="flex items-center">
+              <Label htmlFor={field.id}>{field.label}</Label>
+              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+            </div>
             <Input
               id={field.id}
               type="time"
@@ -361,7 +377,10 @@ export function FormFieldsRenderer({
         
         return (
           <div className="space-y-2">
-            <Label htmlFor={field.id}>{field.label}</Label>
+            <div className="flex items-center">
+              <Label htmlFor={field.id}>{field.label}</Label>
+              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+            </div>
             <Input
               id={field.id}
               type="datetime-local"
@@ -380,7 +399,10 @@ export function FormFieldsRenderer({
       case 'text':
         return (
           <div className="space-y-2">
-            <Label htmlFor={field.id}>{field.label}</Label>
+            <div className="flex items-center">
+              <Label htmlFor={field.id}>{field.label}</Label>
+              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+            </div>
             <Input
               id={field.id}
               type="text"
@@ -398,7 +420,10 @@ export function FormFieldsRenderer({
       case 'textarea':
         return (
           <div className="space-y-2">
-            <Label htmlFor={field.id}>{field.label}</Label>
+            <div className="flex items-center">
+              <Label htmlFor={field.id}>{field.label}</Label>
+              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+            </div>
             <Textarea
               id={field.id}
               value={formData[field.id] || ''}
@@ -415,7 +440,10 @@ export function FormFieldsRenderer({
       case 'number':
         return (
           <div className="space-y-2">
-            <Label htmlFor={field.id}>{field.label}</Label>
+            <div className="flex items-center">
+              <Label htmlFor={field.id}>{field.label}</Label>
+              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+            </div>
             <Input
               id={field.id}
               type="number"
@@ -432,7 +460,10 @@ export function FormFieldsRenderer({
       case 'select':
         return (
           <div className="space-y-2">
-            <Label htmlFor={field.id}>{field.label}</Label>
+            <div className="flex items-center">
+              <Label htmlFor={field.id}>{field.label}</Label>
+              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+            </div>
             <Select
               value={formData[field.id] || ''}
               onValueChange={(value) => onFieldChange(field.id, value)}
@@ -457,7 +488,10 @@ export function FormFieldsRenderer({
       case 'radio':
         return (
           <div className="space-y-2">
-            <Label>{field.label}</Label>
+            <div className="flex items-center">
+              <Label>{field.label}</Label>
+              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+            </div>
             <RadioGroup
               value={formData[field.id] || ''}
               onValueChange={(value) => onFieldChange(field.id, value)}
@@ -486,6 +520,7 @@ export function FormFieldsRenderer({
                 disabled={!fieldState.isEnabled}
               />
               <Label htmlFor={field.id}>{field.label}</Label>
+              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
             {errors[field.id] && (
               <p className="text-sm text-red-500">{errors[field.id]}</p>
@@ -503,6 +538,7 @@ export function FormFieldsRenderer({
                 disabled={!fieldState.isEnabled}
               />
               <Label htmlFor={field.id}>{field.label}</Label>
+              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
             {errors[field.id] && (
               <p className="text-sm text-red-500">{errors[field.id]}</p>
@@ -512,7 +548,10 @@ export function FormFieldsRenderer({
       case 'slider':
         return (
           <div className="space-y-2">
-            <Label htmlFor={field.id}>{field.label}</Label>
+            <div className="flex items-center">
+              <Label htmlFor={field.id}>{field.label}</Label>
+              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+            </div>
             <Slider
               value={[formData[field.id] || 0]}
               onValueChange={(value) => onFieldChange(field.id, value[0])}
