@@ -44,17 +44,13 @@ export function DescriptionField({ field }: DescriptionFieldProps) {
           {isCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
         </Button>
         {!isCollapsed && (
-          <div style={style} className="whitespace-pre-wrap">
-            {content}
-          </div>
+          <div style={style} className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: content }} />
         )}
       </div>
     );
   }
 
   return (
-    <div style={style} className="whitespace-pre-wrap">
-      {content}
-    </div>
+    <div style={style} className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: content }} />
   );
 }

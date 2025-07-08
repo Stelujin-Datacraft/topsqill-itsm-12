@@ -65,7 +65,7 @@ export function RecordTableField({ field, value = [], onChange, disabled = false
       loadTargetFormFields();
       loadRecords();
     }
-  }, [targetFormId, displayColumns, filters]);
+  }, [targetFormId, displayColumns, filters, searchTerm]);
 
   const loadTargetFormFields = async () => {
     if (!targetFormId) return;
@@ -266,6 +266,8 @@ export function RecordTableField({ field, value = [], onChange, disabled = false
               size="sm" 
               onClick={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
+                setCurrentPage(1); // Reset to first page
                 loadRecords();
               }}
             >

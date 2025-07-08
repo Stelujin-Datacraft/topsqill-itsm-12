@@ -3,9 +3,8 @@ import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { RichTextEditor } from '@/components/ui/rich-text-editor';
+import { TiptapEditor } from '@/components/ui/tiptap-editor';
 
 interface DescriptionFieldConfigProps {
   config: any;
@@ -44,12 +43,11 @@ export function DescriptionFieldConfig({ config, onUpdate, errors }: Description
     <div className="space-y-4">
       <div>
         <Label htmlFor="description-content">Description Content</Label>
-        <RichTextEditor
-          id="description-content"
-          value={customConfig.content || ''}
+        <TiptapEditor
+          content={customConfig.content || ''}
           onChange={(content) => handleConfigUpdate('content', content)}
           placeholder="Enter description text..."
-          rows={4}
+          className="mt-2"
         />
       </div>
 
