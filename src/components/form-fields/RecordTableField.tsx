@@ -59,13 +59,19 @@ export function RecordTableField({ field, value = [], onChange, disabled = false
     showOnlyUserRecords = false
   } = config as any;
 
-  // Load target form fields and records when component mounts
+  // Load target form fields only when targetFormId changes
   useEffect(() => {
     if (targetFormId) {
       loadTargetFormFields();
+    }
+  }, [targetFormId]);
+
+  // Load records only on initial mount
+  useEffect(() => {
+    if (targetFormId && displayColumns.length > 0) {
       loadRecords();
     }
-  }, [targetFormId, displayColumns, filters, searchTerm]);
+  }, [targetFormId]); // Only depend on targetFormId, not other changing values
 
   const loadTargetFormFields = async () => {
     if (!targetFormId) return;
