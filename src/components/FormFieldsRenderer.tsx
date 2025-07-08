@@ -2,7 +2,7 @@ import React from 'react';
 import { FormField } from '@/types/form';
 import { RecordTableField } from './form-fields/RecordTableField';
 import { CrossReferenceField } from './form-fields/CrossReferenceField';
-import { MatrixGridField } from './form-fields/MatrixGridField';
+
 import { RatingField } from './form-fields/RatingField';
 import { UserPickerField } from './form-fields/UserPickerField';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,8 @@ import {
   TagsField,
   PasswordField,
   ColorField,
-  FileField
+  FileField,
+  MatrixGridField
 } from './form-fields/enhanced';
 import { BarcodeField } from './form-fields/BarcodeField';
 import { ApprovalField } from './form-fields/ApprovalField';
