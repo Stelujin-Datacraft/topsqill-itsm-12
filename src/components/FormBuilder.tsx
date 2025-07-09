@@ -11,8 +11,8 @@ import { FormPreview } from './FormPreview';
 import { FormSharing } from './FormSharing';
 import { FormSubmissions } from './FormSubmissions';
 import { FormUserAccess } from './FormUserAccess';
-import { FieldRuleBuilder } from './rules/FieldRuleBuilder';
-import { FormRuleBuilder } from './rules/FormRuleBuilder';
+import { EnhancedFieldRuleBuilder } from './rules/EnhancedFieldRuleBuilder';
+import { EnhancedFormRuleBuilder } from './rules/EnhancedFormRuleBuilder';
 import { FormNavigationPanel } from './FormNavigationPanel';
 import { 
   Zap,
@@ -188,6 +188,8 @@ function FormBuilderContent({ formId }: FormBuilderProps) {
         description: snapshot.form.description,
         layout: snapshot.form.layout,
         pages: snapshot.form.pages,
+        fieldRules: snapshot.form.fieldRules,
+        formRules: snapshot.form.formRules,
         status: shouldPublish ? 'active' as const : snapshot.form.status,
       };
 
@@ -468,7 +470,7 @@ function FormBuilderContent({ formId }: FormBuilderProps) {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <FieldRuleBuilder
+                        <EnhancedFieldRuleBuilder
                           fields={workingForm.fields}
                           rules={workingForm.fieldRules || []}
                           onRulesChange={(fieldRules) => updateFormDetails({ fieldRules })}
@@ -484,7 +486,7 @@ function FormBuilderContent({ formId }: FormBuilderProps) {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <FormRuleBuilder
+                        <EnhancedFormRuleBuilder
                           fields={workingForm.fields}
                           rules={workingForm.formRules || []}
                           onRulesChange={(formRules) => updateFormDetails({ formRules })}
