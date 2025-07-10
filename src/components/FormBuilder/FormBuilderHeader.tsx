@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { FormStatusSelector } from '@/components/FormStatusSelector';
@@ -8,7 +7,6 @@ import { FormPermissionHelp } from '@/components/FormPermissionHelp';
 import { Save, Eye, Users, Settings, Shield } from 'lucide-react';
 import { Form } from '@/types/form';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-
 interface FormBuilderHeaderProps {
   onSave: (shouldPublish?: boolean) => void;
   isSaving: boolean;
@@ -19,7 +17,6 @@ interface FormBuilderHeaderProps {
   onStatusChange: (status: Form['status']) => void;
   onUpdateForm: (updates: any) => void;
 }
-
 export function FormBuilderHeader({
   onSave,
   isSaving,
@@ -28,10 +25,9 @@ export function FormBuilderHeader({
   currentForm,
   formStatus,
   onStatusChange,
-  onUpdateForm,
+  onUpdateForm
 }: FormBuilderHeaderProps) {
-  return (
-    <div className="flex gap-2 items-center justify-between">
+  return <div className="flex gap-2 items-center justify-between">
       <div className="flex gap-2 items-center">
         <Button variant="outline" onClick={() => onSave(false)} disabled={isSaving || isPublishing}>
           <Save className="h-4 w-4 mr-2" />
@@ -41,8 +37,7 @@ export function FormBuilderHeader({
           <Eye className="h-4 w-4 mr-2" />
           {isPublishing ? 'Publishing...' : isCreating ? 'Create & Publish' : 'Publish'}
         </Button>
-        {currentForm && (
-          <>
+        {currentForm && <>
             <FormSharing form={currentForm} onUpdateForm={onUpdateForm} />
             
             {/* Form Lifecycle Management */}
@@ -60,11 +55,7 @@ export function FormBuilderHeader({
                 <div className="space-y-4">
                   <div>
                     <label className="text-sm font-medium">Current Status</label>
-                    <FormStatusSelector
-                      value={formStatus}
-                      onValueChange={onStatusChange}
-                      label=""
-                    />
+                    <FormStatusSelector value={formStatus} onValueChange={onStatusChange} label="" />
                   </div>
                   <div className="text-sm text-muted-foreground">
                     <p>Form lifecycle allows you to manage the form's availability and permissions:</p>
@@ -82,10 +73,7 @@ export function FormBuilderHeader({
             {/* User Access Management */}
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Users className="h-4 w-4 mr-2" />
-                  Access
-                </Button>
+                
               </DialogTrigger>
               <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
@@ -98,10 +86,7 @@ export function FormBuilderHeader({
             {/* Permissions Help */}
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Shield className="h-4 w-4 mr-2" />
-                  Permissions
-                </Button>
+                
               </DialogTrigger>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
@@ -110,24 +95,16 @@ export function FormBuilderHeader({
                 <FormPermissionHelp />
               </DialogContent>
             </Dialog>
-          </>
-        )}
+          </>}
       </div>
 
-      {currentForm && (
-        <div className="flex items-center gap-4">
-          <FormStatusSelector
-            value={formStatus}
-            onValueChange={onStatusChange}
-            label=""
-          />
+      {currentForm && <div className="flex items-center gap-4">
+          <FormStatusSelector value={formStatus} onValueChange={onStatusChange} label="" />
           <div className="text-right">
             <span className="text-sm text-muted-foreground">
               Last updated: {new Date(currentForm.updatedAt).toLocaleDateString()}
             </span>
           </div>
-        </div>
-      )}
-    </div>
-  );
+        </div>}
+    </div>;
 }
