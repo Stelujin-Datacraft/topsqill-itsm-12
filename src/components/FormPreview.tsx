@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { RuleProcessor, RuleProcessingContext } from '@/utils/ruleProcessor';
 import { Button } from '@/components/ui/button';
 import { Form, FormField } from '@/types/form';
 import { FormFieldsRenderer } from './FormFieldsRenderer';
@@ -27,6 +28,8 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
     tooltip?: string;
     errorMessage?: string;
   }>>({});
+  const [formLocked, setFormLocked] = useState(false);
+  const [submitAllowed, setSubmitAllowed] = useState(true);
 
   // Initialize pages and current page with proper array checks
   const formFields = Array.isArray(form.fields) ? form.fields : [];

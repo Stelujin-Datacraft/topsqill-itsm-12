@@ -9,6 +9,7 @@ import { FormNavigationPanel } from './FormNavigationPanel';
 import { CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { PublicHeader } from './PublicHeader';
+import { RuleProcessor, RuleProcessingContext } from '@/utils/ruleProcessor';
 
 interface FormViewLayoutRendererProps {
   form: Form;
@@ -34,11 +35,14 @@ export function FormViewLayoutRenderer({
   const [fieldStates, setFieldStates] = useState<Record<string, {
     isVisible: boolean;
     isEnabled: boolean;
+    isRequired?: boolean;
     label: string;
     options?: any[];
     tooltip?: string;
     errorMessage?: string;
   }>>({});
+  const [formLocked, setFormLocked] = useState(false);
+  const [submitAllowed, setSubmitAllowed] = useState(true);
 
   // Initialize pages with proper type checking
   const pages = Array.isArray(form.pages) && form.pages.length > 0 
@@ -75,176 +79,58 @@ export function FormViewLayoutRenderer({
     setFieldStates(initialStates);
   }, [form.fields]);
 
-  // Process field rules when form data changes
+  // Process rules when form data changes
   useEffect(() => {
-    // Ensure fieldRules is an array before processing
     const fieldRules = Array.isArray(form.fieldRules) ? form.fieldRules : [];
-    
-    if (fieldRules.length === 0) return;
+    const formRules = Array.isArray(form.formRules) ? form.formRules : [];
+    const formFields = Array.isArray(form.fields) ? form.fields : [];
 
-//    const newFieldStates = { ...fieldStates };
-   // Start with fresh field states to ensure all fields maintain their visibility
-    const newFieldStates: Record<string, any> = {};
-    if (Array.isArray(form.fields)) {
-      form.fields.forEach(field => {
-        newFieldStates[field.id] = {
-          isVisible: field.isVisible ?? true,
-          isEnabled: field.isEnabled ?? true,
-          label: field.label,
-          options: field.options,
-          tooltip: field.tooltip,
-          errorMessage: field.errorMessage,
-        };
-      });
+    // Create rule processing context
+    const context: RuleProcessingContext = {
+      formData,
+      formFields,
+      setFormData,
+      setFieldStates,
+      onFormAction: (action: string, value?: any) => {
+        switch (action) {
+          case 'allowSubmit':
+            setSubmitAllowed(true);
+            break;
+          case 'preventSubmit':
+            setSubmitAllowed(false);
+            break;
+          case 'lockForm':
+            setFormLocked(true);
+            break;
+          case 'unlockForm':
+            setFormLocked(false);
+            break;
+          case 'redirect':
+            if (value && typeof value === 'string') {
+              window.location.href = value;
+            }
+            break;
+          case 'changeFormHeader':
+            // This would need to be implemented in the parent component
+            console.log('Change form header:', value);
+            break;
+          default:
+            console.log('Form action:', action, value);
+        }
+      }
+    };
+
+    // Process field rules
+    if (fieldRules.length > 0) {
+      const processedStates = RuleProcessor.processFieldRules(fieldRules, context);
+      setFieldStates(processedStates);
     }
-     
 
-    fieldRules.forEach((rule) => {
-      if (!rule.isActive) return;
-
-      const conditionField = form.fields?.find(f => f.id === rule.condition.fieldId);
-      const targetField = form.fields?.find(f => f.id === rule.targetFieldId);
-      
-      if (!conditionField || !targetField) return;
-
-      const currentValue = formData[rule.condition.fieldId] || '';
-      const conditionValue = rule.condition.value;
-      
-      let conditionMet = false;
-      
-      // Evaluate condition based on operator
-      switch (rule.condition.operator) {
-        case '==':
-          conditionMet = currentValue === conditionValue;
-          break;
-        case '!=':
-          conditionMet = currentValue !== conditionValue;
-          break;
-        case 'contains':
-          conditionMet = currentValue.toString().toLowerCase().includes(conditionValue.toString().toLowerCase());
-          break;
-        case 'not contains':
-          conditionMet = !currentValue.toString().toLowerCase().includes(conditionValue.toString().toLowerCase());
-          break;
-        case 'startsWith':
-          conditionMet = currentValue.toString().toLowerCase().startsWith(conditionValue.toString().toLowerCase());
-          break;
-        case 'endsWith':
-          conditionMet = currentValue.toString().toLowerCase().endsWith(conditionValue.toString().toLowerCase());
-          break;
-        case '<':
-          conditionMet = Number(currentValue) < Number(conditionValue);
-          break;
-        case '>':
-          conditionMet = Number(currentValue) > Number(conditionValue);
-          break;
-        case '<=':
-          conditionMet = Number(currentValue) <= Number(conditionValue);
-          break;
-        case '>=':
-          conditionMet = Number(currentValue) >= Number(conditionValue);
-          break;
-        case 'in':
-          const values = Array.isArray(conditionValue) ? conditionValue : [conditionValue];
-          conditionMet = values.includes(currentValue);
-          break;
-        default:
-          conditionMet = false;
-      }
-
-      // Apply action if condition is met
-      if (conditionMet) {
-        switch (rule.action) {
-          case 'show':
-            newFieldStates[rule.targetFieldId] = {
-              ...newFieldStates[rule.targetFieldId],
-              isVisible: true
-            };
-            break;
-          case 'hide':
-            newFieldStates[rule.targetFieldId] = {
-              ...newFieldStates[rule.targetFieldId],
-              isVisible: false
-            };
-            break;
-          case 'enable':
-            newFieldStates[rule.targetFieldId] = {
-              ...newFieldStates[rule.targetFieldId],
-              isEnabled: true
-            };
-            break;
-          case 'disable':
-            newFieldStates[rule.targetFieldId] = {
-              ...newFieldStates[rule.targetFieldId],
-              isEnabled: false
-            };
-            break;
-          case 'changeLabel':
-            if (rule.actionValue) {
-              newFieldStates[rule.targetFieldId] = {
-                ...newFieldStates[rule.targetFieldId],
-                label: rule.actionValue.toString()
-              };
-            }
-            break;
-          case 'changeOptions':
-            if (rule.actionValue && Array.isArray(rule.actionValue)) {
-              newFieldStates[rule.targetFieldId] = {
-                ...newFieldStates[rule.targetFieldId],
-                options: rule.actionValue
-              };
-            }
-            break;
-          case 'showTooltip':
-            if (rule.actionValue) {
-              newFieldStates[rule.targetFieldId] = {
-                ...newFieldStates[rule.targetFieldId],
-                tooltip: rule.actionValue.toString()
-              };
-            }
-            break;
-          case 'showError':
-            if (rule.actionValue) {
-              newFieldStates[rule.targetFieldId] = {
-                ...newFieldStates[rule.targetFieldId],
-                errorMessage: rule.actionValue.toString()
-              };
-            }
-            break;
-          case 'setDefault':
-            if (rule.actionValue) {
-              setFormData(prev => ({
-                ...prev,
-                [rule.targetFieldId]: rule.actionValue
-              }));
-            }
-            break;
-          case 'clearValue':
-            setFormData(prev => ({
-              ...prev,
-              [rule.targetFieldId]: ''
-            }));
-            break;
-        }
-      } else {
-        // Reset to original field state if condition is not met
-        const originalField = form.fields?.find(f => f.id === rule.targetFieldId);
-        if (originalField) {
-          newFieldStates[rule.targetFieldId] = {
-            ...newFieldStates[rule.targetFieldId],
-            isVisible: originalField.isVisible,
-            isEnabled: originalField.isEnabled,
-            label: originalField.label,
-            options: originalField.options,
-            tooltip: originalField.tooltip,
-            errorMessage: originalField.errorMessage,
-          };
-        }
-      }
-    });
-
-    setFieldStates(newFieldStates);
-  }, [formData, form.fieldRules, form.fields, fieldStates]);
+    // Process form rules
+    if (formRules.length > 0) {
+      RuleProcessor.processFormRules(formRules, context);
+    }
+  }, [formData, form.fieldRules, form.formRules, form.fields]);
 
   const handleFieldChange = (fieldId: string, value: any) => {
     setFormData(prev => ({
@@ -275,9 +161,10 @@ export function FormViewLayoutRenderer({
           return;
         }
 
-        // Required field validation
-        if (field.required && (!value || value === '')) {
-          newErrors[field.id] = `${field.label} is required`;
+        // Required field validation (check both field.required and fieldState.isRequired)
+        const isRequired = field.required || fieldState?.isRequired;
+        if (isRequired && (!value || value === '')) {
+          newErrors[field.id] = `${fieldState?.label || field.label} is required`;
         }
 
         // Email validation
@@ -311,6 +198,16 @@ export function FormViewLayoutRenderer({
 
   const handleFormSubmit = async (submissionData: Record<string, any>) => {
     if (isSubmitting) return;
+
+    if (formLocked) {
+      toast.error('This form is currently locked and cannot be submitted.');
+      return;
+    }
+
+    if (!submitAllowed) {
+      toast.error('Form submission is currently blocked by rules.');
+      return;
+    }
 
     if (!validateForm()) {
       return;

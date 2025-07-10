@@ -455,15 +455,73 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
             </div>
 
             {/* Action Configuration */}
-            {['notify', 'sendEmail', 'triggerWebhook', 'redirect', 'assignForm', 'changeFormHeader', 'showSuccessModal'].includes(editingRule.action) && (
+            {([
+              'preventSubmit', 'showMessage', 'notify', 'sendEmail', 'triggerWebhook', 
+              'startWorkflow', 'assignForm', 'redirect', 'changeFormHeader', 
+              'showSuccessModal', 'autoFillFields', 'updateField'
+            ].includes(editingRule.action)) && (
               <div>
                 <Label>Action Configuration</Label>
-                <Textarea
-                  value={typeof editingRule.actionValue === 'string' ? editingRule.actionValue : ''}
-                  onChange={(e) => setEditingRule({ ...editingRule, actionValue: e.target.value })}
-                  placeholder="Enter configuration details..."
-                  rows={3}
-                />
+                {editingRule.action === 'autoFillFields' ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={typeof editingRule.actionValue === 'object' 
+                        ? JSON.stringify(editingRule.actionValue, null, 2)
+                        : editingRule.actionValue?.toString() || ''
+                      }
+                      onChange={(e) => {
+                        try {
+                          const parsed = JSON.parse(e.target.value);
+                          setEditingRule({ ...editingRule, actionValue: parsed });
+                        } catch {
+                          setEditingRule({ ...editingRule, actionValue: e.target.value });
+                        }
+                      }}
+                      placeholder='{"fieldId1": "value1", "fieldId2": "value2"}'
+                      rows={4}
+                    />
+                    <p className="text-xs text-muted-foreground">Enter JSON object with field IDs and values</p>
+                  </div>
+                ) : editingRule.action === 'updateField' ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={typeof editingRule.actionValue === 'object' 
+                        ? JSON.stringify(editingRule.actionValue, null, 2)
+                        : editingRule.actionValue?.toString() || ''
+                      }
+                      onChange={(e) => {
+                        try {
+                          const parsed = JSON.parse(e.target.value);
+                          setEditingRule({ ...editingRule, actionValue: parsed });
+                        } catch {
+                          setEditingRule({ ...editingRule, actionValue: e.target.value });
+                        }
+                      }}
+                      placeholder='{"fieldId": "target-field-id", "value": "new-value"}'
+                      rows={2}
+                    />
+                    <p className="text-xs text-muted-foreground">Enter JSON with fieldId and value</p>
+                  </div>
+                ) : (
+                  <Textarea
+                    value={typeof editingRule.actionValue === 'string' ? editingRule.actionValue : ''}
+                    onChange={(e) => setEditingRule({ ...editingRule, actionValue: e.target.value })}
+                    placeholder={
+                      editingRule.action === 'preventSubmit' ? 'Error message to show users' :
+                      editingRule.action === 'showMessage' ? 'Message to display to users' :
+                      editingRule.action === 'notify' ? 'Notification message' :
+                      editingRule.action === 'sendEmail' ? 'Email template ID or recipient email' :
+                      editingRule.action === 'triggerWebhook' ? 'Webhook URL or configuration JSON' :
+                      editingRule.action === 'startWorkflow' ? 'Workflow ID or name to start' :
+                      editingRule.action === 'assignForm' ? 'Assignee user ID or email address' :
+                      editingRule.action === 'redirect' ? 'Full URL to redirect to (e.g., https://example.com)' :
+                      editingRule.action === 'changeFormHeader' ? 'New header text to display' :
+                      editingRule.action === 'showSuccessModal' ? 'Success message to show in modal' :
+                      'Enter configuration details...'
+                    }
+                    rows={3}
+                  />
+                )}
               </div>
             )}
 
