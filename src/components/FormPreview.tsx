@@ -63,7 +63,20 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
   useEffect(() => {
     if (!Array.isArray(form.fieldRules) || form.fieldRules.length === 0) return;
 
-    const newFieldStates = { ...fieldStates };
+    // Start with fresh field states to ensure all fields maintain their visibility
+    const newFieldStates: Record<string, any> = {};
+    if (Array.isArray(form.fields)) {
+      form.fields.forEach(field => {
+        newFieldStates[field.id] = {
+          isVisible: field.isVisible ?? true,
+          isEnabled: field.isEnabled ?? true,
+          label: field.label,
+          options: field.options,
+          tooltip: field.tooltip,
+          errorMessage: field.errorMessage,
+        };
+      });
+    }
     
     form.fieldRules.forEach((rule) => {
       if (!rule.isActive) return;
