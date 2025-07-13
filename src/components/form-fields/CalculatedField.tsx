@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Calculator, Loader2, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { extractFieldIdsFromExpression, replaceFieldReferencesInExpression, ParsedFieldReference } from '@/utils/fieldReferenceParser';
+import { CalculationEngine } from '@/utils/calculationEngine';
 
 interface CalculatedFieldProps {
   field: FormField;
@@ -128,103 +129,128 @@ export function CalculatedField({
   const performCalculation = async (): Promise<number> => {
     console.log('Starting calculation with formula:', config.formula);
     console.log('Available form data:', formData);
-    console.log('All form fields:', allFormFields);
 
-    // Extract field IDs from the expression using our parser
-    const extractedFieldIds = extractFieldIdsFromExpression(config.formula, allFormFields);
-    console.log('Extracted field IDs from formula:', extractedFieldIds);
-
-    // If no field IDs found via parser, try manual extraction from the new format
-    let fieldIdsToUse = extractedFieldIds;
-    if (fieldIdsToUse.length === 0) {
-      // Manual extraction for format: form_ref.field_ref_XXXX where XXXX are last 4 chars
-      const manualFieldIds = extractFieldIdsManually(config.formula);
-      console.log('Manually extracted field IDs:', manualFieldIds);
-      fieldIdsToUse = manualFieldIds;
-    }
-
-    // Get data based on scope
-    let submissions: any[] = [];
-    
-    switch (config.calculationScope) {
-      case 'current':
-        console.log('Using current form data for calculation:', formData);
-        submissions = [{ submission_data: formData }];
-        break;
-      case 'all':
-        submissions = await getAllSubmissions();
-        break;
-      case 'user':
-        submissions = await getUserSubmissions();
-        break;
-    }
-
-    // Extract field values based on the field IDs we found
-    const fieldValues: number[] = [];
-    
-    submissions.forEach(submission => {
-      const data = submission.submission_data || submission;
+    try {
+      // Get data based on scope for context
+      let allSubmissions: any[] = [];
       
-      fieldIdsToUse.forEach(fieldId => {
-        const value = parseFloat(data[fieldId]);
-        console.log(`Extracting value for field ${fieldId}: ${data[fieldId]} -> ${value}`);
-        if (!isNaN(value)) {
-          fieldValues.push(value);
+      switch (config.calculationScope) {
+        case 'current':
+          console.log('Using current form data for calculation');
+          allSubmissions = [{ submission_data: formData }];
+          break;
+        case 'all':
+          allSubmissions = await getAllSubmissions();
+          break;
+        case 'user':
+          allSubmissions = await getUserSubmissions();
+          break;
+      }
+
+      // Prepare calculation context with form data and all submissions
+      const calculationContext = {
+        formData: formData,
+        allSubmissions: allSubmissions
+      };
+
+      // Create calculation engine with context
+      const engine = new CalculationEngine(calculationContext);
+      
+      // Preprocess the formula to replace field references with proper format
+      let processedFormula = config.formula;
+      
+      // Replace our new format (form_ref.field_ref.XXXXXX) with #field_id format for the engine
+      const pattern = /(\w+)\.(\w+)\.([a-f0-9]{6})/g;
+      let match;
+      const matches = [];
+      
+      while ((match = pattern.exec(config.formula)) !== null) {
+        matches.push({
+          fullMatch: match[0],
+          last6Chars: match[3]
+        });
+      }
+      
+      // Replace each match with the actual field ID
+      matches.forEach(({ fullMatch, last6Chars }) => {
+        const matchingFieldId = Object.keys(formData).find(fieldId => 
+          fieldId.replace(/-/g, '').slice(-6) === last6Chars
+        );
+        
+        if (matchingFieldId) {
+          processedFormula = processedFormula.replace(fullMatch, `#${matchingFieldId}`);
+          console.log(`Replaced ${fullMatch} with #${matchingFieldId}`);
         }
       });
-    });
 
-    console.log('Field values extracted for calculation:', fieldValues);
-    console.log('Field IDs used:', fieldIdsToUse);
-
-    // Perform calculation based on formula
-    const lowerFormula = config.formula.toLowerCase();
-    if (lowerFormula.includes('sum(')) {
-      return fieldValues.reduce((sum, val) => sum + val, 0);
-    } else if (lowerFormula.includes('avg(')) {
-      return fieldValues.length > 0 ? fieldValues.reduce((sum, val) => sum + val, 0) / fieldValues.length : 0;
-    } else if (lowerFormula.includes('count(')) {
-      return fieldValues.length;
-    } else if (lowerFormula.includes('min(')) {
-      return fieldValues.length > 0 ? Math.min(...fieldValues) : 0;
-    } else if (lowerFormula.includes('max(')) {
-      return fieldValues.length > 0 ? Math.max(...fieldValues) : 0;
+      console.log('Processed formula for calculation engine:', processedFormula);
+      
+      // Use the calculation engine to evaluate the expression
+      const result = await engine.evaluate(processedFormula);
+      console.log('Calculation engine result:', result);
+      
+      // Return the result as a number
+      if (typeof result === 'number') {
+        return result;
+      } else if (typeof result === 'string' && !isNaN(parseFloat(result))) {
+        return parseFloat(result);
+      } else {
+        console.log('Result is not a number, returning 0');
+        return 0;
+      }
+      
+    } catch (error) {
+      console.error('Calculation engine error:', error);
+      
+      // Fallback to basic calculation for simple expressions
+      return await performBasicCalculation();
     }
+  };
 
-    // For simple math expressions, try to evaluate safely
+  // Fallback basic calculation method
+  const performBasicCalculation = async (): Promise<number> => {
+    console.log('Using fallback basic calculation');
+    
+    // Extract field IDs manually for the new format
+    const fieldIds = extractFieldIdsManually(config.formula);
+    console.log('Extracted field IDs:', fieldIds);
+    
+    // Get field values
+    const fieldValues: number[] = [];
+    fieldIds.forEach(fieldId => {
+      const value = parseFloat(formData[fieldId]);
+      if (!isNaN(value)) {
+        fieldValues.push(value);
+      }
+    });
+    
+    console.log('Field values for basic calculation:', fieldValues);
+    
+    // Try to evaluate simple expressions
     try {
       let expression = config.formula;
       
-      // Replace field references with actual values
-      fieldIdsToUse.forEach(fieldId => {
+      // Replace field references with values
+      fieldIds.forEach(fieldId => {
         const value = parseFloat(formData[fieldId]) || 0;
-        console.log(`Replacing references to field ${fieldId} with value ${value}`);
-        
-        // Replace field references with values
-        // New format: form_ref.field_ref.XXXXXX (last 6 chars no hyphens)
         const last6Chars = fieldId.replace(/-/g, '').slice(-6);
         const newFormatRegex = new RegExp(`\\w+\\.\\w+\\.${last6Chars}`, 'g');
         expression = expression.replace(newFormatRegex, value.toString());
-        
-        // Old format: #field_id (for backward compatibility)
-        expression = expression.replace(new RegExp(`#${fieldId}`, 'g'), value.toString());
       });
       
-      console.log('Final expression to evaluate:', expression);
+      console.log('Basic calculation expression:', expression);
       
       // Only allow basic math operations for security
       if (/^[0-9+\-*/().\s]+$/.test(expression)) {
         const result = Function(`"use strict"; return (${expression})`)();
-        console.log('Calculation result:', result);
         return result;
-      } else {
-        console.log('Expression contains non-numeric characters, returning first field value or 0');
-        return fieldValues.length > 0 ? fieldValues[0] : 0;
       }
     } catch (error) {
-      console.error('Expression evaluation error:', error);
-      return fieldValues.length > 0 ? fieldValues[0] : 0;
+      console.error('Basic calculation error:', error);
     }
+    
+    // If all else fails, return first field value or 0
+    return fieldValues.length > 0 ? fieldValues[0] : 0;
   };
 
   // Manual field ID extraction for the new format: form_ref.field_ref.XXXXXX
