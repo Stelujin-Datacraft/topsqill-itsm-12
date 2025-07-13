@@ -24,7 +24,7 @@ export function UserRolesTab() {
     assignments: userRoleAssignments, 
     loading: assignmentsLoading,
     refetch: refetchAssignments
-  } = useUserRoleAssignments();
+  } = useUserRoleAssignments(); // Load all assignments for admin view
   
   const { userProfile } = useAuth();
 

@@ -28,13 +28,8 @@ export function useUserRoleAssignments(userId?: string) {
   const targetUserId = userId || userProfile?.id;
 
   const loadAssignments = async () => {
-    if (!targetUserId) {
-      setLoading(false);
-      return;
-    }
-
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('user_role_assignments')
         .select(`
           *,
@@ -47,8 +42,15 @@ export function useUserRoleAssignments(userId?: string) {
               permission_type
             )
           )
-        `)
-        .eq('user_id', targetUserId);
+        `);
+
+      // If a specific userId is provided, filter by it
+      // Otherwise, load all assignments (for admin views)
+      if (userId) {
+        query = query.eq('user_id', userId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Error loading user role assignments:', error);
