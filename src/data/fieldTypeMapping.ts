@@ -8,7 +8,8 @@ export const fieldTypeMapping: Record<string, string> = {
   checkbox: 'boolean',
   radio: 'select',
   date: 'date',
-  file: 'file'
+  file: 'file',
+  'submission-access': 'text'
 };
 
 export const getFieldType = (fieldType: string): string => {

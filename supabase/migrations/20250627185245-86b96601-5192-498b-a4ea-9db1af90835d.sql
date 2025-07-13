@@ -18,5 +18,5 @@ CHECK (field_type IN (
   'ip-address', 'barcode', 'user-picker', 'group-picker',
   'approval', 'signature', 'tags', 'dynamic-dropdown',
   'cross-reference', 'calculated', 'conditional-section',
-  'geo-location', 'workflow-trigger'
+  'geo-location', 'workflow-trigger', 'submission-access'
 ));
