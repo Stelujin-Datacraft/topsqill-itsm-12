@@ -28,6 +28,14 @@ export function UserPickerField({ field, value, onChange, error, disabled }: Use
   const { projectMembers, loading } = useProjectMembership(currentProject?.id || '');
   const { roles } = useRoles();
   
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 UserPickerField Debug Info:');
+    console.log('Current Project ID:', currentProject?.id);
+    console.log('Project Members:', projectMembers);
+    console.log('Loading:', loading);
+  }, [currentProject?.id, projectMembers, loading]);
+  
   const config = field.customConfig || {};
   const isMultiple = config.allowMultiple || config.maxSelections > 1;
   const maxSelections = config.maxSelections || 1;

@@ -25,7 +25,8 @@ export function useProjectMembership(projectId: string) {
     }
 
     try {
-      console.log('Loading project members for project:', projectId);
+      console.log('🔍 Loading project members for project:', projectId);
+      console.log('🔍 Query:', 'project_users with left join to user_profiles');
 
       // Get project members with their user profile information
       const { data: members, error } = await supabase
@@ -42,8 +43,10 @@ export function useProjectMembership(projectId: string) {
         `)
         .eq('project_id', projectId);
 
+      console.log('🔍 Raw members data from Supabase:', members);
+
       if (error) {
-        console.error('Error loading project members:', error);
+        console.error('❌ Error loading project members:', error);
         throw error;
       }
 
