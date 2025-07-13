@@ -108,7 +108,15 @@ export function ReportsList({
   if (loading) {
     return <LoadingScreen message="Loading reports..." />;
   }
-  const CreateReportButton = () => {};
+  const CreateReportButton = () => (
+    <Button 
+      onClick={createButtonState.disabled ? () => checkPermissionWithAlert('reports', 'create') : onCreate} 
+      disabled={createButtonState.disabled}
+    >
+      <Plus className="h-4 w-4 mr-2" />
+      Create Report
+    </Button>
+  );
   const CreateFirstReportButton = () => <Button onClick={createButtonState.disabled ? () => checkPermissionWithAlert('reports', 'create') : onCreate} disabled={createButtonState.disabled}>
       <Plus className="h-4 w-4 mr-2" />
       Create Your First Report

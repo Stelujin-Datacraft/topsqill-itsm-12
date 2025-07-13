@@ -10,6 +10,9 @@ import { HelpDialog, HelpSection, HelpExample, HelpBadge } from '@/components/ui
 import { CALCULATION_FUNCTIONS, validateExpression, getAutoSuggestions } from '@/utils/calculationEngine';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Plus } from 'lucide-react';
+import { FieldSelector } from '@/components/form-fields/FieldSelector';
+import { ParsedFieldReference, createFieldRef, replaceFieldReferencesInExpression, extractFieldIdsFromExpression } from '@/utils/fieldReferenceParser';
 
 interface CalculatedFieldConfigProps {
   config: any;
@@ -23,20 +26,73 @@ export function CalculatedFieldConfig({ config, onUpdate, errors }: CalculatedFi
   const { formFieldOptions } = useCurrentFormFields();
   const [expressionErrors, setExpressionErrors] = useState<string[]>([]);
   const [showFunctionHelp, setShowFunctionHelp] = useState(false);
+  const [showFieldSelector, setShowFieldSelector] = useState(false);
+
+  // Get source form details
+  const sourceForm = forms.find(form => form.id === customConfig.targetFormId);
+  const currentForm = forms.find(form => form.fields && form.fields.length > 0);
+  const sourceFormRefId = sourceForm?.reference_id || createFieldRef(sourceForm?.name || 'current');
+  
+  // Get fields for the selected source form
+  const availableFields = customConfig.targetFormId && customConfig.targetFormId !== currentForm?.id
+    ? sourceForm?.fields || []
+    : formFieldOptions.map(f => ({ 
+        id: f.value, 
+        label: f.label, 
+        type: 'text' as const,
+        position: { x: 0, y: 0 },
+        size: { width: 12, height: 1 },
+        validationRules: [],
+        required: false
+      }));
 
   const handleConfigChange = (key: string, value: any) => {
+    const updates: any = { [key]: value };
+    
+    // When source form changes, adjust configuration appropriately
+    if (key === 'targetFormId') {
+      const selectedForm = forms.find(form => form.id === value);
+      
+      // If source form is different from current form, disable current submission scope
+      if (value && value !== currentForm?.id) {
+        updates.calculationScope = 'all'; // Force to 'all' when using external form
+      }
+    }
+    
     onUpdate({
       customConfig: {
         ...customConfig,
-        [key]: value
+        ...updates
       }
     });
     
     // Validate expression when formula changes
     if (key === 'formula') {
-      const availableFields = formFieldOptions.map(f => f.value);
-      const validation = validateExpression(value, availableFields);
+      const fieldIds = availableFields.map(field => field.id);
+      const validation = validateExpression(value, fieldIds);
       setExpressionErrors(validation.errors);
+    }
+  };
+
+  const handleFieldSelect = (fieldId: string, fieldReference: ParsedFieldReference) => {
+    // Insert field reference at cursor position in expression
+    const textarea = document.getElementById('formula-textarea') as HTMLTextAreaElement;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const currentExpression = customConfig.formula || '';
+      const newExpression = 
+        currentExpression.substring(0, start) + 
+        fieldReference.displayText + 
+        currentExpression.substring(end);
+      
+      handleConfigChange('formula', newExpression);
+      
+      // Restore cursor position
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + fieldReference.displayText.length, start + fieldReference.displayText.length);
+      }, 0);
     }
   };
 
@@ -72,6 +128,7 @@ export function CalculatedFieldConfig({ config, onUpdate, errors }: CalculatedFi
           <Select
             value={customConfig.calculationScope || 'current'}
             onValueChange={(value) => handleConfigChange('calculationScope', value)}
+            disabled={customConfig.targetFormId && customConfig.targetFormId !== currentForm?.id}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select calculation scope" />
@@ -82,12 +139,27 @@ export function CalculatedFieldConfig({ config, onUpdate, errors }: CalculatedFi
               <SelectItem value="user">Current user's submissions</SelectItem>
             </SelectContent>
           </Select>
+          <p className="text-sm text-muted-foreground">
+            {customConfig.targetFormId && customConfig.targetFormId !== currentForm?.id
+              ? "Cross-form calculations use 'All submissions' scope"
+              : "Define the data scope for calculations"
+            }
+          </p>
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="formula">Formula Expression</Label>
             <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFieldSelector(!showFieldSelector)}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add Field
+              </Button>
               <Button 
                 type="button" 
                 variant="outline" 
@@ -99,11 +171,23 @@ export function CalculatedFieldConfig({ config, onUpdate, errors }: CalculatedFi
             </div>
           </div>
           
+          {showFieldSelector && (
+            <div className="mb-3">
+              <FieldSelector
+                fields={availableFields}
+                formRefId={sourceFormRefId}
+                onSelectField={handleFieldSelect}
+                placeholder="Select a field to insert..."
+                className="w-full"
+              />
+            </div>
+          )}
+          
           <Textarea
-            id="formula"
+            id="formula-textarea"
             value={customConfig.formula || ''}
             onChange={(e) => handleConfigChange('formula', e.target.value)}
-            placeholder="ADD(#field1, #field2) or SUM(#field_id) or IF(#status = 'urgent', 1, 0)"
+            placeholder={`Enter your calculation formula (e.g., ${sourceFormRefId}.field1(#field_id) + ${sourceFormRefId}.field2(#field_id) * 0.1)`}
             rows={4}
             className={expressionErrors.length > 0 ? 'border-red-500' : ''}
           />
@@ -117,7 +201,7 @@ export function CalculatedFieldConfig({ config, onUpdate, errors }: CalculatedFi
           )}
           
           <div className="text-xs text-muted-foreground space-y-1">
-            <p>• Reference fields using #field_id (e.g., #price, #quantity)</p>
+            <p>• Use the field selector above or type field references in the format: form_ref.field_ref(#field_id)</p>
             <p>• Use functions like ADD(), SUM(), IF(), etc.</p>
             <p>• Aggregate functions work across all submissions</p>
           </div>
@@ -148,18 +232,39 @@ export function CalculatedFieldConfig({ config, onUpdate, errors }: CalculatedFi
             </div>
           )}
 
-          <div className="space-y-1">
+          <div className="space-y-2">
             <p className="text-xs font-medium">Available Fields:</p>
-            <div className="flex flex-wrap gap-1">
-              {formFieldOptions.slice(0, 10).map((field) => (
-                <Badge key={field.value} variant="secondary" className="text-xs">
-                  #{field.value}
-                </Badge>
-              ))}
-              {formFieldOptions.length > 10 && (
-                <Badge variant="secondary" className="text-xs">
-                  +{formFieldOptions.length - 10} more
-                </Badge>
+            <div className="border rounded-lg p-3 max-h-40 overflow-y-auto space-y-2">
+              {availableFields
+                .filter(field => field.type !== 'calculated') // Don't show other calculated fields
+                .map(field => {
+                  const fieldRef = createFieldRef(field.label);
+                  const displayText = `${sourceFormRefId}.${fieldRef}(#${field.id})`;
+                  return (
+                    <div key={field.id} className="flex items-center justify-between p-2 bg-muted rounded text-xs">
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="font-medium truncate">{field.label}</span>
+                        <code className="font-mono text-[10px] text-muted-foreground">{displayText}</code>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[10px]"
+                        onClick={() => handleFieldSelect(field.id, {
+                          formRefId: sourceFormRefId,
+                          fieldRef,
+                          fieldId: field.id,
+                          displayText,
+                          originalField: field as any
+                        })}
+                      >
+                        Insert
+                      </Button>
+                    </div>
+                  );
+                })}
+              {availableFields.filter(field => field.type !== 'calculated').length === 0 && (
+                <p className="text-xs text-muted-foreground">No fields available</p>
               )}
             </div>
           </div>

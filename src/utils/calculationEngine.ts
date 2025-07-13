@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { replaceFieldReferencesInExpression, extractFieldIdsFromExpression } from './fieldReferenceParser';
 
 export interface CalculationContext {
   formData: Record<string, any>;
