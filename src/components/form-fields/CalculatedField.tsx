@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { FormField } from '@/types/form';
 import { Label } from '@/components/ui/label';
@@ -66,30 +67,9 @@ export function CalculatedField({
 
     setIsCalculating(true);
     try {
-      // Call backend calculation API
-      const { data, error } = await supabase.functions.invoke('calculate-field', {
-        body: {
-          formula: config.formula,
-          targetFormId: config.targetFormId,
-          calculationScope: config.calculationScope,
-          formData: formData,
-          allFormFields: allFormFields
-        }
-      });
-
-      if (error) throw error;
-      
-      const formattedResult = formatResult(data.result || 0);
-      setCalculatedValue(formattedResult);
-      setLastCalculatedAt(new Date());
-      
-      if (onChange) {
-        onChange(formattedResult);
-      }
-    } catch (error) {
-      console.error('Calculation error:', error);
-      // Fallback to frontend calculation
-      try {
+      // For current submission scope, skip backend call and use frontend calculation directly
+      if (config.calculationScope === 'current') {
+        console.log('Using frontend calculation for current submission scope');
         const result = await performCalculation();
         const formattedResult = formatResult(result);
         setCalculatedValue(formattedResult);
@@ -98,11 +78,45 @@ export function CalculatedField({
         if (onChange) {
           onChange(formattedResult);
         }
-      } catch (fallbackError) {
-        console.error('Fallback calculation error:', fallbackError);
-        setCalculatedValue('Error');
-        setLastCalculatedAt(new Date());
+      } else {
+        // Try backend calculation first for other scopes
+        try {
+          const { data, error } = await supabase.functions.invoke('calculate-field', {
+            body: {
+              formula: config.formula,
+              targetFormId: config.targetFormId,
+              calculationScope: config.calculationScope,
+              formData: formData,
+              allFormFields: allFormFields
+            }
+          });
+
+          if (error) throw error;
+          
+          const formattedResult = formatResult(data.result || 0);
+          setCalculatedValue(formattedResult);
+          setLastCalculatedAt(new Date());
+          
+          if (onChange) {
+            onChange(formattedResult);
+          }
+        } catch (backendError) {
+          console.log('Backend calculation failed, using frontend fallback:', backendError);
+          // Fallback to frontend calculation
+          const result = await performCalculation();
+          const formattedResult = formatResult(result);
+          setCalculatedValue(formattedResult);
+          setLastCalculatedAt(new Date());
+          
+          if (onChange) {
+            onChange(formattedResult);
+          }
+        }
       }
+    } catch (error) {
+      console.error('Calculation error:', error);
+      setCalculatedValue('Error');
+      setLastCalculatedAt(new Date());
     } finally {
       setIsCalculating(false);
     }
@@ -121,7 +135,8 @@ export function CalculatedField({
     
     switch (config.calculationScope) {
       case 'current':
-        // Use current form data
+        // Use current form data (not from database)
+        console.log('Using current form data for calculation:', formData);
         submissions = [{ submission_data: formData }];
         break;
       case 'all':
@@ -149,6 +164,10 @@ export function CalculatedField({
       });
     });
 
+    console.log('Field values extracted for calculation:', fieldValues);
+    console.log('Dependent field IDs:', dependentFieldIds);
+    console.log('Current form data:', formData);
+
     // Perform calculation based on formula
     const lowerFormula = processedFormula.toLowerCase();
     if (lowerFormula.includes('sum(')) {
@@ -170,12 +189,17 @@ export function CalculatedField({
       // Replace field references with actual values
       dependentFieldIds.forEach(fieldId => {
         const value = parseFloat(formData[fieldId]) || 0;
+        console.log(`Replacing field ${fieldId} with value ${value}`);
         expression = expression.replace(new RegExp(`#${fieldId}`, 'g'), value.toString());
       });
       
+      console.log('Final expression to evaluate:', expression);
+      
       // Only allow basic math operations for security
       if (/^[0-9+\-*/().\s]+$/.test(expression)) {
-        return Function(`"use strict"; return (${expression})`)();
+        const result = Function(`"use strict"; return (${expression})`)();
+        console.log('Calculation result:', result);
+        return result;
       }
     } catch (error) {
       console.error('Expression evaluation error:', error);
