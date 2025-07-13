@@ -65,31 +65,37 @@ export function extractFieldIdsFromExpression(
   expression: string,
   allFields: ParsedFieldReference[] = []
 ): string[] {
-  // New format: formRef.fieldRef.<fullIdNoHyphens>_<last4>
-  // e.g. rules_testing_form.number_input.2732a072fbea47238abeb898dd1a8f4e_8f4e
-  const fieldRefPattern = /(\w+)\.(\w+)\.([0-9a-f]+_[0-9a-f]{4})/g;
+  // Matches formRef.fieldRef.short6 where short6 = last 6 hex chars of fieldId
+  //   group 1: formRef   (\w+)
+  //   group 2: rawField  (\w+)
+  //   group 3: short6    ([0-9a-f]{6})
+  const fieldPattern = /(\w+)\.(\w+)\.([0-9a-f]{6})/g;
   const fieldIds: string[] = [];
   let match: RegExpExecArray | null;
 
-  while ((match = fieldRefPattern.exec(expression)) !== null) {
-    const formRef  = match[1];         // e.g. "rules_testing_form"
-    const fieldRef = match[2];         // e.g. "number_input"
-    const idToken  = match[3];         // e.g. "2732a072fbea47238abeb898dd1a8f4e_8f4e"
+  while ((match = fieldPattern.exec(expression)) !== null) {
+    const formRefRaw  = match[1];       // e.g. "rules_testing_form"
+    const rawFieldRef = match[2];       // e.g. "number_input"
+    const short6      = match[3];       // e.g. "d1a8f4"
 
-    // Find the matching ParsedFieldReference
-    const matchingField = allFields.find(f => {
-      // rebuild token from the stored fieldId:
-      const noHyphens = f.fieldId.replace(/-/g, "");
-      const suffix    = f.fieldId.slice(-4);
-      return (
-        f.formRefId === formRef &&
-        f.fieldRef  === fieldRef &&
-        `${noHyphens}_${suffix}` === idToken
-      );
+    // Normalize fieldRef: lowercase, spaces => underscores
+    const fieldRefNorm = rawFieldRef
+      .toLowerCase()
+      .replace(/\s+/g, "_");
+
+    // Find a matching field
+    const found = allFields.find(f => {
+      // formRefId must match exactly
+      if (f.formRefId !== formRefRaw) return false;
+      // fieldRef must match normalized version
+      if (f.fieldRef !== fieldRefNorm) return false;
+      // last 6 chars of fieldId (stripped of hyphens) must match short6
+      const idNoHyphens = f.fieldId.replace(/-/g, "");
+      return idNoHyphens.slice(-6) === short6;
     });
 
-    if (matchingField) {
-      fieldIds.push(matchingField.fieldId);
+    if (found) {
+      fieldIds.push(found.fieldId);
     }
   }
 
