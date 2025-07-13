@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { FormField } from '@/types/form';
 import { Label } from '@/components/ui/label';
@@ -127,15 +126,28 @@ export function CalculatedField({
   };
 
   const performCalculation = async (): Promise<number> => {
-    // Replace field references with actual field IDs
-    const processedFormula = replaceFieldReferencesInExpression(config.formula, allFormFields);
-    
+    console.log('Starting calculation with formula:', config.formula);
+    console.log('Available form data:', formData);
+    console.log('All form fields:', allFormFields);
+
+    // Extract field IDs from the expression using our parser
+    const extractedFieldIds = extractFieldIdsFromExpression(config.formula, allFormFields);
+    console.log('Extracted field IDs from formula:', extractedFieldIds);
+
+    // If no field IDs found via parser, try manual extraction from the new format
+    let fieldIdsToUse = extractedFieldIds;
+    if (fieldIdsToUse.length === 0) {
+      // Manual extraction for format: form_ref.field_ref_XXXX where XXXX are last 4 chars
+      const manualFieldIds = extractFieldIdsManually(config.formula);
+      console.log('Manually extracted field IDs:', manualFieldIds);
+      fieldIdsToUse = manualFieldIds;
+    }
+
     // Get data based on scope
     let submissions: any[] = [];
     
     switch (config.calculationScope) {
       case 'current':
-        // Use current form data (not from database)
         console.log('Using current form data for calculation:', formData);
         submissions = [{ submission_data: formData }];
         break;
@@ -147,17 +159,15 @@ export function CalculatedField({
         break;
     }
 
-    // Extract field values based on formula
+    // Extract field values based on the field IDs we found
     const fieldValues: number[] = [];
     
     submissions.forEach(submission => {
       const data = submission.submission_data || submission;
       
-      // Extract field IDs from processed formula
-      const referencedFieldIds = dependentFieldIds;
-      
-      referencedFieldIds.forEach(fieldId => {
+      fieldIdsToUse.forEach(fieldId => {
         const value = parseFloat(data[fieldId]);
+        console.log(`Extracting value for field ${fieldId}: ${data[fieldId]} -> ${value}`);
         if (!isNaN(value)) {
           fieldValues.push(value);
         }
@@ -165,11 +175,10 @@ export function CalculatedField({
     });
 
     console.log('Field values extracted for calculation:', fieldValues);
-    console.log('Dependent field IDs:', dependentFieldIds);
-    console.log('Current form data:', formData);
+    console.log('Field IDs used:', fieldIdsToUse);
 
     // Perform calculation based on formula
-    const lowerFormula = processedFormula.toLowerCase();
+    const lowerFormula = config.formula.toLowerCase();
     if (lowerFormula.includes('sum(')) {
       return fieldValues.reduce((sum, val) => sum + val, 0);
     } else if (lowerFormula.includes('avg(')) {
@@ -184,12 +193,19 @@ export function CalculatedField({
 
     // For simple math expressions, try to evaluate safely
     try {
-      let expression = processedFormula;
+      let expression = config.formula;
       
       // Replace field references with actual values
-      dependentFieldIds.forEach(fieldId => {
+      fieldIdsToUse.forEach(fieldId => {
         const value = parseFloat(formData[fieldId]) || 0;
-        console.log(`Replacing field ${fieldId} with value ${value}`);
+        console.log(`Replacing references to field ${fieldId} with value ${value}`);
+        
+        // Replace both new format and old format references
+        // New format: form_ref.field_ref_XXXX
+        const newFormatRegex = new RegExp(`\\w+\\.\\w+_${fieldId.slice(-4)}`, 'g');
+        expression = expression.replace(newFormatRegex, value.toString());
+        
+        // Old format: #field_id
         expression = expression.replace(new RegExp(`#${fieldId}`, 'g'), value.toString());
       });
       
@@ -200,12 +216,38 @@ export function CalculatedField({
         const result = Function(`"use strict"; return (${expression})`)();
         console.log('Calculation result:', result);
         return result;
+      } else {
+        console.log('Expression contains non-numeric characters, returning first field value or 0');
+        return fieldValues.length > 0 ? fieldValues[0] : 0;
       }
     } catch (error) {
       console.error('Expression evaluation error:', error);
+      return fieldValues.length > 0 ? fieldValues[0] : 0;
     }
+  };
 
-    return 0;
+  // Manual field ID extraction for the new format
+  const extractFieldIdsManually = (formula: string): string[] => {
+    const fieldIds: string[] = [];
+    
+    // Pattern: form_ref.field_ref_XXXX where XXXX are last 4 chars of field ID
+    const pattern = /\w+\.\w+_([a-f0-9]{4})/g;
+    let match;
+    
+    while ((match = pattern.exec(formula)) !== null) {
+      const last4Chars = match[1];
+      
+      // Find matching field ID from form data
+      const matchingFieldId = Object.keys(formData).find(fieldId => 
+        fieldId.slice(-4) === last4Chars
+      );
+      
+      if (matchingFieldId) {
+        fieldIds.push(matchingFieldId);
+      }
+    }
+    
+    return fieldIds;
   };
 
   const getAllSubmissions = async () => {
