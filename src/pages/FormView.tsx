@@ -27,7 +27,7 @@ const FormView = () => {
   const { hasPermission, loading: accessLoading, isOrgAdmin, isProjectAdmin } = useUnifiedAccessControl(form?.projectId);
   
   // Form submission handler
-  const { handleFormSubmit } = useFormSubmissionHandler(id);
+  const { handleFormSubmit } = useFormSubmissionHandler(id, form);
 
   // Handle redirect to login for private forms
   useEffect(() => {

@@ -12,7 +12,7 @@ const PublicFormView = () => {
   const { id } = useParams();
   const [submissionResult, setSubmissionResult] = useState<{submissionId: string, submissionRefId: string} | null>(null);
   const { form, loading, error } = useFormWithFields(id);
-  const { handleFormSubmit } = useFormSubmissionHandler(id);
+  const { handleFormSubmit } = useFormSubmissionHandler(id, form);
 
   if (loading) {
     return <FormLoadingView />;

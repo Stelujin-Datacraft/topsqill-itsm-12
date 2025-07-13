@@ -34,7 +34,7 @@ export function useProjectMembership(projectId: string) {
           id,
           user_id,
           role,
-          user_profiles!inner(
+          user_profiles(
             email,
             first_name,
             last_name
@@ -52,9 +52,9 @@ export function useProjectMembership(projectId: string) {
         id: member.id,
         user_id: member.user_id,
         role: member.role,
-        email: member.user_profiles.email,
-        first_name: member.user_profiles.first_name,
-        last_name: member.user_profiles.last_name,
+        email: member.user_profiles?.email || 'Unknown',
+        first_name: member.user_profiles?.first_name || '',
+        last_name: member.user_profiles?.last_name || '',
       }));
 
       console.log('Project members loaded:', transformedMembers);

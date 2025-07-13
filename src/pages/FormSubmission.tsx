@@ -13,7 +13,7 @@ import { useState } from 'react';
 const FormSubmission = () => {
   const { id } = useParams();
   const { form, loading, error } = useFormLoader(id);
-  const { handleFormSubmit } = useFormSubmissionHandler(id);
+  const { handleFormSubmit } = useFormSubmissionHandler(id, form);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submissionRefId, setSubmissionRefId] = useState<string>();
   const [submissionId, setSubmissionId] = useState<string>();

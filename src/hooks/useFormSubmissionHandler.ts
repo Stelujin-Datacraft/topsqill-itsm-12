@@ -3,9 +3,55 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { WorkflowExecutionService } from '@/services/workflowExecution';
 import { useAuth } from '@/contexts/AuthContext';
+import { Form } from '@/types/form';
 
-export function useFormSubmissionHandler(formId: string | undefined) {
+export function useFormSubmissionHandler(formId: string | undefined, form?: Form) {
   const { userProfile } = useAuth();
+
+  const assignRolesToUsers = async (formData: Record<string, any>) => {
+    if (!form?.fields) return;
+
+    // Find user picker fields with role assignment configuration
+    const userPickerFields = form.fields.filter(
+      field => field.type === 'user-picker' && field.customConfig?.assignRole
+    );
+
+    for (const field of userPickerFields) {
+      const fieldValue = formData[field.id];
+      const assignRole = field.customConfig?.assignRole;
+      
+      if (!fieldValue || !assignRole) continue;
+
+      // Handle both single and multiple user selections
+      const userIds = Array.isArray(fieldValue) ? fieldValue : [fieldValue];
+      
+      for (const userId of userIds) {
+        if (!userId) continue;
+        
+        try {
+          // Assign role to user in the project
+          const { error } = await supabase
+            .from('project_users')
+            .upsert({
+              project_id: form.projectId,
+              user_id: userId,
+              role: assignRole,
+              assigned_at: new Date().toISOString()
+            }, {
+              onConflict: 'project_id,user_id'
+            });
+
+          if (error) {
+            console.error(`Error assigning role ${assignRole} to user ${userId}:`, error);
+          } else {
+            console.log(`Successfully assigned role ${assignRole} to user ${userId}`);
+          }
+        } catch (error) {
+          console.error(`Failed to assign role to user ${userId}:`, error);
+        }
+      }
+    }
+  };
 
   const handleFormSubmit = async (formData: Record<string, any>) => {
     try {
@@ -36,6 +82,9 @@ export function useFormSubmissionHandler(formId: string | undefined) {
 
       console.log('✅ Form submission saved successfully with ID:', submission.id);
       console.log('📄 Submission reference ID:', submission.submission_ref_id);
+      
+      // Handle user role assignments if configured
+      await assignRolesToUsers(formData);
       
       // Trigger workflow execution for form submission using the correct service
       if (formId && userProfile?.id) {
