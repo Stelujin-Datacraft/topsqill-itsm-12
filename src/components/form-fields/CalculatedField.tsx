@@ -200,12 +200,13 @@ export function CalculatedField({
         const value = parseFloat(formData[fieldId]) || 0;
         console.log(`Replacing references to field ${fieldId} with value ${value}`);
         
-        // Replace both new format and old format references
-        // New format: form_ref.field_ref_XXXX
-        const newFormatRegex = new RegExp(`\\w+\\.\\w+_${fieldId.slice(-4)}`, 'g');
+        // Replace field references with values
+        // New format: form_ref.field_ref.XXXXXX (last 6 chars no hyphens)
+        const last6Chars = fieldId.replace(/-/g, '').slice(-6);
+        const newFormatRegex = new RegExp(`\\w+\\.\\w+\\.${last6Chars}`, 'g');
         expression = expression.replace(newFormatRegex, value.toString());
         
-        // Old format: #field_id
+        // Old format: #field_id (for backward compatibility)
         expression = expression.replace(new RegExp(`#${fieldId}`, 'g'), value.toString());
       });
       
@@ -226,20 +227,20 @@ export function CalculatedField({
     }
   };
 
-  // Manual field ID extraction for the new format
+  // Manual field ID extraction for the new format: form_ref.field_ref.XXXXXX
   const extractFieldIdsManually = (formula: string): string[] => {
     const fieldIds: string[] = [];
     
-    // Pattern: form_ref.field_ref_XXXX where XXXX are last 4 chars of field ID
-    const pattern = /\w+\.\w+_([a-f0-9]{4})/g;
+    // Pattern: form_ref.field_ref.XXXXXX where XXXXXX are last 6 chars of field ID (no hyphens)
+    const pattern = /\w+\.\w+\.([a-f0-9]{6})/g;
     let match;
     
     while ((match = pattern.exec(formula)) !== null) {
-      const last4Chars = match[1];
+      const last6Chars = match[1];
       
       // Find matching field ID from form data
       const matchingFieldId = Object.keys(formData).find(fieldId => 
-        fieldId.slice(-4) === last4Chars
+        fieldId.replace(/-/g, '').slice(-6) === last6Chars
       );
       
       if (matchingFieldId) {

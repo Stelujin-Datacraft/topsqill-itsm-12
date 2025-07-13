@@ -187,7 +187,7 @@ export function CalculatedFieldConfig({ config, onUpdate, errors }: CalculatedFi
             id="formula-textarea"
             value={customConfig.formula || ''}
             onChange={(e) => handleConfigChange('formula', e.target.value)}
-            placeholder={`Enter your calculation formula (e.g., ${sourceFormRefId}.field1_1234 + ${sourceFormRefId}.field2_5678 * 0.1)`}
+            placeholder={`Enter your calculation formula (e.g., ${sourceFormRefId}.field1.abc123 + ${sourceFormRefId}.field2.def456 * 0.1)`}
             rows={4}
             className={expressionErrors.length > 0 ? 'border-red-500' : ''}
           />
@@ -201,7 +201,7 @@ export function CalculatedFieldConfig({ config, onUpdate, errors }: CalculatedFi
           )}
           
           <div className="text-xs text-muted-foreground space-y-1">
-            <p>• Use the field selector above or type field references in the format: form_ref.field_ref_XXXX</p>
+            <p>• Use the field selector above or type field references in the format: form_ref.field_ref.XXXXXX (last 6 characters)</p>
             <p>• Use functions like ADD(), SUM(), IF(), etc.</p>
             <p>• Aggregate functions work across all submissions</p>
           </div>
@@ -239,8 +239,9 @@ export function CalculatedFieldConfig({ config, onUpdate, errors }: CalculatedFi
                 .filter(field => field.type !== 'calculated') // Don't show other calculated fields
                 .map(field => {
                   const fieldRef = createFieldRef(field.label);
-                  const shortId = field.id.slice(-4);
-                  const displayText = `${sourceFormRefId}.${fieldRef}_${shortId}`;
+                  // Use last 6 characters without hyphens for the new format
+                  const shortId = field.id.replace(/-/g, '').slice(-6);
+                  const displayText = `${sourceFormRefId}.${fieldRef}.${shortId}`;
                   return (
                     <div key={field.id} className="flex items-center justify-between p-2 bg-muted rounded text-xs">
                       <div className="flex flex-col min-w-0 flex-1">
