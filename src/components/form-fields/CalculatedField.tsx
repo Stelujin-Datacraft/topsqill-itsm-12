@@ -41,12 +41,14 @@ export function CalculatedField({
 
   // Monitor specific field changes for calculations
   useEffect(() => {
-    if (config.calculateOn === 'change') {
-      const hasRelevantChanges = dependentFieldIds.some(fieldId => 
-        previousFormDataRef.current[fieldId] !== formData[fieldId]
-      );
+    if (config.calculateOn === 'change' && dependentFieldIds.length > 0) {
+      const hasRelevantChanges = dependentFieldIds.some(fieldId => {
+        const prevValue = previousFormDataRef.current[fieldId];
+        const currentValue = formData[fieldId];
+        return prevValue !== currentValue;
+      });
       
-      if (hasRelevantChanges) {
+      if (hasRelevantChanges && Object.keys(previousFormDataRef.current).length > 0) {
         calculateValue();
       }
     }
@@ -229,10 +231,10 @@ export function CalculatedField({
       </div>
 
       {config.showFormula && config.formula && (
-        <div className="p-2 bg-blue-50 border border-blue-200 rounded text-sm overflow-hidden">
+        <div className="p-2 bg-blue-50 border border-blue-200 rounded text-sm">
           <p className="text-blue-800">
             <strong>Formula:</strong> 
-            <span className="break-all ml-1">{config.formula}</span>
+            <span className="break-words ml-1 font-mono text-xs">{config.formula}</span>
           </p>
         </div>
       )}
