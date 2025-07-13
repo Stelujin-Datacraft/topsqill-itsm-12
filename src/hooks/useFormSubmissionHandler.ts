@@ -3,13 +3,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { WorkflowExecutionService } from '@/services/workflowExecution';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRoles } from '@/hooks/useRoles';
 import { Form } from '@/types/form';
 
 export function useFormSubmissionHandler(formId: string | undefined, form?: Form) {
   const { userProfile } = useAuth();
+  const { roles } = useRoles();
 
   const assignRolesToUsers = async (formData: Record<string, any>) => {
-    if (!form?.fields) return;
+    if (!form?.fields || !roles.length) return;
 
     // Find user picker fields with role assignment configuration
     const userPickerFields = form.fields.filter(
@@ -18,9 +20,27 @@ export function useFormSubmissionHandler(formId: string | undefined, form?: Form
 
     for (const field of userPickerFields) {
       const fieldValue = formData[field.id];
-      const assignRole = field.customConfig?.assignRole;
+      const assignRoleId = field.customConfig?.assignRole;
       
-      if (!fieldValue || !assignRole) continue;
+      if (!fieldValue || !assignRoleId) continue;
+
+      // Find the role name from the role ID
+      const roleData = roles.find(role => role.id === assignRoleId);
+      if (!roleData) {
+        console.error(`Role not found for ID: ${assignRoleId}`);
+        continue;
+      }
+
+      // Map custom role names to project_users role enum values
+      const roleNameMapping: Record<string, string> = {
+        'Admin': 'admin',
+        'Editor': 'editor', 
+        'Viewer': 'viewer',
+        'Member': 'member',
+        'Form Creator': 'editor' // Map custom roles to standard enum values
+      };
+
+      const roleName = roleNameMapping[roleData.name] || 'viewer'; // Default to viewer
 
       // Handle both single and multiple user selections
       const userIds = Array.isArray(fieldValue) ? fieldValue : [fieldValue];
@@ -29,22 +49,25 @@ export function useFormSubmissionHandler(formId: string | undefined, form?: Form
         if (!userId) continue;
         
         try {
+          console.log(`Assigning role ${roleName} (${roleData.name}) to user ${userId}`);
+          
           // Assign role to user in the project
           const { error } = await supabase
             .from('project_users')
             .upsert({
               project_id: form.projectId,
               user_id: userId,
-              role: assignRole,
+              role: roleName,
+              assigned_by: userProfile?.id,
               assigned_at: new Date().toISOString()
             }, {
               onConflict: 'project_id,user_id'
             });
 
           if (error) {
-            console.error(`Error assigning role ${assignRole} to user ${userId}:`, error);
+            console.error(`Error assigning role ${roleName} to user ${userId}:`, error);
           } else {
-            console.log(`Successfully assigned role ${assignRole} to user ${userId}`);
+            console.log(`Successfully assigned role ${roleName} to user ${userId}`);
           }
         } catch (error) {
           console.error(`Failed to assign role to user ${userId}:`, error);
