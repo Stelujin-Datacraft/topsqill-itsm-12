@@ -61,31 +61,41 @@ export function parseFormFields(fields: FormField[], formRefId: string): ParsedF
  * @param allFields Array of all available fields to match against
  * @returns Array of field IDs found in the expression
  */
-export function extractFieldIdsFromExpression(expression: string, allFields: ParsedFieldReference[] = []): string[] {
-  // Match patterns like form_ref.field_ref_XXXX where XXXX are last 4 chars of field ID
-  const fieldRefPattern = /(\w+)\.(\w+)_(\w{4})/g;
+export function extractFieldIdsFromExpression(
+  expression: string,
+  allFields: ParsedFieldReference[] = []
+): string[] {
+  // New format: formRef.fieldRef.<fullIdNoHyphens>_<last4>
+  // e.g. rules_testing_form.number_input.2732a072fbea47238abeb898dd1a8f4e_8f4e
+  const fieldRefPattern = /(\w+)\.(\w+)\.([0-9a-f]+_[0-9a-f]{4})/g;
   const fieldIds: string[] = [];
-  let match;
-  
+  let match: RegExpExecArray | null;
+
   while ((match = fieldRefPattern.exec(expression)) !== null) {
-    const formRef = match[1];
-    const fieldRef = match[2];
-    const shortId = match[3];
-    
-    // Find the matching field from available fields
-    const matchingField = allFields.find(field => 
-      field.formRefId === formRef && 
-      field.fieldRef === fieldRef && 
-      field.fieldId.slice(-4) === shortId
-    );
-    
+    const formRef  = match[1];         // e.g. "rules_testing_form"
+    const fieldRef = match[2];         // e.g. "number_input"
+    const idToken  = match[3];         // e.g. "2732a072fbea47238abeb898dd1a8f4e_8f4e"
+
+    // Find the matching ParsedFieldReference
+    const matchingField = allFields.find(f => {
+      // rebuild token from the stored fieldId:
+      const noHyphens = f.fieldId.replace(/-/g, "");
+      const suffix    = f.fieldId.slice(-4);
+      return (
+        f.formRefId === formRef &&
+        f.fieldRef  === fieldRef &&
+        `${noHyphens}_${suffix}` === idToken
+      );
+    });
+
     if (matchingField) {
       fieldIds.push(matchingField.fieldId);
     }
   }
-  
+
   return fieldIds;
 }
+
 
 /**
  * Replaces field references in an expression with actual field IDs for calculation
