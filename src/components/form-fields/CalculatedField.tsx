@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FormField } from '@/types/form';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Calculator, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Calculator, Loader2, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { extractFieldIdsFromExpression, replaceFieldReferencesInExpression, ParsedFieldReference } from '@/utils/fieldReferenceParser';
 
@@ -27,6 +28,7 @@ export function CalculatedField({
 }: CalculatedFieldProps) {
   const [calculatedValue, setCalculatedValue] = useState<string>('');
   const [isCalculating, setIsCalculating] = useState(false);
+  const [lastCalculatedAt, setLastCalculatedAt] = useState<Date | null>(null);
   const config = (field.customConfig as any) || {};
   const previousFormDataRef = useRef<Record<string, any>>({});
 
@@ -79,6 +81,7 @@ export function CalculatedField({
       
       const formattedResult = formatResult(data.result || 0);
       setCalculatedValue(formattedResult);
+      setLastCalculatedAt(new Date());
       
       if (onChange) {
         onChange(formattedResult);
@@ -90,6 +93,7 @@ export function CalculatedField({
         const result = await performCalculation();
         const formattedResult = formatResult(result);
         setCalculatedValue(formattedResult);
+        setLastCalculatedAt(new Date());
         
         if (onChange) {
           onChange(formattedResult);
@@ -97,10 +101,15 @@ export function CalculatedField({
       } catch (fallbackError) {
         console.error('Fallback calculation error:', fallbackError);
         setCalculatedValue('Error');
+        setLastCalculatedAt(new Date());
       }
     } finally {
       setIsCalculating(false);
     }
+  };
+
+  const handleManualCalculate = () => {
+    calculateValue();
   };
 
   const performCalculation = async (): Promise<number> => {
@@ -205,6 +214,16 @@ export function CalculatedField({
     return `${prefix}${formatted}${suffix}`;
   };
 
+  const formatTimestamp = (date: Date): string => {
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  };
+
   return (
     <div className="space-y-2">
       <Label htmlFor={field.id}>
@@ -226,6 +245,26 @@ export function CalculatedField({
         {isCalculating && (
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
             <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleManualCalculate}
+          disabled={isCalculating || !config.formula}
+          className="flex items-center space-x-2"
+        >
+          <RefreshCw className={`h-3 w-3 ${isCalculating ? 'animate-spin' : ''}`} />
+          <span>Re-calculate</span>
+        </Button>
+        
+        {lastCalculatedAt && (
+          <div className="text-xs text-muted-foreground">
+            Last calculated: {formatTimestamp(lastCalculatedAt)}
           </div>
         )}
       </div>
