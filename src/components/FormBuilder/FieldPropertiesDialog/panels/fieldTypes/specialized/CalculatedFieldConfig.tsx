@@ -34,11 +34,22 @@ export function CalculatedFieldConfig({ config, onUpdate, errors }: CalculatedFi
   const sourceFormRefId = sourceForm?.reference_id || createFieldRef(sourceForm?.name || 'current');
   
   // Get fields for the selected source form
+  // Helper function to extract clean field reference from label
+  const extractFieldRef = (label: string): string => {
+    // Extract text before parentheses and clean it
+    const cleanLabel = label.split('(')[0].trim();
+    return createFieldRef(cleanLabel);
+  };
+
   const availableFields = customConfig.targetFormId && customConfig.targetFormId !== currentForm?.id
-    ? sourceForm?.fields || []
+    ? (sourceForm?.fields || []).map(field => ({
+        ...field,
+        field_ref: extractFieldRef(field.label)
+      }))
     : formFieldOptions.map(f => ({ 
         id: f.value, 
         label: f.label, 
+        field_ref: extractFieldRef(f.label),
         type: 'text' as const,
         position: { x: 0, y: 0 },
         size: { width: 12, height: 1 },
@@ -238,7 +249,8 @@ export function CalculatedFieldConfig({ config, onUpdate, errors }: CalculatedFi
               {availableFields
                 .filter(field => field.type !== 'calculated') // Don't show other calculated fields
                 .map(field => {
-                  const fieldRef = createFieldRef(field.label);
+                  // Use the clean field_ref we created instead of processing field.label again
+                  const fieldRef = field.field_ref;
                   // Use last 6 characters without hyphens for the new format
                   const shortId = field.id.replace(/-/g, '').slice(-6);
                   const displayText = `${sourceFormRefId}.${fieldRef}.${shortId}`;
