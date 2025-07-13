@@ -26,44 +26,61 @@ export function useProjectMembership(projectId: string) {
 
     try {
       console.log('🔍 Loading project members for project:', projectId);
-      console.log('🔍 Query:', 'project_users with left join to user_profiles');
 
-      // Get project members with their user profile information
-      const { data: members, error } = await supabase
+      // First, get project users
+      const { data: projectUsers, error: projectUsersError } = await supabase
         .from('project_users')
-        .select(`
-          id,
-          user_id,
-          role,
-          user_profiles(
-            email,
-            first_name,
-            last_name
-          )
-        `)
+        .select('id, user_id, role')
         .eq('project_id', projectId);
 
-      console.log('🔍 Raw members data from Supabase:', members);
+      console.log('🔍 Raw project users data:', projectUsers);
 
-      if (error) {
-        console.error('❌ Error loading project members:', error);
-        throw error;
+      if (projectUsersError) {
+        console.error('❌ Error loading project users:', projectUsersError);
+        throw projectUsersError;
       }
 
-      // Transform the data to match our interface
-      const transformedMembers = (members || []).map((member: any) => ({
-        id: member.id,
-        user_id: member.user_id,
-        role: member.role,
-        email: member.user_profiles?.email || 'Unknown',
-        first_name: member.user_profiles?.first_name || '',
-        last_name: member.user_profiles?.last_name || '',
-      }));
+      if (!projectUsers || projectUsers.length === 0) {
+        console.log('🔍 No project users found');
+        setProjectMembers([]);
+        setLoading(false);
+        return;
+      }
 
-      console.log('Project members loaded:', transformedMembers);
+      // Extract user IDs
+      const userIds = projectUsers.map(user => user.user_id);
+      console.log('🔍 User IDs to fetch profiles for:', userIds);
+
+      // Then, get user profiles for those users
+      const { data: userProfiles, error: userProfilesError } = await supabase
+        .from('user_profiles')
+        .select('id, email, first_name, last_name')
+        .in('id', userIds);
+
+      console.log('🔍 Raw user profiles data:', userProfiles);
+
+      if (userProfilesError) {
+        console.error('❌ Error loading user profiles:', userProfilesError);
+        throw userProfilesError;
+      }
+
+      // Combine the data
+      const transformedMembers = projectUsers.map((projectUser: any) => {
+        const userProfile = userProfiles?.find(profile => profile.id === projectUser.user_id);
+        return {
+          id: projectUser.id,
+          user_id: projectUser.user_id,
+          role: projectUser.role,
+          email: userProfile?.email || 'Unknown',
+          first_name: userProfile?.first_name || '',
+          last_name: userProfile?.last_name || '',
+        };
+      });
+
+      console.log('🔍 Final transformed members:', transformedMembers);
       setProjectMembers(transformedMembers);
     } catch (error) {
-      console.error('Error loading project members:', error);
+      console.error('❌ Error loading project members:', error);
       setProjectMembers([]);
     } finally {
       setLoading(false);
