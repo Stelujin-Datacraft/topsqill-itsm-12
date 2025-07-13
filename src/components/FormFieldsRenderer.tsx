@@ -1,5 +1,6 @@
 import React from 'react';
 import { FormField } from '@/types/form';
+import { ParsedFieldReference } from '@/utils/fieldReferenceParser';
 import { RecordTableField } from './form-fields/RecordTableField';
 import { CrossReferenceField } from './form-fields/CrossReferenceField';
 
@@ -58,6 +59,7 @@ interface FormFieldsRendererProps {
   onSubmit: (formData: Record<string, any>) => void;
   onSave?: (formData: Record<string, any>) => void;
   showButtons?: boolean;
+  allFormFields?: ParsedFieldReference[];
 }
 
 export function FormFieldsRenderer({
@@ -70,6 +72,7 @@ export function FormFieldsRenderer({
   onSubmit,
   onSave,
   showButtons = true,
+  allFormFields = [],
 }: FormFieldsRendererProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -583,7 +586,7 @@ export function FormFieldsRenderer({
       case 'dynamic-dropdown':
         return <DynamicDropdownField {...commonProps} formData={formData} />;
       case 'calculated':
-        return <CalculatedField {...commonProps} formData={formData} />;
+        return <CalculatedField {...commonProps} formData={formData} allFormFields={allFormFields} />;
       case 'conditional-section':
         return <ConditionalSectionField {...commonProps} formData={formData} />;
       case 'geo-location':

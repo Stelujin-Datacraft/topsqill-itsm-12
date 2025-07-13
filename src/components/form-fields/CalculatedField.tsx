@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FormField } from '@/types/form';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Calculator, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { extractFieldIdsFromExpression, replaceFieldReferencesInExpression, ParsedFieldReference } from '@/utils/fieldReferenceParser';
 
 interface CalculatedFieldProps {
   field: FormField;
@@ -12,6 +13,7 @@ interface CalculatedFieldProps {
   error?: string;
   disabled?: boolean;
   formData?: Record<string, any>;
+  allFormFields?: ParsedFieldReference[];
 }
 
 export function CalculatedField({ 
@@ -20,17 +22,37 @@ export function CalculatedField({
   onChange, 
   error, 
   disabled,
-  formData = {}
+  formData = {},
+  allFormFields = []
 }: CalculatedFieldProps) {
   const [calculatedValue, setCalculatedValue] = useState<string>('');
   const [isCalculating, setIsCalculating] = useState(false);
   const config = (field.customConfig as any) || {};
+  const previousFormDataRef = useRef<Record<string, any>>({});
+
+  // Get field IDs that this calculation depends on
+  const dependentFieldIds = extractFieldIdsFromExpression(config.formula || '', allFormFields);
 
   useEffect(() => {
-    if (config.calculateOn === 'load' || config.calculateOn === 'change') {
+    if (config.calculateOn === 'load') {
       calculateValue();
     }
-  }, [formData, config.formula, config.targetFormId]);
+  }, [config.formula, config.targetFormId]);
+
+  // Monitor specific field changes for calculations
+  useEffect(() => {
+    if (config.calculateOn === 'change') {
+      const hasRelevantChanges = dependentFieldIds.some(fieldId => 
+        previousFormDataRef.current[fieldId] !== formData[fieldId]
+      );
+      
+      if (hasRelevantChanges) {
+        calculateValue();
+      }
+    }
+    
+    previousFormDataRef.current = { ...formData };
+  }, [formData, dependentFieldIds, config.calculateOn]);
 
   const calculateValue = async () => {
     if (!config.formula || !config.targetFormId) {
@@ -40,8 +62,20 @@ export function CalculatedField({
 
     setIsCalculating(true);
     try {
-      const result = await performCalculation();
-      const formattedResult = formatResult(result);
+      // Call backend calculation API
+      const { data, error } = await supabase.functions.invoke('calculate-field', {
+        body: {
+          formula: config.formula,
+          targetFormId: config.targetFormId,
+          calculationScope: config.calculationScope,
+          formData: formData,
+          allFormFields: allFormFields
+        }
+      });
+
+      if (error) throw error;
+      
+      const formattedResult = formatResult(data.result || 0);
       setCalculatedValue(formattedResult);
       
       if (onChange) {
@@ -49,14 +83,27 @@ export function CalculatedField({
       }
     } catch (error) {
       console.error('Calculation error:', error);
-      setCalculatedValue('Error');
+      // Fallback to frontend calculation
+      try {
+        const result = await performCalculation();
+        const formattedResult = formatResult(result);
+        setCalculatedValue(formattedResult);
+        
+        if (onChange) {
+          onChange(formattedResult);
+        }
+      } catch (fallbackError) {
+        console.error('Fallback calculation error:', fallbackError);
+        setCalculatedValue('Error');
+      }
     } finally {
       setIsCalculating(false);
     }
   };
 
   const performCalculation = async (): Promise<number> => {
-    const formula = config.formula.toLowerCase();
+    // Replace field references with actual field IDs
+    const processedFormula = replaceFieldReferencesInExpression(config.formula, allFormFields);
     
     // Get data based on scope
     let submissions: any[] = [];
@@ -80,37 +127,39 @@ export function CalculatedField({
     submissions.forEach(submission => {
       const data = submission.submission_data || submission;
       
-      // Simple field extraction (in a real implementation, use proper formula parsing)
-      Object.keys(data).forEach(fieldId => {
-        if (formula.includes(fieldId.toLowerCase())) {
-          const value = parseFloat(data[fieldId]);
-          if (!isNaN(value)) {
-            fieldValues.push(value);
-          }
+      // Extract field IDs from processed formula
+      const referencedFieldIds = dependentFieldIds;
+      
+      referencedFieldIds.forEach(fieldId => {
+        const value = parseFloat(data[fieldId]);
+        if (!isNaN(value)) {
+          fieldValues.push(value);
         }
       });
     });
 
     // Perform calculation based on formula
-    if (formula.includes('sum(')) {
+    const lowerFormula = processedFormula.toLowerCase();
+    if (lowerFormula.includes('sum(')) {
       return fieldValues.reduce((sum, val) => sum + val, 0);
-    } else if (formula.includes('avg(')) {
+    } else if (lowerFormula.includes('avg(')) {
       return fieldValues.length > 0 ? fieldValues.reduce((sum, val) => sum + val, 0) / fieldValues.length : 0;
-    } else if (formula.includes('count(')) {
+    } else if (lowerFormula.includes('count(')) {
       return fieldValues.length;
-    } else if (formula.includes('min(')) {
+    } else if (lowerFormula.includes('min(')) {
       return fieldValues.length > 0 ? Math.min(...fieldValues) : 0;
-    } else if (formula.includes('max(')) {
+    } else if (lowerFormula.includes('max(')) {
       return fieldValues.length > 0 ? Math.max(...fieldValues) : 0;
     }
 
     // For simple math expressions, try to evaluate safely
     try {
-      // Very basic expression evaluation (in production, use a proper math parser)
-      let expression = formula;
-      Object.keys(formData).forEach(fieldId => {
+      let expression = processedFormula;
+      
+      // Replace field references with actual values
+      dependentFieldIds.forEach(fieldId => {
         const value = parseFloat(formData[fieldId]) || 0;
-        expression = expression.replace(new RegExp(fieldId, 'g'), value.toString());
+        expression = expression.replace(new RegExp(`#${fieldId}`, 'g'), value.toString());
       });
       
       // Only allow basic math operations for security
@@ -180,9 +229,10 @@ export function CalculatedField({
       </div>
 
       {config.showFormula && config.formula && (
-        <div className="p-2 bg-blue-50 border border-blue-200 rounded text-sm">
+        <div className="p-2 bg-blue-50 border border-blue-200 rounded text-sm overflow-hidden">
           <p className="text-blue-800">
-            <strong>Formula:</strong> {config.formula}
+            <strong>Formula:</strong> 
+            <span className="break-all ml-1">{config.formula}</span>
           </p>
         </div>
       )}

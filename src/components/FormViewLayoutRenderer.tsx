@@ -10,6 +10,7 @@ import { CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { PublicHeader } from './PublicHeader';
 import { RuleProcessor, RuleProcessingContext } from '@/utils/ruleProcessor';
+import { parseFormFields } from '@/utils/fieldReferenceParser';
 
 interface FormViewLayoutRendererProps {
   form: Form;
@@ -278,6 +279,11 @@ export function FormViewLayoutRenderer({
     let standardFieldsBuffer: FormField[] = [];
     let elementIndex = 0;
 
+    // Create parsed field references for calculated fields
+    const allFormFields = Array.isArray(form.fields) 
+      ? parseFormFields(form.fields, form.reference_id || form.name || 'form')
+      : [];
+
     // Check if field is full-width based on type or explicit setting
     const isFullWidthField = (field: FormField) => {
       const fullWidthTypes = ['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'record-table', 'matrix-grid'];
@@ -305,6 +311,7 @@ export function FormViewLayoutRenderer({
                   onSubmit={handleFormSubmit}
                   onSave={handleSave}
                   showButtons={false}
+                  allFormFields={allFormFields}
                 />
               </div>
             ))}
@@ -338,6 +345,7 @@ export function FormViewLayoutRenderer({
               onSubmit={handleFormSubmit}
               onSave={handleSave}
               showButtons={false}
+              allFormFields={allFormFields}
             />
           </div>
         );

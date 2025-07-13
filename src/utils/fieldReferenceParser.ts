@@ -23,14 +23,15 @@ export function createFieldRef(label: string): string {
 }
 
 /**
- * Creates a display text for a field reference
+ * Creates a display text for a field reference using last 4 characters of field ID
  * @param formRefId The form reference ID
  * @param fieldRef The field reference
  * @param fieldId The actual field ID
- * @returns The display text in format: form_ref_id.field_ref(#field_id)
+ * @returns The display text in format: form_ref_id.field_ref_XXXX (last 4 chars of ID)
  */
 export function createFieldDisplayText(formRefId: string, fieldRef: string, fieldId: string): string {
-  return `${formRefId}.${fieldRef}(#${fieldId})`;
+  const shortId = fieldId.slice(-4);
+  return `${formRefId}.${fieldRef}_${shortId}`;
 }
 
 /**
@@ -57,16 +58,30 @@ export function parseFormFields(fields: FormField[], formRefId: string): ParsedF
 /**
  * Extracts field ID from a field reference in an expression
  * @param expression The expression containing field references
+ * @param allFields Array of all available fields to match against
  * @returns Array of field IDs found in the expression
  */
-export function extractFieldIdsFromExpression(expression: string): string[] {
-  // Match patterns like form_ref.field_ref(#field_id) and extract field_id
-  const fieldRefPattern = /\w+\.\w+\(#([^)]+)\)/g;
+export function extractFieldIdsFromExpression(expression: string, allFields: ParsedFieldReference[] = []): string[] {
+  // Match patterns like form_ref.field_ref_XXXX where XXXX are last 4 chars of field ID
+  const fieldRefPattern = /(\w+)\.(\w+)_(\w{4})/g;
   const fieldIds: string[] = [];
   let match;
   
   while ((match = fieldRefPattern.exec(expression)) !== null) {
-    fieldIds.push(match[1]);
+    const formRef = match[1];
+    const fieldRef = match[2];
+    const shortId = match[3];
+    
+    // Find the matching field from available fields
+    const matchingField = allFields.find(field => 
+      field.formRefId === formRef && 
+      field.fieldRef === fieldRef && 
+      field.fieldId.slice(-4) === shortId
+    );
+    
+    if (matchingField) {
+      fieldIds.push(matchingField.fieldId);
+    }
   }
   
   return fieldIds;
@@ -75,18 +90,26 @@ export function extractFieldIdsFromExpression(expression: string): string[] {
 /**
  * Replaces field references in an expression with actual field IDs for calculation
  * @param expression The expression with field references
- * @param fieldMap Map of field references to field IDs
+ * @param allFields Array of all available fields to match against
  * @returns Expression with field references replaced by #field_id
  */
 export function replaceFieldReferencesInExpression(
   expression: string, 
-  fieldMap: Map<string, string>
+  allFields: ParsedFieldReference[] = []
 ): string {
   let processedExpression = expression;
   
-  // Replace form_ref.field_ref(#field_id) with #field_id
-  const fieldRefPattern = /(\w+)\.(\w+)\(#([^)]+)\)/g;
-  processedExpression = processedExpression.replace(fieldRefPattern, '#$3');
+  // Replace form_ref.field_ref_XXXX with #field_id
+  const fieldRefPattern = /(\w+)\.(\w+)_(\w{4})/g;
+  processedExpression = processedExpression.replace(fieldRefPattern, (match, formRef, fieldRef, shortId) => {
+    const matchingField = allFields.find(field => 
+      field.formRefId === formRef && 
+      field.fieldRef === fieldRef && 
+      field.fieldId.slice(-4) === shortId
+    );
+    
+    return matchingField ? `#${matchingField.fieldId}` : match;
+  });
   
   return processedExpression;
 }
