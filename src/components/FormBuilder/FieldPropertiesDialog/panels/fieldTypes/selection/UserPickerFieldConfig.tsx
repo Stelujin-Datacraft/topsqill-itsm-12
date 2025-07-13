@@ -97,23 +97,6 @@ export function UserPickerFieldConfig({ config, onUpdate, errors }: UserPickerFi
           </p>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="roleScope">Role Scope</Label>
-          <Select
-            value={customConfig.roleScope || 'organization'}
-            onValueChange={(value) => handleConfigChange('roleScope', value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select role scope..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="organization">Organization Level</SelectItem>
-            </SelectContent>
-          </Select>
-          <p className="text-sm text-muted-foreground">
-            Organization-level role assignment (consistent with Roles & Access page)
-          </p>
-        </div>
 
         <div className="flex items-center space-x-2">
           <Checkbox

@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Check, ChevronDown, X, Users } from 'lucide-react';
 import { useProject } from '@/contexts/ProjectContext';
 import { useProjectMembership } from '@/hooks/useProjectMembership';
+import { useRoles } from '@/hooks/useRoles';
 import { cn } from '@/lib/utils';
 
 interface UserPickerFieldProps {
@@ -25,6 +26,7 @@ export function UserPickerField({ field, value, onChange, error, disabled }: Use
   const [searchTerm, setSearchTerm] = useState('');
   const { currentProject } = useProject();
   const { projectMembers, loading } = useProjectMembership(currentProject?.id || '');
+  const { roles } = useRoles();
   
   const config = field.customConfig || {};
   const isMultiple = config.allowMultiple || config.maxSelections > 1;
@@ -219,7 +221,9 @@ export function UserPickerField({ field, value, onChange, error, disabled }: Use
       {/* Role Assignment Info */}
       {config.assignRole && (
         <div className="text-sm text-muted-foreground">
-          Selected users will be assigned the role: <Badge variant="outline">{config.assignRole}</Badge>
+          Selected users will be assigned the role: <Badge variant="outline">
+            {roles.find(role => role.id === config.assignRole)?.name || config.assignRole}
+          </Badge>
         </div>
       )}
 
