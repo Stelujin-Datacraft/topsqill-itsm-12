@@ -42,26 +42,125 @@ export function useEnhancedFormAccess(formId: string) {
       setLoading(true);
       console.log('🔍 [ENHANCED FORM ACCESS] Loading users for form:', formId);
 
-      // Use the any type to bypass TypeScript checks for the RPC call
-      const { data, error } = await supabase.rpc('get_enhanced_form_user_permissions' as any, {
-        _project_id: currentProject.id,
-        _form_id: formId
-      });
+      // Get form info first
+      const { data: formData, error: formError } = await supabase
+        .from('forms')
+        .select('created_by, is_public')
+        .eq('id', formId)
+        .single();
 
-      if (error) {
-        console.error('❌ [ENHANCED FORM ACCESS] Error loading users:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load form permissions",
-          variant: "destructive",
-        });
-        return;
+      if (formError) {
+        console.error('❌ [ENHANCED FORM ACCESS] Error loading form:', formError);
+        throw formError;
       }
 
-      console.log('✅ [ENHANCED FORM ACCESS] Loaded users:', data);
-      
-      // Cast the data to the expected type
-      const enhancedUsers = (data || []) as EnhancedFormUser[];
+      // Get all project users with their profiles
+      const { data: projectUsers, error: usersError } = await supabase
+        .from('project_users')
+        .select(`
+          user_id,
+          role,
+          user_profiles!inner(
+            email,
+            first_name,
+            last_name
+          )
+        `)
+        .eq('project_id', currentProject.id);
+
+      if (usersError) {
+        console.error('❌ [ENHANCED FORM ACCESS] Error loading project users:', usersError);
+        throw usersError;
+      }
+
+      // Get direct form access
+      const { data: formAccess, error: accessError } = await supabase
+        .from('form_user_access')
+        .select('user_id, role, status')
+        .eq('form_id', formId)
+        .eq('status', 'active');
+
+      if (accessError && accessError.code !== 'PGRST116') { // Ignore "relation does not exist" error
+        console.error('❌ [ENHANCED FORM ACCESS] Error loading form access:', accessError);
+      }
+
+      // Get user role assignments
+      const { data: roleAssignments, error: rolesError } = await supabase
+        .from('user_role_assignments')
+        .select(`
+          user_id,
+          roles!inner(
+            name,
+            role_permissions!inner(
+              permission_type,
+              resource_type,
+              resource_id
+            )
+          )
+        `)
+        .in('user_id', projectUsers?.map(u => u.user_id) || []);
+
+      if (rolesError && rolesError.code !== 'PGRST116') { // Ignore "relation does not exist" error
+        console.error('❌ [ENHANCED FORM ACCESS] Error loading role assignments:', rolesError);
+      }
+
+      // Get top-level permissions
+      const { data: topLevelPerms, error: topLevelError } = await supabase
+        .from('project_top_level_permissions')
+        .select('user_id, can_create, can_read, can_update, can_delete')
+        .eq('project_id', currentProject.id)
+        .eq('entity_type', 'forms');
+
+      if (topLevelError && topLevelError.code !== 'PGRST116') { // Ignore "relation does not exist" error
+        console.error('❌ [ENHANCED FORM ACCESS] Error loading top-level permissions:', topLevelError);
+      }
+
+      // Process users and build enhanced user list
+      const enhancedUsers: EnhancedFormUser[] = (projectUsers || []).map(user => {
+        const userProfile = Array.isArray(user.user_profiles) ? user.user_profiles[0] : user.user_profiles;
+        const directAccess = (formAccess || []).find(fa => fa.user_id === user.user_id);
+        const userRoles = (roleAssignments || []).filter(ra => ra.user_id === user.user_id);
+        const topLevelPerm = (topLevelPerms || []).find(tlp => tlp.user_id === user.user_id);
+
+        // Determine access sources
+        const isCreator = formData?.created_by === user.user_id;
+        const isAdmin = user.role === 'admin';
+        const assignedRoles = userRoles.map(ur => ur.roles?.name || 'Unknown Role').filter(Boolean);
+        const hasTopLevelPerms = !!topLevelPerm;
+
+        // Calculate permissions based on hierarchy
+        const hasFormPermissions = userRoles.some(ur => 
+          ur.roles?.role_permissions?.some(rp => 
+            rp.resource_type === 'form' && 
+            (rp.resource_id === formId || rp.resource_id === null)
+          )
+        );
+
+        const permissions: FormPermissions = {
+          view_form: isCreator || isAdmin || !!directAccess || hasFormPermissions || formData?.is_public || false,
+          create_form: isCreator || isAdmin || topLevelPerm?.can_create || hasFormPermissions || false,
+          update_form: isCreator || isAdmin || topLevelPerm?.can_update || hasFormPermissions || false,
+          read_form: isCreator || isAdmin || topLevelPerm?.can_read || hasFormPermissions || false,
+          delete_form: isCreator || isAdmin || topLevelPerm?.can_delete || hasFormPermissions || false
+        };
+
+        return {
+          user_id: user.user_id,
+          email: userProfile?.email || 'Unknown',
+          first_name: userProfile?.first_name || null,
+          last_name: userProfile?.last_name || null,
+          access_sources: {
+            is_creator: isCreator,
+            project_role: user.role,
+            assigned_roles: assignedRoles,
+            direct_access: directAccess?.role || null,
+            has_top_level_perms: hasTopLevelPerms
+          },
+          permissions
+        };
+      });
+
+      console.log('✅ [ENHANCED FORM ACCESS] Loaded enhanced users:', enhancedUsers);
       setUsers(enhancedUsers);
     } catch (error) {
       console.error('❌ [ENHANCED FORM ACCESS] Unexpected error:', error);
@@ -82,6 +181,7 @@ export function useEnhancedFormAccess(formId: string) {
       setUpdating(userId);
       console.log('👥 [ENHANCED FORM ACCESS] Adding viewer:', { userId, formId });
 
+      // Check if form_user_access table exists, if not create the record in a different way
       const { error } = await supabase
         .from('form_user_access')
         .insert({
@@ -91,7 +191,19 @@ export function useEnhancedFormAccess(formId: string) {
           status: 'active'
         });
 
-      if (error) throw error;
+      if (error) {
+        // If table doesn't exist, we'll need to handle this differently
+        if (error.code === 'PGRST116') {
+          console.log('📝 [ENHANCED FORM ACCESS] form_user_access table not found, using workaround');
+          toast({
+            title: "Feature not available",
+            description: "Direct viewer assignment requires database setup",
+            variant: "destructive",
+          });
+          return;
+        }
+        throw error;
+      }
 
       toast({
         title: "Viewer added",
@@ -124,7 +236,19 @@ export function useEnhancedFormAccess(formId: string) {
         .eq('form_id', formId)
         .eq('user_id', userId);
 
-      if (error) throw error;
+      if (error) {
+        // If table doesn't exist, handle gracefully
+        if (error.code === 'PGRST116') {
+          console.log('📝 [ENHANCED FORM ACCESS] form_user_access table not found');
+          toast({
+            title: "Feature not available",
+            description: "Direct viewer management requires database setup",
+            variant: "destructive",
+          });
+          return;
+        }
+        throw error;
+      }
 
       toast({
         title: "Viewer removed",
