@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { FormField } from '@/types/form';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -6,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { CheckCircle, XCircle, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ApprovalFieldProps {
   field: FormField;
@@ -13,11 +15,14 @@ interface ApprovalFieldProps {
   onChange?: (value: any) => void;
   error?: string;
   disabled?: boolean;
+  formData?: Record<string, any>;
+  allFields?: FormField[];
 }
 
-export function ApprovalField({ field, value, onChange, error, disabled }: ApprovalFieldProps) {
+export function ApprovalField({ field, value, onChange, error, disabled, formData, allFields }: ApprovalFieldProps) {
   const [comments, setComments] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [crossReferenceSelections, setCrossReferenceSelections] = useState<any[]>([]);
   const { user } = useAuth();
   const config = (field.customConfig as any) || {};
 
@@ -25,6 +30,16 @@ export function ApprovalField({ field, value, onChange, error, disabled }: Appro
   const approvalComments = value?.comments || '';
   const approvedBy = value?.approvedBy || '';
   const approvedAt = value?.approvedAt || '';
+
+  // Get cross-reference field data if configured
+  useEffect(() => {
+    if (!config.approveCurrentSubmission && config.crossReferenceFieldId && formData) {
+      const crossRefFieldData = formData[config.crossReferenceFieldId];
+      if (Array.isArray(crossRefFieldData)) {
+        setCrossReferenceSelections(crossRefFieldData);
+      }
+    }
+  }, [config, formData]);
 
   const handleApproval = async (approved: boolean) => {
     if (!onChange || disabled || isProcessing) return;
@@ -49,17 +64,59 @@ export function ApprovalField({ field, value, onChange, error, disabled }: Appro
         timestamp: Date.now(),
       };
 
-      onChange(approvalData);
+      // If approving current submission
+      if (config.approveCurrentSubmission !== false) {
+        onChange(approvalData);
+        
+        toast({
+          title: approved ? "Approved" : "Rejected",
+          description: `Current submission has been ${approved ? 'approved' : 'rejected'}.`,
+        });
+      } else {
+        // If approving cross-reference selections
+        if (crossReferenceSelections.length === 0) {
+          toast({
+            title: "No selections",
+            description: "No submissions selected in the cross-reference field to approve.",
+            variant: "destructive",
+          });
+          setIsProcessing(false);
+          return;
+        }
 
-      if (config.enableNotifications !== false) {
-        // In a real implementation, trigger notification
-        console.log('Sending approval notification:', approvalData);
+        // Approve selected submissions
+        const approvalPromises = crossReferenceSelections.map(async (selection) => {
+          const submissionId = selection.id;
+          
+          const { error } = await supabase
+            .from('form_submissions')
+            .update({
+              approval_status: approved ? 'approved' : 'rejected',
+              approved_by: user?.email || 'Unknown',
+              approval_timestamp: new Date().toISOString(),
+              approval_notes: comments.trim()
+            })
+            .eq('id', submissionId);
+
+          if (error) {
+            console.error('Error updating submission approval:', error);
+            throw error;
+          }
+        });
+
+        await Promise.all(approvalPromises);
+
+        onChange(approvalData);
+
+        toast({
+          title: approved ? "Approved" : "Rejected",
+          description: `${crossReferenceSelections.length} submission(s) have been ${approved ? 'approved' : 'rejected'}.`,
+        });
       }
 
-      toast({
-        title: approved ? "Approved" : "Rejected",
-        description: `Form has been ${approved ? 'approved' : 'rejected'} successfully.`,
-      });
+      if (config.sendNotifications !== false) {
+        console.log('Sending approval notification:', approvalData);
+      }
 
       setComments('');
     } catch (error) {
@@ -95,6 +152,9 @@ export function ApprovalField({ field, value, onChange, error, disabled }: Appro
         return 'bg-yellow-50 border-yellow-200';
     }
   };
+
+  // Get cross-reference field info for display
+  const crossReferenceField = allFields?.find(f => f.id === config.crossReferenceFieldId);
 
   if (approvalStatus !== 'pending') {
     return (
@@ -139,11 +199,23 @@ export function ApprovalField({ field, value, onChange, error, disabled }: Appro
           <span className="font-medium">Pending Approval</span>
         </div>
 
-        {config.targetFormId && (
-          <p className="text-sm text-gray-600">
-            Target Form: {config.targetFormName || config.targetFormId}
-          </p>
-        )}
+        <div className="text-sm text-gray-600 space-y-1">
+          {config.approveCurrentSubmission !== false ? (
+            <p>Target: Current Submission</p>
+          ) : (
+            <>
+              <p>Target: Cross-Reference Selections</p>
+              {crossReferenceField && (
+                <p>Field: {crossReferenceField.label}</p>
+              )}
+              {crossReferenceSelections.length > 0 ? (
+                <p>Selected: {crossReferenceSelections.length} submission(s)</p>
+              ) : (
+                <p className="text-orange-600">No submissions selected in cross-reference field</p>
+              )}
+            </>
+          )}
+        </div>
 
         {config.requireComments && (
           <div className="space-y-2">
@@ -162,7 +234,7 @@ export function ApprovalField({ field, value, onChange, error, disabled }: Appro
         <div className="flex space-x-3">
           <Button
             onClick={() => handleApproval(true)}
-            disabled={disabled || isProcessing}
+            disabled={disabled || isProcessing || (config.approveCurrentSubmission === false && crossReferenceSelections.length === 0)}
             className="flex items-center space-x-2 bg-green-600 hover:bg-green-700"
           >
             <CheckCircle className="h-4 w-4" />
@@ -171,7 +243,7 @@ export function ApprovalField({ field, value, onChange, error, disabled }: Appro
           
           <Button
             onClick={() => handleApproval(false)}
-            disabled={disabled || isProcessing}
+            disabled={disabled || isProcessing || (config.approveCurrentSubmission === false && crossReferenceSelections.length === 0)}
             variant="destructive"
             className="flex items-center space-x-2"
           >

@@ -1,10 +1,11 @@
+
 import React from 'react';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useFormsData } from '@/hooks/useFormsData';
+import { Switch } from '@/components/ui/switch';
+import { useForm } from '@/contexts/FormContext';
 
 interface ApprovalFieldConfigProps {
   config: any;
@@ -14,7 +15,10 @@ interface ApprovalFieldConfigProps {
 
 export function ApprovalFieldConfig({ config, onUpdate, errors }: ApprovalFieldConfigProps) {
   const customConfig = config.customConfig || {};
-  const { forms } = useFormsData();
+  const { form } = useForm();
+
+  // Find all cross-reference fields in the current form
+  const crossReferenceFields = form?.fields?.filter(field => field.type === 'cross-reference') || [];
 
   const handleConfigChange = (key: string, value: any) => {
     onUpdate({
@@ -30,56 +34,54 @@ export function ApprovalFieldConfig({ config, onUpdate, errors }: ApprovalFieldC
       <div className="space-y-4">
         <h3 className="text-lg font-medium">Approval Configuration</h3>
         
-        <div className="space-y-2">
-          <Label htmlFor="targetForm">Target Form to Approve</Label>
-          <Select
-            value={customConfig.targetFormId || ''}
-            onValueChange={(value) => handleConfigChange('targetFormId', value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select form to approve" />
-            </SelectTrigger>
-            <SelectContent>
-              {forms.map((form) => (
-                <SelectItem key={form.id} value={form.id}>
-                  {form.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="space-y-3">
+          <Label>Approval Target</Label>
+          <div className="flex items-center space-x-2">
+            <Switch
+              checked={customConfig.approveCurrentSubmission !== false}
+              onCheckedChange={(checked) => handleConfigChange('approveCurrentSubmission', checked)}
+            />
+            <Label>
+              {customConfig.approveCurrentSubmission !== false ? 'Approve Current Submission' : 'Approve Cross-Reference Selections'}
+            </Label>
+          </div>
           <p className="text-sm text-muted-foreground">
-            The form that will be approved when this field is activated
+            {customConfig.approveCurrentSubmission !== false 
+              ? 'This will approve the current form submission when activated'
+              : 'This will approve submissions selected in a cross-reference field'
+            }
           </p>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="approvalCondition">Approval Condition</Label>
-          <Select
-            value={customConfig.approvalCondition || 'manual'}
-            onValueChange={(value) => handleConfigChange('approvalCondition', value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select approval condition" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="manual">Manual approval required</SelectItem>
-              <SelectItem value="automatic">Auto-approve on condition</SelectItem>
-              <SelectItem value="threshold">Approve after X approvals</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {customConfig.approvalCondition === 'threshold' && (
+        {customConfig.approveCurrentSubmission === false && (
           <div className="space-y-2">
-            <Label htmlFor="requiredApprovals">Required Approvals</Label>
-            <Input
-              id="requiredApprovals"
-              type="number"
-              min="1"
-              value={customConfig.requiredApprovals || 1}
-              onChange={(e) => handleConfigChange('requiredApprovals', parseInt(e.target.value) || 1)}
-              placeholder="1"
-            />
+            <Label htmlFor="crossReferenceField">Cross-Reference Field</Label>
+            {crossReferenceFields.length > 0 ? (
+              <Select
+                value={customConfig.crossReferenceFieldId || ''}
+                onValueChange={(value) => handleConfigChange('crossReferenceFieldId', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select cross-reference field" />
+                </SelectTrigger>
+                <SelectContent>
+                  {crossReferenceFields.map((field) => (
+                    <SelectItem key={field.id} value={field.id}>
+                      {field.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="p-4 border border-dashed border-muted-foreground/30 rounded-lg text-center">
+                <p className="text-sm text-muted-foreground">
+                  No cross-reference fields found. Please add a cross-reference field to this form first.
+                </p>
+              </div>
+            )}
+            <p className="text-sm text-muted-foreground">
+              Select which cross-reference field's selections should be approved
+            </p>
           </div>
         )}
 
