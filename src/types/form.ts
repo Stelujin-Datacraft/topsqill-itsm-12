@@ -368,9 +368,6 @@ export interface FormField {
     approvalMessage?: string;
     requireComments?: boolean;
     sendNotifications?: boolean;
-    approverRoles?: string[];
-    requiredSignatures?: number;
-    showTimestamp?: boolean;
   };
 }
 
