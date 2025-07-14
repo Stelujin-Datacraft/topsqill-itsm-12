@@ -8,15 +8,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Check, ChevronDown, X, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-// Mock users - in real implementation, fetch from project context
-const MOCK_USERS = [
-  { id: '1', name: 'John Doe', email: 'john@example.com', role: 'Admin' },
-  { id: '2', name: 'Jane Smith', email: 'jane@example.com', role: 'Editor' },
-  { id: '3', name: 'Bob Johnson', email: 'bob@example.com', role: 'Viewer' },
-  { id: '4', name: 'Alice Brown', email: 'alice@example.com', role: 'Contributor' },
-  { id: '5', name: 'Charlie Wilson', email: 'charlie@example.com', role: 'Reviewer' },
-];
+import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
 
 interface SubmissionAccessFieldProps {
   field: FormField;
@@ -29,6 +21,7 @@ interface SubmissionAccessFieldProps {
 export function SubmissionAccessField({ field, value, onChange, error, disabled }: SubmissionAccessFieldProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const { users, loading, searchUsers } = useOrganizationUsers();
 
   const config = field.customConfig || {};
   const allowMultiple = config.allowMultiple || false;
@@ -36,16 +29,23 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
   // Normalize value to array for easier handling
   const selectedUserIds = Array.isArray(value) ? value : (value ? [value] : []);
   
-  // Filter users based on search
+  // Transform users to include name property and filter based on search
+  const transformedUsers = (users || []).map(user => ({
+    id: user.id,
+    name: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email,
+    email: user.email,
+    role: user.role
+  }));
+
   const filteredUsers = searchValue
-    ? MOCK_USERS.filter(user =>
+    ? transformedUsers.filter(user =>
         user.name.toLowerCase().includes(searchValue.toLowerCase()) ||
         user.email.toLowerCase().includes(searchValue.toLowerCase()) ||
         user.role.toLowerCase().includes(searchValue.toLowerCase())
       )
-    : MOCK_USERS;
+    : transformedUsers;
 
-  const selectedUsers = MOCK_USERS.filter(user => selectedUserIds.includes(user.id));
+  const selectedUsers = transformedUsers.filter(user => selectedUserIds.includes(user.id));
 
   const handleUserSelect = (userId: string) => {
     if (allowMultiple) {
@@ -149,9 +149,11 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
               value={searchValue}
               onValueChange={setSearchValue}
             />
-            <CommandEmpty>No users found.</CommandEmpty>
+            <CommandEmpty>
+              {loading ? "Loading users..." : "No users found."}
+            </CommandEmpty>
             <CommandGroup className="max-h-64 overflow-y-auto">
-              {filteredUsers.map((user) => (
+              {!loading && filteredUsers && filteredUsers.length > 0 && filteredUsers.map((user) => (
                 <CommandItem
                   key={user.id}
                   value={user.id}
