@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Form, FormField } from '@/types/form';
@@ -21,9 +20,9 @@ export function useFormsLoader() {
     }
   };
 
-  // Helper function to get accessible forms with proper access control
+  // Enhanced helper function to get accessible forms with detailed logging
   const getAccessibleForms = async (organizationId: string, projectId: string, userId: string) => {
-    console.log('🔍 Getting accessible forms for user:', userId, 'in project:', projectId);
+    console.log('🔍 [FORMS ACCESS] Getting accessible forms for user:', userId, 'in project:', projectId);
 
     // Get user's organization role
     const { data: userProfile, error: profileError } = await supabase
@@ -33,10 +32,11 @@ export function useFormsLoader() {
       .single();
 
     if (profileError) {
-      console.log('Error getting user profile:', profileError);
+      console.log('❌ [FORMS ACCESS] Error getting user profile:', profileError);
     }
 
     const isOrgAdmin = userProfile?.role === 'admin';
+    console.log('👑 [FORMS ACCESS] User org admin status:', isOrgAdmin);
 
     // Check if user is project admin or creator
     const { data: projectAccess, error: accessError } = await supabase
@@ -47,7 +47,7 @@ export function useFormsLoader() {
       .maybeSingle();
 
     if (accessError) {
-      console.log('Error checking project access:', accessError);
+      console.log('❌ [FORMS ACCESS] Error checking project access:', accessError);
     }
 
     // Check if user is project creator
@@ -58,23 +58,91 @@ export function useFormsLoader() {
       .single();
 
     if (projectError) {
-      console.log('Error getting project info:', projectError);
+      console.log('❌ [FORMS ACCESS] Error getting project info:', projectError);
     }
 
     const isProjectCreator = project?.created_by === userId;
     const isProjectAdmin = projectAccess?.role === 'admin';
     const isAnyAdmin = isOrgAdmin || isProjectAdmin || isProjectCreator;
 
-    console.log('🔐 Access check results:', {
+    console.log('🔐 [FORMS ACCESS] Access check results:', {
       isOrgAdmin,
       isProjectAdmin,
       isProjectCreator,
-      isAnyAdmin
+      isAnyAdmin,
+      projectRole: projectAccess?.role
     });
+
+    // Get user's role assignments with detailed logging
+    const { data: roleAssignments, error: roleError } = await supabase
+      .from('user_role_assignments')
+      .select(`
+        id,
+        role_id,
+        roles!inner(
+          id,
+          name,
+          description,
+          role_permissions!inner(
+            id,
+            resource_type,
+            resource_id,
+            permission_type
+          )
+        )
+      `)
+      .eq('user_id', userId);
+
+    if (roleError) {
+      console.error('❌ [FORMS ACCESS] Error loading role assignments:', roleError);
+    }
+
+    console.log('🎭 [FORMS ACCESS] User role assignments:', roleAssignments);
+
+    // Process role permissions with detailed logging
+    const userFormPermissions = new Map<string, Set<string>>(); // formId -> Set of permissions
+
+    if (roleAssignments && roleAssignments.length > 0) {
+      roleAssignments.forEach((assignment, index) => {
+        const role = Array.isArray(assignment.roles) ? assignment.roles[0] : assignment.roles;
+        console.log(`🎭 [FORMS ACCESS] Processing role assignment ${index + 1}:`, {
+          assignmentId: assignment.id,
+          roleId: assignment.role_id,
+          roleName: role?.name,
+          roleDescription: role?.description
+        });
+
+        if (role && role.role_permissions) {
+          role.role_permissions.forEach((perm: any, permIndex: number) => {
+            console.log(`  📋 [FORMS ACCESS] Processing permission ${permIndex + 1}:`, {
+              permissionId: perm.id,
+              resourceType: perm.resource_type,
+              resourceId: perm.resource_id,
+              permissionType: perm.permission_type
+            });
+
+            if (perm.resource_type === 'form' && perm.resource_id) {
+              if (!userFormPermissions.has(perm.resource_id)) {
+                userFormPermissions.set(perm.resource_id, new Set());
+              }
+              userFormPermissions.get(perm.resource_id)?.add(perm.permission_type);
+              console.log(`  ✅ [FORMS ACCESS] Added ${perm.permission_type} permission for form ${perm.resource_id}`);
+            }
+          });
+        }
+      });
+    }
+
+    console.log('📊 [FORMS ACCESS] Final user form permissions map:', Object.fromEntries(
+      Array.from(userFormPermissions.entries()).map(([formId, perms]) => [
+        formId, 
+        Array.from(perms)
+      ])
+    ));
 
     // If user is any type of admin, get all forms
     if (isAnyAdmin) {
-      console.log('👑 Admin user - loading all forms');
+      console.log('👑 [FORMS ACCESS] Admin user - loading all forms');
       const { data: allForms, error } = await supabase
         .from('forms')
         .select('*')
@@ -83,15 +151,16 @@ export function useFormsLoader() {
         .order('updated_at', { ascending: false });
 
       if (error) {
-        console.error('Error loading all forms for admin:', error);
+        console.error('❌ [FORMS ACCESS] Error loading all forms for admin:', error);
         throw error;
       }
 
+      console.log('👑 [FORMS ACCESS] Admin loaded forms:', allForms?.length || 0);
       return allForms || [];
     }
 
-    // For non-admin users, we need to filter based on form visibility and permissions
-    console.log('👤 Regular user - filtering forms by access');
+    // For non-admin users, filter based on form visibility and permissions
+    console.log('👤 [FORMS ACCESS] Regular user - filtering forms by access');
 
     // Get all forms first
     const { data: allForms, error: formsError } = await supabase
@@ -102,76 +171,61 @@ export function useFormsLoader() {
       .order('updated_at', { ascending: false });
 
     if (formsError) {
-      console.error('Error loading forms:', formsError);
+      console.error('❌ [FORMS ACCESS] Error loading forms:', formsError);
       throw formsError;
     }
 
     if (!allForms || allForms.length === 0) {
+      console.log('📝 [FORMS ACCESS] No forms found in project');
       return [];
     }
 
-    // Get user's role permissions for forms
-    const { data: roleAssignments, error: roleError } = await supabase
-      .from('user_role_assignments')
-      .select(`
-        role_id,
-        roles!inner(
-          name,
-          role_permissions!inner(
-            resource_type,
-            resource_id,
-            permission_type
-          )
-        )
-      `)
-      .eq('user_id', userId);
+    console.log('📝 [FORMS ACCESS] Total forms in project:', allForms.length);
 
-    if (roleError) {
-      console.error('Error loading role assignments:', roleError);
-    }
-
-    // Extract form IDs that user has explicit access to
-    const accessibleFormIds = new Set<string>();
-    
-    if (roleAssignments && roleAssignments.length > 0) {
-      roleAssignments.forEach(assignment => {
-        const role = Array.isArray(assignment.roles) ? assignment.roles[0] : assignment.roles;
-        if (role && role.role_permissions) {
-          role.role_permissions.forEach((perm: any) => {
-            if (perm.resource_type === 'form' && perm.resource_id && perm.permission_type === 'read') {
-              accessibleFormIds.add(perm.resource_id);
-              console.log('📋 User has read access to form:', perm.resource_id);
-            }
-          });
-        }
+    // Filter forms based on visibility rules with detailed logging
+    const accessibleForms = allForms.filter((form, index) => {
+      console.log(`\n🔍 [FORMS ACCESS] Checking form ${index + 1}/${allForms.length}:`, {
+        formId: form.id,
+        formName: form.name,
+        isPublic: form.is_public,
+        createdBy: form.created_by
       });
-    }
 
-    // Filter forms based on visibility rules
-    const accessibleForms = allForms.filter(form => {
       // Rule 1: If form is public, user can see it (they already have project access)
       if (form.is_public) {
-        console.log('🌐 Public form accessible:', form.name);
+        console.log('  🌐 [FORMS ACCESS] ✅ Public form - accessible');
         return true;
       }
 
-      // Rule 2: If form is private, user needs explicit permission
-      if (accessibleFormIds.has(form.id)) {
-        console.log('🔒 Private form accessible via role:', form.name);
-        return true;
-      }
-
-      // Rule 3: If user created the form, they can see it
+      // Rule 2: If user created the form, they can see it
       if (form.created_by === userId) {
-        console.log('👤 Form accessible as creator:', form.name);
+        console.log('  👤 [FORMS ACCESS] ✅ Form creator - accessible');
         return true;
       }
 
-      console.log('❌ Form not accessible:', form.name, 'is_public:', form.is_public);
+      // Rule 3: If form is private, check role permissions
+      const formPermissions = userFormPermissions.get(form.id);
+      console.log('  🔒 [FORMS ACCESS] Private form permissions check:', {
+        formId: form.id,
+        hasPermissions: formPermissions ? Array.from(formPermissions) : 'none'
+      });
+
+      if (formPermissions && formPermissions.has('read')) {
+        console.log('  🔒 [FORMS ACCESS] ✅ Private form with read permission - accessible');
+        return true;
+      }
+
+      console.log('  ❌ [FORMS ACCESS] Private form with no access - not accessible');
       return false;
     });
 
-    console.log('✅ Filtered forms:', accessibleForms.length, 'out of', allForms.length);
+    console.log(`\n✅ [FORMS ACCESS] Final result: ${accessibleForms.length} out of ${allForms.length} forms accessible`);
+    console.log('📋 [FORMS ACCESS] Accessible forms:', accessibleForms.map(f => ({
+      id: f.id,
+      name: f.name,
+      isPublic: f.is_public
+    })));
+
     return accessibleForms;
   };
 

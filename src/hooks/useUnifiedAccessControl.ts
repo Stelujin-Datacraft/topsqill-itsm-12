@@ -97,14 +97,18 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       
       const isProjectCreator = projectData?.created_by === targetUserId;
 
-      // Load user role assignments - FIXED QUERY
+      // Load user role assignments with enhanced logging
       const { data: roleAssignments, error: roleError } = await supabase
         .from('user_role_assignments')
         .select(`
+          id,
           role_id,
           roles!inner(
+            id,
             name,
+            description,
             role_permissions(
+              id,
               resource_type,
               resource_id,
               permission_type
@@ -114,8 +118,18 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         .eq('user_id', targetUserId);
 
       if (roleError) {
-        console.error('Error loading role assignments:', roleError);
+        console.error('❌ [ACCESS CONTROL] Error loading role assignments:', roleError);
       }
+
+      console.log('🎭 [ACCESS CONTROL] User role assignments loaded:', {
+        userId: targetUserId,
+        assignmentCount: roleAssignments?.length || 0,
+        assignments: roleAssignments?.map(a => ({
+          id: a.id,
+          roleId: a.role_id,
+          roleName: Array.isArray(a.roles) ? a.roles[0]?.name : a.roles?.name
+        }))
+      });
 
       // Process top-level permissions - Start with false, only set what's explicitly granted
       const processedTopLevel: Record<EntityType, TopLevelPermissions> = {
@@ -137,7 +151,9 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         }
       });
 
-      // Process role permissions - Initialize with explicit structure
+      console.log('📊 [ACCESS CONTROL] Top-level permissions:', processedTopLevel);
+
+      // Process role permissions with enhanced logging
       const processedRolePermissions: Record<EntityType, RolePermissions> = {
         forms: {},
         workflows: {},
@@ -146,13 +162,25 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
 
       let userRoleName: string | null = null;
 
-      // CRITICAL FIX: Check if roleAssignments exists and has data
       if (roleAssignments && roleAssignments.length > 0) {
-        roleAssignments.forEach(assignment => {
+        roleAssignments.forEach((assignment, assignmentIndex) => {
           const role = Array.isArray(assignment.roles) ? assignment.roles[0] : assignment.roles;
           if (role) {
             userRoleName = role.name;
-            role.role_permissions?.forEach((perm: any) => {
+            console.log(`🎭 [ACCESS CONTROL] Processing role ${assignmentIndex + 1}:`, {
+              roleId: role.id,
+              roleName: role.name,
+              permissionCount: role.role_permissions?.length || 0
+            });
+
+            role.role_permissions?.forEach((perm: any, permIndex: number) => {
+              console.log(`  📋 [ACCESS CONTROL] Processing permission ${permIndex + 1}:`, {
+                permissionId: perm.id,
+                resourceType: perm.resource_type,
+                resourceId: perm.resource_id,
+                permissionType: perm.permission_type
+              });
+
               // Map database resource types to frontend types
               let mappedEntityType: EntityType;
               if (perm.resource_type === 'form') {
@@ -162,6 +190,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
               } else if (perm.resource_type === 'report') {
                 mappedEntityType = 'reports';
               } else {
+                console.log(`  ⚠️ [ACCESS CONTROL] Unknown resource type: ${perm.resource_type}`);
                 return; // Skip unknown types
               }
 
@@ -182,22 +211,35 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
                 switch (perm.permission_type) {
                   case 'create':
                     processedRolePermissions[mappedEntityType][resourceId].can_create = true;
+                    console.log(`    ✅ [ACCESS CONTROL] Granted CREATE access to ${mappedEntityType} ${resourceId}`);
                     break;
                   case 'update':
                     processedRolePermissions[mappedEntityType][resourceId].can_update = true;
+                    console.log(`    ✅ [ACCESS CONTROL] Granted UPDATE access to ${mappedEntityType} ${resourceId}`);
                     break;
                   case 'delete':
                     processedRolePermissions[mappedEntityType][resourceId].can_delete = true;
+                    console.log(`    ✅ [ACCESS CONTROL] Granted DELETE access to ${mappedEntityType} ${resourceId}`);
                     break;
                   case 'read':
                     processedRolePermissions[mappedEntityType][resourceId].can_read = true;
+                    console.log(`    ✅ [ACCESS CONTROL] Granted READ access to ${mappedEntityType} ${resourceId}`);
                     break;
+                  default:
+                    console.log(`    ⚠️ [ACCESS CONTROL] Unknown permission type: ${perm.permission_type}`);
                 }
               }
             });
           }
         });
       }
+
+      console.log('📊 [ACCESS CONTROL] Final role permissions:', {
+        forms: Object.keys(processedRolePermissions.forms).length,
+        workflows: Object.keys(processedRolePermissions.workflows).length,
+        reports: Object.keys(processedRolePermissions.reports).length,
+        details: processedRolePermissions
+      });
 
       setState({
         topLevelPermissions: processedTopLevel,
@@ -208,7 +250,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         loading: false
       });
 
-      console.log('🔧 FIXED Access control loaded:', {
+      console.log('🔧 [ACCESS CONTROL] Access control loaded:', {
         topLevelPermissions: processedTopLevel,
         rolePermissions: processedRolePermissions,
         isProjectAdmin: isProjectAdmin || isProjectCreator,
@@ -338,43 +380,64 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     }
   };
 
-  // Enhanced getVisibleResources - only show resources user has READ access to with proper private form filtering
+  // Enhanced getVisibleResources with detailed logging for private form filtering
   const getVisibleResources = (entityType: EntityType, allResources: any[]): any[] => {
+    console.log(`🔍 [VISIBLE RESOURCES] Filtering ${entityType}, total resources: ${allResources.length}`);
+    
     if (state.isOrgAdmin || state.isProjectAdmin) {
+      console.log(`👑 [VISIBLE RESOURCES] Admin user - showing all ${allResources.length} resources`);
       return allResources; // Admins see everything
     }
 
     const hasAssignedRole = !!state.userRole;
+    console.log(`🎭 [VISIBLE RESOURCES] User has assigned role: ${hasAssignedRole} (${state.userRole})`);
 
     if (!hasAssignedRole) {
       // No role - check top-level read permission
       const canRead = state.topLevelPermissions[entityType]?.can_read;
+      console.log(`📊 [VISIBLE RESOURCES] No role - top-level read permission: ${canRead}`);
+      
       if (!canRead) {
+        console.log(`❌ [VISIBLE RESOURCES] No top-level read access - showing 0 resources`);
         return []; // No top-level read access
       }
 
       // For forms specifically, apply private/public filtering
       if (entityType === 'forms') {
-        return allResources.filter(resource => {
-          // Only show public forms if user has no assigned role
-          return resource.isPublic === true;
+        const publicForms = allResources.filter(resource => {
+          const isPublic = resource.isPublic === true;
+          console.log(`🌐 [VISIBLE RESOURCES] Form ${resource.name} (${resource.id}): isPublic = ${isPublic}`);
+          return isPublic;
         });
+        console.log(`🌐 [VISIBLE RESOURCES] No role - showing ${publicForms.length} public forms out of ${allResources.length}`);
+        return publicForms;
       }
 
-      return canRead ? allResources : [];
+      console.log(`📊 [VISIBLE RESOURCES] No role - showing all ${allResources.length} resources (top-level read access)`);
+      return allResources;
     }
 
     // Role assigned - check both top-level AND role permissions
     const topLevelCanRead = state.topLevelPermissions[entityType]?.can_read;
+    console.log(`📊 [VISIBLE RESOURCES] Role assigned - top-level read permission: ${topLevelCanRead}`);
+    
     if (!topLevelCanRead) {
+      console.log(`❌ [VISIBLE RESOURCES] No top-level read access - showing 0 resources`);
       return []; // No top-level read access
     }
 
     // For forms, apply enhanced filtering based on role permissions and visibility
     if (entityType === 'forms') {
-      return allResources.filter(resource => {
+      const accessibleForms = allResources.filter(resource => {
+        console.log(`\n🔍 [VISIBLE RESOURCES] Checking form: ${resource.name} (${resource.id})`);
+        console.log(`  📋 [VISIBLE RESOURCES] Form details:`, {
+          isPublic: resource.isPublic,
+          createdBy: resource.createdBy
+        });
+
         // Public forms: show if user has top-level read access
         if (resource.isPublic === true) {
+          console.log(`  🌐 [VISIBLE RESOURCES] ✅ Public form - accessible`);
           return true;
         }
 
@@ -382,16 +445,35 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         const rolePerms = state.rolePermissions[entityType][resource.id];
         const hasRoleReadAccess = rolePerms?.can_read || false;
         
-        console.log(`🔍 Private form ${resource.name} (${resource.id}): role read access = ${hasRoleReadAccess}`);
-        return hasRoleReadAccess;
+        console.log(`  🔒 [VISIBLE RESOURCES] Private form - role permissions:`, {
+          hasPermissions: !!rolePerms,
+          canRead: hasRoleReadAccess,
+          allPermissions: rolePerms
+        });
+        
+        if (hasRoleReadAccess) {
+          console.log(`  🔒 [VISIBLE RESOURCES] ✅ Private form with read access - accessible`);
+          return true;
+        }
+
+        console.log(`  ❌ [VISIBLE RESOURCES] Private form without read access - not accessible`);
+        return false;
       });
+
+      console.log(`📋 [VISIBLE RESOURCES] Final result: ${accessibleForms.length} accessible forms out of ${allResources.length}`);
+      return accessibleForms;
     }
 
     // For other entities, use existing logic
-    return allResources.filter(resource => {
+    const accessibleResources = allResources.filter(resource => {
       const rolePerms = state.rolePermissions[entityType][resource.id];
-      return rolePerms?.can_read || false;
+      const hasAccess = rolePerms?.can_read || false;
+      console.log(`🔍 [VISIBLE RESOURCES] ${entityType} ${resource.id}: hasAccess = ${hasAccess}`);
+      return hasAccess;
     });
+
+    console.log(`📊 [VISIBLE RESOURCES] Final result: ${accessibleResources.length} accessible ${entityType} out of ${allResources.length}`);
+    return accessibleResources;
   };
 
   // Permission check with detailed alert messages
