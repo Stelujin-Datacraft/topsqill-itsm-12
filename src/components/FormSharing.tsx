@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +30,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { Form } from '@/types/form';
 import { useFormAccess } from '@/hooks/useFormAccess';
+import { useFormAccessNotifications } from '@/hooks/useFormAccessNotifications';
 import { UserSuggestionInput } from '@/components/UserSuggestionInput';
 
 interface FormSharingProps {
@@ -50,6 +50,9 @@ export function FormSharing({ form, onUpdateForm }: FormSharingProps) {
     addUserAccess,
     handleAccessRequest
   } = useFormAccess(form.id);
+
+  // NEW: Use the notifications hook to get pending requests count
+  const { pendingRequests } = useFormAccessNotifications(form.id);
 
   // Fix the form URLs to use the correct format
   const formUrl = `https://preview--topsqill-itsm.lovable.app/form/${form.id}`;
@@ -94,14 +97,18 @@ export function FormSharing({ form, onUpdateForm }: FormSharingProps) {
     setSelectedUserId(user.id);
   };
 
-  const pendingRequests = accessRequests.filter(r => r.status === 'pending');
+  const pendingRequestsFromFormAccess = accessRequests.filter(r => r.status === 'pending');
 
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" className="relative">
           <Share2 className="h-4 w-4 mr-2" />
           Share
+          {/* NEW: Red dot indicator for pending requests */}
+          {(pendingRequestsFromFormAccess.length > 0 || pendingRequests.length > 0) && (
+            <div className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full animate-pulse" />
+          )}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -114,17 +121,17 @@ export function FormSharing({ form, onUpdateForm }: FormSharingProps) {
         
         <div className="space-y-6">
           {/* Access Requests */}
-          {pendingRequests.length > 0 && (
+          {pendingRequestsFromFormAccess.length > 0 && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Clock className="h-5 w-5" />
-                  Pending Access Requests ({pendingRequests.length})
+                  Pending Access Requests ({pendingRequestsFromFormAccess.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {pendingRequests.map((request) => (
+                  {pendingRequestsFromFormAccess.map((request) => (
                     <div key={request.id} className="flex items-center justify-between p-3 border rounded">
                       <div className="flex-1">
                         <div className="font-medium">{request.user_profile?.email}</div>

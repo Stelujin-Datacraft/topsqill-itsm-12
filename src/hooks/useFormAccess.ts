@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -227,6 +226,8 @@ export function useFormAccess(formId: string) {
 
   const handleAccessRequest = async (requestId: string, approve: boolean) => {
     try {
+      console.log('🔄 [FORM ACCESS] Handling access request:', { requestId, approve });
+
       const { error } = await supabase
         .from('form_access_requests')
         .update({
@@ -238,11 +239,68 @@ export function useFormAccess(formId: string) {
 
       if (error) throw error;
 
-      // If approved, add user access
+      // If approved, add user access and send notification
       if (approve) {
         const request = accessRequests.find(r => r.id === requestId);
         if (request) {
-          await addUserAccess(request.user_id, 'viewer');
+          console.log('✅ [FORM ACCESS] Adding user access for approved request:', request.user_id);
+          
+          // Add user to form_user_access table
+          const { error: accessError } = await supabase
+            .from('form_user_access')
+            .insert({
+              form_id: formId,
+              user_id: request.user_id,
+              role: 'viewer', // Default role for approved requests
+              status: 'active',
+              granted_by: userProfile?.id,
+              granted_at: new Date().toISOString()
+            });
+
+          if (accessError) {
+            console.error('❌ [FORM ACCESS] Error adding user access:', accessError);
+          } else {
+            console.log('✅ [FORM ACCESS] User access granted successfully');
+            
+            // Send notification to the user about approval
+            const { error: notifError } = await supabase
+              .from('notifications')
+              .insert({
+                user_id: request.user_id,
+                type: 'form_access_approved',
+                title: 'Form Access Approved',
+                message: `Your request to access the form has been approved.`,
+                data: {
+                  form_id: formId,
+                  request_id: requestId
+                }
+              });
+
+            if (notifError) {
+              console.error('❌ [FORM ACCESS] Error sending notification:', notifError);
+            }
+          }
+        }
+      } else {
+        // Send notification about denial
+        const request = accessRequests.find(r => r.id === requestId);
+        if (request) {
+          const { error: notifError } = await supabase
+            .from('notifications')
+            .insert({
+              user_id: request.user_id,
+              type: 'form_access_denied',
+              title: 'Form Access Denied',
+              message: `Your request to access the form has been denied.`,
+              data: {
+                form_id: formId,
+                request_id: requestId
+              }
+            });
+
+          if (notifError) {
+            console.error('❌ [FORM ACCESS] Error sending notification:', notifError);
+          }
         }
       }
 
@@ -251,7 +309,7 @@ export function useFormAccess(formId: string) {
         description: `Access request has been ${approve ? 'approved' : 'denied'}.`,
       });
 
-      loadFormAccess();
+      loadFormAccess(); // Reload to get updated data
     } catch (error) {
       console.error('Error handling access request:', error);
       toast({

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFormWithFields } from '@/hooks/useFormWithFields';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
+import { useFormUserAccess } from '@/hooks/useFormUserAccess';
 import { FormViewLayoutRenderer } from '@/components/FormViewLayoutRenderer';
 import { FormSubmissionSuccess } from '@/components/FormSubmissionSuccess';
 import { useFormSubmissionHandler } from '@/hooks/useFormSubmissionHandler';
@@ -14,6 +15,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { FormLoadingView } from '@/components/FormLoadingView';
 import { PublicHeader } from '@/components/PublicHeader';
+
 const FormView = () => {
   const { id } = useParams<{ id: string }>();
   const { user, userProfile } = useAuth();
@@ -25,6 +27,9 @@ const FormView = () => {
   
   // Use unified access control for proper permission checking
   const { hasPermission, loading: accessLoading, isOrgAdmin, isProjectAdmin } = useUnifiedAccessControl(form?.projectId);
+  
+  // Check if user has direct form access (invited, approved, or assigned)
+  const { hasAccess: hasDirectAccess, loading: directAccessLoading, accessRole } = useFormUserAccess(id || '');
   
   // Form submission handler
   const { handleFormSubmit } = useFormSubmissionHandler(id, form);
@@ -47,7 +52,7 @@ const FormView = () => {
   }, [user, form, formLoading, formError, navigate]);
 
   // Show loading state while form or access control is being loaded
-  if (formLoading || (user && accessLoading)) {
+  if (formLoading || (user && (accessLoading || directAccessLoading))) {
     return <FormLoadingView />;
   }
 
@@ -153,23 +158,44 @@ const FormView = () => {
   
   // Check permissions using unified access control
   const hasFormReadAccess = user ? hasPermission('forms', 'read', form.id) : false;
-  const canAccessForm = isPublic || isFormCreator || hasFormReadAccess || isOrgAdmin || isProjectAdmin;
+  
+  // Enhanced access check including direct form access (invited/approved/assigned users)
+  const canAccessForm = isPublic || 
+                       isFormCreator || 
+                       hasFormReadAccess || 
+                       isOrgAdmin || 
+                       isProjectAdmin ||
+                       hasDirectAccess; // This covers invited, approved, and assigned users
+
+  console.log('🔍 [FORM VIEW] Access check results:', {
+    formId: form.id,
+    userId: user?.id,
+    isPublic,
+    isFormCreator,
+    hasFormReadAccess,
+    isOrgAdmin,
+    isProjectAdmin,
+    hasDirectAccess,
+    accessRole,
+    canAccessForm
+  });
   
   // Show submission success if form was submitted
   if (submissionResult) {
     return (
-   <div className="min-h-screen bg-background">
-      <PublicHeader /> 
-<div className="min-h-screen bg-gray-50 py-12 px-4">
-        <div className="max-w-7xl mx-auto">
-          <FormSubmissionSuccess 
-            submissionRefId={submissionResult.submissionRefId}
-            submissionId={submissionResult.submissionId}
-            formName={form.name}
-            onClose={() => setSubmissionResult(null)}
-          />
+      <div className="min-h-screen bg-background">
+        <PublicHeader /> 
+        <div className="min-h-screen bg-gray-50 py-12 px-4">
+          <div className="max-w-7xl mx-auto">
+            <FormSubmissionSuccess 
+              submissionRefId={submissionResult.submissionRefId}
+              submissionId={submissionResult.submissionId}
+              formName={form.name}
+              onClose={() => setSubmissionResult(null)}
+            />
+          </div>
         </div>
-      </div></div>
+      </div>
     );
   }
 
@@ -185,18 +211,19 @@ const FormView = () => {
     };
 
     return (
-         <div className="min-h-screen bg-background">
-      <PublicHeader /> 
-      <div className="min-h-screen bg-gray-50 py-12 px-4">
-        <div className="max-w-7xl mx-auto">
-          <FormViewLayoutRenderer 
-            form={form}
-            onSubmit={onFormSubmit}
-            showNavigation={true}
-            showPublicHeader={false}
-          />
-        </div>
-      </div>      </div>
+      <div className="min-h-screen bg-background">
+        <PublicHeader /> 
+        <div className="min-h-screen bg-gray-50 py-12 px-4">
+          <div className="max-w-7xl mx-auto">
+            <FormViewLayoutRenderer 
+              form={form}
+              onSubmit={onFormSubmit}
+              showNavigation={true}
+              showPublicHeader={false}
+            />
+          </div>
+        </div>      
+      </div>
     );
   }
 
@@ -330,19 +357,19 @@ const FormView = () => {
   };
 
   return (
-               <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background">
       <PublicHeader /> 
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
-     
-      <div className="max-w-7xl mx-auto">
-        <FormViewLayoutRenderer 
-          form={form}
-          onSubmit={onFormSubmit}
-          showNavigation={true}
-          showPublicHeader={false}
-        />
-      </div>
-    </div>    </div>
+      <div className="min-h-screen bg-gray-50 py-12 px-4">
+        <div className="max-w-7xl mx-auto">
+          <FormViewLayoutRenderer 
+            form={form}
+            onSubmit={onFormSubmit}
+            showNavigation={true}
+            showPublicHeader={false}
+          />
+        </div>
+      </div>    
+    </div>
   );
 };
 
