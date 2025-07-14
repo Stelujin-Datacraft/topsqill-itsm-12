@@ -109,7 +109,7 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
           {field.label}
           {field.required && <span className="text-red-500 ml-1">*</span>}
         </label>
-        <div className="flex items-center gap-2">
+        {/* <div className="flex items-center gap-2">
           {!isPreview && (
             <Button
               variant="outline"
@@ -121,7 +121,7 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
               Configure
             </Button>
           )}
-        </div>
+        </div> */}
       </div>
       
       <OptimizedFormDataTable
