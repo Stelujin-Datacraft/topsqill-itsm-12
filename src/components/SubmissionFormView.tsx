@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,7 +23,7 @@ interface FormSubmission {
   form_reference_id?: string;
 }
 
-export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewProps) {
+export function FormSubmissionView({ submissionId, onBack }: SubmissionFormViewProps) {
   const [submission, setSubmission] = useState<FormSubmission | null>(null);
   const [form, setForm] = useState<Form | null>(null);
   const [loading, setLoading] = useState(true);
@@ -243,6 +242,11 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
     setIsEditing(false);
   };
 
+  const handleSubmit = async () => {
+    // Handle form submission - for now just log
+    console.log('Form submitted with data:', formData);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -360,9 +364,9 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
             formData={formData}
             errors={{}}
             fieldStates={fieldStates}
-            columns={form.layout?.columns || 1}
+            columns={(form.layout?.columns as 1 | 2 | 3) || 1}
             onFieldChange={handleFieldChange}
-            onSubmit={() => {}} // Not used in view mode
+            onSubmit={handleSubmit}
             showButtons={false} // Hide submit buttons
           />
         </CardContent>

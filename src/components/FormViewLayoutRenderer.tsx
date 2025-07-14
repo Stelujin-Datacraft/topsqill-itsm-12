@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -286,7 +285,7 @@ export function FormViewLayoutRenderer({
 
     // Check if field is full-width based on type or explicit setting
     const isFullWidthField = (field: FormField) => {
-      const fullWidthTypes = ['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'record-table', 'cross-reference', 'matrix-grid'];
+      const fullWidthTypes = ['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'record-table', 'cross-reference', 'matrix-grid', 'approval'];
       return fullWidthTypes.includes(field.type) || field.isFullWidth || field.fieldCategory === 'full-width';
     };
 
@@ -309,7 +308,6 @@ export function FormViewLayoutRenderer({
                   columns={1}
                   onFieldChange={handleFieldChange}
                   onSubmit={handleFormSubmit}
-                  onSave={handleSave}
                   showButtons={false}
                   allFormFields={allFormFields}
                 />
@@ -343,7 +341,6 @@ export function FormViewLayoutRenderer({
               columns={1}
               onFieldChange={handleFieldChange}
               onSubmit={handleFormSubmit}
-              onSave={handleSave}
               showButtons={false}
               allFormFields={allFormFields}
             />

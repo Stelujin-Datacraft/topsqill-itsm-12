@@ -168,10 +168,9 @@ export function PublicFormSubmissionView({ form, onSubmit }: PublicFormSubmissio
               formData={formData}
               errors={errors}
               fieldStates={fieldStates}
-              columns={(form.layout?.columns as number) || 1}
+              columns={(form.layout?.columns as 1 | 2 | 3) || 1}
               onFieldChange={handleFieldChange}
               onSubmit={handleFormSubmit}
-              onSave={handleSave}
             />
           </CardContent>
         </Card>

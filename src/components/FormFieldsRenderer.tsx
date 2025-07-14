@@ -14,7 +14,7 @@ interface FormFieldsRendererProps {
   fieldStates: Record<string, any>;
   columns: 1 | 2 | 3;
   onFieldChange: (fieldId: string, value: any) => void;
-  onSubmit: () => void;
+  onSubmit: (formData: Record<string, any>) => void;
   showButtons?: boolean;
   isSubmitting?: boolean;
   onFieldUpdate?: (fieldId: string, updates: Partial<FormField>) => void;
@@ -131,7 +131,7 @@ export function FormFieldsRenderer({
       {showButtons && (
         <div className="flex justify-end pt-6">
           <Button 
-            onClick={onSubmit} 
+            onClick={() => onSubmit(formData)} 
             disabled={isSubmitting}
             className="min-w-[120px]"
           >
