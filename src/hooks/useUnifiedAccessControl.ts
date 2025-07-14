@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -339,7 +338,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     }
   };
 
-  // Get visible resources - only show resources user has READ access to
+  // Enhanced getVisibleResources - only show resources user has READ access to with proper private form filtering
   const getVisibleResources = (entityType: EntityType, allResources: any[]): any[] => {
     if (state.isOrgAdmin || state.isProjectAdmin) {
       return allResources; // Admins see everything
@@ -350,6 +349,18 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     if (!hasAssignedRole) {
       // No role - check top-level read permission
       const canRead = state.topLevelPermissions[entityType]?.can_read;
+      if (!canRead) {
+        return []; // No top-level read access
+      }
+
+      // For forms specifically, apply private/public filtering
+      if (entityType === 'forms') {
+        return allResources.filter(resource => {
+          // Only show public forms if user has no assigned role
+          return resource.isPublic === true;
+        });
+      }
+
       return canRead ? allResources : [];
     }
 
@@ -359,7 +370,24 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       return []; // No top-level read access
     }
 
-    // Filter resources based on role permissions - ONLY show resources with explicit read permission
+    // For forms, apply enhanced filtering based on role permissions and visibility
+    if (entityType === 'forms') {
+      return allResources.filter(resource => {
+        // Public forms: show if user has top-level read access
+        if (resource.isPublic === true) {
+          return true;
+        }
+
+        // Private forms: require explicit role permission
+        const rolePerms = state.rolePermissions[entityType][resource.id];
+        const hasRoleReadAccess = rolePerms?.can_read || false;
+        
+        console.log(`🔍 Private form ${resource.name} (${resource.id}): role read access = ${hasRoleReadAccess}`);
+        return hasRoleReadAccess;
+      });
+    }
+
+    // For other entities, use existing logic
     return allResources.filter(resource => {
       const rolePerms = state.rolePermissions[entityType][resource.id];
       return rolePerms?.can_read || false;
