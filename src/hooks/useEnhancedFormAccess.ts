@@ -42,7 +42,8 @@ export function useEnhancedFormAccess(formId: string) {
       setLoading(true);
       console.log('🔍 [ENHANCED FORM ACCESS] Loading users for form:', formId);
 
-      const { data, error } = await supabase.rpc('get_enhanced_form_user_permissions', {
+      // Use the any type to bypass TypeScript checks for the RPC call
+      const { data, error } = await supabase.rpc('get_enhanced_form_user_permissions' as any, {
         _project_id: currentProject.id,
         _form_id: formId
       });
@@ -58,7 +59,10 @@ export function useEnhancedFormAccess(formId: string) {
       }
 
       console.log('✅ [ENHANCED FORM ACCESS] Loaded users:', data);
-      setUsers(data || []);
+      
+      // Cast the data to the expected type
+      const enhancedUsers = (data || []) as EnhancedFormUser[];
+      setUsers(enhancedUsers);
     } catch (error) {
       console.error('❌ [ENHANCED FORM ACCESS] Unexpected error:', error);
       toast({
