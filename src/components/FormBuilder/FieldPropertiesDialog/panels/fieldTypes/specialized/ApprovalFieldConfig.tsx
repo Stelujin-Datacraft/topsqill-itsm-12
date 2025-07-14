@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { useForm } from '@/contexts/FormContext';
+import { useCurrentFormFields } from '@/hooks/useCurrentFormFields';
 
 interface ApprovalFieldConfigProps {
   config: any;
@@ -16,9 +17,18 @@ interface ApprovalFieldConfigProps {
 export function ApprovalFieldConfig({ config, onUpdate, errors }: ApprovalFieldConfigProps) {
   const customConfig = config.customConfig || {};
   const { currentForm } = useForm();
+  const { currentForm: hookCurrentForm } = useCurrentFormFields();
+
+  // Use the form from the hook as fallback, and get all fields
+  const activeForm = currentForm || hookCurrentForm;
+  const allFields = activeForm?.fields || [];
 
   // Find all cross-reference fields in the current form
-  const crossReferenceFields = currentForm?.fields?.filter(field => field.type === 'cross-reference') || [];
+  const crossReferenceFields = allFields.filter(field => field.type === 'cross-reference');
+
+  console.log('ApprovalFieldConfig: Active form:', activeForm);
+  console.log('ApprovalFieldConfig: All fields:', allFields);
+  console.log('ApprovalFieldConfig: Cross-reference fields found:', crossReferenceFields);
 
   const handleConfigChange = (key: string, value: any) => {
     onUpdate({
@@ -73,10 +83,21 @@ export function ApprovalFieldConfig({ config, onUpdate, errors }: ApprovalFieldC
                 </SelectContent>
               </Select>
             ) : (
-              <div className="p-4 border border-dashed border-muted-foreground/30 rounded-lg text-center">
-                <p className="text-sm text-muted-foreground">
-                  No cross-reference fields found. Please add a cross-reference field to this form first.
-                </p>
+              <div className="p-4 border border-dashed border-muted-foreground/30 rounded-lg">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    No cross-reference fields found. Please add a cross-reference field to this form first.
+                  </p>
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <p>Debug info:</p>
+                    <p>• Total fields in form: {allFields.length}</p>
+                    <p>• Form ID: {activeForm?.id || 'No form loaded'}</p>
+                    <p>• Form name: {activeForm?.name || 'No form name'}</p>
+                    {allFields.length > 0 && (
+                      <p>• Field types: {[...new Set(allFields.map(f => f.type))].join(', ')}</p>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
             <p className="text-sm text-muted-foreground">
