@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { FormField } from '@/types/form';
 import { Label } from '@/components/ui/label';
@@ -88,14 +87,24 @@ export function ApprovalField({ field, value, onChange, error, disabled, formDat
         const approvalPromises = crossReferenceSelections.map(async (selection) => {
           const submissionId = selection.id;
           
+          // Use user ID if available, otherwise store as null and use email in notes
+          const updateData: any = {
+            approval_status: approved ? 'approved' : 'rejected',
+            approval_timestamp: new Date().toISOString(),
+            approval_notes: comments.trim()
+          };
+
+          // Only set approved_by if we have a valid user ID
+          if (user?.id) {
+            updateData.approved_by = user.id;
+          } else {
+            // Store email in notes if no user ID available
+            updateData.approval_notes = `${comments.trim()} (Approved by: ${user?.email || 'Unknown'})`;
+          }
+
           const { error } = await supabase
             .from('form_submissions')
-            .update({
-              approval_status: approved ? 'approved' : 'rejected',
-              approved_by: user?.email || 'Unknown',
-              approval_timestamp: new Date().toISOString(),
-              approval_notes: comments.trim()
-            })
+            .update(updateData)
             .eq('id', submissionId);
 
           if (error) {
