@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { FormField } from '@/types/form';
 import { ParsedFieldReference } from '@/utils/fieldReferenceParser';
@@ -582,7 +583,13 @@ export function FormFieldsRenderer({
       case 'barcode':
         return <BarcodeField {...commonProps} />;
       case 'approval':
-        return <ApprovalField {...commonProps} />;
+        return (
+          <ApprovalField 
+            {...commonProps} 
+            formData={formData} 
+            allFields={fields} 
+          />
+        );
       case 'dynamic-dropdown':
         return <DynamicDropdownField {...commonProps} formData={formData} />;
       case 'calculated':
