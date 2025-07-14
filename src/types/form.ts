@@ -69,7 +69,7 @@ export interface FormField {
         'section-break' | 'horizontal-line' | 'rich-text' | 'barcode' | 'user-picker' | 
         'geo-location' | 'workflow-trigger' | 'matrix-grid' | 'record-table' | 'cross-reference' |
         'dynamic-dropdown' | 'conditional-section' | 'ip-address' | 'full-width-container' |
-        'country' | 'submission-access';
+        'country' | 'submission-access' | 'approval';
   label: string;
   placeholder?: string;
   required?: boolean;
@@ -361,6 +361,16 @@ export interface FormField {
     requireAllRows?: boolean;
     showGridLines?: boolean;
     compactLayout?: boolean;
+    
+    // Approval specific
+    approveCurrentSubmission?: boolean;
+    crossReferenceFieldId?: string;
+    approvalMessage?: string;
+    requireComments?: boolean;
+    sendNotifications?: boolean;
+    approverRoles?: string[];
+    requiredSignatures?: number;
+    showTimestamp?: boolean;
   };
 }
 
