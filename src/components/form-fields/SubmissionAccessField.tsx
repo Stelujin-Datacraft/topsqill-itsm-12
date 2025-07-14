@@ -30,22 +30,32 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
   const selectedUserIds = Array.isArray(value) ? value : (value ? [value] : []);
   
   // Transform users to include name property and filter based on search
-  const transformedUsers = (users || []).map(user => ({
-    id: user.id,
-    name: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email,
-    email: user.email,
-    role: user.role
-  }));
+  const transformedUsers = React.useMemo(() => {
+    if (!users || !Array.isArray(users)) return [];
+    return users.map(user => ({
+      id: user.id,
+      name: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email,
+      email: user.email,
+      role: user.role
+    }));
+  }, [users]);
 
-  const filteredUsers = searchValue
-    ? transformedUsers.filter(user =>
-        user.name.toLowerCase().includes(searchValue.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchValue.toLowerCase()) ||
-        user.role.toLowerCase().includes(searchValue.toLowerCase())
-      )
-    : transformedUsers;
+  const filteredUsers = React.useMemo(() => {
+    if (!transformedUsers.length) return [];
+    
+    if (!searchValue?.trim()) return transformedUsers;
+    
+    const searchLower = searchValue.toLowerCase();
+    return transformedUsers.filter(user =>
+      user.name.toLowerCase().includes(searchLower) ||
+      user.email.toLowerCase().includes(searchLower) ||
+      user.role.toLowerCase().includes(searchLower)
+    );
+  }, [transformedUsers, searchValue]);
 
-  const selectedUsers = transformedUsers.filter(user => selectedUserIds.includes(user.id));
+  const selectedUsers = React.useMemo(() => {
+    return transformedUsers.filter(user => selectedUserIds.includes(user.id));
+  }, [transformedUsers, selectedUserIds]);
 
   const handleUserSelect = (userId: string) => {
     if (allowMultiple) {
@@ -143,12 +153,12 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-full p-0">
-          {loading ? (
+          {loading || !Array.isArray(filteredUsers) ? (
             <div className="p-4 text-center text-sm text-gray-500">
               Loading users...
             </div>
           ) : (
-            <Command>
+            <Command key={`command-${filteredUsers.length}`}>
               <CommandInput 
                 placeholder="Search users..." 
                 value={searchValue}
@@ -156,7 +166,7 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
               />
               <CommandEmpty>No users found.</CommandEmpty>
               <CommandGroup className="max-h-64 overflow-y-auto">
-                {(filteredUsers || []).map((user) => (
+                {filteredUsers.map((user) => (
                   <CommandItem
                     key={user.id}
                     value={user.id}
