@@ -143,42 +143,46 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-full p-0">
-          <Command>
-            <CommandInput 
-              placeholder="Search users..." 
-              value={searchValue}
-              onValueChange={setSearchValue}
-            />
-            <CommandEmpty>
-              {loading ? "Loading users..." : "No users found."}
-            </CommandEmpty>
-            <CommandGroup className="max-h-64 overflow-y-auto">
-              {!loading && filteredUsers && filteredUsers.length > 0 && filteredUsers.map((user) => (
-                <CommandItem
-                  key={user.id}
-                  value={user.id}
-                  onSelect={() => handleUserSelect(user.id)}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      selectedUserIds.includes(user.id) ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  <div className="flex items-center gap-2 flex-1">
-                    <Users className="h-4 w-4 text-gray-500" />
-                    <div className="flex-1">
-                      <div className="font-medium">{user.name}</div>
-                      <div className="text-sm text-gray-500">{user.email}</div>
+          {loading ? (
+            <div className="p-4 text-center text-sm text-gray-500">
+              Loading users...
+            </div>
+          ) : (
+            <Command>
+              <CommandInput 
+                placeholder="Search users..." 
+                value={searchValue}
+                onValueChange={setSearchValue}
+              />
+              <CommandEmpty>No users found.</CommandEmpty>
+              <CommandGroup className="max-h-64 overflow-y-auto">
+                {(filteredUsers || []).map((user) => (
+                  <CommandItem
+                    key={user.id}
+                    value={user.id}
+                    onSelect={() => handleUserSelect(user.id)}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        selectedUserIds.includes(user.id) ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    <div className="flex items-center gap-2 flex-1">
+                      <Users className="h-4 w-4 text-gray-500" />
+                      <div className="flex-1">
+                        <div className="font-medium">{user.name}</div>
+                        <div className="text-sm text-gray-500">{user.email}</div>
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {user.role}
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="text-xs">
-                      {user.role}
-                    </Badge>
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </Command>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </Command>
+          )}
         </PopoverContent>
       </Popover>
 
