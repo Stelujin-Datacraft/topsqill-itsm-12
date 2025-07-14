@@ -73,18 +73,22 @@ export function useFormsLoader() {
       projectRole: projectAccess?.role
     });
 
-    // Get user's role assignments with corrected query structure
-    console.log('🎭 [FORMS ACCESS] Loading role assignments for user:', userId);
-    
+    // Get user's role assignments with detailed logging
     const { data: roleAssignments, error: roleError } = await supabase
       .from('user_role_assignments')
       .select(`
         id,
         role_id,
-        roles (
+        roles!inner(
           id,
           name,
-          description
+          description,
+          role_permissions!inner(
+            id,
+            resource_type,
+            resource_id,
+            permission_type
+          )
         )
       `)
       .eq('user_id', userId);
@@ -93,41 +97,14 @@ export function useFormsLoader() {
       console.error('❌ [FORMS ACCESS] Error loading role assignments:', roleError);
     }
 
-    console.log('🎭 [FORMS ACCESS] Raw role assignments result:', roleAssignments);
-
-    // Get role permissions separately to avoid complex joins
-    const rolePermissionsMap = new Map<string, any[]>();
-    
-    if (roleAssignments && roleAssignments.length > 0) {
-      const roleIds = roleAssignments.map(assignment => assignment.role_id);
-      console.log('🎭 [FORMS ACCESS] Found role IDs:', roleIds);
-      
-      const { data: rolePermissions, error: permError } = await supabase
-        .from('role_permissions')
-        .select('*')
-        .in('role_id', roleIds);
-
-      if (permError) {
-        console.error('❌ [FORMS ACCESS] Error loading role permissions:', permError);
-      } else {
-        console.log('🎭 [FORMS ACCESS] Raw role permissions:', rolePermissions);
-        
-        // Group permissions by role_id
-        rolePermissions?.forEach(perm => {
-          if (!rolePermissionsMap.has(perm.role_id)) {
-            rolePermissionsMap.set(perm.role_id, []);
-          }
-          rolePermissionsMap.get(perm.role_id)?.push(perm);
-        });
-      }
-    }
+    console.log('🎭 [FORMS ACCESS] User role assignments:', roleAssignments);
 
     // Process role permissions with detailed logging
     const userFormPermissions = new Map<string, Set<string>>(); // formId -> Set of permissions
 
     if (roleAssignments && roleAssignments.length > 0) {
       roleAssignments.forEach((assignment, index) => {
-        const role = assignment.roles;
+        const role = Array.isArray(assignment.roles) ? assignment.roles[0] : assignment.roles;
         console.log(`🎭 [FORMS ACCESS] Processing role assignment ${index + 1}:`, {
           assignmentId: assignment.id,
           roleId: assignment.role_id,
@@ -135,25 +112,24 @@ export function useFormsLoader() {
           roleDescription: role?.description
         });
 
-        const permissions = rolePermissionsMap.get(assignment.role_id) || [];
-        console.log(`  📋 [FORMS ACCESS] Role has ${permissions.length} permissions`);
+        if (role && role.role_permissions) {
+          role.role_permissions.forEach((perm: any, permIndex: number) => {
+            console.log(`  📋 [FORMS ACCESS] Processing permission ${permIndex + 1}:`, {
+              permissionId: perm.id,
+              resourceType: perm.resource_type,
+              resourceId: perm.resource_id,
+              permissionType: perm.permission_type
+            });
 
-        permissions.forEach((perm: any, permIndex: number) => {
-          console.log(`  📋 [FORMS ACCESS] Processing permission ${permIndex + 1}:`, {
-            permissionId: perm.id,
-            resourceType: perm.resource_type,
-            resourceId: perm.resource_id,
-            permissionType: perm.permission_type
-          });
-
-          if (perm.resource_type === 'form' && perm.resource_id) {
-            if (!userFormPermissions.has(perm.resource_id)) {
-              userFormPermissions.set(perm.resource_id, new Set());
+            if (perm.resource_type === 'form' && perm.resource_id) {
+              if (!userFormPermissions.has(perm.resource_id)) {
+                userFormPermissions.set(perm.resource_id, new Set());
+              }
+              userFormPermissions.get(perm.resource_id)?.add(perm.permission_type);
+              console.log(`  ✅ [FORMS ACCESS] Added ${perm.permission_type} permission for form ${perm.resource_id}`);
             }
-            userFormPermissions.get(perm.resource_id)?.add(perm.permission_type);
-            console.log(`  ✅ [FORMS ACCESS] Added ${perm.permission_type} permission for form ${perm.resource_id}`);
-          }
-        });
+          });
+        }
       });
     }
 

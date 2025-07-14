@@ -97,18 +97,22 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       
       const isProjectCreator = projectData?.created_by === targetUserId;
 
-      // Load user role assignments with corrected query structure
-      console.log('🎭 [ACCESS CONTROL] Loading role assignments for user:', targetUserId);
-      
+      // Load user role assignments with enhanced logging
       const { data: roleAssignments, error: roleError } = await supabase
         .from('user_role_assignments')
         .select(`
           id,
           role_id,
-          roles (
+          roles!inner(
             id,
             name,
-            description
+            description,
+            role_permissions(
+              id,
+              resource_type,
+              resource_id,
+              permission_type
+            )
           )
         `)
         .eq('user_id', targetUserId);
@@ -117,42 +121,13 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         console.error('❌ [ACCESS CONTROL] Error loading role assignments:', roleError);
       }
 
-      console.log('🎭 [ACCESS CONTROL] Raw role assignments result:', roleAssignments);
-
-      // Get role permissions separately
-      const rolePermissionsMap = new Map<string, any[]>();
-      
-      if (roleAssignments && roleAssignments.length > 0) {
-        const roleIds = roleAssignments.map(assignment => assignment.role_id);
-        console.log('🎭 [ACCESS CONTROL] Found role IDs:', roleIds);
-        
-        const { data: rolePermissions, error: permError } = await supabase
-          .from('role_permissions')
-          .select('*')
-          .in('role_id', roleIds);
-
-        if (permError) {
-          console.error('❌ [ACCESS CONTROL] Error loading role permissions:', permError);
-        } else {
-          console.log('🎭 [ACCESS CONTROL] Raw role permissions:', rolePermissions);
-          
-          // Group permissions by role_id
-          rolePermissions?.forEach(perm => {
-            if (!rolePermissionsMap.has(perm.role_id)) {
-              rolePermissionsMap.set(perm.role_id, []);
-            }
-            rolePermissionsMap.get(perm.role_id)?.push(perm);
-          });
-        }
-      }
-
       console.log('🎭 [ACCESS CONTROL] User role assignments loaded:', {
         userId: targetUserId,
         assignmentCount: roleAssignments?.length || 0,
         assignments: roleAssignments?.map(a => ({
           id: a.id,
           roleId: a.role_id,
-          roleName: a.roles?.name
+          roleName: Array.isArray(a.roles) ? a.roles[0]?.name : a.roles?.name
         }))
       });
 
@@ -189,18 +164,16 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
 
       if (roleAssignments && roleAssignments.length > 0) {
         roleAssignments.forEach((assignment, assignmentIndex) => {
-          const role = assignment.roles;
+          const role = Array.isArray(assignment.roles) ? assignment.roles[0] : assignment.roles;
           if (role) {
             userRoleName = role.name;
-            const permissions = rolePermissionsMap.get(assignment.role_id) || [];
-            
             console.log(`🎭 [ACCESS CONTROL] Processing role ${assignmentIndex + 1}:`, {
               roleId: role.id,
               roleName: role.name,
-              permissionCount: permissions.length
+              permissionCount: role.role_permissions?.length || 0
             });
 
-            permissions.forEach((perm: any, permIndex: number) => {
+            role.role_permissions?.forEach((perm: any, permIndex: number) => {
               console.log(`  📋 [ACCESS CONTROL] Processing permission ${permIndex + 1}:`, {
                 permissionId: perm.id,
                 resourceType: perm.resource_type,
