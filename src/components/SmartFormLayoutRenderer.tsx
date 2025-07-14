@@ -1,152 +1,114 @@
-import React from 'react';
-import { FormField } from '@/types/form';
+
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { FormFieldsRenderer } from './FormFieldsRenderer';
+import { FormField, Form } from '@/types/form';
 
 interface SmartFormLayoutRendererProps {
-  fields: FormField[];
-  formData: Record<string, any>;
-  errors: Record<string, string>;
-  fieldStates: Record<string, {
-    isVisible: boolean;
-    isEnabled: boolean;
-    label: string;
-    options?: any[];
-    tooltip?: string;
-    errorMessage?: string;
-  }>;
-  columns: 1 | 2 | 3;
-  onFieldChange: (fieldId: string, value: any) => void;
+  form: Form;
   onSubmit: (formData: Record<string, any>) => void;
-  onSave?: (formData: Record<string, any>) => void;
-  showButtons?: boolean;
+  isSubmitting?: boolean;
 }
 
-export function SmartFormLayoutRenderer({
-  fields,
-  formData,
-  errors,
-  fieldStates,
-  columns,
-  onFieldChange,
+export function SmartFormLayoutRenderer({ 
+  form, 
   onSubmit,
-  onSave,
-  showButtons = true,
+  isSubmitting = false 
 }: SmartFormLayoutRendererProps) {
-  // Check if field is full-width based on type or explicit setting
-  const isFullWidthField = (field: FormField) => {
-    const fullWidthTypes = [
-      'header', 
-      'description', 
-      'section-break', 
-      'horizontal-line', 
-      'rich-text', 
-      'record-table', 
-      'matrix-grid',
-      'full-width-container'
-    ];
-    return fullWidthTypes.includes(field.type) || field.isFullWidth || field.fieldCategory === 'full-width';
-  };
+  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [fieldStates, setFieldStates] = useState<Record<string, any>>({});
 
-  // Enhanced field rendering logic for proper layout handling
-  const renderFieldsWithSmartLayout = () => {
-    const renderedElements: React.ReactNode[] = [];
-    let standardFieldsBuffer: FormField[] = [];
-    let elementIndex = 0;
+  // Initialize field states
+  useEffect(() => {
+    if (!form) return;
 
-    // Flush standard fields into a proper grid
-    const flushStandardFields = () => {
-      if (standardFieldsBuffer.length > 0) {
-        const gridCols = columns === 1 ? 'grid-cols-1' : 
-                        columns === 2 ? 'grid-cols-1 md:grid-cols-2' : 
-                        'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
-        
-        
-        
-        renderedElements.push(
-          <div key={`standard-grid-${elementIndex++}`} className={`grid ${gridCols} gap-6`}>
-            {standardFieldsBuffer.map(field => (
-              <div key={field.id} className="space-y-2">
-                <FormFieldsRenderer
-                  fields={[field]}
-                  formData={formData}
-                  errors={errors}
-                  fieldStates={fieldStates}
-                  columns={1}
-                  onFieldChange={onFieldChange}
-                  onSubmit={onSubmit}
-                  onSave={onSave}
-                  showButtons={false}
-                />
-              </div>
-            ))}
-          </div>
-        );
-        standardFieldsBuffer = [];
-      }
-    };
-
-    // Process each field with smart layout logic
-    fields.forEach((field) => {
-      const fieldState = fieldStates[field.id];
-      const isVisible = fieldState?.isVisible ?? field.isVisible ?? true;
-
-      if (!isVisible) return;
-
-      if (isFullWidthField(field)) {
-        // Flush any buffered standard fields first
-        flushStandardFields();
-        
-        // Render full-width field in its own container
-        renderedElements.push(
-          <div key={`fullwidth-${field.id}`} className="w-full">
-            <FormFieldsRenderer
-              fields={[field]}
-              formData={formData}
-              errors={errors}
-              fieldStates={fieldStates}
-              columns={1}
-              onFieldChange={onFieldChange}
-              onSubmit={onSubmit}
-              onSave={onSave}
-              showButtons={false}
-            />
-          </div>
-        );
-      } else {
-        // Buffer standard field for grid layout
-        standardFieldsBuffer.push(field);
-      }
+    const states: Record<string, any> = {};
+    form.fields.forEach(field => {
+      states[field.id] = {
+        isVisible: field.isVisible !== false,
+        isEnabled: field.isEnabled !== false,
+        label: field.label,
+        options: field.options,
+        tooltip: field.tooltip,
+        errorMessage: field.errorMessage,
+      };
     });
+    setFieldStates(states);
+  }, [form]);
 
-    // Flush any remaining standard fields
-    flushStandardFields();
-
-    return renderedElements;
+  const handleFieldChange = (fieldId: string, value: any) => {
+    console.log('Field change:', fieldId, value);
+    setFormData(prev => ({
+      ...prev,
+      [fieldId]: value
+    }));
   };
+
+  if (!form) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-bold mb-2">Form Not Found</h2>
+        <p className="text-muted-foreground">The form you're looking for doesn't exist.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8">
-      {renderFieldsWithSmartLayout()}
-      {showButtons && (
-        <div className="flex flex-col sm:flex-row gap-3 justify-end pt-6">
-          {onSave && (
-            <button
-              type="button"
-              onClick={() => onSave(formData)}
-              className="px-6 py-2 text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-md transition-colors duration-200"
-            >
-              Save Draft
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => onSubmit(formData)}
-            className="px-6 py-2 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors duration-200"
-          >
-            Submit Form
-          </button>
-        </div>
-      )}
+    <div className="space-y-6">
+      {/* Form Header */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-2xl">{form.name}</CardTitle>
+              {form.description && (
+                <p className="text-muted-foreground mt-2">{form.description}</p>
+              )}
+            </div>
+            <Badge variant="outline">{form.status}</Badge>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Form Fields - High Priority */}
+      <Card>
+        <CardHeader>
+          <CardTitle>High Priority Fields</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <FormFieldsRenderer
+            fields={form.fields.filter(field => field.required)}
+            formData={formData}
+            errors={errors}
+            fieldStates={fieldStates}
+            columns={1}
+            onFieldChange={handleFieldChange}
+            onSubmit={onSubmit}
+            showButtons={false}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Form Fields - Standard */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Additional Fields</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <FormFieldsRenderer
+            fields={form.fields.filter(field => !field.required)}
+            formData={formData}
+            errors={errors}
+            fieldStates={fieldStates}
+            columns={1}
+            onFieldChange={handleFieldChange}
+            onSubmit={onSubmit}
+            showButtons={false}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

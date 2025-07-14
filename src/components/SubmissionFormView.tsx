@@ -23,7 +23,7 @@ interface FormSubmission {
   form_reference_id?: string;
 }
 
-export function FormSubmissionView({ submissionId, onBack }: SubmissionFormViewProps) {
+export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewProps) {
   const [submission, setSubmission] = useState<FormSubmission | null>(null);
   const [form, setForm] = useState<Form | null>(null);
   const [loading, setLoading] = useState(true);
@@ -242,7 +242,7 @@ export function FormSubmissionView({ submissionId, onBack }: SubmissionFormViewP
     setIsEditing(false);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (formData: Record<string, any>) => {
     // Handle form submission - for now just log
     console.log('Form submitted with data:', formData);
   };
