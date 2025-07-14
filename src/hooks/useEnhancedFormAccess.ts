@@ -54,23 +54,27 @@ export function useEnhancedFormAccess(formId: string) {
         throw formError;
       }
 
-      // Get all project users with their profiles
+      // Get project users without the join first
       const { data: projectUsers, error: usersError } = await supabase
         .from('project_users')
-        .select(`
-          user_id,
-          role,
-          user_profiles!inner(
-            email,
-            first_name,
-            last_name
-          )
-        `)
+        .select('user_id, role')
         .eq('project_id', currentProject.id);
 
       if (usersError) {
         console.error('❌ [ENHANCED FORM ACCESS] Error loading project users:', usersError);
         throw usersError;
+      }
+
+      // Get user profiles separately
+      const userIds = projectUsers?.map(u => u.user_id) || [];
+      const { data: userProfiles, error: profilesError } = await supabase
+        .from('user_profiles')
+        .select('id, email, first_name, last_name')
+        .in('id', userIds);
+
+      if (profilesError) {
+        console.error('❌ [ENHANCED FORM ACCESS] Error loading user profiles:', profilesError);
+        throw profilesError;
       }
 
       // Get direct form access
@@ -80,7 +84,7 @@ export function useEnhancedFormAccess(formId: string) {
         .eq('form_id', formId)
         .eq('status', 'active');
 
-      if (accessError && accessError.code !== 'PGRST116') { // Ignore "relation does not exist" error
+      if (accessError && accessError.code !== 'PGRST116') {
         console.error('❌ [ENHANCED FORM ACCESS] Error loading form access:', accessError);
       }
 
@@ -98,9 +102,9 @@ export function useEnhancedFormAccess(formId: string) {
             )
           )
         `)
-        .in('user_id', projectUsers?.map(u => u.user_id) || []);
+        .in('user_id', userIds);
 
-      if (rolesError && rolesError.code !== 'PGRST116') { // Ignore "relation does not exist" error
+      if (rolesError && rolesError.code !== 'PGRST116') {
         console.error('❌ [ENHANCED FORM ACCESS] Error loading role assignments:', rolesError);
       }
 
@@ -111,13 +115,13 @@ export function useEnhancedFormAccess(formId: string) {
         .eq('project_id', currentProject.id)
         .eq('entity_type', 'forms');
 
-      if (topLevelError && topLevelError.code !== 'PGRST116') { // Ignore "relation does not exist" error
+      if (topLevelError && topLevelError.code !== 'PGRST116') {
         console.error('❌ [ENHANCED FORM ACCESS] Error loading top-level permissions:', topLevelError);
       }
 
       // Process users and build enhanced user list
       const enhancedUsers: EnhancedFormUser[] = (projectUsers || []).map(user => {
-        const userProfile = Array.isArray(user.user_profiles) ? user.user_profiles[0] : user.user_profiles;
+        const userProfile = (userProfiles || []).find(p => p.id === user.user_id);
         const directAccess = (formAccess || []).find(fa => fa.user_id === user.user_id);
         const userRoles = (roleAssignments || []).filter(ra => ra.user_id === user.user_id);
         const topLevelPerm = (topLevelPerms || []).find(tlp => tlp.user_id === user.user_id);
