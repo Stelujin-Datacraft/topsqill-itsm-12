@@ -1,50 +1,9 @@
+
 import React from 'react';
 import { FormField } from '@/types/form';
-import { TextField } from './form-fields/TextField';
-import { TextAreaField } from './form-fields/TextAreaField';
-import { NumberField } from './form-fields/NumberField';
-import { EmailField } from './form-fields/EmailField';
-import { PasswordField } from './form-fields/PasswordField';
-import { SelectField } from './form-fields/SelectField';
-import { MultiSelectField } from './form-fields/MultiSelectField';
-import { CheckboxField } from './form-fields/CheckboxField';
-import { RadioField } from './form-fields/RadioField';
-import { ToggleSwitchField } from './form-fields/ToggleSwitchField';
-import { DateField } from './form-fields/DateField';
-import { TimeField } from './form-fields/TimeField';
-import { DateTimeField } from './form-fields/DateTimeField';
-import { FileField } from './form-fields/FileField';
-import { ImageField } from './form-fields/ImageField';
-import { UrlField } from './form-fields/UrlField';
-import { PhoneField } from './form-fields/PhoneField';
-import { AddressField } from './form-fields/AddressField';
-import { CurrencyField } from './form-fields/CurrencyField';
-import { RatingField } from './form-fields/RatingField';
-import { SliderField } from './form-fields/SliderField';
-import { ColorField } from './form-fields/ColorField';
-import { SignatureField } from './form-fields/SignatureField';
-import { TagsField } from './form-fields/TagsField';
-import { LookupField } from './form-fields/LookupField';
-import { CalculatedField } from './form-fields/CalculatedField';
-import { HeaderField } from './form-fields/HeaderField';
-import { DescriptionField } from './form-fields/DescriptionField';
-import { SectionBreakField } from './form-fields/SectionBreakField';
-import { HorizontalLineField } from './form-fields/HorizontalLineField';
-import { RichTextField } from './form-fields/RichTextField';
-import { BarcodeField } from './form-fields/BarcodeField';
-import { UserPickerField } from './form-fields/UserPickerField';
-import { GeoLocationField } from './form-fields/GeoLocationField';
-import { WorkflowTriggerField } from './form-fields/WorkflowTriggerField';
-import { MatrixGridField } from './form-fields/MatrixGridField';
-import { RecordTableField } from './form-fields/RecordTableField';
-import { CrossReferenceField } from './form-fields/CrossReferenceField';
-import { DynamicDropdownField } from './form-fields/DynamicDropdownField';
-import { ConditionalSectionField } from './form-fields/ConditionalSectionField';
-import { IpAddressField } from './form-fields/IpAddressField';
-import { FullWidthContainerField } from './form-fields/FullWidthContainerField';
-import { CountryField } from './form-fields/CountryField';
-import { SubmissionAccessField } from './form-fields/SubmissionAccessField';
 import { ApprovalField } from './form-fields/ApprovalField';
+import { CrossReferenceField } from './form-fields/CrossReferenceField';
+import { SubmissionAccessField } from './form-fields/SubmissionAccessField';
 import { Button } from './ui/button';
 import { Loader2 } from 'lucide-react';
 
@@ -108,92 +67,8 @@ export function FormFieldsRenderer({
     } : {};
 
     switch (field.type) {
-      case 'text':
-        return <TextField {...commonProps} />;
-      case 'textarea':
-        return <TextAreaField {...commonProps} />;
-      case 'number':
-        return <NumberField {...commonProps} />;
-      case 'email':
-        return <EmailField {...commonProps} />;
-      case 'password':
-        return <PasswordField {...commonProps} />;
-      case 'select':
-        return <SelectField {...commonProps} />;
-      case 'multi-select':
-        return <MultiSelectField {...commonProps} />;
-      case 'checkbox':
-        return <CheckboxField {...commonProps} />;
-      case 'radio':
-        return <RadioField {...commonProps} />;
-      case 'toggle-switch':
-        return <ToggleSwitchField {...commonProps} />;
-      case 'date':
-        return <DateField {...commonProps} />;
-      case 'time':
-        return <TimeField {...commonProps} />;
-      case 'datetime':
-        return <DateTimeField {...commonProps} />;
-      case 'file':
-        return <FileField {...commonProps} />;
-      case 'image':
-        return <ImageField {...commonProps} />;
-      case 'url':
-        return <UrlField {...commonProps} />;
-      case 'phone':
-        return <PhoneField {...commonProps} />;
-      case 'address':
-        return <AddressField {...commonProps} />;
-      case 'currency':
-        return <CurrencyField {...commonProps} />;
-      case 'rating':
-        return <RatingField {...commonProps} />;
-      case 'slider':
-        return <SliderField {...commonProps} />;
-      case 'color':
-        return <ColorField {...commonProps} />;
-      case 'signature':
-        return <SignatureField {...commonProps} />;
-      case 'tags':
-        return <TagsField {...commonProps} />;
-      case 'lookup':
-        return <LookupField {...commonProps} />;
-      case 'calculated':
-        return <CalculatedField {...commonProps} />;
-      case 'header':
-        return <HeaderField {...commonProps} />;
-      case 'description':
-        return <DescriptionField {...commonProps} />;
-      case 'section-break':
-        return <SectionBreakField {...commonProps} />;
-      case 'horizontal-line':
-        return <HorizontalLineField {...commonProps} />;
-      case 'rich-text':
-        return <RichTextField {...commonProps} />;
-      case 'barcode':
-        return <BarcodeField {...commonProps} />;
-      case 'user-picker':
-        return <UserPickerField {...commonProps} />;
-      case 'geo-location':
-        return <GeoLocationField {...commonProps} />;
-      case 'workflow-trigger':
-        return <WorkflowTriggerField {...commonProps} />;
-      case 'matrix-grid':
-        return <MatrixGridField {...commonProps} />;
-      case 'record-table':
-        return <RecordTableField {...commonProps} />;
       case 'cross-reference':
         return <CrossReferenceField {...commonProps} />;
-      case 'dynamic-dropdown':
-        return <DynamicDropdownField {...commonProps} />;
-      case 'conditional-section':
-        return <ConditionalSectionField {...commonProps} />;
-      case 'ip-address':
-        return <IpAddressField {...commonProps} />;
-      case 'full-width-container':
-        return <FullWidthContainerField {...commonProps} />;
-      case 'country':
-        return <CountryField {...commonProps} />;
       case 'submission-access':
         return <SubmissionAccessField {...commonProps} />;
       case 'approval':
@@ -224,12 +99,12 @@ export function FormFieldsRenderer({
 
   const fullWidthFields = fields.filter(field => 
     field.isFullWidth || 
-    ['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'record-table', 'matrix-grid', 'cross-reference', 'full-width-container'].includes(field.type)
+    ['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'record-table', 'matrix-grid', 'cross-reference', 'full-width-container', 'approval'].includes(field.type)
   );
 
   const regularFields = fields.filter(field => 
     !field.isFullWidth && 
-    !['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'record-table', 'matrix-grid', 'cross-reference', 'full-width-container'].includes(field.type)
+    !['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'record-table', 'matrix-grid', 'cross-reference', 'full-width-container', 'approval'].includes(field.type)
   );
 
   return (

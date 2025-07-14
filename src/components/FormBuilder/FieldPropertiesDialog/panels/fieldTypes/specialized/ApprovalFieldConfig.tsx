@@ -15,10 +15,10 @@ interface ApprovalFieldConfigProps {
 
 export function ApprovalFieldConfig({ config, onUpdate, errors }: ApprovalFieldConfigProps) {
   const customConfig = config.customConfig || {};
-  const { form } = useForm();
+  const { currentForm } = useForm();
 
   // Find all cross-reference fields in the current form
-  const crossReferenceFields = form?.fields?.filter(field => field.type === 'cross-reference') || [];
+  const crossReferenceFields = currentForm?.fields?.filter(field => field.type === 'cross-reference') || [];
 
   const handleConfigChange = (key: string, value: any) => {
     onUpdate({

@@ -21,6 +21,10 @@ export function FormView({ form, onSubmit }: FormViewProps) {
     }
   };
 
+  const handleSubmit = () => {
+    onSubmit({});
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -33,10 +37,9 @@ export function FormView({ form, onSubmit }: FormViewProps) {
         formData={{}}
         errors={{}}
         fieldStates={{}}
-        columns={form.layout?.columns as number || 1}
+        columns={(form.layout?.columns as 1 | 2 | 3) || 1}
         onFieldChange={() => {}}
-        onSubmit={onSubmit}
-        onSave={handleSave}
+        onSubmit={handleSubmit}
       />
     </div>
   );
