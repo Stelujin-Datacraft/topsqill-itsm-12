@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -92,8 +93,27 @@ export function FormDataTable({ config, fieldType, currentFormId, targetFormFiel
       return <span className="text-gray-400">-</span>;
     }
 
-    if (typeof value === 'object') {
-      return JSON.stringify(value);
+    // Handle approval objects specifically
+    if (typeof value === 'object' && value !== null) {
+      // Check if it's an approval object
+      if (value.status || value.comments || value.approvedBy || value.approvedAt) {
+        const status = value.status || 'pending';
+        const statusColors: Record<string, string> = {
+          'pending': 'bg-yellow-100 text-yellow-800',
+          'approved': 'bg-green-100 text-green-800',
+          'rejected': 'bg-red-100 text-red-800',
+          'draft': 'bg-gray-100 text-gray-800'
+        };
+        
+        return (
+          <Badge className={statusColors[status] || 'bg-gray-100 text-gray-800'}>
+            {status}
+          </Badge>
+        );
+      }
+      
+      // Handle other objects by converting to JSON string
+      return <span className="text-xs text-gray-500">{JSON.stringify(value)}</span>;
     }
 
     if (fieldType === 'date' || fieldType === 'datetime') {
