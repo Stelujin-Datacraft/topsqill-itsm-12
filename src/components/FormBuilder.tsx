@@ -353,7 +353,7 @@ function FormBuilderContent({
             </TabsList>
 
             <TabsContent value="builder" className="space-y-0">
-              <div className="grid grid-cols-12 gap-6 h-[calc(100vh-16rem)]">
+              <div className="grid grid-cols-12 gap-3 h-[calc(100vh-16rem)]">
                 {/* Navigation Panel */}
                 <div className={`${state.showNavigation ? "col-span-3" : "col-span-1"} bg-white rounded-lg shadow-sm border border-gray-200`}>
                   <FormNavigationPanel pages={pages} fields={workingForm?.fields || []} currentPageId={state.currentPageId} selectedField={state.selectedField} onPageChange={state.setCurrentPageId} onFieldSelect={fieldOperations.handleFieldClick} onFieldHighlight={fieldOperations.handleFieldHighlight} onToggleNavigation={() => state.setShowNavigation(!state.showNavigation)} isCollapsed={!state.showNavigation} />
