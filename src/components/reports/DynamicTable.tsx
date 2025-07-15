@@ -3,8 +3,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useReports } from '@/hooks/useReports';
@@ -12,6 +14,8 @@ import { useNavigate } from 'react-router-dom';
 import { DynamicTableColumnSelector } from './DynamicTableColumnSelector';
 import { SubmissionAnalytics } from './SubmissionAnalytics';
 import { FormDataCell } from './FormDataCell';
+import { ExportDropdown } from './ExportDropdown';
+import { SortingControls, SortConfig } from './SortingControls';
 
 interface TableConfig {
   title: string;
@@ -33,10 +37,11 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
   const [formFields, setFormFields] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState('');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortConfigs, setSortConfigs] = useState<SortConfig[]>([]);
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const { forms } = useReports();
   const navigate = useNavigate();
 
@@ -129,32 +134,48 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       });
     }
 
-    // Apply sorting
-    if (sortField && config.enableSorting) {
+    // Apply multi-level sorting
+    if (sortConfigs.length > 0 && config.enableSorting) {
       filtered = [...filtered].sort((a, b) => {
-        const aValue = a.submission_data?.[sortField] || '';
-        const bValue = b.submission_data?.[sortField] || '';
-        
-        if (sortDirection === 'asc') {
-          return aValue.toString().localeCompare(bValue.toString());
-        } else {
-          return bValue.toString().localeCompare(aValue.toString());
+        for (const sortConfig of sortConfigs) {
+          const aValue = a.submission_data?.[sortConfig.field] || '';
+          const bValue = b.submission_data?.[sortConfig.field] || '';
+          
+          const comparison = sortConfig.direction === 'asc' 
+            ? aValue.toString().localeCompare(bValue.toString())
+            : bValue.toString().localeCompare(aValue.toString());
+          
+          if (comparison !== 0) return comparison;
         }
+        return 0;
       });
     }
 
     return filtered;
-  }, [data, searchTerm, columnFilters, sortField, sortDirection, displayFields, config]);
+  }, [data, searchTerm, columnFilters, sortConfigs, displayFields, config]);
 
-  const handleSort = (fieldId: string) => {
-    if (!config.enableSorting) return;
-    
-    if (sortField === fieldId) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(fieldId);
-      setSortDirection('asc');
-    }
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredAndSortedData.slice(startIndex, endIndex);
+  }, [filteredAndSortedData, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(filteredAndSortedData.length / pageSize);
+
+  const handleAddSort = (field: string, label: string) => {
+    setSortConfigs(prev => [...prev, { field, direction: 'asc', label }]);
+  };
+
+  const handleRemoveSort = (index: number) => {
+    setSortConfigs(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleToggleDirection = (index: number) => {
+    setSortConfigs(prev => prev.map((config, i) => 
+      i === index 
+        ? { ...config, direction: config.direction === 'asc' ? 'desc' : 'asc' }
+        : config
+    ));
   };
 
   const handleColumnFilter = (fieldId: string, value: string) => {
@@ -173,6 +194,38 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       }
     });
   };
+
+  const exportData = useMemo(() => {
+    const headers = displayFields.map(field => field.label);
+    if (config.showMetadata) {
+      headers.push('Submitted At', 'Submitted By');
+    }
+    
+    const rows = filteredAndSortedData.map(row => {
+      const values = displayFields.map(field => {
+        const value = row.submission_data?.[field.id];
+        if (value === null || value === undefined) return 'N/A';
+        if (typeof value === 'object') return JSON.stringify(value);
+        return value.toString();
+      });
+      
+      if (config.showMetadata) {
+        values.push(
+          new Date(row.submitted_at).toLocaleDateString(),
+          row.submitted_by || 'Anonymous'
+        );
+      }
+      
+      return values;
+    });
+
+    return {
+      headers,
+      rows,
+      filename: `${config.title || 'submission-data'}-${new Date().toISOString().split('T')[0]}`,
+      title: config.title || 'Submission Data'
+    };
+  }, [filteredAndSortedData, displayFields, config]);
 
   if (loading) {
     return (
@@ -217,10 +270,11 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center justify-between">
             <span>{config.title || 'Dynamic Table'}</span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="secondary">
                 {filteredAndSortedData.length} records
               </Badge>
+              <ExportDropdown data={exportData} disabled={filteredAndSortedData.length === 0} />
               <DynamicTableColumnSelector 
                 formFields={formFields}
                 selectedColumns={selectedColumns}
@@ -235,17 +289,50 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
             </div>
           </CardTitle>
           
-          {config.enableSearch && (
-            <div className="flex items-center space-x-2 mt-2">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search records..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
+          <div className="space-y-3 mt-3">
+            {config.enableSearch && (
+              <div className="flex items-center space-x-2">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search records..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="max-w-sm"
+                />
+              </div>
+            )}
+            
+            {config.enableSorting && (
+              <SortingControls
+                availableFields={displayFields.map(f => ({ id: f.id, label: f.label }))}
+                sortConfigs={sortConfigs}
+                onAddSort={handleAddSort}
+                onRemoveSort={handleRemoveSort}
+                onToggleDirection={handleToggleDirection}
               />
-            </div>
-          )}
+            )}
+
+            {filteredAndSortedData.length > pageSize && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Rows per page:</span>
+                <Select value={pageSize.toString()} onValueChange={(value) => {
+                  setPageSize(Number(value));
+                  setCurrentPage(1);
+                }}>
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
         </CardHeader>
       
       <CardContent className="flex-1 overflow-hidden">
@@ -258,23 +345,10 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                     <div className="space-y-2">
                       <div className="flex items-center space-x-1">
                         <span>{field.label}</span>
-                        {config.enableSorting && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleSort(field.id)}
-                            className="h-4 w-4 p-0"
-                          >
-                            {sortField === field.id ? (
-                              sortDirection === 'asc' ? (
-                                <ChevronUp className="h-3 w-3" />
-                              ) : (
-                                <ChevronDown className="h-3 w-3" />
-                              )
-                            ) : (
-                              <ChevronUp className="h-3 w-3 opacity-50" />
-                            )}
-                          </Button>
+                        {config.enableSorting && sortConfigs.find(s => s.field === field.id) && (
+                          <Badge variant="outline" className="text-xs">
+                            {sortConfigs.findIndex(s => s.field === field.id) + 1}
+                          </Badge>
                         )}
                       </div>
                       {config.enableFiltering && (
@@ -298,7 +372,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAndSortedData.length === 0 ? (
+              {paginatedData.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={displayFields.length + (config.showMetadata ? 2 : 0) + 1} className="text-center py-8">
                     <div className="text-muted-foreground">
@@ -307,7 +381,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                   </TableCell>
                 </TableRow>
               ) : (
-                 filteredAndSortedData.map((row) => (
+                 paginatedData.map((row) => (
                    <TableRow key={row.id}>
                      {displayFields.map(field => (
                        <TableCell key={field.id}>
@@ -346,6 +420,69 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
           </Table>
         </div>
       </CardContent>
+      
+      {totalPages > 1 && (
+        <div className="px-6 py-4 border-t">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, filteredAndSortedData.length)} of {filteredAndSortedData.length} entries
+            </div>
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage > 1) setCurrentPage(currentPage - 1);
+                    }}
+                    className={currentPage <= 1 ? 'pointer-events-none opacity-50' : ''}
+                  />
+                </PaginationItem>
+                
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <PaginationItem key={pageNum}>
+                      <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage(pageNum);
+                        }}
+                        isActive={currentPage === pageNum}
+                      >
+                        {pageNum}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                })}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+                    }}
+                    className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : ''}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        </div>
+      )}
     </Card>
     </div>
   );
