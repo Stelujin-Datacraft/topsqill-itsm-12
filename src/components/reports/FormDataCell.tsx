@@ -1,0 +1,247 @@
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Eye, Calendar, DollarSign, Clock, Link as LinkIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+interface FormDataCellProps {
+  value: any;
+  fieldType: string;
+  field: any;
+}
+
+export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
+  const navigate = useNavigate();
+
+  // Handle null/undefined values
+  if (value === null || value === undefined || value === '') {
+    return <span className="text-muted-foreground italic">N/A</span>;
+  }
+
+  // Handle cross-reference fields
+  if (fieldType === 'cross-reference' && typeof value === 'string') {
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => navigate(`/submissions/${value}`)}
+        className="h-8"
+      >
+        <Eye className="h-3 w-3 mr-1" />
+        View
+      </Button>
+    );
+  }
+
+  // Handle approval fields
+  if (fieldType === 'approval' && typeof value === 'object') {
+    const status = value?.status || 'pending';
+    const variant = status === 'approved' ? 'default' : 
+                   status === 'rejected' ? 'destructive' : 'secondary';
+    
+    return (
+      <div className="space-y-1">
+        <Badge variant={variant}>{status}</Badge>
+        {value?.timestamp && (
+          <div className="text-xs text-muted-foreground">
+            {new Date(value.timestamp).toLocaleDateString()}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Handle date fields
+  if ((fieldType === 'date' || fieldType === 'datetime') && value) {
+    try {
+      const date = new Date(value);
+      return (
+        <div className="flex items-center space-x-1">
+          <Calendar className="h-3 w-3 text-muted-foreground" />
+          <span className="text-sm">
+            {fieldType === 'datetime' 
+              ? date.toLocaleString()
+              : date.toLocaleDateString()
+            }
+          </span>
+        </div>
+      );
+    } catch {
+      return <span className="text-sm">{value.toString()}</span>;
+    }
+  }
+
+  // Handle time fields
+  if (fieldType === 'time' && value) {
+    return (
+      <div className="flex items-center space-x-1">
+        <Clock className="h-3 w-3 text-muted-foreground" />
+        <span className="text-sm">{value}</span>
+      </div>
+    );
+  }
+
+  // Handle currency fields
+  if (fieldType === 'currency' && typeof value === 'object') {
+    const amount = value?.amount || value?.value || 0;
+    const currency = value?.currency || 'USD';
+    
+    return (
+      <div className="flex items-center space-x-1">
+        <DollarSign className="h-3 w-3 text-success" />
+        <span className="text-sm font-medium">
+          {new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: currency
+          }).format(amount)}
+        </span>
+      </div>
+    );
+  }
+
+  // Handle simple currency (just number)
+  if (fieldType === 'currency' && typeof value === 'number') {
+    return (
+      <div className="flex items-center space-x-1">
+        <DollarSign className="h-3 w-3 text-success" />
+        <span className="text-sm font-medium">
+          {new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD'
+          }).format(value)}
+        </span>
+      </div>
+    );
+  }
+
+  // Handle select/dropdown fields
+  if (['select', 'radio'].includes(fieldType) && field?.options) {
+    const selectedOption = field.options.find((opt: any) => opt.value === value);
+    const displayValue = selectedOption?.label || value;
+    
+    return (
+      <Badge variant="outline" className="text-xs">
+        {displayValue}
+      </Badge>
+    );
+  }
+
+  // Handle multi-select fields
+  if (['multi-select', 'checkbox'].includes(fieldType)) {
+    if (Array.isArray(value)) {
+      return (
+        <div className="flex flex-wrap gap-1">
+          {value.map((item, index) => {
+            const selectedOption = field?.options?.find((opt: any) => opt.value === item);
+            const displayValue = selectedOption?.label || item;
+            return (
+              <Badge key={index} variant="secondary" className="text-xs">
+                {displayValue}
+              </Badge>
+            );
+          })}
+        </div>
+      );
+    }
+    return <Badge variant="secondary" className="text-xs">{value}</Badge>;
+  }
+
+  // Handle URL fields
+  if (fieldType === 'url' && value) {
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => window.open(value, '_blank')}
+        className="h-8 p-1"
+      >
+        <LinkIcon className="h-3 w-3 mr-1" />
+        <span className="text-xs">Open</span>
+      </Button>
+    );
+  }
+
+  // Handle email fields
+  if (fieldType === 'email' && value) {
+    return (
+      <a 
+        href={`mailto:${value}`}
+        className="text-sm text-primary hover:underline"
+      >
+        {value}
+      </a>
+    );
+  }
+
+  // Handle phone fields
+  if (fieldType === 'phone' && value) {
+    return (
+      <a 
+        href={`tel:${value}`}
+        className="text-sm text-primary hover:underline"
+      >
+        {value}
+      </a>
+    );
+  }
+
+  // Handle boolean fields (toggle-switch, checkbox)
+  if (['toggle-switch'].includes(fieldType) && typeof value === 'boolean') {
+    return (
+      <Badge variant={value ? 'default' : 'secondary'}>
+        {value ? 'Yes' : 'No'}
+      </Badge>
+    );
+  }
+
+  // Handle rating fields
+  if (fieldType === 'rating' && typeof value === 'number') {
+    const maxRating = field?.customConfig?.ratingScale || 5;
+    return (
+      <div className="flex items-center space-x-1">
+        <span className="text-sm font-medium">{value}</span>
+        <span className="text-xs text-muted-foreground">/ {maxRating}</span>
+      </div>
+    );
+  }
+
+  // Handle file/image fields
+  if (['file', 'image'].includes(fieldType) && value) {
+    if (typeof value === 'string' && value.startsWith('http')) {
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => window.open(value, '_blank')}
+          className="h-8"
+        >
+          <Eye className="h-3 w-3 mr-1" />
+          View
+        </Button>
+      );
+    }
+    return <span className="text-sm text-muted-foreground">File attached</span>;
+  }
+
+  // Handle non-input fields (headers, descriptions, etc.)
+  if (['header', 'description', 'section-break', 'horizontal-line'].includes(fieldType)) {
+    return <span className="text-muted-foreground italic">N/A</span>;
+  }
+
+  // Handle arrays
+  if (Array.isArray(value)) {
+    return <span className="text-sm">{value.join(', ')}</span>;
+  }
+
+  // Handle objects
+  if (typeof value === 'object') {
+    // Try to extract meaningful information
+    if (value.status) return value.status;
+    if (value.value) return value.value;
+    if (value.name) return value.name;
+    return JSON.stringify(value);
+  }
+
+  // Default case - display as string
+  return <span className="text-sm">{value.toString()}</span>;
+}

@@ -9,6 +9,9 @@ import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye } from 'lucide-re
 import { supabase } from '@/integrations/supabase/client';
 import { useReports } from '@/hooks/useReports';
 import { useNavigate } from 'react-router-dom';
+import { DynamicTableColumnSelector } from './DynamicTableColumnSelector';
+import { SubmissionAnalytics } from './SubmissionAnalytics';
+import { FormDataCell } from './FormDataCell';
 
 interface TableConfig {
   title: string;
@@ -33,6 +36,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
   const [sortField, setSortField] = useState('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+  const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const { forms } = useReports();
   const navigate = useNavigate();
 
@@ -61,6 +65,10 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       }
 
       setFormFields(fields || []);
+      // Initialize selected columns with all fields if not set
+      if (selectedColumns.length === 0 && fields && fields.length > 0) {
+        setSelectedColumns(fields.map(f => f.id));
+      }
     } catch (error) {
       console.error('Error loading form fields:', error);
     }
@@ -89,11 +97,12 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
   };
 
   const displayFields = useMemo(() => {
-    if (config.selectedColumns && config.selectedColumns.length > 0) {
-      return formFields.filter(field => config.selectedColumns.includes(field.id));
-    }
-    return formFields;
-  }, [formFields, config.selectedColumns]);
+    // Use local selectedColumns state if available, otherwise fall back to config
+    const columnsToShow = selectedColumns.length > 0 ? selectedColumns : 
+                         (config.selectedColumns && config.selectedColumns.length > 0 ? config.selectedColumns : 
+                          formFields.map(f => f.id));
+    return formFields.filter(field => columnsToShow.includes(field.id));
+  }, [formFields, selectedColumns, config.selectedColumns]);
 
   const filteredAndSortedData = useMemo(() => {
     let filtered = data;
@@ -155,6 +164,16 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
     }));
   };
 
+  const handleColumnToggle = (fieldId: string) => {
+    setSelectedColumns(prev => {
+      if (prev.includes(fieldId)) {
+        return prev.filter(id => id !== fieldId);
+      } else {
+        return [...prev, fieldId];
+      }
+    });
+  };
+
   if (loading) {
     return (
       <Card className="h-full">
@@ -190,35 +209,44 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
   }
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center justify-between">
-          <span>{config.title || 'Dynamic Table'}</span>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary">
-              {filteredAndSortedData.length} records
-            </Badge>
-            {onEdit && (
-              <Button variant="outline" size="sm" onClick={onEdit}>
-                <Settings className="h-4 w-4 mr-2" />
-                Configure
-              </Button>
-            )}
-          </div>
-        </CardTitle>
-        
-        {config.enableSearch && (
-          <div className="flex items-center space-x-2 mt-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search records..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-            />
-          </div>
-        )}
-      </CardHeader>
+    <div className="space-y-6">
+      {/* Analytics Section */}
+      <SubmissionAnalytics data={data} />
+      
+      <Card className="h-full flex flex-col">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center justify-between">
+            <span>{config.title || 'Dynamic Table'}</span>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary">
+                {filteredAndSortedData.length} records
+              </Badge>
+              <DynamicTableColumnSelector 
+                formFields={formFields}
+                selectedColumns={selectedColumns}
+                onColumnToggle={handleColumnToggle}
+              />
+              {onEdit && (
+                <Button variant="outline" size="sm" onClick={onEdit}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  Configure
+                </Button>
+              )}
+            </div>
+          </CardTitle>
+          
+          {config.enableSearch && (
+            <div className="flex items-center space-x-2 mt-2">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search records..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
+          )}
+        </CardHeader>
       
       <CardContent className="flex-1 overflow-hidden">
         <div className="h-full overflow-auto">
@@ -279,22 +307,17 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredAndSortedData.map((row) => (
-                  <TableRow key={row.id}>
-                    {displayFields.map(field => (
-                      <TableCell key={field.id}>
-                        {(() => {
-                          const value = row.submission_data?.[field.id];
-                          // Handle complex field types (approval fields, etc.)
-                          if (typeof value === 'object' && value !== null) {
-                            if (value.status) return value.status; // For approval fields
-                            if (Array.isArray(value)) return value.join(', '); // For arrays
-                            return JSON.stringify(value); // Fallback for other objects
-                          }
-                          return value || '-';
-                        })()}
-                      </TableCell>
-                    ))}
+                 filteredAndSortedData.map((row) => (
+                   <TableRow key={row.id}>
+                     {displayFields.map(field => (
+                       <TableCell key={field.id}>
+                         <FormDataCell 
+                           value={row.submission_data?.[field.id]}
+                           fieldType={field.field_type || field.type}
+                           field={field}
+                         />
+                       </TableCell>
+                     ))}
                     {config.showMetadata && (
                       <>
                         <TableCell>
@@ -324,5 +347,6 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
         </div>
       </CardContent>
     </Card>
+    </div>
   );
 }
