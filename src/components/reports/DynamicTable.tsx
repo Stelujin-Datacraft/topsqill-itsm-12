@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { ChevronUp, ChevronDown, Search, Filter, Settings } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useReports } from '@/hooks/useReports';
+import { useNavigate } from 'react-router-dom';
 
 interface TableConfig {
   title: string;
@@ -33,6 +34,11 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const { forms } = useReports();
+  const navigate = useNavigate();
+
+  const handleViewSubmission = (submissionId: string) => {
+    navigate(`/submissions/${submissionId}`);
+  };
 
   useEffect(() => {
     if (config.formId) {
@@ -260,12 +266,13 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                     <TableHead>Submitted By</TableHead>
                   </>
                 )}
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredAndSortedData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={displayFields.length + (config.showMetadata ? 2 : 0)} className="text-center py-8">
+                  <TableCell colSpan={displayFields.length + (config.showMetadata ? 2 : 0) + 1} className="text-center py-8">
                     <div className="text-muted-foreground">
                       {data.length === 0 ? 'No data available' : 'No records match your filters'}
                     </div>
@@ -298,6 +305,17 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                         </TableCell>
                       </>
                     )}
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleViewSubmission(row.id)}
+                        className="h-8 w-8 p-0"
+                        title="View submission details"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))
               )}

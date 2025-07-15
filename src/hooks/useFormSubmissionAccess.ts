@@ -1,20 +1,19 @@
 
 import { useFormAccessMatrix } from '@/hooks/useFormAccessMatrix';
+import { useAuth } from '@/contexts/AuthContext';
+import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
+import { useProject } from '@/contexts/ProjectContext';
 
 export function useFormSubmissionAccess(formId: string) {
-  const { users, loading } = useFormAccessMatrix(formId);
+  const { users, loading: matrixLoading } = useFormAccessMatrix(formId);
+  const { userProfile } = useAuth();
+  const { hasPermission, loading: unifiedLoading } = useUnifiedAccessControl();
+  const { currentProject } = useProject();
+  
+  const loading = matrixLoading || unifiedLoading;
   
   const getCurrentUserPermissions = () => {
-    // Get current user's permissions from the users array
-    // This is a simplified implementation - in a real app, you'd get the current user ID
-    // from auth context and find their permissions in the users array
-    const currentUser = users.find(user => {
-      // This would normally check against auth.uid() or similar
-      // For now, we'll assume the first user is the current user
-      return user.user_id; // Placeholder logic
-    });
-
-    if (!currentUser) {
+    if (!userProfile || !currentProject) {
       return {
         canViewSubmissions: false,
         canExportData: false,
@@ -22,12 +21,37 @@ export function useFormSubmissionAccess(formId: string) {
       };
     }
 
-    const permissions = currentUser.permissions;
+    // First check unified access control (includes project-level and organizational permissions)
+    const canViewFromUnified = hasPermission('forms', 'read') || hasPermission('forms', 'update', formId);
+    const canExportFromUnified = hasPermission('forms', 'read') || hasPermission('forms', 'update', formId);
+    const canCreateFromUnified = hasPermission('forms', 'create') || hasPermission('forms', 'update', formId);
+
+    // If user is admin, grant all permissions
+    if (userProfile.role === 'admin') {
+      return {
+        canViewSubmissions: true,
+        canExportData: true,
+        canCreateRecords: true
+      };
+    }
+
+    // Check form-specific permissions from access matrix
+    const currentUser = users.find(user => user.user_id === userProfile.id);
     
+    if (currentUser) {
+      const permissions = currentUser.permissions;
+      return {
+        canViewSubmissions: permissions.view_submissions?.granted || canViewFromUnified,
+        canExportData: permissions.export_data?.granted || canExportFromUnified,
+        canCreateRecords: permissions.create_records?.granted || canCreateFromUnified
+      };
+    }
+
+    // Fallback to unified permissions
     return {
-      canViewSubmissions: permissions.view_submissions?.granted || false,
-      canExportData: permissions.export_data?.granted || false,
-      canCreateRecords: permissions.create_records?.granted || false
+      canViewSubmissions: canViewFromUnified,
+      canExportData: canExportFromUnified,
+      canCreateRecords: canCreateFromUnified
     };
   };
 
