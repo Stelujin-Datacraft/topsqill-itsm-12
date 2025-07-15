@@ -332,7 +332,7 @@ function FormBuilderContent({
         {/* Main Content */}
         <div className="flex-1 p-6 px-[5px] py-[5px] bg-white">
           <Tabs defaultValue="builder" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 mb-6">
+            <TabsList className="grid w-full grid-cols-5 mb-6 bg-white">
               <TabsTrigger value="builder" className="flex items-center gap-2">
                 <Settings className="h-4 w-4" />
                 Form Builder
