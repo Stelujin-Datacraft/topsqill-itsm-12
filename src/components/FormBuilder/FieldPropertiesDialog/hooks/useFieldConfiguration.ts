@@ -16,7 +16,7 @@ export interface FieldConfiguration {
   customConfig: Record<string, any>;
   
   // Options for select-type fields
-  options: Array<{ id: string; value: string; label: string }>;
+  options: Array<{ id: string; value: string; label: string; color?: string }>;
   
   // Validation rules
   validation: Record<string, any>;

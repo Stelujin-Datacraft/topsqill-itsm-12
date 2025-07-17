@@ -30,6 +30,7 @@ export function SelectFieldConfig({ config, onUpdate, errors, fieldType }: Selec
   const options = ensureOptionsArray(config.options);
 
   const handleOptionsChange = (newOptions: any[]) => {
+    console.log('SelectFieldConfig: Options changed:', newOptions);
     onUpdate({ options: newOptions });
   };
 
