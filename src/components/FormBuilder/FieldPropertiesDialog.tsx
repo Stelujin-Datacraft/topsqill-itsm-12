@@ -175,12 +175,15 @@ export function FieldPropertiesDialog({
   const initializeLocalConfig = (field: FormField) => {
     console.log('🔧 FieldPropertiesDialog: Initializing local config for field:', field.label);
     console.log('📊 FieldPropertiesDialog: Field customConfig:', field.customConfig);
+    console.log('📊 FieldPropertiesDialog: Field options raw:', field.options);
+    console.log('📊 FieldPropertiesDialog: Field options type:', typeof field.options);
     
     // Ensure options are properly parsed from JSON string if needed
     const parsedOptions = ensureOptionsArray(field.options);
     console.log('📋 FieldPropertiesDialog: Parsed options:', parsedOptions);
+    console.log('📋 FieldPropertiesDialog: Parsed options length:', parsedOptions.length);
     
-    setLocalConfig({
+    const newLocalConfig = {
       label: field.label,
       placeholder: field.placeholder || '',
       required: field.required || false,
@@ -189,7 +192,10 @@ export function FieldPropertiesDialog({
       customConfig: field.customConfig || {},
       options: parsedOptions,
       validation: field.validation || {},
-    });
+    };
+    
+    console.log('📋 FieldPropertiesDialog: Setting localConfig with options:', newLocalConfig.options);
+    setLocalConfig(newLocalConfig);
 
     console.log('✅ FieldPropertiesDialog: Local config initialized');
   };
@@ -231,6 +237,10 @@ export function FieldPropertiesDialog({
 
   const updateField = (key: string, value: any) => {
     console.log(`🔄 FieldPropertiesDialog: Updating field: ${key} =`, value);
+    if (key === 'options') {
+      console.log(`📋 FieldPropertiesDialog: Options update - array length: ${Array.isArray(value) ? value.length : 'not array'}`);
+      console.log(`📋 FieldPropertiesDialog: Options content:`, value);
+    }
     setLocalConfig(prev => ({
       ...prev,
       [key]: value
