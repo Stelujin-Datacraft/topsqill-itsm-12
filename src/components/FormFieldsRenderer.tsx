@@ -463,6 +463,7 @@ export function FormFieldsRenderer({
           </div>
         );
       case 'select':
+        const selectedOption = field.options?.find(opt => opt.value === formData[field.id]);
         return (
           <div className="space-y-2">
             <div className="flex items-center">
@@ -475,12 +476,32 @@ export function FormFieldsRenderer({
               disabled={!fieldState.isEnabled}
             >
               <SelectTrigger>
-                <SelectValue placeholder={field.placeholder} />
+                <SelectValue placeholder={field.placeholder}>
+                  {selectedOption && (
+                    <div className="flex items-center gap-2">
+                      {selectedOption.color && (
+                        <div 
+                          className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
+                          style={{ backgroundColor: selectedOption.color }}
+                        />
+                      )}
+                      <span>{selectedOption.label}</span>
+                    </div>
+                  )}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {field.options?.map((option) => (
                   <SelectItem key={option.id} value={option.value}>
-                    {option.label}
+                    <div className="flex items-center gap-2">
+                      {option.color && (
+                        <div 
+                          className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
+                          style={{ backgroundColor: option.color }}
+                        />
+                      )}
+                      <span>{option.label}</span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -491,6 +512,8 @@ export function FormFieldsRenderer({
           </div>
         );
       case 'radio':
+        const radioConfig = field.customConfig || {};
+        const radioOrientation = radioConfig.orientation || 'vertical';
         return (
           <div className="space-y-2">
             <div className="flex items-center">
@@ -501,11 +524,20 @@ export function FormFieldsRenderer({
               value={formData[field.id] || ''}
               onValueChange={(value) => onFieldChange(field.id, value)}
               disabled={!fieldState.isEnabled}
+              className={radioOrientation === 'horizontal' ? 'flex flex-wrap gap-4' : ''}
             >
               {field.options?.map((option) => (
                 <div key={option.id} className="flex items-center space-x-2">
                   <RadioGroupItem value={option.value} id={option.id} />
-                  <Label htmlFor={option.id}>{option.label}</Label>
+                  <Label htmlFor={option.id} className="flex items-center gap-2 cursor-pointer">
+                    {option.color && (
+                      <div 
+                        className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
+                        style={{ backgroundColor: option.color }}
+                      />
+                    )}
+                    <span>{option.label}</span>
+                  </Label>
                 </div>
               ))}
             </RadioGroup>

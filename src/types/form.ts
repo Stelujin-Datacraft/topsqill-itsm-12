@@ -74,7 +74,7 @@ export interface FormField {
   placeholder?: string;
   required?: boolean;
   defaultValue?: string | boolean | string[];
-  options?: Array<{ id: string; value: string; label: string }>;
+  options?: Array<{ id: string; value: string; label: string; color?: string }>;
   validation?: {
     min?: number;
     max?: number;

@@ -70,6 +70,12 @@ export function MultiSelectField({ field, value = [], onChange, error, disabled 
             
             return (
               <Badge key={selectedValue} variant="secondary" className="flex items-center gap-1">
+                {option?.color && (
+                  <div 
+                    className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
+                    style={{ backgroundColor: option.color }}
+                  />
+                )}
                 {displayLabel}
                 {!disabled && (
                   <X 
@@ -107,8 +113,14 @@ export function MultiSelectField({ field, value = [], onChange, error, disabled 
               onCheckedChange={(checked) => handleOptionChange(option.value, Boolean(checked))}
               disabled={disabled || (config.maxSelections && value.length >= config.maxSelections && !value.includes(option.value))}
             />
-            <Label htmlFor={`${field.id}-${option.id}`} className="flex-1 cursor-pointer">
-              {option.label}
+            <Label htmlFor={`${field.id}-${option.id}`} className="flex-1 cursor-pointer flex items-center gap-2">
+              {option.color && (
+                <div 
+                  className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
+                  style={{ backgroundColor: option.color }}
+                />
+              )}
+              <span>{option.label}</span>
             </Label>
           </div>
         ))}
