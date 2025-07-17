@@ -20,6 +20,7 @@ import { FileText, BarChart3, Save } from 'lucide-react';
 import { useForm } from '@/contexts/FormContext';
 import { useFormSubmissionData } from '@/hooks/useFormSubmissionData';
 import { useFormSubmissionAccess } from '@/hooks/useFormSubmissionAccess';
+import { useAccessibleForms } from '@/hooks/useAccessibleForms';
 import { DynamicTable } from '@/components/reports/DynamicTable';
 import { ReportSaveDialog } from '@/components/ReportSaveDialog';
 
@@ -33,14 +34,11 @@ export function FormSubmissionsDialog({ children, initialFormId }: FormSubmissio
   const [selectedFormId, setSelectedFormId] = useState(initialFormId || '');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const { forms } = useForm();
+  const { accessibleForms } = useAccessibleForms();
   const { submissions, loading } = useFormSubmissionData(selectedFormId);
   const { canViewSubmissions, canExportData } = useFormSubmissionAccess(selectedFormId);
 
   const selectedForm = forms.find(f => f.id === selectedFormId);
-  const formsWithSubmissions = forms.filter(form => 
-    // You could add submission count logic here
-    true
-  );
 
   const tableConfig = {
     title: selectedForm ? `${selectedForm.name} Submissions` : 'Form Submissions',
@@ -96,7 +94,7 @@ export function FormSubmissionsDialog({ children, initialFormId }: FormSubmissio
                     <SelectValue placeholder="Choose a form to view submissions" />
                   </SelectTrigger>
                   <SelectContent>
-                    {formsWithSubmissions.map(form => (
+                    {accessibleForms.map(form => (
                       <SelectItem key={form.id} value={form.id}>
                         <div className="flex items-center justify-between w-full">
                           <span>{form.name}</span>
