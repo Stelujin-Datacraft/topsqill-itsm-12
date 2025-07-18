@@ -58,7 +58,7 @@ export function RuleDynamicValueInput({
             <div className="space-y-2">
               <div className="text-xs text-muted-foreground">Select multiple options:</div>
               <div className="space-y-1 max-h-32 overflow-y-auto">
-                {field.options?.map((option) => (
+                {field.options && field.options.length > 0 ? field.options.map((option) => (
                   <div key={option.id} className="flex items-center space-x-2">
                     <Checkbox
                       checked={selectedValues.includes(option.value)}
@@ -73,7 +73,9 @@ export function RuleDynamicValueInput({
                     />
                     <Label className="text-sm">{option.label || option.value}</Label>
                   </div>
-                ))}
+                )) : (
+                  <div className="text-sm text-muted-foreground">No options available</div>
+                )}
               </div>
               {selectedValues.length > 0 && (
                 <div className="flex flex-wrap gap-1">
@@ -94,11 +96,13 @@ export function RuleDynamicValueInput({
               <SelectValue placeholder="Select value" />
             </SelectTrigger>
             <SelectContent>
-              {field.options?.map((option) => (
+              {field.options && field.options.length > 0 ? field.options.map((option) => (
                 <SelectItem key={option.id} value={option.value}>
                   {option.label || option.value}
                 </SelectItem>
-              ))}
+              )) : (
+                <SelectItem value="" disabled>No options available</SelectItem>
+              )}
             </SelectContent>
           </Select>
         );
@@ -110,7 +114,7 @@ export function RuleDynamicValueInput({
           <div className="space-y-2">
             <div className="text-xs text-muted-foreground">Select options:</div>
             <div className="space-y-1 max-h-32 overflow-y-auto">
-              {field.options?.map((option) => (
+              {field.options && field.options.length > 0 ? field.options.map((option) => (
                 <div key={option.id} className="flex items-center space-x-2">
                   <Checkbox
                     checked={multiValues.includes(option.value)}
@@ -125,7 +129,9 @@ export function RuleDynamicValueInput({
                   />
                   <Label className="text-sm">{option.label || option.value}</Label>
                 </div>
-              ))}
+              )) : (
+                <div className="text-sm text-muted-foreground">No options available</div>
+              )}
             </div>
           </div>
         );
