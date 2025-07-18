@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Trash2, Plus } from 'lucide-react';
 import { FormField } from '@/types/form';
 import { FormRule, FormRuleAction, FormRuleCondition, FieldOperator } from '@/types/rules';
+import { RuleDynamicValueInput } from './RuleDynamicValueInput';
 
 interface EnhancedFormRuleBuilderProps {
   fields: FormField[];
@@ -421,11 +422,12 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
                                  </SelectContent>
                               </Select>
                             ) : (
-                              <Input
-                                value={typeof condition.value === 'string' ? condition.value : ''}
-                                onChange={(e) => updateCondition(condition.id, { value: e.target.value })}
+                              <RuleDynamicValueInput
+                                field={fields.find(f => f.id === condition.fieldId) || null}
+                                value={condition.value}
+                                onChange={(value) => updateCondition(condition.id, { value })}
+                                operator={condition.operator}
                                 placeholder="Enter value"
-                                disabled={['isEmpty', 'isNotEmpty'].includes(condition.operator || '==')}
                               />
                             )}
                           </div>
