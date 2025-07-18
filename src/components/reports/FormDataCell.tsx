@@ -115,7 +115,7 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
   }
 
   // Handle select/dropdown fields
-  if (['select', 'radio'].includes(fieldType) && field?.options) {
+  if (['select', 'radio'].includes(fieldType) && field?.options && Array.isArray(field.options)) {
     const selectedOption = field.options.find((opt: any) => opt.value === value);
     const displayValue = selectedOption?.label || value;
     
@@ -132,7 +132,9 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
       return (
         <div className="flex flex-wrap gap-1">
           {value.map((item, index) => {
-            const selectedOption = field?.options?.find((opt: any) => opt.value === item);
+            const selectedOption = field?.options && Array.isArray(field.options) 
+              ? field.options.find((opt: any) => opt.value === item)
+              : null;
             const displayValue = selectedOption?.label || item;
             return (
               <Badge key={index} variant="secondary" className="text-xs">
