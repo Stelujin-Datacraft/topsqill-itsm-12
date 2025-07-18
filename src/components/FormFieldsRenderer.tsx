@@ -50,6 +50,7 @@ interface FormFieldsRendererProps {
   fieldStates: Record<string, {
     isVisible: boolean;
     isEnabled: boolean;
+    isRequired?: boolean;
     label: string;
     options?: any[];
     tooltip?: string;
@@ -91,6 +92,9 @@ export function FormFieldsRenderer({
   const renderField = (field: FormField) => {
     const fieldState = fieldStates[field.id];
     if (!fieldState?.isVisible) return null;
+
+    // Check if field is required (from field definition or rule)
+    const isRequired = field.required || fieldState.isRequired;
 
     const commonProps = {
       field: {
@@ -216,7 +220,10 @@ export function FormFieldsRenderer({
         return (
           <div className="space-y-2">
             <div className="flex items-center">
-              <Label htmlFor={field.id}>{field.label}</Label>
+              <Label htmlFor={field.id}>
+                {fieldState.label}
+                {isRequired && <span className="text-red-500 ml-1">*</span>}
+              </Label>
               <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
             <Input
@@ -250,7 +257,10 @@ export function FormFieldsRenderer({
         return (
           <div className="space-y-2">
             <div className="flex items-center">
-              <Label htmlFor={field.id}>{field.label}</Label>
+              <Label htmlFor={field.id}>
+                {fieldState.label}
+                {isRequired && <span className="text-red-500 ml-1">*</span>}
+              </Label>
               <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
             <Input
@@ -329,7 +339,10 @@ export function FormFieldsRenderer({
         return (
           <div className="space-y-2">
             <div className="flex items-center">
-              <Label htmlFor={field.id}>{field.label}</Label>
+              <Label htmlFor={field.id}>
+                {fieldState.label}
+                {isRequired && <span className="text-red-500 ml-1">*</span>}
+              </Label>
               <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
             <Input
@@ -385,7 +398,10 @@ export function FormFieldsRenderer({
         return (
           <div className="space-y-2">
             <div className="flex items-center">
-              <Label htmlFor={field.id}>{field.label}</Label>
+              <Label htmlFor={field.id}>
+                {fieldState.label}
+                {isRequired && <span className="text-red-500 ml-1">*</span>}
+              </Label>
               <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
             <Input
@@ -407,7 +423,10 @@ export function FormFieldsRenderer({
         return (
           <div className="space-y-2">
             <div className="flex items-center">
-              <Label htmlFor={field.id}>{field.label}</Label>
+              <Label htmlFor={field.id}>
+                {fieldState.label}
+                {isRequired && <span className="text-red-500 ml-1">*</span>}
+              </Label>
               <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
             <Input
@@ -428,7 +447,10 @@ export function FormFieldsRenderer({
         return (
           <div className="space-y-2">
             <div className="flex items-center">
-              <Label htmlFor={field.id}>{field.label}</Label>
+              <Label htmlFor={field.id}>
+                {fieldState.label}
+                {isRequired && <span className="text-red-500 ml-1">*</span>}
+              </Label>
               <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
             <Textarea
@@ -448,7 +470,10 @@ export function FormFieldsRenderer({
         return (
           <div className="space-y-2">
             <div className="flex items-center">
-              <Label htmlFor={field.id}>{field.label}</Label>
+              <Label htmlFor={field.id}>
+                {fieldState.label}
+                {isRequired && <span className="text-red-500 ml-1">*</span>}
+              </Label>
               <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
             <Input
@@ -469,7 +494,10 @@ export function FormFieldsRenderer({
         return (
           <div className="space-y-2">
             <div className="flex items-center">
-              <Label htmlFor={field.id}>{field.label}</Label>
+              <Label htmlFor={field.id}>
+                {fieldState.label}
+                {isRequired && <span className="text-red-500 ml-1">*</span>}
+              </Label>
               <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
             <Select

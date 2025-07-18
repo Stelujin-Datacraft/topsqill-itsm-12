@@ -110,7 +110,10 @@ export class RuleProcessor {
       );
 
       if (conditionMet) {
+        console.log(`Rule "${rule.name}" condition met, applying action "${rule.action}" to field "${rule.targetFieldId}"`);
         this.applyFieldAction(rule, fieldStates, context);
+      } else {
+        console.log(`Rule "${rule.name}" condition NOT met for field "${rule.condition.fieldId}" with value:`, currentValue, 'expected:', rule.condition.value);
       }
     });
 
