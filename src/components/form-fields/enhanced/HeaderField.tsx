@@ -20,7 +20,7 @@ const ICON_MAP = {
 
 export function HeaderField({ field }: HeaderFieldProps) {
   const config = field.customConfig || {};
-  const level = config.level || 'h2';
+  const level = config.level || config.headerSize || 'h2';
   const icon = config.icon;
   const alignment = config.alignment || 'left';
   const color = config.color || '#000000';

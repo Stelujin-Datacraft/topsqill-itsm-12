@@ -312,6 +312,7 @@ export function FormViewLayoutRenderer({
                   onSave={handleSave}
                   showButtons={false}
                   allFormFields={allFormFields}
+                  highlightedFieldId={highlightedFieldId}
                 />
               </div>
             ))}
@@ -346,6 +347,7 @@ export function FormViewLayoutRenderer({
               onSave={handleSave}
               showButtons={false}
               allFormFields={allFormFields}
+              highlightedFieldId={highlightedFieldId}
             />
           </div>
         );

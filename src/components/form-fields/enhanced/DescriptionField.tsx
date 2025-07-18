@@ -36,6 +36,7 @@ export function DescriptionField({ field }: DescriptionFieldProps) {
     return (
       <div className="space-y-2">
         <Button
+          type="button"
           variant="ghost"
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="flex items-center justify-between w-full p-0 h-auto"

@@ -61,6 +61,7 @@ interface FormFieldsRendererProps {
   onSave?: (formData: Record<string, any>) => void;
   showButtons?: boolean;
   allFormFields?: ParsedFieldReference[];
+  highlightedFieldId?: string | null;
 }
 
 export function FormFieldsRenderer({
@@ -74,6 +75,7 @@ export function FormFieldsRenderer({
   onSave,
   showButtons = true,
   allFormFields = [],
+  highlightedFieldId,
 }: FormFieldsRendererProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -650,7 +652,15 @@ export function FormFieldsRenderer({
         'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
       }`}>
         {fields.map((field) => (
-          <div key={field.id} className="space-y-2">
+          <div 
+            key={field.id} 
+            id={`field-${field.id}`}
+            className={`space-y-2 transition-all duration-300 ${
+              highlightedFieldId === field.id 
+                ? 'ring-2 ring-gray-300/50 ring-offset-2 bg-gray-50/30 rounded-lg p-2' 
+                : ''
+            }`}
+          >
             {renderField(field)}
           </div>
         ))}
