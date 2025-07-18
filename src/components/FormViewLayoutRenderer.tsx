@@ -265,6 +265,16 @@ export function FormViewLayoutRenderer({
   const handleFieldHighlight = (fieldId: string) => {
     setHighlightedFieldId(fieldId);
     
+    // Scroll to the field
+    const fieldElement = document.getElementById(`field-${fieldId}`);
+    if (fieldElement) {
+      fieldElement.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center',
+        inline: 'nearest'
+      });
+    }
+    
     // Auto-clear highlight after 3 seconds
     setTimeout(() => {
       setHighlightedFieldId(null);

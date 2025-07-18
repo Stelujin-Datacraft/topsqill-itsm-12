@@ -18,22 +18,30 @@ const ICON_MAP = {
   check: CheckCircle,
 };
 
+const LEVEL_STYLES = {
+  h1: { fontSize: '2.25rem', fontWeight: '700' }, // text-4xl font-bold
+  h2: { fontSize: '1.875rem', fontWeight: '600' }, // text-3xl font-semibold
+  h3: { fontSize: '1.5rem', fontWeight: '600' }, // text-2xl font-semibold
+  h4: { fontSize: '1.25rem', fontWeight: '500' }, // text-xl font-medium
+  h5: { fontSize: '1.125rem', fontWeight: '500' }, // text-lg font-medium
+  h6: { fontSize: '1rem', fontWeight: '500' }, // text-base font-medium
+};
+
 export function HeaderField({ field }: HeaderFieldProps) {
   const config = field.customConfig || {};
   const level = config.level || config.headerSize || 'h2';
   const icon = config.icon;
   const alignment = config.alignment || 'left';
   const color = config.color || '#000000';
-  const fontSize = config.fontSize;
-  const fontWeight = config.fontWeight || 'normal';
 
   const IconComponent = icon ? ICON_MAP[icon as keyof typeof ICON_MAP] : null;
+  const levelStyle = LEVEL_STYLES[level as keyof typeof LEVEL_STYLES] || LEVEL_STYLES.h2;
 
   const style = {
     textAlign: alignment as any,
     color,
-    fontSize,
-    fontWeight,
+    fontSize: levelStyle.fontSize,
+    fontWeight: levelStyle.fontWeight,
   };
 
   const HeaderTag = level as keyof JSX.IntrinsicElements;
