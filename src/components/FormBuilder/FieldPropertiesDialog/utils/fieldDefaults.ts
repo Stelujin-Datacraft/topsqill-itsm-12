@@ -130,6 +130,16 @@ export function getFieldDefaults(fieldType: FieldType): Record<string, any> {
       valueField: 'id',
       filters: [],
     },
+    'child-cross-reference': {
+      targetFormId: '',
+      displayField: '',
+      valueField: 'id',
+      filters: [],
+      isChildField: true,
+      parentFormId: '',
+      parentFieldId: '',
+      parentFormName: '',
+    },
     'dynamic-dropdown': {
       dataSource: 'form',
       sourceFormId: '',

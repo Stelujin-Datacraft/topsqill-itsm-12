@@ -159,7 +159,7 @@ export function ChildCrossReferenceField({
       
       <OptimizedFormDataTable
         config={tableConfig}
-        fieldType="child-cross-reference"
+        fieldType="cross-reference"
         value={value}
         onChange={handleSelectionChange}
       />

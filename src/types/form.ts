@@ -260,7 +260,6 @@ export interface FormField {
     includeMetadata?: boolean;
     showOnlyUserRecords?: boolean;
     isParentReference?: boolean;
-    parentFormId?: string;
     
     // Dynamic Dropdown specific
     dataSource?: 'form' | 'api';
