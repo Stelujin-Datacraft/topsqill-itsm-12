@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { FormField, Form } from '@/types/form';
 import { useFormsData } from './useFormsData';
@@ -20,8 +19,15 @@ export function useCrossReferenceSync() {
     console.log('Creating child cross-reference field:', options);
     
     const targetForm = forms.find(f => f.id === targetFormId);
+    const parentForm = forms.find(f => f.id === parentFormId);
+    
     if (!targetForm) {
       console.error('Target form not found:', targetFormId);
+      return;
+    }
+
+    if (!parentForm) {
+      console.error('Parent form not found:', parentFormId);
       return;
     }
 
@@ -39,6 +45,11 @@ export function useCrossReferenceSync() {
 
     // Get the first page or create default page structure
     const targetPageId = targetForm.pages?.[0]?.id || 'default';
+
+    // Get all columns from parent form for displayColumns
+    const parentFormColumns = parentForm.fields
+      .filter(field => !['header', 'description', 'section-break', 'horizontal-line'].includes(field.type))
+      .map(field => field.id);
 
     // Create the child cross-reference field with proper structure
     const childFieldData: Omit<FormField, 'id'> = {
@@ -62,9 +73,9 @@ export function useCrossReferenceSync() {
         parentFormId: parentFormId,
         parentFieldId: parentFieldId,
         parentFormName: parentFormName,
-        targetFormId: parentFormId, // Child field points back to parent
+        targetFormId: parentFormId, // Child field points to parent form for data
         targetFormName: parentFormName,
-        displayColumns: [], // Will be configured later
+        displayColumns: parentFormColumns, // All parent form columns initially
         filters: [], // No filters by default
         enableSorting: true,
         enableSearch: true,

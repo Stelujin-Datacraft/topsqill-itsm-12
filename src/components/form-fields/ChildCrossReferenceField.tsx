@@ -56,8 +56,13 @@ export function ChildCrossReferenceField({
   const parentForm = forms.find(f => f.id === field.customConfig?.parentFormId);
   const targetForm = forms.find(f => f.id === field.customConfig?.targetFormId);
 
+  // Check if field has proper auto-generated configuration
+  const hasAutoConfig = field.customConfig?.targetFormId && 
+                       field.customConfig?.displayColumns && 
+                       field.customConfig?.displayColumns.length > 0;
+
   // Create properly typed config object with better defaults
-  const tableConfig = field.customConfig?.targetFormId ? {
+  const tableConfig = hasAutoConfig ? {
     targetFormId: field.customConfig.targetFormId,
     targetFormName: field.customConfig.targetFormName || targetForm?.name || 'Unknown Form',
     filters: field.customConfig.filters || [],
@@ -69,8 +74,8 @@ export function ChildCrossReferenceField({
     isChildField: true
   } : null;
 
-  // If no configuration exists, show configuration prompt
-  if (!tableConfig || !tableConfig.displayColumns || tableConfig.displayColumns.length === 0) {
+  // Show configuration prompt only if no auto-configuration exists
+  if (!hasAutoConfig) {
     return (
       <div className="w-full space-y-2">
         {/* Parent Form Indicator */}
@@ -100,7 +105,7 @@ export function ChildCrossReferenceField({
           <Link className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
           <p className="text-muted-foreground mb-2">Child Cross Reference: {field.label}</p>
           <p className="text-sm text-muted-foreground">
-            {isPreview ? 'Shows related data from parent form' : 'This field needs configuration to display related data'}
+            {isPreview ? 'Shows related data from parent form' : 'Waiting for configuration to be auto-generated...'}
           </p>
         </div>
 
@@ -118,7 +123,7 @@ export function ChildCrossReferenceField({
     );
   }
 
-  // Show the optimized data table for both preview and actual form view
+  // Show the optimized data table with auto-generated configuration
   return (
     <div className="w-full space-y-2">
       {/* Parent Form Indicator */}
