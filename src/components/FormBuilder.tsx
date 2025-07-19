@@ -26,6 +26,7 @@ import { useFormBuilderState } from './FormBuilder/hooks/useFormBuilderState';
 import { useOptimizedFieldOperations } from './FormBuilder/hooks/useOptimizedFieldOperations';
 import { FormBuilderProps } from './FormBuilder/types/formBuilder';
 import { FormSnapshotProvider, useFormSnapshotContext } from './FormBuilder/contexts/FormSnapshotContext';
+import { useCrossReferenceSync } from '@/hooks/useCrossReferenceSync';
 import { Button } from '@/components/ui/button';
 function FormBuilderContent({
   formId
@@ -238,10 +239,15 @@ function FormBuilderContent({
     });
   };
 
+  const { syncCrossReferenceField } = useCrossReferenceSync();
+
   // Optimized field configuration save (instant update)
   const handleSaveFieldConfiguration = async (fieldId: string, updates: Partial<FormField>) => {
     if (!snapshot.form) return;
 
+    // Get the current field to check if it's a cross-reference field
+    const currentField = snapshot.form.fields.find(f => f.id === fieldId);
+    
     // Update in snapshot immediately
     updateFieldInSnapshot(fieldId, updates);
     if (state.selectedField && state.selectedField.id === fieldId) {
@@ -250,6 +256,28 @@ function FormBuilderContent({
         ...updates
       });
     }
+
+    // Handle cross-reference field sync when targetFormId changes
+    if (currentField?.type === 'cross-reference' && updates.customConfig?.targetFormId) {
+      try {
+        await syncCrossReferenceField({
+          parentFormId: snapshot.form.id,
+          parentFieldId: fieldId,
+          parentFormName: snapshot.form.name,
+          targetFormId: updates.customConfig.targetFormId,
+          previousTargetFormId: currentField.customConfig?.targetFormId
+        });
+      } catch (error) {
+        console.error('Error syncing cross-reference field:', error);
+        toast({
+          title: "Warning",
+          description: "Field configuration saved but cross-reference sync failed. Please check target form.",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
     toast({
       title: "Configuration updated",
       description: "Field configuration updated. Save form to persist changes."
