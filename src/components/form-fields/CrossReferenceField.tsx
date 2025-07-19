@@ -6,6 +6,7 @@ import { Settings } from 'lucide-react';
 import { FieldConfigurationDialog } from './FieldConfigurationDialog';
 import { OptimizedFormDataTable } from './OptimizedFormDataTable';
 import { useForm } from '@/contexts/FormContext';
+import { useCrossReferenceSync } from '@/hooks/useCrossReferenceSync';
 
 interface CrossReferenceFieldProps {
   field: FormField;
@@ -16,21 +17,11 @@ interface CrossReferenceFieldProps {
   error?: string;
   disabled?: boolean;
   currentFormId?: string;
-  onCrossReferenceSync?: (options: any) => Promise<void>;
 }
 
-export function CrossReferenceField({ 
-  field, 
-  value, 
-  onChange, 
-  onFieldUpdate, 
-  isPreview, 
-  error, 
-  disabled, 
-  currentFormId,
-  onCrossReferenceSync 
-}: CrossReferenceFieldProps) {
+export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isPreview, error, disabled, currentFormId }: CrossReferenceFieldProps) {
   const { forms } = useForm();
+  const { syncCrossReferenceField } = useCrossReferenceSync();
   const [configOpen, setConfigOpen] = useState(false);
 
   const handleConfigSave = async (config: any) => {
@@ -49,12 +40,12 @@ export function CrossReferenceField({
       });
     }
 
-    // Sync child cross-reference field if target form changed and we have sync function
-    if (currentFormId && newTargetFormId && newTargetFormId !== previousTargetFormId && onCrossReferenceSync) {
+    // Sync child cross-reference field if target form changed
+    if (currentFormId && newTargetFormId && newTargetFormId !== previousTargetFormId) {
       const currentForm = forms.find(f => f.id === currentFormId);
       
       try {
-        await onCrossReferenceSync({
+        await syncCrossReferenceField({
           parentFormId: currentFormId,
           parentFieldId: field.id,
           parentFormName: currentForm?.name || 'Unknown Form',
