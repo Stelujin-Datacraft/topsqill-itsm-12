@@ -4,6 +4,7 @@ import { FormField } from '@/types/form';
 import { ParsedFieldReference } from '@/utils/fieldReferenceParser';
 import { RecordTableField } from './form-fields/RecordTableField';
 import { CrossReferenceField } from './form-fields/CrossReferenceField';
+import { ChildCrossReferenceField } from './form-fields/ChildCrossReferenceField';
 
 import { RatingField } from './form-fields/RatingField';
 import { UserPickerField } from './form-fields/UserPickerField';
@@ -63,6 +64,7 @@ interface FormFieldsRendererProps {
   showButtons?: boolean;
   allFormFields?: ParsedFieldReference[];
   highlightedFieldId?: string | null;
+  formId?: string;
 }
 
 export function FormFieldsRenderer({
@@ -77,6 +79,7 @@ export function FormFieldsRenderer({
   showButtons = true,
   allFormFields = [],
   highlightedFieldId,
+  formId,
 }: FormFieldsRendererProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -660,6 +663,8 @@ export function FormFieldsRenderer({
         return <ConditionalSectionField {...commonProps} formData={formData} />;
       case 'geo-location':
         return <GeoLocationField {...commonProps} />;
+      case 'child-cross-reference':
+        return <ChildCrossReferenceField {...commonProps} currentFormId={formId} />;
       
       default:
         return (

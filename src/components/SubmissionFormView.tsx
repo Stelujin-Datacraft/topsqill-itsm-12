@@ -368,6 +368,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
             onFieldChange={handleFieldChange}
             onSubmit={handleSubmit}
             showButtons={false} // Hide submit buttons
+            formId={form.id}
           />
         </CardContent>
       </Card>

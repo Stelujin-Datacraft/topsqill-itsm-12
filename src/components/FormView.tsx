@@ -40,6 +40,7 @@ export function FormView({ form, onSubmit }: FormViewProps) {
         columns={(form.layout?.columns as 1 | 2 | 3) || 1}
         onFieldChange={() => {}}
         onSubmit={handleSubmit}
+        formId={form.id}
       />
     </div>
   );

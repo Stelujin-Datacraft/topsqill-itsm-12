@@ -205,9 +205,21 @@ function FormBuilderContent({
           }
         }
 
-        // Delete removed fields
+        // Delete removed fields and handle cross-reference cleanup
         for (const oldField of currentForm.fields) {
           if (!snapshot.form.fields.find(f => f.id === oldField.id)) {
+            // If it's a cross-reference field, clean up child fields first
+            if (oldField.type === 'cross-reference' && oldField.customConfig?.targetFormId) {
+              try {
+                await removeChildCrossReferenceField({
+                  parentFormId: currentForm.id,
+                  parentFieldId: oldField.id,
+                  targetFormId: oldField.customConfig.targetFormId
+                });
+              } catch (error) {
+                console.error('Error removing child cross-reference field:', error);
+              }
+            }
             await deleteField(oldField.id);
           }
         }
@@ -239,7 +251,7 @@ function FormBuilderContent({
     });
   };
 
-  const { syncCrossReferenceField } = useCrossReferenceSync();
+  const { syncCrossReferenceField, removeChildCrossReferenceField } = useCrossReferenceSync();
 
   // Optimized field configuration save (instant update)
   const handleSaveFieldConfiguration = async (fieldId: string, updates: Partial<FormField>) => {
@@ -275,6 +287,23 @@ function FormBuilderContent({
           variant: "destructive"
         });
         return;
+      }
+    }
+
+    // Handle target form change - remove from old target and add to new target
+    if (currentField?.type === 'cross-reference' && 
+        currentField.customConfig?.targetFormId && 
+        updates.customConfig?.targetFormId &&
+        currentField.customConfig.targetFormId !== updates.customConfig.targetFormId) {
+      try {
+        // Remove from previous target form
+        await removeChildCrossReferenceField({
+          parentFormId: snapshot.form.id,
+          parentFieldId: fieldId,
+          targetFormId: currentField.customConfig.targetFormId
+        });
+      } catch (error) {
+        console.error('Error removing child cross-reference field from previous target:', error);
       }
     }
 

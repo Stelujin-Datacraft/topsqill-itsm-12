@@ -304,6 +304,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
                   onFieldChange={handleFieldChange}
                   onSubmit={() => {}}
                   showButtons={false}
+                  formId={form.id}
                 />
               </div>
             ))}
@@ -336,6 +337,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
               onFieldChange={handleFieldChange}
               onSubmit={() => {}}
               showButtons={false}
+              formId={form.id}
             />
           </div>
         );

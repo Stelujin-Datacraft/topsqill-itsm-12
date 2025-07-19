@@ -171,6 +171,7 @@ export function PublicFormSubmissionView({ form, onSubmit }: PublicFormSubmissio
               columns={(form.layout?.columns as 1 | 2 | 3) || 1}
               onFieldChange={handleFieldChange}
               onSubmit={handleFormSubmit}
+              formId={form.id}
             />
           </CardContent>
         </Card>

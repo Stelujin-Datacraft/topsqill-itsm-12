@@ -323,6 +323,7 @@ export function FormViewLayoutRenderer({
                   showButtons={false}
                   allFormFields={allFormFields}
                   highlightedFieldId={highlightedFieldId}
+                  formId={form.id}
                 />
               </div>
             ))}
@@ -358,6 +359,7 @@ export function FormViewLayoutRenderer({
               showButtons={false}
               allFormFields={allFormFields}
               highlightedFieldId={highlightedFieldId}
+              formId={form.id}
             />
           </div>
         );

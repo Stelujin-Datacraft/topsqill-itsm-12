@@ -52,6 +52,7 @@ import { SignatureFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/
 import { CurrencyFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/international/CurrencyFieldConfig';
 import { CountryFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/international/CountryFieldConfig';
 import { SubmissionAccessFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/access/SubmissionAccessFieldConfig';
+import { ChildCrossReferenceFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/ChildCrossReferenceFieldConfig';
 
 interface FieldPropertiesDialogProps {
   selectedField: FormField | null;
@@ -492,6 +493,8 @@ export function FieldPropertiesDialog({
         return <ConditionalSectionFieldConfig {...props} />;
       case 'geo-location':
         return <GeoLocationFieldConfig {...props} />;
+      case 'child-cross-reference':
+        return <ChildCrossReferenceFieldConfig {...props} />;
       
       // Selection Fields
       case 'select':
@@ -580,7 +583,9 @@ export function FieldPropertiesDialog({
     // International Fields
     'country', 'phone',
     // Other
-    'number', 'currency', 'file', 'image', 'rating', 'slider'
+    'number', 'currency', 'file', 'image', 'rating', 'slider',
+    // Cross-reference fields
+    'child-cross-reference'
   ].includes(fieldType);
 
   return (

@@ -87,6 +87,7 @@ export function SmartFormLayoutRenderer({
             onFieldChange={handleFieldChange}
             onSubmit={onSubmit}
             showButtons={false}
+            formId={form.id}
           />
         </CardContent>
       </Card>
@@ -106,6 +107,7 @@ export function SmartFormLayoutRenderer({
             onFieldChange={handleFieldChange}
             onSubmit={onSubmit}
             showButtons={false}
+            formId={form.id}
           />
         </CardContent>
       </Card>
