@@ -17,9 +17,10 @@ interface CrossReferenceFieldProps {
   error?: string;
   disabled?: boolean;
   currentFormId?: string;
+  onCrossReferenceSync?: (options: any) => Promise<void>;
 }
 
-export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isPreview, error, disabled, currentFormId }: CrossReferenceFieldProps) {
+export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isPreview, error, disabled, currentFormId, onCrossReferenceSync }: CrossReferenceFieldProps) {
   const { forms } = useForm();
   const { syncCrossReferenceField } = useCrossReferenceSync();
   const [configOpen, setConfigOpen] = useState(false);
@@ -30,7 +31,7 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
     const previousTargetFormId = field.customConfig?.targetFormId;
     const newTargetFormId = config.targetFormId;
     
-    // Update the field's customConfig
+    // Update the field's customConfig first
     if (onFieldUpdate) {
       onFieldUpdate(field.id, {
         customConfig: {
@@ -40,21 +41,32 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
       });
     }
 
-    // Sync child cross-reference field if target form changed
+    // Sync child cross-reference field if target form changed and we have the required data
     if (currentFormId && newTargetFormId && newTargetFormId !== previousTargetFormId) {
       const currentForm = forms.find(f => f.id === currentFormId);
       
       try {
-        await syncCrossReferenceField({
+        console.log('Syncing child cross-reference field');
+        
+        const syncOptions = {
           parentFormId: currentFormId,
           parentFieldId: field.id,
           parentFormName: currentForm?.name || 'Unknown Form',
           targetFormId: newTargetFormId,
           previousTargetFormId: previousTargetFormId
-        });
+        };
+
+        // Use the provided sync function first, fallback to hook
+        if (onCrossReferenceSync) {
+          await onCrossReferenceSync(syncOptions);
+        } else {
+          await syncCrossReferenceField(syncOptions);
+        }
+        
         console.log('Successfully synced child cross-reference field');
       } catch (error) {
         console.error('Error syncing child cross-reference field:', error);
+        // Don't throw error to prevent blocking the config save
       }
     }
   };
@@ -90,6 +102,16 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
             {field.label}
             {field.required && <span className="text-red-500 ml-1">*</span>}
           </label>
+          {!isPreview && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setConfigOpen(true)}
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Configure
+            </Button>
+          )}
         </div>
         
         <div className="w-full p-4 border-2 border-dashed border-muted-foreground/30 rounded-lg text-center">
@@ -121,6 +143,16 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
           {field.label}
           {field.required && <span className="text-red-500 ml-1">*</span>}
         </label>
+        {!isPreview && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setConfigOpen(true)}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Configure
+          </Button>
+        )}
       </div>
       
       <OptimizedFormDataTable
