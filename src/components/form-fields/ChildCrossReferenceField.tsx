@@ -2,13 +2,13 @@
 import React, { useState } from 'react';
 import { FormField } from '@/types/form';
 import { Button } from '@/components/ui/button';
-import { Settings } from 'lucide-react';
+import { Settings, ArrowUp, Link } from 'lucide-react';
 import { FieldConfigurationDialog } from './FieldConfigurationDialog';
 import { OptimizedFormDataTable } from './OptimizedFormDataTable';
 import { useForm } from '@/contexts/FormContext';
-import { useCrossReferenceSync } from '@/hooks/useCrossReferenceSync';
+import { Badge } from '@/components/ui/badge';
 
-interface CrossReferenceFieldProps {
+interface ChildCrossReferenceFieldProps {
   field: FormField;
   value?: any;
   onChange?: (value: any) => void;
@@ -19,16 +19,21 @@ interface CrossReferenceFieldProps {
   currentFormId?: string;
 }
 
-export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isPreview, error, disabled, currentFormId }: CrossReferenceFieldProps) {
+export function ChildCrossReferenceField({ 
+  field, 
+  value, 
+  onChange, 
+  onFieldUpdate, 
+  isPreview, 
+  error, 
+  disabled, 
+  currentFormId 
+}: ChildCrossReferenceFieldProps) {
   const { forms } = useForm();
-  const { syncCrossReferenceField } = useCrossReferenceSync();
   const [configOpen, setConfigOpen] = useState(false);
 
-  const handleConfigSave = async (config: any) => {
-    console.log('Saving cross reference configuration:', config);
-    
-    const previousTargetFormId = field.customConfig?.targetFormId;
-    const newTargetFormId = config.targetFormId;
+  const handleConfigSave = (config: any) => {
+    console.log('Saving child cross reference configuration:', config);
     
     // Update the field's customConfig
     if (onFieldUpdate) {
@@ -39,34 +44,16 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
         }
       });
     }
-
-    // Sync child cross-reference field if target form changed
-    if (currentFormId && newTargetFormId && newTargetFormId !== previousTargetFormId) {
-      const currentForm = forms.find(f => f.id === currentFormId);
-      
-      try {
-        await syncCrossReferenceField({
-          parentFormId: currentFormId,
-          parentFieldId: field.id,
-          parentFormName: currentForm?.name || 'Unknown Form',
-          targetFormId: newTargetFormId,
-          previousTargetFormId: previousTargetFormId
-        });
-        console.log('Successfully synced child cross-reference field');
-      } catch (error) {
-        console.error('Error syncing child cross-reference field:', error);
-      }
-    }
   };
 
   const handleSelectionChange = (selectedRecords: any[]) => {
-    console.log('Cross reference selection changed:', selectedRecords);
-    // Call onChange with the selected records
+    console.log('Child cross reference selection changed:', selectedRecords);
     if (onChange) {
       onChange(selectedRecords);
     }
   };
 
+  const parentForm = forms.find(f => f.id === field.customConfig?.parentFormId);
   const targetForm = forms.find(f => f.id === field.customConfig?.targetFormId);
 
   // Create properly typed config object with better defaults
@@ -78,13 +65,30 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
     enableSorting: field.customConfig.enableSorting ?? true,
     enableSearch: field.customConfig.enableSearch ?? true,
     pageSize: field.customConfig.pageSize || 10,
-    isParentReference: field.customConfig.isParentReference || false
+    isParentReference: false,
+    isChildField: true
   } : null;
 
   // If no configuration exists, show configuration prompt
   if (!tableConfig || !tableConfig.displayColumns || tableConfig.displayColumns.length === 0) {
     return (
       <div className="w-full space-y-2">
+        {/* Parent Form Indicator */}
+        <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-md border-l-4 border-blue-400">
+          <ArrowUp className="h-4 w-4 text-blue-600" />
+          <div className="flex-1">
+            <div className="text-sm font-medium text-blue-800">
+              Child Reference from: {parentForm?.name || 'Unknown Parent Form'}
+            </div>
+            <div className="text-xs text-blue-600">
+              This field is automatically managed and references the parent form
+            </div>
+          </div>
+          <Badge variant="secondary" className="text-xs">
+            Auto-generated
+          </Badge>
+        </div>
+
         <div className="flex items-center justify-between">
           <label className="block text-sm font-medium">
             {field.label}
@@ -93,9 +97,10 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
         </div>
         
         <div className="w-full p-4 border-2 border-dashed border-muted-foreground/30 rounded-lg text-center">
-          <p className="text-muted-foreground mb-2">Cross Reference: {field.label}</p>
+          <Link className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+          <p className="text-muted-foreground mb-2">Child Cross Reference: {field.label}</p>
           <p className="text-sm text-muted-foreground">
-            {isPreview ? 'Configure to create relationships between forms' : 'This field needs to be configured to display related data'}
+            {isPreview ? 'Shows related data from parent form' : 'This field needs configuration to display related data'}
           </p>
         </div>
 
@@ -116,16 +121,45 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
   // Show the optimized data table for both preview and actual form view
   return (
     <div className="w-full space-y-2">
+      {/* Parent Form Indicator */}
+      <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-md border-l-4 border-blue-400">
+        <ArrowUp className="h-4 w-4 text-blue-600" />
+        <div className="flex-1">
+          <div className="text-sm font-medium text-blue-800">
+            Child Reference from: {parentForm?.name || 'Unknown Parent Form'}
+          </div>
+          <div className="text-xs text-blue-600">
+            This field is automatically managed and references the parent form
+          </div>
+        </div>
+        <Badge variant="secondary" className="text-xs">
+          Auto-generated
+        </Badge>
+      </div>
+
       <div className="flex items-center justify-between">
         <label className="block text-sm font-medium">
           {field.label}
           {field.required && <span className="text-red-500 ml-1">*</span>}
         </label>
+        <div className="flex items-center gap-2">
+          {!isPreview && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setConfigOpen(true)}
+              className="h-6 px-2"
+            >
+              <Settings className="h-3 w-3 mr-1" />
+              Configure Display
+            </Button>
+          )}
+        </div>
       </div>
       
       <OptimizedFormDataTable
         config={tableConfig}
-        fieldType="cross-reference"
+        fieldType="child-cross-reference"
         value={value}
         onChange={handleSelectionChange}
       />

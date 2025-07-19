@@ -9,6 +9,7 @@ export { RatingField } from './RatingField';
 export { TagsField } from './TagsField';
 export { RecordTableField } from './RecordTableField';
 export { CrossReferenceField } from './CrossReferenceField';
+export { ChildCrossReferenceField } from './ChildCrossReferenceField';
 
 // New Field Types
 export { MultiSelectField } from './MultiSelectField';

@@ -1,11 +1,10 @@
-
 import {
   Type, FileText, Minus, Maximize, Container, Edit3, Table, Grid3X3,
   Mail, Hash, Calendar, Clock, CalendarClock, ChevronDown, List,
   Circle, CheckSquare, ToggleLeft, Sliders, Star, Upload, Image,
   Palette, Globe, Phone, MapPin, DollarSign, Link, Wifi, QrCode,
   Users, Shield, FileCheck, PenTool, Tag, Database, Calculator,
-  Eye, Map, Zap
+  Eye, Map, Zap, ArrowDown
 } from 'lucide-react';
 
 export interface FieldTypeConfig {
@@ -15,6 +14,7 @@ export interface FieldTypeConfig {
   description: string;
   category: 'full-width' | 'standard';
   isFullWidth: boolean;
+  isHidden?: boolean;
 }
 
 export const fieldTypes: FieldTypeConfig[] = [
@@ -342,6 +342,15 @@ export const fieldTypes: FieldTypeConfig[] = [
     isFullWidth: false,
   },
   {
+    type: 'child-cross-reference',
+    label: 'Child Cross-Reference',
+    icon: ArrowDown,
+    description: 'Auto-generated child reference from parent form',
+    category: 'standard',
+    isFullWidth: false,
+    isHidden: true,
+  },
+  {
     type: 'calculated',
     label: 'Calculated / Formula Field',
     icon: Calculator,
@@ -380,5 +389,5 @@ export const getFieldTypeConfig = (type: string): FieldTypeConfig | undefined =>
 };
 
 export const getFieldsByCategory = (category: 'full-width' | 'standard'): FieldTypeConfig[] => {
-  return fieldTypes.filter(field => field.category === category);
+  return fieldTypes.filter(field => field.category === category && !field.isHidden);
 };

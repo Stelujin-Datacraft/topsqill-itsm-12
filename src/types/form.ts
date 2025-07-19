@@ -47,7 +47,7 @@ export interface FormRule {
 export type FieldType = 
   // Full-width components
   | 'header' | 'description' | 'section-break' | 'horizontal-line' | 'full-width-container'
-  | 'rich-text' | 'record-table' | 'matrix-grid' | 'cross-reference'
+  | 'rich-text' | 'record-table' | 'matrix-grid' | 'cross-reference' | 'child-cross-reference'
   // Standard components
   | 'text' | 'textarea' | 'number' | 'date' | 'time' | 'datetime'
   | 'select' | 'multi-select' | 'radio' | 'checkbox' | 'toggle-switch'
@@ -68,8 +68,8 @@ export interface FormField {
         'signature' | 'tags' | 'lookup' | 'calculated' | 'header' | 'description' | 
         'section-break' | 'horizontal-line' | 'rich-text' | 'barcode' | 'user-picker' | 
         'geo-location' | 'workflow-trigger' | 'matrix-grid' | 'record-table' | 'cross-reference' |
-        'dynamic-dropdown' | 'conditional-section' | 'ip-address' | 'full-width-container' |
-        'country' | 'submission-access' | 'approval';
+        'child-cross-reference' | 'dynamic-dropdown' | 'conditional-section' | 'ip-address' | 
+        'full-width-container' | 'country' | 'submission-access' | 'approval';
   label: string;
   placeholder?: string;
   required?: boolean;
@@ -368,6 +368,12 @@ export interface FormField {
     approvalMessage?: string;
     requireComments?: boolean;
     sendNotifications?: boolean;
+    
+    // Child Cross-Reference specific
+    isChildField?: boolean;
+    parentFormId?: string;
+    parentFieldId?: string;
+    parentFormName?: string;
   };
 }
 
