@@ -1,6 +1,9 @@
+
 import React, { createContext, useContext, ReactNode } from 'react';
 import { Form, FormField, FormPage } from '@/types/form';
 import { useFormSnapshot, FormSnapshot } from '../hooks/useFormSnapshot';
+import { useCrossReferenceSync } from '@/hooks/useCrossReferenceSync';
+import { useFormsData } from '@/hooks/useFormsData';
 
 interface FormSnapshotContextType {
   snapshot: FormSnapshot;
@@ -15,6 +18,7 @@ interface FormSnapshotContextType {
   deletePageFromSnapshot: (pageId: string) => void;
   markAsSaved: () => void;
   resetSnapshot: () => void;
+  syncCrossReferenceField: (options: any) => Promise<void>;
 }
 
 const FormSnapshotContext = createContext<FormSnapshotContextType | null>(null);
@@ -26,9 +30,15 @@ interface FormSnapshotProviderProps {
 
 export function FormSnapshotProvider({ children, initialForm }: FormSnapshotProviderProps) {
   const snapshotHook = useFormSnapshot(initialForm);
+  const { syncCrossReferenceField } = useCrossReferenceSync();
+
+  const contextValue = {
+    ...snapshotHook,
+    syncCrossReferenceField
+  };
 
   return (
-    <FormSnapshotContext.Provider value={snapshotHook}>
+    <FormSnapshotContext.Provider value={contextValue}>
       {children}
     </FormSnapshotContext.Provider>
   );
