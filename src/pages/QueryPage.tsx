@@ -4,56 +4,42 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { QueryEditor } from '@/components/query/QueryEditor';
 import { QueryResults } from '@/components/query/QueryResults';
 import { FormsSidebar } from '@/components/query/FormsSidebar';
-import { supabase } from '@/integrations/supabase/client';
+import { executeUserQuery, QueryResult } from '@/services/sqlParser';
 import { useToast } from '@/hooks/use-toast';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 
 export default function QueryPage() {
-  const [results, setResults] = useState<any[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [queryResult, setQueryResult] = useState<QueryResult>({ columns: [], rows: [], errors: [] });
   const [isExecuting, setIsExecuting] = useState(false);
   const [query, setQuery] = useState('');
   const { toast } = useToast();
 
   const executeQuery = async (sql: string) => {
     setIsExecuting(true);
-    setError(null);
-    setResults(null);
-
+    
     try {
-      console.log('Executing SQL:', sql);
+      console.log('Executing query:', query);
       
-      // For now, we'll execute queries directly using the SQL query
-      // This is a temporary solution until we create the RPC function
-      const { data, error: queryError } = await supabase
-        .from('form_submissions')
-        .select('*')
-        .limit(100); // Add a reasonable limit for now
-
-      if (queryError) {
-        console.error('Query execution error:', queryError);
-        setError(queryError.message || 'An error occurred while executing the query');
+      const result = await executeUserQuery(query);
+      setQueryResult(result);
+      
+      if (result.errors.length > 0) {
         toast({
           title: "Query Failed",
-          description: queryError.message || 'An error occurred while executing the query',
+          description: result.errors[0],
           variant: "destructive",
         });
-        return;
+      } else {
+        toast({
+          title: "Query Executed",
+          description: `Found ${result.rows.length} result${result.rows.length === 1 ? '' : 's'}`,
+        });
       }
-
-      console.log('Query results:', data);
-      const resultsArray = Array.isArray(data) ? data : [];
-      setResults(resultsArray);
-      
-      toast({
-        title: "Query Executed",
-        description: `Found ${resultsArray.length} result${resultsArray.length === 1 ? '' : 's'}`,
-      });
 
     } catch (err) {
       console.error('Unexpected error:', err);
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
-      setError(errorMessage);
+      setQueryResult({ columns: [], rows: [], errors: [errorMessage] });
       toast({
         title: "Query Failed",
         description: errorMessage,
@@ -67,6 +53,19 @@ export default function QueryPage() {
   const insertText = (text: string) => {
     setQuery(prev => prev + text);
   };
+
+  // Convert QueryResult to the format expected by QueryResults component
+  const resultsData = queryResult.columns.length > 0 
+    ? queryResult.rows.map(row => {
+        const obj: Record<string, any> = {};
+        queryResult.columns.forEach((col, index) => {
+          obj[col] = row[index];
+        });
+        return obj;
+      })
+    : null;
+
+  const resultsError = queryResult.errors.length > 0 ? queryResult.errors[0] : null;
 
   return (
     <DashboardLayout title="SQL Query Builder">
@@ -100,8 +99,8 @@ export default function QueryPage() {
               <ResizablePanel defaultSize={50} minSize={20}>
                 <div className="h-full">
                   <QueryResults 
-                    data={results}
-                    error={error}
+                    data={resultsData}
+                    error={resultsError}
                     isLoading={isExecuting}
                   />
                 </div>

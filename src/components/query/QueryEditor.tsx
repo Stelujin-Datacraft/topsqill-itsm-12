@@ -2,8 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { parseUserQuery, ParseError } from '@/services/sqlParser';
-import { schemaCache } from '@/services/schemaCache';
+import { parseUserQuery, ParseResult } from '@/services/sqlParser';
 import { Loader2, Play } from 'lucide-react';
 
 interface QueryEditorProps {
@@ -19,35 +18,27 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
   value, 
   onChange 
 }) => {
-  const [errors, setErrors] = useState<ParseError[]>([]);
+  const [parseResult, setParseResult] = useState<ParseResult>({ errors: [] });
   const [isValidating, setIsValidating] = useState(false);
-  const [isValid, setIsValid] = useState(false);
   const [lineCount, setLineCount] = useState(1);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
 
-  const validateQuery = useCallback(async (input: string) => {
+  const validateQuery = useCallback((input: string) => {
     if (!input.trim()) {
-      setErrors([]);
-      setIsValid(false);
+      setParseResult({ errors: [] });
       return;
     }
 
     setIsValidating(true);
     try {
-      const cache = await schemaCache.getCache();
-      const result = parseUserQuery(input, cache);
-      
-      setErrors(result.errors);
-      setIsValid(result.errors.length === 0 && !!result.sql);
+      const result = parseUserQuery(input);
+      setParseResult(result);
     } catch (error) {
       console.error('Validation error:', error);
-      setErrors([{
-        message: 'Validation failed',
-        position: 0,
-        type: 'syntax'
-      }]);
-      setIsValid(false);
+      setParseResult({
+        errors: ['Validation failed: ' + (error instanceof Error ? error.message : 'Unknown error')]
+      });
     } finally {
       setIsValidating(false);
     }
@@ -79,18 +70,10 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
   }, [value]);
 
   const handleExecute = async () => {
+    const isValid = parseResult.sql && parseResult.errors.length === 0;
     if (!isValid || isExecuting) return;
     
-    try {
-      const cache = await schemaCache.getCache();
-      const result = parseUserQuery(value, cache);
-      
-      if (result.sql) {
-        onExecute(result.sql);
-      }
-    } catch (error) {
-      console.error('Execute error:', error);
-    }
+    onExecute(parseResult.sql!);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -125,6 +108,8 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
   };
 
   const highlightSyntax = (text: string) => {
+    if (!text) return '';
+    
     // Simple syntax highlighting
     return text
       .replace(/\b(SELECT|FROM|WHERE|AND|OR|COUNT|SUM|AVG|MIN|MAX)\b/gi, '<span class="text-blue-600 font-medium">$1</span>')
@@ -134,12 +119,20 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
       .replace(/([><=!]+)/g, '<span class="text-red-600">$1</span>');
   };
 
+  const isValid = parseResult.sql && parseResult.errors.length === 0;
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between p-4 border-b border-border bg-muted/20">
         <div className="flex items-center gap-2">
           <h3 className="text-lg font-semibold">SQL Query</h3>
           {isValidating && <Loader2 className="h-4 w-4 animate-spin" />}
+          {!isValidating && isValid && (
+            <div className="w-2 h-2 bg-green-500 rounded-full" title="Query is valid" />
+          )}
+          {!isValidating && parseResult.errors.length > 0 && (
+            <div className="w-2 h-2 bg-red-500 rounded-full" title="Query has errors" />
+          )}
         </div>
         <Button
           onClick={handleExecute}
@@ -186,7 +179,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder='SELECT "field-id" FROM "form-id" WHERE...'
+                placeholder='SELECT "field-id" FROM "form-id" WHERE "field-id" = \'value\''
                 className="absolute inset-0 w-full h-full p-3 bg-transparent border-none outline-none resize-none text-xs font-mono leading-6 text-foreground caret-foreground"
                 style={{ 
                   fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
@@ -205,19 +198,25 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
         </div>
 
         {/* Errors */}
-        {errors.length > 0 && (
+        {parseResult.errors.length > 0 && (
           <div className="p-3 border-t border-border space-y-2">
-            {errors.map((error, index) => (
+            {parseResult.errors.map((error, index) => (
               <Alert key={index} variant="destructive">
                 <AlertDescription className="text-sm">
-                  <span className="font-medium">
-                    {error.type === 'syntax' ? 'Syntax Error' : 
-                     error.type === 'unknown_field' ? 'Unknown Field' : 
-                     error.type === 'unknown_form' ? 'Unknown Form' : 'Error'}:
-                  </span> {error.message}
+                  <span className="font-medium">Parse Error:</span> {error}
                 </AlertDescription>
               </Alert>
             ))}
+          </div>
+        )}
+
+        {/* Generated SQL Preview */}
+        {parseResult.sql && parseResult.errors.length === 0 && (
+          <div className="p-3 border-t border-border bg-muted/10">
+            <h4 className="text-sm font-medium text-muted-foreground mb-2">Generated SQL:</h4>
+            <pre className="text-xs text-muted-foreground font-mono bg-muted/20 p-2 rounded border overflow-x-auto">
+              {parseResult.sql}
+            </pre>
           </div>
         )}
 
@@ -225,10 +224,10 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
         <div className="p-3 border-t border-border bg-muted/10">
           <h4 className="text-sm font-medium text-muted-foreground mb-2">Example Queries:</h4>
           <div className="space-y-1 text-xs text-muted-foreground font-mono">
-            <div>SELECT "field-uuid" FROM "form-uuid";</div>
-            <div>SELECT COUNT(*) FROM "form-uuid" WHERE "status" = 'approved';</div>
-            <div>SELECT SUM("amount") FROM "form-uuid" WHERE submitted_at &gt; '2025-01-01';</div>
-            <div>SELECT submission_id, "rating" FROM "form-uuid" WHERE "rating" &gt;= 4;</div>
+            <div>SELECT "field-uuid" FROM "form-uuid"</div>
+            <div>SELECT COUNT(*) FROM "form-uuid"</div>
+            <div>SELECT SUM("amount-field-uuid") FROM "form-uuid"</div>
+            <div>SELECT "name-field" FROM "form-uuid" WHERE "status-field" = 'approved'</div>
           </div>
         </div>
       </div>
