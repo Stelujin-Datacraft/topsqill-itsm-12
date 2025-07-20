@@ -54,8 +54,9 @@ export function parseUserQuery(input: string): ParseResult {
     )
     
     // Handle legacy "field_uuid" → submission_data ->> 'field_uuid'
+    // But avoid double transformation by excluding already transformed expressions
     expr = expr.replace(
-      /['""]([0-9a-fA-F\-]{36})['"\"]/g,
+      /(?<!submission_data\s*->>\s*)['""]([0-9a-fA-F\-]{36})['"\"]/g,
       (_all, uuid) => `submission_data ->> '${uuid}'`
     )
     
