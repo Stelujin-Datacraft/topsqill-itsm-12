@@ -144,10 +144,11 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
       <div className="p-3 border-t border-border bg-muted/10">
         <h4 className="text-sm font-medium text-muted-foreground mb-2">Example Queries:</h4>
         <div className="space-y-1 text-xs text-muted-foreground font-mono">
-          <div>SELECT "field-uuid" FROM "form-uuid"</div>
+          <div>SELECT FIELD("field-uuid") FROM "form-uuid"</div>
           <div>SELECT COUNT(*) FROM "form-uuid"</div>
-          <div>SELECT SUM("amount-field-uuid") FROM "form-uuid"</div>
-          <div>SELECT "name-field" FROM "form-uuid" WHERE "status-field" = 'approved'</div>
+          <div>SELECT SUM(FIELD("amount-field-uuid")) FROM "form-uuid"</div>
+          <div>SELECT FIELD("name-field") FROM "form-uuid" WHERE FIELD("status-field") = 'approved'</div>
+          <div>SELECT submission_id, submitted_by FROM "form-uuid"</div>
         </div>
       </div>
     </div>

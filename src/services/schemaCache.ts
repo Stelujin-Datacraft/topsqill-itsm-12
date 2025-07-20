@@ -9,10 +9,18 @@ export interface FieldDefinition {
   options?: any[];
 }
 
+export interface SystemColumnDefinition {
+  id: string;
+  label: string;
+  type: string;
+  description?: string;
+}
+
 export interface FormDefinition {
   id: string;
   name: string;
   fields: Record<string, FieldDefinition>;
+  systemColumns: Record<string, SystemColumnDefinition>;
 }
 
 export interface SchemaCache {
@@ -27,6 +35,54 @@ class SchemaCacheService {
   };
   
   private cacheTimeout = 5 * 60 * 1000; // 5 minutes
+
+  // System columns available for all forms
+  private getSystemColumns(): Record<string, SystemColumnDefinition> {
+    return {
+      'submission_id': {
+        id: 'submission_id',
+        label: 'Submission ID',
+        type: 'text',
+        description: 'Unique identifier for the submission'
+      },
+      'submitted_by': {
+        id: 'submitted_by',
+        label: 'Submitted By',
+        type: 'text',
+        description: 'User who submitted the form'
+      },
+      'submitted_at': {
+        id: 'submitted_at',
+        label: 'Submitted At',
+        type: 'datetime',
+        description: 'Date and time of submission'
+      },
+      'approval_status': {
+        id: 'approval_status',
+        label: 'Approval Status',
+        type: 'text',
+        description: 'Current approval status'
+      },
+      'approved_by': {
+        id: 'approved_by',
+        label: 'Approved By',
+        type: 'text',
+        description: 'User who approved the submission'
+      },
+      'approved_at': {
+        id: 'approved_at',
+        label: 'Approved At',
+        type: 'datetime',
+        description: 'Date and time of approval'
+      },
+      'form_id': {
+        id: 'form_id',
+        label: 'Form ID',
+        type: 'text',
+        description: 'ID of the form'
+      }
+    };
+  }
 
   async getCache(): Promise<SchemaCache> {
     const now = Date.now();
@@ -45,10 +101,21 @@ class SchemaCacheService {
     try {
       console.log('Refreshing schema cache...');
       
-      // Fetch all forms - using existing columns
+      // Fetch all forms with their fields
       const { data: forms, error: formsError } = await supabase
         .from('forms')
-        .select('id, name, description');
+        .select(`
+          id, 
+          name, 
+          description,
+          form_fields (
+            id,
+            label,
+            type,
+            required,
+            options
+          )
+        `);
       
       if (formsError) {
         console.error('Error fetching forms:', formsError);
@@ -64,40 +131,24 @@ class SchemaCacheService {
       for (const form of forms || []) {
         const fields: Record<string, FieldDefinition> = {};
         
-        // For now, we'll create some basic field definitions
-        // This should be replaced with actual form field data when available
-        fields['submission_id'] = {
-          id: 'submission_id',
-          label: 'Submission ID',
-          type: 'text',
-          required: false
-        };
-        
-        fields['submitted_at'] = {
-          id: 'submitted_at',
-          label: 'Submitted At',
-          type: 'datetime',
-          required: false
-        };
-        
-        fields['submitted_by'] = {
-          id: 'submitted_by',
-          label: 'Submitted By',
-          type: 'text',
-          required: false
-        };
-        
-        fields['approval_status'] = {
-          id: 'approval_status',
-          label: 'Approval Status',
-          type: 'text',
-          required: false
-        };
+        // Process form fields from the database
+        if (form.form_fields && Array.isArray(form.form_fields)) {
+          for (const field of form.form_fields) {
+            fields[field.id] = {
+              id: field.id,
+              label: field.label || 'Untitled Field',
+              type: field.type || 'text',
+              required: field.required || false,
+              options: field.options || []
+            };
+          }
+        }
         
         newCache.forms[form.id] = {
           id: form.id,
           name: form.name || 'Unnamed Form',
-          fields
+          fields,
+          systemColumns: this.getSystemColumns()
         };
       }
       
