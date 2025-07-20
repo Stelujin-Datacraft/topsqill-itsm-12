@@ -110,8 +110,13 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
   const highlightSyntax = (text: string) => {
     if (!text) return '';
     
-    // Simple syntax highlighting
-    return text
+    // Simple syntax highlighting - escape HTML first, then apply highlighting
+    const escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    
+    return escaped
       .replace(/\b(SELECT|FROM|WHERE|AND|OR|COUNT|SUM|AVG|MIN|MAX)\b/gi, '<span class="text-blue-600 font-medium">$1</span>')
       .replace(/"[^"]*"/g, '<span class="text-green-600">$&</span>')
       .replace(/'[^']*'/g, '<span class="text-amber-600">$&</span>')
