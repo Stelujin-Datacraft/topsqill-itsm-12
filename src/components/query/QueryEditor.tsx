@@ -186,7 +186,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder='SELECT "field-id" FROM "form-id" WHERE "field-id" = \'value\''
+                placeholder="SELECT \"field-id\" FROM \"form-id\" WHERE \"field-id\" = 'value'"
                 className="absolute inset-0 w-full h-full p-3 bg-transparent border-none outline-none resize-none text-xs font-mono leading-6 text-foreground caret-foreground overflow-auto"
                 style={{ 
                   fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
