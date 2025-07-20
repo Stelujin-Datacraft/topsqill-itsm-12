@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { parseUserQuery, ParseResult } from '@/services/sqlParser';
-import { Loader2, Play } from 'lucide-react';
+import { Loader2, Play, Copy, Check } from 'lucide-react';
 
 interface QueryEditorProps {
   onExecute: (sql: string) => void;
@@ -21,6 +21,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
   const [parseResult, setParseResult] = useState<ParseResult>({ errors: [] });
   const [isValidating, setIsValidating] = useState(false);
   const [lineCount, setLineCount] = useState(1);
+  const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
 
@@ -76,6 +77,16 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
     onExecute(parseResult.sql!);
   };
 
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
@@ -101,33 +112,17 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
 
   const renderLineNumbers = () => {
     return Array.from({ length: lineCount }, (_, i) => (
-      <div key={i + 1} className="text-muted-foreground text-right pr-2 leading-6">
+      <div key={i + 1} className="text-muted-foreground text-right pr-2 leading-6 select-none">
         {i + 1}
       </div>
     ));
   };
 
-  const highlightSyntax = (text: string) => {
-    if (!text) return '';
-    
-    // Simple syntax highlighting - escape HTML first, then apply highlighting
-    const escaped = text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-    
-    return escaped
-      .replace(/\b(SELECT|FROM|WHERE|AND|OR|COUNT|SUM|AVG|MIN|MAX)\b/gi, '<span class="text-blue-600 font-medium">$1</span>')
-      .replace(/"[^"]*"/g, '<span class="text-green-600">$&</span>')
-      .replace(/'[^']*'/g, '<span class="text-amber-600">$&</span>')
-      .replace(/\b(\d+)\b/g, '<span class="text-purple-600">$1</span>')
-      .replace(/([>=<!]+)/g, '<span class="text-red-600">$1</span>');
-  };
-
   const isValid = parseResult.sql && parseResult.errors.length === 0;
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col bg-background">
+      {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border bg-muted/20">
         <div className="flex items-center gap-2">
           <h3 className="text-lg font-semibold">SQL Query</h3>
@@ -139,21 +134,37 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
             <div className="w-2 h-2 bg-red-500 rounded-full" title="Query has errors" />
           )}
         </div>
-        <Button
-          onClick={handleExecute}
-          disabled={!isValid || isExecuting}
-          size="sm"
-          className="gap-2"
-        >
-          {isExecuting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Play className="h-4 w-4" />
-          )}
-          Execute
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={handleCopy}
+            variant="outline"
+            size="sm"
+            className="gap-2"
+          >
+            {copied ? (
+              <Check className="h-4 w-4" />
+            ) : (
+              <Copy className="h-4 w-4" />
+            )}
+            {copied ? 'Copied!' : 'Copy'}
+          </Button>
+          <Button
+            onClick={handleExecute}
+            disabled={!isValid || isExecuting}
+            size="sm"
+            className="gap-2"
+          >
+            {isExecuting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Play className="h-4 w-4" />
+            )}
+            Execute
+          </Button>
+        </div>
       </div>
 
+      {/* Editor */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 relative">
           <div className="absolute inset-0 flex">
@@ -163,29 +174,20 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
               className="w-12 bg-muted/30 border-r border-border p-2 text-xs font-mono overflow-hidden"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
-              {renderLineNumbers()}
+              <div className="whitespace-nowrap">
+                {renderLineNumbers()}
+              </div>
             </div>
             
             {/* Editor Area */}
-            <div className="flex-1 relative">
-              {/* Syntax Highlighting Background */}
-              <div 
-                className="absolute inset-0 p-3 text-xs font-mono leading-6 pointer-events-none whitespace-pre-wrap break-words overflow-hidden"
-                style={{ 
-                  fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
-                  color: 'transparent'
-                }}
-                dangerouslySetInnerHTML={{ __html: highlightSyntax(value) }}
-              />
-              
-              {/* Actual Textarea */}
+            <div className="flex-1 relative bg-background">
               <textarea
                 ref={textareaRef}
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder='SELECT "field-id" FROM "form-id" WHERE "field-id" = \'value\''
-                className="absolute inset-0 w-full h-full p-3 bg-transparent border-none outline-none resize-none text-xs font-mono leading-6 text-foreground caret-foreground"
+                className="absolute inset-0 w-full h-full p-3 bg-transparent border-none outline-none resize-none text-xs font-mono leading-6 text-foreground caret-foreground overflow-auto"
                 style={{ 
                   fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
                 }}
@@ -219,7 +221,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
         {parseResult.sql && parseResult.errors.length === 0 && (
           <div className="p-3 border-t border-border bg-muted/10">
             <h4 className="text-sm font-medium text-muted-foreground mb-2">Generated SQL:</h4>
-            <pre className="text-xs text-muted-foreground font-mono bg-muted/20 p-2 rounded border overflow-x-auto">
+            <pre className="text-xs text-muted-foreground font-mono bg-muted/20 p-2 rounded border overflow-x-auto whitespace-pre-wrap">
               {parseResult.sql}
             </pre>
           </div>
