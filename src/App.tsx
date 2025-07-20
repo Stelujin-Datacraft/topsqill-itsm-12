@@ -15,6 +15,7 @@ import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import Login from "./pages/Login";
+import QueryPage from "./pages/QueryPage";
 import Forms from "./pages/Forms";
 import FormBuilder from "./pages/FormBuilder";
 import FormEdit from "./pages/FormEdit";
@@ -62,6 +63,7 @@ const App = () => (
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                    <Route path="/query" element={<ProtectedRoute><QueryPage /></ProtectedRoute>} />
                     <Route path="/forms" element={<ProtectedRoute><Forms /></ProtectedRoute>} />
                     <Route path="/form-builder" element={<ProtectedRoute><FormBuilder /></ProtectedRoute>} />
                     <Route path="/form-builder/:id" element={<ProtectedRoute><FormBuilder /></ProtectedRoute>} />
