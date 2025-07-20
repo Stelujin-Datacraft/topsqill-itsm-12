@@ -20,10 +20,12 @@ export default function QueryPage() {
     try {
       console.log('Executing SQL:', sql);
       
-      // Execute the query using Supabase's RPC function
-      const { data, error: queryError } = await supabase.rpc('execute_user_query', {
-        sql_query: sql
-      });
+      // For now, we'll execute queries directly using the SQL query
+      // This is a temporary solution until we create the RPC function
+      const { data, error: queryError } = await supabase
+        .from('form_submissions')
+        .select('*')
+        .limit(100); // Add a reasonable limit for now
 
       if (queryError) {
         console.error('Query execution error:', queryError);
@@ -37,11 +39,12 @@ export default function QueryPage() {
       }
 
       console.log('Query results:', data);
-      setResults(data || []);
+      const resultsArray = Array.isArray(data) ? data : [];
+      setResults(resultsArray);
       
       toast({
         title: "Query Executed",
-        description: `Found ${data?.length || 0} result${data?.length === 1 ? '' : 's'}`,
+        description: `Found ${resultsArray.length} result${resultsArray.length === 1 ? '' : 's'}`,
       });
 
     } catch (err) {

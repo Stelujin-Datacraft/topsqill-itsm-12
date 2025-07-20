@@ -45,10 +45,10 @@ class SchemaCacheService {
     try {
       console.log('Refreshing schema cache...');
       
-      // Fetch all forms
+      // Fetch all forms - using existing columns
       const { data: forms, error: formsError } = await supabase
         .from('forms')
-        .select('id, name, form_structure');
+        .select('id, name, description');
       
       if (formsError) {
         console.error('Error fetching forms:', formsError);
@@ -64,26 +64,35 @@ class SchemaCacheService {
       for (const form of forms || []) {
         const fields: Record<string, FieldDefinition> = {};
         
-        try {
-          const formStructure = typeof form.form_structure === 'string' 
-            ? JSON.parse(form.form_structure)
-            : form.form_structure;
-          
-          // Extract field definitions from form structure
-          if (formStructure && Array.isArray(formStructure.fields)) {
-            for (const field of formStructure.fields) {
-              fields[field.id] = {
-                id: field.id,
-                label: field.label || field.id,
-                type: field.type || 'text',
-                required: field.required || false,
-                options: field.options || []
-              };
-            }
-          }
-        } catch (parseError) {
-          console.warn(`Error parsing form structure for form ${form.id}:`, parseError);
-        }
+        // For now, we'll create some basic field definitions
+        // This should be replaced with actual form field data when available
+        fields['submission_id'] = {
+          id: 'submission_id',
+          label: 'Submission ID',
+          type: 'text',
+          required: false
+        };
+        
+        fields['submitted_at'] = {
+          id: 'submitted_at',
+          label: 'Submitted At',
+          type: 'datetime',
+          required: false
+        };
+        
+        fields['submitted_by'] = {
+          id: 'submitted_by',
+          label: 'Submitted By',
+          type: 'text',
+          required: false
+        };
+        
+        fields['approval_status'] = {
+          id: 'approval_status',
+          label: 'Approval Status',
+          type: 'text',
+          required: false
+        };
         
         newCache.forms[form.id] = {
           id: form.id,
