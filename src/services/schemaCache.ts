@@ -111,7 +111,7 @@ class SchemaCacheService {
           form_fields (
             id,
             label,
-            type,
+            field_type,
             required,
             options
           )
@@ -137,9 +137,9 @@ class SchemaCacheService {
             fields[field.id] = {
               id: field.id,
               label: field.label || 'Untitled Field',
-              type: field.type || 'text',
+              type: field.field_type || 'text',
               required: field.required || false,
-              options: field.options || []
+              options: Array.isArray(field.options) ? field.options : []
             };
           }
         }

@@ -119,24 +119,10 @@ export async function executeUserQuery(
   try {
     console.log('Executing SQL:', sql);
     
-    // Use Supabase RPC to execute raw SQL
-    const { data, error } = await supabase.rpc('execute_sql', { query: sql });
-
-    if (error) {
-      console.error('Query execution error:', error);
-      return { columns: [], rows: [], errors: [error.message] };
-    }
-
-    if (!Array.isArray(data) || data.length === 0) {
-      return { columns: [], rows: [], errors: [] };
-    }
-
-    const columns = Object.keys(data[0]);
-    const rows = data.map((row: Record<string, any>) =>
-      columns.map((col) => row[col])
-    );
-
-    return { columns, rows, errors: [] };
+    // For now, use fallback query since execute_sql RPC is not available
+    // TODO: Add execute_sql RPC function to Supabase
+    console.log('SQL execution not available, using fallback query');
+    throw new Error('SQL execution not available');
   } catch (err) {
     console.error('Unexpected error:', err);
     
