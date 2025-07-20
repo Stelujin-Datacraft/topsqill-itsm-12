@@ -132,7 +132,7 @@ export async function executeUserQuery(
   } catch (err) {
     console.error('Unexpected error:', err);
     const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
-    return { columns, rows: [], errors: [errorMessage] };
+    return { columns: [], rows: [], errors: [errorMessage] };
   }
 }
 
