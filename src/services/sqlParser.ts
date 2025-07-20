@@ -145,21 +145,56 @@ export async function executeUserQuery(
       return { columns: [], rows: [], errors: [] };
     }
     
-    // For now, extract the requested field from submission_data
-    // Parse the SELECT clause to find what field we're extracting
-    const fieldMatch = sql.match(/submission_data ->> '([^']+)'/);
-    if (fieldMatch) {
-      const fieldId = fieldMatch[1];
-      const aliasMatch = sql.match(/as\s+(\w+)/i);
-      const columnName = aliasMatch ? aliasMatch[1] : fieldId;
+    // Parse the SELECT clause to extract all columns
+    const selectMatch = sql.match(/SELECT\s+(.+?)\s+FROM/i);
+    if (selectMatch) {
+      const selectClause = selectMatch[1];
+      const columnExpressions = selectClause.split(',').map(expr => expr.trim());
       
-      const columns = [columnName];
-      const rows = submissions.map(submission => {
-        const submissionData = submission.submission_data as Record<string, any>;
-        return [submissionData[fieldId] || null];
+      const columns: string[] = [];
+      const columnExtractors: ((submission: any) => any)[] = [];
+      
+      columnExpressions.forEach(expr => {
+        // Handle submission_data field access
+        const fieldMatch = expr.match(/submission_data ->> '([^']+)'(?:\s+as\s+(\w+))?/i);
+        if (fieldMatch) {
+          const fieldId = fieldMatch[1];
+          const alias = fieldMatch[2] || fieldId;
+          columns.push(alias);
+          columnExtractors.push((submission) => {
+            const submissionData = submission.submission_data as Record<string, any>;
+            return submissionData[fieldId] || null;
+          });
+          return;
+        }
+        
+        // Handle system columns
+        if (expr.match(/id\s+as\s+submission_id/i)) {
+          columns.push('submission_id');
+          columnExtractors.push((submission) => submission.id);
+          return;
+        }
+        
+        if (expr.match(/submitted_by/i)) {
+          columns.push('submitted_by');
+          columnExtractors.push((submission) => submission.submitted_by);
+          return;
+        }
+        
+        if (expr.match(/created_at\s+as\s+submitted_at/i)) {
+          columns.push('submitted_at');
+          columnExtractors.push((submission) => submission.created_at);
+          return;
+        }
       });
       
-      return { columns, rows, errors: [] };
+      if (columns.length > 0) {
+        const rows = submissions.map(submission => 
+          columnExtractors.map(extractor => extractor(submission))
+        );
+        
+        return { columns, rows, errors: [] };
+      }
     }
     
     // If we can't parse the specific field access, return basic submission data
