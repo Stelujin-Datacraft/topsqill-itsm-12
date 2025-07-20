@@ -116,7 +116,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
       .replace(/"[^"]*"/g, '<span class="text-green-600">$&</span>')
       .replace(/'[^']*'/g, '<span class="text-amber-600">$&</span>')
       .replace(/\b(\d+)\b/g, '<span class="text-purple-600">$1</span>')
-      .replace(/([><=!]+)/g, '<span class="text-red-600">$1</span>');
+      .replace(/([>=<!]+)/g, '<span class="text-red-600">$1</span>');
   };
 
   const isValid = parseResult.sql && parseResult.errors.length === 0;

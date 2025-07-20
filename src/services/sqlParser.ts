@@ -132,7 +132,7 @@ export async function executeUserQuery(
   } catch (err) {
     console.error('Unexpected error:', err);
     const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
-    return { columns: [], rows: [], errors: [errorMessage] };
+    return { columns, rows: [], errors: [errorMessage] };
   }
 }
 
@@ -143,7 +143,7 @@ export interface ParseError {
   type: 'syntax' | 'validation' | 'unknown_field' | 'unknown_form';
 }
 
-export interface ParseResult as LegacyParseResult {
+export interface LegacyParseResult {
   sql?: string;
   errors: ParseError[];
   ast?: any;
