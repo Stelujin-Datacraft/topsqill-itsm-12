@@ -120,38 +120,63 @@ export async function executeUserQuery(
   try {
     console.log('Executing SQL:', sql);
     
-    // For now, use fallback query since execute_sql RPC is not available
-    // TODO: Add execute_sql RPC function to Supabase
-    console.log('SQL execution not available, using fallback query');
-    throw new Error('SQL execution not available');
+    // Since we're working with form_submissions, we can parse the query and execute it manually
+    // This is a temporary solution until proper SQL execution RPC is available
+    
+    // Extract the form_id from the WHERE clause
+    const formIdMatch = sql.match(/WHERE form_id = '([^']+)'/);
+    if (!formIdMatch) {
+      return { columns: [], rows: [], errors: ['Unable to extract form_id from query'] };
+    }
+    
+    const formId = formIdMatch[1];
+    
+    // Query form_submissions for this form
+    const { data: submissions, error: submissionsError } = await supabase
+      .from('form_submissions')
+      .select('*')
+      .eq('form_id', formId);
+    
+    if (submissionsError) {
+      return { columns: [], rows: [], errors: [submissionsError.message] };
+    }
+    
+    if (!submissions || submissions.length === 0) {
+      return { columns: [], rows: [], errors: [] };
+    }
+    
+    // For now, extract the requested field from submission_data
+    // Parse the SELECT clause to find what field we're extracting
+    const fieldMatch = sql.match(/submission_data ->> '([^']+)'/);
+    if (fieldMatch) {
+      const fieldId = fieldMatch[1];
+      const aliasMatch = sql.match(/as\s+(\w+)/i);
+      const columnName = aliasMatch ? aliasMatch[1] : fieldId;
+      
+      const columns = [columnName];
+      const rows = submissions.map(submission => {
+        const submissionData = submission.submission_data as Record<string, any>;
+        return [submissionData[fieldId] || null];
+      });
+      
+      return { columns, rows, errors: [] };
+    }
+    
+    // If we can't parse the specific field access, return basic submission data
+    const columns = ['id', 'form_id', 'submitted_at', 'submission_data'];
+    const rows = submissions.map(submission => [
+      submission.id,
+      submission.form_id,
+      submission.submitted_at,
+      JSON.stringify(submission.submission_data)
+    ]);
+    
+    return { columns, rows, errors: [] };
+    
   } catch (err) {
     console.error('Unexpected error:', err);
-    
-    // Fallback to basic form_submissions query for development
-    try {
-      const { data: fallbackData, error: fallbackError } = await supabase
-        .from('form_submissions')
-        .select('*')
-        .limit(10);
-
-      if (fallbackError) {
-        return { columns: [], rows: [], errors: [fallbackError.message] };
-      }
-
-      if (!Array.isArray(fallbackData) || fallbackData.length === 0) {
-        return { columns: [], rows: [], errors: ['No data found'] };
-      }
-
-      const columns = Object.keys(fallbackData[0]);
-      const rows = fallbackData.map((row: Record<string, any>) =>
-        columns.map((col) => row[col])
-      );
-
-      return { columns, rows, errors: ['Using fallback query - RPC not available'] };
-    } catch (fallbackErr) {
-      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
-      return { columns: [], rows: [], errors: [errorMessage] };
-    }
+    const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+    return { columns: [], rows: [], errors: [errorMessage] };
   }
 }
 
