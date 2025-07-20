@@ -3,13 +3,16 @@ import React, { useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { QueryEditor } from '@/components/query/QueryEditor';
 import { QueryResults } from '@/components/query/QueryResults';
+import { FormsSidebar } from '@/components/query/FormsSidebar';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 
 export default function QueryPage() {
   const [results, setResults] = useState<any[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [query, setQuery] = useState('');
   const { toast } = useToast();
 
   const executeQuery = async (sql: string) => {
@@ -61,20 +64,51 @@ export default function QueryPage() {
     }
   };
 
+  const insertText = (text: string) => {
+    setQuery(prev => prev + text);
+  };
+
   return (
     <DashboardLayout title="SQL Query Builder">
-      <div className="space-y-6">
-        <div className="bg-card border rounded-lg p-6">
-          <QueryEditor onExecute={executeQuery} isExecuting={isExecuting} />
-        </div>
-        
-        <div className="bg-card border rounded-lg p-6">
-          <QueryResults 
-            data={results}
-            error={error}
-            isLoading={isExecuting}
-          />
-        </div>
+      <div className="h-[calc(100vh-8rem)] flex">
+        <ResizablePanelGroup direction="horizontal" className="w-full">
+          {/* Forms Sidebar */}
+          <ResizablePanel defaultSize={20} minSize={15} maxSize={35}>
+            <FormsSidebar onInsertText={insertText} />
+          </ResizablePanel>
+          
+          <ResizableHandle withHandle />
+          
+          {/* Main Query Area */}
+          <ResizablePanel defaultSize={80}>
+            <ResizablePanelGroup direction="vertical">
+              {/* Query Editor */}
+              <ResizablePanel defaultSize={50} minSize={30}>
+                <div className="h-full border-r border-border">
+                  <QueryEditor 
+                    onExecute={executeQuery} 
+                    isExecuting={isExecuting}
+                    value={query}
+                    onChange={setQuery}
+                  />
+                </div>
+              </ResizablePanel>
+              
+              <ResizableHandle withHandle />
+              
+              {/* Results Panel */}
+              <ResizablePanel defaultSize={50} minSize={20}>
+                <div className="h-full">
+                  <QueryResults 
+                    data={results}
+                    error={error}
+                    isLoading={isExecuting}
+                  />
+                </div>
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </div>
     </DashboardLayout>
   );
