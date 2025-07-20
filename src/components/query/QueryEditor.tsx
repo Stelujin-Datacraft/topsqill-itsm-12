@@ -5,6 +5,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { parseUserQuery, ParseResult } from '@/services/sqlParser';
 import { Loader2, Play, Copy, Check } from 'lucide-react';
 
+// Import CodeMirror editor
+import CodeMirror from '@uiw/react-codemirror';
+import { sql } from '@codemirror/lang-sql';
+import { oneDark } from '@codemirror/theme-one-dark';
+
 interface QueryEditorProps {
   onExecute: (sql: string) => void;
   isExecuting: boolean;
@@ -12,25 +17,21 @@ interface QueryEditorProps {
   onChange: (value: string) => void;
 }
 
-export const QueryEditor: React.FC<QueryEditorProps> = ({ 
-  onExecute, 
-  isExecuting, 
-  value, 
-  onChange 
+export const QueryEditor: React.FC<QueryEditorProps> = ({
+  onExecute,
+  isExecuting,
+  value,
+  onChange,
 }) => {
   const [parseResult, setParseResult] = useState<ParseResult>({ errors: [] });
   const [isValidating, setIsValidating] = useState(false);
-  const [lineCount, setLineCount] = useState(1);
   const [copied, setCopied] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const lineNumbersRef = useRef<HTMLDivElement>(null);
 
   const validateQuery = useCallback((input: string) => {
     if (!input.trim()) {
       setParseResult({ errors: [] });
       return;
     }
-
     setIsValidating(true);
     try {
       const result = parseUserQuery(input);
@@ -38,7 +39,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
     } catch (error) {
       console.error('Validation error:', error);
       setParseResult({
-        errors: ['Validation failed: ' + (error instanceof Error ? error.message : 'Unknown error')]
+        errors: ['Validation failed: ' + (error instanceof Error ? error.message : 'Unknown error')],
       });
     } finally {
       setIsValidating(false);
@@ -49,31 +50,12 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
     const timeoutId = setTimeout(() => {
       validateQuery(value);
     }, 500);
-
     return () => clearTimeout(timeoutId);
   }, [value, validateQuery]);
 
-  useEffect(() => {
-    const lines = value.split('\n').length;
-    setLineCount(lines);
-    
-    // Sync scroll between textarea and line numbers
-    if (textareaRef.current && lineNumbersRef.current) {
-      const syncScroll = () => {
-        if (textareaRef.current && lineNumbersRef.current) {
-          lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
-        }
-      };
-      
-      textareaRef.current.addEventListener('scroll', syncScroll);
-      return () => textareaRef.current?.removeEventListener('scroll', syncScroll);
-    }
-  }, [value]);
-
-  const handleExecute = async () => {
+  const handleExecute = () => {
     const isValid = parseResult.sql && parseResult.errors.length === 0;
     if (!isValid || isExecuting) return;
-    
     onExecute(parseResult.sql!);
   };
 
@@ -85,37 +67,6 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
     } catch (err) {
       console.error('Failed to copy text: ', err);
     }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      handleExecute();
-    }
-    
-    // Handle tab indentation
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const textarea = e.target as HTMLTextAreaElement;
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      
-      const newValue = value.substring(0, start) + '  ' + value.substring(end);
-      onChange(newValue);
-      
-      // Reset cursor position
-      setTimeout(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + 2;
-      }, 0);
-    }
-  };
-
-  const renderLineNumbers = () => {
-    return Array.from({ length: lineCount }, (_, i) => (
-      <div key={i + 1} className="text-muted-foreground text-right pr-2 leading-6 select-none">
-        {i + 1}
-      </div>
-    ));
   };
 
   const isValid = parseResult.sql && parseResult.errors.length === 0;
@@ -135,107 +86,68 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            onClick={handleCopy}
-            variant="outline"
-            size="sm"
-            className="gap-2"
-          >
-            {copied ? (
-              <Check className="h-4 w-4" />
-            ) : (
-              <Copy className="h-4 w-4" />
-            )}
+          <Button onClick={handleCopy} variant="outline" size="sm" className="gap-2">
+            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             {copied ? 'Copied!' : 'Copy'}
           </Button>
-          <Button
-            onClick={handleExecute}
-            disabled={!isValid || isExecuting}
-            size="sm"
-            className="gap-2"
-          >
-            {isExecuting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Play className="h-4 w-4" />
-            )}
+          <Button onClick={handleExecute} disabled={!isValid || isExecuting} size="sm" className="gap-2">
+            {isExecuting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
             Execute
           </Button>
         </div>
       </div>
 
       {/* Editor */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 relative">
-          <div className="absolute inset-0 flex">
-            {/* Line Numbers */}
-            <div 
-              ref={lineNumbersRef}
-              className="w-12 bg-muted/30 border-r border-border p-2 text-xs font-mono overflow-hidden"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              <div className="whitespace-nowrap">
-                {renderLineNumbers()}
-              </div>
-            </div>
-            
-            {/* Editor Area */}
-            <div className="flex-1 relative bg-background">
-              <textarea
-                ref={textareaRef}
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="SELECT \"field-id\" FROM \"form-id\" WHERE \"field-id\" = 'value'"
-                className="absolute inset-0 w-full h-full p-3 bg-transparent border-none outline-none resize-none text-xs font-mono leading-6 text-foreground caret-foreground overflow-auto"
-                style={{ 
-                  fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
-                }}
-                spellCheck={false}
-              />
-            </div>
-          </div>
+      <div className="flex-1 p-4 overflow-hidden">
+        <CodeMirror
+          value={value}
+          height="100%"
+          extensions={[sql(), oneDark]}
+          onChange={(val) => onChange(val)}
+          basicSetup={{
+            lineNumbers: true,
+            highlightActiveLine: true,
+          }}
+          theme={oneDark}
+        />
+      </div>
+
+      {/* Help Text */}
+      <div className="p-3 border-t border-border bg-muted/10 text-xs text-muted-foreground">
+        Press <kbd>Ctrl+Enter</kbd> (or <kbd>Cmd+Enter</kbd> on Mac) to execute • Only SELECT statements allowed
+      </div>
+
+      {/* Errors */}
+      {parseResult.errors.length > 0 && (
+        <div className="p-3 border-t border-border space-y-2">
+          {parseResult.errors.map((error, index) => (
+            <Alert key={index} variant="destructive">
+              <AlertDescription className="text-sm">
+                <span className="font-medium">Parse Error:</span> {error}
+              </AlertDescription>
+            </Alert>
+          ))}
         </div>
+      )}
 
-        {/* Help Text */}
+      {/* Generated SQL Preview */}
+      {parseResult.sql && parseResult.errors.length === 0 && (
         <div className="p-3 border-t border-border bg-muted/10">
-          <div className="text-xs text-muted-foreground">
-            Press Ctrl+Enter (Cmd+Enter on Mac) to execute • Only SELECT statements allowed
-          </div>
+          <h4 className="text-sm font-medium text-muted-foreground mb-2">Generated SQL:</h4>
+          <pre className="text-xs text-muted-foreground font-mono bg-muted/20 p-2 rounded border overflow-x-auto whitespace-pre-wrap">
+            {parseResult.sql}
+          </pre>
         </div>
+      )}
 
-        {/* Errors */}
-        {parseResult.errors.length > 0 && (
-          <div className="p-3 border-t border-border space-y-2">
-            {parseResult.errors.map((error, index) => (
-              <Alert key={index} variant="destructive">
-                <AlertDescription className="text-sm">
-                  <span className="font-medium">Parse Error:</span> {error}
-                </AlertDescription>
-              </Alert>
-            ))}
-          </div>
-        )}
-
-        {/* Generated SQL Preview */}
-        {parseResult.sql && parseResult.errors.length === 0 && (
-          <div className="p-3 border-t border-border bg-muted/10">
-            <h4 className="text-sm font-medium text-muted-foreground mb-2">Generated SQL:</h4>
-            <pre className="text-xs text-muted-foreground font-mono bg-muted/20 p-2 rounded border overflow-x-auto whitespace-pre-wrap">
-              {parseResult.sql}
-            </pre>
-          </div>
-        )}
-
-        {/* Example Queries */}
-        <div className="p-3 border-t border-border bg-muted/10">
-          <h4 className="text-sm font-medium text-muted-foreground mb-2">Example Queries:</h4>
-          <div className="space-y-1 text-xs text-muted-foreground font-mono">
-            <div>SELECT "field-uuid" FROM "form-uuid"</div>
-            <div>SELECT COUNT(*) FROM "form-uuid"</div>
-            <div>SELECT SUM("amount-field-uuid") FROM "form-uuid"</div>
-            <div>SELECT "name-field" FROM "form-uuid" WHERE "status-field" = 'approved'</div>
-          </div>
+      {/* Example Queries */}
+      <div className="p-3 border-t border-border bg-muted/10">
+        <h4 className="text-sm font-medium text-muted-foreground mb-2">Example Queries:</h4>
+        <div className="space-y-1 text-xs text-muted-foreground font-mono">
+          <div>SELECT "field-uuid" FROM "form-uuid"</div>
+          <div>SELECT COUNT(*) FROM "form-uuid"</div>
+          <div>SELECT SUM("amount-field-uuid") FROM "form-uuid"</div>
+          <div>SELECT "name-field" FROM "form-uuid" WHERE "status-field" = 'approved'</div>
         </div>
       </div>
     </div>
