@@ -99,6 +99,13 @@ export const FormsSidebar: React.FC<FormsSidebarProps> = ({
   const [forms, setForms] = useState<Record<string, FormDefinition>>({});
   const [openForms, setOpenForms] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [isFormsExpanded, setIsFormsExpanded] = useState(true);
+  const [isSavedQueriesExpanded, setIsSavedQueriesExpanded] = useState(false);
+  const [savedQueries] = useState([
+    { id: '1', name: 'Recent Submissions', query: 'SELECT submission_id, submitted_by FROM "form-uuid" ORDER BY submitted_at DESC LIMIT 10' },
+    { id: '2', name: 'Count by Status', query: 'SELECT COUNT(*) FROM "form-uuid" WHERE FIELD("status-field") = "approved"' },
+    { id: '3', name: 'Sum of Amounts', query: 'SELECT SUM(FIELD("amount-field")) FROM "form-uuid"' }
+  ]);
   useEffect(() => {
     const loadForms = async () => {
       try {
@@ -150,77 +157,103 @@ export const FormsSidebar: React.FC<FormsSidebarProps> = ({
       </div>;
   }
   return <div className="w-full h-full border-r border-border bg-muted/10">
-      <div className="p-4 border-b border-border">
-        <div className="flex items-center gap-2">
-          <Database className="h-4 w-4" />
-          <span className="font-medium">Forms & Fields</span>
-        </div>
-      </div>
-      
-      <ScrollArea className="h-[calc(100%-4rem)]">
-        <div className="p-2 space-y-1">
-          {Object.values(forms).map(form => <Collapsible key={form.id} open={openForms.has(form.id)} onOpenChange={() => toggleForm(form.id)}>
-              <CollapsibleTrigger className="w-full">
-                <div className="flex items-center justify-between w-full p-2 rounded-md hover:bg-muted/50 group">
-                  <div className="flex items-center gap-2 flex-1">
-                    {openForms.has(form.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                    <Table className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium truncate">{form.name}</span>
-                    
-                  </div>
-                  <ActionButtons type="form" item={form} onInsertText={onInsertText} />
-                </div>
-              </CollapsibleTrigger>
-              
-              <CollapsibleContent className="ml-6 space-y-1">
-                {/* System Columns Section */}
-                <div className="mt-2">
-                  <div className="flex items-center gap-2 px-2 py-1">
+      <ScrollArea className="h-full">
+        <div className="p-2 space-y-2">
+          {/* Saved Queries Section */}
+          <Collapsible open={isSavedQueriesExpanded} onOpenChange={setIsSavedQueriesExpanded}>
+            <CollapsibleTrigger className="w-full">
+              <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 border border-border">
+                {isSavedQueriesExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                <Database className="h-4 w-4" />
+                <span className="font-medium text-sm">Saved Queries</span>
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-1 space-y-1">
+              {savedQueries.map(query => (
+                <div key={query.id} className="ml-6 p-2 rounded-md hover:bg-muted/30 group cursor-pointer"
+                     onClick={() => onInsertText(query.query)}>
+                  <div className="flex items-center gap-2">
                     <Settings className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-xs font-medium text-muted-foreground">System Columns</span>
+                    <span className="text-xs">{query.name}</span>
                   </div>
-                  {Object.values(form.systemColumns).map(column => <div key={column.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/30 group">
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <Settings className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                        <span className="text-xs truncate">{column.label}</span>
-                        <Badge variant="secondary" className={`text-xs px-1 py-0 ${getTypeColor(column.type)} flex-shrink-0`}>
-                          {column.type}
-                        </Badge>
-                      </div>
-                      <ActionButtons type="system" item={column} onInsertText={onInsertText} />
-                    </div>)}
                 </div>
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
 
-                <Separator className="my-2" />
-
-                {/* Form Fields Section */}
-                <div>
-                  <div className="flex items-center gap-2 px-2 py-1">
-                    <Type className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-xs font-medium text-muted-foreground">Form Fields</span>
-                  </div>
-                  {Object.values(form.fields).map(field => <div key={field.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/30 group">
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <Type className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                        <span className="text-xs truncate">{field.label}</span>
-                        <Badge variant="secondary" className={`text-xs px-1 py-0 ${getTypeColor(field.type)} flex-shrink-0`}>
-                          {field.type}
-                        </Badge>
-                        {field.required && <Badge variant="destructive" className="text-xs px-1 py-0">
-                            Required
-                          </Badge>}
+          {/* Forms & Fields Section */}
+          <Collapsible open={isFormsExpanded} onOpenChange={setIsFormsExpanded}>
+            <CollapsibleTrigger className="w-full">
+              <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 border border-border">
+                {isFormsExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                <Table className="h-4 w-4" />
+                <span className="font-medium text-sm">Forms & Fields</span>
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-1 space-y-1">
+              {Object.values(forms).map(form => <Collapsible key={form.id} open={openForms.has(form.id)} onOpenChange={() => toggleForm(form.id)}>
+                  <CollapsibleTrigger className="w-full">
+                    <div className="flex items-center justify-between w-full p-2 rounded-md hover:bg-muted/50 group ml-4">
+                      <div className="flex items-center gap-2 flex-1">
+                        {openForms.has(form.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                        <Table className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium truncate">{form.name}</span>
                       </div>
-                      <ActionButtons type="field" item={field} onInsertText={onInsertText} />
-                    </div>)}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>)}
-          
-          {Object.keys(forms).length === 0 && <div className="text-center py-8 text-muted-foreground">
-              <Database className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No forms found</p>
-              <p className="text-xs">Create a form to see it here</p>
-            </div>}
+                      <ActionButtons type="form" item={form} onInsertText={onInsertText} />
+                    </div>
+                  </CollapsibleTrigger>
+                  
+                  <CollapsibleContent className="ml-10 space-y-1">
+                    {/* System Columns Section */}
+                    <div className="mt-2">
+                      <div className="flex items-center gap-2 px-2 py-1">
+                        <Settings className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs font-medium text-muted-foreground">System Columns</span>
+                      </div>
+                      {Object.values(form.systemColumns).map(column => <div key={column.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/30 group">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <Settings className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                            <span className="text-xs truncate">{column.label}</span>
+                            <Badge variant="secondary" className={`text-xs px-1 py-0 ${getTypeColor(column.type)} flex-shrink-0`}>
+                              {column.type}
+                            </Badge>
+                          </div>
+                          <ActionButtons type="system" item={column} onInsertText={onInsertText} />
+                        </div>)}
+                    </div>
+
+                    <Separator className="my-2" />
+
+                    {/* Form Fields Section */}
+                    <div>
+                      <div className="flex items-center gap-2 px-2 py-1">
+                        <Type className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs font-medium text-muted-foreground">Form Fields</span>
+                      </div>
+                      {Object.values(form.fields).map(field => <div key={field.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/30 group">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <Type className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                            <span className="text-xs truncate">{field.label}</span>
+                            <Badge variant="secondary" className={`text-xs px-1 py-0 ${getTypeColor(field.type)} flex-shrink-0`}>
+                              {field.type}
+                            </Badge>
+                            {field.required && <Badge variant="destructive" className="text-xs px-1 py-0">
+                                Required
+                              </Badge>}
+                          </div>
+                          <ActionButtons type="field" item={field} onInsertText={onInsertText} />
+                        </div>)}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>)}
+              
+              {Object.keys(forms).length === 0 && <div className="text-center py-8 text-muted-foreground ml-4">
+                  <Database className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No forms found</p>
+                  <p className="text-xs">Create a form to see it here</p>
+                </div>}
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       </ScrollArea>
     </div>;

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { QueryEditor } from '@/components/query/QueryEditor';
-import { QueryResults } from '@/components/query/QueryResults';
+import { QueryResultsTabs } from '@/components/query/QueryResultsTabs';
 import { FormsSidebar } from '@/components/query/FormsSidebar';
 import { executeUserQuery, QueryResult } from '@/services/sqlParser';
 import { useToast } from '@/hooks/use-toast';
@@ -72,7 +72,7 @@ export default function QueryPage() {
       <div className="h-[calc(100vh-8rem)] flex">
         <ResizablePanelGroup direction="horizontal" className="w-full">
           {/* Forms Sidebar */}
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={35}>
+          <ResizablePanel defaultSize={20} minSize={15} maxSize={35} collapsible>
             <FormsSidebar onInsertText={insertText} />
           </ResizablePanel>
           
@@ -98,10 +98,16 @@ export default function QueryPage() {
               {/* Results Panel */}
               <ResizablePanel defaultSize={50} minSize={20}>
                 <div className="h-full">
-                  <QueryResults 
+                  <QueryResultsTabs 
                     data={resultsData}
                     error={resultsError}
                     isLoading={isExecuting}
+                    executionTime={120}
+                    queryStats={{
+                      rowsAffected: resultsData?.length || 0,
+                      rowsScanned: resultsData?.length || 0,
+                      bytesProcessed: 1024
+                    }}
                   />
                 </div>
               </ResizablePanel>
