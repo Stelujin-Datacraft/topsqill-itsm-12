@@ -1,15 +1,16 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, FileText, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileText, Trash2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SavedQuery } from '@/types/queries';
 
 interface SavedQueriesSectionProps {
   savedQueries: SavedQuery[];
-  onSelectQuery: (query: string) => void;
+  isLoading: boolean;
+  onSelectQuery: (query: SavedQuery) => void;
   onDeleteQuery: (id: string) => void;
 }
 
-export function SavedQueriesSection({ savedQueries, onSelectQuery, onDeleteQuery }: SavedQueriesSectionProps) {
+export function SavedQueriesSection({ savedQueries, isLoading, onSelectQuery, onDeleteQuery }: SavedQueriesSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -26,7 +27,12 @@ export function SavedQueriesSection({ savedQueries, onSelectQuery, onDeleteQuery
       
       {isExpanded && (
         <div className="pb-2">
-          {savedQueries.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="ml-2 text-sm text-muted-foreground">Loading queries...</span>
+            </div>
+          ) : savedQueries.length === 0 ? (
             <p className="px-4 py-2 text-sm text-muted-foreground">No saved queries</p>
           ) : (
             savedQueries.map((query) => (
@@ -35,7 +41,7 @@ export function SavedQueriesSection({ savedQueries, onSelectQuery, onDeleteQuery
                   variant="ghost"
                   size="sm"
                   className="flex-1 justify-start h-8 px-2"
-                  onClick={() => onSelectQuery(query.query)}
+                  onClick={() => onSelectQuery(query)}
                 >
                   <FileText className="h-3 w-3 mr-2" />
                   <span className="truncate text-sm">{query.name}</span>

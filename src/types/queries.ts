@@ -13,4 +13,5 @@ export interface QueryTab {
   query: string;
   isActive: boolean;
   isDirty: boolean;
+  savedQueryId?: string; // Reference to saved query ID if this tab represents a saved query
 }

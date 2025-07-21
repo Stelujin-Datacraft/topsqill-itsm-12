@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { schemaCache, FormDefinition, FieldDefinition, SystemColumnDefinition } from '@/services/schemaCache';
 import { SavedQueriesSection } from './SavedQueriesSection';
 import { useSavedQueries } from '@/hooks/useSavedQueries';
+import { SavedQuery } from '@/types/queries';
 
 interface FormsSidebarProps {
   onInsertText: (text: string) => void;
@@ -157,7 +158,11 @@ export const FormsSidebar: React.FC<FormsSidebarProps> = ({
   const [openForms, setOpenForms] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [isFormsExpanded, setIsFormsExpanded] = useState(true);
-  const { savedQueries, deleteQuery } = useSavedQueries();
+  const { savedQueries, isLoading, deleteQuery } = useSavedQueries();
+
+  const handleSelectQuery = (query: SavedQuery) => {
+    onSelectQuery(query.query);
+  };
 
   useEffect(() => {
     const loadForms = async () => {
@@ -229,7 +234,8 @@ export const FormsSidebar: React.FC<FormsSidebarProps> = ({
           {/* Saved Queries Section */}
           <SavedQueriesSection
             savedQueries={savedQueries}
-            onSelectQuery={onSelectQuery}
+            isLoading={isLoading}
+            onSelectQuery={handleSelectQuery}
             onDeleteQuery={deleteQuery}
           />
 

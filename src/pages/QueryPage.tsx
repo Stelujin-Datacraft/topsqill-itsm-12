@@ -20,7 +20,6 @@ export default function QueryPage() {
   ]);
   const [activeTabId, setActiveTabId] = useState('1');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { toast } = useToast();
   const { saveQuery } = useSavedQueries();
 
@@ -30,7 +29,7 @@ export default function QueryPage() {
   const updateTabQuery = (query: string) => {
     setTabs(tabs.map(tab => 
       tab.id === activeTabId 
-        ? { ...tab, query, isDirty: query !== tab.query }
+        ? { ...tab, query, isDirty: !tab.savedQueryId || query !== tab.query }
         : tab
     ));
   };
@@ -95,12 +94,16 @@ export default function QueryPage() {
     }
   };
 
-  const handleSaveQuery = (name: string) => {
-    saveQuery(name, currentQuery);
-    toast({
-      title: "Query Saved",
-      description: `Query "${name}" has been saved`,
-    });
+  const handleSaveQuery = async (name: string) => {
+    const savedQuery = await saveQuery(name, currentQuery);
+    if (savedQuery) {
+      // Mark the current tab as saved and not dirty
+      setTabs(tabs.map(tab => 
+        tab.id === activeTabId 
+          ? { ...tab, name, isDirty: false, savedQueryId: savedQuery.id }
+          : tab
+      ));
+    }
   };
 
   const insertText = (text: string) => {
@@ -108,7 +111,20 @@ export default function QueryPage() {
   };
 
   const handleSelectQuery = (query: string) => {
-    updateTabQuery(query);
+    // Create a new tab for the selected query or update current if empty
+    if (currentQuery.trim() === '') {
+      updateTabQuery(query);
+    } else {
+      handleNewTab();
+      // Update the new tab with the selected query
+      setTimeout(() => {
+        setTabs(tabs => tabs.map(tab => 
+          tab.id === activeTabId 
+            ? { ...tab, query }
+            : tab
+        ));
+      }, 0);
+    }
   };
 
   // Convert QueryResult to the format expected by QueryResults component
