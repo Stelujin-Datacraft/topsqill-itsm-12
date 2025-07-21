@@ -23,7 +23,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               {actions && <div className="flex items-center gap-2">{actions}</div>}
             </div>
           </header>
-          <div className="flex-1 p-6 px-0 py-0">
+          <div className="flex-1 p-6 px-[10px] mx-0 py-[10px]">
             {children}
           </div>
         </main>
