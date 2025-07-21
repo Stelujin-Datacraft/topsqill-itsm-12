@@ -89,10 +89,10 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
 
       {/* Editor */}
       <div className="flex-1 overflow-hidden bg-white border border-border rounded-md m-4">
-        <div className="h-full min-h-[300px]">
+        <div className="h-full min-h-[300px] max-w-full overflow-auto">
           <CodeMirror 
             value={value} 
-            height="100%" 
+            height="auto" 
             extensions={[sql()]} 
             onChange={val => onChange(val)} 
             basicSetup={{
@@ -107,7 +107,9 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
             theme="light"
             style={{
               fontSize: '14px',
-              fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace'
+              fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+              width: '100%',
+              minWidth: '600px'
             }}
           />
         </div>

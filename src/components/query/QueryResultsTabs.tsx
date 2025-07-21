@@ -215,33 +215,33 @@ export const QueryResultsTabs: React.FC<QueryResultsTabsProps> = ({
                     <Table>
                       <TableHeader className="sticky top-0 bg-muted z-10">
                         <TableRow className="border-b-2">
-                          {columns.map(column => (
-                            <TableHead 
-                              key={column} 
-                              className="font-semibold bg-muted hover:bg-muted/80 cursor-pointer border-r last:border-r-0"
-                              style={{ maxWidth: '200px', minWidth: '120px' }}
-                              onClick={() => handleSort(column)}
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="truncate">
-                                  {column.startsWith('"') && column.endsWith('"') ? column.slice(1, -1) : column}
-                                </span>
-                                <div className="flex flex-col">
-                                  {sortColumn === column ? (
-                                    sortDirection === 'asc' ? (
-                                      <ArrowUp className="h-3 w-3" />
-                                    ) : sortDirection === 'desc' ? (
-                                      <ArrowDown className="h-3 w-3" />
-                                    ) : (
-                                      <ArrowUpDown className="h-3 w-3 opacity-50" />
-                                    )
-                                  ) : (
-                                    <ArrowUpDown className="h-3 w-3 opacity-50" />
-                                  )}
-                                </div>
-                              </div>
-                            </TableHead>
-                          ))}
+                           {columns.map(column => (
+                             <TableHead 
+                               key={column} 
+                               className="font-semibold bg-muted hover:bg-muted/80 cursor-pointer border border-gray-300"
+                               style={{ maxWidth: '150px', minWidth: '100px' }}
+                               onClick={() => handleSort(column)}
+                             >
+                               <div className="flex items-center gap-2">
+                                 <span className="truncate">
+                                   {column.startsWith('"') && column.endsWith('"') ? column.slice(1, -1) : column}
+                                 </span>
+                                 <div className="flex flex-col">
+                                   {sortColumn === column ? (
+                                     sortDirection === 'asc' ? (
+                                       <ArrowUp className="h-3 w-3" />
+                                     ) : sortDirection === 'desc' ? (
+                                       <ArrowDown className="h-3 w-3" />
+                                     ) : (
+                                       <ArrowUpDown className="h-3 w-3 opacity-50" />
+                                     )
+                                   ) : (
+                                     <ArrowUpDown className="h-3 w-3 opacity-50" />
+                                   )}
+                                 </div>
+                               </div>
+                             </TableHead>
+                           ))}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -249,16 +249,16 @@ export const QueryResultsTabs: React.FC<QueryResultsTabsProps> = ({
                           <TableRow key={index} className="hover:bg-muted/30">
                             {columns.map(column => (
                               <ContextMenu key={column}>
-                                <ContextMenuTrigger>
-                                  <TableCell 
-                                    className="border-r last:border-r-0 font-mono text-sm cursor-default"
-                                    style={{ maxWidth: '200px' }}
-                                  >
-                                    <div className="truncate" title={String(row[column] || '')}>
-                                      {row[column] !== null && row[column] !== undefined ? String(row[column]) : '-'}
-                                    </div>
-                                  </TableCell>
-                                </ContextMenuTrigger>
+                                 <ContextMenuTrigger>
+                                   <TableCell 
+                                     className="border border-gray-300 font-mono text-sm cursor-default"
+                                     style={{ maxWidth: '150px' }}
+                                   >
+                                     <div className="truncate" title={String(row[column] || '')}>
+                                       {row[column] !== null && row[column] !== undefined ? String(row[column]) : '-'}
+                                     </div>
+                                   </TableCell>
+                                 </ContextMenuTrigger>
                                 <ContextMenuContent>
                                   <ContextMenuItem onClick={() => handleCopyCell(row[column])}>
                                     Copy Cell Content
