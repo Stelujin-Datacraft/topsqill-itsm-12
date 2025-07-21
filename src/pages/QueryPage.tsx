@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { QueryEditor } from '@/components/query/QueryEditor';
-import { QueryResultsTabs } from '@/components/query/QueryResultsTabs';
+import { QueryResultsTable } from '@/components/query/QueryResultsTable';
 import { FormsSidebar } from '@/components/query/FormsSidebar';
 import { executeUserQuery, QueryResult } from '@/services/sqlParser';
 import { useToast } from '@/hooks/use-toast';
@@ -98,7 +98,7 @@ export default function QueryPage() {
               {/* Results Panel */}
               <ResizablePanel defaultSize={50} minSize={20}>
                 <div className="h-full">
-                  <QueryResultsTabs 
+                  <QueryResultsTable 
                     data={resultsData}
                     error={resultsError}
                     isLoading={isExecuting}
