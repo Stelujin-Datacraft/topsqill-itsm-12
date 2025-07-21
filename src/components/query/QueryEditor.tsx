@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { parseUserQuery, ParseResult } from '@/services/sqlParser';
-import { Loader2, Play, Copy, Check } from 'lucide-react';
+import { Loader2, Play, Copy, Check, Save } from 'lucide-react';
 
 // Import CodeMirror editor
 import CodeMirror from '@uiw/react-codemirror';
@@ -13,12 +13,14 @@ interface QueryEditorProps {
   isExecuting: boolean;
   value: string;
   onChange: (value: string) => void;
+  onSave: () => void;
 }
-export const QueryEditor: React.FC<QueryEditorProps> = ({
-  onExecute,
+export const QueryEditor: React.FC<QueryEditorProps> = ({ 
+  onExecute, 
   isExecuting,
   value,
-  onChange
+  onChange,
+  onSave
 }) => {
   const [parseResult, setParseResult] = useState<ParseResult>({
     errors: []
@@ -80,6 +82,18 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
             {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             {copied ? 'Copied!' : 'Copy'}
           </Button>
+          
+          <Button
+            onClick={onSave}
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            disabled={!value.trim()}
+          >
+            <Save className="h-4 w-4" />
+            Save
+          </Button>
+          
           <Button onClick={handleExecute} disabled={!isValid || isExecuting} size="sm" className="gap-2">
             {isExecuting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
             Execute

@@ -36,7 +36,9 @@ export function parseUserQuery(input: string): ParseResult {
   }
 
   // 2. Extract main parts: SELECT … FROM "formUuid" [WHERE …]
-  const m = cleaned.match(
+  // Normalize whitespace and newlines for multi-line queries
+  const normalized = cleaned.replace(/\s+/g, ' ');
+  const m = normalized.match(
     /^SELECT\s+(.+?)\s+FROM\s+['""]([0-9a-fA-F\-]{36})['""](?:\s+WHERE\s+(.+))?$/i
   )
   if (!m) {

@@ -1,260 +1,73 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronRight, Copy, Plus, Database, Table, Type, Settings } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronDown, ChevronRight, Table, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { useToast } from '@/hooks/use-toast';
-import { schemaCache, FormDefinition, FieldDefinition, SystemColumnDefinition } from '@/services/schemaCache';
+import { SavedQueriesSection } from './SavedQueriesSection';
+import { useSavedQueries } from '@/hooks/useSavedQueries';
+
 interface FormsSidebarProps {
   onInsertText: (text: string) => void;
+  onSelectQuery: (query: string) => void;
 }
-interface ActionButtonsProps {
-  type: 'form' | 'field' | 'system';
-  item: FormDefinition | FieldDefinition | SystemColumnDefinition;
-  onInsertText: (text: string) => void;
+
+export function FormsSidebar({ onInsertText, onSelectQuery }: FormsSidebarProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const { savedQueries, deleteQuery } = useSavedQueries();
+  
+  // Mock forms data - in real app this would come from context or API
+  const forms = [
+    { id: 'test-form-1', name: 'Sample Form 1' },
+    { id: 'test-form-2', name: 'Sample Form 2' }
+  ];
+
+  return (
+    <div className="h-full border-r border-border bg-muted/50 flex flex-col">
+      <div className="p-4 border-b border-border">
+        <h2 className="font-semibold text-sm flex items-center">
+          <Database className="h-4 w-4 mr-2" />
+          Query Explorer
+        </h2>
+      </div>
+      
+      <div className="flex-1 overflow-auto">
+        <SavedQueriesSection
+          savedQueries={savedQueries}
+          onSelectQuery={onSelectQuery}
+          onDeleteQuery={deleteQuery}
+        />
+        
+        <div className="border-b border-border">
+          <Button
+            variant="ghost"
+            className="w-full justify-start p-3 h-auto"
+            onClick={() => setIsExpanded(!isExpanded)}
+          >
+            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            <span className="ml-2 font-medium">Forms & Fields</span>
+            <span className="ml-auto text-sm text-muted-foreground">({forms.length})</span>
+          </Button>
+          
+          {isExpanded && (
+            <div className="pb-2">
+              {forms.length === 0 ? (
+                <p className="px-4 py-2 text-sm text-muted-foreground">No forms available</p>
+              ) : (
+                forms.map((form) => (
+                  <Button
+                    key={form.id}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start px-6 py-2 h-8"
+                    onClick={() => onInsertText(`"${form.id}"`)}
+                  >
+                    <Table className="h-3 w-3 mr-2" />
+                    <span className="truncate text-sm">{form.name}</span>
+                  </Button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
-const ActionButtons: React.FC<ActionButtonsProps> = ({
-  type,
-  item,
-  onInsertText
-}) => {
-  const {
-    toast
-  } = useToast();
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({
-      title: "Copied to clipboard",
-      description: `${type === 'form' ? 'Form' : type === 'system' ? 'System column' : 'Field'} ID copied`
-    });
-  };
-  const insertIntoEditor = (text: string) => {
-    onInsertText(text);
-    toast({
-      title: "Inserted into editor",
-      description: `${type === 'form' ? 'Form' : type === 'system' ? 'System column' : 'Field'} reference added`
-    });
-  };
-  if (type === 'form') {
-    const form = item as FormDefinition;
-    return <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={e => {
-        e.stopPropagation();
-        copyToClipboard(form.id);
-      }} title="Copy Form ID">
-          <Copy className="h-3 w-3" />
-        </Button>
-        <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={e => {
-        e.stopPropagation();
-        insertIntoEditor(`"${form.id}"`);
-      }} title="Insert Form Reference">
-          <Plus className="h-3 w-3" />
-        </Button>
-      </div>;
-  } else if (type === 'system') {
-    const column = item as SystemColumnDefinition;
-    return <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={e => {
-        e.stopPropagation();
-        copyToClipboard(column.id);
-      }} title="Copy Column Name">
-          <Copy className="h-3 w-3" />
-        </Button>
-        <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={e => {
-        e.stopPropagation();
-        insertIntoEditor(column.id);
-      }} title="Insert Column Reference">
-          <Plus className="h-3 w-3" />
-        </Button>
-      </div>;
-  } else {
-    const field = item as FieldDefinition;
-    return <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={e => {
-        e.stopPropagation();
-        copyToClipboard(field.id);
-      }} title="Copy Field ID">
-          <Copy className="h-3 w-3" />
-        </Button>
-        <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={e => {
-        e.stopPropagation();
-        insertIntoEditor(`FIELD("${field.id}")`);
-      }} title="Insert Field Reference">
-          <Plus className="h-3 w-3" />
-        </Button>
-        <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={e => {
-        e.stopPropagation();
-        insertIntoEditor(`SELECT FIELD("${field.id}") FROM `);
-      }} title="Select Field">
-          <Database className="h-3 w-3" />
-        </Button>
-      </div>;
-  }
-};
-export const FormsSidebar: React.FC<FormsSidebarProps> = ({
-  onInsertText
-}) => {
-  const [forms, setForms] = useState<Record<string, FormDefinition>>({});
-  const [openForms, setOpenForms] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
-  const [isFormsExpanded, setIsFormsExpanded] = useState(true);
-  const [isSavedQueriesExpanded, setIsSavedQueriesExpanded] = useState(false);
-  const [savedQueries] = useState([
-    { id: '1', name: 'Recent Submissions', query: 'SELECT submission_id, submitted_by FROM "form-uuid" ORDER BY submitted_at DESC LIMIT 10' },
-    { id: '2', name: 'Count by Status', query: 'SELECT COUNT(*) FROM "form-uuid" WHERE FIELD("status-field") = "approved"' },
-    { id: '3', name: 'Sum of Amounts', query: 'SELECT SUM(FIELD("amount-field")) FROM "form-uuid"' }
-  ]);
-  useEffect(() => {
-    const loadForms = async () => {
-      try {
-        const cache = await schemaCache.getCache();
-        setForms(cache.forms);
-      } catch (error) {
-        console.error('Error loading forms:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadForms();
-  }, []);
-  const toggleForm = (formId: string) => {
-    setOpenForms(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(formId)) {
-        newSet.delete(formId);
-      } else {
-        newSet.add(formId);
-      }
-      return newSet;
-    });
-  };
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'text':
-        return 'bg-blue-100 text-blue-800';
-      case 'number':
-        return 'bg-green-100 text-green-800';
-      case 'datetime':
-        return 'bg-purple-100 text-purple-800';
-      case 'boolean':
-        return 'bg-orange-100 text-orange-800';
-      case 'select':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-  if (loading) {
-    return <div className="w-full h-full border-r border-border bg-muted/10">
-        <div className="p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <Database className="h-4 w-4" />
-            <span className="font-medium">Loading...</span>
-          </div>
-        </div>
-      </div>;
-  }
-  return <div className="w-full h-full border-r border-border bg-muted/10">
-      <ScrollArea className="h-full">
-        <div className="p-2 space-y-2">
-          {/* Saved Queries Section */}
-          <Collapsible open={isSavedQueriesExpanded} onOpenChange={setIsSavedQueriesExpanded}>
-            <CollapsibleTrigger className="w-full">
-              <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 border border-border">
-                {isSavedQueriesExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                <Database className="h-4 w-4" />
-                <span className="font-medium text-sm">Saved Queries</span>
-              </div>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-1 space-y-1">
-              {savedQueries.map(query => (
-                <div key={query.id} className="ml-6 p-2 rounded-md hover:bg-muted/30 group cursor-pointer"
-                     onClick={() => onInsertText(query.query)}>
-                  <div className="flex items-center gap-2">
-                    <Settings className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-xs">{query.name}</span>
-                  </div>
-                </div>
-              ))}
-            </CollapsibleContent>
-          </Collapsible>
-
-          {/* Forms & Fields Section */}
-          <Collapsible open={isFormsExpanded} onOpenChange={setIsFormsExpanded}>
-            <CollapsibleTrigger className="w-full">
-              <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 border border-border">
-                {isFormsExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                <Table className="h-4 w-4" />
-                <span className="font-medium text-sm">Forms & Fields</span>
-              </div>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-1 space-y-1">
-              {Object.values(forms).map(form => <Collapsible key={form.id} open={openForms.has(form.id)} onOpenChange={() => toggleForm(form.id)}>
-                  <CollapsibleTrigger className="w-full">
-                    <div className="flex items-center justify-between w-full p-2 rounded-md hover:bg-muted/50 group ml-4">
-                      <div className="flex items-center gap-2 flex-1">
-                        {openForms.has(form.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                        <Table className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm font-medium truncate">{form.name}</span>
-                      </div>
-                      <ActionButtons type="form" item={form} onInsertText={onInsertText} />
-                    </div>
-                  </CollapsibleTrigger>
-                  
-                  <CollapsibleContent className="ml-10 space-y-1">
-                    {/* System Columns Section */}
-                    <div className="mt-2">
-                      <div className="flex items-center gap-2 px-2 py-1">
-                        <Settings className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs font-medium text-muted-foreground">System Columns</span>
-                      </div>
-                      {Object.values(form.systemColumns).map(column => <div key={column.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/30 group">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <Settings className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                            <span className="text-xs truncate">{column.label}</span>
-                            <Badge variant="secondary" className={`text-xs px-1 py-0 ${getTypeColor(column.type)} flex-shrink-0`}>
-                              {column.type}
-                            </Badge>
-                          </div>
-                          <ActionButtons type="system" item={column} onInsertText={onInsertText} />
-                        </div>)}
-                    </div>
-
-                    <Separator className="my-2" />
-
-                    {/* Form Fields Section */}
-                    <div>
-                      <div className="flex items-center gap-2 px-2 py-1">
-                        <Type className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs font-medium text-muted-foreground">Form Fields</span>
-                      </div>
-                      {Object.values(form.fields).map(field => <div key={field.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/30 group">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <Type className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                            <span className="text-xs truncate">{field.label}</span>
-                            <Badge variant="secondary" className={`text-xs px-1 py-0 ${getTypeColor(field.type)} flex-shrink-0`}>
-                              {field.type}
-                            </Badge>
-                            {field.required && <Badge variant="destructive" className="text-xs px-1 py-0">
-                                Required
-                              </Badge>}
-                          </div>
-                          <ActionButtons type="field" item={field} onInsertText={onInsertText} />
-                        </div>)}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>)}
-              
-              {Object.keys(forms).length === 0 && <div className="text-center py-8 text-muted-foreground ml-4">
-                  <Database className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No forms found</p>
-                  <p className="text-xs">Create a form to see it here</p>
-                </div>}
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
-      </ScrollArea>
-    </div>;
-};
