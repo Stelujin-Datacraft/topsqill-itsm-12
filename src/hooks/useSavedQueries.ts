@@ -57,11 +57,29 @@ export function useSavedQueries() {
 
   const saveQuery = async (name: string, query: string): Promise<SavedQuery | null> => {
     try {
+      // Get current user or sign in anonymously
+      let { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
+        if (authError) {
+          console.error('Auth error:', authError);
+          toast({
+            title: "Error",
+            description: "Failed to authenticate user",
+            variant: "destructive",
+          });
+          return null;
+        }
+        user = authData.user;
+      }
+
       const { data, error } = await (supabase as any)
         .from('saved_queries')
         .insert({
           name,
           query,
+          user_id: user.id,
         })
         .select()
         .single();
