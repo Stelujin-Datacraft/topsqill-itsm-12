@@ -19,19 +19,22 @@ export interface QueryResult {
 }
 
 /**
- * 1. Ensure only a single SELECT … FROM … [WHERE …] statement
- * 2. Rewrite FIELD("uuid") → submission_data ->> 'uuid'
- * 3. Rewrite field‑UUIDs → JSONB access
- * 4. Rewrite SUM(FIELD("uuid")) → SUM((submission_data ->> 'uuid')::numeric)
- * 5. Inject `form_id = '…'` filter in place of FROM "uuid"
+ * Parse custom UPDATE FORM syntax or SELECT queries
+ * 1. Handle UPDATE FORM syntax for form field updates
+ * 2. Handle SELECT queries with FIELD() syntax
  */
 export function parseUserQuery(input: string): ParseResult {
   const errors: string[] = []
   const cleaned = input.trim().replace(/;$/, '') // drop trailing semicolon
 
-  // 1. Only allow SELECT
+  // Check if this is an UPDATE FORM query
+  if (/^UPDATE\s+FORM\s+/i.test(cleaned)) {
+    return parseUpdateFormQuery(cleaned)
+  }
+
+  // 1. Only allow SELECT for non-UPDATE queries
   if (!/^SELECT\s+/i.test(cleaned)) {
-    errors.push('Only SELECT queries are allowed.')
+    errors.push('Only SELECT queries and UPDATE FORM queries are allowed.')
     return { errors }
   }
 
@@ -109,6 +112,54 @@ export function parseUserQuery(input: string): ParseResult {
 }
 
 /**
+ * Parse custom UPDATE FORM syntax
+ * Expected format: UPDATE FORM 'form_id' SET FIELD('field_id') = value WHERE submission_id = 'submission_id'
+ */
+export function parseUpdateFormQuery(input: string): ParseResult {
+  const errors: string[] = []
+
+  // Parse the UPDATE FORM syntax
+  const updateMatch = input.match(
+    /^UPDATE\s+FORM\s+['""]([0-9a-fA-F\-]{36})['"\"]\s+SET\s+FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*=\s*(.+?)\s+WHERE\s+submission_id\s*=\s*['""]([0-9a-fA-F\-]{36})['"\"]/i
+  )
+
+  if (!updateMatch) {
+    errors.push('Invalid UPDATE FORM syntax. Expected: UPDATE FORM \'form_id\' SET FIELD(\'field_id\') = value WHERE submission_id = \'submission_id\'')
+    return { errors }
+  }
+
+  const [, formId, fieldId, valueExpression, submissionId] = updateMatch
+
+  // Transform value expression to handle FIELD() syntax and functions
+  let transformedValue = valueExpression.trim()
+  
+  // Handle FIELD() references in the value expression
+  transformedValue = transformedValue.replace(
+    /FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)/gi,
+    (_match, uuid) => `(submission_data ->> '${uuid}')`
+  )
+
+  // Handle string functions that work with FIELD values
+  transformedValue = transformedValue.replace(
+    /LEFT\(\s*\(submission_data\s*->>\s*'([^']+)'\)\s*,\s*(\d+)\s*\)/gi,
+    (_match, uuid, length) => `LEFT((submission_data ->> '${uuid}'), ${length})`
+  )
+
+  // Build the final SQL
+  const sql = `UPDATE form_submissions
+SET submission_data = jsonb_set(
+  submission_data,
+  '{${fieldId}}',
+  to_jsonb(${transformedValue}::text),
+  true
+)
+WHERE id = '${submissionId}'
+AND form_id = '${formId}';`
+
+  return { sql, errors }
+}
+
+/**
  * Execute the user query using Supabase RPC or direct query execution
  */
 export async function executeUserQuery(
@@ -121,6 +172,11 @@ export async function executeUserQuery(
 
   try {
     console.log('Executing SQL:', sql);
+    
+    // Handle UPDATE queries differently
+    if (sql?.startsWith('UPDATE')) {
+      return await executeUpdateQuery(sql)
+    }
     
     // Since we're working with form_submissions, we can parse the query and execute it manually
     // This is a temporary solution until proper SQL execution RPC is available
@@ -213,6 +269,97 @@ export async function executeUserQuery(
   } catch (err) {
     console.error('Unexpected error:', err);
     const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+    return { columns: [], rows: [], errors: [errorMessage] };
+  }
+}
+
+/**
+ * Execute UPDATE queries using Supabase client
+ */
+async function executeUpdateQuery(sql: string): Promise<QueryResult> {
+  try {
+    // Extract parameters from the SQL for manual execution
+    const formIdMatch = sql.match(/AND form_id = '([^']+)'/);
+    const submissionIdMatch = sql.match(/WHERE id = '([^']+)'/);
+    const fieldIdMatch = sql.match(/'{([^}]+)}'/);
+    const valueMatch = sql.match(/to_jsonb\((.+?)::text\)/);
+
+    if (!formIdMatch || !submissionIdMatch || !fieldIdMatch || !valueMatch) {
+      return { columns: [], rows: [], errors: ['Failed to parse UPDATE query parameters'] };
+    }
+
+    const formId = formIdMatch[1];
+    const submissionId = submissionIdMatch[1];
+    const fieldId = fieldIdMatch[1];
+    const valueExpression = valueMatch[1];
+
+    // First, get the current submission to evaluate the value expression
+    const { data: currentSubmission, error: fetchError } = await supabase
+      .from('form_submissions')
+      .select('submission_data')
+      .eq('id', submissionId)
+      .eq('form_id', formId)
+      .single();
+
+    if (fetchError || !currentSubmission) {
+      return { columns: [], rows: [], errors: ['Submission not found or access denied'] };
+    }
+
+    // Evaluate the value expression
+    let newValue: string;
+    try {
+      // Handle LEFT function with field reference
+      const leftMatch = valueExpression.match(/LEFT\(\(submission_data\s*->>\s*'([^']+)'\),\s*(\d+)\)/);
+      if (leftMatch) {
+        const sourceFieldId = leftMatch[1];
+        const length = parseInt(leftMatch[2]);
+        const sourceValue = currentSubmission.submission_data[sourceFieldId] || '';
+        newValue = sourceValue.toString().substring(0, length);
+      } else if (valueExpression.startsWith('(submission_data ->>')) {
+        // Handle direct field reference
+        const fieldRefMatch = valueExpression.match(/\(submission_data\s*->>\s*'([^']+)'\)/);
+        if (fieldRefMatch) {
+          const sourceFieldId = fieldRefMatch[1];
+          newValue = currentSubmission.submission_data[sourceFieldId] || '';
+        } else {
+          newValue = valueExpression.replace(/['"]/g, '');
+        }
+      } else {
+        // Handle literal values
+        newValue = valueExpression.replace(/['"]/g, '');
+      }
+    } catch (error) {
+      return { columns: [], rows: [], errors: ['Failed to evaluate value expression'] };
+    }
+
+    // Update the submission
+    const currentData = currentSubmission.submission_data as Record<string, any> || {};
+    const updatedSubmissionData = {
+      ...currentData,
+      [fieldId]: newValue
+    };
+
+    const { data: updatedData, error: updateError } = await supabase
+      .from('form_submissions')
+      .update({ submission_data: updatedSubmissionData })
+      .eq('id', submissionId)
+      .eq('form_id', formId)
+      .select();
+
+    if (updateError) {
+      return { columns: [], rows: [], errors: [updateError.message] };
+    }
+
+    // Return success result
+    return { 
+      columns: ['message', 'updated_rows'], 
+      rows: [['Field updated successfully', updatedData?.length || 1]], 
+      errors: [] 
+    };
+
+  } catch (error) {
+    console.error('UPDATE execution error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
     return { columns: [], rows: [], errors: [errorMessage] };
   }
 }
