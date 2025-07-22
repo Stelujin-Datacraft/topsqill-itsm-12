@@ -299,7 +299,7 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
       .select('submission_data')
       .eq('id', submissionId)
       .eq('form_id', formId)
-      .single();
+      .maybeSingle();
 
     if (fetchError || !currentSubmission) {
       return { columns: [], rows: [], errors: ['Submission not found or access denied'] };
