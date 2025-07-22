@@ -382,6 +382,14 @@ export const fieldTypes: FieldTypeConfig[] = [
     category: 'standard',
     isFullWidth: false,
   },
+  {
+    type: 'query-field',
+    label: 'Query Field',
+    icon: Database,
+    description: 'Execute SQL queries with configurable triggers and display options',
+    category: 'standard',
+    isFullWidth: false,
+  },
 ];
 
 export const getFieldTypeConfig = (type: string): FieldTypeConfig | undefined => {

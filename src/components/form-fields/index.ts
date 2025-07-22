@@ -20,3 +20,4 @@ export { SubmissionAccessField } from './SubmissionAccessField';
 
 // Enhanced fields
 export { MatrixGridField } from './enhanced/MatrixGridField';
+export { QueryField } from './QueryField';

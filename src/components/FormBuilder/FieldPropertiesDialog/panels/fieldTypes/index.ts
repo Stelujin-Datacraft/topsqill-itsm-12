@@ -61,3 +61,6 @@ export { SubmissionAccessFieldConfig } from './access/SubmissionAccessFieldConfi
 // Media Fields (Extended)
 export { SignatureFieldConfig } from './media/SignatureFieldConfig';
 export { MatrixGridFieldConfig } from './specialized/MatrixGridFieldConfig';
+
+// Query Field
+export { QueryFieldConfig } from './QueryFieldConfig';

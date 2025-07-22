@@ -244,6 +244,16 @@ export function getFieldDefaults(fieldType: FieldType): Record<string, any> {
       allowMultiple: false,
       logAccess: true,
     },
+    'query-field': {
+      query: '',
+      savedQueryId: '',
+      displayMode: 'data',
+      executeOn: 'load',
+      targetFieldId: '',
+      refreshInterval: 0,
+      showResults: true,
+      maxResults: 100,
+    },
   };
 
   return defaults[fieldType] || {};

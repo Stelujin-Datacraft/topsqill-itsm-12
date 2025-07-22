@@ -53,6 +53,7 @@ import { CurrencyFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/i
 import { CountryFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/international/CountryFieldConfig';
 import { SubmissionAccessFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/access/SubmissionAccessFieldConfig';
 import { ChildCrossReferenceFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/ChildCrossReferenceFieldConfig';
+import { QueryFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/QueryFieldConfig';
 
 interface FieldPropertiesDialogProps {
   selectedField: FormField | null;
@@ -519,6 +520,10 @@ export function FieldPropertiesDialog({
       // Access Control Fields
       case 'submission-access':
         return <SubmissionAccessFieldConfig {...props} />;
+      
+      // Query Field
+      case 'query-field':
+        return <QueryFieldConfig {...props} />;
       
       // Text Fields
       case 'text':

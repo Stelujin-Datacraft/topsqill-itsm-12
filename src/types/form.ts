@@ -58,7 +58,7 @@ export type FieldType =
   | 'calculated' | 'conditional-section'
   | 'geo-location' | 'workflow-trigger' | 'lookup'
   // New field types
-  | 'submission-access';
+  | 'submission-access' | 'query-field';
 
 export interface FormField {
   id: string;
@@ -69,7 +69,7 @@ export interface FormField {
         'section-break' | 'horizontal-line' | 'rich-text' | 'barcode' | 'user-picker' | 
         'geo-location' | 'workflow-trigger' | 'matrix-grid' | 'record-table' | 'cross-reference' |
         'child-cross-reference' | 'dynamic-dropdown' | 'conditional-section' | 'ip-address' | 
-        'full-width-container' | 'country' | 'submission-access' | 'approval';
+        'full-width-container' | 'country' | 'submission-access' | 'approval' | 'query-field';
   label: string;
   placeholder?: string;
   required?: boolean;
@@ -373,6 +373,16 @@ export interface FormField {
     parentFormId?: string;
     parentFieldId?: string;
     parentFormName?: string;
+    
+    // Query Field specific
+    query?: string;
+    savedQueryId?: string;
+    displayMode?: 'query' | 'data';
+    executeOn?: 'submit' | 'load' | 'field-change';
+    targetFieldId?: string;
+    refreshInterval?: number;
+    showResults?: boolean;
+    maxResults?: number;
   };
 }
 
