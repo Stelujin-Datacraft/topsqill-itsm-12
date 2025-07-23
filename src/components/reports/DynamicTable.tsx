@@ -112,6 +112,50 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
     return formFields.filter(field => columnsToShow.includes(field.id));
   }, [formFields, selectedColumns, config.selectedColumns]);
 
+  // Helper function to evaluate filter conditions
+  const evaluateCondition = (row: any, condition: any) => {
+    if (!condition.field || !condition.operator) return true;
+    
+    const value = row.submission_data?.[condition.field];
+    const filterValue = condition.value;
+    
+    if (value === null || value === undefined) {
+      return ['is_empty'].includes(condition.operator);
+    }
+    
+    const stringValue = value.toString().toLowerCase();
+    const stringFilterValue = filterValue?.toString().toLowerCase() || '';
+    
+    switch (condition.operator) {
+      case 'equals':
+        return stringValue === stringFilterValue;
+      case 'not_equals':
+        return stringValue !== stringFilterValue;
+      case 'contains':
+        return stringValue.includes(stringFilterValue);
+      case 'not_contains':
+        return !stringValue.includes(stringFilterValue);
+      case 'starts_with':
+        return stringValue.startsWith(stringFilterValue);
+      case 'ends_with':
+        return stringValue.endsWith(stringFilterValue);
+      case 'greater_than':
+        return parseFloat(stringValue) > parseFloat(stringFilterValue);
+      case 'less_than':
+        return parseFloat(stringValue) < parseFloat(stringFilterValue);
+      case 'greater_equal':
+        return parseFloat(stringValue) >= parseFloat(stringFilterValue);
+      case 'less_equal':
+        return parseFloat(stringValue) <= parseFloat(stringFilterValue);
+      case 'is_empty':
+        return !stringValue || stringValue.trim() === '';
+      case 'is_not_empty':
+        return stringValue && stringValue.trim() !== '';
+      default:
+        return true;
+    }
+  };
+
   const filteredAndSortedData = useMemo(() => {
     let filtered = data;
 
@@ -173,50 +217,6 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
 
     return filtered;
   }, [data, searchTerm, columnFilters, complexFilters, sortConfigs, displayFields, config]);
-
-  // Helper function to evaluate filter conditions
-  const evaluateCondition = (row: any, condition: any) => {
-    if (!condition.field || !condition.operator) return true;
-    
-    const value = row.submission_data?.[condition.field];
-    const filterValue = condition.value;
-    
-    if (value === null || value === undefined) {
-      return ['is_empty'].includes(condition.operator);
-    }
-    
-    const stringValue = value.toString().toLowerCase();
-    const stringFilterValue = filterValue?.toString().toLowerCase() || '';
-    
-    switch (condition.operator) {
-      case 'equals':
-        return stringValue === stringFilterValue;
-      case 'not_equals':
-        return stringValue !== stringFilterValue;
-      case 'contains':
-        return stringValue.includes(stringFilterValue);
-      case 'not_contains':
-        return !stringValue.includes(stringFilterValue);
-      case 'starts_with':
-        return stringValue.startsWith(stringFilterValue);
-      case 'ends_with':
-        return stringValue.endsWith(stringFilterValue);
-      case 'greater_than':
-        return parseFloat(stringValue) > parseFloat(stringFilterValue);
-      case 'less_than':
-        return parseFloat(stringValue) < parseFloat(stringFilterValue);
-      case 'greater_equal':
-        return parseFloat(stringValue) >= parseFloat(stringFilterValue);
-      case 'less_equal':
-        return parseFloat(stringValue) <= parseFloat(stringFilterValue);
-      case 'is_empty':
-        return !stringValue || stringValue.trim() === '';
-      case 'is_not_empty':
-        return stringValue && stringValue.trim() !== '';
-      default:
-        return true;
-    }
-  };
 
   const paginatedData = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
