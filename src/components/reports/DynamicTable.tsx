@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +17,7 @@ import { SubmissionAnalytics } from './SubmissionAnalytics';
 import { FormDataCell } from './FormDataCell';
 import { ExportDropdown } from './ExportDropdown';
 import { SortingControls, SortConfig } from './SortingControls';
+import { ComplexFilter, FilterGroup } from '@/components/ui/complex-filter';
 
 interface TableConfig {
   title: string;
@@ -39,6 +41,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfigs, setSortConfigs] = useState<SortConfig[]>([]);
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+  const [complexFilters, setComplexFilters] = useState<FilterGroup[]>([]);
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -134,6 +137,23 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       });
     }
 
+    // Apply complex filters
+    if (complexFilters.length > 0) {
+      filtered = filtered.filter(row => {
+        // Groups are connected with OR logic
+        return complexFilters.some(group => {
+          if (group.conditions.length === 0) return true;
+          
+          // Conditions within a group are connected with the group's logic (AND/OR)
+          if (group.logic === 'AND') {
+            return group.conditions.every(condition => evaluateCondition(row, condition));
+          } else {
+            return group.conditions.some(condition => evaluateCondition(row, condition));
+          }
+        });
+      });
+    }
+
     // Apply multi-level sorting
     if (sortConfigs.length > 0 && config.enableSorting) {
       filtered = [...filtered].sort((a, b) => {
@@ -152,7 +172,51 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
     }
 
     return filtered;
-  }, [data, searchTerm, columnFilters, sortConfigs, displayFields, config]);
+  }, [data, searchTerm, columnFilters, complexFilters, sortConfigs, displayFields, config]);
+
+  // Helper function to evaluate filter conditions
+  const evaluateCondition = (row: any, condition: any) => {
+    if (!condition.field || !condition.operator) return true;
+    
+    const value = row.submission_data?.[condition.field];
+    const filterValue = condition.value;
+    
+    if (value === null || value === undefined) {
+      return ['is_empty'].includes(condition.operator);
+    }
+    
+    const stringValue = value.toString().toLowerCase();
+    const stringFilterValue = filterValue?.toString().toLowerCase() || '';
+    
+    switch (condition.operator) {
+      case 'equals':
+        return stringValue === stringFilterValue;
+      case 'not_equals':
+        return stringValue !== stringFilterValue;
+      case 'contains':
+        return stringValue.includes(stringFilterValue);
+      case 'not_contains':
+        return !stringValue.includes(stringFilterValue);
+      case 'starts_with':
+        return stringValue.startsWith(stringFilterValue);
+      case 'ends_with':
+        return stringValue.endsWith(stringFilterValue);
+      case 'greater_than':
+        return parseFloat(stringValue) > parseFloat(stringFilterValue);
+      case 'less_than':
+        return parseFloat(stringValue) < parseFloat(stringFilterValue);
+      case 'greater_equal':
+        return parseFloat(stringValue) >= parseFloat(stringFilterValue);
+      case 'less_equal':
+        return parseFloat(stringValue) <= parseFloat(stringFilterValue);
+      case 'is_empty':
+        return !stringValue || stringValue.trim() === '';
+      case 'is_not_empty':
+        return stringValue && stringValue.trim() !== '';
+      default:
+        return true;
+    }
+  };
 
   const paginatedData = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
@@ -261,6 +325,14 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
     );
   }
 
+  const availableFields = useMemo(() => {
+    return formFields.map(field => ({
+      id: field.id,
+      label: field.label,
+      type: field.field_type || 'text'
+    }));
+  }, [formFields]);
+
   return (
     <div className="space-y-6">
       {/* Analytics Section */}
@@ -280,6 +352,13 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                 selectedColumns={selectedColumns}
                 onColumnToggle={handleColumnToggle}
               />
+              {config.enableFiltering && (
+                <ComplexFilter
+                  filters={complexFilters}
+                  onFiltersChange={setComplexFilters}
+                  availableFields={availableFields}
+                />
+              )}
               {onEdit && (
                 <Button variant="outline" size="sm" onClick={onEdit}>
                   <Settings className="h-4 w-4 mr-2" />
@@ -336,7 +415,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
         </CardHeader>
       
       <CardContent className="flex-1 overflow-hidden">
-        <div className="h-full overflow-auto">
+        <ScrollArea className="h-[600px]">
           <Table>
             <TableHeader>
               <TableRow>
@@ -344,7 +423,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                   <TableHead key={field.id}>
                     <div className="space-y-2">
                       <div className="flex items-center space-x-1">
-                        <span>{field.label}</span>
+                        <span className="font-medium">{field.label}</span>
                         {config.enableSorting && sortConfigs.find(s => s.field === field.id) && (
                           <Badge variant="outline" className="text-xs">
                             {sortConfigs.findIndex(s => s.field === field.id) + 1}
@@ -418,7 +497,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
               )}
             </TableBody>
           </Table>
-        </div>
+        </ScrollArea>
       </CardContent>
       
       {totalPages > 1 && (

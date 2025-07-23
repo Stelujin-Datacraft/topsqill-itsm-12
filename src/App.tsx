@@ -26,6 +26,7 @@ import FormPreviewPage from "./pages/FormPreviewPage";
 import FormAccessManagement from "./pages/FormAccessManagement";
 import MySubmissions from "./pages/MySubmissions";
 import SubmissionView from "./pages/SubmissionView";
+import FormSubmissionsTable from "./pages/FormSubmissionsTable";
 import Workflows from "./pages/Workflows";
 import WorkflowDesignerPage from "./pages/WorkflowDesignerPage";
 import WorkflowAccessManagement from "./pages/WorkflowAccessManagement";
@@ -76,6 +77,7 @@ const App = () => (
                     <Route path="/public/form/:id" element={<PublicFormView />} />
                     <Route path="/my-submissions" element={<ProtectedRoute><MySubmissions /></ProtectedRoute>} />
                     <Route path="/submission/:submissionId" element={<ProtectedRoute><SubmissionView /></ProtectedRoute>} />
+                    <Route path="/form-submissions" element={<ProtectedRoute><FormSubmissionsTable /></ProtectedRoute>} />
                     <Route path="/workflows" element={<ProtectedRoute><Workflows /></ProtectedRoute>} />
                     <Route path="/workflow-designer/:id" element={<ProtectedRoute><WorkflowDesignerPage /></ProtectedRoute>} />
                     <Route path="/workflow/:id/access" element={<ProtectedRoute><WorkflowAccessManagement /></ProtectedRoute>} />
