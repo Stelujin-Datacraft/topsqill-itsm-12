@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,7 @@ interface DynamicTableProps {
 }
 
 export function DynamicTable({ config, onEdit }: DynamicTableProps) {
+  // All state hooks first
   const [data, setData] = useState<any[]>([]);
   const [formFields, setFormFields] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,75 +46,13 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  
+  // Custom hooks
   const { forms } = useReports();
   const navigate = useNavigate();
 
-  const handleViewSubmission = (submissionId: string) => {
-    navigate(`/submissions/${submissionId}`);
-  };
-
-  useEffect(() => {
-    if (config.formId) {
-      loadData();
-      loadFormFields();
-    }
-  }, [config.formId]);
-
-  const loadFormFields = async () => {
-    try {
-      const { data: fields, error } = await supabase
-        .from('form_fields')
-        .select('*')
-        .eq('form_id', config.formId)
-        .order('field_order', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching form fields:', error);
-        return;
-      }
-
-      setFormFields(fields || []);
-      // Initialize selected columns with all fields if not set
-      if (selectedColumns.length === 0 && fields && fields.length > 0) {
-        setSelectedColumns(fields.map(f => f.id));
-      }
-    } catch (error) {
-      console.error('Error loading form fields:', error);
-    }
-  };
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const { data: submissions, error } = await supabase
-        .from('form_submissions')
-        .select('*')
-        .eq('form_id', config.formId)
-        .order('submitted_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching submissions:', error);
-        return;
-      }
-
-      setData(submissions || []);
-    } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const displayFields = useMemo(() => {
-    // Use local selectedColumns state if available, otherwise fall back to config
-    const columnsToShow = selectedColumns.length > 0 ? selectedColumns : 
-                         (config.selectedColumns && config.selectedColumns.length > 0 ? config.selectedColumns : 
-                          formFields.map(f => f.id));
-    return formFields.filter(field => columnsToShow.includes(field.id));
-  }, [formFields, selectedColumns, config.selectedColumns]);
-
   // Helper function to evaluate filter conditions
-  const evaluateCondition = (row: any, condition: any) => {
+  const evaluateCondition = useCallback((row: any, condition: any) => {
     if (!condition.field || !condition.operator) return true;
     
     const value = row.submission_data?.[condition.field];
@@ -154,7 +93,15 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       default:
         return true;
     }
-  };
+  }, []);
+
+  // All useMemo hooks
+  const displayFields = useMemo(() => {
+    const columnsToShow = selectedColumns.length > 0 ? selectedColumns : 
+                         (config.selectedColumns && config.selectedColumns.length > 0 ? config.selectedColumns : 
+                          formFields.map(f => f.id));
+    return formFields.filter(field => columnsToShow.includes(field.id));
+  }, [formFields, selectedColumns, config.selectedColumns]);
 
   const filteredAndSortedData = useMemo(() => {
     let filtered = data;
@@ -184,11 +131,9 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
     // Apply complex filters
     if (complexFilters.length > 0) {
       filtered = filtered.filter(row => {
-        // Groups are connected with OR logic
         return complexFilters.some(group => {
           if (group.conditions.length === 0) return true;
           
-          // Conditions within a group are connected with the group's logic (AND/OR)
           if (group.logic === 'AND') {
             return group.conditions.every(condition => evaluateCondition(row, condition));
           } else {
@@ -216,48 +161,13 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
     }
 
     return filtered;
-  }, [data, searchTerm, columnFilters, complexFilters, sortConfigs, displayFields, config]);
+  }, [data, searchTerm, columnFilters, complexFilters, sortConfigs, displayFields, config, evaluateCondition]);
 
   const paginatedData = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
     return filteredAndSortedData.slice(startIndex, endIndex);
   }, [filteredAndSortedData, currentPage, pageSize]);
-
-  const totalPages = Math.ceil(filteredAndSortedData.length / pageSize);
-
-  const handleAddSort = (field: string, label: string) => {
-    setSortConfigs(prev => [...prev, { field, direction: 'asc', label }]);
-  };
-
-  const handleRemoveSort = (index: number) => {
-    setSortConfigs(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleToggleDirection = (index: number) => {
-    setSortConfigs(prev => prev.map((config, i) => 
-      i === index 
-        ? { ...config, direction: config.direction === 'asc' ? 'desc' : 'asc' }
-        : config
-    ));
-  };
-
-  const handleColumnFilter = (fieldId: string, value: string) => {
-    setColumnFilters(prev => ({
-      ...prev,
-      [fieldId]: value
-    }));
-  };
-
-  const handleColumnToggle = (fieldId: string) => {
-    setSelectedColumns(prev => {
-      if (prev.includes(fieldId)) {
-        return prev.filter(id => id !== fieldId);
-      } else {
-        return [...prev, fieldId];
-      }
-    });
-  };
 
   const exportData = useMemo(() => {
     const headers = displayFields.map(field => field.label);
@@ -298,6 +208,98 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       type: field.field_type || 'text'
     }));
   }, [formFields]);
+
+  // useEffect hooks
+  useEffect(() => {
+    if (config.formId) {
+      loadData();
+      loadFormFields();
+    }
+  }, [config.formId]);
+
+  // Regular functions and event handlers
+  const handleViewSubmission = (submissionId: string) => {
+    navigate(`/submissions/${submissionId}`);
+  };
+
+  const loadFormFields = async () => {
+    try {
+      const { data: fields, error } = await supabase
+        .from('form_fields')
+        .select('*')
+        .eq('form_id', config.formId)
+        .order('field_order', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching form fields:', error);
+        return;
+      }
+
+      setFormFields(fields || []);
+      if (selectedColumns.length === 0 && fields && fields.length > 0) {
+        setSelectedColumns(fields.map(f => f.id));
+      }
+    } catch (error) {
+      console.error('Error loading form fields:', error);
+    }
+  };
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const { data: submissions, error } = await supabase
+        .from('form_submissions')
+        .select('*')
+        .eq('form_id', config.formId)
+        .order('submitted_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching submissions:', error);
+        return;
+      }
+
+      setData(submissions || []);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totalPages = Math.ceil(filteredAndSortedData.length / pageSize);
+
+  const handleAddSort = (field: string, label: string) => {
+    setSortConfigs(prev => [...prev, { field, direction: 'asc', label }]);
+  };
+
+  const handleRemoveSort = (index: number) => {
+    setSortConfigs(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleToggleDirection = (index: number) => {
+    setSortConfigs(prev => prev.map((config, i) => 
+      i === index 
+        ? { ...config, direction: config.direction === 'asc' ? 'desc' : 'asc' }
+        : config
+    ));
+  };
+
+  const handleColumnFilter = (fieldId: string, value: string) => {
+    setColumnFilters(prev => ({
+      ...prev,
+      [fieldId]: value
+    }));
+  };
+
+  const handleColumnToggle = (fieldId: string) => {
+    setSelectedColumns(prev => {
+      if (prev.includes(fieldId)) {
+        return prev.filter(id => id !== fieldId);
+      } else {
+        return [...prev, fieldId];
+      }
+    });
+  };
 
   if (loading) {
     return (
