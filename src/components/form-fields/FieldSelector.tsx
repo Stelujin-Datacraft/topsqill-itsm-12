@@ -34,6 +34,7 @@ export function FieldSelector({
   }, [fields, formRefId]);
 
   const filteredFields = useMemo(() => {
+    if (!parsedFields || !Array.isArray(parsedFields)) return [];
     if (!searchValue) return parsedFields;
     
     const search = searchValue.toLowerCase();
