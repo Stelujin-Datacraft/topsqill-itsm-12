@@ -4,13 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FileText, BarChart3, Save, ArrowLeft } from 'lucide-react';
 import { useForm } from '@/contexts/FormContext';
 import { useFormSubmissionData } from '@/hooks/useFormSubmissionData';
@@ -19,20 +13,26 @@ import { useAccessibleForms } from '@/hooks/useAccessibleForms';
 import { DynamicTable } from '@/components/reports/DynamicTable';
 import { ReportSaveDialog } from '@/components/ReportSaveDialog';
 import DashboardLayout from '@/components/DashboardLayout';
-
 export default function FormSubmissionsTable() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialFormId = searchParams.get('formId') || '';
-  
   const [selectedFormId, setSelectedFormId] = useState(initialFormId);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
-  
-  const { forms } = useForm();
-  const { accessibleForms } = useAccessibleForms();
-  const { submissions, loading } = useFormSubmissionData(selectedFormId);
-  const { canViewSubmissions, canExportData } = useFormSubmissionAccess(selectedFormId);
-
+  const {
+    forms
+  } = useForm();
+  const {
+    accessibleForms
+  } = useAccessibleForms();
+  const {
+    submissions,
+    loading
+  } = useFormSubmissionData(selectedFormId);
+  const {
+    canViewSubmissions,
+    canExportData
+  } = useFormSubmissionAccess(selectedFormId);
   const selectedForm = forms.find(f => f.id === selectedFormId);
 
   // Update URL when form selection changes
@@ -40,10 +40,11 @@ export default function FormSubmissionsTable() {
     if (selectedFormId) {
       const newParams = new URLSearchParams(searchParams);
       newParams.set('formId', selectedFormId);
-      navigate(`/form-submissions?${newParams.toString()}`, { replace: true });
+      navigate(`/form-submissions?${newParams.toString()}`, {
+        replace: true
+      });
     }
   }, [selectedFormId, navigate, searchParams]);
-
   const tableConfig = {
     title: selectedForm ? `${selectedForm.name} Submissions` : 'Form Submissions',
     formId: selectedFormId,
@@ -53,22 +54,14 @@ export default function FormSubmissionsTable() {
     enableSorting: true,
     enableSearch: true
   };
-
   const handleBack = () => {
     navigate(-1);
   };
-
   if (!canViewSubmissions && selectedFormId) {
-    return (
-      <DashboardLayout 
-        title="Form Submissions" 
-        actions={
-          <Button variant="ghost" onClick={handleBack}>
+    return <DashboardLayout title="Form Submissions" actions={<Button variant="ghost" onClick={handleBack}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
-          </Button>
-        }
-      >
+          </Button>}>
         <div className="flex items-center justify-center h-full">
           <Card className="w-full max-w-md">
             <CardHeader>
@@ -87,44 +80,26 @@ export default function FormSubmissionsTable() {
             </CardContent>
           </Card>
         </div>
-      </DashboardLayout>
-    );
+      </DashboardLayout>;
   }
-
-  return (
-    <DashboardLayout 
-      title="Form Submissions Data Table"
-      actions={
-        <div className="flex items-center gap-2">
-          {selectedFormId && (
-            <>
-              <Button 
-                variant="outline" 
-                onClick={() => setShowSaveDialog(true)}
-                disabled={!selectedFormId}
-              >
+  return <DashboardLayout title="Form Submissions Data Table" actions={<div className="flex items-center gap-2">
+          {selectedFormId && <>
+              <Button variant="outline" onClick={() => setShowSaveDialog(true)} disabled={!selectedFormId}>
                 <Save className="h-4 w-4 mr-2" />
                 Save as Report
               </Button>
-              <Button 
-                variant="outline"
-                onClick={() => {
-                  window.open(`/report-editor/new?formId=${selectedFormId}`, '_blank');
-                }}
-                disabled={!selectedFormId}
-              >
+              <Button variant="outline" onClick={() => {
+        window.open(`/report-editor/new?formId=${selectedFormId}`, '_blank');
+      }} disabled={!selectedFormId}>
                 <BarChart3 className="h-4 w-4 mr-2" />
                 Create Chart
               </Button>
-            </>
-          )}
+            </>}
           <Button variant="ghost" onClick={handleBack}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
-        </div>
-      }
-    >
+        </div>}>
       <div className="space-y-6 h-full">
         {/* Form Selection Header */}
         <Card>
@@ -137,47 +112,38 @@ export default function FormSubmissionsTable() {
                     <SelectValue placeholder="Choose a form to view submissions" />
                   </SelectTrigger>
                   <SelectContent>
-                    {accessibleForms.map(form => (
-                      <SelectItem key={form.id} value={form.id}>
+                    {accessibleForms.map(form => <SelectItem key={form.id} value={form.id}>
                         <div className="flex items-center justify-between w-full">
                           <span>{form.name}</span>
                           <Badge variant="secondary" className="ml-2">
                             {submissions.length} submissions
                           </Badge>
                         </div>
-                      </SelectItem>
-                    ))}
+                      </SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
 
-              {selectedForm && (
-                <div className="text-right">
+              {selectedForm && <div className="text-right">
                   <h3 className="font-semibold text-lg">{selectedForm.name}</h3>
                   <p className="text-sm text-muted-foreground">
                     {submissions.length} total submissions
                   </p>
-                </div>
-              )}
+                </div>}
             </div>
           </CardHeader>
         </Card>
 
         {/* Data Table */}
-        {selectedFormId ? (
-          <Card className="flex-1 h-full">
+        {selectedFormId ? <Card className="flex-1 h-full">
             <CardContent className="p-0">
               <ScrollArea className="h-[calc(100vh-240px)]">
-                <div className="p-1">
-                  <DynamicTable 
-                    config={tableConfig}
-                  />
+                <div className="p-1 px-[10px] py-[10px]">
+                  <DynamicTable config={tableConfig} />
                 </div>
               </ScrollArea>
             </CardContent>
-          </Card>
-        ) : (
-          <Card className="flex-1">
+          </Card> : <Card className="flex-1">
             <CardContent className="flex items-center justify-center h-full py-12">
               <div className="text-center text-muted-foreground">
                 <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
@@ -186,17 +152,10 @@ export default function FormSubmissionsTable() {
                 <p className="text-sm">Choose from the dropdown above to get started</p>
               </div>
             </CardContent>
-          </Card>
-        )}
+          </Card>}
       </div>
 
       {/* Save Report Dialog */}
-      <ReportSaveDialog
-        isOpen={showSaveDialog}
-        onOpenChange={setShowSaveDialog}
-        tableConfig={tableConfig}
-        formName={selectedForm?.name || ''}
-      />
-    </DashboardLayout>
-  );
+      <ReportSaveDialog isOpen={showSaveDialog} onOpenChange={setShowSaveDialog} tableConfig={tableConfig} formName={selectedForm?.name || ''} />
+    </DashboardLayout>;
 }
