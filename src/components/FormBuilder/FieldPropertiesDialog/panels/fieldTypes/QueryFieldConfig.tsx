@@ -109,7 +109,13 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
                 value={customConfig.query || ''}
                 height="200px"
                 extensions={[sql()]}
-                onChange={(value) => updateCustomConfig('query', value)}
+                onChange={(value) => {
+                  updateCustomConfig('query', value);
+                  // Clear saved query when manually editing
+                  if (customConfig.savedQueryId) {
+                    updateCustomConfig('savedQueryId', '');
+                  }
+                }}
                 placeholder="SELECT * FROM form_submissions WHERE..."
                 basicSetup={{
                   lineNumbers: true,
@@ -136,27 +142,30 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
           {/* Display Mode */}
           <div className="space-y-2">
             <Label>Display Mode</Label>
-            <Select
-              value={customConfig.displayMode || 'data'}
-              onValueChange={(value) => updateCustomConfig('displayMode', value)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="data">Show Query Results</SelectItem>
-                <SelectItem value="query">Show Query Code</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Show Results Toggle */}
-          <div className="flex items-center justify-between">
-            <Label>Show Query Results</Label>
-            <Switch
-              checked={customConfig.showResults !== false}
-              onCheckedChange={(checked) => updateCustomConfig('showResults', checked)}
-            />
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="radio"
+                  id="display-data"
+                  name="displayMode"
+                  value="data"
+                  checked={customConfig.displayMode === 'data' || !customConfig.displayMode}
+                  onChange={(e) => updateCustomConfig('displayMode', e.target.value)}
+                />
+                <Label htmlFor="display-data">Show Query Results Only</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="radio"
+                  id="display-query"
+                  name="displayMode"
+                  value="query"
+                  checked={customConfig.displayMode === 'query'}
+                  onChange={(e) => updateCustomConfig('displayMode', e.target.value)}
+                />
+                <Label htmlFor="display-query">Show Query Code & Results</Label>
+              </div>
+            </div>
           </div>
 
           {/* Max Results */}

@@ -32,6 +32,7 @@ import {
   FileField,
   MatrixGridField
 } from './form-fields/enhanced';
+import { QueryField } from './form-fields/QueryField';
 import { BarcodeField } from './form-fields/BarcodeField';
 import { ApprovalField } from './form-fields/ApprovalField';
 import { DynamicDropdownField } from './form-fields/DynamicDropdownField';
@@ -665,6 +666,19 @@ export function FormFieldsRenderer({
         return <GeoLocationField {...commonProps} />;
       case 'child-cross-reference':
         return <ChildCrossReferenceField {...commonProps} currentFormId={formId} />;
+      
+      case 'query-field':
+        return (
+          <QueryField
+            field={field}
+            value={formData[field.id]}
+            onChange={(value) => onFieldChange(field.id, value)}
+            error={errors[field.id]}
+            disabled={!fieldState.isEnabled}
+            formData={formData}
+            onFieldChange={onFieldChange}
+          />
+        );
       
       default:
         return (
