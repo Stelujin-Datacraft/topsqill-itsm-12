@@ -40,6 +40,7 @@ interface CountryFieldProps {
 export function CountryField({ field, value, onChange, error, disabled }: CountryFieldProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const [fallbackMode, setFallbackMode] = useState(false);
 
   const config = field.customConfig || {};
   
@@ -96,7 +97,7 @@ export function CountryField({ field, value, onChange, error, disabled }: Countr
     <div className="space-y-3">
       <Label htmlFor={field.id}>{field.label}</Label>
       
-      {config.searchable !== false ? (
+      {config.searchable !== false && !fallbackMode ? (
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -105,6 +106,14 @@ export function CountryField({ field, value, onChange, error, disabled }: Countr
               aria-expanded={open}
               className="w-full justify-between"
               disabled={disabled}
+              onClick={() => {
+                try {
+                  setOpen(!open);
+                } catch (error) {
+                  console.error('Country selector error, switching to fallback mode:', error);
+                  setFallbackMode(true);
+                }
+              }}
             >
               {selectedCountry ? (
                 <span className="flex items-center gap-2">
@@ -117,7 +126,7 @@ export function CountryField({ field, value, onChange, error, disabled }: Countr
               <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-full p-0">
+          <PopoverContent className="w-full p-0 z-50 bg-background border shadow-md">
             <Command>
               <CommandInput 
                 placeholder="Search countries..." 

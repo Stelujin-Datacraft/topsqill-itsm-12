@@ -39,7 +39,9 @@ import {
   CalculatedFieldConfig,
   ConditionalSectionFieldConfig,
   GeoLocationFieldConfig,
-  MatrixGridFieldConfig
+  MatrixGridFieldConfig,
+  PhoneFieldConfig,
+  ColorFieldConfig
 } from './FieldPropertiesDialog/panels/fieldTypes';
 import { TextFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/TextFieldConfig';
 import { SelectFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/SelectFieldConfig';
@@ -49,8 +51,10 @@ import { FieldConfiguration } from './FieldPropertiesDialog/hooks/useFieldConfig
 // Import new field configurations
 import { MultiSelectFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/selection/MultiSelectFieldConfig';
 import { SignatureFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/media/SignatureFieldConfig';
+import { FileFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/media/FileFieldConfig';
 import { CurrencyFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/international/CurrencyFieldConfig';
 import { CountryFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/international/CountryFieldConfig';
+import { SliderFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/input/SliderFieldConfig';
 import { SubmissionAccessFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/access/SubmissionAccessFieldConfig';
 import { ChildCrossReferenceFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/ChildCrossReferenceFieldConfig';
 import { QueryFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/QueryFieldConfig';
@@ -517,6 +521,20 @@ export function FieldPropertiesDialog({
       case 'country':
         return <CountryFieldConfig {...props} />;
       
+      case 'phone':
+        return <PhoneFieldConfig field={fieldForConfig} onConfigChange={(config) => updateCustomConfig(Object.keys(config)[0], Object.values(config)[0])} />;
+      
+      // Media Fields
+      case 'color':
+        return <ColorFieldConfig field={fieldForConfig} onConfigChange={(config) => updateCustomConfig(Object.keys(config)[0], Object.values(config)[0])} />;
+      
+      case 'file':
+        return <FileFieldConfig field={fieldForConfig} onConfigChange={(config) => updateCustomConfig(Object.keys(config)[0], Object.values(config)[0])} />;
+      
+      // Input Fields
+      case 'slider':
+        return <SliderFieldConfig field={fieldForConfig} onConfigChange={(config) => updateCustomConfig(Object.keys(config)[0], Object.values(config)[0])} />;
+      
       // Access Control Fields
       case 'submission-access':
         return <SubmissionAccessFieldConfig {...props} />;
@@ -584,9 +602,9 @@ export function FieldPropertiesDialog({
     // New Field Types
     'barcode', 'approval', 'dynamic-dropdown', 'calculated', 'conditional-section', 'submission-access',
     // Media Fields
-    'signature', 'color',
+    'signature', 'color', 'file',
     // International Fields
-    'country', 'phone',
+    'country', 'phone', 'currency',
     // Query Fields
     'query-field',
     // Other

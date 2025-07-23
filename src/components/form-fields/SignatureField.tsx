@@ -88,8 +88,11 @@ export function SignatureField({ field, value, onChange, error, disabled }: Sign
   };
 
   const stopDrawing = () => {
-    setIsDrawing(false);
-    saveSignature();
+    if (isDrawing) {
+      setIsDrawing(false);
+      // Only save signature if we were actually drawing
+      setTimeout(() => saveSignature(), 50);
+    }
   };
 
   const saveSignature = () => {

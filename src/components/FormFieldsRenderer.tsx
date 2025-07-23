@@ -43,6 +43,7 @@ import { MultiSelectField } from './form-fields/MultiSelectField';
 import { SignatureField } from './form-fields/SignatureField';
 import { CurrencyField } from './form-fields/CurrencyField';
 import { CountryField } from './form-fields/CountryField';
+import { PhoneField } from './form-fields/PhoneField';
 import { SubmissionAccessField } from './form-fields/SubmissionAccessField';
 
 interface FormFieldsRendererProps {
@@ -208,16 +209,27 @@ export function FormFieldsRenderer({
           />
         );
 
-      case 'submission-access':
-        return (
-          <SubmissionAccessField
-            field={field}
-            value={formData[field.id] || (field.customConfig?.allowMultiple ? [] : '')}
-            onChange={(value) => onFieldChange(field.id, value)}
-            error={errors[field.id]}
-            disabled={!fieldState.isEnabled}
-          />
-        );
+       case 'phone':
+         return (
+           <PhoneField
+             field={field}
+             value={formData[field.id] || ''}
+             onChange={(value) => onFieldChange(field.id, value)}
+             error={errors[field.id]}
+             disabled={!fieldState.isEnabled}
+           />
+         );
+
+       case 'submission-access':
+         return (
+           <SubmissionAccessField
+             field={field}
+             value={formData[field.id] || (field.customConfig?.allowMultiple ? [] : '')}
+             onChange={(value) => onFieldChange(field.id, value)}
+             error={errors[field.id]}
+             disabled={!fieldState.isEnabled}
+           />
+         );
 
       // Enhanced Email with validation
       case 'email':
@@ -238,19 +250,22 @@ export function FormFieldsRenderer({
                 onFieldChange(field.id, e.target.value);
                 // Real-time validation if enabled
                 const config = field.customConfig || {};
-                if (config.realTimeValidation !== false && e.target.value) {
+                if ((config as any).realTimeValidation !== false && e.target.value) {
                   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                   if (!emailRegex.test(e.target.value)) {
-                    console.log('Invalid email format');
+                    // Set error state instead of just logging
+                    onFieldChange(field.id + '_error', (config as any).validationMessage || 'Invalid email format');
+                  } else {
+                    onFieldChange(field.id + '_error', '');
                   }
                 }
               }}
               placeholder={field.placeholder}
               disabled={!fieldState.isEnabled}
             />
-            {errors[field.id] && (
+            {(errors[field.id] || formData[field.id + '_error']) && (
               <p className="text-sm text-red-500">
-                {field.customConfig?.validationMessage || errors[field.id]}
+                {(field.customConfig as any)?.validationMessage || errors[field.id] || formData[field.id + '_error']}
               </p>
             )}
           </div>
@@ -275,24 +290,26 @@ export function FormFieldsRenderer({
                 onFieldChange(field.id, e.target.value);
                 // Real-time validation if enabled
                 const config = field.customConfig || {};
-                if (config.realTimeValidation !== false && e.target.value) {
+                if ((config as any).realTimeValidation !== false && e.target.value) {
                   try {
                     const url = new URL(e.target.value);
-                    const protocol = config.protocolRestriction;
+                    const protocol = (config as any).protocolRestriction;
                     if (protocol && protocol !== 'any' && !url.protocol.startsWith(protocol)) {
-                      console.log(`Invalid protocol, expected ${protocol}`);
+                      onFieldChange(field.id + '_error', `Invalid protocol, expected ${protocol}`);
+                    } else {
+                      onFieldChange(field.id + '_error', '');
                     }
                   } catch {
-                    console.log('Invalid URL format');
+                    onFieldChange(field.id + '_error', (config as any).validationMessage || 'Invalid URL format');
                   }
                 }
               }}
               placeholder={field.placeholder || 'https://example.com'}
               disabled={!fieldState.isEnabled}
             />
-            {errors[field.id] && (
+            {(errors[field.id] || formData[field.id + '_error']) && (
               <p className="text-sm text-red-500">
-                {field.customConfig?.validationMessage || errors[field.id]}
+                {(field.customConfig as any)?.validationMessage || errors[field.id] || formData[field.id + '_error']}
               </p>
             )}
           </div>

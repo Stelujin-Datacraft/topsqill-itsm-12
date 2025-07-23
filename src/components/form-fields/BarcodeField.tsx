@@ -3,6 +3,7 @@ import { FormField } from '@/types/form';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { QrCode, Scan } from 'lucide-react';
+import QRCode from 'qrcode';
 
 interface BarcodeFieldProps {
   field: FormField;
@@ -22,34 +23,35 @@ export function BarcodeField({ field, value, onChange, error, disabled }: Barcod
     }
   }, [config.url, config.barcodeType, config.size]);
 
-  const generateBarcode = () => {
+  const generateBarcode = async () => {
     if (!canvasRef.current || !config.url) return;
 
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Simple QR code generation (in a real app, use a proper QR library like qrcode)
     const size = config.size || 200;
-    canvas.width = size;
-    canvas.height = size;
     
-    // Clear canvas
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, size, size);
-    
-    // Draw simple pattern representing QR code
-    ctx.fillStyle = 'black';
-    const cellSize = size / 25;
-    
-    // Generate a simple pattern based on URL
-    const pattern = config.url.split('').map((char, i) => char.charCodeAt(0) + i);
-    
-    for (let i = 0; i < 25; i++) {
-      for (let j = 0; j < 25; j++) {
-        if (pattern[(i * 25 + j) % pattern.length] % 3 === 0) {
-          ctx.fillRect(i * cellSize, j * cellSize, cellSize, cellSize);
+    try {
+      // Generate proper QR code using qrcode library
+      await QRCode.toCanvas(canvas, config.url, {
+        width: size,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
         }
+      });
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      // Fallback to simple pattern if QR generation fails
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        canvas.width = size;
+        canvas.height = size;
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, size, size);
+        ctx.fillStyle = 'black';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('QR Error', size / 2, size / 2);
       }
     }
   };
