@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArrowLeft, Edit, Save, X, Hash, Calendar, Clock } from 'lucide-react';
 import { FormFieldsRenderer } from './FormFieldsRenderer';
 import { Form } from '@/types/form';
@@ -271,15 +272,25 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header with actions */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 h-full">
+      {/* Action Bar */}
+      <div className="flex items-center justify-between bg-card border rounded-lg px-4 py-3 shadow-sm">
         <div className="flex items-center gap-4">
-          {onBack && (
-            <Button variant="ghost" size="sm" onClick={onBack}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
+          <div className="flex flex-col">
+            <h2 className="text-lg font-semibold">{submission.form_name}</h2>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-1">
+                <Hash className="h-3 w-3" />
+                <span>ID: {submission.submission_ref_id || submission.id.slice(0, 8)}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                <span>{new Date(submission.submitted_at).toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+          {isEditing && (
+            <Badge variant="secondary" className="ml-4">Edit Mode</Badge>
           )}
         </div>
         
@@ -313,63 +324,27 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
         </div>
       </div>
 
-      {/* Submission Info Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>{submission.form_name}</span>
-            {isEditing && (
-              <Badge variant="secondary">Edit Mode</Badge>
-            )}
-          </CardTitle>
+      {/* Form Fields - Scrollable Content */}
+      <Card className="flex-1 h-full">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base">Submission Data</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Submission ID</label>
-              <div className="flex items-center gap-2 mt-1">
-                <Hash className="h-4 w-4 text-muted-foreground" />
-                <Badge variant="outline">
-                  {submission.submission_ref_id || submission.id.slice(0, 8)}
-                </Badge>
-              </div>
+        <CardContent className="p-0">
+          <ScrollArea className="h-[calc(100vh-280px)] px-6 pb-6">
+            <div className="space-y-6">
+              <FormFieldsRenderer
+                fields={form.fields}
+                formData={formData}
+                errors={{}}
+                fieldStates={fieldStates}
+                columns={(form.layout?.columns as 1 | 2 | 3) || 1}
+                onFieldChange={handleFieldChange}
+                onSubmit={handleSubmit}
+                showButtons={false} // Hide submit buttons
+                formId={form.id}
+              />
             </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Form Reference</label>
-              <div className="flex items-center gap-2 mt-1">
-                <Hash className="h-4 w-4 text-muted-foreground" />
-                <Badge variant="secondary">
-                  {submission.form_reference_id || 'N/A'}
-                </Badge>
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Submitted</label>
-              <div className="flex items-center gap-2 mt-1">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">
-                  {new Date(submission.submitted_at).toLocaleString()}
-                </span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Form Fields */}
-      <Card>
-        <CardContent className="pt-6">
-          <FormFieldsRenderer
-            fields={form.fields}
-            formData={formData}
-            errors={{}}
-            fieldStates={fieldStates}
-            columns={(form.layout?.columns as 1 | 2 | 3) || 1}
-            onFieldChange={handleFieldChange}
-            onSubmit={handleSubmit}
-            showButtons={false} // Hide submit buttons
-            formId={form.id}
-          />
+          </ScrollArea>
         </CardContent>
       </Card>
     </div>

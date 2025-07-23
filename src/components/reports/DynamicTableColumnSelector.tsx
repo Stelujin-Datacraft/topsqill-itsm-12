@@ -32,7 +32,16 @@ export function DynamicTableColumnSelector({ formFields, selectedColumns, onColu
           <DropdownMenuCheckboxItem
             key={field.id}
             checked={selectedColumns.includes(field.id)}
-            onCheckedChange={() => onColumnToggle(field.id)}
+            onCheckedChange={(checked) => {
+              // Prevent the dropdown from closing
+              if (checked !== undefined) {
+                onColumnToggle(field.id);
+              }
+            }}
+            onSelect={(e) => {
+              // Prevent the dropdown from closing when clicking on the item
+              e.preventDefault();
+            }}
           >
             <div className="flex flex-col">
               <span className="font-medium">{field.label}</span>

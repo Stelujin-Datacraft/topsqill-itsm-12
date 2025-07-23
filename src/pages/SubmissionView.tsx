@@ -2,6 +2,7 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { SubmissionFormView } from '@/components/SubmissionFormView';
+import DashboardLayout from '@/components/DashboardLayout';
 
 const SubmissionView = () => {
   const { submissionId } = useParams<{ submissionId: string }>();
@@ -23,14 +24,24 @@ const SubmissionView = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <DashboardLayout 
+      title="Submission Details"
+      actions={
+        <button 
+          onClick={handleBack}
+          className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          Back to Submissions
+        </button>
+      }
+    >
+      <div className="max-w-7xl mx-auto">
         <SubmissionFormView 
           submissionId={submissionId} 
           onBack={handleBack}
         />
       </div>
-    </div>
+    </DashboardLayout>
   );
 };
 
