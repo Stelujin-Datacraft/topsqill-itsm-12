@@ -587,6 +587,8 @@ export function FieldPropertiesDialog({
     'signature', 'color',
     // International Fields
     'country', 'phone',
+    // Query Fields
+    'query-field',
     // Other
     'number', 'currency', 'file', 'image', 'rating', 'slider',
     // Cross-reference fields
