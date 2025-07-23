@@ -291,6 +291,14 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
     };
   }, [filteredAndSortedData, displayFields, config]);
 
+  const availableFields = useMemo(() => {
+    return formFields.map(field => ({
+      id: field.id,
+      label: field.label,
+      type: field.field_type || 'text'
+    }));
+  }, [formFields]);
+
   if (loading) {
     return (
       <Card className="h-full">
@@ -324,14 +332,6 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       </Card>
     );
   }
-
-  const availableFields = useMemo(() => {
-    return formFields.map(field => ({
-      id: field.id,
-      label: field.label,
-      type: field.field_type || 'text'
-    }));
-  }, [formFields]);
 
   return (
     <div className="space-y-6">
