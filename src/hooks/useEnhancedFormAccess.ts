@@ -65,19 +65,7 @@ export function useEnhancedFormAccess(formId: string) {
         throw usersError;
       }
 
-      // Get user profiles separately
-      const userIds = projectUsers?.map(u => u.user_id) || [];
-      const { data: userProfiles, error: profilesError } = await supabase
-        .from('user_profiles')
-        .select('id, email, first_name, last_name')
-        .in('id', userIds);
-
-      if (profilesError) {
-        console.error('❌ [ENHANCED FORM ACCESS] Error loading user profiles:', profilesError);
-        throw profilesError;
-      }
-
-      // Get direct form access
+      // Get direct form access users (might not be in project_users)
       const { data: formAccess, error: accessError } = await supabase
         .from('form_user_access')
         .select('user_id, role, status')
@@ -88,7 +76,23 @@ export function useEnhancedFormAccess(formId: string) {
         console.error('❌ [ENHANCED FORM ACCESS] Error loading form access:', accessError);
       }
 
-      // Get user role assignments
+      // Combine all user IDs (project users + form access users)
+      const projectUserIds = projectUsers?.map(u => u.user_id) || [];
+      const formAccessUserIds = formAccess?.map(u => u.user_id) || [];
+      const allUserIds = [...new Set([...projectUserIds, ...formAccessUserIds])];
+
+      // Get user profiles for all users
+      const { data: userProfiles, error: profilesError } = await supabase
+        .from('user_profiles')
+        .select('id, email, first_name, last_name')
+        .in('id', allUserIds);
+
+      if (profilesError) {
+        console.error('❌ [ENHANCED FORM ACCESS] Error loading user profiles:', profilesError);
+        throw profilesError;
+      }
+
+      // Get user role assignments for all users
       const { data: roleAssignments, error: rolesError } = await supabase
         .from('user_role_assignments')
         .select(`
@@ -102,7 +106,7 @@ export function useEnhancedFormAccess(formId: string) {
             )
           )
         `)
-        .in('user_id', userIds);
+        .in('user_id', allUserIds);
 
       if (rolesError && rolesError.code !== 'PGRST116') {
         console.error('❌ [ENHANCED FORM ACCESS] Error loading role assignments:', rolesError);
@@ -119,16 +123,18 @@ export function useEnhancedFormAccess(formId: string) {
         console.error('❌ [ENHANCED FORM ACCESS] Error loading top-level permissions:', topLevelError);
       }
 
-      // Process users and build enhanced user list
-      const enhancedUsers: EnhancedFormUser[] = (projectUsers || []).map(user => {
-        const userProfile = (userProfiles || []).find(p => p.id === user.user_id);
-        const directAccess = (formAccess || []).find(fa => fa.user_id === user.user_id);
-        const userRoles = (roleAssignments || []).filter(ra => ra.user_id === user.user_id);
-        const topLevelPerm = (topLevelPerms || []).find(tlp => tlp.user_id === user.user_id);
+      // Process all users (both project users and form access users) and build enhanced user list
+      const enhancedUsers: EnhancedFormUser[] = allUserIds.map(userId => {
+        const userProfile = (userProfiles || []).find(p => p.id === userId);
+        const projectUser = (projectUsers || []).find(pu => pu.user_id === userId);
+        const directAccess = (formAccess || []).find(fa => fa.user_id === userId);
+        const userRoles = (roleAssignments || []).filter(ra => ra.user_id === userId);
+        const topLevelPerm = (topLevelPerms || []).find(tlp => tlp.user_id === userId);
 
         // Determine access sources
-        const isCreator = formData?.created_by === user.user_id;
-        const isAdmin = user.role === 'admin';
+        const isCreator = formData?.created_by === userId;
+        const projectRole = projectUser?.role || 'member'; // Default to member if not in project
+        const isAdmin = projectRole === 'admin';
         const assignedRoles = userRoles.map(ur => ur.roles?.name || 'Unknown Role').filter(Boolean);
         const hasTopLevelPerms = !!topLevelPerm;
 
@@ -149,13 +155,13 @@ export function useEnhancedFormAccess(formId: string) {
         };
 
         return {
-          user_id: user.user_id,
+          user_id: userId,
           email: userProfile?.email || 'Unknown',
           first_name: userProfile?.first_name || null,
           last_name: userProfile?.last_name || null,
           access_sources: {
             is_creator: isCreator,
-            project_role: user.role,
+            project_role: projectRole,
             assigned_roles: assignedRoles,
             direct_access: directAccess?.role || null,
             has_top_level_perms: hasTopLevelPerms
