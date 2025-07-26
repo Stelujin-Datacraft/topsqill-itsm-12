@@ -33,6 +33,7 @@ export function QueryField({
   const [queryResult, setQueryResult] = useState<QueryResult | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [lastExecuted, setLastExecuted] = useState<string>('');
+  const [hasExecutedOnLoad, setHasExecutedOnLoad] = useState(false);
   const { toast } = useToast();
 
   const customConfig = field.customConfig || {};
@@ -81,27 +82,28 @@ export function QueryField({
     }
   }, [query, onChange, toast]);
 
-  // Execute on load
+  // Execute on load - only once
   useEffect(() => {
-    if (executeOn === 'load' && query.trim()) {
+    if (executeOn === 'load' && query.trim() && !hasExecutedOnLoad) {
       executeQuery();
+      setHasExecutedOnLoad(true);
     }
-  }, [executeOn, query, executeQuery]);
+  }, [executeOn, query, hasExecutedOnLoad]);
 
   // Execute on field change
   useEffect(() => {
-    if (executeOn === 'field-change' && targetFieldId && formData[targetFieldId] !== undefined) {
+    if (executeOn === 'field-change' && targetFieldId && formData[targetFieldId] !== undefined && hasExecutedOnLoad) {
       executeQuery();
     }
-  }, [executeOn, targetFieldId, formData, executeQuery]);
+  }, [executeOn, targetFieldId, formData?.[targetFieldId]]);
 
-  // Auto-refresh interval
+  // Auto-refresh interval - only if not submit mode
   useEffect(() => {
-    if (refreshInterval > 0 && query.trim()) {
+    if (refreshInterval > 0 && query.trim() && executeOn !== 'submit') {
       const interval = setInterval(executeQuery, refreshInterval * 1000);
       return () => clearInterval(interval);
     }
-  }, [refreshInterval, query, executeQuery]);
+  }, [refreshInterval, query, executeOn]);
 
   const handleManualExecute = () => {
     if (executeOn === 'submit') {
@@ -113,6 +115,10 @@ export function QueryField({
       return;
     }
     executeQuery();
+    // Reset the onload flag so it can execute again if needed
+    if (executeOn === 'load') {
+      setHasExecutedOnLoad(true);
+    }
   };
 
   const renderQueryDisplay = () => (
