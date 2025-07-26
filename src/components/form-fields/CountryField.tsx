@@ -37,7 +37,7 @@ export function CountryField({ field, value, onChange, error, disabled = false }
     const fetchCountries = async () => {
       try {
         setLoading(true);
-        const response = await axios.get('https://restcountries.com/v3.1/all');
+        const response = await axios.get('https://restcountries.com/v3.1/all?fields=name,flags,cca2');
         const data = response.data.map((country: any) => ({
           name: country.name?.common || '',
           flag: country.flags?.svg || country.flags?.png || '',
