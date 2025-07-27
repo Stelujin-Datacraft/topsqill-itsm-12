@@ -47,6 +47,8 @@ interface OptimizedFormDataTableProps {
   fieldType: 'record-table' | 'cross-reference' | 'matrix-grid';
   value?: any[];
   onChange?: (selectedRecords: any[]) => void;
+  autoSelectedRecords?: SelectedRecord[];
+  isAutoSelectionLoading?: boolean;
 }
 
 interface SelectedRecord {
@@ -55,7 +57,14 @@ interface SelectedRecord {
   displayData: Record<string, any>;
 }
 
-export function OptimizedFormDataTable({ config, fieldType, value = [], onChange }: OptimizedFormDataTableProps) {
+export function OptimizedFormDataTable({ 
+  config, 
+  fieldType, 
+  value = [], 
+  onChange, 
+  autoSelectedRecords = [],
+  isAutoSelectionLoading = false 
+}: OptimizedFormDataTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeFilters, setActiveFilters] = useState<FilterCondition[]>([]);
@@ -94,18 +103,29 @@ export function OptimizedFormDataTable({ config, fieldType, value = [], onChange
     pageSize
   });
 
-  // Initialize selected records from value prop
+  // Initialize selected records from value prop and auto-selected records
   useEffect(() => {
-    if (value && Array.isArray(value) && value.length > 0) {
-      const records = value.map(item => ({
-        id: item.id || item.recordId,
-        submission_ref_id: item.submission_ref_id || item.refId,
-        displayData: item.displayData || item
-      }));
-      setSelectedRecords(records);
-      setSelectedRecordIds(new Set(records.map(r => r.id)));
-    }
-  }, [value]);
+    const manuallySelectedRecords = value && Array.isArray(value) && value.length > 0 
+      ? value.map(item => ({
+          id: item.id || item.recordId,
+          submission_ref_id: item.submission_ref_id || item.refId,
+          displayData: item.displayData || item
+        }))
+      : [];
+
+    // Combine manually selected and auto-selected records, avoiding duplicates
+    const allRecords = [...manuallySelectedRecords];
+    
+    autoSelectedRecords.forEach(autoRecord => {
+      const alreadyExists = allRecords.some(record => record.id === autoRecord.id);
+      if (!alreadyExists) {
+        allRecords.push(autoRecord);
+      }
+    });
+
+    setSelectedRecords(allRecords);
+    setSelectedRecordIds(new Set(allRecords.map(r => r.id)));
+  }, [value, autoSelectedRecords]);
 
   // When modal opens, initialize selectedRecordIds with currently selected records
   useEffect(() => {
@@ -521,25 +541,44 @@ export function OptimizedFormDataTable({ config, fieldType, value = [], onChange
           <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded">
             <div className="flex items-center gap-2 mb-2">
               <Badge variant="secondary">Selected Records ({selectedRecords.length})</Badge>
+              {autoSelectedRecords.length > 0 && (
+                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                  {autoSelectedRecords.length} Auto-selected
+                </Badge>
+              )}
+              {isAutoSelectionLoading && (
+                <Badge variant="outline" className="text-xs">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-1 border-blue-500 mr-1"></div>
+                  Loading auto-selection...
+                </Badge>
+              )}
             </div>
             <div className="flex flex-wrap gap-2">
-              {selectedRecords.map((record) => (
-                <Badge 
-                  key={record.id} 
-                  variant="outline" 
-                  className="flex items-center gap-1"
-                >
-                  {getDisplayValue(record)}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-4 w-4 p-0 ml-1 hover:bg-red-100"
-                    onClick={() => handleRemoveSelectedRecord(record.id)}
+              {selectedRecords.map((record) => {
+                const isAutoSelected = autoSelectedRecords.some(autoRecord => autoRecord.id === record.id);
+                return (
+                  <Badge 
+                    key={record.id} 
+                    variant="outline" 
+                    className={`flex items-center gap-1 ${
+                      isAutoSelected ? 'bg-blue-50 border-blue-300 text-blue-700' : ''
+                    }`}
+                    title={isAutoSelected ? 'Auto-selected from parent form' : 'Manually selected'}
                   >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </Badge>
-              ))}
+                    {isAutoSelected && <span className="text-xs mr-1">🔗</span>}
+                    {getDisplayValue(record)}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-4 w-4 p-0 ml-1 hover:bg-red-100"
+                      onClick={() => handleRemoveSelectedRecord(record.id)}
+                      title={isAutoSelected ? 'Remove auto-selected record' : 'Remove selected record'}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </Badge>
+                );
+              })}
             </div>
           </div>
         )}

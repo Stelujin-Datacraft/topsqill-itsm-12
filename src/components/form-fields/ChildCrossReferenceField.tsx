@@ -7,6 +7,7 @@ import { FieldConfigurationDialog } from './FieldConfigurationDialog';
 import { OptimizedFormDataTable } from './OptimizedFormDataTable';
 import { useForm } from '@/contexts/FormContext';
 import { Badge } from '@/components/ui/badge';
+import { useChildCrossReferenceAutoSelection } from '@/hooks/useChildCrossReferenceAutoSelection';
 
 interface ChildCrossReferenceFieldProps {
   field: FormField;
@@ -17,6 +18,7 @@ interface ChildCrossReferenceFieldProps {
   error?: string;
   disabled?: boolean;
   currentFormId?: string;
+  currentSubmissionId?: string;
 }
 
 export function ChildCrossReferenceField({ 
@@ -27,7 +29,8 @@ export function ChildCrossReferenceField({
   isPreview, 
   error, 
   disabled, 
-  currentFormId 
+  currentFormId,
+  currentSubmissionId 
 }: ChildCrossReferenceFieldProps) {
   const { forms } = useForm();
   const [configOpen, setConfigOpen] = useState(false);
@@ -60,6 +63,16 @@ export function ChildCrossReferenceField({
   const hasAutoConfig = field.customConfig?.targetFormId && 
                        field.customConfig?.displayColumns && 
                        field.customConfig?.displayColumns.length > 0;
+
+  // Get auto-selected records for child cross-reference
+  const { autoSelectedRecords, loading: autoSelectionLoading } = useChildCrossReferenceAutoSelection({
+    currentFormId: currentFormId || '',
+    currentSubmissionId,
+    parentFormId: field.customConfig?.parentFormId,
+    crossReferenceFieldId: field.customConfig?.parentFieldId,
+    displayColumns: field.customConfig?.displayColumns,
+    enabled: hasAutoConfig && !!currentSubmissionId && !isPreview
+  });
 
   // Create properly typed config object with better defaults
   const tableConfig = hasAutoConfig ? {
@@ -167,6 +180,8 @@ export function ChildCrossReferenceField({
         fieldType="cross-reference"
         value={value}
         onChange={handleSelectionChange}
+        autoSelectedRecords={autoSelectedRecords}
+        isAutoSelectionLoading={autoSelectionLoading}
       />
       
       {error && <p className="text-sm text-red-500">{error}</p>}
