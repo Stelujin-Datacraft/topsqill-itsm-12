@@ -10,6 +10,7 @@ import { Trash2, Plus } from 'lucide-react';
 import { FormField } from '@/types/form';
 import { FieldRule, FieldRuleAction, FieldOperator } from '@/types/rules';
 import { RuleDynamicValueInput } from './RuleDynamicValueInput';
+import { ActionValueInput } from './ActionValueInput';
 
 interface EnhancedFieldRuleBuilderProps {
   fields: FormField[];
@@ -396,43 +397,15 @@ export function EnhancedFieldRuleBuilder({ fields, rules, onRulesChange }: Enhan
             </div>
 
             {/* Action Value Input */}
-            {(['setDefault', 'changeLabel', 'showTooltip', 'showError', 'changeOptions'].includes(editingRule.action)) && (
-              <div>
-                <Label>Action Value</Label>
-                {editingRule.action === 'changeOptions' ? (
-                  <div className="space-y-2">
-                    <textarea
-                      className="w-full p-2 border rounded min-h-[80px] text-sm"
-                      value={Array.isArray(editingRule.actionValue) 
-                        ? editingRule.actionValue.join('\n')
-                        : editingRule.actionValue?.toString() || ''
-                      }
-                      onChange={(e) => {
-                        const lines = e.target.value.split('\n').filter(line => line.trim());
-                        setEditingRule({
-                          ...editingRule,
-                          actionValue: lines
-                        });
-                      }}
-                      placeholder="Option 1&#10;Option 2&#10;Option 3"
-                    />
-                    <p className="text-xs text-muted-foreground">Enter one option per line</p>
-                  </div>
-                ) : (
-                  <Input
-                    value={typeof editingRule.actionValue === 'string' ? editingRule.actionValue : ''}
-                    onChange={(e) => setEditingRule({ ...editingRule, actionValue: e.target.value })}
-                    placeholder={
-                      editingRule.action === 'changeLabel' ? 'New label text' :
-                      editingRule.action === 'setDefault' ? 'Default value' :
-                      editingRule.action === 'showTooltip' ? 'Tooltip text' :
-                      editingRule.action === 'showError' ? 'Error message' :
-                      'Enter action value'
-                    }
-                  />
-                )}
-              </div>
-            )}
+            <div>
+              <Label>Action Value</Label>
+              <ActionValueInput
+                action={editingRule.action}
+                targetField={fields.find(f => f.id === editingRule.targetFieldId) || null}
+                value={editingRule.actionValue}
+                onChange={(value) => setEditingRule({ ...editingRule, actionValue: value })}
+              />
+            </div>
 
             <div className="flex items-center space-x-2">
               <Switch
