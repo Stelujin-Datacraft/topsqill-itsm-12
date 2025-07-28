@@ -219,7 +219,13 @@ export function OptimizedFormDataTable({
   };
 
   const handleConfirmSelection = () => {
-    const newSelectedRecords = data
+    // Keep existing selected records that are not in selectedRecordIds (preserve previous selections)
+    const preservedRecords = selectedRecords.filter(record => 
+      !data.some(dataRecord => dataRecord.id === record.id)
+    );
+    
+    // Add newly selected records from current data
+    const newRecordsFromCurrentData = data
       .filter(record => selectedRecordIds.has(record.id))
       .map(record => ({
         id: record.id,
@@ -230,12 +236,15 @@ export function OptimizedFormDataTable({
         }, {} as Record<string, any>)
       }));
 
-    setSelectedRecords(newSelectedRecords);
+    // Combine preserved and newly selected records
+    const allSelectedRecords = [...preservedRecords, ...newRecordsFromCurrentData];
+    
+    setSelectedRecords(allSelectedRecords);
     setIsSelectionModalOpen(false);
     
-    // Call onChange with the selected records
+    // Call onChange with all selected records
     if (onChange) {
-      onChange(newSelectedRecords);
+      onChange(allSelectedRecords);
     }
   };
 
