@@ -46,6 +46,15 @@ export function useChildCrossReferenceAutoSelection({
           crossReferenceFieldId
         });
 
+        // Get the current submission ref ID for comparison
+        const currentSubmissionRefId = await supabase
+          .from('form_submissions')
+          .select('submission_ref_id')
+          .eq('id', currentSubmissionId)
+          .single();
+
+        console.log('Current submission ref ID:', currentSubmissionRefId?.data?.submission_ref_id);
+
         // Query all submissions from the parent form
         const { data: parentSubmissions, error: submissionsError } = await supabase
           .from('form_submissions')
@@ -71,19 +80,26 @@ export function useChildCrossReferenceAutoSelection({
             // Check all fields in submission data for cross-reference arrays
             for (const [fieldKey, fieldValue] of Object.entries(submissionData)) {
               if (Array.isArray(fieldValue)) {
+                console.log(`Checking field ${fieldKey} with ${fieldValue.length} items for current submission`);
+                
                 // Check if this array contains our current submission
                 const containsCurrentRecord = fieldValue.some(item => {
                   if (typeof item === 'object' && item !== null) {
                     // Handle object format {id, submission_ref_id, displayData}
-                    return item.id === currentSubmissionId || 
-                           item.submission_ref_id === currentSubmissionId;
+                    const matches = item.id === currentSubmissionId || 
+                                   item.submission_ref_id === currentSubmissionRefId?.data?.submission_ref_id;
+                    console.log(`Checking item:`, item, 'matches:', matches);
+                    return matches;
                   } else {
                     // Handle simple ID format
-                    return item === currentSubmissionId;
+                    const matches = item === currentSubmissionId || item === currentSubmissionRefId?.data?.submission_ref_id;
+                    console.log(`Checking simple item:`, item, 'matches:', matches);
+                    return matches;
                   }
                 });
 
                 if (containsCurrentRecord) {
+                  console.log(`Found current record in field ${fieldKey}`);
                   foundCurrentRecord = true;
                   break;
                 }
