@@ -129,8 +129,16 @@ export function OptimizedFormDataTable({
 
   // When modal opens, initialize selectedRecordIds with currently selected records
   useEffect(() => {
+    console.log('🔍 Modal state effect triggered:', { 
+      isSelectionModalOpen, 
+      selectedRecordsLength: selectedRecords.length,
+      selectedRecordsIds: selectedRecords.map(r => r.id)
+    });
+    
     if (isSelectionModalOpen && selectedRecords.length > 0) {
-      setSelectedRecordIds(new Set(selectedRecords.map(r => r.id)));
+      const recordIds = selectedRecords.map(r => r.id);
+      console.log('🔄 Setting selectedRecordIds from existing records:', recordIds);
+      setSelectedRecordIds(new Set(recordIds));
     }
   }, [isSelectionModalOpen, selectedRecords]);
 
@@ -200,21 +208,31 @@ export function OptimizedFormDataTable({
   };
 
   const handleRecordSelection = (recordId: string, isSelected: boolean) => {
+    console.log('🔍 handleRecordSelection called:', { recordId, isSelected, currentSelectedIds: Array.from(selectedRecordIds) });
+    
     const newSelectedIds = new Set(selectedRecordIds);
     if (isSelected) {
       newSelectedIds.add(recordId);
+      console.log('✅ Adding record:', recordId, 'New set size:', newSelectedIds.size);
     } else {
       newSelectedIds.delete(recordId);
+      console.log('❌ Removing record:', recordId, 'New set size:', newSelectedIds.size);
     }
+    
+    console.log('🔄 Setting new selectedRecordIds:', Array.from(newSelectedIds));
     setSelectedRecordIds(newSelectedIds);
   };
 
   const handleSelectAll = () => {
     const allRecordIds = data.map(record => record.id);
+    console.log('🔍 handleSelectAll called:', { allRecordIds, dataLength: data.length });
+    console.log('🔄 Setting selectedRecordIds to all records:', allRecordIds);
     setSelectedRecordIds(new Set(allRecordIds));
   };
 
   const handleDeselectAll = () => {
+    console.log('🔍 handleDeselectAll called');
+    console.log('🔄 Setting selectedRecordIds to empty set');
     setSelectedRecordIds(new Set());
   };
 
