@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -70,7 +69,11 @@ export function OptimizedFormDataTable({
   const [activeFilters, setActiveFilters] = useState<FilterCondition[]>([]);
   const [sortConditions, setSortConditions] = useState<SortCondition[]>([]);
   const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
-  const [selectedRecordIds, setSelectedRecordIds] = useState<Set<string>>(new Set());
+  
+  // Separate state for modal selection (temporary until confirmed)
+  const [modalSelectedRecordIds, setModalSelectedRecordIds] = useState<Set<string>>(new Set());
+  
+  // State for confirmed selected records
   const [selectedRecords, setSelectedRecords] = useState<SelectedRecord[]>([]);
 
   const pageSize = config.pageSize || 10;
@@ -103,8 +106,10 @@ export function OptimizedFormDataTable({
     pageSize
   });
 
-  // Initialize selected records from value prop and auto-selected records
+  // Initialize selected records from value prop and auto-selected records (only once on mount)
   useEffect(() => {
+    console.log('🚀 Initializing selected records from props:', { value, autoSelectedRecords });
+    
     const manuallySelectedRecords = value && Array.isArray(value) && value.length > 0 
       ? value.map(item => ({
           id: item.id || item.recordId,
@@ -123,24 +128,37 @@ export function OptimizedFormDataTable({
       }
     });
 
+    console.log('✅ Setting initial selected records:', allRecords);
     setSelectedRecords(allRecords);
-    setSelectedRecordIds(new Set(allRecords.map(r => r.id)));
-  }, [value, autoSelectedRecords]);
+  }, []); // Only run once on mount
 
-  // When modal opens, initialize selectedRecordIds with currently selected records
+  // Update selected records when autoSelectedRecords changes (but don't reset manually selected ones)
   useEffect(() => {
-    console.log('🔍 Modal state effect triggered:', { 
-      isSelectionModalOpen, 
-      selectedRecordsLength: selectedRecords.length,
-      selectedRecordsIds: selectedRecords.map(r => r.id)
-    });
-    
-    if (isSelectionModalOpen && selectedRecords.length > 0) {
-      const recordIds = selectedRecords.map(r => r.id);
-      console.log('🔄 Setting selectedRecordIds from existing records:', recordIds);
-      setSelectedRecordIds(new Set(recordIds));
+    if (autoSelectedRecords.length > 0) {
+      console.log('🔄 Auto-selected records updated:', autoSelectedRecords);
+      
+      setSelectedRecords(prevSelected => {
+        // Keep existing manually selected records
+        const manuallySelected = prevSelected.filter(record => 
+          !autoSelectedRecords.some(autoRecord => autoRecord.id === record.id)
+        );
+        
+        // Add new auto-selected records
+        const updatedRecords = [...manuallySelected, ...autoSelectedRecords];
+        console.log('✅ Updated selected records with auto-selection:', updatedRecords);
+        return updatedRecords;
+      });
     }
-  }, [isSelectionModalOpen, selectedRecords]);
+  }, [autoSelectedRecords]);
+
+  // Initialize modal selection state when modal opens
+  const handleModalOpen = () => {
+    console.log('🔍 Modal opening, initializing selection state with current selected records');
+    const currentSelectedIds = selectedRecords.map(r => r.id);
+    console.log('🔄 Setting modal selected IDs:', currentSelectedIds);
+    setModalSelectedRecordIds(new Set(currentSelectedIds));
+    setIsSelectionModalOpen(true);
+  };
 
   const totalPages = Math.ceil(totalRecords / pageSize);
 
@@ -208,43 +226,46 @@ export function OptimizedFormDataTable({
   };
 
   const handleRecordSelection = (recordId: string, isSelected: boolean) => {
-    console.log('🔍 handleRecordSelection called:', { recordId, isSelected, currentSelectedIds: Array.from(selectedRecordIds) });
+    console.log('🔍 handleRecordSelection called:', { recordId, isSelected, currentSelectedIds: Array.from(modalSelectedRecordIds) });
     
-    const newSelectedIds = new Set(selectedRecordIds);
+    const newSelectedIds = new Set(modalSelectedRecordIds);
     if (isSelected) {
       newSelectedIds.add(recordId);
-      console.log('✅ Adding record:', recordId, 'New set size:', newSelectedIds.size);
+      console.log('✅ Adding record to modal selection:', recordId, 'New set size:', newSelectedIds.size);
     } else {
       newSelectedIds.delete(recordId);
-      console.log('❌ Removing record:', recordId, 'New set size:', newSelectedIds.size);
+      console.log('❌ Removing record from modal selection:', recordId, 'New set size:', newSelectedIds.size);
     }
     
-    console.log('🔄 Setting new selectedRecordIds:', Array.from(newSelectedIds));
-    setSelectedRecordIds(newSelectedIds);
+    console.log('🔄 Setting new modalSelectedRecordIds:', Array.from(newSelectedIds));
+    setModalSelectedRecordIds(newSelectedIds);
   };
 
   const handleSelectAll = () => {
     const allRecordIds = data.map(record => record.id);
     console.log('🔍 handleSelectAll called:', { allRecordIds, dataLength: data.length });
-    console.log('🔄 Setting selectedRecordIds to all records:', allRecordIds);
-    setSelectedRecordIds(new Set(allRecordIds));
+    console.log('🔄 Setting modalSelectedRecordIds to all records:', allRecordIds);
+    setModalSelectedRecordIds(new Set(allRecordIds));
   };
 
   const handleDeselectAll = () => {
     console.log('🔍 handleDeselectAll called');
-    console.log('🔄 Setting selectedRecordIds to empty set');
-    setSelectedRecordIds(new Set());
+    console.log('🔄 Setting modalSelectedRecordIds to empty set');
+    setModalSelectedRecordIds(new Set());
   };
 
   const handleConfirmSelection = () => {
-    // Keep existing selected records that are not in selectedRecordIds (preserve previous selections)
-    const preservedRecords = selectedRecords.filter(record => 
-      !data.some(dataRecord => dataRecord.id === record.id)
+    console.log('🔍 Confirming selection:', Array.from(modalSelectedRecordIds));
+    
+    // Keep auto-selected records (they shouldn't be removed)
+    const autoSelectedIds = autoSelectedRecords.map(r => r.id);
+    const preservedAutoRecords = selectedRecords.filter(record => 
+      autoSelectedIds.includes(record.id)
     );
     
-    // Add newly selected records from current data
-    const newRecordsFromCurrentData = data
-      .filter(record => selectedRecordIds.has(record.id))
+    // Add newly selected records from modal
+    const newRecordsFromModal = data
+      .filter(record => modalSelectedRecordIds.has(record.id))
       .map(record => ({
         id: record.id,
         submission_ref_id: record.submission_ref_id || `SUB-${record.id.slice(0, 8)}`,
@@ -254,9 +275,10 @@ export function OptimizedFormDataTable({
         }, {} as Record<string, any>)
       }));
 
-    // Combine preserved and newly selected records
-    const allSelectedRecords = [...preservedRecords, ...newRecordsFromCurrentData];
+    // Combine preserved auto-selected and newly selected records
+    const allSelectedRecords = [...preservedAutoRecords, ...newRecordsFromModal];
     
+    console.log('✅ Final confirmed selection:', allSelectedRecords);
     setSelectedRecords(allSelectedRecords);
     setIsSelectionModalOpen(false);
     
@@ -267,13 +289,9 @@ export function OptimizedFormDataTable({
   };
 
   const handleRemoveSelectedRecord = (recordId: string) => {
+    console.log('🗑️ Removing selected record:', recordId);
     const updatedRecords = selectedRecords.filter(record => record.id !== recordId);
     setSelectedRecords(updatedRecords);
-    setSelectedRecordIds(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(recordId);
-      return newSet;
-    });
     
     if (onChange) {
       onChange(updatedRecords);
@@ -333,7 +351,7 @@ export function OptimizedFormDataTable({
             {isCrossReference && (
               <Dialog open={isSelectionModalOpen} onOpenChange={setIsSelectionModalOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={handleModalOpen}>
                     <Plus className="h-4 w-4 mr-2" />
                     Select Records
                   </Button>
@@ -362,7 +380,7 @@ export function OptimizedFormDataTable({
                           Deselect All
                         </Button>
                         <Badge variant="secondary">
-                          {selectedRecordIds.size} selected
+                          {modalSelectedRecordIds.size} selected
                         </Badge>
                       </div>
                       <Button onClick={handleConfirmSelection}>
@@ -399,7 +417,7 @@ export function OptimizedFormDataTable({
                           <TableRow>
                             <TableHead className="w-12">
                               <Checkbox
-                                checked={data.length > 0 && selectedRecordIds.size === data.length}
+                                checked={data.length > 0 && modalSelectedRecordIds.size === data.length}
                                 onCheckedChange={(checked) => {
                                   if (checked) {
                                     handleSelectAll();
@@ -447,7 +465,7 @@ export function OptimizedFormDataTable({
                               <TableRow key={row.id || index}>
                                 <TableCell>
                                   <Checkbox
-                                    checked={selectedRecordIds.has(row.id)}
+                                    checked={modalSelectedRecordIds.has(row.id)}
                                     onCheckedChange={(checked) => 
                                       handleRecordSelection(row.id, checked as boolean)
                                     }
