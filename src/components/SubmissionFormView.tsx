@@ -342,6 +342,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
                 onSubmit={handleSubmit}
                 showButtons={false} // Hide submit buttons
                 formId={form.id}
+                currentSubmissionId={submissionId}
               />
             </div>
           </ScrollArea>

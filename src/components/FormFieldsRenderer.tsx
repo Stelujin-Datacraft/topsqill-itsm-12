@@ -67,6 +67,7 @@ interface FormFieldsRendererProps {
   allFormFields?: ParsedFieldReference[];
   highlightedFieldId?: string | null;
   formId?: string;
+  currentSubmissionId?: string;
 }
 
 export function FormFieldsRenderer({
@@ -82,6 +83,7 @@ export function FormFieldsRenderer({
   allFormFields = [],
   highlightedFieldId,
   formId,
+  currentSubmissionId,
 }: FormFieldsRendererProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -682,7 +684,7 @@ export function FormFieldsRenderer({
       case 'geo-location':
         return <GeoLocationField {...commonProps} />;
       case 'child-cross-reference':
-        return <ChildCrossReferenceField {...commonProps} currentFormId={formId} />;
+        return <ChildCrossReferenceField {...commonProps} currentFormId={formId} currentSubmissionId={currentSubmissionId} />;
       
       case 'query-field':
         return (
