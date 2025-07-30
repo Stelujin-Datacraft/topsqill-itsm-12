@@ -213,6 +213,7 @@ export const fieldTypes: FieldTypeConfig[] = [
     description: 'Choose a color from a swatch or spectrum',
     category: 'standard',
     isFullWidth: false,
+    isHidden: true,
   },
   {
     type: 'country',
