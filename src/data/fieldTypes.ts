@@ -204,6 +204,7 @@ export const fieldTypes: FieldTypeConfig[] = [
     description: 'Attach and preview images inline',
     category: 'standard',
     isFullWidth: false,
+    isHidden: true,
   },
   {
     type: 'color',
@@ -292,6 +293,7 @@ export const fieldTypes: FieldTypeConfig[] = [
     description: 'Select from predefined user groups or roles',
     category: 'standard',
     isFullWidth: false,
+    isHidden: true,
   },
   {
     type: 'approval',
@@ -357,6 +359,7 @@ export const fieldTypes: FieldTypeConfig[] = [
     description: 'Read-only field that computes based on other inputs',
     category: 'standard',
     isFullWidth: false,
+    isHidden: true,
   },
   {
     type: 'conditional-section',

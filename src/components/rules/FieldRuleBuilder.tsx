@@ -39,10 +39,10 @@ const fieldActions: { value: FieldRuleAction; label: string }[] = [
   { value: 'optional', label: 'Make Optional' },
   { value: 'setDefault', label: 'Set Default Value' },
   { value: 'clearValue', label: 'Clear Value' },
-  { value: 'changeOptions', label: 'Change Field Options' },
+  // { value: 'changeOptions', label: 'Change Field Options' },
   { value: 'changeLabel', label: 'Change Label' },
-  { value: 'showTooltip', label: 'Show Tooltip' },
-  { value: 'showError', label: 'Show Error' },
+  // { value: 'showTooltip', label: 'Show Tooltip' },
+  // { value: 'showError', label: 'Show Error' },
 ];
 
 export function FieldRuleBuilder({ fields, rules, onRulesChange }: FieldRuleBuilderProps) {
