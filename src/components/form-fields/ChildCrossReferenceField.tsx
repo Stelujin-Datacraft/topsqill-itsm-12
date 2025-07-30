@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { FormField } from '@/types/form';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,6 @@ import { OptimizedFormDataTable } from './OptimizedFormDataTable';
 import { useForm } from '@/contexts/FormContext';
 import { Badge } from '@/components/ui/badge';
 import { useChildCrossReferenceAutoSelection } from '@/hooks/useChildCrossReferenceAutoSelection';
-
 interface ChildCrossReferenceFieldProps {
   field: FormField;
   value?: any;
@@ -20,24 +18,24 @@ interface ChildCrossReferenceFieldProps {
   currentFormId?: string;
   currentSubmissionId?: string;
 }
-
-export function ChildCrossReferenceField({ 
-  field, 
-  value, 
-  onChange, 
-  onFieldUpdate, 
-  isPreview, 
-  error, 
-  disabled, 
+export function ChildCrossReferenceField({
+  field,
+  value,
+  onChange,
+  onFieldUpdate,
+  isPreview,
+  error,
+  disabled,
   currentFormId,
-  currentSubmissionId 
+  currentSubmissionId
 }: ChildCrossReferenceFieldProps) {
-  const { forms } = useForm();
+  const {
+    forms
+  } = useForm();
   const [configOpen, setConfigOpen] = useState(false);
-
   const handleConfigSave = (config: any) => {
     console.log('Saving child cross reference configuration:', config);
-    
+
     // Update the field's customConfig
     if (onFieldUpdate) {
       onFieldUpdate(field.id, {
@@ -48,24 +46,23 @@ export function ChildCrossReferenceField({
       });
     }
   };
-
   const handleSelectionChange = (selectedRecords: any[]) => {
     console.log('Child cross reference selection changed:', selectedRecords);
     if (onChange) {
       onChange(selectedRecords);
     }
   };
-
   const parentForm = forms.find(f => f.id === field.customConfig?.parentFormId);
   const targetForm = forms.find(f => f.id === field.customConfig?.targetFormId);
 
   // Check if field has proper auto-generated configuration
-  const hasAutoConfig = field.customConfig?.targetFormId && 
-                       field.customConfig?.displayColumns && 
-                       field.customConfig?.displayColumns.length > 0;
+  const hasAutoConfig = field.customConfig?.targetFormId && field.customConfig?.displayColumns && field.customConfig?.displayColumns.length > 0;
 
   // Get auto-selected records for child cross-reference
-  const { autoSelectedRecords, loading: autoSelectionLoading } = useChildCrossReferenceAutoSelection({
+  const {
+    autoSelectedRecords,
+    loading: autoSelectionLoading
+  } = useChildCrossReferenceAutoSelection({
     currentFormId: currentFormId || '',
     currentSubmissionId,
     parentFormId: field.customConfig?.parentFormId,
@@ -89,8 +86,7 @@ export function ChildCrossReferenceField({
 
   // Show configuration prompt only if no auto-configuration exists
   if (!hasAutoConfig) {
-    return (
-      <div className="w-full space-y-2">
+    return <div className="w-full space-y-2">
         {/* Parent Form Indicator */}
         <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-md border-l-4 border-blue-400">
           <ArrowUp className="h-4 w-4 text-blue-600" />
@@ -124,21 +120,12 @@ export function ChildCrossReferenceField({
 
         {error && <p className="text-sm text-red-500">{error}</p>}
 
-        {!isPreview && (
-          <FieldConfigurationDialog
-            field={field}
-            open={configOpen}
-            onClose={() => setConfigOpen(false)}
-            onSave={handleConfigSave}
-          />
-        )}
-      </div>
-    );
+        {!isPreview && <FieldConfigurationDialog field={field} open={configOpen} onClose={() => setConfigOpen(false)} onSave={handleConfigSave} />}
+      </div>;
   }
 
   // Show the optimized data table with auto-generated configuration
-  return (
-    <div className="w-full space-y-2">
+  return <div className="w-full space-y-2">
       {/* Parent Form Indicator */}
       <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-md border-l-4 border-blue-400">
         <ArrowUp className="h-4 w-4 text-blue-600" />
@@ -161,39 +148,14 @@ export function ChildCrossReferenceField({
           {field.required && <span className="text-red-500 ml-1">*</span>}
         </label>
         <div className="flex items-center gap-2">
-          {!isPreview && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setConfigOpen(true)}
-              className="h-6 px-2"
-            >
-              <Settings className="h-3 w-3 mr-1" />
-              Configure Display
-            </Button>
-          )}
+          {!isPreview}
         </div>
       </div>
       
-      <OptimizedFormDataTable
-        config={tableConfig}
-        fieldType="cross-reference"
-        value={value}
-        onChange={handleSelectionChange}
-        autoSelectedRecords={autoSelectedRecords}
-        isAutoSelectionLoading={autoSelectionLoading}
-      />
+      <OptimizedFormDataTable config={tableConfig} fieldType="cross-reference" value={value} onChange={handleSelectionChange} autoSelectedRecords={autoSelectedRecords} isAutoSelectionLoading={autoSelectionLoading} />
       
       {error && <p className="text-sm text-red-500">{error}</p>}
 
-      {!isPreview && (
-        <FieldConfigurationDialog
-          field={field}
-          open={configOpen}
-          onClose={() => setConfigOpen(false)}
-          onSave={handleConfigSave}
-        />
-      )}
-    </div>
-  );
+      {!isPreview && <FieldConfigurationDialog field={field} open={configOpen} onClose={() => setConfigOpen(false)} onSave={handleConfigSave} />}
+    </div>;
 }
