@@ -250,8 +250,10 @@ function FormBuilderContent({
       status: newStatus
     });
   };
-
-  const { syncCrossReferenceField, removeChildCrossReferenceField } = useCrossReferenceSync();
+  const {
+    syncCrossReferenceField,
+    removeChildCrossReferenceField
+  } = useCrossReferenceSync();
 
   // Optimized field configuration save (instant update)
   const handleSaveFieldConfiguration = async (fieldId: string, updates: Partial<FormField>) => {
@@ -259,7 +261,7 @@ function FormBuilderContent({
 
     // Get the current field to check if it's a cross-reference field
     const currentField = snapshot.form.fields.find(f => f.id === fieldId);
-    
+
     // Update in snapshot immediately
     updateFieldInSnapshot(fieldId, updates);
     if (state.selectedField && state.selectedField.id === fieldId) {
@@ -291,10 +293,7 @@ function FormBuilderContent({
     }
 
     // Handle target form change - remove from old target and add to new target
-    if (currentField?.type === 'cross-reference' && 
-        currentField.customConfig?.targetFormId && 
-        updates.customConfig?.targetFormId &&
-        currentField.customConfig.targetFormId !== updates.customConfig.targetFormId) {
+    if (currentField?.type === 'cross-reference' && currentField.customConfig?.targetFormId && updates.customConfig?.targetFormId && currentField.customConfig.targetFormId !== updates.customConfig.targetFormId) {
       try {
         // Remove from previous target form
         await removeChildCrossReferenceField({
@@ -306,7 +305,6 @@ function FormBuilderContent({
         console.error('Error removing child cross-reference field from previous target:', error);
       }
     }
-
     toast({
       title: "Configuration updated",
       description: "Field configuration updated. Save form to persist changes."
@@ -367,12 +365,8 @@ function FormBuilderContent({
         {/* Header Section */}
         <div className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="mb-2">
-            <h1 className="text-2xl font-bold">
-              {state.isCreating ? 'Create New Form' : `Edit: ${workingForm?.name || 'Loading...'}`}
-            </h1>
-            {snapshot.isDirty && <p className="text-sm text-orange-600 mt-1">
-                Unsaved changes - Click save to persist to database
-              </p>}
+            
+            {snapshot.isDirty}
           </div>
           <FormBuilderHeader onSave={handleSave} isSaving={state.isSaving} isPublishing={state.isPublishing} isCreating={state.isCreating} currentForm={workingForm} formStatus={workingForm?.status || state.formStatus} onStatusChange={handleStatusChange} onUpdateForm={updates => {
           if (currentForm) {
