@@ -122,8 +122,6 @@ export function FormDetailsPanel({
               setCurrentPageId(pages[currentIndex + 1].id);
             }
           }} onPageRename={onPageRename} onPageDelete={onPageDelete} showSave={false} />}
-
-            {currentForm}
           </div>
         </CardContent>}
       </Card>
