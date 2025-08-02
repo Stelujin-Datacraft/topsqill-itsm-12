@@ -100,7 +100,7 @@ export function FormNavigationPanel({
   };
 
   const handleFieldClick = (field: FormField) => {
-    onFieldSelect(field);
+    // Just highlight and navigate to the field, don't open configuration
     onFieldHighlight(field.id);
     
     // Switch to the field's page if different from current
@@ -110,6 +110,14 @@ export function FormNavigationPanel({
     if (fieldPage && fieldPage.id !== currentPageId) {
       onPageChange(fieldPage.id);
     }
+    
+    // Scroll to field after page change
+    setTimeout(() => {
+      const fieldElement = document.querySelector(`[data-field-id="${field.id}"]`);
+      if (fieldElement) {
+        fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
   };
 
   const clearSearch = () => {

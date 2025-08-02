@@ -66,57 +66,87 @@ export function FormDetailsPanel({
   console.log('FormDetailsPanel - Current page fields:', currentPageFields);
   const [showLayoutControls, setShowLayoutControls] = useState(false);
 
-  return <div className="flex flex-col gap-6 h-full">
-      {/* Compact Page and Layout Controls */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {/* Page Navigation */}
-              {pages.length > 0 && (
-                <FormPagination 
-                  pages={pages} 
-                  currentPageId={currentPageId} 
-                  currentPageIndex={pages.findIndex(p => p.id === currentPageId)} 
-                  onPageChange={setCurrentPageId} 
-                  onPrevious={() => {
-                    const currentIndex = pages.findIndex(p => p.id === currentPageId);
-                    if (currentIndex > 0) {
-                      setCurrentPageId(pages[currentIndex - 1].id);
-                    }
-                  }} 
-                  onNext={() => {
-                    const currentIndex = pages.findIndex(p => p.id === currentPageId);
-                    if (currentIndex < pages.length - 1) {
-                      setCurrentPageId(pages[currentIndex + 1].id);
-                    }
-                  }} 
-                  onPageRename={onPageRename} 
-                  onPageDelete={onPageDelete} 
-                  showSave={false} 
-                />
-              )}
+  return (
+    <div className="p-4 bg-white border-b border-border">
+      {/* Full-width scrollable page navigation */}
+      <div className="flex items-center justify-between gap-4">
+        {/* Left side - Page tabs with scrolling */}
+        <div className="flex-1 min-w-0">
+          {pages.length > 0 && (
+            <div className="flex items-center gap-2">
+              {/* Left scroll button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const currentIndex = pages.findIndex(p => p.id === currentPageId);
+                  if (currentIndex > 0) {
+                    setCurrentPageId(pages[currentIndex - 1].id);
+                  }
+                }}
+                disabled={pages.findIndex(p => p.id === currentPageId) === 0}
+                className="h-8 w-8 p-0 flex-shrink-0"
+              >
+                <ChevronUp className="h-4 w-4 rotate-[-90deg]" />
+              </Button>
+              
+              {/* Scrollable page tabs */}
+              <div className="flex-1 overflow-x-auto scrollbar-hide">
+                <div className="flex gap-1 min-w-max">
+                  {pages.map((page) => (
+                    <Button
+                      key={page.id}
+                      variant={currentPageId === page.id ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setCurrentPageId(page.id)}
+                      className="whitespace-nowrap text-sm h-8 px-3"
+                    >
+                      {page.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Right scroll button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const currentIndex = pages.findIndex(p => p.id === currentPageId);
+                  if (currentIndex < pages.length - 1) {
+                    setCurrentPageId(pages[currentIndex + 1].id);
+                  }
+                }}
+                disabled={pages.findIndex(p => p.id === currentPageId) === pages.length - 1}
+                className="h-8 w-8 p-0 flex-shrink-0"
+              >
+                <ChevronDown className="h-4 w-4 rotate-[-90deg]" />
+              </Button>
             </div>
-            
-            {/* Compact Settings Button */}
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setShowLayoutControls(!showLayoutControls)} 
-              className="h-8 w-8 p-0"
-            >
-              <Settings2 className="h-4 w-4" />
-            </Button>
-          </div>
+          )}
+        </div>
+        
+        {/* Right side - Compact settings dropdown */}
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setShowLayoutControls(!showLayoutControls)} 
+            className="h-8 w-8 p-0"
+          >
+            <Grid3X3 className="h-4 w-4" />
+          </Button>
           
-          {/* Collapsible Layout Controls */}
+          {/* Dropdown controls */}
           {showLayoutControls && (
-            <div className="mt-4 pt-4 border-t space-y-4">
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <Label htmlFor="column-layout" className="block mb-2 text-sm">Column Layout</Label>
+            <div className="absolute top-full right-0 mt-2 bg-white border border-border rounded-lg shadow-lg p-4 z-50 min-w-[300px]">
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="column-layout" className="block mb-2 text-sm font-medium">
+                    Column Layout
+                  </Label>
                   <Select value={columnLayout.toString()} onValueChange={value => setColumnLayout(Number(value) as 1 | 2 | 3)}>
-                    <SelectTrigger className="h-8">
+                    <SelectTrigger className="h-9">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -126,30 +156,26 @@ export function FormDetailsPanel({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex-1">
-                  <Label className="block mb-2 text-sm">Add Page</Label>
-                  <Button onClick={onAddPage} variant="outline" size="sm" className="w-full h-8">
-                    <FileStack className="h-3 w-3 mr-2" />
+                <div>
+                  <Label className="block mb-2 text-sm font-medium">Add New Page</Label>
+                  <Button onClick={onAddPage} variant="outline" size="sm" className="w-full h-9">
+                    <FileStack className="h-4 w-4 mr-2" />
                     Add Page
                   </Button>
                 </div>
               </div>
             </div>
           )}
-        </CardHeader>
-      </Card>
-
-      {/* Field Layout Section */}
-      <Card className="flex-1">
-        <CardHeader>
-          <h3 className="text-lg font-medium">Form Fields</h3>
-          <p className="text-sm text-muted-foreground">
-            {currentPageFields.length === 0 ? "No fields on this page yet. Add fields from the right panel." : `${currentPageFields.length} field${currentPageFields.length === 1 ? '' : 's'} on this page`}
-          </p>
-        </CardHeader>
-        <CardContent className="flex-1">
-          <FieldLayoutRenderer fields={currentPageFields} columnLayout={columnLayout} selectedFieldId={selectedFieldId} highlightedFieldId={highlightedFieldId} onFieldClick={onFieldClick} onFieldDelete={onFieldDelete} onDragEnd={onDragEnd} />
-        </CardContent>
-      </Card>
-    </div>;
+        </div>
+      </div>
+      
+      {/* Page indicator */}
+      <div className="flex items-center justify-center mt-2">
+        <span className="text-xs text-muted-foreground">
+          Page {pages.findIndex(p => p.id === currentPageId) + 1} of {pages.length}
+          {currentPageFields.length > 0 && ` • ${currentPageFields.length} field${currentPageFields.length === 1 ? '' : 's'}`}
+        </span>
+      </div>
+    </div>
+  );
 }

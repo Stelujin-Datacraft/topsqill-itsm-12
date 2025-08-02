@@ -52,7 +52,7 @@ export function FieldLayoutRenderer({
               if (field.isFullWidth) {
                 // Full-width fields take full width
                 return (
-                  <div key={field.id} className="w-full">
+                  <div key={field.id} className="w-full" data-field-id={field.id}>
                     <FieldRenderer
                       field={field}
                       index={index}
@@ -87,15 +87,16 @@ export function FieldLayoutRenderer({
                       }`}
                     >
                       {standardFieldsGroup.map((groupField, groupIndex) => (
-                        <FieldRenderer
-                          key={groupField.id}
-                          field={groupField}
-                          index={index + groupIndex}
-                          selectedFieldId={selectedFieldId}
-                          highlightedFieldId={highlightedFieldId}
-                          onFieldClick={onFieldClick}
-                          onFieldDelete={onFieldDelete}
-                        />
+                        <div key={groupField.id} data-field-id={groupField.id}>
+                          <FieldRenderer
+                            field={groupField}
+                            index={index + groupIndex}
+                            selectedFieldId={selectedFieldId}
+                            highlightedFieldId={highlightedFieldId}
+                            onFieldClick={onFieldClick}
+                            onFieldDelete={onFieldDelete}
+                          />
+                        </div>
                       ))}
                     </div>
                   );

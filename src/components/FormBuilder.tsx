@@ -22,6 +22,7 @@ import { FormBuilderHeader } from './FormBuilder/FormBuilderHeader';
 import { FormDetailsPanel } from './FormBuilder/FormDetailsPanel';
 import { FieldTypesPanel } from './FormBuilder/FieldTypesPanel';
 import { FieldPropertiesDialog } from './FormBuilder/FieldPropertiesDialog';
+import { FieldLayoutRenderer } from './FormBuilder/FieldLayoutRenderer';
 import { useFormBuilderState } from './FormBuilder/hooks/useFormBuilderState';
 import { useOptimizedFieldOperations } from './FormBuilder/hooks/useOptimizedFieldOperations';
 import { FormBuilderProps } from './FormBuilder/types/formBuilder';
@@ -437,115 +438,287 @@ function FormBuilderContent({
 
             {/* Form Details Tab */}
             <TabsContent value="details" className="p-6">
-              <div className="max-w-2xl space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Form Information</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Form Name</label>
-                      <input
-                        type="text"
-                        value={workingForm?.name || state.formName}
-                        onChange={(e) => {
-                          state.setFormName(e.target.value);
-                          updateFormDetails({ name: e.target.value });
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Enter form name..."
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Description</label>
-                      <textarea
-                        value={workingForm?.description || state.formDescription}
-                        onChange={(e) => {
-                          state.setFormDescription(e.target.value);
-                          updateFormDetails({ description: e.target.value });
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        rows={3}
-                        placeholder="Enter form description..."
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
+              <div className="max-w-4xl mx-auto">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Left Column - Form Information */}
+                  <div className="space-y-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Settings className="h-5 w-5" />
+                          Form Information
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium mb-2 text-foreground">
+                              Form Name *
+                            </label>
+                            <input
+                              type="text"
+                              value={workingForm?.name || state.formName}
+                              onChange={(e) => {
+                                state.setFormName(e.target.value);
+                                updateFormDetails({ name: e.target.value });
+                              }}
+                              className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                              placeholder="Enter your form name..."
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium mb-2 text-foreground">
+                              Description
+                            </label>
+                            <textarea
+                              value={workingForm?.description || state.formDescription}
+                              onChange={(e) => {
+                                state.setFormDescription(e.target.value);
+                                updateFormDetails({ description: e.target.value });
+                              }}
+                              className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors resize-none"
+                              rows={4}
+                              placeholder="Describe what this form is for..."
+                            />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
 
-                {/* Form Actions */}
-                {workingForm && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Form Actions</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <FormBuilderHeader 
-                        onSave={handleSave} 
-                        isSaving={state.isSaving} 
-                        isPublishing={state.isPublishing} 
-                        isCreating={state.isCreating} 
-                        currentForm={workingForm} 
-                        formStatus={workingForm?.status || state.formStatus} 
-                        onStatusChange={handleStatusChange} 
-                        onUpdateForm={(updates) => {
-                          if (currentForm) {
-                            updateForm(currentForm.id, updates);
-                          }
-                        }} 
-                      />
-                    </CardContent>
-                  </Card>
-                )}
+                    {/* Form Statistics */}
+                    {workingForm && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Database className="h-5 w-5" />
+                            Form Statistics
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="text-center p-4 bg-muted/50 rounded-lg">
+                              <div className="text-2xl font-bold text-primary">
+                                {pages.length}
+                              </div>
+                              <div className="text-sm text-muted-foreground">Pages</div>
+                            </div>
+                            <div className="text-center p-4 bg-muted/50 rounded-lg">
+                              <div className="text-2xl font-bold text-primary">
+                                {workingForm.fields?.length || 0}
+                              </div>
+                              <div className="text-sm text-muted-foreground">Fields</div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+
+                  {/* Right Column - Management Actions */}
+                  <div className="space-y-6">
+                    {workingForm && (
+                      <>
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <Zap className="h-5 w-5" />
+                              Lifecycle Management
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <FormBuilderHeader 
+                              onSave={handleSave} 
+                              isSaving={state.isSaving} 
+                              isPublishing={state.isPublishing} 
+                              isCreating={state.isCreating} 
+                              currentForm={workingForm} 
+                              formStatus={workingForm?.status || state.formStatus} 
+                              onStatusChange={handleStatusChange} 
+                              onUpdateForm={(updates) => {
+                                if (currentForm) {
+                                  updateForm(currentForm.id, updates);
+                                }
+                              }} 
+                            />
+                          </CardContent>
+                        </Card>
+
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <Users className="h-5 w-5" />
+                              Sharing & Access
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <FormSharing form={workingForm} onUpdateForm={(updates) => {
+                              if (currentForm) {
+                                updateForm(currentForm.id, updates);
+                              }
+                            }} />
+                          </CardContent>
+                        </Card>
+
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <Settings className="h-5 w-5" />
+                              Advanced Settings
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div className="flex items-center justify-between p-3 border border-border rounded-lg">
+                              <div>
+                                <div className="font-medium">Form ID</div>
+                                <div className="text-sm text-muted-foreground">Unique identifier</div>
+                              </div>
+                              <code className="text-xs bg-muted px-2 py-1 rounded">
+                                {workingForm.id}
+                              </code>
+                            </div>
+                            
+                            <div className="flex items-center justify-between p-3 border border-border rounded-lg">
+                              <div>
+                                <div className="font-medium">Created</div>
+                                <div className="text-sm text-muted-foreground">Form creation date</div>
+                              </div>
+                              <div className="text-sm">
+                                {new Date(workingForm.createdAt).toLocaleDateString()}
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center justify-between p-3 border border-border rounded-lg">
+                              <div>
+                                <div className="font-medium">Last Modified</div>
+                                <div className="text-sm text-muted-foreground">Most recent update</div>
+                              </div>
+                              <div className="text-sm">
+                                {new Date(workingForm.updatedAt || workingForm.createdAt).toLocaleDateString()}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
             </TabsContent>
 
-            <TabsContent value="builder" className="space-y-0 p-6">
-              <div className="grid grid-cols-12 gap-3 h-[calc(100vh-12rem)]">
-                {/* Navigation Panel */}
-                <div className={`${state.showNavigation ? "col-span-3" : "col-span-1"} bg-white rounded-lg shadow-sm border border-gray-200`}>
-                  <FormNavigationPanel pages={pages} fields={workingForm?.fields || []} currentPageId={state.currentPageId} selectedField={state.selectedField} onPageChange={state.setCurrentPageId} onFieldSelect={fieldOperations.handleFieldClick} onFieldHighlight={fieldOperations.handleFieldHighlight} onToggleNavigation={() => state.setShowNavigation(!state.showNavigation)} isCollapsed={!state.showNavigation} />
+            <TabsContent value="builder" className="p-0">
+              <div className="grid grid-cols-12 h-[calc(100vh-10rem)] gap-0">
+                {/* Left Panel - Navigation (Fixed) */}
+                <div className="col-span-3 border-r bg-muted/30 overflow-hidden flex flex-col">
+                  <div className="flex-shrink-0">
+                    <FormNavigationPanel
+                      pages={pages}
+                      fields={workingForm?.fields || []}
+                      currentPageId={state.currentPageId}
+                      selectedField={state.selectedField}
+                      onPageChange={state.setCurrentPageId}
+                      onFieldSelect={(field) => {
+                        // Navigate to field's page and highlight it
+                        const fieldPage = pages.find(page => 
+                          page.fields.includes(field.id) || field.pageId === page.id
+                        );
+                        if (fieldPage && fieldPage.id !== state.currentPageId) {
+                          state.setCurrentPageId(fieldPage.id);
+                        }
+                        state.setHighlightedFieldId(field.id);
+                        // Scroll to field after a short delay
+                        setTimeout(() => {
+                          const fieldElement = document.querySelector(`[data-field-id="${field.id}"]`);
+                          if (fieldElement) {
+                            fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          }
+                        }, 100);
+                      }}
+                      onFieldHighlight={state.setHighlightedFieldId}
+                    />
+                  </div>
                 </div>
 
-                {/* Form Layout Panel - Without Form Details */}
-                <div className={`${state.showNavigation ? "col-span-6" : "col-span-8"} bg-white rounded-lg shadow-sm border border-gray-200`}>
-                  <FormDetailsPanel 
-                    formName={workingForm?.name || state.formName} 
-                    setFormName={name => {
-                      state.setFormName(name);
-                      updateFormDetails({ name });
-                    }} 
-                    formDescription={workingForm?.description || state.formDescription} 
-                    setFormDescription={description => {
-                      state.setFormDescription(description);
-                      updateFormDetails({ description });
-                    }} 
-                    columnLayout={workingForm?.layout?.columns as (1 | 2 | 3) || state.columnLayout} 
-                    setColumnLayout={layout => {
-                      state.setColumnLayout(layout);
-                      updateFormDetails({ layout: { columns: layout } });
-                    }} 
-                    pages={pages} 
-                    currentPageId={state.currentPageId} 
-                    setCurrentPageId={state.setCurrentPageId} 
-                    currentForm={workingForm} 
-                    currentPageFieldsCount={currentPageFields.length} 
-                    onAddPage={handleAddPage} 
-                    onPageRename={handlePageRename} 
-                    onPageDelete={handlePageDelete} 
-                    currentPageFields={currentPageFields} 
-                    selectedFieldId={state.selectedField?.id} 
-                    highlightedFieldId={state.highlightedFieldId} 
-                    onFieldClick={fieldOperations.handleFieldClick} 
-                    onFieldDelete={fieldOperations.handleFieldDelete} 
-                    onDragEnd={fieldOperations.handleDragEnd} 
-                    showFormDetails={false} 
-                    setShowFormDetails={state.setShowFormDetails} 
-                  />
+                {/* Center Panel - Form Layout */}
+                <div className="col-span-6 flex flex-col">
+                  {/* Fixed Page Navigation */}
+                  <div className="flex-shrink-0 bg-white border-b border-border">
+                    <FormDetailsPanel
+                      formName={workingForm?.name || state.formName}
+                      setFormName={(name) => {
+                        state.setFormName(name);
+                        updateFormDetails({ name });
+                      }}
+                      formDescription={workingForm?.description || state.formDescription}
+                      setFormDescription={(description) => {
+                        state.setFormDescription(description);
+                        updateFormDetails({ description });
+                      }}
+                      columnLayout={workingForm?.layout?.columns as (1 | 2 | 3) || state.columnLayout}
+                      setColumnLayout={(layout) => {
+                        state.setColumnLayout(layout);
+                        updateFormDetails({ layout: { columns: layout } });
+                      }}
+                      pages={pages}
+                      currentPageId={state.currentPageId}
+                      setCurrentPageId={state.setCurrentPageId}
+                      currentForm={workingForm}
+                      currentPageFieldsCount={currentPageFields.length}
+                      onAddPage={handleAddPage}
+                      onPageRename={handlePageRename}
+                      onPageDelete={handlePageDelete}
+                      currentPageFields={currentPageFields}
+                      selectedFieldId={state.selectedField?.id}
+                      highlightedFieldId={state.highlightedFieldId}
+                      onFieldClick={(field) => {
+                        state.setSelectedField(field);
+                        state.setShowFieldProperties(true);
+                      }}
+                      onFieldDelete={fieldOperations.handleFieldDelete}
+                      onDragEnd={fieldOperations.handleDragEnd}
+                      showFormDetails={false}
+                      setShowFormDetails={state.setShowFormDetails}
+                    />
+                  </div>
+                  
+                  {/* Scrollable Form Fields */}
+                  <div className="flex-1 overflow-y-auto p-6">
+                    <div className="min-h-full">
+                      {currentPageFields.length > 0 ? (
+                        <FieldLayoutRenderer
+                          fields={currentPageFields}
+                          columnLayout={workingForm?.layout?.columns as (1 | 2 | 3) || state.columnLayout}
+                          selectedFieldId={state.selectedField?.id}
+                          highlightedFieldId={state.highlightedFieldId}
+                          onFieldClick={(field) => {
+                            state.setSelectedField(field);
+                            state.setShowFieldProperties(true);
+                          }}
+                          onFieldDelete={fieldOperations.handleFieldDelete}
+                          onDragEnd={fieldOperations.handleDragEnd}
+                        />
+                      ) : (
+                        <div className="text-center py-12 text-muted-foreground">
+                          <div className="text-lg font-medium mb-2">No fields on this page yet</div>
+                          <div className="text-sm">Add fields from the right panel to get started</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
-                {/* Field Types Panel */}
-                <div className="col-span-3 bg-white rounded-lg shadow-sm border border-gray-200">
-                  <FieldTypesPanel fieldTypeSearch={state.fieldTypeSearch} setFieldTypeSearch={state.setFieldTypeSearch} onAddField={fieldOperations.handleAddField} disabled={state.isSaving} />
+                {/* Right Panel - Field Types (Fixed) */}
+                <div className="col-span-3 border-l bg-muted/30 flex flex-col">
+                  <div className="flex-shrink-0 h-full overflow-y-auto">
+                    <div className="p-4">
+                      <FieldTypesPanel
+                        fieldTypeSearch={state.fieldTypeSearch}
+                        setFieldTypeSearch={state.setFieldTypeSearch}
+                        onAddField={fieldOperations.handleAddField}
+                        disabled={state.isSaving}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
