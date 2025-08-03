@@ -18,31 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 // Import field-specific configuration panels
-import { 
-  HeaderFieldConfig, 
-  DescriptionFieldConfig, 
-  SectionBreakFieldConfig, 
-  HorizontalLineFieldConfig,
-  RichTextFieldConfig,
-  FullWidthContainerFieldConfig,
-  DateFieldConfig,
-  TimeFieldConfig,
-  DateTimeFieldConfig,
-  AddressFieldConfig,
-  EmailFieldConfig,
-  UrlFieldConfig,
-  IpAddressFieldConfig,
-  UserPickerFieldConfig,
-  BarcodeFieldConfig,
-  ApprovalFieldConfig,
-  DynamicDropdownFieldConfig,
-  CalculatedFieldConfig,
-  ConditionalSectionFieldConfig,
-  GeoLocationFieldConfig,
-  MatrixGridFieldConfig,
-  PhoneFieldConfig,
-  ColorFieldConfig
-} from './FieldPropertiesDialog/panels/fieldTypes';
+import { HeaderFieldConfig, DescriptionFieldConfig, SectionBreakFieldConfig, HorizontalLineFieldConfig, RichTextFieldConfig, FullWidthContainerFieldConfig, DateFieldConfig, TimeFieldConfig, DateTimeFieldConfig, AddressFieldConfig, EmailFieldConfig, UrlFieldConfig, IpAddressFieldConfig, UserPickerFieldConfig, BarcodeFieldConfig, ApprovalFieldConfig, DynamicDropdownFieldConfig, CalculatedFieldConfig, ConditionalSectionFieldConfig, GeoLocationFieldConfig, MatrixGridFieldConfig, PhoneFieldConfig, ColorFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes';
 import { TextFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/TextFieldConfig';
 import { SelectFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/SelectFieldConfig';
 import { OptimizedRecordTableConfig } from './FieldPropertiesDialog/panels/fieldTypes/OptimizedRecordTableConfig';
@@ -58,40 +34,55 @@ import { SliderFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/inp
 import { SubmissionAccessFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/access/SubmissionAccessFieldConfig';
 import { ChildCrossReferenceFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/ChildCrossReferenceFieldConfig';
 import { QueryFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/QueryFieldConfig';
-
 interface FieldPropertiesDialogProps {
   selectedField: FormField | null;
   open: boolean;
   onClose: () => void;
   onSave: (fieldId: string, updates: Partial<FormField>) => Promise<void>;
 }
-
 interface FormFieldOption {
   id: string;
   label: string;
   field_type: string;
 }
-
-const METADATA_COLUMNS = [
-  { id: 'created_at', label: 'Created At', type: 'timestamp' },
-  { id: 'updated_at', label: 'Updated At', type: 'timestamp' },
-  { id: 'submitted_by', label: 'Submitted By', type: 'text' },
-  { id: 'submission_id', label: 'Submission ID', type: 'uuid' },
-];
-
+const METADATA_COLUMNS = [{
+  id: 'created_at',
+  label: 'Created At',
+  type: 'timestamp'
+}, {
+  id: 'updated_at',
+  label: 'Updated At',
+  type: 'timestamp'
+}, {
+  id: 'submitted_by',
+  label: 'Submitted By',
+  type: 'text'
+}, {
+  id: 'submission_id',
+  label: 'Submission ID',
+  type: 'uuid'
+}];
 export function FieldPropertiesDialog({
   selectedField,
   open,
   onClose,
-  onSave,
+  onSave
 }: FieldPropertiesDialogProps) {
   const [fieldForConfig, setFieldForConfig] = React.useState<FormField | null>(null);
   const [localConfig, setLocalConfig] = React.useState<Partial<FormField>>({});
   const [isSaving, setIsSaving] = React.useState(false);
   const [selectedFormFields, setSelectedFormFields] = React.useState<FormFieldOption[]>([]);
   const [loadingFields, setLoadingFields] = React.useState(false);
-  const { getFormOptions, loading } = useFormAccess();
-  const { fetchFieldData, transformToFormField, loading: loadingFieldData, error: fieldDataError } = useFieldData();
+  const {
+    getFormOptions,
+    loading
+  } = useFormAccess();
+  const {
+    fetchFieldData,
+    transformToFormField,
+    loading: loadingFieldData,
+    error: fieldDataError
+  } = useFieldData();
 
   // Utility function to ensure options is always an array
   const ensureOptionsArray = (opts: any): any[] => {
@@ -113,26 +104,22 @@ export function FieldPropertiesDialog({
       console.log('🚀 FieldPropertiesDialog: Dialog state changed');
       console.log('📋 FieldPropertiesDialog: Selected field:', selectedField?.id);
       console.log('🔄 FieldPropertiesDialog: Dialog open:', open);
-
       if (!selectedField?.id || !open) {
         console.log('⏹️ FieldPropertiesDialog: Clearing field configuration (no field or dialog closed)');
         setFieldForConfig(null);
         setLocalConfig({});
         return;
       }
-
       console.log('🎯 FieldPropertiesDialog: Starting field configuration load');
       console.log('📝 FieldPropertiesDialog: Field details from props:');
       console.log('   - ID:', selectedField.id);
       console.log('   - Type:', selectedField.type);
       console.log('   - Label:', selectedField.label);
       console.log('   - Current customConfig:', selectedField.customConfig);
-
       try {
         // Fetch complete field data from database
         console.log('🔍 FieldPropertiesDialog: Fetching field data from database...');
         const dbFieldData = await fetchFieldData(selectedField.id);
-
         if (!dbFieldData) {
           console.warn('⚠️ FieldPropertiesDialog: No data returned from database, using fallback');
           setFieldForConfig(selectedField);
@@ -143,7 +130,6 @@ export function FieldPropertiesDialog({
         // Transform database data to FormField format
         console.log('🔄 FieldPropertiesDialog: Transforming database data...');
         const transformedField = transformToFormField(dbFieldData, selectedField.pageId);
-        
         console.log('✅ FieldPropertiesDialog: Field configuration loaded successfully');
         console.log('📊 FieldPropertiesDialog: Final field configuration:');
         console.log('   - ID:', transformedField.id);
@@ -151,7 +137,6 @@ export function FieldPropertiesDialog({
         console.log('   - Label:', transformedField.label);
         console.log('   - Custom Config Keys:', Object.keys(transformedField.customConfig || {}));
         console.log('   - Full Custom Config:', transformedField.customConfig);
-
         setFieldForConfig(transformedField);
         initializeLocalConfig(transformedField);
 
@@ -160,20 +145,18 @@ export function FieldPropertiesDialog({
           console.log('🔄 FieldPropertiesDialog: Auto-loading fields for saved target form:', transformedField.customConfig.targetFormId);
           await fetchFormFields(transformedField.customConfig.targetFormId);
         }
-
       } catch (error) {
         console.error('❌ FieldPropertiesDialog: Error loading field configuration:', error);
         toast({
           title: "Error loading field data",
           description: "Failed to load complete field configuration. Using cached data.",
-          variant: "destructive",
+          variant: "destructive"
         });
         // Fallback to selectedField if database fetch fails
         setFieldForConfig(selectedField);
         initializeLocalConfig(selectedField);
       }
     };
-
     loadFieldConfiguration();
   }, [selectedField?.id, open, fetchFieldData, transformToFormField]);
 
@@ -183,12 +166,11 @@ export function FieldPropertiesDialog({
     console.log('📊 FieldPropertiesDialog: Field customConfig:', field.customConfig);
     console.log('📊 FieldPropertiesDialog: Field options raw:', field.options);
     console.log('📊 FieldPropertiesDialog: Field options type:', typeof field.options);
-    
+
     // Ensure options are properly parsed from JSON string if needed
     const parsedOptions = ensureOptionsArray(field.options);
     console.log('📋 FieldPropertiesDialog: Parsed options:', parsedOptions);
     console.log('📋 FieldPropertiesDialog: Parsed options length:', parsedOptions.length);
-    
     const newLocalConfig = {
       label: field.label,
       placeholder: field.placeholder || '',
@@ -197,12 +179,10 @@ export function FieldPropertiesDialog({
       defaultValue: field.defaultValue || '',
       customConfig: field.customConfig || {},
       options: parsedOptions,
-      validation: field.validation || {},
+      validation: field.validation || {}
     };
-    
     console.log('📋 FieldPropertiesDialog: Setting localConfig with options:', newLocalConfig.options);
     setLocalConfig(newLocalConfig);
-
     console.log('✅ FieldPropertiesDialog: Local config initialized');
   };
 
@@ -213,17 +193,15 @@ export function FieldPropertiesDialog({
       setSelectedFormFields([]);
       return;
     }
-
     console.log('🔍 FieldPropertiesDialog: Fetching form fields for form:', formId);
     setLoadingFields(true);
-    
     try {
-      const { data: fields, error } = await supabase
-        .from('form_fields')
-        .select('id, label, field_type')
-        .eq('form_id', formId)
-        .order('field_order', { ascending: true });
-
+      const {
+        data: fields,
+        error
+      } = await supabase.from('form_fields').select('id, label, field_type').eq('form_id', formId).order('field_order', {
+        ascending: true
+      });
       if (error) {
         console.error('❌ FieldPropertiesDialog: Error fetching form fields:', error);
         setSelectedFormFields([]);
@@ -238,9 +216,7 @@ export function FieldPropertiesDialog({
       setLoadingFields(false);
     }
   }, []);
-
   if (!selectedField) return null;
-
   const updateField = (key: string, value: any) => {
     console.log(`🔄 FieldPropertiesDialog: Updating field: ${key} =`, value);
     if (key === 'options') {
@@ -252,7 +228,6 @@ export function FieldPropertiesDialog({
       [key]: value
     }));
   };
-
   const updateCustomConfig = (key: string, value: any) => {
     console.log(`🔧 FieldPropertiesDialog: Updating custom config: ${key} =`, value);
     setLocalConfig(prev => ({
@@ -263,7 +238,6 @@ export function FieldPropertiesDialog({
       }
     }));
   };
-
   const updateValidation = (key: string, value: any) => {
     console.log(`📋 FieldPropertiesDialog: Updating validation: ${key} =`, value);
     setLocalConfig(prev => ({
@@ -274,19 +248,17 @@ export function FieldPropertiesDialog({
       }
     }));
   };
-
   const handleSave = async () => {
     if (!selectedField || isSaving) return;
-
     setIsSaving(true);
     try {
       console.log('💾 FieldPropertiesDialog: Saving configuration:', localConfig);
       await onSave(selectedField.id, localConfig);
       toast({
         title: "Configuration saved",
-        description: "Field configuration has been saved successfully.",
+        description: "Field configuration has been saved successfully."
       });
-      
+
       // Clear field config to force refresh on next open
       setFieldForConfig(null);
       onClose();
@@ -295,64 +267,55 @@ export function FieldPropertiesDialog({
       toast({
         title: "Error saving configuration",
         description: "Failed to save field configuration. Please try again.",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setIsSaving(false);
     }
   };
-
   const handleClose = () => {
     console.log('🔒 FieldPropertiesDialog: Closing dialog and clearing field configuration');
     setFieldForConfig(null);
     setLocalConfig({});
     onClose();
   };
-
   const handleTargetFormChange = async (formValue: string) => {
     console.log('🎯 FieldPropertiesDialog: Target form selection changed to:', formValue);
     const selectedForm = getFormOptions.find(form => form.value === formValue);
-    
+
     // Update form selection immediately
     updateCustomConfig('targetFormId', formValue);
     updateCustomConfig('targetFormName', selectedForm?.label || '');
-    
+
     // Reset dependent fields when form changes
     updateCustomConfig('displayColumns', []);
-    
+
     // Fetch form fields for the new selection
     await fetchFormFields(formValue);
   };
-
   const handleColumnToggle = (columnId: string, checked: boolean) => {
     const currentColumns = localConfig.customConfig?.displayColumns || [];
     let updatedColumns;
-    
     if (checked) {
       updatedColumns = [...currentColumns, columnId];
     } else {
       updatedColumns = currentColumns.filter((col: string) => col !== columnId);
     }
-    
     console.log('📊 FieldPropertiesDialog: Column selection updated:', updatedColumns);
     updateCustomConfig('displayColumns', updatedColumns);
   };
-
   const handleMetadataColumnToggle = (columnId: string, checked: boolean) => {
     const currentColumns = localConfig.customConfig?.displayColumns || [];
     const metadataColumnId = `metadata_${columnId}`;
     let updatedColumns;
-    
     if (checked) {
       updatedColumns = [...currentColumns, metadataColumnId];
     } else {
       updatedColumns = currentColumns.filter((col: string) => col !== metadataColumnId);
     }
-    
     console.log('📊 FieldPropertiesDialog: Metadata column selection updated:', updatedColumns);
     updateCustomConfig('displayColumns', updatedColumns);
   };
-
   const addFilter = () => {
     const newFilter = {
       id: `filter-${Date.now()}`,
@@ -360,32 +323,33 @@ export function FieldPropertiesDialog({
       operator: '==',
       value: ''
     };
-    
     const currentFilters = localConfig.customConfig?.filters || [];
     updateCustomConfig('filters', [...currentFilters, newFilter]);
   };
-
   const removeFilter = (index: number) => {
     const currentFilters = localConfig.customConfig?.filters || [];
     const newFilters = currentFilters.filter((_, i) => i !== index);
     updateCustomConfig('filters', newFilters);
   };
-
   const updateFilter = (index: number, field: string, value: any) => {
     const currentFilters = localConfig.customConfig?.filters || [];
     const newFilters = [...currentFilters];
-    newFilters[index] = { ...newFilters[index], [field]: value };
+    newFilters[index] = {
+      ...newFilters[index],
+      [field]: value
+    };
     updateCustomConfig('filters', newFilters);
   };
-
   const handleOptionChange = (index: number, field: 'value' | 'label', value: string) => {
     const options = ensureOptionsArray(localConfig.options);
     if (options[index]) {
-      options[index] = { ...options[index], [field]: value };
+      options[index] = {
+        ...options[index],
+        [field]: value
+      };
     }
     updateField('options', options);
   };
-
   const addOption = () => {
     const options = ensureOptionsArray(localConfig.options);
     options.push({
@@ -395,7 +359,6 @@ export function FieldPropertiesDialog({
     });
     updateField('options', options);
   };
-
   const removeOption = (index: number) => {
     const options = ensureOptionsArray(localConfig.options);
     options.splice(index, 1);
@@ -412,14 +375,13 @@ export function FieldPropertiesDialog({
       defaultValue: localConfig.defaultValue || '',
       customConfig: localConfig.customConfig || {},
       options: ensureOptionsArray(localConfig.options),
-      validation: localConfig.validation || {},
+      validation: localConfig.validation || {}
     };
   };
 
   // Render field-specific configuration panels
   const renderFieldSpecificConfig = () => {
     if (!fieldForConfig || !localConfig) return null;
-
     const fieldConfig = getFieldConfiguration();
     const props = {
       config: fieldConfig,
@@ -434,64 +396,54 @@ export function FieldPropertiesDialog({
           }
         });
       },
-      errors: {},
+      errors: {}
     };
-
     switch (fieldForConfig.type as any) {
       // Static/Layout Fields
       case 'header':
         return <HeaderFieldConfig {...props} />;
-      
       case 'description':
         return <DescriptionFieldConfig {...props} />;
-      
       case 'section-break':
         return <SectionBreakFieldConfig {...props} />;
-      
       case 'horizontal-line':
         return <HorizontalLineFieldConfig {...props} />;
-      
       case 'rich-text':
         return <RichTextFieldConfig {...props} />;
-      
       case 'full-width-container':
         return <FullWidthContainerFieldConfig {...props} />;
-      
+
       // Date/Time Fields
       case 'date':
         return <DateFieldConfig {...props} />;
-      
       case 'time':
         return <TimeFieldConfig {...props} />;
-      
       case 'datetime':
         return <DateTimeFieldConfig {...props} />;
-      
+
       // Geographic Fields
       case 'address':
         return <AddressFieldConfig {...props} />;
-      
+
       // Validation Fields
       case 'email':
         return <EmailFieldConfig {...props} />;
-      
       case 'url':
         return <UrlFieldConfig {...props} />;
-      
       case 'ip-address':
         return <IpAddressFieldConfig {...props} />;
-      
+
       // User/Organization Fields
       case 'user-picker':
         return <UserPickerFieldConfig {...props} />;
-      
+
       // New Field Types
       case 'barcode':
         return <BarcodeFieldConfig {...props} />;
       case 'approval':
         return <ApprovalFieldConfig {...props} />;
-       case 'dynamic-dropdown':
-         return <DynamicDropdownFieldConfig {...props} />;
+      case 'dynamic-dropdown':
+        return <DynamicDropdownFieldConfig {...props} />;
       case 'calculated':
         return <CalculatedFieldConfig {...props} />;
       case 'conditional-section':
@@ -500,68 +452,61 @@ export function FieldPropertiesDialog({
         return <GeoLocationFieldConfig {...props} />;
       case 'child-cross-reference':
         return <ChildCrossReferenceFieldConfig {...props} />;
-      
+
       // Selection Fields
       case 'select':
       case 'radio':
       case 'checkbox':
         return <SelectFieldConfig {...props} fieldType={fieldForConfig.type as any} />;
-      
       case 'multi-select':
         return <MultiSelectFieldConfig {...props} />;
-      
+
       // Media Fields
       case 'signature':
         return <SignatureFieldConfig {...props} />;
-      
+
       // International Fields
       case 'currency':
         return <CurrencyFieldConfig {...props} />;
-      
       case 'country':
         return <CountryFieldConfig {...props} />;
-      
       case 'phone':
-        return <PhoneFieldConfig field={fieldForConfig} onConfigChange={(config) => updateCustomConfig(Object.keys(config)[0], Object.values(config)[0])} />;
-      
+        return <PhoneFieldConfig field={fieldForConfig} onConfigChange={config => updateCustomConfig(Object.keys(config)[0], Object.values(config)[0])} />;
+
       // Media Fields
       case 'color':
-        return <ColorFieldConfig field={fieldForConfig} onConfigChange={(config) => updateCustomConfig(Object.keys(config)[0], Object.values(config)[0])} />;
-      
+        return <ColorFieldConfig field={fieldForConfig} onConfigChange={config => updateCustomConfig(Object.keys(config)[0], Object.values(config)[0])} />;
       case 'file':
-        return <FileFieldConfig field={fieldForConfig} onConfigChange={(config) => updateCustomConfig(Object.keys(config)[0], Object.values(config)[0])} />;
-      
+        return <FileFieldConfig field={fieldForConfig} onConfigChange={config => updateCustomConfig(Object.keys(config)[0], Object.values(config)[0])} />;
+
       // Input Fields
       case 'slider':
-        return <SliderFieldConfig field={fieldForConfig} onConfigChange={(config) => updateCustomConfig(Object.keys(config)[0], Object.values(config)[0])} />;
-      
+        return <SliderFieldConfig field={fieldForConfig} onConfigChange={config => updateCustomConfig(Object.keys(config)[0], Object.values(config)[0])} />;
+
       // Access Control Fields
       case 'submission-access':
         return <SubmissionAccessFieldConfig {...props} />;
-      
+
       // Query Field
       case 'query-field':
         return <QueryFieldConfig {...props} />;
-      
+
       // Text Fields
       case 'text':
       case 'textarea':
       case 'password':
         return <TextFieldConfig {...props} />;
-      
+
       // Record Fields
       case 'record-table':
       case 'cross-reference':
         return <OptimizedRecordTableConfig {...props} fieldType={fieldForConfig.type as any} />;
-      
       case 'matrix-grid':
         return <MatrixGridFieldConfig {...props} />;
-      
       default:
         return null;
     }
   };
-
   const fieldType = selectedField.type;
   const displayColumns = localConfig.customConfig?.displayColumns || [];
   const includeMetadata = localConfig.customConfig?.includeMetadata || false;
@@ -580,74 +525,57 @@ export function FieldPropertiesDialog({
     }
     return fields;
   };
-
   const availableFilterFields = getAvailableFilterFields();
 
   // Check if field has advanced configuration
   const hasAdvancedConfig = [
-    // Static/Layout
-    'header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'full-width-container',
-    // Text
-    'text', 'textarea', 'email', 'password', 'url', 'ip-address',
-    // Select
-    'select', 'multi-select', 'radio', 'checkbox',
-    // User/Organization Fields
-    'user-picker',
-    // Date/Time
-    'date', 'time', 'datetime',
-    // Geographic
-    'address', 'geo-location',
-    // Record
-    'record-table', 'matrix-grid', 'cross-reference',
-    // New Field Types
-    'barcode', 'approval', 'dynamic-dropdown', 'calculated', 'conditional-section', 'submission-access',
-    // Media Fields
-    'signature', 'color', 'file',
-    // International Fields
-    'country', 'phone', 'currency',
-    // Query Fields
-    'query-field',
-    // Other
-    'number', 'currency', 'file', 'image', 'rating', 'slider',
-    // Cross-reference fields
-    'child-cross-reference'
-  ].includes(fieldType);
-
-  return (
-    <Dialog open={open} onOpenChange={handleClose}>
+  // Static/Layout
+  'header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'full-width-container',
+  // Text
+  'text', 'textarea', 'email', 'password', 'url', 'ip-address',
+  // Select
+  'select', 'multi-select', 'radio', 'checkbox',
+  // User/Organization Fields
+  'user-picker',
+  // Date/Time
+  'date', 'time', 'datetime',
+  // Geographic
+  'address', 'geo-location',
+  // Record
+  'record-table', 'matrix-grid', 'cross-reference',
+  // New Field Types
+  'barcode', 'approval', 'dynamic-dropdown', 'calculated', 'conditional-section', 'submission-access',
+  // Media Fields
+  'signature', 'color', 'file',
+  // International Fields
+  'country', 'phone', 'currency',
+  // Query Fields
+  'query-field',
+  // Other
+  'number', 'currency', 'file', 'image', 'rating', 'slider',
+  // Cross-reference fields
+  'child-cross-reference'].includes(fieldType);
+  return <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
         <DialogHeader className="pb-4 border-b">
-          <DialogTitle className="text-xl font-semibold flex items-center justify-between">
+          <DialogTitle className="text-xl font-semibold flex items-center justify-between mx-0 my-[15px]">
             <span>Configure Field: {fieldForConfig?.label || selectedField.label}</span>
             <div className="flex items-center space-x-2">
-              {loadingFieldData && (
-                <span className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
+              {loadingFieldData && <span className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
                   Loading field data...
-                </span>
-              )}
-              {fieldDataError && (
-                <span className="text-sm text-red-600 bg-red-50 px-2 py-1 rounded">
-                  Error loading data
-                </span>
-              )}
-              <Button
-                onClick={handleSave}
-                disabled={isSaving || loadingFieldData}
-                className="ml-4"
-              >
+                </span>}
+              {fieldDataError}
+              <Button onClick={handleSave} disabled={isSaving || loadingFieldData} className="ml-4">
                 {isSaving ? 'Saving...' : 'Save Configuration'}
               </Button>
             </div>
           </DialogTitle>
         </DialogHeader>
 
-        {loadingFieldData ? (
-          <div className="flex items-center justify-center py-8">
+        {loadingFieldData ? <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin mr-2" />
             <span>Loading field configuration...</span>
-          </div>
-        ) : (
-          <div className="space-y-6 py-4">
+          </div> : <div className="space-y-6 py-4">
             {/* Basic Properties Section */}
             <Card>
               <CardHeader>
@@ -660,42 +588,22 @@ export function FieldPropertiesDialog({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="field-label">Field Label *</Label>
-                    <Input
-                      id="field-label"
-                      value={localConfig.label || ''}
-                      onChange={(e) => updateField('label', e.target.value)}
-                      placeholder="Enter field label"
-                    />
+                    <Input id="field-label" value={localConfig.label || ''} onChange={e => updateField('label', e.target.value)} placeholder="Enter field label" />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="field-placeholder">Placeholder Text</Label>
-                    <Input
-                      id="field-placeholder"
-                      value={localConfig.placeholder || ''}
-                      onChange={(e) => updateField('placeholder', e.target.value)}
-                      placeholder="Enter placeholder text"
-                    />
+                    <Input id="field-placeholder" value={localConfig.placeholder || ''} onChange={e => updateField('placeholder', e.target.value)} placeholder="Enter placeholder text" />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="field-tooltip">Help Text / Tooltip</Label>
-                  <Textarea
-                    id="field-tooltip"
-                    value={localConfig.tooltip || ''}
-                    onChange={(e) => updateField('tooltip', e.target.value)}
-                    rows={2}
-                    placeholder="Enter help text or tooltip"
-                  />
+                  <Textarea id="field-tooltip" value={localConfig.tooltip || ''} onChange={e => updateField('tooltip', e.target.value)} rows={2} placeholder="Enter help text or tooltip" />
                 </div>
 
                 <div className="flex items-center space-x-3">
-                  <Checkbox
-                    id="field-required"
-                    checked={localConfig.required || false}
-                    onCheckedChange={(checked) => updateField('required', Boolean(checked))}
-                  />
+                  <Checkbox id="field-required" checked={localConfig.required || false} onCheckedChange={checked => updateField('required', Boolean(checked))} />
                   <Label htmlFor="field-required" className="text-sm font-medium">
                     This field is required
                   </Label>
@@ -704,8 +612,7 @@ export function FieldPropertiesDialog({
             </Card>
 
             {/* Field-Specific Advanced Configuration */}
-            {hasAdvancedConfig && (
-              <Card>
+            {hasAdvancedConfig && <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <div className="w-3 h-3 bg-green-500 rounded-full"></div>
@@ -715,8 +622,7 @@ export function FieldPropertiesDialog({
                 <CardContent>
                   {renderFieldSpecificConfig()}
                 </CardContent>
-              </Card>
-            )}
+              </Card>}
 
             {/* Field-Specific Configuration */}
             {/* {['select', 'multi-select', 'radio', 'checkbox'].includes(fieldType) && (
@@ -762,11 +668,10 @@ export function FieldPropertiesDialog({
                   </Button>
                 </CardContent>
               </Card>
-            )} */}
+             )} */}
 
             {/* Number Field Configuration */}
-            {fieldType === 'number' && (
-              <Card>
+            {fieldType === 'number' && <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
@@ -777,40 +682,22 @@ export function FieldPropertiesDialog({
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="number-min">Minimum Value</Label>
-                      <Input
-                        id="number-min"
-                        type="number"
-                        value={localConfig.validation?.min || ''}
-                        onChange={(e) => updateValidation('min', e.target.value ? Number(e.target.value) : undefined)}
-                      />
+                      <Input id="number-min" type="number" value={localConfig.validation?.min || ''} onChange={e => updateValidation('min', e.target.value ? Number(e.target.value) : undefined)} />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="number-max">Maximum Value</Label>
-                      <Input
-                        id="number-max"
-                        type="number"
-                        value={localConfig.validation?.max || ''}
-                        onChange={(e) => updateValidation('max', e.target.value ? Number(e.target.value) : undefined)}
-                      />
+                      <Input id="number-max" type="number" value={localConfig.validation?.max || ''} onChange={e => updateValidation('max', e.target.value ? Number(e.target.value) : undefined)} />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="number-step">Step</Label>
-                      <Input
-                        id="number-step"
-                        type="number"
-                        step="0.01"
-                        value={localConfig.customConfig?.step || 1}
-                        onChange={(e) => updateCustomConfig('step', Number(e.target.value))}
-                      />
+                      <Input id="number-step" type="number" step="0.01" value={localConfig.customConfig?.step || 1} onChange={e => updateCustomConfig('step', Number(e.target.value))} />
                     </div>
                   </div>
                 </CardContent>
-              </Card>
-            )}
+              </Card>}
 
             {/* Text Field Configuration */}
-            {fieldType === 'text' && (
-              <Card>
+            {fieldType === 'text' && <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
@@ -821,26 +708,15 @@ export function FieldPropertiesDialog({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="text-min-length">Minimum Length</Label>
-                      <Input
-                        id="text-min-length"
-                        type="number"
-                        value={localConfig.validation?.minLength || ''}
-                        onChange={(e) => updateValidation('minLength', e.target.value ? Number(e.target.value) : undefined)}
-                      />
+                      <Input id="text-min-length" type="number" value={localConfig.validation?.minLength || ''} onChange={e => updateValidation('minLength', e.target.value ? Number(e.target.value) : undefined)} />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="text-max-length">Maximum Length</Label>
-                      <Input
-                        id="text-max-length"
-                        type="number"
-                        value={localConfig.validation?.maxLength || ''}
-                        onChange={(e) => updateValidation('maxLength', e.target.value ? Number(e.target.value) : undefined)}
-                      />
+                      <Input id="text-max-length" type="number" value={localConfig.validation?.maxLength || ''} onChange={e => updateValidation('maxLength', e.target.value ? Number(e.target.value) : undefined)} />
                     </div>
                   </div>
                 </CardContent>
-              </Card>
-            )}
+              </Card>}
 
             {/* Advanced Options */}
             <Card>
@@ -853,28 +729,18 @@ export function FieldPropertiesDialog({
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="field-default">Default Value</Label>
-                  <Input
-                    id="field-default"
-                    value={String(localConfig.defaultValue || '')}
-                    onChange={(e) => updateField('defaultValue', e.target.value)}
-                    placeholder="Enter default value"
-                  />
+                  <Input id="field-default" value={String(localConfig.defaultValue || '')} onChange={e => updateField('defaultValue', e.target.value)} placeholder="Enter default value" />
                 </div>
 
                 <div className="flex items-center space-x-3">
-                  <Checkbox
-                    id="field-read-only"
-                    checked={localConfig.customConfig?.readOnly || false}
-                    onCheckedChange={(checked) => updateCustomConfig('readOnly', Boolean(checked))}
-                  />
+                  <Checkbox id="field-read-only" checked={localConfig.customConfig?.readOnly || false} onCheckedChange={checked => updateCustomConfig('readOnly', Boolean(checked))} />
                   <Label htmlFor="field-read-only" className="text-sm font-medium">
                     Read-only field
                   </Label>
                 </div>
               </CardContent>
             </Card>
-          </div>
-        )}
+          </div>}
 
         <div className="flex justify-end space-x-3 pt-4 border-t">
           <Button variant="outline" onClick={handleClose}>
@@ -885,6 +751,5 @@ export function FieldPropertiesDialog({
           </Button>
         </div>
       </DialogContent>
-    </Dialog>
-  );
+    </Dialog>;
 }
