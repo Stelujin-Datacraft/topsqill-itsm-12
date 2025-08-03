@@ -50,78 +50,179 @@ function FormDetailsSection({
   setFormDescription: (description: string) => void;
   currentForm: Form | null;
 }) {
-  return <div className="space-y-6">
-      {/* Basic Information */}
-      <div className="space-y-4">
-        <div>
-          <Label htmlFor="form-name" className="text-sm font-medium mb-2 block">Form Title</Label>
-          <Input id="form-name" value={formName} onChange={e => setFormName(e.target.value)} placeholder="Enter form title..." className="w-full" />
-        </div>
-        
-        <div>
-          <Label htmlFor="form-description" className="text-sm font-medium mb-2 block">Form Description</Label>
-          <Textarea id="form-description" value={formDescription} onChange={e => setFormDescription(e.target.value)} placeholder="Enter form description..." className="w-full min-h-[80px] resize-none" />
-        </div>
-      </div>
-
-      {/* Form Information */}
-      {currentForm && <div className="space-y-3 pt-4 border-t border-border">
-          <h3 className="text-sm font-medium text-muted-foreground">Form Information</h3>
-          
-          <div className="grid grid-cols-1 gap-3 text-sm">
-            <div className="flex items-center gap-2">
-              <Hash className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Form ID:</span>
-              <code className="text-xs bg-muted px-2 py-1 rounded">{currentForm.id}</code>
-            </div>
-            
-            {currentForm.createdAt && <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Created:</span>
-                <span className="text-foreground">{new Date(currentForm.createdAt).toLocaleDateString()}</span>
-              </div>}
-            
-            {currentForm.updatedAt && <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Last Modified:</span>
-                <span className="text-foreground">{new Date(currentForm.updatedAt).toLocaleDateString()}</span>
-              </div>}
-            
-            {currentForm.createdBy && <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Created By:</span>
-                <span className="text-foreground">{currentForm.createdBy}</span>
-              </div>}
+  return (
+    <div className="space-y-8">
+      {/* Form Basic Information */}
+      <Card>
+        <CardHeader className="pb-4">
+          <h2 className="text-lg font-semibold text-foreground">Form Information</h2>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="form-name" className="text-sm font-medium text-foreground">Form Title</Label>
+            <Input 
+              id="form-name" 
+              value={formName} 
+              onChange={e => setFormName(e.target.value)} 
+              placeholder="Enter form title..." 
+              className="mt-2"
+            />
           </div>
-        </div>}
+          
+          <div>
+            <Label htmlFor="form-description" className="text-sm font-medium text-foreground">Form Description</Label>
+            <Textarea 
+              id="form-description" 
+              value={formDescription} 
+              onChange={e => setFormDescription(e.target.value)} 
+              placeholder="Enter form description..." 
+              className="mt-2 min-h-[80px] resize-none"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Actions */}
-      <div className="space-y-3 pt-4 border-t border-border">
-        <h3 className="text-sm font-medium text-muted-foreground">Actions</h3>
-        
-        <div className="grid grid-cols-1 gap-2">
-          <Button variant="outline" size="sm" className="justify-start">
+      {/* Form Metadata */}
+      {currentForm && (
+        <Card>
+          <CardHeader className="pb-4">
+            <h2 className="text-lg font-semibold text-foreground">Form Details</h2>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                <div className="flex items-center gap-2">
+                  <Hash className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium text-muted-foreground">Form ID</span>
+                </div>
+                <code className="text-xs bg-muted px-2 py-1 rounded text-foreground">{currentForm.id}</code>
+              </div>
+              
+              {currentForm.createdAt && (
+                <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-muted-foreground">Created Date</span>
+                  </div>
+                  <span className="text-sm text-foreground">{new Date(currentForm.createdAt).toLocaleDateString()}</span>
+                </div>
+              )}
+              
+              {currentForm.updatedAt && (
+                <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-muted-foreground">Last Modified</span>
+                  </div>
+                  <span className="text-sm text-foreground">{new Date(currentForm.updatedAt).toLocaleDateString()}</span>
+                </div>
+              )}
+              
+              {currentForm.createdBy && (
+                <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-muted-foreground">Created By</span>
+                  </div>
+                  <span className="text-sm text-foreground">{currentForm.createdBy}</span>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Lifecycle Management */}
+      <Card>
+        <CardHeader className="pb-4">
+          <h2 className="text-lg font-semibold text-foreground">Lifecycle Management</h2>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between py-2 border-b border-border">
+            <div className="flex items-center gap-2">
+              <Settings className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-muted-foreground">Status</span>
+            </div>
+            <Badge variant={currentForm?.status === 'active' ? 'default' : 'secondary'}>
+              {currentForm?.status || 'Draft'}
+            </Badge>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-3 pt-2">
+            <Button variant="default" size="sm" className="justify-start">
+              <Globe className="h-4 w-4 mr-2" />
+              Publish Form
+            </Button>
+            
+            <Button variant="outline" size="sm" className="justify-start">
+              <Eye className="h-4 w-4 mr-2" />
+              Preview Form
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Form Statistics */}
+      <Card>
+        <CardHeader className="pb-4">
+          <h2 className="text-lg font-semibold text-foreground">Form Statistics</h2>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="text-center p-3 bg-muted rounded-lg">
+              <div className="text-2xl font-bold text-foreground">0</div>
+              <div className="text-sm text-muted-foreground">Total Responses</div>
+            </div>
+            <div className="text-center p-3 bg-muted rounded-lg">
+              <div className="text-2xl font-bold text-foreground">0</div>
+              <div className="text-sm text-muted-foreground">Today's Responses</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Sharing & Collaboration */}
+      <Card>
+        <CardHeader className="pb-4">
+          <h2 className="text-lg font-semibold text-foreground">Sharing & Collaboration</h2>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Button variant="outline" size="sm" className="w-full justify-start">
             <Share2 className="h-4 w-4 mr-2" />
-            Share Form
+            Share Form Link
           </Button>
           
-          <Button variant="outline" size="sm" className="justify-start">
-            <Eye className="h-4 w-4 mr-2" />
-            Preview Form
+          <Button variant="outline" size="sm" className="w-full justify-start">
+            <User className="h-4 w-4 mr-2" />
+            Manage Collaborators
           </Button>
-          
-          <Button variant="outline" size="sm" className="justify-start">
-            <Globe className="h-4 w-4 mr-2" />
-            Publish Settings
-          </Button>
-          
-          <Button variant="outline" size="sm" className="justify-start">
+        </CardContent>
+      </Card>
+
+      {/* Advanced Settings */}
+      <Card>
+        <CardHeader className="pb-4">
+          <h2 className="text-lg font-semibold text-foreground">Advanced Settings</h2>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Button variant="outline" size="sm" className="w-full justify-start">
             <Settings className="h-4 w-4 mr-2" />
-            Advanced Settings
+            Form Settings
           </Button>
-        </div>
-      </div>
-    </div>;
+          
+          <Button variant="outline" size="sm" className="w-full justify-start">
+            <Globe className="h-4 w-4 mr-2" />
+            Custom Domain
+          </Button>
+          
+          <Button variant="outline" size="sm" className="w-full justify-start">
+            <FileStack className="h-4 w-4 mr-2" />
+            Export Data
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 export function FormDetailsPanel({
   formName,
