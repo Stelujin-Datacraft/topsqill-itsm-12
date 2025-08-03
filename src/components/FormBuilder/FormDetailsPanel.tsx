@@ -50,8 +50,7 @@ function FormDetailsSection({
   setFormDescription: (description: string) => void;
   currentForm: Form | null;
 }) {
-  return (
-    <div className="space-y-8">
+  return <div className="space-y-8">
       {/* Form Basic Information */}
       <Card>
         <CardHeader className="pb-4">
@@ -60,31 +59,18 @@ function FormDetailsSection({
         <CardContent className="space-y-4">
           <div>
             <Label htmlFor="form-name" className="text-sm font-medium text-foreground">Form Title</Label>
-            <Input 
-              id="form-name" 
-              value={formName} 
-              onChange={e => setFormName(e.target.value)} 
-              placeholder="Enter form title..." 
-              className="mt-2"
-            />
+            <Input id="form-name" value={formName} onChange={e => setFormName(e.target.value)} placeholder="Enter form title..." className="mt-2" />
           </div>
           
           <div>
             <Label htmlFor="form-description" className="text-sm font-medium text-foreground">Form Description</Label>
-            <Textarea 
-              id="form-description" 
-              value={formDescription} 
-              onChange={e => setFormDescription(e.target.value)} 
-              placeholder="Enter form description..." 
-              className="mt-2 min-h-[80px] resize-none"
-            />
+            <Textarea id="form-description" value={formDescription} onChange={e => setFormDescription(e.target.value)} placeholder="Enter form description..." className="mt-2 min-h-[80px] resize-none" />
           </div>
         </CardContent>
       </Card>
 
       {/* Form Metadata */}
-      {currentForm && (
-        <Card>
+      {currentForm && <Card>
           <CardHeader className="pb-4">
             <h2 className="text-lg font-semibold text-foreground">Form Details</h2>
           </CardHeader>
@@ -98,39 +84,32 @@ function FormDetailsSection({
                 <code className="text-xs bg-muted px-2 py-1 rounded text-foreground">{currentForm.id}</code>
               </div>
               
-              {currentForm.createdAt && (
-                <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
+              {currentForm.createdAt && <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium text-muted-foreground">Created Date</span>
                   </div>
                   <span className="text-sm text-foreground">{new Date(currentForm.createdAt).toLocaleDateString()}</span>
-                </div>
-              )}
+                </div>}
               
-              {currentForm.updatedAt && (
-                <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
+              {currentForm.updatedAt && <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium text-muted-foreground">Last Modified</span>
                   </div>
                   <span className="text-sm text-foreground">{new Date(currentForm.updatedAt).toLocaleDateString()}</span>
-                </div>
-              )}
+                </div>}
               
-              {currentForm.createdBy && (
-                <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
+              {currentForm.createdBy && <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium text-muted-foreground">Created By</span>
                   </div>
                   <span className="text-sm text-foreground">{currentForm.createdBy}</span>
-                </div>
-              )}
+                </div>}
             </div>
           </CardContent>
-        </Card>
-      )}
+        </Card>}
 
       {/* Lifecycle Management */}
       <Card>
@@ -221,8 +200,7 @@ function FormDetailsSection({
           </Button>
         </CardContent>
       </Card>
-    </div>
-  );
+    </div>;
 }
 export function FormDetailsPanel({
   formName,
@@ -260,7 +238,7 @@ export function FormDetailsPanel({
   // Otherwise render the page navigation
   return <div className="w-full bg-white border-b border-border">
       {/* Page Navigation with Settings */}
-      <div className="flex items-center justify-between gap-2 px-4 py-3">
+      <div className="flex items-center justify-between gap-2 px-4 py-[16px] my-0">
         {/* Full-width page navigation */}
         <div className="flex-1 min-w-0">
           <FormPagination pages={pages} currentPageId={currentPageId} currentPageIndex={pages.findIndex(p => p.id === currentPageId)} onPageChange={setCurrentPageId} onPrevious={() => {

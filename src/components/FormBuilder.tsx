@@ -423,39 +423,20 @@ function FormBuilderContent({
 
             {/* Form Details Tab */}
             <TabsContent value="details" className="p-0">
-              <FormDetailsPanel
-                formName={workingForm?.name || state.formName}
-                setFormName={(name) => {
-                  state.setFormName(name);
-                  updateFormDetails({ name });
-                }}
-                formDescription={workingForm?.description || state.formDescription}
-                setFormDescription={(description) => {
-                  state.setFormDescription(description);
-                  updateFormDetails({ description });
-                }}
-                columnLayout={state.columnLayout}
-                setColumnLayout={state.setColumnLayout}
-                pages={pages}
-                currentPageId={state.currentPageId}
-                setCurrentPageId={state.setCurrentPageId}
-                currentForm={workingForm}
-                currentPageFieldsCount={currentPageFields.length}
-                onAddPage={handleAddPage}
-                onPageRename={handlePageRename}
-                onPageDelete={handlePageDelete}
-                currentPageFields={currentPageFields}
-                selectedFieldId={state.selectedField?.id}
-                highlightedFieldId={state.highlightedFieldId}
-                onFieldClick={(field) => {
-                  state.setSelectedField(field);
-                  state.setShowFieldProperties(true);
-                }}
-                onFieldDelete={fieldOperations.handleFieldDelete}
-                onDragEnd={fieldOperations.handleDragEnd}
-                showFormDetails={true}
-                setShowFormDetails={() => {}}
-              />
+              <FormDetailsPanel formName={workingForm?.name || state.formName} setFormName={name => {
+              state.setFormName(name);
+              updateFormDetails({
+                name
+              });
+            }} formDescription={workingForm?.description || state.formDescription} setFormDescription={description => {
+              state.setFormDescription(description);
+              updateFormDetails({
+                description
+              });
+            }} columnLayout={state.columnLayout} setColumnLayout={state.setColumnLayout} pages={pages} currentPageId={state.currentPageId} setCurrentPageId={state.setCurrentPageId} currentForm={workingForm} currentPageFieldsCount={currentPageFields.length} onAddPage={handleAddPage} onPageRename={handlePageRename} onPageDelete={handlePageDelete} currentPageFields={currentPageFields} selectedFieldId={state.selectedField?.id} highlightedFieldId={state.highlightedFieldId} onFieldClick={field => {
+              state.setSelectedField(field);
+              state.setShowFieldProperties(true);
+            }} onFieldDelete={fieldOperations.handleFieldDelete} onDragEnd={fieldOperations.handleDragEnd} showFormDetails={true} setShowFormDetails={() => {}} />
             </TabsContent>
 
             <TabsContent value="builder" className="p-0">
@@ -532,7 +513,7 @@ function FormBuilderContent({
                 {/* Right Panel - Field Types (Fixed) */}
                 <div className="col-span-3 border-l bg-muted/30 flex flex-col">
                   <div className="flex-shrink-0 h-full overflow-y-auto">
-                    <div className="p-4">
+                    <div className="p-4 px-0 py-0">
                       <FieldTypesPanel fieldTypeSearch={state.fieldTypeSearch} setFieldTypeSearch={state.setFieldTypeSearch} onAddField={fieldOperations.handleAddField} disabled={state.isSaving} />
                     </div>
                   </div>
