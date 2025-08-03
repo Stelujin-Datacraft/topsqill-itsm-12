@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -35,9 +35,36 @@ export function FormPagination({
 }: FormPaginationProps) {
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const canGoPrevious = currentPageIndex > 0;
   const canGoNext = currentPageIndex < pages.length - 1;
+
+  // Auto-scroll to keep active page centered
+  useEffect(() => {
+    if (scrollContainerRef.current && currentPageId) {
+      const activePageElement = scrollContainerRef.current.querySelector(`[data-page-id="${currentPageId}"]`);
+      if (activePageElement) {
+        const container = scrollContainerRef.current;
+        const containerWidth = container.clientWidth;
+        const elementRect = activePageElement.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        
+        // Calculate relative position within the container
+        const elementLeft = elementRect.left - containerRect.left + container.scrollLeft;
+        const elementWidth = elementRect.width;
+        
+        // Calculate the scroll position to center the element
+        const targetScrollLeft = elementLeft + (elementWidth / 2) - (containerWidth / 2);
+        
+        // Smooth scroll to the calculated position
+        container.scrollTo({
+          left: Math.max(0, targetScrollLeft),
+          behavior: 'smooth'
+        });
+      }
+    }
+  }, [currentPageId]);
 
   const handleStartEdit = (page: FormPage) => {
     if (readOnly) return;
@@ -100,10 +127,14 @@ export function FormPagination({
         </Button>
 
         {/* Scrollable page container */}
-        <div className="flex-1 overflow-x-auto">
+        <div 
+          ref={scrollContainerRef}
+          className="flex-1 overflow-x-auto scrollbar-hide"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
           <div className="flex gap-1 min-w-max pb-2">
             {pages.map((page, index) => (
-              <div key={page.id} className="flex items-center group">
+              <div key={page.id} data-page-id={page.id} className="flex items-center group">
                 {editingPageId === page.id && !readOnly ? (
                   <div className="flex items-center gap-1 px-2 py-1">
                     <Input
