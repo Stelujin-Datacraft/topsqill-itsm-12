@@ -37,12 +37,12 @@ interface FormDetailsPanelProps {
   setShowFormDetails: (show: boolean) => void;
 }
 // Form Details Section Component  
-function FormDetailsSection({ 
-  formName, 
-  setFormName, 
-  formDescription, 
-  setFormDescription, 
-  currentForm 
+function FormDetailsSection({
+  formName,
+  setFormName,
+  formDescription,
+  setFormDescription,
+  currentForm
 }: {
   formName: string;
   setFormName: (name: string) => void;
@@ -50,36 +50,22 @@ function FormDetailsSection({
   setFormDescription: (description: string) => void;
   currentForm: Form | null;
 }) {
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       {/* Basic Information */}
       <div className="space-y-4">
         <div>
           <Label htmlFor="form-name" className="text-sm font-medium mb-2 block">Form Title</Label>
-          <Input
-            id="form-name"
-            value={formName}
-            onChange={(e) => setFormName(e.target.value)}
-            placeholder="Enter form title..."
-            className="w-full"
-          />
+          <Input id="form-name" value={formName} onChange={e => setFormName(e.target.value)} placeholder="Enter form title..." className="w-full" />
         </div>
         
         <div>
           <Label htmlFor="form-description" className="text-sm font-medium mb-2 block">Form Description</Label>
-          <Textarea
-            id="form-description"
-            value={formDescription}
-            onChange={(e) => setFormDescription(e.target.value)}
-            placeholder="Enter form description..."
-            className="w-full min-h-[80px] resize-none"
-          />
+          <Textarea id="form-description" value={formDescription} onChange={e => setFormDescription(e.target.value)} placeholder="Enter form description..." className="w-full min-h-[80px] resize-none" />
         </div>
       </div>
 
       {/* Form Information */}
-      {currentForm && (
-        <div className="space-y-3 pt-4 border-t border-border">
+      {currentForm && <div className="space-y-3 pt-4 border-t border-border">
           <h3 className="text-sm font-medium text-muted-foreground">Form Information</h3>
           
           <div className="grid grid-cols-1 gap-3 text-sm">
@@ -89,32 +75,25 @@ function FormDetailsSection({
               <code className="text-xs bg-muted px-2 py-1 rounded">{currentForm.id}</code>
             </div>
             
-            {currentForm.createdAt && (
-              <div className="flex items-center gap-2">
+            {currentForm.createdAt && <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span className="text-muted-foreground">Created:</span>
                 <span className="text-foreground">{new Date(currentForm.createdAt).toLocaleDateString()}</span>
-              </div>
-            )}
+              </div>}
             
-            {currentForm.updatedAt && (
-              <div className="flex items-center gap-2">
+            {currentForm.updatedAt && <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span className="text-muted-foreground">Last Modified:</span>
                 <span className="text-foreground">{new Date(currentForm.updatedAt).toLocaleDateString()}</span>
-              </div>
-            )}
+              </div>}
             
-            {currentForm.createdBy && (
-              <div className="flex items-center gap-2">
+            {currentForm.createdBy && <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-muted-foreground" />
                 <span className="text-muted-foreground">Created By:</span>
                 <span className="text-foreground">{currentForm.createdBy}</span>
-              </div>
-            )}
+              </div>}
           </div>
-        </div>
-      )}
+        </div>}
 
       {/* Actions */}
       <div className="space-y-3 pt-4 border-t border-border">
@@ -142,10 +121,8 @@ function FormDetailsSection({
           </Button>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 }
-
 export function FormDetailsPanel({
   formName,
   setFormName,
@@ -174,62 +151,37 @@ export function FormDetailsPanel({
 
   // If showing form details, render the details section
   if (showFormDetails) {
-    return (
-      <div className="h-full p-6 bg-white overflow-y-auto">
-        <FormDetailsSection
-          formName={formName}
-          setFormName={setFormName}
-          formDescription={formDescription}
-          setFormDescription={setFormDescription}
-          currentForm={currentForm}
-        />
-      </div>
-    );
+    return <div className="h-full p-6 bg-white overflow-y-auto">
+        <FormDetailsSection formName={formName} setFormName={setFormName} formDescription={formDescription} setFormDescription={setFormDescription} currentForm={currentForm} />
+      </div>;
   }
 
   // Otherwise render the page navigation
-  return (
-    <div className="w-full bg-white border-b border-border">
+  return <div className="w-full bg-white border-b border-border">
       {/* Page Navigation with Settings */}
       <div className="flex items-center justify-between gap-2 px-4 py-3">
         {/* Full-width page navigation */}
         <div className="flex-1 min-w-0">
-          <FormPagination
-            pages={pages}
-            currentPageId={currentPageId}
-            currentPageIndex={pages.findIndex(p => p.id === currentPageId)}
-            onPageChange={setCurrentPageId}
-            onPrevious={() => {
-              const currentIndex = pages.findIndex(p => p.id === currentPageId);
-              if (currentIndex > 0) {
-                setCurrentPageId(pages[currentIndex - 1].id);
-              }
-            }}
-            onNext={() => {
-              const currentIndex = pages.findIndex(p => p.id === currentPageId);
-              if (currentIndex < pages.length - 1) {
-                setCurrentPageId(pages[currentIndex + 1].id);
-              }
-            }}
-            onPageRename={onPageRename}
-            onPageDelete={onPageDelete}
-            readOnly={false}
-          />
+          <FormPagination pages={pages} currentPageId={currentPageId} currentPageIndex={pages.findIndex(p => p.id === currentPageId)} onPageChange={setCurrentPageId} onPrevious={() => {
+          const currentIndex = pages.findIndex(p => p.id === currentPageId);
+          if (currentIndex > 0) {
+            setCurrentPageId(pages[currentIndex - 1].id);
+          }
+        }} onNext={() => {
+          const currentIndex = pages.findIndex(p => p.id === currentPageId);
+          if (currentIndex < pages.length - 1) {
+            setCurrentPageId(pages[currentIndex + 1].id);
+          }
+        }} onPageRename={onPageRename} onPageDelete={onPageDelete} readOnly={false} />
         </div>
         
         {/* Settings Dropdown */}
         <div className="relative flex-shrink-0">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => setShowLayoutControls(!showLayoutControls)} 
-            className="h-8 w-8 p-0"
-          >
+          <Button variant="ghost" size="sm" onClick={() => setShowLayoutControls(!showLayoutControls)} className="h-8 w-8 p-0">
             <Settings2 className="h-4 w-4" />
           </Button>
           
-          {showLayoutControls && (
-            <div className="absolute top-full right-0 mt-2 bg-white border border-border rounded-lg shadow-lg p-4 z-50 min-w-[250px]">
+          {showLayoutControls && <div className="absolute top-full right-0 mt-2 bg-white border border-border rounded-lg shadow-lg p-4 z-50 min-w-[250px]">
               <div className="space-y-4">
                 <div>
                   <Label className="block mb-2 text-sm font-medium">Column Layout</Label>
@@ -253,18 +205,11 @@ export function FormDetailsPanel({
                   </Button>
                 </div>
               </div>
-            </div>
-          )}
+            </div>}
         </div>
       </div>
       
       {/* Page Info */}
-      <div className="flex items-center justify-center px-4 pb-2">
-        <span className="text-xs text-muted-foreground">
-          Page {pages.findIndex(p => p.id === currentPageId) + 1} of {pages.length}
-          {currentPageFields.length > 0 && ` • ${currentPageFields.length} field${currentPageFields.length === 1 ? '' : 's'}`}
-        </span>
-      </div>
-    </div>
-  );
+      
+    </div>;
 }
