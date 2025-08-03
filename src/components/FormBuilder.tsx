@@ -609,7 +609,7 @@ function FormBuilderContent({
             <TabsContent value="builder" className="p-0">
               <div className="grid grid-cols-12 h-[calc(100vh-10rem)] gap-0">
                 {/* Left Panel - Navigation (Fixed) */}
-                <div className="col-span-3 border-r bg-muted/30 overflow-hidden flex flex-col">
+                <div className={`${state.isNavigationCollapsed ? 'col-span-1' : 'col-span-3'} border-r bg-muted/30 overflow-hidden flex flex-col transition-all duration-200`}>
                   <div className="flex-shrink-0">
                     <FormNavigationPanel
                       pages={pages}
@@ -626,6 +626,10 @@ function FormBuilderContent({
                           state.setCurrentPageId(fieldPage.id);
                         }
                         state.setHighlightedFieldId(field.id);
+                        // Clear highlight after 2 seconds
+                        setTimeout(() => {
+                          state.setHighlightedFieldId(null);
+                        }, 2000);
                         // Scroll to field after a short delay
                         setTimeout(() => {
                           const fieldElement = document.querySelector(`[data-field-id="${field.id}"]`);
@@ -635,12 +639,14 @@ function FormBuilderContent({
                         }, 100);
                       }}
                       onFieldHighlight={state.setHighlightedFieldId}
+                      onToggleNavigation={() => state.setIsNavigationCollapsed(!state.isNavigationCollapsed)}
+                      isCollapsed={state.isNavigationCollapsed}
                     />
                   </div>
                 </div>
 
                 {/* Center Panel - Form Layout */}
-                <div className="col-span-6 flex flex-col">
+                <div className={`${state.isNavigationCollapsed ? 'col-span-8' : 'col-span-6'} flex flex-col transition-all duration-200`}>
                   {/* Fixed Page Navigation */}
                   <div className="flex-shrink-0 bg-white border-b border-border">
                     <FormDetailsPanel
@@ -676,7 +682,7 @@ function FormBuilderContent({
                       }}
                       onFieldDelete={fieldOperations.handleFieldDelete}
                       onDragEnd={fieldOperations.handleDragEnd}
-                      showFormDetails={false}
+                      showFormDetails={state.showFormDetails}
                       setShowFormDetails={state.setShowFormDetails}
                     />
                   </div>

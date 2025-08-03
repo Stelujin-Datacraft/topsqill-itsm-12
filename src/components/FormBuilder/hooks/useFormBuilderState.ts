@@ -17,7 +17,8 @@ export function useFormBuilderState(currentForm: Form | null, formId?: string) {
   const [showFieldProperties, setShowFieldProperties] = useState(false);
   const [fieldTypeSearch, setFieldTypeSearch] = useState('');
   const [savingFieldConfig, setSavingFieldConfig] = useState<string | null>(null);
-  const [showFormDetails, setShowFormDetails] = useState(true);
+  const [showFormDetails, setShowFormDetails] = useState(false);
+  const [isNavigationCollapsed, setIsNavigationCollapsed] = useState(false);
 
   useEffect(() => {
     if (currentForm) {
@@ -67,5 +68,7 @@ export function useFormBuilderState(currentForm: Form | null, formId?: string) {
     setSavingFieldConfig,
     showFormDetails,
     setShowFormDetails,
+    isNavigationCollapsed,
+    setIsNavigationCollapsed,
   };
 }
