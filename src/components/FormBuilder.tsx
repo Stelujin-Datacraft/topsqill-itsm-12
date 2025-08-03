@@ -362,7 +362,7 @@ function FormBuilderContent({
       </div>;
   }
   return <TooltipProvider>
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-white px-[15px] py-[10px]">
         {/* Top Action Bar */}
         <div className="bg-white border-b border-gray-200 px-6 py-3">
           <div className="flex items-center justify-between">
@@ -374,36 +374,21 @@ function FormBuilderContent({
               
               {/* Combined Save/Publish Button */}
               <div className="flex items-center gap-2">
-                <Button 
-                  onClick={() => handleSave(true)} 
-                  disabled={state.isSaving || state.isPublishing}
-                  className="flex items-center gap-2"
-                >
+                <Button onClick={() => handleSave(true)} disabled={state.isSaving || state.isPublishing} className="flex items-center gap-2">
                   <Save className="h-4 w-4" />
-                  {state.isPublishing ? 'Publishing...' : state.isSaving ? 'Saving...' : 
-                   state.isCreating ? 'Create & Publish' : 'Save & Publish'}
+                  {state.isPublishing ? 'Publishing...' : state.isSaving ? 'Saving...' : state.isCreating ? 'Create & Publish' : 'Save & Publish'}
                 </Button>
                 
                 {/* Discard Changes Button */}
-                {snapshot.isDirty && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={resetSnapshot} 
-                    disabled={state.isSaving || state.isPublishing}
-                    className="px-2"
-                  >
+                {snapshot.isDirty && <Button variant="outline" size="sm" onClick={resetSnapshot} disabled={state.isSaving || state.isPublishing} className="px-2">
                     <Undo2 className="h-4 w-4" />
-                  </Button>
-                )}
+                  </Button>}
               </div>
             </div>
             
-            {workingForm && (
-              <div className="text-sm text-muted-foreground">
+            {workingForm && <div className="text-sm text-muted-foreground">
                 Last updated: {new Date(workingForm.updatedAt || Date.now()).toLocaleDateString()}
-              </div>
-            )}
+              </div>}
           </div>
         </div>
 
@@ -455,40 +440,31 @@ function FormBuilderContent({
                             <label className="block text-sm font-medium mb-2 text-foreground">
                               Form Name *
                             </label>
-                            <input
-                              type="text"
-                              value={workingForm?.name || state.formName}
-                              onChange={(e) => {
-                                state.setFormName(e.target.value);
-                                updateFormDetails({ name: e.target.value });
-                              }}
-                              className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
-                              placeholder="Enter your form name..."
-                            />
+                            <input type="text" value={workingForm?.name || state.formName} onChange={e => {
+                            state.setFormName(e.target.value);
+                            updateFormDetails({
+                              name: e.target.value
+                            });
+                          }} className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" placeholder="Enter your form name..." />
                           </div>
                           
                           <div>
                             <label className="block text-sm font-medium mb-2 text-foreground">
                               Description
                             </label>
-                            <textarea
-                              value={workingForm?.description || state.formDescription}
-                              onChange={(e) => {
-                                state.setFormDescription(e.target.value);
-                                updateFormDetails({ description: e.target.value });
-                              }}
-                              className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors resize-none"
-                              rows={4}
-                              placeholder="Describe what this form is for..."
-                            />
+                            <textarea value={workingForm?.description || state.formDescription} onChange={e => {
+                            state.setFormDescription(e.target.value);
+                            updateFormDetails({
+                              description: e.target.value
+                            });
+                          }} className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors resize-none" rows={4} placeholder="Describe what this form is for..." />
                           </div>
                         </div>
                       </CardContent>
                     </Card>
 
                     {/* Form Statistics */}
-                    {workingForm && (
-                      <Card>
+                    {workingForm && <Card>
                         <CardHeader>
                           <CardTitle className="flex items-center gap-2">
                             <Database className="h-5 w-5" />
@@ -511,14 +487,12 @@ function FormBuilderContent({
                             </div>
                           </div>
                         </CardContent>
-                      </Card>
-                    )}
+                      </Card>}
                   </div>
 
                   {/* Right Column - Management Actions */}
                   <div className="space-y-6">
-                    {workingForm && (
-                      <>
+                    {workingForm && <>
                         <Card>
                           <CardHeader>
                             <CardTitle className="flex items-center gap-2">
@@ -527,20 +501,11 @@ function FormBuilderContent({
                             </CardTitle>
                           </CardHeader>
                           <CardContent>
-                            <FormBuilderHeader 
-                              onSave={handleSave} 
-                              isSaving={state.isSaving} 
-                              isPublishing={state.isPublishing} 
-                              isCreating={state.isCreating} 
-                              currentForm={workingForm} 
-                              formStatus={workingForm?.status || state.formStatus} 
-                              onStatusChange={handleStatusChange} 
-                              onUpdateForm={(updates) => {
-                                if (currentForm) {
-                                  updateForm(currentForm.id, updates);
-                                }
-                              }} 
-                            />
+                            <FormBuilderHeader onSave={handleSave} isSaving={state.isSaving} isPublishing={state.isPublishing} isCreating={state.isCreating} currentForm={workingForm} formStatus={workingForm?.status || state.formStatus} onStatusChange={handleStatusChange} onUpdateForm={updates => {
+                          if (currentForm) {
+                            updateForm(currentForm.id, updates);
+                          }
+                        }} />
                           </CardContent>
                         </Card>
 
@@ -552,11 +517,11 @@ function FormBuilderContent({
                             </CardTitle>
                           </CardHeader>
                           <CardContent>
-                            <FormSharing form={workingForm} onUpdateForm={(updates) => {
-                              if (currentForm) {
-                                updateForm(currentForm.id, updates);
-                              }
-                            }} />
+                            <FormSharing form={workingForm} onUpdateForm={updates => {
+                          if (currentForm) {
+                            updateForm(currentForm.id, updates);
+                          }
+                        }} />
                           </CardContent>
                         </Card>
 
@@ -599,8 +564,7 @@ function FormBuilderContent({
                             </div>
                           </CardContent>
                         </Card>
-                      </>
-                    )}
+                      </>}
                   </div>
                 </div>
               </div>
@@ -611,37 +575,28 @@ function FormBuilderContent({
                 {/* Left Panel - Navigation (Fixed) */}
                 <div className={`${state.isNavigationCollapsed ? 'col-span-1' : 'col-span-3'} border-r bg-muted/30 overflow-hidden flex flex-col transition-all duration-200`}>
                   <div className="flex-shrink-0">
-                    <FormNavigationPanel
-                      pages={pages}
-                      fields={workingForm?.fields || []}
-                      currentPageId={state.currentPageId}
-                      selectedField={state.selectedField}
-                      onPageChange={state.setCurrentPageId}
-                      onFieldSelect={(field) => {
-                        // Navigate to field's page and highlight it
-                        const fieldPage = pages.find(page => 
-                          page.fields.includes(field.id) || field.pageId === page.id
-                        );
-                        if (fieldPage && fieldPage.id !== state.currentPageId) {
-                          state.setCurrentPageId(fieldPage.id);
-                        }
-                        state.setHighlightedFieldId(field.id);
-                        // Clear highlight after 2 seconds
-                        setTimeout(() => {
-                          state.setHighlightedFieldId(null);
-                        }, 2000);
-                        // Scroll to field after a short delay
-                        setTimeout(() => {
-                          const fieldElement = document.querySelector(`[data-field-id="${field.id}"]`);
-                          if (fieldElement) {
-                            fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                          }
-                        }, 100);
-                      }}
-                      onFieldHighlight={state.setHighlightedFieldId}
-                      onToggleNavigation={() => state.setIsNavigationCollapsed(!state.isNavigationCollapsed)}
-                      isCollapsed={state.isNavigationCollapsed}
-                    />
+                    <FormNavigationPanel pages={pages} fields={workingForm?.fields || []} currentPageId={state.currentPageId} selectedField={state.selectedField} onPageChange={state.setCurrentPageId} onFieldSelect={field => {
+                    // Navigate to field's page and highlight it
+                    const fieldPage = pages.find(page => page.fields.includes(field.id) || field.pageId === page.id);
+                    if (fieldPage && fieldPage.id !== state.currentPageId) {
+                      state.setCurrentPageId(fieldPage.id);
+                    }
+                    state.setHighlightedFieldId(field.id);
+                    // Clear highlight after 2 seconds
+                    setTimeout(() => {
+                      state.setHighlightedFieldId(null);
+                    }, 2000);
+                    // Scroll to field after a short delay
+                    setTimeout(() => {
+                      const fieldElement = document.querySelector(`[data-field-id="${field.id}"]`);
+                      if (fieldElement) {
+                        fieldElement.scrollIntoView({
+                          behavior: 'smooth',
+                          block: 'center'
+                        });
+                      }
+                    }, 100);
+                  }} onFieldHighlight={state.setHighlightedFieldId} onToggleNavigation={() => state.setIsNavigationCollapsed(!state.isNavigationCollapsed)} isCollapsed={state.isNavigationCollapsed} />
                   </div>
                 </div>
 
@@ -649,66 +604,39 @@ function FormBuilderContent({
                 <div className={`${state.isNavigationCollapsed ? 'col-span-8' : 'col-span-6'} flex flex-col transition-all duration-200`}>
                   {/* Fixed Page Navigation */}
                   <div className="flex-shrink-0 bg-white border-b border-border">
-                    <FormDetailsPanel
-                      formName={workingForm?.name || state.formName}
-                      setFormName={(name) => {
-                        state.setFormName(name);
-                        updateFormDetails({ name });
-                      }}
-                      formDescription={workingForm?.description || state.formDescription}
-                      setFormDescription={(description) => {
-                        state.setFormDescription(description);
-                        updateFormDetails({ description });
-                      }}
-                      columnLayout={workingForm?.layout?.columns as (1 | 2 | 3) || state.columnLayout}
-                      setColumnLayout={(layout) => {
-                        state.setColumnLayout(layout);
-                        updateFormDetails({ layout: { columns: layout } });
-                      }}
-                      pages={pages}
-                      currentPageId={state.currentPageId}
-                      setCurrentPageId={state.setCurrentPageId}
-                      currentForm={workingForm}
-                      currentPageFieldsCount={currentPageFields.length}
-                      onAddPage={handleAddPage}
-                      onPageRename={handlePageRename}
-                      onPageDelete={handlePageDelete}
-                      currentPageFields={currentPageFields}
-                      selectedFieldId={state.selectedField?.id}
-                      highlightedFieldId={state.highlightedFieldId}
-                      onFieldClick={(field) => {
-                        state.setSelectedField(field);
-                        state.setShowFieldProperties(true);
-                      }}
-                      onFieldDelete={fieldOperations.handleFieldDelete}
-                      onDragEnd={fieldOperations.handleDragEnd}
-                      showFormDetails={state.showFormDetails}
-                      setShowFormDetails={state.setShowFormDetails}
-                    />
+                    <FormDetailsPanel formName={workingForm?.name || state.formName} setFormName={name => {
+                    state.setFormName(name);
+                    updateFormDetails({
+                      name
+                    });
+                  }} formDescription={workingForm?.description || state.formDescription} setFormDescription={description => {
+                    state.setFormDescription(description);
+                    updateFormDetails({
+                      description
+                    });
+                  }} columnLayout={workingForm?.layout?.columns as (1 | 2 | 3) || state.columnLayout} setColumnLayout={layout => {
+                    state.setColumnLayout(layout);
+                    updateFormDetails({
+                      layout: {
+                        columns: layout
+                      }
+                    });
+                  }} pages={pages} currentPageId={state.currentPageId} setCurrentPageId={state.setCurrentPageId} currentForm={workingForm} currentPageFieldsCount={currentPageFields.length} onAddPage={handleAddPage} onPageRename={handlePageRename} onPageDelete={handlePageDelete} currentPageFields={currentPageFields} selectedFieldId={state.selectedField?.id} highlightedFieldId={state.highlightedFieldId} onFieldClick={field => {
+                    state.setSelectedField(field);
+                    state.setShowFieldProperties(true);
+                  }} onFieldDelete={fieldOperations.handleFieldDelete} onDragEnd={fieldOperations.handleDragEnd} showFormDetails={state.showFormDetails} setShowFormDetails={state.setShowFormDetails} />
                   </div>
                   
                   {/* Scrollable Form Fields */}
                   <div className="flex-1 overflow-y-auto p-6">
                     <div className="min-h-full">
-                      {currentPageFields.length > 0 ? (
-                        <FieldLayoutRenderer
-                          fields={currentPageFields}
-                          columnLayout={workingForm?.layout?.columns as (1 | 2 | 3) || state.columnLayout}
-                          selectedFieldId={state.selectedField?.id}
-                          highlightedFieldId={state.highlightedFieldId}
-                          onFieldClick={(field) => {
-                            state.setSelectedField(field);
-                            state.setShowFieldProperties(true);
-                          }}
-                          onFieldDelete={fieldOperations.handleFieldDelete}
-                          onDragEnd={fieldOperations.handleDragEnd}
-                        />
-                      ) : (
-                        <div className="text-center py-12 text-muted-foreground">
+                      {currentPageFields.length > 0 ? <FieldLayoutRenderer fields={currentPageFields} columnLayout={workingForm?.layout?.columns as (1 | 2 | 3) || state.columnLayout} selectedFieldId={state.selectedField?.id} highlightedFieldId={state.highlightedFieldId} onFieldClick={field => {
+                      state.setSelectedField(field);
+                      state.setShowFieldProperties(true);
+                    }} onFieldDelete={fieldOperations.handleFieldDelete} onDragEnd={fieldOperations.handleDragEnd} /> : <div className="text-center py-12 text-muted-foreground">
                           <div className="text-lg font-medium mb-2">No fields on this page yet</div>
                           <div className="text-sm">Add fields from the right panel to get started</div>
-                        </div>
-                      )}
+                        </div>}
                     </div>
                   </div>
                 </div>
@@ -717,12 +645,7 @@ function FormBuilderContent({
                 <div className="col-span-3 border-l bg-muted/30 flex flex-col">
                   <div className="flex-shrink-0 h-full overflow-y-auto">
                     <div className="p-4">
-                      <FieldTypesPanel
-                        fieldTypeSearch={state.fieldTypeSearch}
-                        setFieldTypeSearch={state.setFieldTypeSearch}
-                        onAddField={fieldOperations.handleAddField}
-                        disabled={state.isSaving}
-                      />
+                      <FieldTypesPanel fieldTypeSearch={state.fieldTypeSearch} setFieldTypeSearch={state.setFieldTypeSearch} onAddField={fieldOperations.handleAddField} disabled={state.isSaving} />
                     </div>
                   </div>
                 </div>
