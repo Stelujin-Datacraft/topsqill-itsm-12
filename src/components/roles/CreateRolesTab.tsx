@@ -354,63 +354,76 @@ export function CreateRolesTab() {
                           </div>
 
                           {/* Asset Level Permissions */}
-                          {assets.length > 0 && (
-                            <div className="space-y-2 ml-4">
-                              {assets.map(asset => (
-                                <div key={asset.id} className="flex items-center justify-between p-2 border rounded">
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-sm">{asset.name}</span>
-                                  </div>
-                                  <div className="flex gap-4">
-                                     {/* Create - Disabled for all assets */}
-                                     <div className="flex items-center space-x-2">
-                                       <Checkbox
-                                         checked={isPermissionChecked(selectedAssetType, asset.id, 'create')}
-                                         onCheckedChange={(checked) =>
-                                           handlePermissionChange(selectedAssetType, asset.id, 'create', checked as boolean)
-                                         }
-                                         disabled={true}
-                                       />
-                                       <Label className="text-sm">Create</Label>
-                                     </div>
-                                     
-                                     {/* Read - Now editable */}
-                                     <div className="flex items-center space-x-2">
-                                       <Checkbox
-                                         checked={isPermissionChecked(selectedAssetType, asset.id, 'read')}
-                                         onCheckedChange={(checked) =>
-                                           handlePermissionChange(selectedAssetType, asset.id, 'read', checked as boolean)
-                                         }
-                                       />
-                                       <Label className="text-sm">Read</Label>
-                                     </div>
-                                     
-                                     {/* Update */}
-                                     <div className="flex items-center space-x-2">
-                                       <Checkbox
-                                         checked={isPermissionChecked(selectedAssetType, asset.id, 'update')}
-                                         onCheckedChange={(checked) =>
-                                           handlePermissionChange(selectedAssetType, asset.id, 'update', checked as boolean)
-                                         }
-                                       />
-                                       <Label className="text-sm">Update</Label>
-                                     </div>
-                                     
-                                     {/* Delete */}
-                                     <div className="flex items-center space-x-2">
-                                       <Checkbox
-                                         checked={isPermissionChecked(selectedAssetType, asset.id, 'delete')}
-                                         onCheckedChange={(checked) =>
-                                           handlePermissionChange(selectedAssetType, asset.id, 'delete', checked as boolean)
-                                         }
-                                       />
-                                       <Label className="text-sm">Delete</Label>
-                                     </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+{assets.map(asset => {
+  const readChecked = isPermissionChecked(selectedAssetType, asset.id, 'read');
+  const updateChecked = isPermissionChecked(selectedAssetType, asset.id, 'update');
+  const deleteChecked = isPermissionChecked(selectedAssetType, asset.id, 'delete');
+
+  // Disable 'read' checkbox if either update or delete is checked
+  const disableRead = updateChecked || deleteChecked;
+
+  return (
+    <div key={asset.id} className="flex items-center justify-between p-2 border rounded">
+      <div className="flex items-center gap-3">
+        <span className="text-sm">{asset.name}</span>
+      </div>
+      <div className="flex gap-4">
+        {/* Create - Always disabled */}
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            checked={isPermissionChecked(selectedAssetType, asset.id, 'create')}
+            onCheckedChange={(checked) =>
+              handlePermissionChange(selectedAssetType, asset.id, 'create', checked as boolean)
+            }
+            disabled={true}
+          />
+          <Label className="text-sm">Create</Label>
+        </div>
+
+        {/* Read */}
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            checked={readChecked}
+            onCheckedChange={(checked) =>
+              handlePermissionChange(selectedAssetType, asset.id, 'read', checked as boolean)
+            }
+            disabled={disableRead}
+          />
+          <Label className="text-sm">Read</Label>
+        </div>
+
+        {/* Update */}
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            checked={updateChecked}
+            onCheckedChange={(checked) => {
+              if (checked && !readChecked) {
+                handlePermissionChange(selectedAssetType, asset.id, 'read', true);
+              }
+              handlePermissionChange(selectedAssetType, asset.id, 'update', checked as boolean);
+            }}
+          />
+          <Label className="text-sm">Update</Label>
+        </div>
+
+        {/* Delete */}
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            checked={deleteChecked}
+            onCheckedChange={(checked) => {
+              if (checked && !readChecked) {
+                handlePermissionChange(selectedAssetType, asset.id, 'read', true);
+              }
+              handlePermissionChange(selectedAssetType, asset.id, 'delete', checked as boolean);
+            }}
+          />
+          <Label className="text-sm">Delete</Label>
+        </div>
+      </div>
+    </div>
+  );
+})}
+
                         </div>
                       </CardContent>
                     </Card>
