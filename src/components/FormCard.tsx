@@ -18,7 +18,8 @@ import {
   XCircle,
   AlertCircle,
   Archive,
-  Trash2
+  Trash2,
+  Database
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -184,14 +185,14 @@ export function FormCard({
                 <Settings className="h-4 w-4" />
               </Button>
               
-              {canViewSubmissions && submissionCount > 0 && (
+              {canViewSubmissions && (
                 <FormSubmissionsDialog initialFormId={form.id}>
                   <Button 
                     size="sm" 
                     variant="outline"
-                    title="View Submissions"
+                    title="View Records"
                   >
-                    <FileText className="h-4 w-4" />
+                    <Database className="h-4 w-4" />
                   </Button>
                 </FormSubmissionsDialog>
               )}
@@ -287,11 +288,11 @@ export function FormCard({
                 Config
               </Button>
               
-              {canViewSubmissions && submissionCount > 0 && (
+              {canViewSubmissions && (
                 <FormSubmissionsDialog initialFormId={form.id}>
                   <Button size="sm" variant="outline" className="text-xs px-2 py-1 h-7">
-                    <FileText className="h-3 w-3 mr-1" />
-                    Data ({submissionCount})
+                    <Database className="h-3 w-3 mr-1" />
+                    Records
                   </Button>
                 </FormSubmissionsDialog>
               )}
@@ -371,6 +372,19 @@ export function FormCard({
               <Settings className="h-4 w-4" />
             </Button>
             
+            {canViewSubmissions && (
+              <FormSubmissionsDialog initialFormId={form.id}>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  title="View Records"
+                  className="flex-1 max-w-[60px]"
+                >
+                  <Database className="h-4 w-4" />
+                </Button>
+              </FormSubmissionsDialog>
+            )}
+            
             {canDelete && onDelete && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -404,14 +418,6 @@ export function FormCard({
             )}
           </div>
 
-          {canViewSubmissions && submissionCount > 0 && (
-            <FormSubmissionsDialog initialFormId={form.id}>
-              <Button size="sm" variant="outline" className="w-full mt-2">
-                <FileText className="h-4 w-4 mr-2" />
-                View Data ({submissionCount})
-              </Button>
-            </FormSubmissionsDialog>
-          )}
         </div>
       </CardContent>
     </Card>
