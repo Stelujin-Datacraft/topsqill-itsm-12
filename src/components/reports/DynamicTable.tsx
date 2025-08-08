@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useReports } from '@/hooks/useReports';
 import { useNavigate } from 'react-router-dom';
@@ -46,6 +46,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [isExpanded, setIsExpanded] = useState(false);
   
   // Custom hooks
   const { forms } = useReports();
@@ -335,10 +336,14 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
     );
   }
 
+  const containerClasses = isExpanded 
+    ? "fixed inset-0 z-50 bg-background p-4 space-y-6"
+    : "space-y-6";
+
   return (
-    <div className="space-y-6">
+    <div className={containerClasses}>
       {/* Analytics Section */}
-      <SubmissionAnalytics data={data} />
+      {!isExpanded && <SubmissionAnalytics data={data} />}
       
       <Card className="h-full flex flex-col">
         <CardHeader className="pb-3">
@@ -348,6 +353,14 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
               <Badge variant="secondary">
                 {filteredAndSortedData.length} records
               </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsExpanded(!isExpanded)}
+                title={isExpanded ? "Exit fullscreen" : "Expand fullscreen"}
+              >
+                {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </Button>
               <ExportDropdown data={exportData} disabled={filteredAndSortedData.length === 0} />
               <DynamicTableColumnSelector 
                 formFields={formFields}
@@ -417,12 +430,12 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
         </CardHeader>
       
       <CardContent className="flex-1 overflow-hidden">
-        <ScrollArea className="h-[600px]">
+        <ScrollArea className={isExpanded ? "h-[calc(100vh-200px)]" : "h-[600px]"}>
           <Table>
             <TableHeader>
               <TableRow>
                 {displayFields.map(field => (
-                  <TableHead key={field.id}>
+                  <TableHead key={field.id} style={{ minWidth: '200px' }}>
                     <div className="space-y-2">
                       <div className="flex items-center space-x-1">
                         <span className="font-medium">{field.label}</span>
@@ -445,11 +458,11 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                 ))}
                 {config.showMetadata && (
                   <>
-                    <TableHead>Submitted At</TableHead>
-                    <TableHead>Submitted By</TableHead>
+                    <TableHead style={{ minWidth: '200px' }}>Submitted At</TableHead>
+                    <TableHead style={{ minWidth: '200px' }}>Submitted By</TableHead>
                   </>
                 )}
-                <TableHead>Actions</TableHead>
+                <TableHead style={{ minWidth: '100px' }}>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -465,25 +478,25 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                  paginatedData.map((row) => (
                    <TableRow key={row.id}>
                      {displayFields.map(field => (
-                       <TableCell key={field.id}>
-                         <FormDataCell 
-                           value={row.submission_data?.[field.id]}
-                           fieldType={field.field_type || field.type}
-                           field={field}
-                         />
-                       </TableCell>
-                     ))}
-                    {config.showMetadata && (
-                      <>
-                        <TableCell>
-                          {new Date(row.submitted_at).toLocaleDateString()}
+                        <TableCell key={field.id} style={{ minWidth: '200px' }}>
+                          <FormDataCell 
+                            value={row.submission_data?.[field.id]}
+                            fieldType={field.field_type || field.type}
+                            field={field}
+                          />
                         </TableCell>
-                        <TableCell>
-                          {row.submitted_by || 'Anonymous'}
-                        </TableCell>
-                      </>
-                    )}
-                    <TableCell>
+                      ))}
+                     {config.showMetadata && (
+                       <>
+                         <TableCell style={{ minWidth: '200px' }}>
+                           {new Date(row.submitted_at).toLocaleDateString()}
+                         </TableCell>
+                         <TableCell style={{ minWidth: '200px' }}>
+                           {row.submitted_by || 'Anonymous'}
+                         </TableCell>
+                       </>
+                     )}
+                     <TableCell style={{ minWidth: '100px' }}>
                       <Button
                         variant="ghost"
                         size="sm"
