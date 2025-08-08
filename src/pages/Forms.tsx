@@ -47,13 +47,15 @@ const Forms = () => {
 
   const actions = (
     <div className="flex space-x-2">
-      <FormSubmissionsDialog>
-        <Button variant="outline">
-          <BarChart3 className="h-4 w-4 mr-2" />
-          View Data Tables
-        </Button>
-      </FormSubmissionsDialog>
-      <AssignedFormsDialog />
+      {canReadForms && (
+        <FormSubmissionsDialog>
+          <Button variant="outline">
+            <BarChart3 className="h-4 w-4 mr-2" />
+            View Data Tables
+          </Button>
+        </FormSubmissionsDialog>
+      )}
+      {canReadForms && <AssignedFormsDialog />}
       {canCreateForm && !permissionLoading && <CreateFormDialog />}
     </div>
   );
