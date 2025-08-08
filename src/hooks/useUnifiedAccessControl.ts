@@ -385,33 +385,11 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       console.log(`✅ Final decision: ${roleAllows ? 'GRANTED' : 'DENIED'}`);
       return roleAllows;
     } else {
-      // For general actions (like create), check if role has any permissions for this entity type
-      const hasAnyRolePermission = Object.keys(state.rolePermissions[entityType]).length > 0;
-      
-      if (!hasAnyRolePermission) {
-        console.log(`❌ Access denied: User has role but no permissions for ${entityType}`);
-        return false;
-      }
-
-      // Check if any role permission allows this action
-      const roleAllowsAction = Object.values(state.rolePermissions[entityType]).some(perm => {
-        switch (action) {
-          case 'create':
-            return perm.can_create;
-          case 'read':
-            return perm.can_read;
-          case 'update':
-            return perm.can_update;
-          case 'delete':
-            return perm.can_delete;
-          default:
-            return false;
-        }
-      });
-      
-      console.log(`🎭 Role allows general ${entityType} ${action}:`, roleAllowsAction);
-      console.log(`✅ Final decision: ${roleAllowsAction ? 'GRANTED' : 'DENIED'}`);
-      return roleAllowsAction;
+      // For general actions (like create), if user has top-level permission, grant access
+      // The role is only used for specific resource access, not general actions
+      console.log(`🎭 Role allows general ${entityType} ${action}: true (using top-level permission)`);
+      console.log(`✅ Final decision: GRANTED`);
+      return true;
     }
   };
 
