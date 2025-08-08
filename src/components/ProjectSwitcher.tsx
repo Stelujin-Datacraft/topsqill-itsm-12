@@ -42,9 +42,9 @@ export function ProjectSwitcher() {
                 <div className="font-medium">
                   {currentProject?.name || 'No Project Selected'}
                 </div>
-                <div className="text-xs text-muted-foreground">
+                {/*<div className="text-xs text-muted-foreground">
                   {currentProject?.description || 'Select a project to continue'}
-                </div>
+                </div>*/}
               </div>
             </div>
             <ChevronDown className="h-4 w-4 opacity-50" />

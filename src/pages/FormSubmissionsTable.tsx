@@ -115,9 +115,9 @@ export default function FormSubmissionsTable() {
                     {accessibleForms.map(form => <SelectItem key={form.id} value={form.id}>
                         <div className="flex items-center justify-between w-full">
                           <span>{form.name}</span>
-                          <Badge variant="secondary" className="ml-2">
+                          {/*<Badge variant="secondary" className="ml-2">
                             {submissions.length} submissions
-                          </Badge>
+                          </Badge>*/}
                         </div>
                       </SelectItem>)}
                   </SelectContent>
