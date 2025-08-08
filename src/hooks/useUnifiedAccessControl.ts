@@ -65,6 +65,12 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     try {
       setState(prev => ({ ...prev, loading: true }));
 
+      console.log('🔍 [ACCESS CONTROL] Loading permissions for:', {
+        projectId: targetProjectId,
+        userId: targetUserId,
+        currentProject: currentProject?.id
+      });
+
       // Load top-level permissions (no projects entity type)
       const { data: topLevelData, error: topLevelError } = await supabase
         .from('project_top_level_permissions')
@@ -76,6 +82,8 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       if (topLevelError) {
         console.error('Error loading top-level permissions:', topLevelError);
       }
+
+      console.log('📊 [ACCESS CONTROL] Raw top-level permissions data:', topLevelData);
 
       // Check admin status
       const { data: projectUserData, error: projectUserError } = await supabase
