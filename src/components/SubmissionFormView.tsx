@@ -108,7 +108,9 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
         organizationId: formData.organization_id,
         projectId: formData.project_id,
         status: formData.status as Form['status'],
-        fields: (formData.form_fields || []).map((field: any) => ({
+        fields: (formData.form_fields || [])
+          .sort((a: any, b: any) => (a.field_order || 0) - (b.field_order || 0)) // Sort by field_order
+          .map((field: any) => ({
           id: field.id,
           type: field.field_type as any,
           label: field.label,
