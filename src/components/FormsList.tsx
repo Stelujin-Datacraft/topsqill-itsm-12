@@ -272,21 +272,12 @@ export function FormsList() {
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{editButtonState.disabled ? editButtonState.tooltip : "Form Settings"}</p>
+                        
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                   <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteForm(form.id)} disabled={deleteButtonState.disabled} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{deleteButtonState.disabled ? deleteButtonState.tooltip : "Delete Form"}</p>
-                      </TooltipContent>
-                    </Tooltip>
+                    
                   </TooltipProvider>
                 </div>
               </div>
