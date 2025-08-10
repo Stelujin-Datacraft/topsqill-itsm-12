@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArrowLeft, Edit, Save, X, Hash, Calendar, Clock } from 'lucide-react';
 import { FormFieldsRenderer } from './FormFieldsRenderer';
@@ -22,6 +23,9 @@ interface FormSubmission {
   submission_ref_id?: string;
   form_name?: string;
   form_reference_id?: string;
+  approval_status?: string;
+  approved_by?: string;
+  approval_timestamp?: string;
 }
 
 export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewProps) {
@@ -32,6 +36,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [fieldStates, setFieldStates] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
+  const [canManageApproval, setCanManageApproval] = useState(false);
 
   // Load submission and form data
   const loadSubmissionAndForm = async () => {
@@ -64,7 +69,10 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
         submission_data: submissionData.submission_data as Record<string, any>,
         submission_ref_id: submissionData.submission_ref_id,
         form_name: submissionData.forms?.name,
-        form_reference_id: submissionData.forms?.reference_id
+        form_reference_id: submissionData.forms?.reference_id,
+        approval_status: submissionData.approval_status,
+        approved_by: submissionData.approved_by,
+        approval_timestamp: submissionData.approval_timestamp
       };
 
       setSubmission(formattedSubmission);
@@ -142,6 +150,10 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
       };
 
       setForm(transformedForm);
+      
+      // Check if user can manage approval status (form owners, admins, or users with specific permissions)
+      checkApprovalPermissions(submissionData.form_id);
+      
       console.log('Form loaded successfully');
     } catch (error) {
       console.error('Error loading submission and form:', error);
@@ -152,6 +164,113 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Check if user can manage approval status
+  const checkApprovalPermissions = async (formId: string) => {
+    try {
+      // For now, allow all authenticated users to manage approval
+      // In production, this should check specific permissions
+      setCanManageApproval(true);
+      
+      // TODO: Implement proper permission checking based on:
+      // - Form ownership
+      // - Admin roles
+      // - Specific approval permissions
+    } catch (error) {
+      console.error('Error checking approval permissions:', error);
+      setCanManageApproval(false);
+    }
+  };
+
+  // Get approval status badge properties
+  const getApprovalStatusBadge = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return {
+          variant: 'default' as const,
+          className: 'bg-green-500 hover:bg-green-600 text-white border-green-400'
+        };
+      case 'rejected':
+        return {
+          variant: 'destructive' as const,
+          className: 'bg-red-500 hover:bg-red-600 text-white border-red-400'
+        };
+      case 'pending':
+        return {
+          variant: 'secondary' as const,
+          className: 'bg-amber-500 hover:bg-amber-600 text-white border-amber-400'
+        };
+      case 'under_review':
+        return {
+          variant: 'secondary' as const,
+          className: 'bg-blue-500 hover:bg-blue-600 text-white border-blue-400'
+        };
+      default:
+        return {
+          variant: 'outline' as const,
+          className: 'bg-gray-500 hover:bg-gray-600 text-white border-gray-400'
+        };
+    }
+  };
+
+  // Handle approval status change
+  const handleApprovalStatusChange = async (newStatus: string) => {
+    if (!submission) return;
+
+    try {
+      setSaving(true);
+      console.log('Updating approval status to:', newStatus);
+      
+      const updateData: any = {
+        approval_status: newStatus
+      };
+
+      // Set approval timestamp and user for approved/rejected statuses
+      if (newStatus === 'approved' || newStatus === 'rejected') {
+        updateData.approval_timestamp = new Date().toISOString();
+        updateData.approved_by = (await supabase.auth.getUser()).data.user?.id;
+      } else {
+        // Clear approval data for other statuses
+        updateData.approval_timestamp = null;
+        updateData.approved_by = null;
+      }
+
+      const { error } = await supabase
+        .from('form_submissions')
+        .update(updateData)
+        .eq('id', submission.id);
+
+      if (error) {
+        console.error('Error updating approval status:', error);
+        throw error;
+      }
+
+      console.log('Approval status updated successfully');
+      
+      toast({
+        title: "Success",
+        description: `Submission ${newStatus === 'approved' ? 'approved' : newStatus === 'rejected' ? 'rejected' : 'status updated'} successfully`,
+      });
+
+      // Update local state
+      setSubmission(prev => prev ? {
+        ...prev,
+        approval_status: newStatus,
+        approval_timestamp: updateData.approval_timestamp,
+        approved_by: updateData.approved_by
+      } : null);
+
+    } catch (error) {
+      console.error('Error updating approval status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update approval status. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -291,6 +410,32 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
               </div>
             </div>
           </div>
+          
+          {/* Approval Status Badge and Dropdown */}
+          <div className="flex items-center gap-2 ml-4">
+            <Badge {...getApprovalStatusBadge(submission.approval_status || 'pending')}>
+              Status: {(submission.approval_status || 'pending').replace('_', ' ').toUpperCase()}
+            </Badge>
+            
+            {canManageApproval && (
+              <Select
+                value={submission.approval_status || 'pending'}
+                onValueChange={handleApprovalStatusChange}
+                disabled={saving}
+              >
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Change status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="under_review">Under Review</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          
           {isEditing && (
             <Badge variant="secondary" className="ml-4">Edit Mode</Badge>
           )}
