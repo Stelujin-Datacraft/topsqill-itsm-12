@@ -308,7 +308,10 @@ export function OptimizedFormDataTable({
             </Badge>
             {isCrossReference && <Dialog open={isSelectionModalOpen} onOpenChange={setIsSelectionModalOpen}>
                 <DialogTrigger asChild>
-                  
+                  <Button variant="outline" size="sm" onClick={handleModalOpen}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Select Records
+                  </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
                   <DialogHeader>
