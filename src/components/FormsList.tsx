@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { FileText, Eye, Edit, Trash2, Share, Settings, Calendar, User, Grid, List, Columns, Lock, Globe, Database } from 'lucide-react';
+import { FileText, Eye, Edit, Trash2, Share, Settings, Calendar, User, Grid, List, Columns, Lock, Globe, Database, Table } from 'lucide-react';
 import { format } from 'date-fns';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import NoProjectSelected from '@/components/NoProjectSelected';
@@ -245,7 +245,7 @@ export function FormsList() {
                 </div>
                 <div className="flex items-center space-x-1">
                   <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Preview Form" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
-                    <Eye className="h-4 w-4" />
+                    <Table className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => handleViewRecords(form.id)} title="View Records" className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
                     <Database className="h-4 w-4" />
