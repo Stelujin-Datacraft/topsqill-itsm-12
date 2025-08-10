@@ -161,7 +161,7 @@ export function FormsList() {
                       {form.status.replace('_', ' ')}
                     </Badge>
                     <Badge variant={form.isPublic ? 'default' : 'secondary'} className={form.isPublic ? 'bg-cyan-500 hover:bg-cyan-600 text-white border-cyan-400' : 'bg-slate-600 hover:bg-slate-700 text-white border-slate-500'}>
-                      {form.isPublic ? <><Globe className="h-3 w-3 mr-1" />Public</> : <><Lock className="h-3 w-3 mr-1" />Private</>}
+                      {form.isPublic ? <>Public</> : <><Lock className="h-3 w-3 mr-1" />Private</>}
                     </Badge>
                   </div>
                 </div>
