@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { FileText, Eye, Edit, Trash2, Share, Settings, Calendar, User, Grid, List, Columns, Lock, Globe, Database, Table } from 'lucide-react';
+import { FileText, Eye, Edit, Trash2, Share, Settings, Calendar, User, Grid, List, Columns, Lock, Globe, Database, Table, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import NoProjectSelected from '@/components/NoProjectSelected';
@@ -166,8 +166,8 @@ export function FormsList() {
                   </div>
                 </div>
                 <div className="flex space-x-1">
-                  <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Preview Form" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
-                    <Eye className="h-4 w-4" />
+                  <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                    <Plus className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => handleViewRecords(form.id)} title="View Records" className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
                     <Database className="h-4 w-4" />
@@ -244,8 +244,8 @@ export function FormsList() {
                   </div>
                 </div>
                 <div className="flex items-center space-x-1">
-                  <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Preview Form" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
-                    <Table className="h-4 w-4" />
+                  <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                    <Plus className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => handleViewRecords(form.id)} title="View Records" className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
                     <Database className="h-4 w-4" />
@@ -360,8 +360,8 @@ export function FormsList() {
                         </div>
                         <div className="flex justify-between gap-1">
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
-                              <Eye className="h-3 w-3" />
+                            <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record" className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                              <Plus className="h-3 w-3" />
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => handleViewRecords(form.id)} className="h-8 w-8 p-0 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
                               <Database className="h-3 w-3" />
