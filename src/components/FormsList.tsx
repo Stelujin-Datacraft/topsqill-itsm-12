@@ -272,12 +272,9 @@ export function FormsList() {
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        
+                        <p>{editButtonState.disabled ? editButtonState.tooltip : "Form Settings"}</p>
                       </TooltipContent>
                     </Tooltip>
-                  </TooltipProvider>
-                  <TooltipProvider>
-                    
                   </TooltipProvider>
                 </div>
               </div>
