@@ -9,13 +9,15 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useReports } from '@/hooks/useReports';
 import { useNavigate } from 'react-router-dom';
 import { DynamicTableColumnSelector } from './DynamicTableColumnSelector';
 import { SubmissionAnalytics } from './SubmissionAnalytics';
 import { FormDataCell } from './FormDataCell';
+import { SubmittedByCell } from './SubmittedByCell';
+import { DeleteSubmissionButton } from './DeleteSubmissionButton';
 import { ExportDropdown } from './ExportDropdown';
 import { SortingControls, SortConfig } from './SortingControls';
 import { ComplexFilter, FilterGroup } from '@/components/ui/complex-filter';
@@ -221,7 +223,63 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
 
   // Regular functions and event handlers
   const handleViewSubmission = (submissionId: string) => {
-    navigate(`/submissions/${submissionId}`);
+    navigate(`/submission/${submissionId}`);
+  };
+
+  const handleDeleteSubmission = async (submissionId: string) => {
+    try {
+      const { error } = await supabase
+        .from('form_submissions')
+        .delete()
+        .eq('id', submissionId);
+      
+      if (error) {
+        console.error('Error deleting submission:', error);
+        return;
+      }
+      
+      // Reload data after deletion
+      loadData();
+    } catch (error) {
+      console.error('Error deleting submission:', error);
+    }
+  };
+
+  const checkDeletePermission = async (submissionId: string): Promise<boolean> => {
+    try {
+      const { data: submission } = await supabase
+        .from('form_submissions')
+        .select('form_id')
+        .eq('id', submissionId)
+        .single();
+      
+      if (!submission) return false;
+      
+      const { data: form } = await supabase
+        .from('forms')
+        .select('created_by, organization_id')
+        .eq('id', submission.form_id)
+        .single();
+      
+      if (!form) return false;
+      
+      const { data: user } = await supabase.auth.getUser();
+      if (!user?.user) return false;
+      
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('email, role, organization_id')
+        .eq('id', user.user.id)
+        .single();
+      
+      if (!profile) return false;
+      
+      return form.created_by === profile.email || 
+             (profile.role === 'admin' && form.organization_id === profile.organization_id);
+    } catch (error) {
+      console.error('Error checking delete permission:', error);
+      return false;
+    }
   };
 
   const loadFormFields = async () => {
@@ -434,14 +492,14 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
         <ScrollArea className={isExpanded ? "h-[calc(100vh-200px)]" : "h-[600px]"}>
             <div className="rounded-xl border border-border shadow-sm bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/60 overflow-hidden">
               <Table>
-            <TableHeader className="sticky top-0 z-20 bg-accent/30 backdrop-blur">
-              <TableRow className="border-b h-12">
+            <TableHeader className="sticky top-0 z-20 bg-gradient-to-b from-background/95 to-background/90 backdrop-blur-sm border-b-2 border-primary/20 shadow-sm">
+              <TableRow className="border-b h-14 hover:bg-transparent">
                 {displayFields.map(field => (
-                  <TableHead key={field.id} className="uppercase text-xs tracking-wide text-muted-foreground" style={{ minWidth: '200px' }}>
-                    <div className="flex items-center gap-1">
-                      <span className="font-medium">{field.label}</span>
+                  <TableHead key={field.id} className="uppercase text-xs tracking-wider font-semibold text-foreground/90" style={{ minWidth: '200px' }}>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">{field.label}</span>
                       {config.enableSorting && sortConfigs.find(s => s.field === field.id) && (
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
                           {sortConfigs.findIndex(s => s.field === field.id) + 1}
                         </Badge>
                       )}
@@ -451,7 +509,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className={`${columnFilters[field.id] ? 'text-primary' : 'text-muted-foreground'} h-6 w-6 p-0 hover:text-foreground`}
+                              className={`${columnFilters[field.id] ? 'text-primary bg-primary/10' : 'text-foreground/70'} h-7 w-7 p-0 hover:text-primary hover:bg-primary/10 transition-colors`}
                               aria-label={`Filter ${field.label}`}
                               title={`Filter ${field.label}`}
                             >
@@ -481,11 +539,11 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                 ))}
                 {config.showMetadata && (
                   <>
-                    <TableHead style={{ minWidth: '200px' }}>Submitted At</TableHead>
-                    <TableHead style={{ minWidth: '200px' }}>Submitted By</TableHead>
+                    <TableHead className="uppercase text-xs tracking-wider font-semibold text-foreground/90" style={{ minWidth: '200px' }}>Submitted At</TableHead>
+                    <TableHead className="uppercase text-xs tracking-wider font-semibold text-foreground/90" style={{ minWidth: '200px' }}>Submitted By</TableHead>
                   </>
                 )}
-                <TableHead style={{ minWidth: '100px' }}>Actions</TableHead>
+                <TableHead className="uppercase text-xs tracking-wider font-semibold text-foreground/90" style={{ minWidth: '140px' }}>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -509,27 +567,34 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                           />
                         </TableCell>
                       ))}
-                     {config.showMetadata && (
-                       <>
-                         <TableCell style={{ minWidth: '200px' }}>
-                           {new Date(row.submitted_at).toLocaleDateString()}
-                         </TableCell>
-                         <TableCell style={{ minWidth: '200px' }}>
-                           {row.submitted_by || 'Anonymous'}
-                         </TableCell>
-                       </>
-                     )}
-                     <TableCell style={{ minWidth: '100px' }}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewSubmission(row.id)}
-                        className="h-8 w-8 p-0"
-                        title="View submission details"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+                      {config.showMetadata && (
+                        <>
+                          <TableCell style={{ minWidth: '200px' }}>
+                            {new Date(row.submitted_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell style={{ minWidth: '200px' }}>
+                            <SubmittedByCell submissionData={row} />
+                          </TableCell>
+                        </>
+                      )}
+                      <TableCell style={{ minWidth: '140px' }}>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewSubmission(row.id)}
+                            className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
+                            title="View submission details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <DeleteSubmissionButton 
+                            submissionId={row.id}
+                            onDelete={() => handleDeleteSubmission(row.id)}
+                            checkPermission={() => checkDeletePermission(row.id)}
+                          />
+                        </div>
+                      </TableCell>
                   </TableRow>
                 ))
               )}

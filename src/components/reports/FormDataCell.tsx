@@ -16,7 +16,7 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
   // Handle null/undefined values
   if (value === null || value === undefined || value === '') {
     return (
-      <Badge variant="outline" className="italic opacity-70">N/A</Badge>
+      <Badge variant="outline" className="italic opacity-70 text-muted-foreground/80 bg-muted/50">N/A</Badge>
     );
   }
 
@@ -122,7 +122,7 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
     const displayValue = selectedOption?.label || value;
     
     return (
-      <Badge variant="outline" className="text-xs">
+      <Badge variant="secondary" className="text-xs bg-secondary/80 text-secondary-foreground font-medium">
         {displayValue}
       </Badge>
     );
@@ -139,7 +139,7 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
               : null;
             const displayValue = selectedOption?.label || item;
             return (
-              <Badge key={index} variant="secondary" className="text-xs">
+              <Badge key={index} variant="secondary" className="text-xs bg-primary/10 text-primary border-primary/30">
                 {displayValue}
               </Badge>
             );
@@ -147,7 +147,7 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
         </div>
       );
     }
-    return <Badge variant="secondary" className="text-xs">{value}</Badge>;
+    return <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">{value}</Badge>;
   }
 
   // Handle URL fields
@@ -155,7 +155,7 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
     return (
       <Badge
         variant="outline"
-        className="cursor-pointer hover:opacity-90"
+        className="cursor-pointer hover:opacity-90 border-green-200 text-green-700 bg-green-50 hover:bg-green-100"
         onClick={() => window.open(value, '_blank')}
         title={value}
       >
@@ -169,8 +169,8 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
   if (fieldType === 'email' && value) {
     return (
       <Badge
-        variant="secondary"
-        className="cursor-pointer hover:opacity-90"
+        variant="outline"
+        className="cursor-pointer hover:opacity-90 border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100"
         onClick={() => (window.location.href = `mailto:${value}`)}
         title={`Email ${value}`}
       >
@@ -232,7 +232,7 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
   // Handle non-input fields (headers, descriptions, etc.)
   if (['header', 'description', 'section-break', 'horizontal-line'].includes(fieldType)) {
     return (
-      <Badge variant="outline" className="italic opacity-70">N/A</Badge>
+      <Badge variant="outline" className="italic opacity-70 text-muted-foreground/80 bg-muted/50">N/A</Badge>
     );
   }
 
