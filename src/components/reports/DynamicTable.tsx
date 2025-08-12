@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -431,27 +432,49 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       
       <CardContent className="flex-1 overflow-hidden">
         <ScrollArea className={isExpanded ? "h-[calc(100vh-200px)]" : "h-[600px]"}>
-          <Table>
+            <div className="rounded-xl border border-border shadow-sm bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/60 overflow-hidden">
+              <Table>
             <TableHeader className="sticky top-0 z-20 bg-accent/30 backdrop-blur">
-              <TableRow className="border-b">
+              <TableRow className="border-b h-12">
                 {displayFields.map(field => (
                   <TableHead key={field.id} className="uppercase text-xs tracking-wide text-muted-foreground" style={{ minWidth: '200px' }}>
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-1">
-                        <span className="font-medium">{field.label}</span>
-                        {config.enableSorting && sortConfigs.find(s => s.field === field.id) && (
-                          <Badge variant="outline" className="text-xs">
-                            {sortConfigs.findIndex(s => s.field === field.id) + 1}
-                          </Badge>
-                        )}
-                      </div>
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium">{field.label}</span>
+                      {config.enableSorting && sortConfigs.find(s => s.field === field.id) && (
+                        <Badge variant="outline" className="text-xs">
+                          {sortConfigs.findIndex(s => s.field === field.id) + 1}
+                        </Badge>
+                      )}
                       {config.enableFiltering && (
-                        <Input
-                          placeholder={`Filter ${field.label}...`}
-                          value={columnFilters[field.id] || ''}
-                          onChange={(e) => handleColumnFilter(field.id, e.target.value)}
-                          className="h-8 text-xs"
-                        />
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={`${columnFilters[field.id] ? 'text-primary' : 'text-muted-foreground'} h-6 w-6 p-0 hover:text-foreground`}
+                              aria-label={`Filter ${field.label}`}
+                              title={`Filter ${field.label}`}
+                            >
+                              <Filter className="h-3.5 w-3.5" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent align="start" className="w-64">
+                            <div className="space-y-2">
+                              <Input
+                                placeholder={`Filter ${field.label}...`}
+                                value={columnFilters[field.id] || ''}
+                                onChange={(e) => handleColumnFilter(field.id, e.target.value)}
+                              />
+                              {columnFilters[field.id] && (
+                                <div className="flex justify-end">
+                                  <Button variant="ghost" size="sm" onClick={() => handleColumnFilter(field.id, '')}>
+                                    Clear
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       )}
                     </div>
                   </TableHead>
@@ -511,7 +534,8 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                 ))
               )}
             </TableBody>
-          </Table>
+            </Table>
+            </div>
         </ScrollArea>
       </CardContent>
       
