@@ -15,7 +15,9 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
 
   // Handle null/undefined values
   if (value === null || value === undefined || value === '') {
-    return <span className="text-muted-foreground italic">N/A</span>;
+    return (
+      <Badge variant="outline" className="italic opacity-70">N/A</Badge>
+    );
   }
 
   // Handle cross-reference fields
@@ -151,27 +153,29 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
   // Handle URL fields
   if (fieldType === 'url' && value) {
     return (
-      <Button
-        variant="ghost"
-        size="sm"
+      <Badge
+        variant="outline"
+        className="cursor-pointer hover:opacity-90"
         onClick={() => window.open(value, '_blank')}
-        className="h-8 p-1"
+        title={value}
       >
         <LinkIcon className="h-3 w-3 mr-1" />
         <span className="text-xs">Open</span>
-      </Button>
+      </Badge>
     );
   }
 
   // Handle email fields
   if (fieldType === 'email' && value) {
     return (
-      <a 
-        href={`mailto:${value}`}
-        className="text-sm text-primary hover:underline"
+      <Badge
+        variant="secondary"
+        className="cursor-pointer hover:opacity-90"
+        onClick={() => (window.location.href = `mailto:${value}`)}
+        title={`Email ${value}`}
       >
         {value}
-      </a>
+      </Badge>
     );
   }
 
@@ -227,7 +231,9 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
 
   // Handle non-input fields (headers, descriptions, etc.)
   if (['header', 'description', 'section-break', 'horizontal-line'].includes(fieldType)) {
-    return <span className="text-muted-foreground italic">N/A</span>;
+    return (
+      <Badge variant="outline" className="italic opacity-70">N/A</Badge>
+    );
   }
 
   // Handle arrays

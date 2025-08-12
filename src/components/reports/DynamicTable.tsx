@@ -432,10 +432,10 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       <CardContent className="flex-1 overflow-hidden">
         <ScrollArea className={isExpanded ? "h-[calc(100vh-200px)]" : "h-[600px]"}>
           <Table>
-            <TableHeader>
-              <TableRow>
+            <TableHeader className="sticky top-0 z-20 bg-accent/30 backdrop-blur">
+              <TableRow className="border-b">
                 {displayFields.map(field => (
-                  <TableHead key={field.id} style={{ minWidth: '200px' }}>
+                  <TableHead key={field.id} className="uppercase text-xs tracking-wide text-muted-foreground" style={{ minWidth: '200px' }}>
                     <div className="space-y-2">
                       <div className="flex items-center space-x-1">
                         <span className="font-medium">{field.label}</span>
@@ -476,7 +476,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                 </TableRow>
               ) : (
                  paginatedData.map((row) => (
-                   <TableRow key={row.id}>
+                   <TableRow key={row.id} className="hover:bg-accent/10 transition-colors">
                      {displayFields.map(field => (
                         <TableCell key={field.id} style={{ minWidth: '200px' }}>
                           <FormDataCell 
