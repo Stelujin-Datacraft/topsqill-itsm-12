@@ -1,151 +1,347 @@
 
+import React from 'react';
+import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, Building2, Users, Shield, Zap, BarChart3, Workflow } from 'lucide-react';
+import { 
+  ArrowRight, Building2, Users, Shield, Zap, BarChart3, Workflow, 
+  Database, Brain, Sparkles, TrendingUp, Globe, CheckCircle,
+  LineChart, Table, GitBranch, Code, Star, Award
+} from 'lucide-react';
+import ChartsPreview from '@/components/landing/ChartsPreview';
+import SQLDemo from '@/components/landing/SQLDemo';
+import FormBuilderMini from '@/components/landing/FormBuilderMini';
+import WorkflowPreview from '@/components/landing/WorkflowPreview';
+import FutureRoadmap from '@/components/landing/FutureRoadmap';
+import InvestorSection from '@/components/landing/InvestorSection';
+import FAQSection from '@/components/landing/FAQSection';
 
 const Index = () => {
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Topsqill",
+    "description": "Enterprise Form Management Platform with workflow automation, analytics, and SQL querying",
+    "url": "https://topsqill.com",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "offers": {
+      "@type": "Offer",
+      "price": "49.00",
+      "priceCurrency": "USD"
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.8",
+      "reviewCount": "150"
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
-      {/* Navigation */}
-      <nav className="border-b bg-background/80 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">T</span>
+    <>
+      <Helmet>
+        <title>Topsqill - Enterprise Form Platform with AI & Workflow Automation</title>
+        <meta name="description" content="Build, automate, and analyze enterprise forms with advanced workflows, SQL querying, and AI-powered insights. Trusted by 500+ organizations worldwide." />
+        <meta name="keywords" content="enterprise forms, workflow automation, form builder, SQL querying, business process automation, no-code forms, enterprise software" />
+        <link rel="canonical" href="https://topsqill.com" />
+        <script type="application/ld+json">
+          {JSON.stringify(structuredData)}
+        </script>
+      </Helmet>
+
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+        {/* Navigation */}
+        <nav className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
+          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <img 
+                src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png" 
+                alt="Topsqill Logo" 
+                className="w-10 h-10 object-contain"
+              />
+              <span className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                Topsqill
+              </span>
             </div>
-            <span className="text-2xl font-bold">Topsqill</span>
+            <div className="hidden md:flex items-center space-x-6">
+              <a href="#features" className="text-foreground hover:text-primary transition-colors">Features</a>
+              <a href="#showcase" className="text-foreground hover:text-primary transition-colors">Showcase</a>
+              <a href="#roadmap" className="text-foreground hover:text-primary transition-colors">AI Roadmap</a>
+              <a href="#investors" className="text-foreground hover:text-primary transition-colors">Investors</a>
+              <a href="#faq" className="text-foreground hover:text-primary transition-colors">FAQ</a>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Link to="/auth">
+                <Button variant="outline" size="sm">Sign In</Button>
+              </Link>
+              <Link to="/auth">
+                <Button size="sm">
+                  Start Free Trial
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
           </div>
-          <div className="flex items-center space-x-4">
-            <Link to="/auth">
-              <Button variant="outline">Sign In</Button>
-            </Link>
-            <Link to="/auth">
-              <Button>Get Started</Button>
-            </Link>
+        </nav>
+
+        {/* Hero Section */}
+        <main>
+          <section className="container mx-auto px-4 py-20 text-center">
+            <div className="flex flex-wrap justify-center gap-2 mb-6">
+              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                <CheckCircle className="w-3 h-3 mr-1" />
+                SOC 2 Compliant
+              </Badge>
+              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                <Star className="w-3 h-3 mr-1" />
+                4.8/5 Rating
+              </Badge>
+              <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                <Award className="w-3 h-3 mr-1" />
+                Enterprise Ready
+              </Badge>
+            </div>
+            
+            <h1 className="text-4xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent leading-tight">
+              Enterprise Forms<br />
+              <span className="text-3xl md:text-5xl">Meet AI Automation</span>
+            </h1>
+            
+            <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-4xl mx-auto leading-relaxed">
+              Build intelligent forms, automate complex workflows, and query data with SQL. 
+              The only platform that scales from startup to Fortune 500 with AI-powered insights.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+              <Link to="/auth">
+                <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70">
+                  Start Free 30-Day Trial
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+              <Button variant="outline" size="lg" className="w-full sm:w-auto">
+                <Globe className="mr-2 h-5 w-5" />
+                Watch 2-Min Demo
+              </Button>
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-8 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                500+ Organizations
+              </div>
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                50K+ Forms Created
+              </div>
+              <div className="flex items-center gap-2">
+                <Globe className="h-4 w-4" />
+                25+ Countries
+              </div>
+            </div>
+          </section>
+
+          {/* Capabilities Showcase */}
+          <section id="showcase" className="py-20 bg-gradient-to-br from-secondary/5 to-background">
+            <div className="container mx-auto px-4">
+              <div className="text-center mb-16">
+                <Badge variant="secondary" className="mb-4">Live Previews</Badge>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                  See the Platform in Action
+                </h2>
+                <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+                  Interactive examples of our core features working together
+                </p>
+              </div>
+
+              <div className="space-y-16">
+                <ChartsPreview />
+                <SQLDemo />
+                <FormBuilderMini />
+                <WorkflowPreview />
+              </div>
+            </div>
+          </section>
+
+          {/* Core Features */}
+          <section id="features" className="py-20">
+            <div className="container mx-auto px-4">
+              <div className="text-center mb-16">
+                <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                  Everything you need for enterprise forms
+                </h2>
+                <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+                  From simple feedback forms to complex multi-step workflows
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {[
+                  {
+                    icon: Building2,
+                    title: "Organization Management",
+                    description: "Multi-tenant architecture with organization-based user management, roles, and permissions that scale with your business."
+                  },
+                  {
+                    icon: Users,
+                    title: "Advanced User Controls",
+                    description: "Admin approval workflows, role-based access control, user request management, and enterprise SSO integration."
+                  },
+                  {
+                    icon: Shield,
+                    title: "Enterprise Security",
+                    description: "Row-level security, organization isolation, SOC 2 compliance, GDPR compliance, and comprehensive audit logs."
+                  },
+                  {
+                    icon: Zap,
+                    title: "Smart Form Builder",
+                    description: "Drag-and-drop builder with conditional logic, validation rules, custom fields, and real-time collaboration."
+                  },
+                  {
+                    icon: Database,
+                    title: "SQL Query Engine",
+                    description: "Query your form data directly with SQL. Create complex reports, join data, and export results instantly."
+                  },
+                  {
+                    icon: Workflow,
+                    title: "Visual Workflows",
+                    description: "Automate approvals, notifications, integrations, and business processes with our visual workflow designer."
+                  },
+                  {
+                    icon: BarChart3,
+                    title: "Advanced Analytics",
+                    description: "Real-time dashboards, custom reports, submission tracking, and powerful data visualization tools."
+                  },
+                  {
+                    icon: Brain,
+                    title: "AI Integration Ready",
+                    description: "Platform designed for AI features including form optimization, predictive analytics, and intelligent automation."
+                  },
+                  {
+                    icon: Code,
+                    title: "Developer Tools",
+                    description: "REST APIs, webhooks, custom integrations, and white-label options for seamless system integration."
+                  }
+                ].map((feature, index) => (
+                  <Card key={index} className="hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+                    <CardHeader>
+                      <feature.icon className="h-12 w-12 text-primary mb-4" />
+                      <CardTitle className="text-xl">{feature.title}</CardTitle>
+                      <CardDescription className="text-base leading-relaxed">
+                        {feature.description}
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Future Roadmap */}
+          <section id="roadmap">
+            <FutureRoadmap />
+          </section>
+
+          {/* Investor Section */}
+          <section id="investors">
+            <InvestorSection />
+          </section>
+
+          {/* FAQ Section */}
+          <section id="faq">
+            <FAQSection />
+          </section>
+
+          {/* Final CTA Section */}
+          <section className="py-20 bg-gradient-to-r from-primary via-primary/90 to-secondary text-primary-foreground">
+            <div className="container mx-auto px-4 text-center">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                Ready to transform your forms?
+              </h2>
+              <p className="text-xl mb-8 max-w-2xl mx-auto opacity-90">
+                Join 500+ organizations using Topsqill to automate their business processes
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link to="/auth">
+                  <Button size="lg" variant="secondary" className="w-full sm:w-auto">
+                    Start Free Trial - No Credit Card
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                </Link>
+                <Button size="lg" variant="outline" className="w-full sm:w-auto border-white text-white hover:bg-white hover:text-primary">
+                  Schedule Enterprise Demo
+                </Button>
+              </div>
+              <div className="mt-8 text-sm opacity-75">
+                30-day free trial • Cancel anytime • Enterprise support included
+              </div>
+            </div>
+          </section>
+        </main>
+
+        {/* Footer */}
+        <footer className="border-t bg-background">
+          <div className="container mx-auto px-4 py-12">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+              <div>
+                <div className="flex items-center space-x-3 mb-4">
+                  <img 
+                    src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png" 
+                    alt="Topsqill Logo" 
+                    className="w-8 h-8 object-contain"
+                  />
+                  <span className="text-xl font-bold">Topsqill</span>
+                </div>
+                <p className="text-muted-foreground mb-4">
+                  Enterprise form platform powering the next generation of business automation.
+                </p>
+                <div className="flex space-x-4">
+                  <a href="#" className="text-muted-foreground hover:text-primary">Twitter</a>
+                  <a href="#" className="text-muted-foreground hover:text-primary">LinkedIn</a>
+                  <a href="#" className="text-muted-foreground hover:text-primary">GitHub</a>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="font-semibold mb-4">Product</h3>
+                <ul className="space-y-2 text-muted-foreground">
+                  <li><a href="#" className="hover:text-primary">Features</a></li>
+                  <li><a href="#" className="hover:text-primary">Pricing</a></li>
+                  <li><a href="#" className="hover:text-primary">Security</a></li>
+                  <li><a href="#" className="hover:text-primary">Integrations</a></li>
+                </ul>
+              </div>
+              
+              <div>
+                <h3 className="font-semibold mb-4">Company</h3>
+                <ul className="space-y-2 text-muted-foreground">
+                  <li><a href="#" className="hover:text-primary">About</a></li>
+                  <li><a href="#" className="hover:text-primary">Careers</a></li>
+                  <li><a href="#" className="hover:text-primary">Press</a></li>
+                  <li><a href="#" className="hover:text-primary">Contact</a></li>
+                </ul>
+              </div>
+              
+              <div>
+                <h3 className="font-semibold mb-4">Resources</h3>
+                <ul className="space-y-2 text-muted-foreground">
+                  <li><a href="#" className="hover:text-primary">Documentation</a></li>
+                  <li><a href="#" className="hover:text-primary">API Reference</a></li>
+                  <li><a href="#" className="hover:text-primary">Support</a></li>
+                  <li><a href="#" className="hover:text-primary">Status</a></li>
+                </ul>
+              </div>
+            </div>
+            
+            <div className="border-t mt-8 pt-8 text-center text-muted-foreground">
+              <p>&copy; 2025 Topsqill. All rights reserved. | Privacy Policy | Terms of Service</p>
+            </div>
           </div>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20 text-center">
-        <Badge variant="secondary" className="mb-4">
-          Enterprise Form Management Platform
-        </Badge>
-        <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-          Build, Manage & Scale Your Forms
-        </h1>
-        <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-          Create dynamic forms with advanced workflows, user management, and powerful analytics. 
-          Perfect for organizations that need enterprise-grade form solutions.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link to="/auth">
-            <Button size="lg" className="w-full sm:w-auto">
-              Register Your Organization
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
-          <Link to="/auth">
-            <Button variant="outline" size="lg" className="w-full sm:w-auto">
-              Join Existing Organization
-            </Button>
-          </Link>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="container mx-auto px-4 py-20">
-        <h2 className="text-3xl font-bold text-center mb-12">
-          Everything you need for enterprise forms
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <Building2 className="h-12 w-12 text-primary mb-4" />
-              <CardTitle>Organization Management</CardTitle>
-              <CardDescription>
-                Multi-tenant architecture with organization-based user management and permissions
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <Users className="h-12 w-12 text-primary mb-4" />
-              <CardTitle>User Administration</CardTitle>
-              <CardDescription>
-                Admin approval workflows, role-based access control, and user request management
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <Shield className="h-12 w-12 text-primary mb-4" />
-              <CardTitle>Advanced Security</CardTitle>
-              <CardDescription>
-                Row-level security, organization isolation, and comprehensive access controls
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <Zap className="h-12 w-12 text-primary mb-4" />
-              <CardTitle>Dynamic Forms</CardTitle>
-              <CardDescription>
-                Drag-and-drop form builder with conditional logic, validation rules, and custom fields
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <BarChart3 className="h-12 w-12 text-primary mb-4" />
-              <CardTitle>Analytics & Reports</CardTitle>
-              <CardDescription>
-                Comprehensive form analytics, submission tracking, and custom reporting dashboards
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <Workflow className="h-12 w-12 text-primary mb-4" />
-              <CardTitle>Workflow Automation</CardTitle>
-              <CardDescription>
-                Automated workflows, notifications, and integrations with your existing systems
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="bg-primary/5 py-20">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4">Ready to get started?</h2>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Join thousands of organizations already using Topsqill to manage their forms and workflows.
-          </p>
-          <Link to="/auth">
-            <Button size="lg">
-              Start Your Free Trial
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t bg-background/80 backdrop-blur-sm py-8">
-        <div className="container mx-auto px-4 text-center text-muted-foreground">
-          <p>&copy; 2024 Topsqill. All rights reserved.</p>
-        </div>
-      </footer>
-    </div>
+        </footer>
+      </div>
+    </>
   );
 };
 
