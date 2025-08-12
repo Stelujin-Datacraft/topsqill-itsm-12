@@ -1,6 +1,5 @@
 
-import React from 'react';
-import { Helmet } from 'react-helmet-async';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,37 +18,12 @@ import InvestorSection from '@/components/landing/InvestorSection';
 import FAQSection from '@/components/landing/FAQSection';
 
 const Index = () => {
-  const structuredData = {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "Topsqill",
-    "description": "Enterprise Form Management Platform with workflow automation, analytics, and SQL querying",
-    "url": "https://topsqill.com",
-    "applicationCategory": "BusinessApplication",
-    "operatingSystem": "Web",
-    "offers": {
-      "@type": "Offer",
-      "price": "49.00",
-      "priceCurrency": "USD"
-    },
-    "aggregateRating": {
-      "@type": "AggregateRating",
-      "ratingValue": "4.8",
-      "reviewCount": "150"
-    }
-  };
+  useEffect(() => {
+    // Set the page title dynamically
+    document.title = 'Topsqill - Enterprise Form Platform with AI & Workflow Automation';
+  }, []);
 
   return (
-    <>
-      <Helmet>
-        <title>Topsqill - Enterprise Form Platform with AI & Workflow Automation</title>
-        <meta name="description" content="Build, automate, and analyze enterprise forms with advanced workflows, SQL querying, and AI-powered insights. Trusted by 500+ organizations worldwide." />
-        <meta name="keywords" content="enterprise forms, workflow automation, form builder, SQL querying, business process automation, no-code forms, enterprise software" />
-        <link rel="canonical" href="https://topsqill.com" />
-        <script type="application/ld+json">
-          {JSON.stringify(structuredData)}
-        </script>
-      </Helmet>
 
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
         {/* Navigation */}
@@ -341,7 +315,6 @@ const Index = () => {
           </div>
         </footer>
       </div>
-    </>
   );
 };
 
