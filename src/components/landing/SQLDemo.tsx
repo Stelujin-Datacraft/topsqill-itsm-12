@@ -1,7 +1,7 @@
 import React, { Suspense, useMemo, useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { TableDemo } from "./DataTablePreview";
+// Remove the TableDemo import since we have a separate DataTablePreview component
 
 const CodeMirror = React.lazy(() => import("@uiw/react-codemirror"));
 import { sql as sqlLang } from "@codemirror/lang-sql";
@@ -61,7 +61,29 @@ export default function SQLDemo() {
             </div>
           </div>
           <div>
-            <TableDemo rows={result} />
+            <div className="rounded border bg-background p-4">
+              <h4 className="font-medium mb-3">Query Results</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      {Object.keys(result[0] || {}).map(key => (
+                        <th key={key} className="text-left p-2 font-medium">{key}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.map((row, i) => (
+                      <tr key={i} className="border-b">
+                        {Object.values(row).map((val, j) => (
+                          <td key={j} className="p-2">{String(val)}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -18,6 +18,7 @@ import FutureRoadmap from '@/components/landing/FutureRoadmap';
 import InvestorSection from '@/components/landing/InvestorSection';
 import FAQSection from '@/components/landing/FAQSection';
 import AnnouncementHistory from '@/components/landing/AnnouncementHistory';
+import DataTablePreview from '@/components/landing/DataTablePreview';
 
 const Index = () => {
   useEffect(() => {
@@ -136,6 +137,7 @@ const Index = () => {
 
               <div className="space-y-16">
                 <ChartsPreview />
+                <DataTablePreview />
                 <SQLDemo />
                 <FormBuilderMini />
                 <WorkflowPreview />
@@ -144,8 +146,8 @@ const Index = () => {
           </section>
 
           {/* Core Features */}
-          <section id="features" className="py-20">
-            <div className="container mx-auto px-4">
+          <section id="features" className="py-20 bg-gradient-to-br from-background to-primary/5">
+            <div className="container mx-auto px-4 group">{/* Add group class for hover effects */}
               <div className="text-center mb-16">
                 <h2 className="text-3xl md:text-4xl font-bold mb-4">
                   Everything you need for enterprise forms
@@ -207,18 +209,20 @@ const Index = () => {
                 ].map((feature, index) => (
                   <Card 
                     key={index} 
-                    className={`hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group ${feature.gradient || 'hover:border-primary/20'}`}
+                    className={`hover:shadow-xl transition-all duration-500 hover:-translate-y-3 group/card cursor-pointer ${
+                      feature.gradient || 'hover:border-primary/30 hover:bg-gradient-to-br hover:from-primary/5 hover:to-secondary/5'
+                    }`}
                   >
-                    <CardHeader>
-                      <feature.icon className={`h-12 w-12 mb-4 transition-all duration-300 ${
+                    <CardHeader className="group-hover/card:scale-105 transition-transform duration-300">
+                      <feature.icon className={`h-12 w-12 mb-4 transition-all duration-500 ${
                         feature.title === "Advanced Analytics" 
-                          ? "text-primary group-hover:text-blue-600 group-hover:scale-110" 
+                          ? "text-primary group-hover/card:text-blue-600 group-hover/card:scale-125 group-hover/card:drop-shadow-lg" 
                           : feature.title === "Visual Workflows"
-                          ? "text-primary group-hover:text-purple-600 group-hover:scale-110"
-                          : "text-primary group-hover:scale-110"
+                          ? "text-primary group-hover/card:text-purple-600 group-hover/card:scale-125 group-hover/card:drop-shadow-lg"
+                          : "text-primary group-hover/card:scale-125 group-hover/card:text-emerald-600 group-hover/card:drop-shadow-lg"
                       }`} />
-                      <CardTitle className="text-xl group-hover:text-primary transition-colors">{feature.title}</CardTitle>
-                      <CardDescription className="text-base leading-relaxed">
+                      <CardTitle className="text-xl group-hover/card:text-primary transition-colors duration-300">{feature.title}</CardTitle>
+                      <CardDescription className="text-base leading-relaxed group-hover/card:text-foreground transition-colors duration-300">
                         {feature.description}
                       </CardDescription>
                     </CardHeader>

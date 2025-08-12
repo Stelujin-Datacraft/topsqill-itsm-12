@@ -73,16 +73,16 @@ export default function FutureRoadmap() {
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {features.map((feature, index) => (
-            <Card key={index} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
+            <Card key={index} className="hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 group hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-purple-50/50 hover:border-primary/30">
+              <CardHeader className="group-hover:scale-105 transition-transform duration-300">
                 <div className="flex items-start justify-between mb-2">
-                  <feature.icon className="h-8 w-8 text-primary" />
-                  <Badge className={`text-xs ${getStatusColor(feature.status)}`}>
+                  <feature.icon className="h-8 w-8 text-primary group-hover:text-blue-600 group-hover:scale-110 transition-all duration-300" />
+                  <Badge className={`text-xs ${getStatusColor(feature.status)} group-hover:scale-105 transition-transform duration-300`}>
                     {feature.status}
                   </Badge>
                 </div>
-                <CardTitle className="text-lg">{feature.title}</CardTitle>
-                <CardDescription>{feature.description}</CardDescription>
+                <CardTitle className="text-lg group-hover:text-primary transition-colors duration-300">{feature.title}</CardTitle>
+                <CardDescription className="group-hover:text-foreground transition-colors duration-300">{feature.description}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="text-sm text-muted-foreground">
