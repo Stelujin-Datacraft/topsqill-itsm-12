@@ -9,6 +9,7 @@ import {
   Database, Brain, Sparkles, TrendingUp, Globe, CheckCircle,
   LineChart, Table, GitBranch, Code, Star, Award
 } from 'lucide-react';
+import AnnouncementBanner from '@/components/landing/AnnouncementBanner';
 import ChartsPreview from '@/components/landing/ChartsPreview';
 import SQLDemo from '@/components/landing/SQLDemo';
 import FormBuilderMini from '@/components/landing/FormBuilderMini';
@@ -16,6 +17,7 @@ import WorkflowPreview from '@/components/landing/WorkflowPreview';
 import FutureRoadmap from '@/components/landing/FutureRoadmap';
 import InvestorSection from '@/components/landing/InvestorSection';
 import FAQSection from '@/components/landing/FAQSection';
+import AnnouncementHistory from '@/components/landing/AnnouncementHistory';
 
 const Index = () => {
   useEffect(() => {
@@ -24,8 +26,10 @@ const Index = () => {
   }, []);
 
   return (
-
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+        {/* Beta Status Banner */}
+        <AnnouncementBanner />
+        
         {/* Navigation */}
         <nav className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -181,12 +185,14 @@ const Index = () => {
                   {
                     icon: Workflow,
                     title: "Visual Workflows",
-                    description: "Automate approvals, notifications, integrations, and business processes with our visual workflow designer."
+                    description: "Automate approvals, notifications, integrations, and business processes with our visual workflow designer.",
+                    gradient: "hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 hover:border-purple-200"
                   },
                   {
                     icon: BarChart3,
                     title: "Advanced Analytics",
-                    description: "Real-time dashboards, custom reports, submission tracking, and powerful data visualization tools."
+                    description: "Real-time dashboards, custom reports, submission tracking, and powerful data visualization tools.",
+                    gradient: "hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:border-blue-200"
                   },
                   {
                     icon: Brain,
@@ -199,10 +205,19 @@ const Index = () => {
                     description: "REST APIs, webhooks, custom integrations, and white-label options for seamless system integration."
                   }
                 ].map((feature, index) => (
-                  <Card key={index} className="hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+                  <Card 
+                    key={index} 
+                    className={`hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group ${feature.gradient || 'hover:border-primary/20'}`}
+                  >
                     <CardHeader>
-                      <feature.icon className="h-12 w-12 text-primary mb-4" />
-                      <CardTitle className="text-xl">{feature.title}</CardTitle>
+                      <feature.icon className={`h-12 w-12 mb-4 transition-all duration-300 ${
+                        feature.title === "Advanced Analytics" 
+                          ? "text-primary group-hover:text-blue-600 group-hover:scale-110" 
+                          : feature.title === "Visual Workflows"
+                          ? "text-primary group-hover:text-purple-600 group-hover:scale-110"
+                          : "text-primary group-hover:scale-110"
+                      }`} />
+                      <CardTitle className="text-xl group-hover:text-primary transition-colors">{feature.title}</CardTitle>
                       <CardDescription className="text-base leading-relaxed">
                         {feature.description}
                       </CardDescription>
@@ -221,6 +236,11 @@ const Index = () => {
           {/* Investor Section */}
           <section id="investors">
             <InvestorSection />
+          </section>
+
+          {/* Announcements Section */}
+          <section id="announcements">
+            <AnnouncementHistory />
           </section>
 
           {/* FAQ Section */}
