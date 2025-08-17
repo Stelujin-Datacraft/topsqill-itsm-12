@@ -28,28 +28,51 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
       submissions.forEach(submission => {
         initialData[submission.id] = { ...submission.submission_data };
       });
+      // Initialize master values for bulk editing
+      if (submissions.length > 1) {
+        initialData['master'] = {};
+      }
       setEditedData(initialData);
     }
   }, [isOpen, submissions]);
 
-  const handleFieldChange = (submissionId: string, fieldId: string, value: any) => {
+  const handleMasterValueChange = (fieldId: string, value: any) => {
     setEditedData(prev => ({
       ...prev,
-      [submissionId]: {
-        ...prev[submissionId],
+      master: {
+        ...prev.master,
         [fieldId]: value
       }
     }));
+    
+    // Auto-fill all records with the master value
+    handleAutoFill(fieldId, value);
+  };
+
+  const handleFieldChange = (submissionId: string, fieldId: string, value: any) => {
+    if (submissionId === 'master') {
+      handleMasterValueChange(fieldId, value);
+    } else {
+      setEditedData(prev => ({
+        ...prev,
+        [submissionId]: {
+          ...prev[submissionId],
+          [fieldId]: value
+        }
+      }));
+    }
   };
 
   const handleAutoFill = (fieldId: string, value: any) => {
     setEditedData(prev => {
       const updated = { ...prev };
       Object.keys(updated).forEach(submissionId => {
-        updated[submissionId] = {
-          ...updated[submissionId],
-          [fieldId]: value
-        };
+        if (submissionId !== 'master') {
+          updated[submissionId] = {
+            ...updated[submissionId],
+            [fieldId]: value
+          };
+        }
       });
       return updated;
     });
@@ -58,10 +81,12 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
   const handleSave = async () => {
     setSaving(true);
     try {
-      const updates = Object.entries(editedData).map(([submissionId, data]) => ({
-        id: submissionId,
-        submission_data: data
-      }));
+      const updates = Object.entries(editedData)
+        .filter(([submissionId]) => submissionId !== 'master')
+        .map(([submissionId, data]) => ({
+          id: submissionId,
+          submission_data: data
+        }));
 
       for (const update of updates) {
         const { error } = await supabase
@@ -93,8 +118,9 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
     }
   };
 
-  const renderFieldInput = (field: any, submissionId: string, value: any) => {
+  const renderFieldInput = (field: any, submissionId: string, value: any, isBulkEdit: boolean = false) => {
     const fieldValue = value || '';
+    const isDisabled = isBulkEdit && submissionId !== 'master';
     
     switch (field.field_type) {
       case 'text':
@@ -106,6 +132,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
             value={fieldValue}
             onChange={(e) => handleFieldChange(submissionId, field.id, e.target.value)}
             className="w-full"
+            disabled={isDisabled}
           />
         );
       
@@ -115,6 +142,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
             value={fieldValue}
             onChange={(e) => handleFieldChange(submissionId, field.id, e.target.value)}
             className="w-full min-h-[60px]"
+            disabled={isDisabled}
           />
         );
       
@@ -123,6 +151,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           <Select 
             value={fieldValue} 
             onValueChange={(value) => handleFieldChange(submissionId, field.id, value)}
+            disabled={isDisabled}
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Select option" />
@@ -142,6 +171,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           <Checkbox
             checked={fieldValue === true || fieldValue === 'true'}
             onCheckedChange={(checked) => handleFieldChange(submissionId, field.id, checked)}
+            disabled={isDisabled}
           />
         );
       
@@ -151,6 +181,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
             value={fieldValue}
             onChange={(e) => handleFieldChange(submissionId, field.id, e.target.value)}
             className="w-full"
+            disabled={isDisabled}
           />
         );
     }
@@ -169,7 +200,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         
         <ScrollArea className="max-h-[70vh] pr-4">
           <div className="space-y-6">
-            {formFields.map((field) => (
+            {formFields.filter(field => !['header', 'horizontal_line', 'section_break'].includes(field.field_type)).map((field) => (
               <div key={field.id} className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-base font-semibold">{field.label}</Label>
@@ -188,18 +219,37 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                   )}
                 </div>
                 
-                <div className="grid grid-cols-1 gap-3">
+                {submissions.length > 1 && (
+                  <div className="p-3 border rounded-lg bg-primary/5">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-muted-foreground min-w-[80px]">
+                        Master Value:
+                      </span>
+                      <div className="flex-1">
+                        {renderFieldInput(
+                          field, 
+                          'master', 
+                          editedData['master']?.[field.id] || '',
+                          true
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-2 gap-3">
                   {submissions.map((submission, index) => (
                     <div key={submission.id} className="p-3 border rounded-lg bg-muted/20">
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium text-muted-foreground min-w-[80px]">
-                          Record {index + 1}:
+                      <div className="flex flex-col gap-2">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          Record {index + 1}
                         </span>
-                        <div className="flex-1">
+                        <div>
                           {renderFieldInput(
                             field, 
                             submission.id, 
-                            editedData[submission.id]?.[field.id]
+                            editedData[submission.id]?.[field.id],
+                            submissions.length > 1
                           )}
                         </div>
                       </div>

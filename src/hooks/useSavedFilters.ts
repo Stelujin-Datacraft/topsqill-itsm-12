@@ -145,6 +145,19 @@ export function useSavedFilters(formId: string | null) {
     loadSavedFilters();
   }, [formId]);
 
+  useEffect(() => {
+    const handleSavedFiltersUpdate = () => {
+      if (formId) {
+        loadSavedFilters();
+      }
+    };
+
+    window.addEventListener('savedFiltersUpdated', handleSavedFiltersUpdate);
+    return () => {
+      window.removeEventListener('savedFiltersUpdated', handleSavedFiltersUpdate);
+    };
+  }, [formId]);
+
   return {
     savedFilters,
     loading,

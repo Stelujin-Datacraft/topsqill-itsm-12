@@ -126,6 +126,12 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
     // Apply search
     if (searchTerm && config.enableSearch) {
       filtered = data.filter(row => {
+        // Search in submission ID
+        if (row.submission_ref_id && row.submission_ref_id.toLowerCase().includes(searchTerm.toLowerCase())) {
+          return true;
+        }
+        
+        // Search in form fields
         return displayFields.some(field => {
           const value = row.submission_data?.[field.id];
           return value && value.toString().toLowerCase().includes(searchTerm.toLowerCase());
@@ -553,7 +559,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
               <div className="flex items-center space-x-2">
                 <Search className="h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search records..."
+                  placeholder="Search records or Submission ID..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="max-w-sm"
@@ -606,6 +612,9 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                     onCheckedChange={handleSelectAll}
                     aria-label="Select all rows"
                   />
+                </TableHead>
+                <TableHead className="uppercase text-xs tracking-wider font-semibold text-foreground/90" style={{ minWidth: '150px' }}>
+                  Submission ID
                 </TableHead>
                 {displayFields.map(field => (
                   <TableHead key={field.id} className="uppercase text-xs tracking-wider font-semibold text-foreground/90" style={{ minWidth: '200px' }}>
@@ -662,7 +671,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
             <TableBody>
               {paginatedData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={displayFields.length + (config.showMetadata ? 2 : 0) + 2} className="text-center py-8">
+                  <TableCell colSpan={displayFields.length + (config.showMetadata ? 2 : 0) + 3} className="text-center py-8">
                     <div className="text-muted-foreground">
                       {data.length === 0 ? 'No data available' : 'No records match your filters'}
                     </div>
@@ -671,13 +680,18 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
               ) : (
                  paginatedData.map((row) => (
                    <TableRow key={row.id} className="hover:bg-accent/10 transition-colors">
-                     <TableCell>
-                       <Checkbox
-                         checked={selectedRows.has(row.id)}
-                         onCheckedChange={(checked) => handleRowSelect(row.id, Boolean(checked))}
-                         aria-label={`Select row ${row.id}`}
-                       />
-                     </TableCell>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedRows.has(row.id)}
+                          onCheckedChange={(checked) => handleRowSelect(row.id, Boolean(checked))}
+                          aria-label={`Select row ${row.id}`}
+                        />
+                      </TableCell>
+                      <TableCell style={{ minWidth: '150px' }}>
+                        <Badge variant="outline" className="font-mono text-xs">
+                          {row.submission_ref_id || row.id.slice(0, 8)}
+                        </Badge>
+                      </TableCell>
                      {displayFields.map(field => (
                         <TableCell key={field.id} style={{ minWidth: '200px' }}>
                           <FormDataCell 

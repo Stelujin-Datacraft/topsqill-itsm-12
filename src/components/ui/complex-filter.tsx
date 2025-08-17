@@ -141,6 +141,8 @@ export function ComplexFilter({ filters, onFiltersChange, availableFields, class
     try {
       const result = await saveFilter(name, filters);
       if (result) {
+        // Force reload of saved filters by updating the component
+        window.dispatchEvent(new CustomEvent('savedFiltersUpdated'));
         toast({
           title: "Filter Saved",
           description: `Filter "${name}" has been saved successfully.`,
