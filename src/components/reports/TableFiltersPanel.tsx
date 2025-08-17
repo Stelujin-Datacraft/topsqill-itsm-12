@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Filter, Plus, X, ChevronDown, ChevronRight, Save } from 'lucide-react';
 import { Form } from '@/types/form';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SaveFilterDialog } from './SaveFilterDialog';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
 import { useToast } from '@/hooks/use-toast';
@@ -177,15 +178,24 @@ export function TableFiltersPanel({
               <Plus className="h-4 w-4 mr-2" />
               Add Filter Group
             </Button>
-            <Button 
-              onClick={() => setShowSaveDialog(true)} 
-              size="sm" 
-              variant="outline"
-              disabled={!canSaveFilter}
-            >
-              <Save className="h-4 w-4 mr-2" />
-              Save Filter
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    onClick={() => setShowSaveDialog(true)} 
+                    size="sm" 
+                    variant="outline"
+                    disabled={!canSaveFilter}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    Save Filter
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {!canSaveFilter ? "Add filter groups and conditions to enable saving" : "Save current filter configuration"}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
       </CardHeader>
