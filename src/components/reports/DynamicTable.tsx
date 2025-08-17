@@ -21,6 +21,7 @@ import { DeleteSubmissionButton } from './DeleteSubmissionButton';
 import { ExportDropdown } from './ExportDropdown';
 import { SortingControls, SortConfig } from './SortingControls';
 import { ComplexFilter, FilterGroup } from '@/components/ui/complex-filter';
+import { SavedFiltersManager } from './SavedFiltersManager';
 
 interface TableConfig {
   title: string;
@@ -420,6 +421,11 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
               >
                 {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </Button>
+              <SavedFiltersManager
+                formId={config.formId}
+                onApplyFilter={setComplexFilters}
+                currentFilters={complexFilters}
+              />
               <ExportDropdown data={exportData} disabled={filteredAndSortedData.length === 0} />
               <DynamicTableColumnSelector 
                 formFields={formFields}

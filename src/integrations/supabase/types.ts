@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -1081,6 +1081,36 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_filters: {
+        Row: {
+          created_at: string
+          filter_data: Json
+          form_id: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          filter_data?: Json
+          form_id: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          filter_data?: Json
+          form_id?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       saved_queries: {
         Row: {
           created_at: string | null
@@ -1634,7 +1664,7 @@ export type Database = {
         Returns: boolean
       }
       generate_reference_id: {
-        Args: { table_name: string; name_text: string }
+        Args: { name_text: string; table_name: string }
         Returns: string
       }
       generate_submission_ref_id: {
@@ -1652,10 +1682,10 @@ export type Database = {
       get_group_members: {
         Args: { _group_id: string }
         Returns: {
-          member_id: string
-          member_type: string
-          member_name: string
           member_email: string
+          member_id: string
+          member_name: string
+          member_type: string
         }[]
       }
       get_next_execution_order: {
@@ -1665,111 +1695,111 @@ export type Database = {
       get_organization_users: {
         Args: { org_id: string }
         Returns: {
-          id: string
           email: string
           first_name: string
+          id: string
           last_name: string
           role: string
         }[]
       }
       get_project_users_form_permissions: {
-        Args: { _project_id: string; _form_id: string }
+        Args: { _form_id: string; _project_id: string }
         Returns: {
-          user_id: string
           email: string
           first_name: string
-          last_name: string
-          project_role: string
-          permissions: Json
           has_explicit_permissions: boolean
+          last_name: string
+          permissions: Json
+          project_role: string
+          user_id: string
         }[]
       }
       get_project_users_with_permissions: {
         Args: { project_id_param: string }
         Returns: {
-          user_id: string
-          email: string
-          first_name: string
-          last_name: string
-          role: string
+          asset_permissions: Json
           assigned_at: string
           assigned_by: string
-          last_activity: string
-          project_permissions: Json
-          asset_permissions: Json
           effective_permissions: Json
+          email: string
+          first_name: string
+          last_activity: string
+          last_name: string
+          project_permissions: Json
+          role: string
+          user_id: string
         }[]
       }
       get_user_effective_permissions: {
         Args: {
-          _user_id: string
-          _resource_type: string
           _resource_id?: string
+          _resource_type: string
+          _user_id: string
         }
         Returns: {
           permission_type: string
         }[]
       }
       get_user_form_permissions: {
-        Args: { _project_id: string; _user_id: string; _form_id: string }
+        Args: { _form_id: string; _project_id: string; _user_id: string }
         Returns: {
-          permission_type: string
           granted_explicitly: boolean
+          permission_type: string
         }[]
       }
       get_user_project_invitations: {
         Args: Record<PropertyKey, never>
         Returns: {
+          expires_at: string
           id: string
+          invited_at: string
+          invited_by: string
+          inviter_name: string
+          message: string
           project_id: string
           project_name: string
           role: string
-          invited_by: string
-          inviter_name: string
-          invited_at: string
-          expires_at: string
-          message: string
           status: string
         }[]
       }
       has_asset_permission: {
         Args: {
+          _asset_id: string
+          _asset_type: string
+          _permission_type: string
           _project_id: string
           _user_id: string
-          _asset_type: string
-          _asset_id: string
-          _permission_type: string
         }
         Returns: boolean
       }
       has_effective_permission: {
         Args: {
-          _project_id: string
-          _user_id: string
           _entity_type: string
           _permission_type: string
+          _project_id: string
+          _user_id: string
         }
         Returns: boolean
       }
       has_project_permission: {
         Args: {
           _project_id: string
-          _user_id: string
-          _resource_type: string
           _required_level: string
+          _resource_type: string
+          _user_id: string
         }
         Returns: boolean
       }
       initialize_default_top_level_permissions: {
-        Args: { _project_id: string; _user_id: string; _created_by: string }
+        Args: { _created_by: string; _project_id: string; _user_id: string }
         Returns: undefined
       }
       invite_user_to_project: {
         Args: {
-          project_id_param: string
           email_param: string
-          role_param: string
           message_param?: string
+          project_id_param: string
+          role_param: string
         }
         Returns: string
       }
@@ -1791,10 +1821,10 @@ export type Database = {
       }
       user_has_role_permission: {
         Args: {
-          _user_id: string
-          _resource_type: string
           _permission_type: string
           _resource_id?: string
+          _resource_type: string
+          _user_id: string
         }
         Returns: boolean
       }

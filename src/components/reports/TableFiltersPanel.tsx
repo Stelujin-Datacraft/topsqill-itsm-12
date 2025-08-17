@@ -1,13 +1,16 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Filter, Plus, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { Filter, Plus, X, ChevronDown, ChevronRight, Save } from 'lucide-react';
 import { Form } from '@/types/form';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { SaveFilterDialog } from './SaveFilterDialog';
+import { useSavedFilters } from '@/hooks/useSavedFilters';
+import { useToast } from '@/hooks/use-toast';
 
 export interface FilterCondition {
   id: string;
@@ -53,6 +56,9 @@ export function TableFiltersPanel({
   primaryFormId
 }: TableFiltersPanelProps) {
   const selectedForm = forms.find(f => f.id === primaryFormId);
+  const { saveFilter } = useSavedFilters(primaryFormId);
+  const { toast } = useToast();
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
 
   const getAvailableFields = () => {
     if (!selectedForm) return [];
@@ -135,6 +141,26 @@ export function TableFiltersPanel({
     return filters.reduce((total, group) => total + group.conditions.length, 0);
   };
 
+  const handleSaveFilter = async (name: string) => {
+    try {
+      const result = await saveFilter(name, filters);
+      if (result) {
+        toast({
+          title: "Filter Saved",
+          description: `Filter "${name}" has been saved successfully.`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save filter. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const canSaveFilter = filters.length > 0 && getTotalConditions() > 0;
+
   return (
     <Card>
       <CardHeader>
@@ -146,10 +172,21 @@ export function TableFiltersPanel({
               <Badge variant="secondary">{getTotalConditions()} conditions</Badge>
             )}
           </CardTitle>
-          <Button onClick={addFilterGroup} size="sm" variant="outline">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Filter Group
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={addFilterGroup} size="sm" variant="outline">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Filter Group
+            </Button>
+            <Button 
+              onClick={() => setShowSaveDialog(true)} 
+              size="sm" 
+              variant="outline"
+              disabled={!canSaveFilter}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              Save Filter
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -323,6 +360,13 @@ export function TableFiltersPanel({
           </div>
         )}
       </CardContent>
+      
+      <SaveFilterDialog
+        isOpen={showSaveDialog}
+        onOpenChange={setShowSaveDialog}
+        onSave={handleSaveFilter}
+        filters={filters}
+      />
     </Card>
   );
 }
