@@ -20,19 +20,26 @@ interface InlineEditDialogProps {
 
 export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields, onSave }: InlineEditDialogProps) {
   const [editedData, setEditedData] = useState<Record<string, Record<string, any>>>({});
+  const [originalData, setOriginalData] = useState<Record<string, Record<string, any>>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (isOpen && submissions.length > 0) {
       const initialData: Record<string, Record<string, any>> = {};
+      const originalValues: Record<string, Record<string, any>> = {};
+      
       submissions.forEach(submission => {
         initialData[submission.id] = { ...submission.submission_data };
+        originalValues[submission.id] = { ...submission.submission_data };
       });
+      
       // Initialize master values for bulk editing
       if (submissions.length > 1) {
         initialData['master'] = {};
       }
+      
       setEditedData(initialData);
+      setOriginalData(originalValues);
     }
   }, [isOpen, submissions]);
 
@@ -45,8 +52,12 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
       }
     }));
     
-    // Auto-fill all records with the master value
-    handleAutoFill(fieldId, value);
+    // If master value is cleared, restore original values; otherwise auto-fill with new value
+    if (!value || value === '') {
+      handleRestoreOriginalValues(fieldId);
+    } else {
+      handleAutoFill(fieldId, value);
+    }
   };
 
   const handleFieldChange = (submissionId: string, fieldId: string, value: any) => {
@@ -71,6 +82,21 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           updated[submissionId] = {
             ...updated[submissionId],
             [fieldId]: value
+          };
+        }
+      });
+      return updated;
+    });
+  };
+
+  const handleRestoreOriginalValues = (fieldId: string) => {
+    setEditedData(prev => {
+      const updated = { ...prev };
+      Object.keys(updated).forEach(submissionId => {
+        if (submissionId !== 'master') {
+          updated[submissionId] = {
+            ...updated[submissionId],
+            [fieldId]: originalData[submissionId]?.[fieldId] || ''
           };
         }
       });
@@ -228,7 +254,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                   {submissions.map((submission, index) => (
                     <div key={submission.id} className="p-4 border rounded-lg bg-muted/20">
                       <div className="text-sm font-medium text-muted-foreground mb-3">
-                        Record {index + 1} (ID: {submission.id.slice(0, 8)}...)
+                        Record {index + 1} (ID: {submission.submission_ref_id || submission.id.slice(0, 8) + '...'})
                       </div>
                       <div className="flex gap-4">
                         {formFields.filter(field => !['header', 'horizontal_line', 'section_break'].includes(field.field_type)).map((field) => (
