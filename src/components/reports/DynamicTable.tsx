@@ -117,7 +117,10 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
     const columnsToShow = selectedColumns.length > 0 ? selectedColumns : 
                          (config.selectedColumns && config.selectedColumns.length > 0 ? config.selectedColumns : 
                           formFields.map(f => f.id));
-    return formFields.filter(field => columnsToShow.includes(field.id));
+    return formFields.filter(field => 
+      columnsToShow.includes(field.id) && 
+      !['header', 'horizontal_line', 'section_break'].includes(field.field_type)
+    );
   }, [formFields, selectedColumns, config.selectedColumns]);
 
   const filteredAndSortedData = useMemo(() => {
@@ -128,6 +131,11 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       filtered = data.filter(row => {
         // Search in submission ID
         if (row.submission_ref_id && row.submission_ref_id.toLowerCase().includes(searchTerm.toLowerCase())) {
+          return true;
+        }
+        
+        // Search in internal ID
+        if (row.id && row.id.toLowerCase().includes(searchTerm.toLowerCase())) {
           return true;
         }
         
@@ -225,11 +233,13 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
   }, [filteredAndSortedData, displayFields, config]);
 
   const availableFields = useMemo(() => {
-    return formFields.map(field => ({
-      id: field.id,
-      label: field.label,
-      type: field.field_type || 'text'
-    }));
+    return formFields
+      .filter(field => !['header', 'horizontal_line', 'section_break'].includes(field.field_type))
+      .map(field => ({
+        id: field.id,
+        label: field.label,
+        type: field.field_type || 'text'
+      }));
   }, [formFields]);
 
   // useEffect hooks
@@ -403,7 +413,8 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
 
       setFormFields(fields || []);
       if (selectedColumns.length === 0 && fields && fields.length > 0) {
-        setSelectedColumns(fields.map(f => f.id));
+        const dataFields = fields.filter(f => !['header', 'horizontal_line', 'section_break'].includes(f.field_type));
+        setSelectedColumns(dataFields.map(f => f.id));
       }
     } catch (error) {
       console.error('Error loading form fields:', error);
@@ -558,12 +569,12 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
             {config.enableSearch && (
               <div className="flex items-center space-x-2">
                 <Search className="h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search records or Submission ID..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="max-w-sm"
-                />
+                 <Input
+                   placeholder="Search records or Submission ID..."
+                   value={searchTerm}
+                   onChange={(e) => setSearchTerm(e.target.value)}
+                   className="max-w-sm"
+                 />
               </div>
             )}
             

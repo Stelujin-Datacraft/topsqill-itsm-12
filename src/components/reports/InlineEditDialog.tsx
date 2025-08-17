@@ -200,64 +200,54 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         
         <ScrollArea className="max-h-[70vh] pr-4">
           <div className="space-y-6">
-            {formFields.filter(field => !['header', 'horizontal_line', 'section_break'].includes(field.field_type)).map((field) => (
-              <div key={field.id} className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-base font-semibold">{field.label}</Label>
-                  {submissions.length > 1 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const firstValue = editedData[submissions[0].id]?.[field.id];
-                        handleAutoFill(field.id, firstValue);
-                      }}
-                      className="text-xs"
-                    >
-                      Auto-fill all
-                    </Button>
-                  )}
-                </div>
-                
+            {/* Display fields horizontally */}
+            <div className="overflow-x-auto">
+              <div className="min-w-max">
+                {/* Master row for bulk editing */}
                 {submissions.length > 1 && (
-                  <div className="p-3 border rounded-lg bg-primary/5">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-muted-foreground min-w-[80px]">
-                        Master Value:
-                      </span>
-                      <div className="flex-1">
-                        {renderFieldInput(
-                          field, 
-                          'master', 
-                          editedData['master']?.[field.id] || '',
-                          true
-                        )}
-                      </div>
+                  <div className="mb-4 p-4 border rounded-lg bg-primary/5">
+                    <div className="text-sm font-medium text-muted-foreground mb-3">Master Values (auto-fills all records):</div>
+                    <div className="flex gap-4">
+                      {formFields.filter(field => !['header', 'horizontal_line', 'section_break'].includes(field.field_type)).map((field) => (
+                        <div key={field.id} className="flex-1 min-w-[200px]">
+                          <Label className="text-sm font-medium mb-2 block">{field.label}</Label>
+                          {renderFieldInput(
+                            field, 
+                            'master', 
+                            editedData['master']?.[field.id] || '',
+                            false
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
                 
-                <div className="grid grid-cols-2 gap-3">
+                {/* Records */}
+                <div className="space-y-3">
                   {submissions.map((submission, index) => (
-                    <div key={submission.id} className="p-3 border rounded-lg bg-muted/20">
-                      <div className="flex flex-col gap-2">
-                        <span className="text-xs font-medium text-muted-foreground">
-                          Record {index + 1}
-                        </span>
-                        <div>
-                          {renderFieldInput(
-                            field, 
-                            submission.id, 
-                            editedData[submission.id]?.[field.id],
-                            submissions.length > 1
-                          )}
-                        </div>
+                    <div key={submission.id} className="p-4 border rounded-lg bg-muted/20">
+                      <div className="text-sm font-medium text-muted-foreground mb-3">
+                        Record {index + 1} (ID: {submission.id.slice(0, 8)}...)
+                      </div>
+                      <div className="flex gap-4">
+                        {formFields.filter(field => !['header', 'horizontal_line', 'section_break'].includes(field.field_type)).map((field) => (
+                          <div key={field.id} className="flex-1 min-w-[200px]">
+                            <Label className="text-sm font-medium mb-2 block">{field.label}</Label>
+                            {renderFieldInput(
+                              field, 
+                              submission.id, 
+                              editedData[submission.id]?.[field.id],
+                              submissions.length > 1
+                            )}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-            ))}
+            </div>
           </div>
         </ScrollArea>
 
