@@ -6,8 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Filter, Plus, X, Trash2 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Filter, Plus, X, Trash2, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SaveFilterDialog } from '@/components/reports/SaveFilterDialog';
+import { useSavedFilters } from '@/hooks/useSavedFilters';
+import { useToast } from '@/hooks/use-toast';
 
 export interface FilterCondition {
   id: string;
@@ -29,6 +33,7 @@ interface ComplexFilterProps {
   onFiltersChange: (filters: FilterGroup[]) => void;
   availableFields: Array<{ id: string; label: string; type: string }>;
   className?: string;
+  formId?: string;
 }
 
 const OPERATORS = [
@@ -46,8 +51,11 @@ const OPERATORS = [
   { value: 'is_not_empty', label: 'Is Not Empty', types: ['text', 'number'] },
 ];
 
-export function ComplexFilter({ filters, onFiltersChange, availableFields, className }: ComplexFilterProps) {
+export function ComplexFilter({ filters, onFiltersChange, availableFields, className, formId }: ComplexFilterProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const { saveFilter } = useSavedFilters(formId || '');
+  const { toast } = useToast();
 
   const addFilterGroup = () => {
     const newGroup: FilterGroup = {
@@ -120,6 +128,31 @@ export function ComplexFilter({ filters, onFiltersChange, availableFields, class
     return filters.reduce((count, group) => {
       return count + group.conditions.filter(c => c.field && c.value).length;
     }, 0);
+  };
+
+  
+  const getTotalConditions = () => {
+    return filters.reduce((total, group) => total + group.conditions.length, 0);
+  };
+
+  const canSaveFilter = filters.length > 0 && getTotalConditions() > 0;
+
+  const handleSaveFilter = async (name: string) => {
+    try {
+      const result = await saveFilter(name, filters);
+      if (result) {
+        toast({
+          title: "Filter Saved",
+          description: `Filter "${name}" has been saved successfully.`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save filter. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const clearAllFilters = () => {
@@ -306,12 +339,35 @@ export function ComplexFilter({ filters, onFiltersChange, availableFields, class
                   Add Filter Group
                 </Button>
                 
-                <Button
-                  size="sm"
-                  onClick={() => setIsOpen(false)}
-                >
-                  Apply Filters
-                </Button>
+                <div className="flex gap-2">
+                  {formId && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowSaveDialog(true)}
+                            disabled={!canSaveFilter}
+                            className={canSaveFilter ? "" : "opacity-50"}
+                          >
+                            <Save className="h-4 w-4 mr-2" />
+                            Save Filter
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {!canSaveFilter ? "Add at least one filter condition to enable saving" : "Save current filter configuration"}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Apply Filters
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -327,6 +383,15 @@ export function ComplexFilter({ filters, onFiltersChange, availableFields, class
         >
           Clear
         </Button>
+      )}
+      
+      {formId && (
+        <SaveFilterDialog
+          isOpen={showSaveDialog}
+          onOpenChange={setShowSaveDialog}
+          onSave={handleSaveFilter}
+          filters={filters}
+        />
       )}
     </div>
   );

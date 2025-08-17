@@ -20,7 +20,7 @@ import { SubmittedByCell } from './SubmittedByCell';
 import { DeleteSubmissionButton } from './DeleteSubmissionButton';
 import { ExportDropdown } from './ExportDropdown';
 import { SortingControls, SortConfig } from './SortingControls';
-import { TableFiltersPanel, FilterGroup } from './TableFiltersPanel';
+import { ComplexFilter, FilterGroup } from '@/components/ui/complex-filter';
 import { SavedFiltersManager } from './SavedFiltersManager';
 
 interface TableConfig {
@@ -433,11 +433,11 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                 onColumnToggle={handleColumnToggle}
               />
               {config.enableFiltering && (
-                <TableFiltersPanel
+                <ComplexFilter
                   filters={complexFilters}
                   onFiltersChange={setComplexFilters}
-                  forms={forms}
-                  primaryFormId={config.formId}
+                  availableFields={availableFields}
+                  formId={config.formId}
                 />
               )}
               {onEdit && (
