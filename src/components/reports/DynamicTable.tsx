@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useReports } from '@/hooks/useReports';
 import { useNavigate } from 'react-router-dom';
@@ -22,6 +23,9 @@ import { ExportDropdown } from './ExportDropdown';
 import { SortingControls, SortConfig } from './SortingControls';
 import { ComplexFilter, FilterGroup } from '@/components/ui/complex-filter';
 import { SavedFiltersManager } from './SavedFiltersManager';
+import { InlineEditDialog } from './InlineEditDialog';
+import { BulkActionsBar } from './BulkActionsBar';
+import { BulkDeleteDialog } from './BulkDeleteDialog';
 
 interface TableConfig {
   title: string;
@@ -51,6 +55,14 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [isExpanded, setIsExpanded] = useState(false);
+  
+  // New state for bulk operations and inline editing
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [showInlineEdit, setShowInlineEdit] = useState(false);
+  const [editingSubmission, setEditingSubmission] = useState<any>(null);
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+  const [canDeleteSubmissions, setCanDeleteSubmissions] = useState(false);
   
   // Custom hooks
   const { forms } = useReports();
@@ -219,6 +231,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
     if (config.formId) {
       loadData();
       loadFormFields();
+      checkUserPermissions();
     }
   }, [config.formId]);
 
@@ -244,6 +257,59 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
     } catch (error) {
       console.error('Error deleting submission:', error);
     }
+  };
+
+  const handleEditSubmission = (submission: any) => {
+    setEditingSubmission(submission);
+    setShowInlineEdit(true);
+  };
+
+  const handleRowSelect = (submissionId: string, checked: boolean) => {
+    setSelectedRows(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(submissionId);
+      } else {
+        newSet.delete(submissionId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedRows(new Set(paginatedData.map(row => row.id)));
+    } else {
+      setSelectedRows(new Set());
+    }
+  };
+
+  const handleBulkEdit = () => {
+    const selectedSubmissions = paginatedData.filter(row => selectedRows.has(row.id));
+    if (selectedSubmissions.length > 0) {
+      setEditingSubmission(selectedSubmissions);
+      setShowBulkEdit(true);
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedRows.size > 0) {
+      setShowBulkDelete(true);
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedRows(new Set());
+  };
+
+  const handleInlineEditSave = () => {
+    loadData(); // Reload data after editing
+    setSelectedRows(new Set()); // Clear selection
+  };
+
+  const handleBulkDeleteComplete = () => {
+    loadData(); // Reload data after deletion
+    setSelectedRows(new Set()); // Clear selection
   };
 
   const checkDeletePermission = async (submissionId: string): Promise<boolean> => {
@@ -280,6 +346,39 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
     } catch (error) {
       console.error('Error checking delete permission:', error);
       return false;
+    }
+  };
+
+  const checkUserPermissions = async () => {
+    if (!config.formId) return;
+    
+    try {
+      const { data: form } = await supabase
+        .from('forms')
+        .select('created_by, organization_id')
+        .eq('id', config.formId)
+        .single();
+      
+      if (!form) return;
+      
+      const { data: user } = await supabase.auth.getUser();
+      if (!user?.user) return;
+      
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('email, role, organization_id')
+        .eq('id', user.user.id)
+        .single();
+      
+      if (!profile) return;
+      
+      const canDelete = form.created_by === profile.email || 
+                       (profile.role === 'admin' && form.organization_id === profile.organization_id);
+      
+      setCanDeleteSubmissions(canDelete);
+    } catch (error) {
+      console.error('Error checking user permissions:', error);
+      setCanDeleteSubmissions(false);
     }
   };
 
@@ -501,6 +600,13 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
               <Table>
             <TableHeader className="sticky top-0 z-20 bg-gradient-to-b from-background/95 to-background/90 backdrop-blur-sm border-b-2 border-primary/20 shadow-sm">
               <TableRow className="border-b h-14 hover:bg-transparent">
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={paginatedData.length > 0 && paginatedData.every(row => selectedRows.has(row.id))}
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Select all rows"
+                  />
+                </TableHead>
                 {displayFields.map(field => (
                   <TableHead key={field.id} className="uppercase text-xs tracking-wider font-semibold text-foreground/90" style={{ minWidth: '200px' }}>
                     <div className="flex items-center gap-2">
@@ -556,7 +662,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
             <TableBody>
               {paginatedData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={displayFields.length + (config.showMetadata ? 2 : 0) + 1} className="text-center py-8">
+                  <TableCell colSpan={displayFields.length + (config.showMetadata ? 2 : 0) + 2} className="text-center py-8">
                     <div className="text-muted-foreground">
                       {data.length === 0 ? 'No data available' : 'No records match your filters'}
                     </div>
@@ -565,6 +671,13 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
               ) : (
                  paginatedData.map((row) => (
                    <TableRow key={row.id} className="hover:bg-accent/10 transition-colors">
+                     <TableCell>
+                       <Checkbox
+                         checked={selectedRows.has(row.id)}
+                         onCheckedChange={(checked) => handleRowSelect(row.id, Boolean(checked))}
+                         aria-label={`Select row ${row.id}`}
+                       />
+                     </TableCell>
                      {displayFields.map(field => (
                         <TableCell key={field.id} style={{ minWidth: '200px' }}>
                           <FormDataCell 
@@ -594,6 +707,15 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                             title="View submission details"
                           >
                             <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditSubmission(row)}
+                            className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
+                            title="Edit submission"
+                          >
+                            <Edit3 className="h-4 w-4" />
                           </Button>
                           <DeleteSubmissionButton 
                             submissionId={row.id}
@@ -674,6 +796,41 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
         </div>
       )}
     </Card>
+
+    {/* Bulk Actions Bar */}
+    <BulkActionsBar
+      selectedCount={selectedRows.size}
+      onBulkEdit={handleBulkEdit}
+      onBulkDelete={handleBulkDelete}
+      onClearSelection={handleClearSelection}
+      canDelete={canDeleteSubmissions}
+    />
+
+    {/* Individual Inline Edit Dialog */}
+    <InlineEditDialog
+      isOpen={showInlineEdit}
+      onOpenChange={setShowInlineEdit}
+      submissions={editingSubmission && !Array.isArray(editingSubmission) ? [editingSubmission] : []}
+      formFields={formFields}
+      onSave={handleInlineEditSave}
+    />
+
+    {/* Bulk Edit Dialog */}
+    <InlineEditDialog
+      isOpen={showBulkEdit}
+      onOpenChange={setShowBulkEdit}
+      submissions={Array.isArray(editingSubmission) ? editingSubmission : []}
+      formFields={formFields}
+      onSave={handleInlineEditSave}
+    />
+
+    {/* Bulk Delete Dialog */}
+    <BulkDeleteDialog
+      isOpen={showBulkDelete}
+      onOpenChange={setShowBulkDelete}
+      submissionIds={Array.from(selectedRows)}
+      onDelete={handleBulkDeleteComplete}
+    />
     </div>
   );
 }
