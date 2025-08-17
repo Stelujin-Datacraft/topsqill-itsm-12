@@ -184,15 +184,16 @@ export function TableFiltersPanel({
                   <Button 
                     onClick={() => setShowSaveDialog(true)} 
                     size="sm" 
-                    variant="outline"
+                    variant={canSaveFilter ? "outline" : "outline"}
                     disabled={!canSaveFilter}
+                    className={canSaveFilter ? "" : "opacity-50"}
                   >
                     <Save className="h-4 w-4 mr-2" />
                     Save Filter
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {!canSaveFilter ? "Add filter groups and conditions to enable saving" : "Save current filter configuration"}
+                  {!canSaveFilter ? "Add at least one filter condition to enable saving" : "Save current filter configuration"}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
