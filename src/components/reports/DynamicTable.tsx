@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3, FileText, User, Calendar, CheckCircle } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3, FileText, User, Calendar, CheckCircle, ExternalLink } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useReports } from '@/hooks/useReports';
@@ -26,6 +26,7 @@ import { SavedFiltersManager } from './SavedFiltersManager';
 import { InlineEditDialog } from './InlineEditDialog';
 import { BulkActionsBar } from './BulkActionsBar';
 import { BulkDeleteDialog } from './BulkDeleteDialog';
+import { CrossReferenceDialog } from './CrossReferenceDialog';
 
 interface TableConfig {
   title: string;
@@ -63,6 +64,8 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [showBulkDelete, setShowBulkDelete] = useState(false);
   const [canDeleteSubmissions, setCanDeleteSubmissions] = useState(false);
+  const [showCrossReferenceDialog, setShowCrossReferenceDialog] = useState(false);
+  const [crossReferenceData, setCrossReferenceData] = useState<string[]>([]);
   
   // Custom hooks
   const { forms } = useReports();
@@ -251,6 +254,22 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
     }
   }, [config.formId]);
 
+  useEffect(() => {
+    const handleCrossReference = (event: any) => {
+      const { submissionIds } = event.detail;
+      setCrossReferenceData(submissionIds);
+      setShowCrossReferenceDialog(true);
+    };
+
+    const tableElement = document.querySelector('[data-dynamic-table]');
+    if (tableElement) {
+      tableElement.addEventListener('showCrossReference', handleCrossReference);
+      return () => {
+        tableElement.removeEventListener('showCrossReference', handleCrossReference);
+      };
+    }
+  }, []);
+
   // Regular functions and event handlers
   const handleViewSubmission = (submissionId: string) => {
     navigate(`/submission/${submissionId}`);
@@ -426,7 +445,10 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       setLoading(true);
       const { data: submissions, error } = await supabase
         .from('form_submissions')
-        .select('*')
+        .select(`
+          *,
+          user_profiles!left(email)
+        `)
         .eq('form_id', config.formId)
         .order('submitted_at', { ascending: false });
 
@@ -435,7 +457,13 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
         return;
       }
 
-      setData(submissions || []);
+      // Transform submissions to include user email
+      const transformedSubmissions = (submissions || []).map(submission => ({
+        ...submission,
+        submitted_by_email: submission.user_profiles?.email || submission.submitted_by
+      }));
+
+      setData(transformedSubmissions);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -517,7 +545,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
     : "space-y-6";
 
   return (
-    <div className={containerClasses}>
+    <div className={containerClasses} data-dynamic-table>
       {/* Analytics Section */}
       {!isExpanded && <SubmissionAnalytics data={data} />}
       
@@ -707,40 +735,40 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                   </TableCell>
                 </TableRow>
               ) : (
-                 paginatedData.map((row, index) => (
-                   <TableRow key={row.id} className={`transition-all duration-300 group/row cursor-pointer ${
-                     index % 2 === 0 
-                       ? 'hover:bg-gradient-to-r hover:from-emerald-50 hover:to-cyan-50' 
-                       : 'hover:bg-gradient-to-r hover:from-cyan-50 hover:to-emerald-50'
-                   } ${selectedRows.has(row.id) ? 'bg-primary/5' : ''}`}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedRows.has(row.id)}
-                          onCheckedChange={(checked) => handleRowSelect(row.id, Boolean(checked))}
-                          aria-label={`Select row ${row.id}`}
-                        />
-                      </TableCell>
-                      
-                      {/* Submission ID */}
-                      <TableCell style={{ minWidth: '150px' }}>
-                        <span className="font-mono text-xs text-muted-foreground group-hover/row:text-emerald-600 transition-colors">
-                          #{row.submission_ref_id || row.id.slice(0, 8)}
-                        </span>
-                      </TableCell>
-                      
-                      {/* User Info */}
-                      <TableCell style={{ minWidth: '180px' }}>
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 flex items-center justify-center text-white text-sm font-semibold group-hover/row:scale-110 transition-transform duration-300">
-                            {row.submitted_by_email ? row.submitted_by_email.charAt(0).toUpperCase() : 'U'}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="font-medium text-foreground group-hover/row:text-emerald-700 transition-colors truncate">
-                              {row.submitted_by_email || 'Anonymous'}
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
+                  paginatedData.map((row, index) => (
+                    <TableRow key={row.id} className={`transition-all duration-300 ${selectedRows.has(row.id) ? 'bg-primary/5' : ''}`}>
+                       <TableCell>
+                         <Checkbox
+                           checked={selectedRows.has(row.id)}
+                           onCheckedChange={(checked) => handleRowSelect(row.id, Boolean(checked))}
+                           aria-label={`Select row ${row.id}`}
+                         />
+                       </TableCell>
+                       
+                       {/* Submission ID */}
+                       <TableCell style={{ minWidth: '150px' }}>
+                         <Button
+                           variant="link"
+                           className="font-mono text-xs p-0 h-auto text-emerald-600 underline"
+                           onClick={() => navigate(`/submission/${row.id}`)}
+                         >
+                           #{row.submission_ref_id || row.id.slice(0, 8)}
+                         </Button>
+                       </TableCell>
+                       
+                       {/* User Info */}
+                       <TableCell style={{ minWidth: '180px' }}>
+                         <div className="flex items-center gap-3 min-w-0">
+                           <div className="w-8 h-8 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 flex items-center justify-center text-white text-sm font-semibold">
+                             {row.submitted_by_email ? row.submitted_by_email.charAt(0).toUpperCase() : 'U'}
+                           </div>
+                           <div className="min-w-0 flex-1">
+                             <div className="font-medium text-foreground truncate">
+                               {row.submitted_by_email || 'Anonymous'}
+                             </div>
+                           </div>
+                         </div>
+                       </TableCell>
                       
                       {/* Submitted Date */}
                       <TableCell style={{ minWidth: '150px' }}>
@@ -779,24 +807,24 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                       
                       <TableCell style={{ minWidth: '140px' }}>
                         <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewSubmission(row.id)}
-                            className="h-8 w-8 p-0 opacity-0 group-hover/row:opacity-100 transition-opacity duration-300 hover:bg-emerald-100 hover:text-emerald-600"
-                            title="View submission details"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditSubmission(row)}
-                            className="h-8 w-8 p-0 opacity-0 group-hover/row:opacity-100 transition-opacity duration-300 hover:bg-cyan-100 hover:text-cyan-600"
-                            title="Edit submission"
-                          >
-                            <Edit3 className="h-4 w-4" />
-                          </Button>
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => handleViewSubmission(row.id)}
+                             className="h-8 w-8 p-0"
+                             title="View submission details"
+                           >
+                             <Eye className="h-4 w-4" />
+                           </Button>
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => handleEditSubmission(row)}
+                             className="h-8 w-8 p-0"
+                             title="Edit submission"
+                           >
+                             <Edit3 className="h-4 w-4" />
+                           </Button>
                           <DeleteSubmissionButton 
                             submissionId={row.id}
                             onDelete={() => handleDeleteSubmission(row.id)}
@@ -926,6 +954,14 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       onOpenChange={setShowBulkDelete}
       submissionIds={Array.from(selectedRows)}
       onDelete={handleBulkDeleteComplete}
+    />
+
+    {/* Cross Reference Dialog */}
+    <CrossReferenceDialog
+      open={showCrossReferenceDialog}
+      onOpenChange={setShowCrossReferenceDialog}
+      submissionIds={crossReferenceData}
+      parentFormId={config.formId}
     />
     </div>
   );

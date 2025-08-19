@@ -20,18 +20,46 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
     );
   }
 
-  // Handle cross-reference fields
-  if (fieldType === 'cross-reference' && typeof value === 'string') {
+  // Handle cross-reference fields  
+  if (fieldType === 'cross-reference') {
+    let submissionIds: string[] = [];
+    
+    if (typeof value === 'string') {
+      try {
+        submissionIds = JSON.parse(value);
+      } catch {
+        submissionIds = [value];
+      }
+    } else if (Array.isArray(value)) {
+      submissionIds = value;
+    }
+    
+    if (submissionIds.length === 0) {
+      return <Badge variant="outline" className="italic opacity-70">No references</Badge>;
+    }
+    
+    const displayIds = submissionIds.slice(0, 10);
+    const hasMore = submissionIds.length > 10;
+    
     return (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => navigate(`/submissions/${value}`)}
-        className="h-8"
+      <div 
+        className="cursor-pointer"
+        onClick={() => {
+          // Trigger dialog with all IDs
+          const dynamicTable = document.querySelector('[data-dynamic-table]');
+          if (dynamicTable) {
+            const event = new CustomEvent('showCrossReference', { 
+              detail: { submissionIds } 
+            });
+            dynamicTable.dispatchEvent(event);
+          }
+        }}
       >
-        <Eye className="h-3 w-3 mr-1" />
-        View
-      </Button>
+        <span className="text-sm">
+          {displayIds.map(id => `#${id.slice(0, 8)}`).join(', ')}
+          {hasMore && <span className="text-muted-foreground">...</span>}
+        </span>
+      </div>
     );
   }
 
