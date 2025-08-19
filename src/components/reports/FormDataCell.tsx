@@ -56,7 +56,7 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
         }}
       >
         <span className="text-sm">
-          {displayIds.map(id => `#${id.slice(0, 8)}`).join(', ')}
+          {displayIds.map(id => `#${String(id).slice(0, 8)}`).join(', ')}
           {hasMore && <span className="text-muted-foreground">...</span>}
         </span>
       </div>
