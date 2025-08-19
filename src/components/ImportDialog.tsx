@@ -187,10 +187,27 @@ export function ImportDialog({ isOpen, onOpenChange, formId, formFields, onImpor
     });
   }, [formFields, csvData, validateMapping]);
 
+  // Filter out non-mappable fields (cross-reference, headers, descriptions, etc.)
+  const getMappableFields = useCallback(() => {
+    const nonMappableTypes = [
+      'cross-reference',
+      'child-cross-reference', 
+      'header',
+      'description',
+      'section-break',
+      'horizontal-line',
+      'record-table',
+      'matrix-grid'
+    ];
+    
+    return formFields.filter(field => !nonMappableTypes.includes(field.field_type));
+  }, [formFields]);
+
   const initializeMappings = useCallback(() => {
     if (!csvData || !formFields.length) return;
 
-    const newMappings = formFields.map(field => {
+    const mappableFields = getMappableFields();
+    const newMappings = mappableFields.map(field => {
       // Try to auto-match by field label or ID
       const matchingHeader = csvData.headers.find(header => 
         header.toLowerCase().includes(field.label.toLowerCase()) ||
@@ -199,7 +216,7 @@ export function ImportDialog({ isOpen, onOpenChange, formId, formFields, onImpor
 
       const validation = matchingHeader ? 
         validateMapping(matchingHeader, field, csvData.preview) :
-        { isValid: false, errorMessage: 'No mapping selected' };
+        { isValid: !field.required, errorMessage: field.required ? 'Required field must be mapped' : '' };
 
       return {
         csvColumn: matchingHeader || '',
@@ -211,30 +228,33 @@ export function ImportDialog({ isOpen, onOpenChange, formId, formFields, onImpor
 
     setMappings(newMappings);
     setStep(3);
-  }, [csvData, formFields, validateMapping]);
+  }, [csvData, formFields, validateMapping, getMappableFields]);
 
   const handleImport = useCallback(async () => {
     if (!csvData || !mappings.length) return;
 
-    const invalidMappings = mappings.filter(m => !m.isValid);
-    const requiredFields = formFields.filter(f => f.required);
-    const mappedRequiredFields = requiredFields.filter(rf => 
-      mappings.some(m => m.formField === rf.id && m.isValid)
+    const mappableFields = getMappableFields();
+    const requiredMappableFields = mappableFields.filter(f => f.required);
+    const mappedRequiredFields = requiredMappableFields.filter(rf => 
+      mappings.some(m => m.formField === rf.id && m.isValid && m.csvColumn)
     );
 
-    if (invalidMappings.length > 0) {
+    // Only check required field mappings
+    if (mappedRequiredFields.length !== requiredMappableFields.length) {
       toast({
-        title: "Invalid Mappings",
-        description: "Please fix all mapping errors before importing.",
+        title: "Missing Required Fields",
+        description: "All required fields must be mapped to CSV columns.",
         variant: "destructive",
       });
       return;
     }
 
-    if (mappedRequiredFields.length !== requiredFields.length) {
+    // Check for mapping errors only on mapped fields
+    const mappedFieldsWithErrors = mappings.filter(m => m.csvColumn && !m.isValid);
+    if (mappedFieldsWithErrors.length > 0) {
       toast({
-        title: "Missing Required Fields",
-        description: "All required fields must be mapped.",
+        title: "Invalid Mappings",
+        description: "Please fix all mapping errors before importing.",
         variant: "destructive",
       });
       return;
@@ -258,7 +278,6 @@ export function ImportDialog({ isOpen, onOpenChange, formId, formFields, onImpor
         return {
           form_id: formId,
           submission_data: submissionData,
-          submitted_by: 'import',
         };
       });
 
@@ -422,12 +441,12 @@ export function ImportDialog({ isOpen, onOpenChange, formId, formFields, onImpor
                     <MapPin className="h-5 w-5" />
                     Map CSV Columns to Form Fields
                   </CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Map each form field to the corresponding CSV column. Required fields are marked with *.
-                  </p>
+                   <p className="text-sm text-muted-foreground">
+                     Map form fields to CSV columns. Only required fields (*) must be mapped, others are optional.
+                   </p>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {formFields.map((field, index) => {
+                  {getMappableFields().map((field, index) => {
                     const mapping = mappings[index];
                     return (
                       <div key={field.id} className="flex items-center gap-4 p-4 border rounded">
