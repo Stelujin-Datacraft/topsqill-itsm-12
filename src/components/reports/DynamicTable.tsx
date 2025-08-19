@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3, Hash, User, Calendar, CheckCircle } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3, FileText, User, Calendar, CheckCircle } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useReports } from '@/hooks/useReports';
@@ -626,7 +626,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                 </TableHead>
                 <TableHead className="uppercase text-xs tracking-wider font-semibold text-emerald-700" style={{ minWidth: '150px' }}>
                   <div className="flex items-center gap-2">
-                    <Hash className="h-4 w-4 text-emerald-600" />
+                    <FileText className="h-4 w-4 text-emerald-600" />
                     Submission ID
                   </div>
                 </TableHead>
