@@ -614,7 +614,8 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
             <div className="flex items-center gap-1 flex-wrap">
               <SavedFiltersManager
                 formId={config.formId}
-                onFiltersLoad={setComplexFilters}
+                onApplyFilter={setComplexFilters}
+                currentFilters={complexFilters}
               />
               
               <DynamicTableColumnSelector
@@ -944,26 +945,25 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
 
       {/* Dialogs */}
       <InlineEditDialog
-        open={showInlineEdit}
+        isOpen={showInlineEdit}
         onOpenChange={setShowInlineEdit}
-        submission={editingSubmission}
-        formFields={formFields}
+        submissions={editingSubmission ? (Array.isArray(editingSubmission) ? editingSubmission : [editingSubmission]) : []}
+        formFields={formFields || []}
         onSave={handleInlineEditSave}
-        isBulkEdit={Array.isArray(editingSubmission)}
       />
 
       <BulkDeleteDialog
-        open={showBulkDelete}
+        isOpen={showBulkDelete}
         onOpenChange={setShowBulkDelete}
-        selectedSubmissions={Array.from(selectedRows)}
-        onComplete={handleBulkDeleteComplete}
+        submissionIds={Array.from(selectedRows)}
+        onDelete={handleBulkDeleteComplete}
       />
 
       <CrossReferenceDialog
         open={showCrossReferenceDialog}
         onOpenChange={setShowCrossReferenceDialog}
-        submissionIds={crossReferenceData}
-        onNavigate={handleViewSubmission}
+        submissionIds={crossReferenceData || []}
+        parentFormId={config.formId}
       />
     </div>
   );
