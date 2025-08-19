@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -56,6 +55,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
   
   // New state for bulk operations and inline editing
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -549,33 +549,80 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       {/* Analytics Section */}
       {!isExpanded && <SubmissionAnalytics data={data} />}
       
-      <Card className="h-full flex flex-col group hover:shadow-2xl transition-all duration-500 hover:-translate-y-2">
-        <CardHeader className="pb-3 bg-gradient-to-r from-emerald-50 to-cyan-50 group-hover:from-emerald-100 group-hover:to-cyan-100 transition-all duration-500">
-          <CardTitle className="flex items-center justify-between">
-            <span className="text-2xl bg-gradient-to-r from-emerald-600 to-cyan-600 bg-clip-text text-transparent group-hover:from-emerald-700 group-hover:to-cyan-700 transition-all duration-500">{config.title || 'Smart Data Table'}</span>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 group-hover:bg-emerald-200 group-hover:scale-105 transition-all duration-300">
-                {filteredAndSortedData.length} records
-              </Badge>
+      <Card className="h-full flex flex-col">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <CardTitle className="text-lg font-semibold">{config.title}</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {filteredAndSortedData.length} record{filteredAndSortedData.length !== 1 ? 's' : ''} found
+              </p>
+            </div>
+            <div className="flex items-center space-x-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setIsExpanded(!isExpanded)}
-                title={isExpanded ? "Exit fullscreen" : "Expand fullscreen"}
               >
                 {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                {isExpanded ? 'Normal View' : 'Expand'}
               </Button>
+              {onEdit && (
+                <Button variant="outline" size="sm" onClick={onEdit}>
+                  <Settings className="h-4 w-4" />
+                  Configure
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Applied Filters */}
+          {(Object.keys(columnFilters).length > 0 || complexFilters.length > 0) && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {Object.entries(columnFilters).map(([fieldId, value]) => {
+                if (!value) return null;
+                const field = displayFields.find(f => f.id === fieldId);
+                return (
+                  <Badge key={fieldId} variant="secondary" className="text-xs h-5">
+                    {field?.label}: {value}
+                    <button
+                      className="ml-1"
+                      onClick={() => handleColumnFilter(fieldId, '')}
+                    >
+                      ×
+                    </button>
+                  </Badge>
+                );
+              })}
+              {complexFilters.map((group, index) => (
+                <Badge key={`complex-${index}`} variant="secondary" className="text-xs h-5">
+                  Complex Filter {index + 1}
+                  <button
+                    className="ml-1"
+                    onClick={() => setComplexFilters(prev => prev.filter((_, i) => i !== index))}
+                  >
+                    ×
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          {/* Compact Controls Row */}
+          <div className="flex items-center justify-between gap-2">
+            {/* Left Side Controls */}
+            <div className="flex items-center gap-1 flex-wrap">
               <SavedFiltersManager
                 formId={config.formId}
-                onApplyFilter={setComplexFilters}
-                currentFilters={complexFilters}
+                onFiltersLoad={setComplexFilters}
               />
-              <ExportDropdown data={exportData} disabled={filteredAndSortedData.length === 0} />
-              <DynamicTableColumnSelector 
+              
+              <DynamicTableColumnSelector
                 formFields={formFields}
                 selectedColumns={selectedColumns}
                 onColumnToggle={handleColumnToggle}
               />
+
               {config.enableFiltering && (
                 <ComplexFilter
                   filters={complexFilters}
@@ -584,385 +631,340 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                   formId={config.formId}
                 />
               )}
-              {onEdit && (
-                <Button variant="outline" size="sm" onClick={onEdit}>
-                  <Settings className="h-4 w-4 mr-2" />
-                  Configure
-                </Button>
-              )}
-            </div>
-          </CardTitle>
-          
-          <div className="space-y-3 mt-3">
-            {config.enableSearch && (
-              <div className="flex items-center space-x-2">
-                <Search className="h-4 w-4 text-muted-foreground" />
-                 <Input
-                   placeholder="Search records or Submission ID..."
-                   value={searchTerm}
-                   onChange={(e) => setSearchTerm(e.target.value)}
-                   className="max-w-sm group-hover:border-emerald-300 transition-all duration-300"
-                 />
-              </div>
-            )}
-            
-            {config.enableSorting && (
-              <SortingControls
-                availableFields={displayFields.map(f => ({ id: f.id, label: f.label }))}
-                sortConfigs={sortConfigs}
-                onAddSort={handleAddSort}
-                onRemoveSort={handleRemoveSort}
-                onToggleDirection={handleToggleDirection}
-              />
-            )}
 
-            {filteredAndSortedData.length > pageSize && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Rows per page:</span>
-                <Select value={pageSize.toString()} onValueChange={(value) => {
-                  setPageSize(Number(value));
-                  setCurrentPage(1);
-                }}>
-                  <SelectTrigger className="w-20">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="5">5</SelectItem>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                  </SelectContent>
-                </Select>
+              {config.enableSorting && (
+                <SortingControls
+                  availableFields={displayFields.map(f => ({ id: f.id, label: f.label }))}
+                  sortConfigs={sortConfigs}
+                  onAddSort={handleAddSort}
+                  onRemoveSort={handleRemoveSort}
+                  onToggleDirection={handleToggleDirection}
+                />
+              )}
+
+              <ExportDropdown data={exportData} />
+            </div>
+
+            {/* Right Side Controls */}
+            <div className="flex items-center gap-2">
+              {/* Search */}
+              {config.enableSearch && (
+                <div className="relative w-48">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                  <Input
+                    placeholder="Search..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-7 h-8 text-xs"
+                  />
+                </div>
+              )}
+
+              {/* Auto Refresh Toggle */}
+              <div className="flex items-center space-x-1 bg-muted/30 rounded-md px-2 py-1">
+                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-xs text-muted-foreground">Auto</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={loadData}
+                  className="h-5 w-5 p-0"
+                >
+                  <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </Button>
               </div>
-            )}
+            </div>
           </div>
         </CardHeader>
       
-      <CardContent className="flex-1 overflow-hidden group-hover:bg-gradient-to-br group-hover:from-emerald-50/30 group-hover:to-cyan-50/30 transition-all duration-500">
-        <ScrollArea className={isExpanded ? "h-[calc(100vh-200px)]" : "h-[600px]"}>
-            <div className="rounded-xl border border-border shadow-sm bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/60 overflow-hidden">
+        <CardContent className="p-2">
+          <div className={`overflow-auto ${isExpanded ? 'h-[85vh]' : 'max-h-[70vh]'}`}>
+            <div className="space-y-2">
+              {/* Compact Page Size Selector */}
+              <div className="flex items-center justify-between px-2">
+                <div className="flex items-center space-x-1">
+                  <span className="text-xs text-muted-foreground">Show:</span>
+                  <Select value={pageSize.toString()} onValueChange={(value) => setPageSize(parseInt(value))}>
+                    <SelectTrigger className="w-16 h-6 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <Table>
-            <TableHeader className="sticky top-0 z-20 bg-gradient-to-r from-emerald-50 to-cyan-50 backdrop-blur-sm border-b-2 border-emerald-200/50 shadow-sm hover:from-emerald-100 hover:to-cyan-100 transition-all duration-500">
-              <TableRow className="border-b h-14 hover:bg-transparent">
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={paginatedData.length > 0 && paginatedData.every(row => selectedRows.has(row.id))}
-                    onCheckedChange={handleSelectAll}
-                    aria-label="Select all rows"
-                  />
-                </TableHead>
-                <TableHead className="uppercase text-xs tracking-wider font-semibold text-emerald-700" style={{ minWidth: '150px' }}>
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-emerald-600" />
-                    Submission ID
-                  </div>
-                </TableHead>
-                {/* User metadata first */}
-                <TableHead className="uppercase text-xs tracking-wider font-semibold text-emerald-700" style={{ minWidth: '180px' }}>
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-emerald-600" />
-                    User
-                  </div>
-                </TableHead>
-                <TableHead className="uppercase text-xs tracking-wider font-semibold text-emerald-700" style={{ minWidth: '150px' }}>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-purple-600" />
-                    Submitted
-                  </div>
-                </TableHead>
-                <TableHead className="uppercase text-xs tracking-wider font-semibold text-emerald-700" style={{ minWidth: '120px' }}>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    Status
-                  </div>
-                </TableHead>
-                
-                {/* Form fields */}
-                {displayFields.map(field => (
-                  <TableHead key={field.id} className="uppercase text-xs tracking-wider font-semibold text-emerald-700" style={{ minWidth: '200px' }}>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold">{field.label}</span>
-                      {config.enableSorting && sortConfigs.find(s => s.field === field.id) && (
-                        <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
-                          {sortConfigs.findIndex(s => s.field === field.id) + 1}
-                        </Badge>
-                      )}
-                      {config.enableFiltering && (
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className={`${columnFilters[field.id] ? 'text-primary bg-primary/10' : 'text-foreground/70'} h-7 w-7 p-0 hover:text-primary hover:bg-primary/10 transition-colors`}
-                              aria-label={`Filter ${field.label}`}
-                              title={`Filter ${field.label}`}
-                            >
-                              <Filter className="h-3.5 w-3.5" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent align="start" className="w-64">
-                            <div className="space-y-2">
-                              <Input
-                                placeholder={`Filter ${field.label}...`}
-                                value={columnFilters[field.id] || ''}
-                                onChange={(e) => handleColumnFilter(field.id, e.target.value)}
-                              />
-                              {columnFilters[field.id] && (
-                                <div className="flex justify-end">
-                                  <Button variant="ghost" size="sm" onClick={() => handleColumnFilter(field.id, '')}>
-                                    Clear
-                                  </Button>
+                <TableHeader className="sticky top-0 z-20 bg-muted/50">
+                  <TableRow className="border-b">
+                    <TableHead className="w-10 h-8">
+                      <Checkbox
+                        checked={paginatedData.length > 0 && paginatedData.every(row => selectedRows.has(row.id))}
+                        onCheckedChange={handleSelectAll}
+                        aria-label="Select all rows"
+                      />
+                    </TableHead>
+                    <TableHead className="text-xs font-medium h-8">
+                      <div className="flex items-center gap-1">
+                        <FileText className="h-3 w-3" />
+                        Submission ID
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-xs font-medium h-8">
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        User
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-xs font-medium h-8">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        Submitted
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-xs font-medium h-8">
+                      <div className="flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3" />
+                        Status
+                      </div>
+                    </TableHead>
+                    
+                    {/* Form fields */}
+                    {displayFields.map(field => (
+                      <TableHead key={field.id} className="text-xs font-medium h-8">
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">{field.label}</span>
+                          {config.enableFiltering && (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className={`${columnFilters[field.id] ? 'text-primary' : 'text-muted-foreground'} h-5 w-5 p-0`}
+                                  aria-label={`Filter ${field.label}`}
+                                >
+                                  <Filter className="h-2.5 w-2.5" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent align="start" className="w-64">
+                                <div className="space-y-2">
+                                  <Input
+                                    placeholder={`Filter ${field.label}...`}
+                                    value={columnFilters[field.id] || ''}
+                                    onChange={(e) => handleColumnFilter(field.id, e.target.value)}
+                                  />
+                                  {columnFilters[field.id] && (
+                                    <div className="flex justify-end">
+                                      <Button variant="ghost" size="sm" onClick={() => handleColumnFilter(field.id, '')}>
+                                        Clear
+                                      </Button>
+                                    </div>
+                                  )}
                                 </div>
-                              )}
+                              </PopoverContent>
+                            </Popover>
+                          )}
+                        </div>
+                      </TableHead>
+                    ))}
+                    <TableHead className="text-xs font-medium text-center h-8">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedData.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={displayFields.length + 6} className="text-center py-8">
+                        <div className="text-muted-foreground">
+                          {data.length === 0 ? 'No data available' : 'No records match your filters'}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedData.map((row) => (
+                      <TableRow key={row.id} className={`${selectedRows.has(row.id) ? 'bg-muted/50' : ''}`}>
+                        <TableCell className="py-2">
+                          <Checkbox
+                            checked={selectedRows.has(row.id)}
+                            onCheckedChange={(checked) => handleRowSelect(row.id, Boolean(checked))}
+                            aria-label={`Select row ${row.id}`}
+                          />
+                        </TableCell>
+                        
+                        {/* Submission ID */}
+                        <TableCell className="py-2">
+                          <Button
+                            variant="link"
+                            className="font-mono text-xs p-0 h-auto underline"
+                            onClick={() => navigate(`/submission/${row.id}`)}
+                          >
+                            #{row.submission_ref_id || row.id.slice(0, 8)}
+                          </Button>
+                        </TableCell>
+                        
+                        {/* User Info */}
+                        <TableCell className="py-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium">
+                              {row.submitted_by_email ? row.submitted_by_email.charAt(0).toUpperCase() : 'U'}
                             </div>
-                          </PopoverContent>
-                        </Popover>
-                      )}
-                    </div>
-                  </TableHead>
-                ))}
-                <TableHead className="uppercase text-xs tracking-wider font-semibold text-emerald-700 text-center" style={{ minWidth: '140px' }}>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedData.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={displayFields.length + (config.showMetadata ? 2 : 0) + 3} className="text-center py-8">
-                    <div className="text-muted-foreground">
-                      {data.length === 0 ? 'No data available' : 'No records match your filters'}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                  paginatedData.map((row, index) => (
-                    <TableRow key={row.id} className={`transition-all duration-300 ${selectedRows.has(row.id) ? 'bg-primary/5' : ''}`}>
-                       <TableCell>
-                         <Checkbox
-                           checked={selectedRows.has(row.id)}
-                           onCheckedChange={(checked) => handleRowSelect(row.id, Boolean(checked))}
-                           aria-label={`Select row ${row.id}`}
-                         />
-                       </TableCell>
+                            <span className="text-xs truncate max-w-32">
+                              {row.submitted_by_email || 'Anonymous'}
+                            </span>
+                          </div>
+                        </TableCell>
                        
-                       {/* Submission ID */}
-                       <TableCell style={{ minWidth: '150px' }}>
-                         <Button
-                           variant="link"
-                           className="font-mono text-xs p-0 h-auto text-emerald-600 underline"
-                           onClick={() => navigate(`/submission/${row.id}`)}
-                         >
-                           #{row.submission_ref_id || row.id.slice(0, 8)}
-                         </Button>
-                       </TableCell>
-                       
-                       {/* User Info */}
-                       <TableCell style={{ minWidth: '180px' }}>
-                         <div className="flex items-center gap-3 min-w-0">
-                           <div className="w-8 h-8 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 flex items-center justify-center text-white text-sm font-semibold">
-                             {row.submitted_by_email ? row.submitted_by_email.charAt(0).toUpperCase() : 'U'}
+                       {/* Submitted Date */}
+                       <TableCell className="py-2">
+                         <div className="text-xs">
+                           <div className="font-medium">
+                             {row.submitted_at ? new Date(row.submitted_at).toLocaleDateString() : '-'}
                            </div>
-                           <div className="min-w-0 flex-1">
-                             <div className="font-medium text-foreground truncate">
-                               {row.submitted_by_email || 'Anonymous'}
-                             </div>
+                           <div className="text-muted-foreground">
+                             {row.submitted_at ? new Date(row.submitted_at).toLocaleTimeString() : '-'}
                            </div>
                          </div>
                        </TableCell>
-                      
-                      {/* Submitted Date */}
-                      <TableCell style={{ minWidth: '150px' }}>
-                        <div>
-                          <div className="text-sm font-medium">
-                            {row.submitted_at ? new Date(row.submitted_at).toLocaleDateString() : '-'}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {row.submitted_at ? new Date(row.submitted_at).toLocaleTimeString() : '-'}
-                          </div>
-                        </div>
-                      </TableCell>
-                      
-                      {/* Status */}
-                      <TableCell style={{ minWidth: '120px' }}>
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-emerald-600" />
-                          <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200">
-                            Submitted
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      
-                      {/* Form Fields */}
-                     {displayFields.map(field => (
-                        <TableCell key={field.id} style={{ minWidth: '200px' }}>
-                          <div className="min-w-0">
-                            <FormDataCell 
-                              value={row.submission_data?.[field.id]}
-                              fieldType={field.field_type || field.type}
-                              field={field}
-                            />
-                          </div>
-                        </TableCell>
-                      ))}
-                      
-                      <TableCell style={{ minWidth: '140px' }}>
-                        <div className="flex items-center justify-center gap-1">
-                           <Button
-                             variant="ghost"
-                             size="sm"
-                             onClick={() => handleViewSubmission(row.id)}
-                             className="h-8 w-8 p-0"
-                             title="View submission details"
-                           >
-                             <Eye className="h-4 w-4" />
-                           </Button>
-                           <Button
-                             variant="ghost"
-                             size="sm"
-                             onClick={() => handleEditSubmission(row)}
-                             className="h-8 w-8 p-0"
-                             title="Edit submission"
-                           >
-                             <Edit3 className="h-4 w-4" />
-                           </Button>
-                          <DeleteSubmissionButton 
-                            submissionId={row.id}
-                            onDelete={() => handleDeleteSubmission(row.id)}
-                            checkPermission={() => checkDeletePermission(row.id)}
-                          />
-                        </div>
-                      </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-            </Table>
-            </div>
-        </ScrollArea>
-      </CardContent>
-      
-      {/* Table Footer with Landing Page Theme */}
-      {filteredAndSortedData.length > 0 && (
-        <div className="px-6 py-4 border-t bg-muted/30 group-hover:bg-gradient-to-r group-hover:from-emerald-50/50 group-hover:to-cyan-50/50 transition-all duration-500">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <span>Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, filteredAndSortedData.length)} of {filteredAndSortedData.length} submissions</span>
-              <div className="flex items-center gap-2">
-                <Search className="h-4 w-4" />
-                <span>Real-time search & filter</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {totalPages > 1 && (
+                       
+                       {/* Status */}
+                       <TableCell className="py-2">
+                         <Badge variant="secondary" className="text-xs">
+                           Submitted
+                         </Badge>
+                       </TableCell>
+                       
+                       {/* Form Fields */}
+                      {displayFields.map(field => (
+                         <TableCell key={field.id} className="py-2 max-w-48">
+                           <div className="min-w-0">
+                             <FormDataCell 
+                               value={row.submission_data?.[field.id]}
+                               fieldType={field.field_type || field.type}
+                               field={field}
+                             />
+                           </div>
+                         </TableCell>
+                       ))}
+                       
+                       <TableCell className="py-2">
+                         <div className="flex items-center justify-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewSubmission(row.id)}
+                              className="h-6 w-6 p-0"
+                            >
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                            {canDeleteSubmissions && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditSubmission(row);
+                                  }}
+                                  className="h-6 w-6 p-0"
+                                >
+                                  <Edit3 className="h-3 w-3" />
+                                </Button>
+                                <DeleteSubmissionButton
+                                  submissionId={row.id}
+                                  onDelete={() => handleDeleteSubmission(row.id)}
+                                  checkPermission={() => checkDeletePermission(row.id)}
+                                />
+                              </>
+                            )}
+                         </div>
+                       </TableCell>
+                    </TableRow>
+                  ))
+                )}
+                </TableBody>
+              </Table>
+
+              {/* Compact Pagination */}
+              <div className="flex items-center justify-between px-2 py-1 border-t">
+                <div className="text-xs text-muted-foreground">
+                  {Math.min((currentPage - 1) * pageSize + 1, filteredAndSortedData.length)}-{Math.min(currentPage * pageSize, filteredAndSortedData.length)} of {filteredAndSortedData.length}
+                </div>
                 <Pagination>
                   <PaginationContent>
                     <PaginationItem>
                       <PaginationPrevious 
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          if (currentPage > 1) setCurrentPage(currentPage - 1);
-                        }}
-                        className={`${currentPage <= 1 ? 'pointer-events-none opacity-50' : ''} group-hover:border-emerald-300 group-hover:text-emerald-600 transition-all duration-300`}
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        className={`${currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'} h-6 px-2 text-xs`}
                       />
                     </PaginationItem>
-                    
-                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-                      
+                    {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
+                      const pageNumber = currentPage <= 2 ? i + 1 : currentPage - 1 + i;
+                      if (pageNumber > totalPages) return null;
                       return (
-                        <PaginationItem key={pageNum}>
+                        <PaginationItem key={pageNumber}>
                           <PaginationLink
-                            href="#"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setCurrentPage(pageNum);
-                            }}
-                            isActive={currentPage === pageNum}
-                            className="group-hover:border-cyan-300 group-hover:text-cyan-600 transition-all duration-300"
+                            onClick={() => setCurrentPage(pageNumber)}
+                            isActive={currentPage === pageNumber}
+                            className="cursor-pointer h-6 px-2 text-xs"
                           >
-                            {pageNum}
+                            {pageNumber}
                           </PaginationLink>
                         </PaginationItem>
                       );
                     })}
-                    
                     <PaginationItem>
                       <PaginationNext 
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-                        }}
-                        className={`${currentPage >= totalPages ? 'pointer-events-none opacity-50' : ''} group-hover:border-emerald-300 group-hover:text-emerald-600 transition-all duration-300`}
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        className={`${currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'} h-6 px-2 text-xs`}
                       />
                     </PaginationItem>
                   </PaginationContent>
                 </Pagination>
-              )}
-              <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 group-hover:bg-emerald-200 group-hover:scale-105 transition-all duration-300">
-                📊 Live Data
-              </Badge>
-              <Badge variant="secondary" className="bg-cyan-100 text-cyan-700 group-hover:bg-cyan-200 group-hover:scale-105 transition-all duration-300">
-                🔄 Auto-refresh
-              </Badge>
+              </div>
             </div>
           </div>
-        </div>
+        </CardContent>
+      </Card>
+
+      {/* Bulk Actions Bar */}
+      {selectedRows.size > 0 && (
+        <BulkActionsBar
+          selectedCount={selectedRows.size}
+          onBulkEdit={handleBulkEdit}
+          onBulkDelete={handleBulkDelete}
+          onClearSelection={handleClearSelection}
+          canDelete={canDeleteSubmissions}
+        />
       )}
-    </Card>
 
-    {/* Bulk Actions Bar */}
-    <BulkActionsBar
-      selectedCount={selectedRows.size}
-      onBulkEdit={handleBulkEdit}
-      onBulkDelete={handleBulkDelete}
-      onClearSelection={handleClearSelection}
-      canDelete={canDeleteSubmissions}
-    />
+      {/* Dialogs */}
+      <InlineEditDialog
+        open={showInlineEdit}
+        onOpenChange={setShowInlineEdit}
+        submission={editingSubmission}
+        formFields={formFields}
+        onSave={handleInlineEditSave}
+        isBulkEdit={Array.isArray(editingSubmission)}
+      />
 
-    {/* Individual Inline Edit Dialog */}
-    <InlineEditDialog
-      isOpen={showInlineEdit}
-      onOpenChange={setShowInlineEdit}
-      submissions={editingSubmission && !Array.isArray(editingSubmission) ? [editingSubmission] : []}
-      formFields={formFields}
-      onSave={handleInlineEditSave}
-    />
+      <BulkDeleteDialog
+        open={showBulkDelete}
+        onOpenChange={setShowBulkDelete}
+        selectedSubmissions={Array.from(selectedRows)}
+        onComplete={handleBulkDeleteComplete}
+      />
 
-    {/* Bulk Edit Dialog */}
-    <InlineEditDialog
-      isOpen={showBulkEdit}
-      onOpenChange={setShowBulkEdit}
-      submissions={Array.isArray(editingSubmission) ? editingSubmission : []}
-      formFields={formFields}
-      onSave={handleInlineEditSave}
-    />
-
-    {/* Bulk Delete Dialog */}
-    <BulkDeleteDialog
-      isOpen={showBulkDelete}
-      onOpenChange={setShowBulkDelete}
-      submissionIds={Array.from(selectedRows)}
-      onDelete={handleBulkDeleteComplete}
-    />
-
-    {/* Cross Reference Dialog */}
-    <CrossReferenceDialog
-      open={showCrossReferenceDialog}
-      onOpenChange={setShowCrossReferenceDialog}
-      submissionIds={crossReferenceData}
-      parentFormId={config.formId}
-    />
+      <CrossReferenceDialog
+        open={showCrossReferenceDialog}
+        onOpenChange={setShowCrossReferenceDialog}
+        submissionIds={crossReferenceData}
+        onNavigate={handleViewSubmission}
+      />
     </div>
   );
 }
