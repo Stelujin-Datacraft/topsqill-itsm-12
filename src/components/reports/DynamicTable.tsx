@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3 } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3, Hash, User, Calendar, CheckCircle } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useReports } from '@/hooks/useReports';
@@ -521,12 +521,12 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       {/* Analytics Section */}
       {!isExpanded && <SubmissionAnalytics data={data} />}
       
-      <Card className="h-full flex flex-col">
-        <CardHeader className="pb-3">
+      <Card className="h-full flex flex-col group hover:shadow-2xl transition-all duration-500 hover:-translate-y-2">
+        <CardHeader className="pb-3 bg-gradient-to-r from-emerald-50 to-cyan-50 group-hover:from-emerald-100 group-hover:to-cyan-100 transition-all duration-500">
           <CardTitle className="flex items-center justify-between">
-            <span>{config.title || 'Dynamic Table'}</span>
+            <span className="text-2xl bg-gradient-to-r from-emerald-600 to-cyan-600 bg-clip-text text-transparent group-hover:from-emerald-700 group-hover:to-cyan-700 transition-all duration-500">{config.title || 'Smart Data Table'}</span>
             <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="secondary">
+              <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 group-hover:bg-emerald-200 group-hover:scale-105 transition-all duration-300">
                 {filteredAndSortedData.length} records
               </Badge>
               <Button
@@ -573,7 +573,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                    placeholder="Search records or Submission ID..."
                    value={searchTerm}
                    onChange={(e) => setSearchTerm(e.target.value)}
-                   className="max-w-sm"
+                   className="max-w-sm group-hover:border-emerald-300 transition-all duration-300"
                  />
               </div>
             )}
@@ -611,11 +611,11 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
           </div>
         </CardHeader>
       
-      <CardContent className="flex-1 overflow-hidden">
+      <CardContent className="flex-1 overflow-hidden group-hover:bg-gradient-to-br group-hover:from-emerald-50/30 group-hover:to-cyan-50/30 transition-all duration-500">
         <ScrollArea className={isExpanded ? "h-[calc(100vh-200px)]" : "h-[600px]"}>
             <div className="rounded-xl border border-border shadow-sm bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/60 overflow-hidden">
               <Table>
-            <TableHeader className="sticky top-0 z-20 bg-gradient-to-b from-background/95 to-background/90 backdrop-blur-sm border-b-2 border-primary/20 shadow-sm">
+            <TableHeader className="sticky top-0 z-20 bg-gradient-to-r from-emerald-50 to-cyan-50 backdrop-blur-sm border-b-2 border-emerald-200/50 shadow-sm hover:from-emerald-100 hover:to-cyan-100 transition-all duration-500">
               <TableRow className="border-b h-14 hover:bg-transparent">
                 <TableHead className="w-12">
                   <Checkbox
@@ -624,11 +624,35 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                     aria-label="Select all rows"
                   />
                 </TableHead>
-                <TableHead className="uppercase text-xs tracking-wider font-semibold text-foreground/90" style={{ minWidth: '150px' }}>
-                  Submission ID
+                <TableHead className="uppercase text-xs tracking-wider font-semibold text-emerald-700" style={{ minWidth: '150px' }}>
+                  <div className="flex items-center gap-2">
+                    <Hash className="h-4 w-4 text-emerald-600" />
+                    Submission ID
+                  </div>
                 </TableHead>
+                {/* User metadata first */}
+                <TableHead className="uppercase text-xs tracking-wider font-semibold text-emerald-700" style={{ minWidth: '180px' }}>
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-emerald-600" />
+                    User
+                  </div>
+                </TableHead>
+                <TableHead className="uppercase text-xs tracking-wider font-semibold text-emerald-700" style={{ minWidth: '150px' }}>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-purple-600" />
+                    Submitted
+                  </div>
+                </TableHead>
+                <TableHead className="uppercase text-xs tracking-wider font-semibold text-emerald-700" style={{ minWidth: '120px' }}>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    Status
+                  </div>
+                </TableHead>
+                
+                {/* Form fields */}
                 {displayFields.map(field => (
-                  <TableHead key={field.id} className="uppercase text-xs tracking-wider font-semibold text-foreground/90" style={{ minWidth: '200px' }}>
+                  <TableHead key={field.id} className="uppercase text-xs tracking-wider font-semibold text-emerald-700" style={{ minWidth: '200px' }}>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">{field.label}</span>
                       {config.enableSorting && sortConfigs.find(s => s.field === field.id) && (
@@ -670,13 +694,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                     </div>
                   </TableHead>
                 ))}
-                {config.showMetadata && (
-                  <>
-                    <TableHead className="uppercase text-xs tracking-wider font-semibold text-foreground/90" style={{ minWidth: '200px' }}>Submitted At</TableHead>
-                    <TableHead className="uppercase text-xs tracking-wider font-semibold text-foreground/90" style={{ minWidth: '200px' }}>Submitted By</TableHead>
-                  </>
-                )}
-                <TableHead className="uppercase text-xs tracking-wider font-semibold text-foreground/90" style={{ minWidth: '140px' }}>Actions</TableHead>
+                <TableHead className="uppercase text-xs tracking-wider font-semibold text-emerald-700 text-center" style={{ minWidth: '140px' }}>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -689,8 +707,12 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                   </TableCell>
                 </TableRow>
               ) : (
-                 paginatedData.map((row) => (
-                   <TableRow key={row.id} className="hover:bg-accent/10 transition-colors">
+                 paginatedData.map((row, index) => (
+                   <TableRow key={row.id} className={`transition-all duration-300 group/row cursor-pointer ${
+                     index % 2 === 0 
+                       ? 'hover:bg-gradient-to-r hover:from-emerald-50 hover:to-cyan-50' 
+                       : 'hover:bg-gradient-to-r hover:from-cyan-50 hover:to-emerald-50'
+                   } ${selectedRows.has(row.id) ? 'bg-primary/5' : ''}`}>
                       <TableCell>
                         <Checkbox
                           checked={selectedRows.has(row.id)}
@@ -698,37 +720,70 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                           aria-label={`Select row ${row.id}`}
                         />
                       </TableCell>
+                      
+                      {/* Submission ID */}
                       <TableCell style={{ minWidth: '150px' }}>
-                        <Badge variant="outline" className="font-mono text-xs">
-                          {row.submission_ref_id || row.id.slice(0, 8)}
-                        </Badge>
+                        <span className="font-mono text-xs text-muted-foreground group-hover/row:text-emerald-600 transition-colors">
+                          #{row.submission_ref_id || row.id.slice(0, 8)}
+                        </span>
                       </TableCell>
+                      
+                      {/* User Info */}
+                      <TableCell style={{ minWidth: '180px' }}>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 flex items-center justify-center text-white text-sm font-semibold group-hover/row:scale-110 transition-transform duration-300">
+                            {row.submitted_by_email ? row.submitted_by_email.charAt(0).toUpperCase() : 'U'}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium text-foreground group-hover/row:text-emerald-700 transition-colors truncate">
+                              {row.submitted_by_email || 'Anonymous'}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      
+                      {/* Submitted Date */}
+                      <TableCell style={{ minWidth: '150px' }}>
+                        <div>
+                          <div className="text-sm font-medium">
+                            {row.submitted_at ? new Date(row.submitted_at).toLocaleDateString() : '-'}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {row.submitted_at ? new Date(row.submitted_at).toLocaleTimeString() : '-'}
+                          </div>
+                        </div>
+                      </TableCell>
+                      
+                      {/* Status */}
+                      <TableCell style={{ minWidth: '120px' }}>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="h-4 w-4 text-emerald-600" />
+                          <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200">
+                            Submitted
+                          </Badge>
+                        </div>
+                      </TableCell>
+                      
+                      {/* Form Fields */}
                      {displayFields.map(field => (
                         <TableCell key={field.id} style={{ minWidth: '200px' }}>
-                          <FormDataCell 
-                            value={row.submission_data?.[field.id]}
-                            fieldType={field.field_type || field.type}
-                            field={field}
-                          />
+                          <div className="min-w-0">
+                            <FormDataCell 
+                              value={row.submission_data?.[field.id]}
+                              fieldType={field.field_type || field.type}
+                              field={field}
+                            />
+                          </div>
                         </TableCell>
                       ))}
-                      {config.showMetadata && (
-                        <>
-                          <TableCell style={{ minWidth: '200px' }}>
-                            {new Date(row.submitted_at).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell style={{ minWidth: '200px' }}>
-                            <SubmittedByCell submissionData={row} />
-                          </TableCell>
-                        </>
-                      )}
+                      
                       <TableCell style={{ minWidth: '140px' }}>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center justify-center gap-1">
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleViewSubmission(row.id)}
-                            className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
+                            className="h-8 w-8 p-0 opacity-0 group-hover/row:opacity-100 transition-opacity duration-300 hover:bg-emerald-100 hover:text-emerald-600"
                             title="View submission details"
                           >
                             <Eye className="h-4 w-4" />
@@ -737,7 +792,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEditSubmission(row)}
-                            className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
+                            className="h-8 w-8 p-0 opacity-0 group-hover/row:opacity-100 transition-opacity duration-300 hover:bg-cyan-100 hover:text-cyan-600"
                             title="Edit submission"
                           >
                             <Edit3 className="h-4 w-4" />
@@ -758,65 +813,81 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
         </ScrollArea>
       </CardContent>
       
-      {totalPages > 1 && (
-        <div className="px-6 py-4 border-t">
+      {/* Table Footer with Landing Page Theme */}
+      {filteredAndSortedData.length > 0 && (
+        <div className="px-6 py-4 border-t bg-muted/30 group-hover:bg-gradient-to-r group-hover:from-emerald-50/50 group-hover:to-cyan-50/50 transition-all duration-500">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, filteredAndSortedData.length)} of {filteredAndSortedData.length} entries
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <span>Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, filteredAndSortedData.length)} of {filteredAndSortedData.length} submissions</span>
+              <div className="flex items-center gap-2">
+                <Search className="h-4 w-4" />
+                <span>Real-time search & filter</span>
+              </div>
             </div>
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious 
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (currentPage > 1) setCurrentPage(currentPage - 1);
-                    }}
-                    className={currentPage <= 1 ? 'pointer-events-none opacity-50' : ''}
-                  />
-                </PaginationItem>
-                
-                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-                  
-                  return (
-                    <PaginationItem key={pageNum}>
-                      <PaginationLink
+            <div className="flex items-center gap-2">
+              {totalPages > 1 && (
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
                         href="#"
                         onClick={(e) => {
                           e.preventDefault();
-                          setCurrentPage(pageNum);
+                          if (currentPage > 1) setCurrentPage(currentPage - 1);
                         }}
-                        isActive={currentPage === pageNum}
-                      >
-                        {pageNum}
-                      </PaginationLink>
+                        className={`${currentPage <= 1 ? 'pointer-events-none opacity-50' : ''} group-hover:border-emerald-300 group-hover:text-emerald-600 transition-all duration-300`}
+                      />
                     </PaginationItem>
-                  );
-                })}
-                
-                <PaginationItem>
-                  <PaginationNext 
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-                    }}
-                    className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : ''}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
+                    
+                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <PaginationItem key={pageNum}>
+                          <PaginationLink
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setCurrentPage(pageNum);
+                            }}
+                            isActive={currentPage === pageNum}
+                            className="group-hover:border-cyan-300 group-hover:text-cyan-600 transition-all duration-300"
+                          >
+                            {pageNum}
+                          </PaginationLink>
+                        </PaginationItem>
+                      );
+                    })}
+                    
+                    <PaginationItem>
+                      <PaginationNext 
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+                        }}
+                        className={`${currentPage >= totalPages ? 'pointer-events-none opacity-50' : ''} group-hover:border-emerald-300 group-hover:text-emerald-600 transition-all duration-300`}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
+              <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 group-hover:bg-emerald-200 group-hover:scale-105 transition-all duration-300">
+                📊 Live Data
+              </Badge>
+              <Badge variant="secondary" className="bg-cyan-100 text-cyan-700 group-hover:bg-cyan-200 group-hover:scale-105 transition-all duration-300">
+                🔄 Auto-refresh
+              </Badge>
+            </div>
           </div>
         </div>
       )}
