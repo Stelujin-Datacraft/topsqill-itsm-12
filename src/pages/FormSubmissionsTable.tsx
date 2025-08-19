@@ -137,7 +137,7 @@ export default function FormSubmissionsTable() {
         {/* Data Table */}
         {selectedFormId ? <Card className="flex-1 h-full">
             <CardContent className="p-0">
-              <ScrollArea className="h-[calc(100vh-240px)]">
+              <ScrollArea className="h-[calc(100vh)]">
                 <div className="p-1 px-[10px] py-[10px]">
                   <DynamicTable config={tableConfig} />
                 </div>
