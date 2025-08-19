@@ -26,12 +26,21 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
     
     if (typeof value === 'string') {
       try {
-        submissionIds = JSON.parse(value);
+        const parsed = JSON.parse(value);
+        submissionIds = Array.isArray(parsed) ? parsed : [parsed];
       } catch {
         submissionIds = [value];
       }
     } else if (Array.isArray(value)) {
       submissionIds = value;
+    } else if (value) {
+      // Handle any other non-null value by converting to array
+      submissionIds = [String(value)];
+    }
+    
+    // Ensure submissionIds is always an array
+    if (!Array.isArray(submissionIds)) {
+      submissionIds = [];
     }
     
     if (submissionIds.length === 0) {
