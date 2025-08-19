@@ -26,6 +26,7 @@ import { InlineEditDialog } from './InlineEditDialog';
 import { BulkActionsBar } from './BulkActionsBar';
 import { BulkDeleteDialog } from './BulkDeleteDialog';
 import { CrossReferenceDialog } from './CrossReferenceDialog';
+import { ImportButton } from '@/components/ImportButton';
 
 interface TableConfig {
   title: string;
@@ -644,6 +645,12 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
               )}
 
               <ExportDropdown data={exportData} />
+              
+              <ImportButton 
+                formId={config.formId}
+                formFields={formFields}
+                onImportComplete={loadData}
+              />
             </div>
 
             {/* Right Side Controls */}
