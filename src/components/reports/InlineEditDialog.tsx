@@ -173,6 +173,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         );
       
       case 'select':
+        const selectOptions = field.field_options?.options || field.options || [];
         return (
           <Select 
             value={fieldValue} 
@@ -183,7 +184,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
               <SelectValue placeholder="Select option" />
             </SelectTrigger>
             <SelectContent>
-              {field.options?.map((option: any) => (
+              {Array.isArray(selectOptions) && selectOptions.map((option: any) => (
                 <SelectItem key={option.value || option} value={option.value || option}>
                   {option.label || option}
                 </SelectItem>
