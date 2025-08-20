@@ -709,7 +709,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
               </div>
 
               <Table>
-                <TableHeader className="sticky top-0 z-20 bg-muted/50">
+                <TableHeader className="sticky top-0 z-10 bg-muted/50">
                   <TableRow className="border-b">
                     <TableHead className="w-10 h-8">
                       <Checkbox

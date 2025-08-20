@@ -34,12 +34,34 @@ interface FieldMapping {
   errorMessage?: string;
 }
 
-const FIELD_TYPE_VALIDATION = {
-  email: (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
-  number: (value: string) => !isNaN(Number(value)) && value.trim() !== '',
-  date: (value: string) => !isNaN(Date.parse(value)),
-  boolean: (value: string) => ['true', 'false', '1', '0', 'yes', 'no'].includes(value.toLowerCase()),
-};
+  const FIELD_TYPE_VALIDATION = {
+    email: (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+    number: (value: string) => !isNaN(Number(value)) && value.trim() !== '',
+    date: (value: string) => !isNaN(Date.parse(value)),
+    boolean: (value: string) => ['true', 'false', '1', '0', 'yes', 'no'].includes(value.toLowerCase()),
+    select: (value: string, field: any) => validateSelectField(value, field),
+    radio: (value: string, field: any) => validateSelectField(value, field),
+    multiselect: (value: string, field: any) => validateSelectField(value, field),
+  };
+
+  const validateSelectField = (value: string, field: any) => {
+    if (!value || value.trim() === '') return true; // Empty values are handled by required field validation
+    
+    const options = field.field_options?.options || [];
+    const allowOthers = field.field_options?.allow_others || false;
+    
+    // For multiselect, split by comma and check each value
+    if (field.field_type === 'multiselect') {
+      const values = value.split(',').map(v => v.trim());
+      return values.every(v => 
+        options.some((opt: any) => opt.value === v || opt.label === v) || allowOthers
+      );
+    }
+    
+    // For single select (radio/select), check if value exists in options
+    const isValidOption = options.some((opt: any) => opt.value === value || opt.label === value);
+    return isValidOption || allowOthers;
+  };
 
 export function ImportDialog({ isOpen, onOpenChange, formId, formFields, onImportComplete }: ImportDialogProps) {
   const [step, setStep] = useState(1);
@@ -160,10 +182,26 @@ export function ImportDialog({ isOpen, onOpenChange, formId, formFields, onImpor
       const validator = FIELD_TYPE_VALIDATION[fieldType as keyof typeof FIELD_TYPE_VALIDATION];
       const hasInvalidValues = sampleData.some(row => {
         const value = row[columnIndex]?.toString().trim();
-        return value && !validator(value);
+        if (!value) return false; // Skip empty values
+        
+        // For select-type fields, pass the field object for options validation
+        if (['select', 'radio', 'multiselect'].includes(fieldType)) {
+          return !validator(value, formField);
+        }
+        
+        return !(validator as any)(value);
       });
       
       if (hasInvalidValues) {
+        if (['select', 'radio', 'multiselect'].includes(fieldType)) {
+          const allowOthers = formField.field_options?.allow_others || false;
+          return { 
+            isValid: false, 
+            errorMessage: allowOthers 
+              ? `Some values in CSV don't match field options` 
+              : `Some values in CSV don't match field options. Enable "Allow Others" or fix CSV data.` 
+          };
+        }
         return { isValid: false, errorMessage: `Invalid ${fieldType} format in CSV data` };
       }
     }
@@ -263,6 +301,10 @@ export function ImportDialog({ isOpen, onOpenChange, formId, formFields, onImpor
     try {
       setIsProcessing(true);
 
+      // Get current user once
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUserId = userData.user?.id;
+
       const submissions = csvData.rows.map(row => {
         const submissionData: Record<string, any> = {};
         
@@ -278,6 +320,7 @@ export function ImportDialog({ isOpen, onOpenChange, formId, formFields, onImpor
         return {
           form_id: formId,
           submission_data: submissionData,
+          submitted_by: currentUserId,
         };
       });
 
