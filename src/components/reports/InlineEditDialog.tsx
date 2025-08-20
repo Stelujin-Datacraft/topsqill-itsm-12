@@ -173,7 +173,10 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         );
       
       case 'select':
-        const selectOptions = field.field_options?.options || field.options || [];
+      case 'radio':
+      case 'multiselect':
+        const options = field.field_options?.options || field.options || [];
+        const selectOptions = Array.isArray(options) ? options : [];
         return (
           <Select 
             value={fieldValue} 
@@ -184,7 +187,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
               <SelectValue placeholder="Select option" />
             </SelectTrigger>
             <SelectContent>
-              {Array.isArray(selectOptions) && selectOptions.map((option: any) => (
+              {selectOptions.map((option: any) => (
                 <SelectItem key={option.value || option} value={option.value || option}>
                   {option.label || option}
                 </SelectItem>
@@ -235,17 +238,20 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                   <div className="mb-4 p-4 border rounded-lg bg-primary/5">
                     <div className="text-sm font-medium text-muted-foreground mb-3">Master Values (auto-fills all records):</div>
                     <div className="flex gap-4">
-                      {formFields.filter(field => !['header', 'horizontal_line', 'section_break'].includes(field.field_type)).map((field) => (
-                        <div key={field.id} className="flex-1 min-w-[200px]">
-                          <Label className="text-sm font-medium mb-2 block">{field.label}</Label>
-                          {renderFieldInput(
-                            field, 
-                            'master', 
-                            editedData['master']?.[field.id] || '',
-                            false
-                          )}
-                        </div>
-                      ))}
+                         {formFields.filter(field => !['header', 'horizontal_line', 'section_break'].includes(field.field_type)).map((field) => (
+                           <div key={field.id} className="flex-1 min-w-[200px]">
+                             <Label className="text-sm font-medium mb-2 block">
+                               {field.label}
+                               {field.required && <span className="text-destructive ml-1">*</span>}
+                             </Label>
+                             {renderFieldInput(
+                               field, 
+                               'master', 
+                               editedData['master']?.[field.id] || '',
+                               false
+                             )}
+                           </div>
+                         ))}
                     </div>
                   </div>
                 )}
@@ -258,17 +264,20 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                         Record {index + 1} (ID: {submission.submission_ref_id || submission.id.slice(0, 8) + '...'})
                       </div>
                       <div className="flex gap-4">
-                        {formFields.filter(field => !['header', 'horizontal_line', 'section_break'].includes(field.field_type)).map((field) => (
-                          <div key={field.id} className="flex-1 min-w-[200px]">
-                            <Label className="text-sm font-medium mb-2 block">{field.label}</Label>
-                            {renderFieldInput(
-                              field, 
-                              submission.id, 
-                              editedData[submission.id]?.[field.id],
-                              submissions.length > 1
-                            )}
-                          </div>
-                        ))}
+                         {formFields.filter(field => !['header', 'horizontal_line', 'section_break'].includes(field.field_type)).map((field) => (
+                           <div key={field.id} className="flex-1 min-w-[200px]">
+                             <Label className="text-sm font-medium mb-2 block">
+                               {field.label}
+                               {field.required && <span className="text-destructive ml-1">*</span>}
+                             </Label>
+                             {renderFieldInput(
+                               field, 
+                               submission.id, 
+                               editedData[submission.id]?.[field.id],
+                               submissions.length > 1
+                             )}
+                           </div>
+                         ))}
                       </div>
                     </div>
                   ))}

@@ -245,6 +245,17 @@ export function ImportDialog({ isOpen, onOpenChange, formId, formFields, onImpor
     if (!csvData || !formFields.length) return;
 
     const mappableFields = getMappableFields();
+    
+    // Check if there are no mappable fields
+    if (mappableFields.length === 0) {
+      toast({
+        title: "No Fields to Map",
+        description: "This form has no fields that can be mapped with CSV data. Please correct your form structure and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const newMappings = mappableFields.map(field => {
       // Try to auto-match by field label or ID
       const matchingHeader = csvData.headers.find(header => 
@@ -433,8 +444,7 @@ export function ImportDialog({ isOpen, onOpenChange, formId, formFields, onImpor
                 <CardHeader>
                   <CardTitle>Preview CSV Data</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Found {csvData.rows.length} rows with {csvData.headers.length} columns. 
-                    Showing first 5 rows for preview.
+                    Found {csvData.rows.length} rows. Showing first 5 rows for preview.
                   </p>
                 </CardHeader>
                 <CardContent>

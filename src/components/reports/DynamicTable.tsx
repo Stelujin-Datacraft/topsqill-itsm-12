@@ -17,6 +17,7 @@ import { DynamicTableColumnSelector } from './DynamicTableColumnSelector';
 import { SubmissionAnalytics } from './SubmissionAnalytics';
 import { FormDataCell } from './FormDataCell';
 import { SubmittedByCell } from './SubmittedByCell';
+import { UserEmailCell } from './UserEmailCell';
 import { DeleteSubmissionButton } from './DeleteSubmissionButton';
 import { ExportDropdown } from './ExportDropdown';
 import { SortingControls, SortConfig } from './SortingControls';
@@ -709,34 +710,34 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
               </div>
 
               <Table>
-                <TableHeader className="sticky top-0 z-10 bg-muted/50">
-                  <TableRow className="border-b">
-                    <TableHead className="w-10 h-8">
+                <TableHeader className="sticky top-0 z-[5] bg-success/10 border-b-2 border-success/30">
+                  <TableRow className="border-b border-success/20">
+                    <TableHead className="w-10 h-8 bg-success/10">
                       <Checkbox
                         checked={paginatedData.length > 0 && paginatedData.every(row => selectedRows.has(row.id))}
                         onCheckedChange={handleSelectAll}
                         aria-label="Select all rows"
                       />
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8">
+                    <TableHead className="text-xs font-medium h-8 bg-success/10 text-success-foreground">
                       <div className="flex items-center gap-1">
                         <FileText className="h-3 w-3" />
                         Submission ID
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8">
+                    <TableHead className="text-xs font-medium h-8 bg-success/10 text-success-foreground">
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />
                         User
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8">
+                    <TableHead className="text-xs font-medium h-8 bg-success/10 text-success-foreground">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         Submitted
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8">
+                    <TableHead className="text-xs font-medium h-8 bg-success/10 text-success-foreground">
                       <div className="flex items-center gap-1">
                         <CheckCircle className="h-3 w-3" />
                         Status
@@ -745,7 +746,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                     
                     {/* Form fields */}
                     {displayFields.map(field => (
-                      <TableHead key={field.id} className="text-xs font-medium h-8">
+                      <TableHead key={field.id} className="text-xs font-medium h-8 bg-success/10 text-success-foreground">
                         <div className="flex items-center gap-1">
                           <span className="font-medium">{field.label}</span>
                           {config.enableFiltering && (
@@ -781,7 +782,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                         </div>
                       </TableHead>
                     ))}
-                    <TableHead className="text-xs font-medium text-center h-8">Actions</TableHead>
+                    <TableHead className="text-xs font-medium text-center h-8 bg-success/10 text-success-foreground">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -795,7 +796,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                     </TableRow>
                   ) : (
                     paginatedData.map((row) => (
-                      <TableRow key={row.id} className={`${selectedRows.has(row.id) ? 'bg-muted/50' : ''}`}>
+                      <TableRow key={row.id} className={`hover:bg-success/5 border-b border-success/10 ${selectedRows.has(row.id) ? 'bg-success/20' : 'bg-success/5'}`}>
                         <TableCell className="py-2">
                           <Checkbox
                             checked={selectedRows.has(row.id)}
@@ -817,14 +818,10 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                         
                         {/* User Info */}
                         <TableCell className="py-2">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium">
-                              {row.submitted_by_email ? row.submitted_by_email.charAt(0).toUpperCase() : 'U'}
-                            </div>
-                            <span className="text-xs truncate max-w-32">
-                              {row.submitted_by_email || 'Anonymous'}
-                            </span>
-                          </div>
+                            <UserEmailCell 
+                              userId={row.submitted_by} 
+                              fallbackEmail={row.submitted_by_email}
+                            />
                         </TableCell>
                        
                        {/* Submitted Date */}
