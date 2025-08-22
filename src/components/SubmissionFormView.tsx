@@ -539,46 +539,53 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
       </div>
 
       {/* Main Content Area with Navigation */}
-      <div className={`grid gap-6 ${
-        navigationVisible && pages.length > 1 
+      <div className={`grid gap-6 h-[calc(100vh-16rem)] ${
+        navigationVisible 
           ? 'grid-cols-1 lg:grid-cols-4' 
           : 'grid-cols-1'
       }`}>
         {/* Navigation Panel */}
-        {navigationVisible && pages.length > 1 && (
-          <div className="lg:col-span-1">
-            <FormNavigationPanel
-              pages={pages}
-              fields={form?.fields || []}
-              currentPageId={currentPageId}
-              selectedField={selectedField}
-              onPageChange={handlePageChange}
-              onFieldSelect={handleFieldSelect}
-              onFieldHighlight={handleFieldHighlight}
-            />
-          </div>
-        )}
+        <div className={navigationVisible ? "lg:col-span-1" : ""}>
+          <FormNavigationPanel
+            pages={pages}
+            fields={form?.fields || []}
+            currentPageId={currentPageId}
+            selectedField={selectedField}
+            onPageChange={handlePageChange}
+            onFieldSelect={handleFieldSelect}
+            onFieldHighlight={handleFieldHighlight}
+            onToggleNavigation={() => setNavigationVisible(!navigationVisible)}
+            isCollapsed={!navigationVisible}
+          />
+        </div>
 
-        {/* Form Fields - Scrollable Content */}
-        <Card className={`flex-1 h-full ${
-          navigationVisible && pages.length > 1 ? 'lg:col-span-3' : ''
-        }`}>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base">Submission Data</CardTitle>
+        {/* Form Fields - Professional Content */}
+        <Card className={`h-full overflow-hidden bg-white dark:bg-gray-950 ${navigationVisible ? "lg:col-span-3" : "lg:col-span-4"}`}>
+          <CardHeader className="pb-4 border-b bg-slate-50/80 dark:bg-gray-900/80">
+            <CardTitle className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Submission Data
+            </CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
-            <ScrollArea className="h-[calc(100vh-350px)] px-6 pb-6">
-              <SubmissionFormRenderer
-                form={form}
-                formData={formData}
-                fieldStates={fieldStates}
-                currentPageId={currentPageId}
-                onFieldChange={handleFieldChange}
-                onSubmit={handleSubmit}
-                formId={form.id}
-                currentSubmissionId={submissionId}
-              />
-            </ScrollArea>
+          <CardContent className="p-0 h-full overflow-y-auto">
+            {/* Professional Form Content */}
+            <div className="relative">
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
+              <div className="px-16 py-16 bg-white dark:bg-gray-950 min-h-[500px]">
+                <div className="max-w-5xl mx-auto space-y-8">
+                  <SubmissionFormRenderer
+                    form={form}
+                    formData={formData}
+                    fieldStates={fieldStates}
+                    currentPageId={currentPageId}
+                    onFieldChange={handleFieldChange}
+                    onSubmit={handleSubmit}
+                    formId={form.id}
+                    currentSubmissionId={submissionId}
+                  />
+                </div>
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
+            </div>
           </CardContent>
         </Card>
       </div>

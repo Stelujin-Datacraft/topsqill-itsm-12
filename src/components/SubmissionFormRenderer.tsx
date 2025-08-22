@@ -23,102 +23,99 @@ export function SubmissionFormRenderer({
   formId,
   currentSubmissionId
 }: SubmissionFormRendererProps) {
-  // Get fields for current page
+  // Get fields for current page, maintaining their original order
   const pages = form.pages && form.pages.length > 0 
     ? form.pages 
     : [{ id: 'default', name: 'Form', order: 0, fields: form.fields.map(f => f.id) }];
   
   const currentPage = pages.find(p => p.id === currentPageId);
   const pageFields = currentPage 
-    ? form.fields.filter(f => currentPage.fields.includes(f.id))
+    ? form.fields
+        .filter(f => currentPage.fields.includes(f.id))
+        .sort((a, b) => {
+          const aIndex = currentPage.fields.indexOf(a.id);
+          const bIndex = currentPage.fields.indexOf(b.id);
+          return aIndex - bIndex;
+        })
     : form.fields;
 
-  // Separate full-width fields from regular fields
+  // Define full-width field types
   const fullWidthTypes = ['header', 'description', 'section-break', 'horizontal-line', 'full-width-container'];
-  const regularFields = pageFields.filter(field => !fullWidthTypes.includes(field.type));
-  const fullWidthFields = pageFields.filter(field => fullWidthTypes.includes(field.type));
-
-  // Create a mixed array maintaining original order
-  const mixedFields: Array<{ type: 'regular' | 'fullwidth', fields: FormField[] }> = [];
-  let regularIndex = 0;
-  let fullWidthIndex = 0;
-
-  // Process fields in original order
-  pageFields.forEach(field => {
-    if (fullWidthTypes.includes(field.type)) {
-      // Add any pending regular fields first
-      if (regularIndex < regularFields.length) {
-        const pendingRegularFields = [];
-        while (regularIndex < regularFields.length && regularFields[regularIndex] !== field) {
-          if (regularFields[regularIndex]) {
-            pendingRegularFields.push(regularFields[regularIndex]);
-          }
-          regularIndex++;
-        }
-        if (pendingRegularFields.length > 0) {
-          mixedFields.push({ type: 'regular', fields: pendingRegularFields });
-        }
+  
+  // Smart field rendering that preserves order and handles layouts correctly
+  const renderFieldsWithSmartLayout = () => {
+    const renderedElements: JSX.Element[] = [];
+    let standardFieldsBuffer: FormField[] = [];
+    
+    const flushStandardFields = () => {
+      if (standardFieldsBuffer.length > 0) {
+        const columns = (form.layout?.columns as 1 | 2 | 3) || 1;
+        renderedElements.push(
+          <div key={`grid-${renderedElements.length}`} className={`grid gap-6 ${
+            columns === 1 ? 'grid-cols-1' : 
+            columns === 2 ? 'grid-cols-1 md:grid-cols-2' : 
+            'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+          }`}>
+            {standardFieldsBuffer.map((field) => (
+              <div key={field.id} id={`field-${field.id}`} data-field-id={field.id} className="space-y-2">
+                <FormFieldsRenderer
+                  fields={[field]}
+                  formData={formData}
+                  errors={{}}
+                  fieldStates={fieldStates}
+                  columns={1}
+                  onFieldChange={onFieldChange}
+                  onSubmit={onSubmit}
+                  showButtons={false}
+                  formId={formId}
+                  currentSubmissionId={currentSubmissionId}
+                />
+              </div>
+            ))}
+          </div>
+        );
+        standardFieldsBuffer = [];
       }
-      
-      // Add the full-width field
-      mixedFields.push({ type: 'fullwidth', fields: [field] });
-      fullWidthIndex++;
-    }
-  });
+    };
 
-  // Add any remaining regular fields
-  const remainingRegularFields = regularFields.slice(regularIndex);
-  if (remainingRegularFields.length > 0) {
-    mixedFields.push({ type: 'regular', fields: remainingRegularFields });
-  }
+    // Process fields in their original order
+    pageFields.forEach((field) => {
+      if (fullWidthTypes.includes(field.type)) {
+        // Flush any accumulated standard fields first
+        flushStandardFields();
+        
+        // Render full-width field immediately
+        renderedElements.push(
+          <div key={field.id} id={`field-${field.id}`} data-field-id={field.id} className="w-full">
+            <FormFieldsRenderer
+              fields={[field]}
+              formData={formData}
+              errors={{}}
+              fieldStates={fieldStates}
+              columns={1}
+              onFieldChange={onFieldChange}
+              onSubmit={onSubmit}
+              showButtons={false}
+              formId={formId}
+              currentSubmissionId={currentSubmissionId}
+            />
+          </div>
+        );
+      } else {
+        // Accumulate standard fields for grid rendering
+        standardFieldsBuffer.push(field);
+      }
+    });
+
+    // Flush any remaining standard fields
+    flushStandardFields();
+
+    return renderedElements;
+  };
 
   return (
-    <div className="space-y-6">
-      {mixedFields.map((section, index) => (
-        <div key={index}>
-          {section.type === 'regular' ? (
-            // Regular fields in grid layout
-            <div className={`grid gap-6 ${
-              (form.layout?.columns as number) === 1 ? 'grid-cols-1' : 
-              (form.layout?.columns as number) === 2 ? 'grid-cols-1 md:grid-cols-2' : 
-              'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
-            }`}>
-              {section.fields.map((field) => (
-                <div key={field.id} className="space-y-2">
-                  <FormFieldsRenderer
-                    fields={[field]}
-                    formData={formData}
-                    errors={{}}
-                    fieldStates={fieldStates}
-                    columns={1}
-                    onFieldChange={onFieldChange}
-                    onSubmit={onSubmit}
-                    showButtons={false}
-                    formId={formId}
-                    currentSubmissionId={currentSubmissionId}
-                  />
-                </div>
-              ))}
-            </div>
-          ) : (
-            // Full-width fields
-            <div className="w-full">
-              <FormFieldsRenderer
-                fields={section.fields}
-                formData={formData}
-                errors={{}}
-                fieldStates={fieldStates}
-                columns={1}
-                onFieldChange={onFieldChange}
-                onSubmit={onSubmit}
-                showButtons={false}
-                formId={formId}
-                currentSubmissionId={currentSubmissionId}
-              />
-            </div>
-          )}
-        </div>
-      ))}
+    <div className="space-y-8">
+      {renderFieldsWithSmartLayout()}
     </div>
   );
 }
