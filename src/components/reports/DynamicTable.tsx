@@ -710,34 +710,34 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
               </div>
 
               <Table>
-                <TableHeader className="sticky top-0 z-[5] bg-success/10 border-b-2 border-success/30">
-                  <TableRow className="border-b border-success/20">
-                    <TableHead className="w-10 h-8 bg-success/10">
+                <TableHeader className="sticky top-0 z-[5] bg-green-600 border-b-2 border-green-700">
+                  <TableRow className="border-b border-green-500">
+                    <TableHead className="w-10 h-8 bg-green-600">
                       <Checkbox
                         checked={paginatedData.length > 0 && paginatedData.every(row => selectedRows.has(row.id))}
                         onCheckedChange={handleSelectAll}
                         aria-label="Select all rows"
                       />
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 bg-success/10 text-success-foreground">
+                    <TableHead className="text-xs font-medium h-8 bg-green-600 text-white">
                       <div className="flex items-center gap-1">
                         <FileText className="h-3 w-3" />
                         Submission ID
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 bg-success/10 text-success-foreground">
+                    <TableHead className="text-xs font-medium h-8 bg-green-600 text-white">
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />
                         User
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 bg-success/10 text-success-foreground">
+                    <TableHead className="text-xs font-medium h-8 bg-green-600 text-white">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         Submitted
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 bg-success/10 text-success-foreground">
+                    <TableHead className="text-xs font-medium h-8 bg-green-600 text-white">
                       <div className="flex items-center gap-1">
                         <CheckCircle className="h-3 w-3" />
                         Status
@@ -746,7 +746,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                     
                     {/* Form fields */}
                     {displayFields.map(field => (
-                      <TableHead key={field.id} className="text-xs font-medium h-8 bg-success/10 text-success-foreground">
+                      <TableHead key={field.id} className="text-xs font-medium h-8 bg-green-600 text-white">
                         <div className="flex items-center gap-1">
                           <span className="font-medium">{field.label}</span>
                           {config.enableFiltering && (
@@ -755,7 +755,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className={`${columnFilters[field.id] ? 'text-primary' : 'text-muted-foreground'} h-5 w-5 p-0`}
+                                  className={`${columnFilters[field.id] ? 'text-white' : 'text-green-100'} h-5 w-5 p-0 hover:bg-green-700`}
                                   aria-label={`Filter ${field.label}`}
                                 >
                                   <Filter className="h-2.5 w-2.5" />
@@ -782,7 +782,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                         </div>
                       </TableHead>
                     ))}
-                    <TableHead className="text-xs font-medium text-center h-8 bg-success/10 text-success-foreground">Actions</TableHead>
+                    <TableHead className="text-xs font-medium text-center h-8 bg-green-600 text-white">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -796,8 +796,8 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                     </TableRow>
                   ) : (
                     paginatedData.map((row) => (
-                      <TableRow key={row.id} className={`hover:bg-success/5 border-b border-success/10 ${selectedRows.has(row.id) ? 'bg-success/20' : 'bg-success/5'}`}>
-                        <TableCell className="py-2">
+                      <TableRow key={row.id} className={`hover:bg-gray-50 border-b border-gray-200 ${selectedRows.has(row.id) ? 'bg-blue-50' : 'bg-white'}`}>
+                        <TableCell className="py-2 bg-white">
                           <Checkbox
                             checked={selectedRows.has(row.id)}
                             onCheckedChange={(checked) => handleRowSelect(row.id, Boolean(checked))}
@@ -806,7 +806,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                         </TableCell>
                         
                         {/* Submission ID */}
-                        <TableCell className="py-2">
+                        <TableCell className="py-2 bg-white">
                           <Button
                             variant="link"
                             className="font-mono text-xs p-0 h-auto underline"
@@ -817,15 +817,15 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                         </TableCell>
                         
                         {/* User Info */}
-                        <TableCell className="py-2">
+                        <TableCell className="py-2 bg-white">
                             <UserEmailCell 
                               userId={row.submitted_by} 
                               fallbackEmail={row.submitted_by_email}
                             />
                         </TableCell>
-                       
+                        
                        {/* Submitted Date */}
-                       <TableCell className="py-2">
+                       <TableCell className="py-2 bg-white">
                          <div className="text-xs">
                            <div className="font-medium">
                              {row.submitted_at ? new Date(row.submitted_at).toLocaleDateString() : '-'}
@@ -837,7 +837,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                        </TableCell>
                        
                        {/* Status */}
-                       <TableCell className="py-2">
+                       <TableCell className="py-2 bg-white">
                          <Badge variant="secondary" className="text-xs">
                            Submitted
                          </Badge>
@@ -845,7 +845,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                        
                        {/* Form Fields */}
                       {displayFields.map(field => (
-                         <TableCell key={field.id} className="py-2 max-w-48">
+                         <TableCell key={field.id} className="py-2 max-w-48 bg-white">
                            <div className="min-w-0">
                              <FormDataCell 
                                value={row.submission_data?.[field.id]}
@@ -856,7 +856,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                          </TableCell>
                        ))}
                        
-                       <TableCell className="py-2">
+                       <TableCell className="py-2 bg-white">
                          <div className="flex items-center justify-center gap-1">
                             <Button
                               variant="ghost"

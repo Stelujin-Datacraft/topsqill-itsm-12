@@ -6,7 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArrowLeft, Edit, Save, X, Hash, Calendar, Clock } from 'lucide-react';
 import { FormFieldsRenderer } from './FormFieldsRenderer';
-import { Form } from '@/types/form';
+import { FormPagination } from './FormPagination';
+import { FormNavigationPanel } from './FormNavigationPanel';
+import { SubmissionFormRenderer } from './SubmissionFormRenderer';
+import { Form, FormField } from '@/types/form';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -37,6 +40,9 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
   const [fieldStates, setFieldStates] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
   const [canManageApproval, setCanManageApproval] = useState(false);
+  const [currentPageId, setCurrentPageId] = useState<string>('');
+  const [selectedField, setSelectedField] = useState<FormField | null>(null);
+  const [navigationVisible, setNavigationVisible] = useState(true);
 
   // Load submission and form data
   const loadSubmissionAndForm = async () => {
@@ -150,6 +156,15 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
       };
 
       setForm(transformedForm);
+      
+      // Initialize page navigation
+      const pages = transformedForm.pages && transformedForm.pages.length > 0 
+        ? transformedForm.pages 
+        : [{ id: 'default', name: 'Form', order: 0, fields: transformedForm.fields.map(f => f.id) }];
+      
+      if (pages.length > 0 && !currentPageId) {
+        setCurrentPageId(pages[0].id);
+      }
       
       // Check if user can manage approval status (form owners, admins, or users with specific permissions)
       checkApprovalPermissions(submissionData.form_id);
@@ -392,8 +407,55 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
     );
   }
 
+  // Initialize pages for navigation
+  const pages = form?.pages && form.pages.length > 0 
+    ? form.pages 
+    : [{ id: 'default', name: 'Form', order: 0, fields: form?.fields.map(f => f.id) || [] }];
+  const currentPageIndex = pages.findIndex(p => p.id === currentPageId);
+
+  const handlePageChange = (pageId: string) => {
+    setCurrentPageId(pageId);
+  };
+
+  const handleFieldSelect = (field: FormField) => {
+    setSelectedField(field);
+  };
+
+  const handleFieldHighlight = (fieldId: string) => {
+    // Scroll to field if needed
+    const fieldElement = document.getElementById(`field-${fieldId}`);
+    if (fieldElement) {
+      fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
   return (
     <div className="space-y-6 h-full">
+      {/* Pagination */}
+      {pages.length > 1 && (
+        <div className="px-4 py-3 bg-white border rounded-lg">
+          <FormPagination
+            pages={pages}
+            currentPageId={currentPageId}
+            currentPageIndex={currentPageIndex}
+            onPageChange={handlePageChange}
+            onPrevious={() => {
+              const currentIndex = pages.findIndex(p => p.id === currentPageId);
+              if (currentIndex > 0) {
+                handlePageChange(pages[currentIndex - 1].id);
+              }
+            }}
+            onNext={() => {
+              const currentIndex = pages.findIndex(p => p.id === currentPageId);
+              if (currentIndex < pages.length - 1) {
+                handlePageChange(pages[currentIndex + 1].id);
+              }
+            }}
+            readOnly={true}
+          />
+        </div>
+      )}
+
       {/* Action Bar */}
       <div className="flex items-center justify-between bg-card border rounded-lg px-4 py-3 shadow-sm">
         <div className="flex items-center gap-4">
@@ -411,28 +473,33 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
             </div>
           </div>
           
-          {/* Approval Status Badge and Dropdown */}
+            {/* Approval Status Toggle */}
           <div className="flex items-center gap-2 ml-4">
-            <Badge {...getApprovalStatusBadge(submission.approval_status || 'pending')}>
-              Status: {(submission.approval_status || 'pending').replace('_', ' ').toUpperCase()}
-            </Badge>
-            
             {canManageApproval && (
-              <Select
-                value={submission.approval_status || 'pending'}
-                onValueChange={handleApprovalStatusChange}
-                disabled={saving}
-              >
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Change status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="under_review">Under Review</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-1 bg-muted/30 rounded-lg p-1">
+                {['pending', 'under_review', 'approved', 'rejected'].map((status) => (
+                  <Button
+                    key={status}
+                    variant={submission.approval_status === status ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => handleApprovalStatusChange(status)}
+                    disabled={saving}
+                    className={`text-xs px-3 py-1 ${
+                      submission.approval_status === status 
+                        ? getApprovalStatusBadge(status).className
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </Button>
+                ))}
+              </div>
+            )}
+            
+            {!canManageApproval && (
+              <Badge {...getApprovalStatusBadge(submission.approval_status || 'pending')}>
+                Status: {(submission.approval_status || 'pending').replace('_', ' ').toUpperCase()}
+              </Badge>
             )}
           </div>
           
@@ -471,30 +538,50 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
         </div>
       </div>
 
-      {/* Form Fields - Scrollable Content */}
-      <Card className="flex-1 h-full">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-base">Submission Data</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <ScrollArea className="h-[calc(100vh-280px)] px-6 pb-6">
-            <div className="space-y-6">
-              <FormFieldsRenderer
-                fields={form.fields}
+      {/* Main Content Area with Navigation */}
+      <div className={`grid gap-6 ${
+        navigationVisible && pages.length > 1 
+          ? 'grid-cols-1 lg:grid-cols-4' 
+          : 'grid-cols-1'
+      }`}>
+        {/* Navigation Panel */}
+        {navigationVisible && pages.length > 1 && (
+          <div className="lg:col-span-1">
+            <FormNavigationPanel
+              pages={pages}
+              fields={form?.fields || []}
+              currentPageId={currentPageId}
+              selectedField={selectedField}
+              onPageChange={handlePageChange}
+              onFieldSelect={handleFieldSelect}
+              onFieldHighlight={handleFieldHighlight}
+            />
+          </div>
+        )}
+
+        {/* Form Fields - Scrollable Content */}
+        <Card className={`flex-1 h-full ${
+          navigationVisible && pages.length > 1 ? 'lg:col-span-3' : ''
+        }`}>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base">Submission Data</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ScrollArea className="h-[calc(100vh-350px)] px-6 pb-6">
+              <SubmissionFormRenderer
+                form={form}
                 formData={formData}
-                errors={{}}
                 fieldStates={fieldStates}
-                columns={(form.layout?.columns as 1 | 2 | 3) || 1}
+                currentPageId={currentPageId}
                 onFieldChange={handleFieldChange}
                 onSubmit={handleSubmit}
-                showButtons={false} // Hide submit buttons
                 formId={form.id}
                 currentSubmissionId={submissionId}
               />
-            </div>
-          </ScrollArea>
-        </CardContent>
-      </Card>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
