@@ -28,7 +28,6 @@ import { BulkActionsBar } from './BulkActionsBar';
 import { BulkDeleteDialog } from './BulkDeleteDialog';
 import { CrossReferenceDialog } from './CrossReferenceDialog';
 import { ImportButton } from '@/components/ImportButton';
-
 interface TableConfig {
   title: string;
   formId: string;
@@ -38,13 +37,14 @@ interface TableConfig {
   enableSorting?: boolean;
   enableSearch?: boolean;
 }
-
 interface DynamicTableProps {
   config: TableConfig;
   onEdit?: () => void;
 }
-
-export function DynamicTable({ config, onEdit }: DynamicTableProps) {
+export function DynamicTable({
+  config,
+  onEdit
+}: DynamicTableProps) {
   // All state hooks first
   const [data, setData] = useState<any[]>([]);
   const [formFields, setFormFields] = useState<any[]>([]);
@@ -58,7 +58,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
   const [pageSize, setPageSize] = useState(10);
   const [isExpanded, setIsExpanded] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  
+
   // New state for bulk operations and inline editing
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [showInlineEdit, setShowInlineEdit] = useState(false);
@@ -68,25 +68,23 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
   const [canDeleteSubmissions, setCanDeleteSubmissions] = useState(false);
   const [showCrossReferenceDialog, setShowCrossReferenceDialog] = useState(false);
   const [crossReferenceData, setCrossReferenceData] = useState<string[]>([]);
-  
+
   // Custom hooks
-  const { forms } = useReports();
+  const {
+    forms
+  } = useReports();
   const navigate = useNavigate();
 
   // Helper function to evaluate filter conditions
   const evaluateCondition = useCallback((row: any, condition: any) => {
     if (!condition.field || !condition.operator) return true;
-    
     const value = row.submission_data?.[condition.field];
     const filterValue = condition.value;
-    
     if (value === null || value === undefined) {
       return ['is_empty'].includes(condition.operator);
     }
-    
     const stringValue = value.toString().toLowerCase();
     const stringFilterValue = filterValue?.toString().toLowerCase() || '';
-    
     switch (condition.operator) {
       case 'equals':
         return stringValue === stringFilterValue;
@@ -119,15 +117,9 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
 
   // All useMemo hooks
   const displayFields = useMemo(() => {
-    const columnsToShow = selectedColumns.length > 0 ? selectedColumns : 
-                         (config.selectedColumns && config.selectedColumns.length > 0 ? config.selectedColumns : 
-                          formFields.map(f => f.id));
-    return formFields.filter(field => 
-      columnsToShow.includes(field.id) && 
-      !['header', 'horizontal_line', 'section_break'].includes(field.field_type)
-    );
+    const columnsToShow = selectedColumns.length > 0 ? selectedColumns : config.selectedColumns && config.selectedColumns.length > 0 ? config.selectedColumns : formFields.map(f => f.id);
+    return formFields.filter(field => columnsToShow.includes(field.id) && !['header', 'horizontal_line', 'section_break'].includes(field.field_type));
   }, [formFields, selectedColumns, config.selectedColumns]);
-
   const filteredAndSortedData = useMemo(() => {
     let filtered = data;
 
@@ -138,12 +130,12 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
         if (row.submission_ref_id && row.submission_ref_id.toLowerCase().includes(searchTerm.toLowerCase())) {
           return true;
         }
-        
+
         // Search in internal ID
         if (row.id && row.id.toLowerCase().includes(searchTerm.toLowerCase())) {
           return true;
         }
-        
+
         // Search in form fields
         return displayFields.some(field => {
           const value = row.submission_data?.[field.id];
@@ -169,7 +161,6 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       filtered = filtered.filter(row => {
         return complexFilters.some(group => {
           if (group.conditions.length === 0) return true;
-          
           if (group.logic === 'AND') {
             return group.conditions.every(condition => evaluateCondition(row, condition));
           } else {
@@ -185,32 +176,24 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
         for (const sortConfig of sortConfigs) {
           const aValue = a.submission_data?.[sortConfig.field] || '';
           const bValue = b.submission_data?.[sortConfig.field] || '';
-          
-          const comparison = sortConfig.direction === 'asc' 
-            ? aValue.toString().localeCompare(bValue.toString())
-            : bValue.toString().localeCompare(aValue.toString());
-          
+          const comparison = sortConfig.direction === 'asc' ? aValue.toString().localeCompare(bValue.toString()) : bValue.toString().localeCompare(aValue.toString());
           if (comparison !== 0) return comparison;
         }
         return 0;
       });
     }
-
     return filtered;
   }, [data, searchTerm, columnFilters, complexFilters, sortConfigs, displayFields, config, evaluateCondition]);
-
   const paginatedData = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
     return filteredAndSortedData.slice(startIndex, endIndex);
   }, [filteredAndSortedData, currentPage, pageSize]);
-
   const exportData = useMemo(() => {
     const headers = displayFields.map(field => field.label);
     if (config.showMetadata) {
       headers.push('Submitted At', 'Submitted By');
     }
-    
     const rows = filteredAndSortedData.map(row => {
       const values = displayFields.map(field => {
         const value = row.submission_data?.[field.id];
@@ -218,17 +201,11 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
         if (typeof value === 'object') return JSON.stringify(value);
         return value.toString();
       });
-      
       if (config.showMetadata) {
-        values.push(
-          new Date(row.submitted_at).toLocaleDateString(),
-          row.submitted_by || 'Anonymous'
-        );
+        values.push(new Date(row.submitted_at).toLocaleDateString(), row.submitted_by || 'Anonymous');
       }
-      
       return values;
     });
-
     return {
       headers,
       rows,
@@ -236,15 +213,12 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       title: config.title || 'Submission Data'
     };
   }, [filteredAndSortedData, displayFields, config]);
-
   const availableFields = useMemo(() => {
-    return formFields
-      .filter(field => !['header', 'horizontal_line', 'section_break'].includes(field.field_type))
-      .map(field => ({
-        id: field.id,
-        label: field.label,
-        type: field.field_type || 'text'
-      }));
+    return formFields.filter(field => !['header', 'horizontal_line', 'section_break'].includes(field.field_type)).map(field => ({
+      id: field.id,
+      label: field.label,
+      type: field.field_type || 'text'
+    }));
   }, [formFields]);
 
   // useEffect hooks
@@ -255,14 +229,14 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       checkUserPermissions();
     }
   }, [config.formId]);
-
   useEffect(() => {
     const handleCrossReference = (event: any) => {
-      const { submissionIds } = event.detail;
+      const {
+        submissionIds
+      } = event.detail;
       setCrossReferenceData(submissionIds);
       setShowCrossReferenceDialog(true);
     };
-
     const tableElement = document.querySelector('[data-dynamic-table]');
     if (tableElement) {
       tableElement.addEventListener('showCrossReference', handleCrossReference);
@@ -276,31 +250,26 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
   const handleViewSubmission = (submissionId: string) => {
     navigate(`/submission/${submissionId}`);
   };
-
   const handleDeleteSubmission = async (submissionId: string) => {
     try {
-      const { error } = await supabase
-        .from('form_submissions')
-        .delete()
-        .eq('id', submissionId);
-      
+      const {
+        error
+      } = await supabase.from('form_submissions').delete().eq('id', submissionId);
       if (error) {
         console.error('Error deleting submission:', error);
         return;
       }
-      
+
       // Reload data after deletion
       loadData();
     } catch (error) {
       console.error('Error deleting submission:', error);
     }
   };
-
   const handleEditSubmission = (submission: any) => {
     setEditingSubmission(submission);
     setShowInlineEdit(true);
   };
-
   const handleRowSelect = (submissionId: string, checked: boolean) => {
     setSelectedRows(prev => {
       const newSet = new Set(prev);
@@ -312,7 +281,6 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       return newSet;
     });
   };
-
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       setSelectedRows(new Set(paginatedData.map(row => row.id)));
@@ -320,7 +288,6 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       setSelectedRows(new Set());
     }
   };
-
   const handleBulkEdit = () => {
     const selectedSubmissions = paginatedData.filter(row => selectedRows.has(row.id));
     if (selectedSubmissions.length > 0) {
@@ -328,110 +295,80 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       setShowBulkEdit(true);
     }
   };
-
   const handleBulkDelete = () => {
     if (selectedRows.size > 0) {
       setShowBulkDelete(true);
     }
   };
-
   const handleClearSelection = () => {
     setSelectedRows(new Set());
   };
-
   const handleInlineEditSave = () => {
     loadData(); // Reload data after editing
     setSelectedRows(new Set()); // Clear selection
   };
-
   const handleBulkDeleteComplete = () => {
     loadData(); // Reload data after deletion
     setSelectedRows(new Set()); // Clear selection
   };
-
   const checkDeletePermission = async (submissionId: string): Promise<boolean> => {
     try {
-      const { data: submission } = await supabase
-        .from('form_submissions')
-        .select('form_id')
-        .eq('id', submissionId)
-        .single();
-      
+      const {
+        data: submission
+      } = await supabase.from('form_submissions').select('form_id').eq('id', submissionId).single();
       if (!submission) return false;
-      
-      const { data: form } = await supabase
-        .from('forms')
-        .select('created_by, organization_id')
-        .eq('id', submission.form_id)
-        .single();
-      
+      const {
+        data: form
+      } = await supabase.from('forms').select('created_by, organization_id').eq('id', submission.form_id).single();
       if (!form) return false;
-      
-      const { data: user } = await supabase.auth.getUser();
+      const {
+        data: user
+      } = await supabase.auth.getUser();
       if (!user?.user) return false;
-      
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('email, role, organization_id')
-        .eq('id', user.user.id)
-        .single();
-      
+      const {
+        data: profile
+      } = await supabase.from('user_profiles').select('email, role, organization_id').eq('id', user.user.id).single();
       if (!profile) return false;
-      
-      return form.created_by === profile.email || 
-             (profile.role === 'admin' && form.organization_id === profile.organization_id);
+      return form.created_by === profile.email || profile.role === 'admin' && form.organization_id === profile.organization_id;
     } catch (error) {
       console.error('Error checking delete permission:', error);
       return false;
     }
   };
-
   const checkUserPermissions = async () => {
     if (!config.formId) return;
-    
     try {
-      const { data: form } = await supabase
-        .from('forms')
-        .select('created_by, organization_id')
-        .eq('id', config.formId)
-        .single();
-      
+      const {
+        data: form
+      } = await supabase.from('forms').select('created_by, organization_id').eq('id', config.formId).single();
       if (!form) return;
-      
-      const { data: user } = await supabase.auth.getUser();
+      const {
+        data: user
+      } = await supabase.auth.getUser();
       if (!user?.user) return;
-      
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('email, role, organization_id')
-        .eq('id', user.user.id)
-        .single();
-      
+      const {
+        data: profile
+      } = await supabase.from('user_profiles').select('email, role, organization_id').eq('id', user.user.id).single();
       if (!profile) return;
-      
-      const canDelete = form.created_by === profile.email || 
-                       (profile.role === 'admin' && form.organization_id === profile.organization_id);
-      
+      const canDelete = form.created_by === profile.email || profile.role === 'admin' && form.organization_id === profile.organization_id;
       setCanDeleteSubmissions(canDelete);
     } catch (error) {
       console.error('Error checking user permissions:', error);
       setCanDeleteSubmissions(false);
     }
   };
-
   const loadFormFields = async () => {
     try {
-      const { data: fields, error } = await supabase
-        .from('form_fields')
-        .select('*')
-        .eq('form_id', config.formId)
-        .order('field_order', { ascending: true });
-
+      const {
+        data: fields,
+        error
+      } = await supabase.from('form_fields').select('*').eq('form_id', config.formId).order('field_order', {
+        ascending: true
+      });
       if (error) {
         console.error('Error fetching form fields:', error);
         return;
       }
-
       setFormFields(fields || []);
       if (selectedColumns.length === 0 && fields && fields.length > 0) {
         const dataFields = fields.filter(f => !['header', 'horizontal_line', 'section_break'].includes(f.field_type));
@@ -441,19 +378,18 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       console.error('Error loading form fields:', error);
     }
   };
-
   const loadData = async () => {
     try {
       setLoading(true);
-      const { data: submissions, error } = await supabase
-        .from('form_submissions')
-        .select(`
+      const {
+        data: submissions,
+        error
+      } = await supabase.from('form_submissions').select(`
           *,
           user_profiles!left(email)
-        `)
-        .eq('form_id', config.formId)
-        .order('submitted_at', { ascending: false });
-
+        `).eq('form_id', config.formId).order('submitted_at', {
+        ascending: false
+      });
       if (error) {
         console.error('Error fetching submissions:', error);
         return;
@@ -464,7 +400,6 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
         ...submission,
         submitted_by_email: submission.user_profiles?.email || submission.submitted_by
       }));
-
       setData(transformedSubmissions);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -472,32 +407,29 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       setLoading(false);
     }
   };
-
   const totalPages = Math.ceil(filteredAndSortedData.length / pageSize);
-
   const handleAddSort = (field: string, label: string) => {
-    setSortConfigs(prev => [...prev, { field, direction: 'asc', label }]);
+    setSortConfigs(prev => [...prev, {
+      field,
+      direction: 'asc',
+      label
+    }]);
   };
-
   const handleRemoveSort = (index: number) => {
     setSortConfigs(prev => prev.filter((_, i) => i !== index));
   };
-
   const handleToggleDirection = (index: number) => {
-    setSortConfigs(prev => prev.map((config, i) => 
-      i === index 
-        ? { ...config, direction: config.direction === 'asc' ? 'desc' : 'asc' }
-        : config
-    ));
+    setSortConfigs(prev => prev.map((config, i) => i === index ? {
+      ...config,
+      direction: config.direction === 'asc' ? 'desc' : 'asc'
+    } : config));
   };
-
   const handleColumnFilter = (fieldId: string, value: string) => {
     setColumnFilters(prev => ({
       ...prev,
       [fieldId]: value
     }));
   };
-
   const handleColumnToggle = (fieldId: string) => {
     setSelectedColumns(prev => {
       if (prev.includes(fieldId)) {
@@ -507,29 +439,22 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       }
     });
   };
-
   if (loading) {
-    return (
-      <Card className="h-full">
+    return <Card className="h-full">
         <CardContent className="flex items-center justify-center h-48">
           <div className="text-muted-foreground">Loading table data...</div>
         </CardContent>
-      </Card>
-    );
+      </Card>;
   }
-
   if (!config.formId) {
-    return (
-      <Card className="h-full">
+    return <Card className="h-full">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>{config.title || 'Dynamic Table'}</span>
-            {onEdit && (
-              <Button variant="outline" size="sm" onClick={onEdit}>
+            {onEdit && <Button variant="outline" size="sm" onClick={onEdit}>
                 <Settings className="h-4 w-4 mr-2" />
                 Configure
-              </Button>
-            )}
+              </Button>}
           </CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center h-48">
@@ -538,16 +463,10 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
             <p className="text-sm text-muted-foreground mt-1">Configure this table to select a data source</p>
           </div>
         </CardContent>
-      </Card>
-    );
+      </Card>;
   }
-
-  const containerClasses = isExpanded 
-    ? "fixed inset-0 z-50 bg-background p-4 space-y-6"
-    : "space-y-6";
-
-  return (
-    <div className={containerClasses} data-dynamic-table>
+  const containerClasses = isExpanded ? "fixed inset-0 z-50 bg-background p-4 space-y-6" : "space-y-6";
+  return <div className={containerClasses} data-dynamic-table>
       {/* Analytics Section */}
       {!isExpanded && <SubmissionAnalytics data={data} />}
       
@@ -561,124 +480,70 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
               </p>
             </div>
             <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsExpanded(!isExpanded)}
-              >
+              <Button variant="outline" size="sm" onClick={() => setIsExpanded(!isExpanded)}>
                 {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                 {isExpanded ? 'Normal View' : 'Expand'}
               </Button>
-              {onEdit && (
-                <Button variant="outline" size="sm" onClick={onEdit}>
+              {onEdit && <Button variant="outline" size="sm" onClick={onEdit}>
                   <Settings className="h-4 w-4" />
                   Configure
-                </Button>
-              )}
+                </Button>}
             </div>
           </div>
 
           {/* Applied Filters */}
-          {(Object.keys(columnFilters).length > 0 || complexFilters.length > 0) && (
-            <div className="flex flex-wrap gap-1 mb-2">
+          {(Object.keys(columnFilters).length > 0 || complexFilters.length > 0) && <div className="flex flex-wrap gap-1 mb-2">
               {Object.entries(columnFilters).map(([fieldId, value]) => {
-                if (!value) return null;
-                const field = displayFields.find(f => f.id === fieldId);
-                return (
-                  <Badge key={fieldId} variant="secondary" className="text-xs h-5">
+            if (!value) return null;
+            const field = displayFields.find(f => f.id === fieldId);
+            return <Badge key={fieldId} variant="secondary" className="text-xs h-5">
                     {field?.label}: {value}
-                    <button
-                      className="ml-1"
-                      onClick={() => handleColumnFilter(fieldId, '')}
-                    >
+                    <button className="ml-1" onClick={() => handleColumnFilter(fieldId, '')}>
                       ×
                     </button>
-                  </Badge>
-                );
-              })}
-              {complexFilters.map((group, index) => (
-                <Badge key={`complex-${index}`} variant="secondary" className="text-xs h-5">
+                  </Badge>;
+          })}
+              {complexFilters.map((group, index) => <Badge key={`complex-${index}`} variant="secondary" className="text-xs h-5">
                   Complex Filter {index + 1}
-                  <button
-                    className="ml-1"
-                    onClick={() => setComplexFilters(prev => prev.filter((_, i) => i !== index))}
-                  >
+                  <button className="ml-1" onClick={() => setComplexFilters(prev => prev.filter((_, i) => i !== index))}>
                     ×
                   </button>
-                </Badge>
-              ))}
-            </div>
-          )}
+                </Badge>)}
+            </div>}
 
           {/* Compact Controls Row */}
           <div className="flex items-center justify-between gap-2">
             {/* Left Side Controls */}
             <div className="flex items-center gap-1 flex-wrap">
-              <SavedFiltersManager
-                formId={config.formId}
-                onApplyFilter={setComplexFilters}
-                currentFilters={complexFilters}
-              />
+              <SavedFiltersManager formId={config.formId} onApplyFilter={setComplexFilters} currentFilters={complexFilters} />
               
-              <DynamicTableColumnSelector
-                formFields={formFields}
-                selectedColumns={selectedColumns}
-                onColumnToggle={handleColumnToggle}
-              />
+              <DynamicTableColumnSelector formFields={formFields} selectedColumns={selectedColumns} onColumnToggle={handleColumnToggle} />
 
-              {config.enableFiltering && (
-                <ComplexFilter
-                  filters={complexFilters}
-                  onFiltersChange={setComplexFilters}
-                  availableFields={availableFields}
-                  formId={config.formId}
-                />
-              )}
+              {config.enableFiltering && <ComplexFilter filters={complexFilters} onFiltersChange={setComplexFilters} availableFields={availableFields} formId={config.formId} />}
 
-              {config.enableSorting && (
-                <SortingControls
-                  availableFields={displayFields.map(f => ({ id: f.id, label: f.label }))}
-                  sortConfigs={sortConfigs}
-                  onAddSort={handleAddSort}
-                  onRemoveSort={handleRemoveSort}
-                  onToggleDirection={handleToggleDirection}
-                />
-              )}
+              {config.enableSorting && <SortingControls availableFields={displayFields.map(f => ({
+              id: f.id,
+              label: f.label
+            }))} sortConfigs={sortConfigs} onAddSort={handleAddSort} onRemoveSort={handleRemoveSort} onToggleDirection={handleToggleDirection} />}
 
               <ExportDropdown data={exportData} />
               
-              <ImportButton 
-                formId={config.formId}
-                formFields={formFields}
-                onImportComplete={loadData}
-              />
+              <ImportButton formId={config.formId} formFields={formFields} onImportComplete={loadData} />
             </div>
 
             {/* Right Side Controls */}
             <div className="flex items-center gap-2">
               {/* Search */}
-              {config.enableSearch && (
-                <div className="relative w-48">
+              {config.enableSearch && <div className="relative w-48">
                   <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                  <Input
-                    placeholder="Search..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-7 h-8 text-xs"
-                  />
-                </div>
-              )}
+                  <Input placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-7 h-8 text-xs" />
+                </div>}
 
               {/* Auto Refresh Toggle */}
               <div className="flex items-center space-x-1 bg-muted/30 rounded-md px-2 py-1">
                 <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
                 <span className="text-xs text-muted-foreground">Auto</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={loadData}
-                  className="h-5 w-5 p-0"
-                >
+                <Button variant="ghost" size="sm" onClick={loadData} className="h-5 w-5 p-0">
                   <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
@@ -695,7 +560,7 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
               <div className="flex items-center justify-between px-2">
                 <div className="flex items-center space-x-1">
                   <span className="text-xs text-muted-foreground">Show:</span>
-                  <Select value={pageSize.toString()} onValueChange={(value) => setPageSize(parseInt(value))}>
+                  <Select value={pageSize.toString()} onValueChange={value => setPageSize(parseInt(value))}>
                     <SelectTrigger className="w-16 h-6 text-xs">
                       <SelectValue />
                     </SelectTrigger>
@@ -712,32 +577,28 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
               <Table>
                 <TableHeader className="sticky top-0 z-[5] bg-green-600 border-b-2 border-green-700">
                   <TableRow className="border-b border-green-500">
-                    <TableHead className="w-10 h-8 bg-green-600">
-                      <Checkbox
-                        checked={paginatedData.length > 0 && paginatedData.every(row => selectedRows.has(row.id))}
-                        onCheckedChange={handleSelectAll}
-                        aria-label="Select all rows"
-                      />
+                    <TableHead className="w-10 h-8 bg-[#008d7a]">
+                      <Checkbox checked={paginatedData.length > 0 && paginatedData.every(row => selectedRows.has(row.id))} onCheckedChange={handleSelectAll} aria-label="Select all rows" className="text-zinc-50 bg-transparent" />
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 bg-green-600 text-white">
+                    <TableHead className="text-xs font-medium h-8 text-white bg-[#009e89]">
                       <div className="flex items-center gap-1">
                         <FileText className="h-3 w-3" />
                         Submission ID
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 bg-green-600 text-white">
+                    <TableHead className="text-xs font-medium h-8 text-white bg-[#019e89]">
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />
                         User
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 bg-green-600 text-white">
+                    <TableHead className="text-xs font-medium h-8 text-white bg-[#009e89]">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         Submitted
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 bg-green-600 text-white">
+                    <TableHead className="text-xs font-medium h-8 text-white bg-[#009e89]">
                       <div className="flex items-center gap-1">
                         <CheckCircle className="h-3 w-3" />
                         Status
@@ -745,83 +606,53 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                     </TableHead>
                     
                     {/* Form fields */}
-                    {displayFields.map(field => (
-                      <TableHead key={field.id} className="text-xs font-medium h-8 bg-green-600 text-white">
+                    {displayFields.map(field => <TableHead key={field.id} className="text-xs font-medium h-8 text-white bg-[#018c79]">
                         <div className="flex items-center gap-1">
                           <span className="font-medium">{field.label}</span>
-                          {config.enableFiltering && (
-                            <Popover>
+                          {config.enableFiltering && <Popover>
                               <PopoverTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className={`${columnFilters[field.id] ? 'text-white' : 'text-green-100'} h-5 w-5 p-0 hover:bg-green-700`}
-                                  aria-label={`Filter ${field.label}`}
-                                >
+                                <Button variant="ghost" size="icon" className={`${columnFilters[field.id] ? 'text-white' : 'text-green-100'} h-5 w-5 p-0 hover:bg-green-700`} aria-label={`Filter ${field.label}`}>
                                   <Filter className="h-2.5 w-2.5" />
                                 </Button>
                               </PopoverTrigger>
                               <PopoverContent align="start" className="w-64">
                                 <div className="space-y-2">
-                                  <Input
-                                    placeholder={`Filter ${field.label}...`}
-                                    value={columnFilters[field.id] || ''}
-                                    onChange={(e) => handleColumnFilter(field.id, e.target.value)}
-                                  />
-                                  {columnFilters[field.id] && (
-                                    <div className="flex justify-end">
+                                  <Input placeholder={`Filter ${field.label}...`} value={columnFilters[field.id] || ''} onChange={e => handleColumnFilter(field.id, e.target.value)} />
+                                  {columnFilters[field.id] && <div className="flex justify-end">
                                       <Button variant="ghost" size="sm" onClick={() => handleColumnFilter(field.id, '')}>
                                         Clear
                                       </Button>
-                                    </div>
-                                  )}
+                                    </div>}
                                 </div>
                               </PopoverContent>
-                            </Popover>
-                          )}
+                            </Popover>}
                         </div>
-                      </TableHead>
-                    ))}
+                      </TableHead>)}
                     <TableHead className="text-xs font-medium text-center h-8 bg-green-600 text-white">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginatedData.length === 0 ? (
-                    <TableRow>
+                  {paginatedData.length === 0 ? <TableRow>
                       <TableCell colSpan={displayFields.length + 6} className="text-center py-8">
                         <div className="text-muted-foreground">
                           {data.length === 0 ? 'No data available' : 'No records match your filters'}
                         </div>
                       </TableCell>
-                    </TableRow>
-                  ) : (
-                    paginatedData.map((row) => (
-                      <TableRow key={row.id} className={`hover:bg-gray-50 border-b border-gray-200 ${selectedRows.has(row.id) ? 'bg-blue-50' : 'bg-white'}`}>
+                    </TableRow> : paginatedData.map(row => <TableRow key={row.id} className={`hover:bg-gray-50 border-b border-gray-200 ${selectedRows.has(row.id) ? 'bg-blue-50' : 'bg-white'}`}>
                         <TableCell className="py-2 bg-white">
-                          <Checkbox
-                            checked={selectedRows.has(row.id)}
-                            onCheckedChange={(checked) => handleRowSelect(row.id, Boolean(checked))}
-                            aria-label={`Select row ${row.id}`}
-                          />
+                          <Checkbox checked={selectedRows.has(row.id)} onCheckedChange={checked => handleRowSelect(row.id, Boolean(checked))} aria-label={`Select row ${row.id}`} />
                         </TableCell>
                         
                         {/* Submission ID */}
                         <TableCell className="py-2 bg-white">
-                          <Button
-                            variant="link"
-                            className="font-mono text-xs p-0 h-auto underline"
-                            onClick={() => navigate(`/submission/${row.id}`)}
-                          >
+                          <Button variant="link" className="font-mono text-xs p-0 h-auto underline" onClick={() => navigate(`/submission/${row.id}`)}>
                             #{row.submission_ref_id || row.id.slice(0, 8)}
                           </Button>
                         </TableCell>
                         
                         {/* User Info */}
                         <TableCell className="py-2 bg-white">
-                            <UserEmailCell 
-                              userId={row.submitted_by} 
-                              fallbackEmail={row.submitted_by_email}
-                            />
+                            <UserEmailCell userId={row.submitted_by} fallbackEmail={row.submitted_by_email} />
                         </TableCell>
                         
                        {/* Submitted Date */}
@@ -844,53 +675,29 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                        </TableCell>
                        
                        {/* Form Fields */}
-                      {displayFields.map(field => (
-                         <TableCell key={field.id} className="py-2 max-w-48 bg-white">
+                      {displayFields.map(field => <TableCell key={field.id} className="py-2 max-w-48 bg-white">
                            <div className="min-w-0">
-                             <FormDataCell 
-                               value={row.submission_data?.[field.id]}
-                               fieldType={field.field_type || field.type}
-                               field={field}
-                             />
+                             <FormDataCell value={row.submission_data?.[field.id]} fieldType={field.field_type || field.type} field={field} />
                            </div>
-                         </TableCell>
-                       ))}
+                         </TableCell>)}
                        
                        <TableCell className="py-2 bg-white">
                          <div className="flex items-center justify-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleViewSubmission(row.id)}
-                              className="h-6 w-6 p-0"
-                            >
+                            <Button variant="ghost" size="sm" onClick={() => handleViewSubmission(row.id)} className="h-6 w-6 p-0">
                               <Eye className="h-3 w-3" />
                             </Button>
-                            {canDeleteSubmissions && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditSubmission(row);
-                                  }}
-                                  className="h-6 w-6 p-0"
-                                >
+                            {canDeleteSubmissions && <>
+                                <Button variant="ghost" size="sm" onClick={e => {
+                          e.stopPropagation();
+                          handleEditSubmission(row);
+                        }} className="h-6 w-6 p-0">
                                   <Edit3 className="h-3 w-3" />
                                 </Button>
-                                <DeleteSubmissionButton
-                                  submissionId={row.id}
-                                  onDelete={() => handleDeleteSubmission(row.id)}
-                                  checkPermission={() => checkDeletePermission(row.id)}
-                                />
-                              </>
-                            )}
+                                <DeleteSubmissionButton submissionId={row.id} onDelete={() => handleDeleteSubmission(row.id)} checkPermission={() => checkDeletePermission(row.id)} />
+                              </>}
                          </div>
                        </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                    </TableRow>)}
                 </TableBody>
               </Table>
 
@@ -902,31 +709,21 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
                 <Pagination>
                   <PaginationContent>
                     <PaginationItem>
-                      <PaginationPrevious 
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                        className={`${currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'} h-6 px-2 text-xs`}
-                      />
+                      <PaginationPrevious onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} className={`${currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'} h-6 px-2 text-xs`} />
                     </PaginationItem>
-                    {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
-                      const pageNumber = currentPage <= 2 ? i + 1 : currentPage - 1 + i;
-                      if (pageNumber > totalPages) return null;
-                      return (
-                        <PaginationItem key={pageNumber}>
-                          <PaginationLink
-                            onClick={() => setCurrentPage(pageNumber)}
-                            isActive={currentPage === pageNumber}
-                            className="cursor-pointer h-6 px-2 text-xs"
-                          >
+                    {Array.from({
+                    length: Math.min(3, totalPages)
+                  }, (_, i) => {
+                    const pageNumber = currentPage <= 2 ? i + 1 : currentPage - 1 + i;
+                    if (pageNumber > totalPages) return null;
+                    return <PaginationItem key={pageNumber}>
+                          <PaginationLink onClick={() => setCurrentPage(pageNumber)} isActive={currentPage === pageNumber} className="cursor-pointer h-6 px-2 text-xs">
                             {pageNumber}
                           </PaginationLink>
-                        </PaginationItem>
-                      );
-                    })}
+                        </PaginationItem>;
+                  })}
                     <PaginationItem>
-                      <PaginationNext 
-                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                        className={`${currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'} h-6 px-2 text-xs`}
-                      />
+                      <PaginationNext onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} className={`${currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'} h-6 px-2 text-xs`} />
                     </PaginationItem>
                   </PaginationContent>
                 </Pagination>
@@ -937,38 +734,13 @@ export function DynamicTable({ config, onEdit }: DynamicTableProps) {
       </Card>
 
       {/* Bulk Actions Bar */}
-      {selectedRows.size > 0 && (
-        <BulkActionsBar
-          selectedCount={selectedRows.size}
-          onBulkEdit={handleBulkEdit}
-          onBulkDelete={handleBulkDelete}
-          onClearSelection={handleClearSelection}
-          canDelete={canDeleteSubmissions}
-        />
-      )}
+      {selectedRows.size > 0 && <BulkActionsBar selectedCount={selectedRows.size} onBulkEdit={handleBulkEdit} onBulkDelete={handleBulkDelete} onClearSelection={handleClearSelection} canDelete={canDeleteSubmissions} />}
 
       {/* Dialogs */}
-      <InlineEditDialog
-        isOpen={showInlineEdit}
-        onOpenChange={setShowInlineEdit}
-        submissions={editingSubmission ? (Array.isArray(editingSubmission) ? editingSubmission : [editingSubmission]) : []}
-        formFields={formFields || []}
-        onSave={handleInlineEditSave}
-      />
+      <InlineEditDialog isOpen={showInlineEdit} onOpenChange={setShowInlineEdit} submissions={editingSubmission ? Array.isArray(editingSubmission) ? editingSubmission : [editingSubmission] : []} formFields={formFields || []} onSave={handleInlineEditSave} />
 
-      <BulkDeleteDialog
-        isOpen={showBulkDelete}
-        onOpenChange={setShowBulkDelete}
-        submissionIds={Array.from(selectedRows)}
-        onDelete={handleBulkDeleteComplete}
-      />
+      <BulkDeleteDialog isOpen={showBulkDelete} onOpenChange={setShowBulkDelete} submissionIds={Array.from(selectedRows)} onDelete={handleBulkDeleteComplete} />
 
-      <CrossReferenceDialog
-        open={showCrossReferenceDialog}
-        onOpenChange={setShowCrossReferenceDialog}
-        submissionIds={crossReferenceData || []}
-        parentFormId={config.formId}
-      />
-    </div>
-  );
+      <CrossReferenceDialog open={showCrossReferenceDialog} onOpenChange={setShowCrossReferenceDialog} submissionIds={crossReferenceData || []} parentFormId={config.formId} />
+    </div>;
 }
