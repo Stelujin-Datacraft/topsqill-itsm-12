@@ -55,6 +55,108 @@ export type Database = {
           },
         ]
       }
+      email_logs: {
+        Row: {
+          content: string | null
+          created_at: string
+          error_message: string | null
+          from_email: string
+          id: string
+          organization_id: string
+          project_id: string | null
+          sent_at: string | null
+          smtp_config_id: string | null
+          status: string
+          subject: string
+          template_id: string | null
+          to_email: string
+          trigger_context: Json | null
+          triggered_by: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          error_message?: string | null
+          from_email: string
+          id?: string
+          organization_id: string
+          project_id?: string | null
+          sent_at?: string | null
+          smtp_config_id?: string | null
+          status?: string
+          subject: string
+          template_id?: string | null
+          to_email: string
+          trigger_context?: Json | null
+          triggered_by?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          error_message?: string | null
+          from_email?: string
+          id?: string
+          organization_id?: string
+          project_id?: string | null
+          sent_at?: string | null
+          smtp_config_id?: string | null
+          status?: string
+          subject?: string
+          template_id?: string | null
+          to_email?: string
+          trigger_context?: Json | null
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
+      email_templates: {
+        Row: {
+          created_at: string
+          created_by: string
+          custom_params: Json
+          description: string | null
+          html_content: string
+          id: string
+          is_active: boolean
+          name: string
+          project_id: string
+          subject: string
+          template_variables: Json
+          text_content: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          custom_params?: Json
+          description?: string | null
+          html_content: string
+          id?: string
+          is_active?: boolean
+          name: string
+          project_id: string
+          subject: string
+          template_variables?: Json
+          text_content?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          custom_params?: Json
+          description?: string | null
+          html_content?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          project_id?: string
+          subject?: string
+          template_variables?: Json
+          text_content?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       form_access_requests: {
         Row: {
           created_at: string
@@ -1135,6 +1237,60 @@ export type Database = {
           query?: string
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      smtp_configs: {
+        Row: {
+          created_at: string
+          created_by: string
+          from_email: string
+          from_name: string | null
+          host: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          organization_id: string
+          password: string
+          port: number
+          updated_at: string
+          use_tls: boolean
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          from_email: string
+          from_name?: string | null
+          host: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          organization_id: string
+          password: string
+          port?: number
+          updated_at?: string
+          use_tls?: boolean
+          username: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          from_email?: string
+          from_name?: string | null
+          host?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          organization_id?: string
+          password?: string
+          port?: number
+          updated_at?: string
+          use_tls?: boolean
+          username?: string
         }
         Relationships: []
       }

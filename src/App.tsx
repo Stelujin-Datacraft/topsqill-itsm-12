@@ -44,6 +44,8 @@ import Organizations from "./pages/Organizations";
 import Settings from "./pages/Settings";
 import AnalyticsDashboard from "./pages/AnalyticsDashboard";
 import DataTableBuilder from "./pages/DataTableBuilder";
+import EmailConfigPage from "./pages/EmailConfigPage";
+import EmailTemplatesPage from "./pages/EmailTemplatesPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -93,9 +95,11 @@ const App = () => (
                     <Route path="/projects/:projectId/overview" element={<ProtectedRoute><ProjectOverview /></ProtectedRoute>} />
                     <Route path="/organizations" element={<ProtectedRoute><Organizations /></ProtectedRoute>} />
                     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                    <Route path="/analytics-dashboard" element={<ProtectedRoute><AnalyticsDashboard /></ProtectedRoute>} />
-                    <Route path="/data-table-builder" element={<ProtectedRoute><DataTableBuilder /></ProtectedRoute>} />
-                    <Route path="*" element={<NotFound />} />
+                     <Route path="/analytics-dashboard" element={<ProtectedRoute><AnalyticsDashboard /></ProtectedRoute>} />
+                     <Route path="/data-table-builder" element={<ProtectedRoute><DataTableBuilder /></ProtectedRoute>} />
+                     <Route path="/email-config" element={<ProtectedRoute><EmailConfigPage /></ProtectedRoute>} />
+                     <Route path="/projects/:projectId/email-templates" element={<ProtectedRoute><EmailTemplatesPage /></ProtectedRoute>} />
+                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </BrowserRouter>
               </TooltipProvider>
