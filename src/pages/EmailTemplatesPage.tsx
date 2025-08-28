@@ -23,8 +23,20 @@ interface EmailTemplate {
   text_content?: string;
   template_variables: string[];
   custom_params: Record<string, any>;
+  recipients: {
+    to: RecipientConfig[];
+    cc: RecipientConfig[];
+    bcc: RecipientConfig[];
+    permanent_recipients: RecipientConfig[];
+  };
   is_active: boolean;
   created_at: string;
+}
+
+interface RecipientConfig {
+  type: 'static' | 'dynamic' | 'parameter';
+  value: string;
+  label?: string;
 }
 
 interface TemplateVariable {
@@ -51,6 +63,12 @@ export default function EmailTemplatesPage() {
     text_content: '',
     template_variables: [] as TemplateVariable[],
     custom_params: {},
+    recipients: {
+      to: [] as RecipientConfig[],
+      cc: [] as RecipientConfig[],
+      bcc: [] as RecipientConfig[],
+      permanent_recipients: [] as RecipientConfig[]
+    },
     is_active: true
   });
 
@@ -85,7 +103,13 @@ export default function EmailTemplatesPage() {
           : [],
         custom_params: typeof template.custom_params === 'object' && template.custom_params !== null
           ? template.custom_params as Record<string, any>
-          : {}
+          : {},
+        recipients: template.recipients || {
+          to: [],
+          cc: [],
+          bcc: [],
+          permanent_recipients: []
+        }
       })));
     } catch (error) {
       console.error('Error loading email templates:', error);
@@ -155,6 +179,12 @@ export default function EmailTemplatesPage() {
       text_content: '',
       template_variables: [],
       custom_params: {},
+      recipients: {
+        to: [],
+        cc: [],
+        bcc: [],
+        permanent_recipients: []
+      },
       is_active: true
     });
     setEditingTemplate(null);
@@ -175,6 +205,12 @@ export default function EmailTemplatesPage() {
         required: false
       })),
       custom_params: template.custom_params,
+      recipients: template.recipients || {
+        to: [],
+        cc: [],
+        bcc: [],
+        permanent_recipients: []
+      },
       is_active: template.is_active
     });
     setEditingTemplate(template);
@@ -434,14 +470,134 @@ export default function EmailTemplatesPage() {
               </div>
             </div>
 
-            {/* Email Content */}
-            <div>
+            {/* Recipients Configuration */}
+            <div className="space-y-4">
+              <Label>Email Recipients</Label>
+              {(['to', 'cc', 'bcc', 'permanent_recipients'] as const).map(recipientType => (
+                <div key={recipientType} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium capitalize">
+                      {recipientType === 'permanent_recipients' ? 'Always Include' : recipientType.toUpperCase()}
+                    </Label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setFormData(prev => ({
+                          ...prev,
+                          recipients: {
+                            ...prev.recipients,
+                            [recipientType]: [...prev.recipients[recipientType], { type: 'static', value: '', label: '' }]
+                          }
+                        }));
+                      }}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add {recipientType === 'permanent_recipients' ? 'Permanent' : recipientType.toUpperCase()}
+                    </Button>
+                  </div>
+                  {formData.recipients[recipientType].map((recipient, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <select
+                        className="px-3 py-2 border border-input rounded-md w-32"
+                        value={recipient.type}
+                        onChange={(e) => {
+                          const newRecipients = [...formData.recipients[recipientType]];
+                          newRecipients[index] = { ...newRecipients[index], type: e.target.value as any };
+                          setFormData(prev => ({
+                            ...prev,
+                            recipients: { ...prev.recipients, [recipientType]: newRecipients }
+                          }));
+                        }}
+                      >
+                        <option value="static">Static Email</option>
+                        <option value="dynamic">Dynamic</option>
+                        <option value="parameter">Parameter</option>
+                      </select>
+                      <Input
+                        placeholder={
+                          recipient.type === 'static' ? 'email@example.com' :
+                          recipient.type === 'dynamic' ? 'user.email' :
+                          '{{recipient_param}}'
+                        }
+                        value={recipient.value}
+                        onChange={(e) => {
+                          const newRecipients = [...formData.recipients[recipientType]];
+                          newRecipients[index] = { ...newRecipients[index], value: e.target.value };
+                          setFormData(prev => ({
+                            ...prev,
+                            recipients: { ...prev.recipients, [recipientType]: newRecipients }
+                          }));
+                        }}
+                        className="flex-1"
+                      />
+                      <Input
+                        placeholder="Label (optional)"
+                        value={recipient.label || ''}
+                        onChange={(e) => {
+                          const newRecipients = [...formData.recipients[recipientType]];
+                          newRecipients[index] = { ...newRecipients[index], label: e.target.value };
+                          setFormData(prev => ({
+                            ...prev,
+                            recipients: { ...prev.recipients, [recipientType]: newRecipients }
+                          }));
+                        }}
+                        className="w-32"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => {
+                          const newRecipients = formData.recipients[recipientType].filter((_, i) => i !== index);
+                          setFormData(prev => ({
+                            ...prev,
+                            recipients: { ...prev.recipients, [recipientType]: newRecipients }
+                          }));
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            {/* Enhanced Email Content */}
+            <div className="space-y-4">
               <Label>Email Content (HTML)</Label>
-              <TiptapEditor
-                content={formData.html_content}
-                onChange={(content) => setFormData(prev => ({ ...prev, html_content: content }))}
-                placeholder="Enter your email content here. Use {{variable_name}} for dynamic content."
-              />
+              <div className="border rounded-lg p-4 bg-gradient-to-br from-background to-muted/20">
+                <div className="mb-4 flex flex-wrap gap-2">
+                  <Badge variant="outline" className="text-xs">Templates Available:</Badge>
+                  {formData.template_variables.map((variable) => (
+                    <Badge 
+                      key={variable.name} 
+                      variant="secondary" 
+                      className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors text-xs"
+                      onClick={() => insertVariable(variable.name)}
+                    >
+                      {`{{${variable.name}}}`}
+                    </Badge>
+                  ))}
+                </div>
+                <TiptapEditor
+                  content={formData.html_content}
+                  onChange={(content) => setFormData(prev => ({ ...prev, html_content: content }))}
+                  placeholder="Enter your email content here. Use {{variable_name}} for dynamic content. Click on template variables above to insert them."
+                  className="min-h-[300px]"
+                />
+                <div className="mt-4 p-3 bg-muted/50 rounded-md text-sm text-muted-foreground">
+                  <p><strong>Pro Tips:</strong></p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Use <code>{'{{variable_name}}'}</code> for dynamic content</li>
+                    <li>Add rich formatting with the toolbar above</li>
+                    <li>Include images, links, and styled content</li>
+                    <li>Preview your template before saving</li>
+                  </ul>
+                </div>
+              </div>
             </div>
 
             <div>

@@ -42,7 +42,7 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent>
                 <Button 
-                  onClick={() => navigate(`/email-config${projectId ? `/${projectId}` : ''}`)}
+                  onClick={() => navigate('/email-config')}
                   className="w-full"
                 >
                   Manage SMTP Settings
@@ -62,7 +62,7 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent>
                 <Button 
-                  onClick={() => navigate(`/email-templates${projectId ? `/${projectId}` : ''}`)}
+                  onClick={() => navigate(projectId ? `/email-templates/${projectId}` : '/email-templates')}
                   className="w-full"
                 >
                   Manage Templates
