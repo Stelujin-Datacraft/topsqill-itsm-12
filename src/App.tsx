@@ -46,6 +46,7 @@ import AnalyticsDashboard from "./pages/AnalyticsDashboard";
 import DataTableBuilder from "./pages/DataTableBuilder";
 import EmailConfigPage from "./pages/EmailConfigPage";
 import EmailTemplatesPage from "./pages/EmailTemplatesPage";
+import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -94,11 +95,12 @@ const App = () => (
                     <Route path="/projects/:projectId/access" element={<ProtectedRoute><ProjectAccessPage /></ProtectedRoute>} />
                     <Route path="/projects/:projectId/overview" element={<ProtectedRoute><ProjectOverview /></ProtectedRoute>} />
                     <Route path="/organizations" element={<ProtectedRoute><Organizations /></ProtectedRoute>} />
-                    <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                     <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                      <Route path="/analytics-dashboard" element={<ProtectedRoute><AnalyticsDashboard /></ProtectedRoute>} />
                      <Route path="/data-table-builder" element={<ProtectedRoute><DataTableBuilder /></ProtectedRoute>} />
                      <Route path="/email-config" element={<ProtectedRoute><EmailConfigPage /></ProtectedRoute>} />
-                     <Route path="/projects/:projectId/email-templates" element={<ProtectedRoute><EmailTemplatesPage /></ProtectedRoute>} />
+                     <Route path="/email-config/:projectId" element={<ProtectedRoute><EmailConfigPage /></ProtectedRoute>} />
+                     <Route path="/email-templates/:projectId" element={<ProtectedRoute><EmailTemplatesPage /></ProtectedRoute>} />
                      <Route path="*" element={<NotFound />} />
                   </Routes>
                 </BrowserRouter>

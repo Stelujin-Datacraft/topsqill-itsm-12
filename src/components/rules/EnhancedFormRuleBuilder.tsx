@@ -11,6 +11,7 @@ import { Trash2, Plus } from 'lucide-react';
 import { FormField } from '@/types/form';
 import { FormRule, FormRuleAction, FormRuleCondition, FieldOperator } from '@/types/rules';
 import { RuleDynamicValueInput } from './RuleDynamicValueInput';
+import { EmailTemplateSelector } from './EmailTemplateSelector';
 
 interface EnhancedFormRuleBuilderProps {
   fields: FormField[];
@@ -504,6 +505,12 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
                     />
                     <p className="text-xs text-muted-foreground">Enter JSON with fieldId and value</p>
                   </div>
+                ) : editingRule.action === 'sendEmail' ? (
+                  <EmailTemplateSelector
+                    value={typeof editingRule.actionValue === 'object' ? editingRule.actionValue : undefined}
+                    onChange={(config) => setEditingRule({ ...editingRule, actionValue: config })}
+                    formFields={fields}
+                  />
                 ) : (
                   <Textarea
                     value={typeof editingRule.actionValue === 'string' ? editingRule.actionValue : ''}
@@ -512,7 +519,6 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
                       editingRule.action === 'preventSubmit' ? 'Error message to show users' :
                       editingRule.action === 'showMessage' ? 'Message to display to users' :
                       editingRule.action === 'notify' ? 'Notification message' :
-                      editingRule.action === 'sendEmail' ? 'Email template ID or recipient email' :
                       editingRule.action === 'triggerWebhook' ? 'Webhook URL or configuration JSON' :
                       editingRule.action === 'startWorkflow' ? 'Workflow ID or name to start' :
                       editingRule.action === 'assignForm' ? 'Assignee user ID or email address' :

@@ -87,6 +87,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         url: "/users",
         icon: User2,
       },
+      {
+        title: "Settings",
+        url: "/settings",
+        icon: Settings2,
+      },
       // Add Roles and Access tab only for admins
       ...(userProfile?.role === 'admin' ? [{
         title: "Roles and Access",
