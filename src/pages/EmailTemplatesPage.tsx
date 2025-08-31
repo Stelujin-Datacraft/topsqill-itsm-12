@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Eye, Mail, Code } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useParams } from 'react-router-dom';
+import { useProject } from '@/contexts/ProjectContext';
 import { toast } from '@/hooks/use-toast';
 import { TiptapEditor } from '@/components/ui/tiptap-editor';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -47,8 +47,9 @@ interface TemplateVariable {
 }
 
 export default function EmailTemplatesPage() {
-  const { projectId } = useParams();
+  const { currentProject } = useProject();
   const { userProfile } = useAuth();
+  const projectId = currentProject?.id;
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
