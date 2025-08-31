@@ -16,7 +16,7 @@ import { useProject } from '@/contexts/ProjectContext';
 import { toast } from '@/hooks/use-toast';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { EmailPreview } from '@/components/email/EmailPreview';
-import { emailTemplates } from '@/data/emailTemplates';
+import { EMAIL_TEMPLATES } from '@/data/emailTemplates';
 import DashboardLayout from '@/components/DashboardLayout';
 
 interface EmailTemplate {
@@ -69,15 +69,17 @@ export default function EmailTemplatesPage() {
       const processedTemplates = (data || []).map(template => ({
         ...template,
         template_variables: Array.isArray(template.template_variables) 
-          ? template.template_variables 
+          ? template.template_variables.map(v => String(v))
           : [],
-        recipients: template.recipients || {
-          to: [],
-          cc: [],
-          bcc: [],
-          permanent_recipients: []
-        }
-      }));
+        recipients: (typeof template.recipients === 'object' && template.recipients !== null && !Array.isArray(template.recipients))
+          ? template.recipients as any
+          : {
+              to: [],
+              cc: [],
+              bcc: [],
+              permanent_recipients: []
+            }
+      })) as EmailTemplate[];
       
       setTemplates(processedTemplates);
     } catch (error) {
@@ -138,9 +140,17 @@ export default function EmailTemplatesPage() {
       setLoading(true);
       
       const templateData = {
-        ...template,
+        name: template.name,
+        description: template.description,
+        subject: template.subject,
+        html_content: template.html_content,
+        text_content: template.text_content,
+        template_variables: template.template_variables as any,
+        recipients: template.recipients as any,
+        is_active: template.is_active,
         project_id: currentProject.id,
         created_by: userProfile.id,
+        custom_params: {},
       };
 
       if (template.id) {
@@ -241,7 +251,6 @@ export default function EmailTemplatesPage() {
   return (
     <DashboardLayout 
       title="Email Templates"
-      description="Create and manage dynamic email templates"
     >
       <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -291,7 +300,8 @@ export default function EmailTemplatesPage() {
                           subject={template.subject}
                           htmlContent={template.html_content}
                           textContent={template.text_content}
-                          variables={template.template_variables}
+                          templateVariables={template.template_variables.map(v => ({ name: v, value: `[${v}]` }))}
+                          isHtmlMode={true}
                         />
                       </DialogContent>
                     </Dialog>
@@ -592,8 +602,8 @@ function EmailTemplateForm({
                     <SelectValue placeholder="Choose a template..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {emailTemplates.map((template) => (
-                      <SelectItem key={template.id} value={template.html}>
+                    {EMAIL_TEMPLATES.map((template, index) => (
+                      <SelectItem key={index} value={template.htmlContent}>
                         {template.name}
                       </SelectItem>
                     ))}
@@ -629,8 +639,8 @@ function EmailTemplateForm({
                   subject={formData.subject}
                   htmlContent={formData.html_content}
                   textContent={formData.text_content}
-                  variables={formData.template_variables}
-                  mode={contentMode}
+                  templateVariables={formData.template_variables.map(v => ({ name: v, value: `[${v}]` }))}
+                  isHtmlMode={contentMode === 'html'}
                 />
               </div>
             </div>

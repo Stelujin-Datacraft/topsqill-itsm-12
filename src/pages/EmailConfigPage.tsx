@@ -188,7 +188,6 @@ export default function EmailConfigPage() {
   return (
     <DashboardLayout 
       title="Email Configuration"
-      description="Configure SMTP settings for sending emails"
     >
       <div className="space-y-6">
         <div className="flex justify-between items-center">
