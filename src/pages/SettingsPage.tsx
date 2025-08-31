@@ -62,7 +62,7 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent>
                 <Button 
-                  onClick={() => navigate(projectId ? `/email-templates/${projectId}` : '/email-templates')}
+                  onClick={() => navigate('/email-templates')}
                   className="w-full"
                 >
                   Manage Templates

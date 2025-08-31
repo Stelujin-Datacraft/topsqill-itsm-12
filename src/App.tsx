@@ -100,7 +100,8 @@ const App = () => (
                      <Route path="/data-table-builder" element={<ProtectedRoute><DataTableBuilder /></ProtectedRoute>} />
                      <Route path="/email-config" element={<ProtectedRoute><EmailConfigPage /></ProtectedRoute>} />
                      <Route path="/email-config/:projectId" element={<ProtectedRoute><EmailConfigPage /></ProtectedRoute>} />
-                     <Route path="/email-templates/:projectId" element={<ProtectedRoute><EmailTemplatesPage /></ProtectedRoute>} />
+                     <Route path="/email-templates" element={<ProtectedRoute><EmailTemplatesPage /></ProtectedRoute>} />
+                     <Route path="/email-templates/:templateId" element={<ProtectedRoute><EmailTemplatesPage /></ProtectedRoute>} />
                      <Route path="*" element={<NotFound />} />
                   </Routes>
                 </BrowserRouter>
