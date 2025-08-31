@@ -12,9 +12,21 @@ export interface EmailTemplate {
   text_content?: string;
   template_variables: string[];
   custom_params: Record<string, any>;
+  recipients?: {
+    to: RecipientConfig[];
+    cc: RecipientConfig[];
+    bcc: RecipientConfig[];
+    permanent_recipients: RecipientConfig[];
+  };
   is_active: boolean;
   project_id: string;
   created_at: string;
+}
+
+export interface RecipientConfig {
+  type: 'static' | 'dynamic' | 'parameter';
+  value: string;
+  label?: string;
 }
 
 export interface EmailTriggerOptions {
@@ -84,8 +96,16 @@ export function useEmailTemplates(projectId?: string) {
           : [],
         custom_params: typeof template.custom_params === 'object' && template.custom_params !== null
           ? template.custom_params as Record<string, any>
-          : {}
-      }));
+          : {},
+        recipients: (typeof template.recipients === 'object' && template.recipients !== null && !Array.isArray(template.recipients))
+          ? template.recipients as any
+          : {
+              to: [],
+              cc: [],
+              bcc: [],
+              permanent_recipients: []
+            }
+      })) as EmailTemplate[];
     } catch (error) {
       console.error('Error loading email templates:', error);
       throw error;

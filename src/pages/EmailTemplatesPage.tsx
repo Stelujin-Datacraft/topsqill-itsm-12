@@ -104,13 +104,15 @@ export default function EmailTemplatesPage() {
         custom_params: typeof template.custom_params === 'object' && template.custom_params !== null
           ? template.custom_params as Record<string, any>
           : {},
-        recipients: template.recipients || {
-          to: [],
-          cc: [],
-          bcc: [],
-          permanent_recipients: []
-        }
-      })));
+        recipients: (typeof template.recipients === 'object' && template.recipients !== null && !Array.isArray(template.recipients))
+          ? template.recipients as any
+          : {
+              to: [],
+              cc: [],
+              bcc: [],
+              permanent_recipients: []
+            }
+      })) as EmailTemplate[]);
     } catch (error) {
       console.error('Error loading email templates:', error);
       toast({
@@ -132,7 +134,8 @@ export default function EmailTemplatesPage() {
         ...formData,
         project_id: projectId,
         created_by: userProfile.id,
-        template_variables: formData.template_variables.map(v => v.name)
+        template_variables: formData.template_variables.map(v => v.name),
+        recipients: formData.recipients as any
       };
 
       if (editingTemplate) {
