@@ -6,10 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Mail, Trash2, Settings } from 'lucide-react';
+import { Plus, Mail, Trash2, Settings, Eye } from 'lucide-react';
 import { useEmailTemplates, EmailTemplate } from '@/hooks/useEmailTemplates';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { EmailPreview } from '@/components/email/EmailPreview';
 
 interface EmailTemplateConfig {
   templateId?: string;
@@ -169,7 +170,32 @@ export function EmailTemplateSelector({ value, onChange, formFields }: EmailTemp
       {selectedTemplate && showConfig && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Email Configuration</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm">Email Configuration</CardTitle>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline">
+                    <Eye className="h-3 w-3 mr-1" />
+                    Preview
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl">
+                  <DialogHeader>
+                    <DialogTitle>Email Preview</DialogTitle>
+                  </DialogHeader>
+                  <EmailPreview
+                    subject={selectedTemplate.subject}
+                    htmlContent={selectedTemplate.html_content}
+                    textContent={selectedTemplate.text_content}
+                    templateVariables={config.templateData.map(data => ({
+                      name: data.key,
+                      value: data.type === 'static' ? data.value : `[${data.key}]`
+                    }))}
+                    isHtmlMode={true}
+                  />
+                </DialogContent>
+              </Dialog>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Recipients Configuration */}
@@ -245,50 +271,79 @@ export function EmailTemplateSelector({ value, onChange, formFields }: EmailTemp
             {/* Template Variables Configuration */}
             {selectedTemplate.template_variables.length > 0 && (
               <div>
-                <Label className="text-sm">Template Variables</Label>
-                <div className="space-y-2 mt-2">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-sm">Template Variables</Label>
+                  <Badge variant="secondary" className="text-xs">
+                    {selectedTemplate.template_variables.length} parameters required
+                  </Badge>
+                </div>
+                <div className="space-y-3 mt-2">
                   {config.templateData.map((data, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <Badge variant="outline" className="min-w-fit">
-                        {data.key}
-                      </Badge>
+                    <div key={index} className="border rounded-lg p-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="min-w-fit font-mono">
+                          {data.key}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          This variable will be replaced in the email content
+                        </span>
+                      </div>
                       
-                      <Select
-                        value={data.type}
-                        onValueChange={(type) => updateTemplateData(index, { type: type as any })}
-                      >
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="static">Static Value</SelectItem>
-                          <SelectItem value="form_field">Form Field</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      
-                      {data.type === 'form_field' ? (
+                      <div className="flex items-center gap-2">
                         <Select
-                          value={data.value}
-                          onValueChange={(value) => updateTemplateData(index, { value })}
+                          value={data.type}
+                          onValueChange={(type) => updateTemplateData(index, { type: type as any })}
                         >
-                          <SelectTrigger className="flex-1">
-                            <SelectValue placeholder="Select field" />
+                          <SelectTrigger className="w-36">
+                            <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {formFields.map(field => (
-                              <SelectItem key={field.id} value={field.id}>
-                                {field.label}
-                              </SelectItem>
-                            ))}
+                            <SelectItem value="static">Static Value</SelectItem>
+                            <SelectItem value="form_field">Form Field</SelectItem>
                           </SelectContent>
                         </Select>
-                      ) : (
-                        <Input
-                          placeholder="Enter static value"
-                          value={data.value}
-                          onChange={(e) => updateTemplateData(index, { value: e.target.value })}
-                          className="flex-1"
-                        />
+                        
+                        {data.type === 'form_field' ? (
+                          <Select
+                            value={data.value}
+                            onValueChange={(value) => updateTemplateData(index, { value })}
+                          >
+                            <SelectTrigger className="flex-1">
+                              <SelectValue placeholder="Select form field" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {formFields.map(field => (
+                                <SelectItem key={field.id} value={field.id}>
+                                  <div className="flex items-center justify-between w-full">
+                                    <span>{field.label}</span>
+                                    <Badge variant="outline" className="ml-2 text-xs">
+                                      {field.type}
+                                    </Badge>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Input
+                            placeholder={`Enter value for ${data.key}`}
+                            value={data.value}
+                            onChange={(e) => updateTemplateData(index, { value: e.target.value })}
+                            className="flex-1"
+                          />
+                        )}
+                      </div>
+                      
+                      {data.type === 'static' && data.value && (
+                        <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                          Preview: <span className="font-mono">{data.value}</span>
+                        </div>
+                      )}
+                      
+                      {data.type === 'form_field' && data.value && (
+                        <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                          Will use value from: <span className="font-mono">{formFields.find(f => f.id === data.value)?.label}</span>
+                        </div>
                       )}
                     </div>
                   ))}
