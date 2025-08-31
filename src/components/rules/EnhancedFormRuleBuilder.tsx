@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,8 @@ import { FormField } from '@/types/form';
 import { FormRule, FormRuleAction, FormRuleCondition, FieldOperator } from '@/types/rules';
 import { RuleDynamicValueInput } from './RuleDynamicValueInput';
 import { EmailTemplateSelector } from './EmailTemplateSelector';
+import { useEmailTemplates } from '@/hooks/useEmailTemplates';
+import { useProject } from '@/contexts/ProjectContext';
 
 interface EnhancedFormRuleBuilderProps {
   fields: FormField[];
@@ -94,11 +96,30 @@ const formActions: { value: FormRuleAction; label: string }[] = [
 export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: EnhancedFormRuleBuilderProps) {
   const [editingRule, setEditingRule] = useState<FormRule | null>(null);
   const [conditionFieldComparisons, setConditionFieldComparisons] = useState<Record<string, boolean>>({});
+  const { currentProject } = useProject();
+  const { getTemplatesForProject } = useEmailTemplates();
+  const [emailTemplates, setEmailTemplates] = useState<any[]>([]);
 
   // Filter fields that can be used for conditions
   const conditionFields = fields.filter(field => 
     CONDITION_COMPATIBLE_TYPES.includes(field.type)
   );
+
+  // Load email templates when project changes
+  useEffect(() => {
+    const loadEmailTemplates = async () => {
+      if (currentProject?.id) {
+        try {
+          const templates = await getTemplatesForProject(currentProject.id);
+          setEmailTemplates(templates);
+        } catch (error) {
+          console.error('Error loading email templates:', error);
+        }
+      }
+    };
+
+    loadEmailTemplates();
+  }, [currentProject?.id, getTemplatesForProject]);
 
   const createNewRule = (): FormRule => ({
     id: `form-rule-${Date.now()}`,
@@ -242,6 +263,7 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
                 </Badge>
                 <span className="font-medium">{rule.name || 'Unnamed Rule'}</span>
                 <Badge variant="outline">{rule.conditions.length} conditions</Badge>
+                <Badge variant="outline">{rule.action}</Badge>
               </div>
               <div className="flex gap-2">
                 <Button
@@ -337,6 +359,7 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
               </div>
             </div>
 
+            {/* Conditions Section */}
             <div className="border-t pt-4">
               <div className="flex justify-between items-center mb-3">
                 <h4 className="font-medium">Conditions</h4>
@@ -465,7 +488,53 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
             ].includes(editingRule.action)) && (
               <div>
                 <Label>Action Configuration</Label>
-                {editingRule.action === 'autoFillFields' ? (
+                {editingRule.action === 'sendEmail' ? (
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Email Template</Label>
+                      <Select
+                        value={typeof editingRule.actionValue === 'object' && editingRule.actionValue?.templateId ? editingRule.actionValue.templateId : ''}
+                        onValueChange={(templateId) => {
+                          const currentConfig = typeof editingRule.actionValue === 'object' ? editingRule.actionValue : {};
+                          setEditingRule({ 
+                            ...editingRule, 
+                            actionValue: { 
+                              ...currentConfig,
+                              templateId,
+                              recipients: currentConfig.recipients || [],
+                              templateData: currentConfig.templateData || []
+                            }
+                          });
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select email template" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {emailTemplates.map((template) => (
+                            <SelectItem key={template.id} value={template.id}>
+                              <div className="flex items-center justify-between w-full">
+                                <span>{template.name}</span>
+                                <Badge variant="outline" className="ml-2">
+                                  {template.template_variables.length} vars
+                                </Badge>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Show EmailTemplateSelector if template is selected */}
+                    {typeof editingRule.actionValue === 'object' && editingRule.actionValue?.templateId && (
+                      <EmailTemplateSelector
+                        value={editingRule.actionValue}
+                        onChange={(config) => setEditingRule({ ...editingRule, actionValue: config })}
+                        formFields={fields}
+                      />
+                    )}
+                  </div>
+                ) : editingRule.action === 'autoFillFields' ? (
                   <div className="space-y-2">
                     <Textarea
                       value={typeof editingRule.actionValue === 'object' 
@@ -505,12 +574,6 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
                     />
                     <p className="text-xs text-muted-foreground">Enter JSON with fieldId and value</p>
                   </div>
-                ) : editingRule.action === 'sendEmail' ? (
-                  <EmailTemplateSelector
-                    value={typeof editingRule.actionValue === 'object' ? editingRule.actionValue : undefined}
-                    onChange={(config) => setEditingRule({ ...editingRule, actionValue: config })}
-                    formFields={fields}
-                  />
                 ) : (
                   <Textarea
                     value={typeof editingRule.actionValue === 'string' ? editingRule.actionValue : ''}

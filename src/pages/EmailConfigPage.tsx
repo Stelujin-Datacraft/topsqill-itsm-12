@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, Plus, Settings, Trash2, Mail, Server } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Trash2, Plus, Mail, Server, TestTube } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import DashboardLayout from '@/components/DashboardLayout';
 
 interface SMTPConfig {
   id: string;
@@ -19,38 +19,20 @@ interface SMTPConfig {
   port: number;
   username: string;
   password: string;
-  use_tls: boolean;
   from_email: string;
-  from_name?: string;
+  from_name: string;
+  use_tls: boolean;
   is_default: boolean;
   is_active: boolean;
-  created_at: string;
 }
 
 export default function EmailConfigPage() {
   const { userProfile } = useAuth();
   const [configs, setConfigs] = useState<SMTPConfig[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [editingConfig, setEditingConfig] = useState<SMTPConfig | null>(null);
+  const [loading, setLoading] = useState(true);
   const [testingConfig, setTestingConfig] = useState<string | null>(null);
-  
-  const [formData, setFormData] = useState({
-    name: '',
-    host: '',
-    port: 587,
-    username: '',
-    password: '',
-    use_tls: true,
-    from_email: '',
-    from_name: '',
-    is_default: false,
-    is_active: true
-  });
-
-  useEffect(() => {
-    loadConfigs();
-  }, [userProfile?.organization_id]);
 
   const loadConfigs = async () => {
     if (!userProfile?.organization_id) return;
@@ -60,7 +42,7 @@ export default function EmailConfigPage() {
         .from('smtp_configs')
         .select('*')
         .eq('organization_id', userProfile.organization_id)
-        .order('created_at', { ascending: false });
+        .order('is_default', { ascending: false });
 
       if (error) throw error;
       setConfigs(data || []);
@@ -68,7 +50,7 @@ export default function EmailConfigPage() {
       console.error('Error loading SMTP configs:', error);
       toast({
         title: "Error",
-        description: "Failed to load SMTP configurations.",
+        description: "Failed to load SMTP configurations",
         variant: "destructive",
       });
     } finally {
@@ -76,89 +58,70 @@ export default function EmailConfigPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    loadConfigs();
+  }, [userProfile?.organization_id]);
+
+  const createNewConfig = (): SMTPConfig => ({
+    id: '',
+    name: '',
+    host: '',
+    port: 587,
+    username: '',
+    password: '',
+    from_email: '',
+    from_name: '',
+    use_tls: true,
+    is_default: false,
+    is_active: true,
+  });
+
+  const saveConfig = async (config: SMTPConfig) => {
     if (!userProfile?.organization_id) return;
 
     try {
+      setLoading(true);
+      
       const configData = {
-        ...formData,
+        ...config,
         organization_id: userProfile.organization_id,
-        created_by: userProfile.id
+        created_by: userProfile.id,
       };
 
-      if (editingConfig) {
+      if (config.id) {
         const { error } = await supabase
           .from('smtp_configs')
           .update(configData)
-          .eq('id', editingConfig.id);
-
+          .eq('id', config.id);
         if (error) throw error;
-        toast({
-          title: "Success",
-          description: "SMTP configuration updated successfully.",
-        });
       } else {
         const { error } = await supabase
           .from('smtp_configs')
           .insert([configData]);
-
         if (error) throw error;
-        toast({
-          title: "Success",
-          description: "SMTP configuration created successfully.",
-        });
       }
 
-      resetForm();
-      loadConfigs();
-    } catch (error) {
+      toast({
+        title: "Success",
+        description: `SMTP configuration ${config.id ? 'updated' : 'created'} successfully`,
+      });
+
+      await loadConfigs();
+      setEditingConfig(null);
+      setIsCreating(false);
+    } catch (error: any) {
       console.error('Error saving SMTP config:', error);
       toast({
         title: "Error",
-        description: "Failed to save SMTP configuration.",
+        description: `Failed to save SMTP configuration: ${error.message}`,
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      host: '',
-      port: 587,
-      username: '',
-      password: '',
-      use_tls: true,
-      from_email: '',
-      from_name: '',
-      is_default: false,
-      is_active: true
-    });
-    setEditingConfig(null);
-    setShowForm(false);
-  };
-
-  const handleEdit = (config: SMTPConfig) => {
-    setFormData({
-      name: config.name,
-      host: config.host,
-      port: config.port,
-      username: config.username,
-      password: config.password,
-      use_tls: config.use_tls,
-      from_email: config.from_email,
-      from_name: config.from_name || '',
-      is_default: config.is_default,
-      is_active: config.is_active
-    });
-    setEditingConfig(config);
-    setShowForm(true);
-  };
-
-  const handleDelete = async (configId: string) => {
-    if (!confirm('Are you sure you want to delete this SMTP configuration?')) return;
-
+  const deleteConfig = async (configId: string) => {
     try {
       const { error } = await supabase
         .from('smtp_configs')
@@ -166,41 +129,45 @@ export default function EmailConfigPage() {
         .eq('id', configId);
 
       if (error) throw error;
-      
+
       toast({
         title: "Success",
-        description: "SMTP configuration deleted successfully.",
+        description: "SMTP configuration deleted successfully",
       });
-      loadConfigs();
-    } catch (error) {
+
+      await loadConfigs();
+    } catch (error: any) {
       console.error('Error deleting SMTP config:', error);
       toast({
         title: "Error",
-        description: "Failed to delete SMTP configuration.",
+        description: `Failed to delete SMTP configuration: ${error.message}`,
         variant: "destructive",
       });
     }
   };
 
-  const testConnection = async (configId: string) => {
-    setTestingConfig(configId);
+  const testConfig = async (config: SMTPConfig) => {
+    setTestingConfig(config.id);
+    
     try {
-      const { data, error } = await supabase.functions.invoke('test-smtp-connection', {
-        body: { configId }
+      const { data, error } = await supabase.functions.invoke('test-smtp-config', {
+        body: { 
+          configId: config.id,
+          testEmail: userProfile?.email 
+        }
       });
 
       if (error) throw error;
 
       toast({
-        title: data.success ? "Success" : "Error",
-        description: data.message,
-        variant: data.success ? "default" : "destructive",
+        title: "Test Email Sent",
+        description: "Check your inbox for the test email",
       });
-    } catch (error) {
-      console.error('Error testing SMTP connection:', error);
+    } catch (error: any) {
+      console.error('Error testing SMTP config:', error);
       toast({
-        title: "Error",
-        description: "Failed to test SMTP connection.",
+        title: "Test Failed",
+        description: `Failed to send test email: ${error.message}`,
         variant: "destructive",
       });
     } finally {
@@ -210,227 +177,241 @@ export default function EmailConfigPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-muted rounded w-1/4"></div>
-          <div className="h-32 bg-muted rounded"></div>
+      <DashboardLayout title="Email Configuration">
+        <div className="flex items-center justify-center p-8">
+          <div className="text-muted-foreground">Loading...</div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Email Configuration</h1>
-          <p className="text-muted-foreground">
-            Configure SMTP settings for your organization's email notifications
-          </p>
+    <DashboardLayout 
+      title="Email Configuration"
+      description="Configure SMTP settings for sending emails"
+    >
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Server className="h-5 w-5" />
+            <h2 className="text-xl font-semibold">SMTP Configurations</h2>
+          </div>
+          <Button onClick={() => setIsCreating(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add SMTP Config
+          </Button>
         </div>
-        <Button onClick={() => setShowForm(true)} disabled={showForm}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add SMTP Config
-        </Button>
-      </div>
 
-      {showForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {editingConfig ? 'Edit SMTP Configuration' : 'Add SMTP Configuration'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Configuration Name</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    required
-                  />
+        {/* Existing Configurations */}
+        <div className="grid gap-4">
+          {configs.map((config) => (
+            <Card key={config.id}>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      {config.name}
+                      {config.is_default && (
+                        <Badge variant="default">Default</Badge>
+                      )}
+                      {!config.is_active && (
+                        <Badge variant="secondary">Inactive</Badge>
+                      )}
+                    </CardTitle>
+                    <CardDescription>
+                      {config.host}:{config.port} • {config.from_email}
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => testConfig(config)}
+                      disabled={testingConfig === config.id}
+                    >
+                      <TestTube className="h-4 w-4 mr-1" />
+                      {testingConfig === config.id ? 'Testing...' : 'Test'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditingConfig(config)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteConfig(config.id)}
+                      disabled={config.is_default}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="host">SMTP Host</Label>
-                  <Input
-                    id="host"
-                    value={formData.host}
-                    onChange={(e) => setFormData(prev => ({ ...prev, host: e.target.value }))}
-                    placeholder="smtp.gmail.com"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="port">Port</Label>
-                  <Input
-                    id="port"
-                    type="number"
-                    value={formData.port}
-                    onChange={(e) => setFormData(prev => ({ ...prev, port: parseInt(e.target.value) }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="username">Username</Label>
-                  <Input
-                    id="username"
-                    value={formData.username}
-                    onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="from_email">From Email</Label>
-                  <Input
-                    id="from_email"
-                    type="email"
-                    value={formData.from_email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, from_email: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="from_name">From Name (Optional)</Label>
-                  <Input
-                    id="from_name"
-                    value={formData.from_name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, from_name: e.target.value }))}
-                  />
-                </div>
-              </div>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
 
-              <div className="flex items-center space-x-6">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="use_tls"
-                    checked={formData.use_tls}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, use_tls: checked }))}
-                  />
-                  <Label htmlFor="use_tls">Use TLS</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="is_default"
-                    checked={formData.is_default}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_default: checked }))}
-                  />
-                  <Label htmlFor="is_default">Set as Default</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="is_active"
-                    checked={formData.is_active}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
-                  />
-                  <Label htmlFor="is_active">Active</Label>
-                </div>
-              </div>
-
-              <div className="flex space-x-2">
-                <Button type="submit">
-                  {editingConfig ? 'Update Configuration' : 'Create Configuration'}
-                </Button>
-                <Button type="button" variant="outline" onClick={resetForm}>
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {configs.map((config) => (
-          <Card key={config.id}>
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-lg">{config.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{config.host}:{config.port}</p>
-                </div>
-                <div className="flex space-x-1">
-                  {config.is_default && <Badge variant="default">Default</Badge>}
-                  {config.is_active ? (
-                    <Badge variant="secondary">Active</Badge>
-                  ) : (
-                    <Badge variant="outline">Inactive</Badge>
-                  )}
-                </div>
-              </div>
+        {/* Create/Edit Form */}
+        {(isCreating || editingConfig) && (
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                {editingConfig ? 'Edit SMTP Configuration' : 'Create SMTP Configuration'}
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="text-sm space-y-1">
-                <p><strong>From:</strong> {config.from_name ? `${config.from_name} <${config.from_email}>` : config.from_email}</p>
-                <p><strong>Username:</strong> {config.username}</p>
-                <p><strong>TLS:</strong> {config.use_tls ? 'Enabled' : 'Disabled'}</p>
-              </div>
-              
-              <div className="flex space-x-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => testConnection(config.id)}
-                  disabled={testingConfig === config.id}
-                >
-                  <Mail className="h-3 w-3 mr-1" />
-                  {testingConfig === config.id ? 'Testing...' : 'Test'}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleEdit(config)}
-                >
-                  <Settings className="h-3 w-3 mr-1" />
-                  Edit
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => handleDelete(config.id)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
+            <CardContent>
+              <SMTPConfigForm
+                config={editingConfig || createNewConfig()}
+                onSave={saveConfig}
+                onCancel={() => {
+                  setEditingConfig(null);
+                  setIsCreating(false);
+                }}
+              />
             </CardContent>
           </Card>
-        ))}
+        )}
+      </div>
+    </DashboardLayout>
+  );
+}
+
+interface SMTPConfigFormProps {
+  config: SMTPConfig;
+  onSave: (config: SMTPConfig) => void;
+  onCancel: () => void;
+}
+
+function SMTPConfigForm({ config, onSave, onCancel }: SMTPConfigFormProps) {
+  const [formData, setFormData] = useState<SMTPConfig>(config);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="name">Configuration Name</Label>
+          <Input
+            id="name"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            placeholder="e.g., Gmail SMTP"
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="host">SMTP Host</Label>
+          <Input
+            id="host"
+            value={formData.host}
+            onChange={(e) => setFormData({ ...formData, host: e.target.value })}
+            placeholder="e.g., smtp.gmail.com"
+            required
+          />
+        </div>
       </div>
 
-      {configs.length === 0 && (
-        <Card>
-          <CardContent className="text-center py-12">
-            <Server className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No SMTP configurations</h3>
-            <p className="text-muted-foreground mb-4">
-              Create your first SMTP configuration to start sending email notifications.
-            </p>
-            <Button onClick={() => setShowForm(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add SMTP Config
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="port">Port</Label>
+          <Input
+            id="port"
+            type="number"
+            value={formData.port}
+            onChange={(e) => setFormData({ ...formData, port: parseInt(e.target.value) || 587 })}
+            placeholder="587"
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="username">Username</Label>
+          <Input
+            id="username"
+            value={formData.username}
+            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+            placeholder="your-email@domain.com"
+            required
+          />
+        </div>
+      </div>
 
-      <Alert>
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          SMTP passwords are encrypted and stored securely. Only organization administrators can manage these configurations.
-        </AlertDescription>
-      </Alert>
-    </div>
+      <div>
+        <Label htmlFor="password">Password</Label>
+        <Input
+          id="password"
+          type="password"
+          value={formData.password}
+          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+          placeholder="Your app password"
+          required
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="from_email">From Email</Label>
+          <Input
+            id="from_email"
+            type="email"
+            value={formData.from_email}
+            onChange={(e) => setFormData({ ...formData, from_email: e.target.value })}
+            placeholder="noreply@yourdomain.com"
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="from_name">From Name</Label>
+          <Input
+            id="from_name"
+            value={formData.from_name}
+            onChange={(e) => setFormData({ ...formData, from_name: e.target.value })}
+            placeholder="Your Company Name"
+            required
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <Switch
+              checked={formData.use_tls}
+              onCheckedChange={(checked) => setFormData({ ...formData, use_tls: checked })}
+            />
+            <Label>Use TLS</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Switch
+              checked={formData.is_default}
+              onCheckedChange={(checked) => setFormData({ ...formData, is_default: checked })}
+            />
+            <Label>Set as Default</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Switch
+              checked={formData.is_active}
+              onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+            />
+            <Label>Active</Label>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit">
+          Save Configuration
+        </Button>
+      </div>
+    </form>
   );
 }
