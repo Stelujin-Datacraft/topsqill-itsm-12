@@ -120,6 +120,7 @@ export type Database = {
           is_active: boolean
           name: string
           project_id: string
+          recipients: Json | null
           subject: string
           template_variables: Json
           text_content: string | null
@@ -135,6 +136,7 @@ export type Database = {
           is_active?: boolean
           name: string
           project_id: string
+          recipients?: Json | null
           subject: string
           template_variables?: Json
           text_content?: string | null
@@ -150,6 +152,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           project_id?: string
+          recipients?: Json | null
           subject?: string
           template_variables?: Json
           text_content?: string | null
