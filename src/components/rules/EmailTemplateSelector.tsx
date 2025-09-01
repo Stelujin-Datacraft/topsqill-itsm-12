@@ -46,7 +46,10 @@ export function EmailTemplateSelector({ value, onChange, formFields }: EmailTemp
 
   useEffect(() => {
     if (projectId) {
+      console.log('Loading templates for projectId:', projectId);
       loadTemplates();
+    } else {
+      console.log('No projectId available');
     }
   }, [projectId]);
 
@@ -71,7 +74,9 @@ export function EmailTemplateSelector({ value, onChange, formFields }: EmailTemp
 
   const loadTemplates = async () => {
     try {
+      console.log('Fetching templates for projectId:', projectId);
       const data = await getTemplatesForProject(projectId!);
+      console.log('Templates loaded:', data);
       setTemplates(data);
     } catch (error) {
       console.error('Error loading templates:', error);
