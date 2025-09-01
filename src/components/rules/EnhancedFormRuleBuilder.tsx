@@ -489,51 +489,11 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
               <div>
                 <Label>Action Configuration</Label>
                 {editingRule.action === 'sendEmail' ? (
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Email Template</Label>
-                      <Select
-                        value={typeof editingRule.actionValue === 'object' && editingRule.actionValue?.templateId ? editingRule.actionValue.templateId : ''}
-                        onValueChange={(templateId) => {
-                          const currentConfig = typeof editingRule.actionValue === 'object' ? editingRule.actionValue : {};
-                          setEditingRule({ 
-                            ...editingRule, 
-                            actionValue: { 
-                              ...currentConfig,
-                              templateId,
-                              recipients: currentConfig.recipients || [],
-                              templateData: currentConfig.templateData || []
-                            }
-                          });
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select email template" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {emailTemplates.map((template) => (
-                            <SelectItem key={template.id} value={template.id}>
-                              <div className="flex items-center justify-between w-full">
-                                <span>{template.name}</span>
-                                <Badge variant="outline" className="ml-2">
-                                  {template.template_variables.length} vars
-                                </Badge>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    {/* Show EmailTemplateSelector if template is selected */}
-                    {typeof editingRule.actionValue === 'object' && editingRule.actionValue?.templateId && (
-                      <EmailTemplateSelector
-                        value={editingRule.actionValue}
-                        onChange={(config) => setEditingRule({ ...editingRule, actionValue: config })}
-                        formFields={fields}
-                      />
-                    )}
-                  </div>
+                  <EmailTemplateSelector
+                    value={typeof editingRule.actionValue === 'object' ? editingRule.actionValue : undefined}
+                    onChange={(config) => setEditingRule({ ...editingRule, actionValue: config })}
+                    formFields={fields}
+                  />
                 ) : editingRule.action === 'autoFillFields' ? (
                   <div className="space-y-2">
                     <Textarea
