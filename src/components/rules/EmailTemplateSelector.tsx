@@ -29,10 +29,12 @@ interface EmailTemplateSelectorProps {
   value?: EmailTemplateConfig;
   onChange: (config: EmailTemplateConfig) => void;
   formFields: Array<{ id: string; label: string; type: string }>;
+  projectId?: string;
 }
 
-export function EmailTemplateSelector({ value, onChange, formFields }: EmailTemplateSelectorProps) {
-  const { projectId } = useParams();
+export function EmailTemplateSelector({ value, onChange, formFields, projectId: propProjectId }: EmailTemplateSelectorProps) {
+  const { projectId: urlProjectId } = useParams();
+  const projectId = propProjectId || urlProjectId;
   const navigate = useNavigate();
   const { getTemplatesForProject } = useEmailTemplates();
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);

@@ -12,7 +12,7 @@ import { FormField } from '@/types/form';
 import { FormRule, FormRuleAction, FormRuleCondition, FieldOperator } from '@/types/rules';
 import { RuleDynamicValueInput } from './RuleDynamicValueInput';
 import { EmailTemplateSelector } from './EmailTemplateSelector';
-import { useEmailTemplates } from '@/hooks/useEmailTemplates';
+
 import { useProject } from '@/contexts/ProjectContext';
 
 interface EnhancedFormRuleBuilderProps {
@@ -97,29 +97,11 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
   const [editingRule, setEditingRule] = useState<FormRule | null>(null);
   const [conditionFieldComparisons, setConditionFieldComparisons] = useState<Record<string, boolean>>({});
   const { currentProject } = useProject();
-  const { getTemplatesForProject } = useEmailTemplates();
-  const [emailTemplates, setEmailTemplates] = useState<any[]>([]);
 
   // Filter fields that can be used for conditions
   const conditionFields = fields.filter(field => 
     CONDITION_COMPATIBLE_TYPES.includes(field.type)
   );
-
-  // Load email templates when project changes
-  useEffect(() => {
-    const loadEmailTemplates = async () => {
-      if (currentProject?.id) {
-        try {
-          const templates = await getTemplatesForProject(currentProject.id);
-          setEmailTemplates(templates);
-        } catch (error) {
-          console.error('Error loading email templates:', error);
-        }
-      }
-    };
-
-    loadEmailTemplates();
-  }, [currentProject?.id, getTemplatesForProject]);
 
   const createNewRule = (): FormRule => ({
     id: `form-rule-${Date.now()}`,
@@ -493,6 +475,7 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
                     value={typeof editingRule.actionValue === 'object' ? editingRule.actionValue : undefined}
                     onChange={(config) => setEditingRule({ ...editingRule, actionValue: config })}
                     formFields={fields}
+                    projectId={currentProject?.id}
                   />
                 ) : editingRule.action === 'autoFillFields' ? (
                   <div className="space-y-2">
