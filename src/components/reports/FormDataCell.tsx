@@ -32,43 +32,67 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
         submissionIds = [value];
       }
     } else if (Array.isArray(value)) {
-      submissionIds = value;
+      // Extract record_id from objects if they exist
+      submissionIds = value.map(item => {
+        if (typeof item === 'object' && item !== null) {
+          return item.record_id || item.id || item.submission_ref_id || String(item);
+        }
+        return String(item);
+      });
+    } else if (value && typeof value === 'object') {
+      // Handle single object with record_id
+      submissionIds = [value.record_id || value.id || value.submission_ref_id || String(value)];
     } else if (value) {
       // Handle any other non-null value by converting to array
       submissionIds = [String(value)];
     }
     
-    // Ensure submissionIds is always an array
+    // Ensure submissionIds is always an array and filter out invalid entries
     if (!Array.isArray(submissionIds)) {
       submissionIds = [];
     }
+    
+    // Filter out empty, null, undefined, or [object Object] strings
+    submissionIds = submissionIds.filter(id => 
+      id && 
+      String(id).trim() !== '' && 
+      String(id) !== '[object Object]' &&
+      String(id) !== 'undefined' &&
+      String(id) !== 'null'
+    );
     
     if (submissionIds.length === 0) {
       return <Badge variant="outline" className="italic opacity-70">No references</Badge>;
     }
     
-    const displayIds = submissionIds.slice(0, 10);
-    const hasMore = submissionIds.length > 10;
+    // Show only first 5 IDs as requested
+    const displayIds = submissionIds.slice(0, 5);
+    const hasMore = submissionIds.length > 5;
     
     return (
-      <div 
-        className="cursor-pointer"
+      <Button
+        variant="outline"
+        size="sm"
+        className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1 px-2"
         onClick={() => {
-          // Trigger dialog with all IDs
+          // Trigger dialog with all IDs for this specific field
           const dynamicTable = document.querySelector('[data-dynamic-table]');
           if (dynamicTable) {
             const event = new CustomEvent('showCrossReference', { 
-              detail: { submissionIds } 
+              detail: { 
+                submissionIds,
+                fieldName: field?.label || 'Cross Reference'
+              } 
             });
             dynamicTable.dispatchEvent(event);
           }
         }}
       >
-        <span className="text-sm">
-          {displayIds.map(id => `#${String(id).slice(0, 8)}`).join(', ')}
-          {hasMore && <span className="text-muted-foreground">...</span>}
-        </span>
-      </div>
+        <div className="text-sm">
+          {displayIds.map(id => `#${String(id)}`).join(', ')}
+          {hasMore && <span className="text-muted-foreground ml-1">+{submissionIds.length - 5} more</span>}
+        </div>
+      </Button>
     );
   }
 

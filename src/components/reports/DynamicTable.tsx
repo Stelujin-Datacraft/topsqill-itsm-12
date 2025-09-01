@@ -68,6 +68,7 @@ export function DynamicTable({
   const [canDeleteSubmissions, setCanDeleteSubmissions] = useState(false);
   const [showCrossReferenceDialog, setShowCrossReferenceDialog] = useState(false);
   const [crossReferenceData, setCrossReferenceData] = useState<string[]>([]);
+  const [crossReferenceFieldName, setCrossReferenceFieldName] = useState<string>('Cross Reference');
 
   // Custom hooks
   const {
@@ -232,9 +233,11 @@ export function DynamicTable({
   useEffect(() => {
     const handleCrossReference = (event: any) => {
       const {
-        submissionIds
+        submissionIds,
+        fieldName
       } = event.detail;
       setCrossReferenceData(submissionIds);
+      setCrossReferenceFieldName(fieldName || 'Cross Reference');
       setShowCrossReferenceDialog(true);
     };
     const tableElement = document.querySelector('[data-dynamic-table]');
@@ -554,7 +557,7 @@ export function DynamicTable({
         </CardHeader>
       
         <CardContent className="p-2">
-          <div className={`overflow-auto ${isExpanded ? 'h-[85vh]' : 'max-h-[70vh]'}`}>
+          <div className={`overflow-auto ${isExpanded ? 'h-[85vh]' : 'max-h-[70vh]'}`} data-dynamic-table>
             <div className="space-y-2">
               {/* Compact Page Size Selector */}
               <div className="flex items-center justify-between px-2">
@@ -741,6 +744,12 @@ export function DynamicTable({
 
       <BulkDeleteDialog isOpen={showBulkDelete} onOpenChange={setShowBulkDelete} submissionIds={Array.from(selectedRows)} onDelete={handleBulkDeleteComplete} />
 
-      <CrossReferenceDialog open={showCrossReferenceDialog} onOpenChange={setShowCrossReferenceDialog} submissionIds={crossReferenceData || []} parentFormId={config.formId} />
+      <CrossReferenceDialog 
+        open={showCrossReferenceDialog} 
+        onOpenChange={setShowCrossReferenceDialog} 
+        submissionIds={crossReferenceData || []} 
+        parentFormId={config.formId}
+        fieldName={crossReferenceFieldName}
+      />
     </div>;
 }
