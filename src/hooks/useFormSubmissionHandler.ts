@@ -66,11 +66,39 @@ export function useFormSubmissionHandler(formId: string | undefined, form?: Form
     }
   };
 
+  const generateUniqueRefId = async () => {
+    const prefix = form?.reference_id?.slice(0, 3) || 'SUB';
+    const today = new Date();
+    const dateStr = today.toISOString().slice(2, 10).replace(/-/g, ''); // YYMMDD format
+    
+    // Try to generate a unique reference ID
+    for (let i = 1; i <= 999; i++) {
+      const refId = `${prefix}${dateStr}${String(i).padStart(3, '0')}`;
+      
+      // Check if this ID already exists
+      const { data: existing } = await supabase
+        .from('form_submissions')
+        .select('id')
+        .eq('submission_ref_id', refId)
+        .single();
+      
+      if (!existing) {
+        return refId;
+      }
+    }
+    
+    // Fallback with timestamp if all 999 attempts fail
+    return `${prefix}${dateStr}${Date.now().toString().slice(-3)}`;
+  };
+
   const handleFormSubmit = async (formData: Record<string, any>) => {
     try {
       console.log('📝 Submitting form data to database:', formData);
       console.log('👤 Current user profile:', userProfile);
       console.log('🆔 Form ID:', formId);
+      
+      // Generate unique reference ID
+      const submissionRefId = await generateUniqueRefId();
       
       // Save form submission to database with user context
       const submissionPayload = {
@@ -78,6 +106,7 @@ export function useFormSubmissionHandler(formId: string | undefined, form?: Form
         submission_data: formData,
         submitted_at: new Date().toISOString(),
         submitted_by: userProfile?.id || null, // Capture authenticated user ID
+        submission_ref_id: submissionRefId, // Explicitly set unique reference ID
       };
 
       console.log('📤 Form submission payload:', submissionPayload);
