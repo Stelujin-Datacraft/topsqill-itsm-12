@@ -116,8 +116,8 @@ export function DynamicTable({
     }
   }, []);
 
-  // All useMemo hooks
-  const displayFields = useMemo(() => {
+  // Helper functions that need to be available for useMemo
+  const getAvailableFields = () => {
     const excludedFieldTypes = [
       'header', 'description', 'section-break', 'horizontal-line', 
       'full-width-container', 'user-picker', 'approval', 'cross-reference', 
@@ -125,9 +125,16 @@ export function DynamicTable({
       'submission-access', 'signature', 'dynamic-dropdown', 'rich-text',
       'record-table', 'matrix-grid', 'workflow-trigger'
     ];
+    return formFields.filter(field => !excludedFieldTypes.includes(field.field_type));
+  };
+
+  const getDisplayFields = () => {
     const columnsToShow = selectedColumns.length > 0 ? selectedColumns : config.selectedColumns && config.selectedColumns.length > 0 ? config.selectedColumns : formFields.map(f => f.id);
-    return formFields.filter(field => columnsToShow.includes(field.id) && !excludedFieldTypes.includes(field.field_type));
-  }, [formFields, selectedColumns, config.selectedColumns]);
+    return getAvailableFields().filter(field => columnsToShow.includes(field.id));
+  };
+
+  // All useMemo hooks
+  const displayFields = useMemo(() => getDisplayFields(), [formFields, selectedColumns, config.selectedColumns]);
   const filteredAndSortedData = useMemo(() => {
     let filtered = data;
 
@@ -527,7 +534,7 @@ export function DynamicTable({
             <div className="flex items-center gap-1 flex-wrap">
               <SavedFiltersManager formId={config.formId} onApplyFilter={setComplexFilters} currentFilters={complexFilters} />
               
-              <DynamicTableColumnSelector formFields={displayFields} selectedColumns={selectedColumns} onColumnToggle={handleColumnToggle} />
+              <DynamicTableColumnSelector formFields={getAvailableFields()} selectedColumns={selectedColumns} onColumnToggle={handleColumnToggle} />
 
               {config.enableFiltering && <ComplexFilter filters={complexFilters} onFiltersChange={setComplexFilters} availableFields={availableFields} formId={config.formId} />}
 
@@ -584,10 +591,9 @@ export function DynamicTable({
                 </div>
               </div>
 
-              <div className="flex-1 min-h-0 border rounded-md overflow-hidden">
-                <div className="h-full w-full overflow-auto">
-                  <Table className="min-w-full"
->
+              <div className="flex-1 min-h-0 border rounded-md overflow-hidden max-w-full">
+                <div className="h-full w-full overflow-x-auto overflow-y-auto">
+                  <Table className="w-full table-fixed min-w-max">
                 <TableHeader className="sticky top-0 z-[5] bg-green-600 border-b-2 border-green-700">
                   <TableRow className="border-b border-green-500">
                     <TableHead className="w-10 h-8 bg-[#008d7a]">
