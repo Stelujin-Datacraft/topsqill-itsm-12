@@ -183,7 +183,7 @@ export default function ProjectOverview() {
     >
       <div className="space-y-6">
         {/* Debug Info - Remove in production */}
-        {process.env.NODE_ENV === 'development' && (
+        {/* {process.env.NODE_ENV === 'development' && (
           <Card className="border-yellow-200 bg-yellow-50">
             <CardContent className="p-4">
               <div className="text-sm space-y-1">
@@ -197,7 +197,7 @@ export default function ProjectOverview() {
               </div>
             </CardContent>
           </Card>
-        )}
+        )} */}
 
         {/* Project Info */}
         <Card>

@@ -421,16 +421,24 @@ export function FormViewLayoutRenderer({
       <div className={navigationVisible && showNavigation ? "lg:col-span-3" : "lg:col-span-4"}>
         <Card className="h-full overflow-hidden bg-white dark:bg-gray-950">
           <CardHeader className="pb-4 border-b bg-slate-50/80 dark:bg-gray-900/80">
-            <CardTitle className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Form View
+           <CardTitle className="flex flex-col gap-1">
+              <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 leading-tight font-['Inter',system-ui,sans-serif]">
+                {form.name}
+              </h1>
+              {form.description && (
+                <p className="text-base text-slate-600 dark:text-slate-300 leading-relaxed font-['Inter',system-ui,sans-serif]">
+                  {form.description}
+                </p>
+              )}
             </CardTitle>
+
           </CardHeader>
           <CardContent className="p-0 h-full overflow-y-auto">
             {/* Professional Form Header with Light Lines */}
             <div className="relative">
               <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
-              <div className="px-16 py-12 bg-white dark:bg-gray-950">
-                <div className="max-w-5xl mx-auto text-left space-y-4">
+              {/* <div className="px-16 py-12 bg-white dark:bg-gray-950"> */}
+                {/* <div className="max-w-5xl mx-auto text-left space-y-4">
                   <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 leading-tight font-['Inter',system-ui,sans-serif]">
                     {form.name}
                   </h1>
@@ -439,9 +447,9 @@ export function FormViewLayoutRenderer({
                       {form.description}
                     </p>
                   )}
-                </div>
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
+                </div> */}
+              {/* </div> */}
+              {/* <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div> */}
             </div>
             
             {/* Page Navigation Section */}

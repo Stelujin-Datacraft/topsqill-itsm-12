@@ -49,9 +49,15 @@ export function FieldRenderer({
               <div className="flex-1">
                 <p className="font-medium">{field.label}</p>
                 <p className="text-sm text-muted-foreground">
-                  {field.type} {field.required && '(required)'}
-                  {field.isFullWidth && ' (full-width)'}
-                </p>
+  {field.type}{" "}
+  {field.required && (
+    <span className="text-red-500 font-medium">(Required)</span>
+  )}
+  {field.isFullWidth && (
+    <span className="italic text-slate-500"> (full-width)</span>
+  )}
+</p>
+
                 
               </div>
             </div>
