@@ -119,9 +119,10 @@ export function DynamicTable({
   // All useMemo hooks
   const displayFields = useMemo(() => {
     const excludedFieldTypes = [
-      'header', 'description', 'section_break', 'horizontal_line', 'full_width_container',
-      'user_picker', 'approval', 'cross_reference_lookup', 'query_field', 
-      'geo_location', 'workflow_trigger', 'conditional_section', 'submission_access_control'
+      'header', 'title', 'description', 'help_text', 'section_break', 'horizontal_line', 
+      'full_width_container', 'user_picker', 'approval', 'cross_reference_lookup', 
+      'query_field', 'geo_location', 'workflow_trigger', 'conditional_section', 
+      'submission_access_control'
     ];
     const columnsToShow = selectedColumns.length > 0 ? selectedColumns : config.selectedColumns && config.selectedColumns.length > 0 ? config.selectedColumns : formFields.map(f => f.id);
     return formFields.filter(field => columnsToShow.includes(field.id) && !excludedFieldTypes.includes(field.field_type));
@@ -582,32 +583,32 @@ export function DynamicTable({
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto border rounded-md">
                 <Table>
                 <TableHeader className="sticky top-0 z-[5] bg-green-600 border-b-2 border-green-700">
                   <TableRow className="border-b border-green-500">
                     <TableHead className="w-10 h-8 bg-[#008d7a]">
                       <Checkbox checked={paginatedData.length > 0 && paginatedData.every(row => selectedRows.has(row.id))} onCheckedChange={handleSelectAll} aria-label="Select all rows" className="text-zinc-50 bg-transparent" />
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 text-white bg-[#009e89]">
+                    <TableHead className="text-xs font-medium h-8 text-white bg-[#009e89] min-w-[120px]">
                       <div className="flex items-center gap-1">
                         <FileText className="h-3 w-3" />
                         Submission ID
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 text-white bg-[#019e89]">
+                    <TableHead className="text-xs font-medium h-8 text-white bg-[#019e89] min-w-[100px]">
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />
                         User
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 text-white bg-[#009e89]">
+                    <TableHead className="text-xs font-medium h-8 text-white bg-[#009e89] min-w-[120px]">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         Submitted
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 text-white bg-[#009e89]">
+                    <TableHead className="text-xs font-medium h-8 text-white bg-[#009e89] min-w-[80px]">
                       <div className="flex items-center gap-1">
                         <CheckCircle className="h-3 w-3" />
                         Status
@@ -615,7 +616,7 @@ export function DynamicTable({
                     </TableHead>
                     
                     {/* Form fields */}
-                    {displayFields.map(field => <TableHead key={field.id} className="text-xs font-medium h-8 text-white bg-[#018c79]">
+                    {displayFields.map(field => <TableHead key={field.id} className="text-xs font-medium h-8 text-white bg-[#018c79] min-w-[150px]">
                         <div className="flex items-center gap-1">
                           <span className="font-medium">{field.label}</span>
                           {config.enableFiltering && <Popover>
@@ -637,7 +638,7 @@ export function DynamicTable({
                             </Popover>}
                         </div>
                       </TableHead>)}
-                    <TableHead className="text-xs font-medium text-center h-8 bg-green-600 text-white">Actions</TableHead>
+                    <TableHead className="text-xs font-medium text-center h-8 bg-green-600 text-white min-w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -709,6 +710,7 @@ export function DynamicTable({
                     </TableRow>)}
                 </TableBody>
               </Table>
+              </div>
 
               {/* Compact Pagination */}
               <div className="flex items-center justify-between px-2 py-1 border-t">
@@ -737,11 +739,10 @@ export function DynamicTable({
                   </PaginationContent>
                 </Pagination>
                </div>
-            </div>
-          </div>
-          </div>
-        </CardContent>
-      </Card>
+             </div>
+           </div>
+         </CardContent>
+       </Card>
 
       {/* Bulk Actions Bar */}
       {selectedRows.size > 0 && <BulkActionsBar selectedCount={selectedRows.size} onBulkEdit={handleBulkEdit} onBulkDelete={handleBulkDelete} onClearSelection={handleClearSelection} canDelete={canDeleteSubmissions} />}
