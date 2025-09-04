@@ -133,13 +133,16 @@ export default function FormSubmissionsTable() {
         </Card>
 
         {/* Data Table */}
-        {selectedFormId ? <Card className="flex-1 min-w-0 overflow-hidden">
+        {selectedFormId ? (
+          <Card className="flex-1 min-h-0 overflow-hidden">
             <CardContent className="p-0 h-full">
               <div className="h-full">
                 <DynamicTable config={tableConfig} />
               </div>
             </CardContent>
-          </Card> : <Card className="flex-1">
+          </Card>
+        ) : (
+          <Card className="flex-1">
             <CardContent className="flex items-center justify-center h-full py-12">
               <div className="text-center text-muted-foreground">
                 <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
@@ -148,7 +151,8 @@ export default function FormSubmissionsTable() {
                 <p className="text-sm">Choose from the dropdown above to get started</p>
               </div>
             </CardContent>
-          </Card>}
+          </Card>
+        )}
       </div>
 
       {/* Save Report Dialog */}

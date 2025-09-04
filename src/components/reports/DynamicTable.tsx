@@ -119,10 +119,10 @@ export function DynamicTable({
   // All useMemo hooks
   const displayFields = useMemo(() => {
     const excludedFieldTypes = [
-      'header', 'title', 'description', 'help_text', 'section_break', 'horizontal_line', 
-      'full_width_container', 'user_picker', 'approval', 'cross_reference_lookup', 
-      'query_field', 'geo_location', 'workflow_trigger', 'conditional_section', 
-      'submission_access_control'
+      'header', 'description', 'section-break', 'horizontal-line', 
+      'full-width-container', 'user-picker', 'approval', 'cross-reference', 
+      'query-field', 'geo-location', 'conditional-section', 
+      'submission-access'
     ];
     const columnsToShow = selectedColumns.length > 0 ? selectedColumns : config.selectedColumns && config.selectedColumns.length > 0 ? config.selectedColumns : formFields.map(f => f.id);
     return formFields.filter(field => columnsToShow.includes(field.id) && !excludedFieldTypes.includes(field.field_type));
@@ -562,9 +562,9 @@ export function DynamicTable({
           </div>
         </CardHeader>
       
-        <CardContent className="p-2">
-          <div className={`${isExpanded ? 'h-[85vh]' : 'max-h-[70vh]'}`} data-dynamic-table>
-            <div className="space-y-2">
+        <CardContent className="p-0 flex flex-col h-full">
+          <div className={`${isExpanded ? 'h-[85vh]' : 'flex-1 min-h-0'} flex flex-col`} data-dynamic-table>
+            <div className="flex flex-col h-full space-y-2 p-2">
               {/* Compact Page Size Selector */}
               <div className="flex items-center justify-between px-2">
                 <div className="flex items-center space-x-1">
@@ -583,8 +583,9 @@ export function DynamicTable({
                 </div>
               </div>
 
-              <div className="overflow-x-auto border rounded-md">
-                <Table>
+              <div className="flex-1 min-h-0 border rounded-md">
+                <div className="h-full overflow-auto">
+                  <Table>
                 <TableHeader className="sticky top-0 z-[5] bg-green-600 border-b-2 border-green-700">
                   <TableRow className="border-b border-green-500">
                     <TableHead className="w-10 h-8 bg-[#008d7a]">
@@ -710,6 +711,7 @@ export function DynamicTable({
                     </TableRow>)}
                 </TableBody>
               </Table>
+                </div>
               </div>
 
               {/* Compact Pagination */}
