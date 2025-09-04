@@ -118,8 +118,13 @@ export function DynamicTable({
 
   // All useMemo hooks
   const displayFields = useMemo(() => {
+    const excludedFieldTypes = [
+      'header', 'description', 'section_break', 'horizontal_line', 'full_width_container',
+      'user_picker', 'approval', 'cross_reference_lookup', 'query_field', 
+      'geo_location', 'workflow_trigger', 'conditional_section', 'submission_access_control'
+    ];
     const columnsToShow = selectedColumns.length > 0 ? selectedColumns : config.selectedColumns && config.selectedColumns.length > 0 ? config.selectedColumns : formFields.map(f => f.id);
-    return formFields.filter(field => columnsToShow.includes(field.id) && !['header', 'horizontal_line', 'section_break'].includes(field.field_type));
+    return formFields.filter(field => columnsToShow.includes(field.id) && !excludedFieldTypes.includes(field.field_type));
   }, [formFields, selectedColumns, config.selectedColumns]);
   const filteredAndSortedData = useMemo(() => {
     let filtered = data;
@@ -295,7 +300,7 @@ export function DynamicTable({
     const selectedSubmissions = paginatedData.filter(row => selectedRows.has(row.id));
     if (selectedSubmissions.length > 0) {
       setEditingSubmission(selectedSubmissions);
-      setShowBulkEdit(true);
+      setShowInlineEdit(true);
     }
   };
   const handleBulkDelete = () => {
@@ -557,7 +562,7 @@ export function DynamicTable({
         </CardHeader>
       
         <CardContent className="p-2">
-          <div className={`overflow-auto ${isExpanded ? 'h-[85vh]' : 'max-h-[70vh]'}`} data-dynamic-table>
+          <div className={`${isExpanded ? 'h-[85vh]' : 'max-h-[70vh]'}`} data-dynamic-table>
             <div className="space-y-2">
               {/* Compact Page Size Selector */}
               <div className="flex items-center justify-between px-2">
@@ -577,7 +582,8 @@ export function DynamicTable({
                 </div>
               </div>
 
-              <Table>
+              <div className="overflow-x-auto">
+                <Table>
                 <TableHeader className="sticky top-0 z-[5] bg-green-600 border-b-2 border-green-700">
                   <TableRow className="border-b border-green-500">
                     <TableHead className="w-10 h-8 bg-[#008d7a]">
@@ -684,22 +690,22 @@ export function DynamicTable({
                            </div>
                          </TableCell>)}
                        
-                       <TableCell className="py-2 bg-white">
-                         <div className="flex items-center justify-center gap-1">
-                            <Button variant="ghost" size="sm" onClick={() => handleViewSubmission(row.id)} className="h-6 w-6 p-0">
-                              <Eye className="h-3 w-3" />
-                            </Button>
-                            {canDeleteSubmissions && <>
-                                <Button variant="ghost" size="sm" onClick={e => {
-                          e.stopPropagation();
-                          handleEditSubmission(row);
-                        }} className="h-6 w-6 p-0">
-                                  <Edit3 className="h-3 w-3" />
-                                </Button>
-                                <DeleteSubmissionButton submissionId={row.id} onDelete={() => handleDeleteSubmission(row.id)} checkPermission={() => checkDeletePermission(row.id)} />
-                              </>}
-                         </div>
-                       </TableCell>
+                        <TableCell className="py-2 bg-white">
+                          <div className="flex items-center justify-center gap-1">
+                             <Button variant="ghost" size="sm" onClick={() => handleViewSubmission(row.id)} className="h-6 w-6 p-0 hover:bg-gray-100" title="View submission">
+                               <Eye className="h-3 w-3" />
+                             </Button>
+                             <Button variant="ghost" size="sm" onClick={e => {
+                               e.stopPropagation();
+                               handleEditSubmission(row);
+                             }} className="h-6 w-6 p-0 hover:bg-gray-100" title="Edit submission">
+                               <Edit3 className="h-3 w-3" />
+                             </Button>
+                             {canDeleteSubmissions && (
+                               <DeleteSubmissionButton submissionId={row.id} onDelete={() => handleDeleteSubmission(row.id)} checkPermission={() => checkDeletePermission(row.id)} />
+                             )}
+                          </div>
+                        </TableCell>
                     </TableRow>)}
                 </TableBody>
               </Table>
@@ -730,8 +736,9 @@ export function DynamicTable({
                     </PaginationItem>
                   </PaginationContent>
                 </Pagination>
-              </div>
+               </div>
             </div>
+          </div>
           </div>
         </CardContent>
       </Card>
