@@ -25,10 +25,10 @@ export function DynamicTableColumnSelector({ formFields, selectedColumns, onColu
           Columns ({selectedColumns.length})
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-64" align="end">
+      <DropdownMenuContent className="w-64 max-h-96 overflow-y-auto" align="end">
         <DropdownMenuLabel>Select Columns</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {formFields.map((field) => (
+        {formFields && formFields.length > 0 ? formFields.map((field) => (
           <DropdownMenuCheckboxItem
             key={field.id}
             checked={selectedColumns.includes(field.id)}
@@ -44,11 +44,15 @@ export function DynamicTableColumnSelector({ formFields, selectedColumns, onColu
             }}
           >
             <div className="flex flex-col">
-              <span className="font-medium">{field.label}</span>
-              <span className="text-xs text-muted-foreground">{field.field_type || field.type}</span>
+              <span className="font-medium">{field.label || 'Unnamed Field'}</span>
+              <span className="text-xs text-muted-foreground">{field.field_type || field.type || 'Unknown Type'}</span>
             </div>
           </DropdownMenuCheckboxItem>
-        ))}
+        )) : (
+          <div className="px-2 py-1 text-sm text-muted-foreground">
+            No columns available
+          </div>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

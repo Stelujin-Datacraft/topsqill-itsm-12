@@ -122,7 +122,8 @@ export function DynamicTable({
       'header', 'description', 'section-break', 'horizontal-line', 
       'full-width-container', 'user-picker', 'approval', 'cross-reference', 
       'query-field', 'geo-location', 'conditional-section', 
-      'submission-access'
+      'submission-access', 'signature', 'dynamic-dropdown', 'rich-text',
+      'record-table', 'matrix-grid', 'workflow-trigger'
     ];
     const columnsToShow = selectedColumns.length > 0 ? selectedColumns : config.selectedColumns && config.selectedColumns.length > 0 ? config.selectedColumns : formFields.map(f => f.id);
     return formFields.filter(field => columnsToShow.includes(field.id) && !excludedFieldTypes.includes(field.field_type));
@@ -526,7 +527,7 @@ export function DynamicTable({
             <div className="flex items-center gap-1 flex-wrap">
               <SavedFiltersManager formId={config.formId} onApplyFilter={setComplexFilters} currentFilters={complexFilters} />
               
-              <DynamicTableColumnSelector formFields={formFields} selectedColumns={selectedColumns} onColumnToggle={handleColumnToggle} />
+              <DynamicTableColumnSelector formFields={displayFields} selectedColumns={selectedColumns} onColumnToggle={handleColumnToggle} />
 
               {config.enableFiltering && <ComplexFilter filters={complexFilters} onFiltersChange={setComplexFilters} availableFields={availableFields} formId={config.formId} />}
 
@@ -583,9 +584,10 @@ export function DynamicTable({
                 </div>
               </div>
 
-              <div className="flex-1 min-h-0 border rounded-md">
-                <div className="h-full overflow-auto">
-                  <Table>
+              <div className="flex-1 min-h-0 border rounded-md overflow-hidden">
+                <div className="h-full w-full overflow-auto">
+                  <Table className="min-w-full"
+>
                 <TableHeader className="sticky top-0 z-[5] bg-green-600 border-b-2 border-green-700">
                   <TableRow className="border-b border-green-500">
                     <TableHead className="w-10 h-8 bg-[#008d7a]">
