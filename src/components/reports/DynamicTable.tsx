@@ -373,7 +373,7 @@ export function DynamicTable({
         'full-width-container', 'user-picker', 'approval', 'cross-reference', 
         'query-field', 'geo-location', 'conditional-section', 
         'submission-access', 'signature', 'dynamic-dropdown', 'rich-text',
-        'record-table', 'matrix-grid', 'workflow-trigger'
+        'record-table', 'matrix-grid', 'workflow-trigger','child-cross-reference'
       ];
 
       const {
@@ -492,7 +492,7 @@ export function DynamicTable({
       {/* Analytics Section */}
       {!isExpanded && <SubmissionAnalytics data={data} />}
       
-      <Card className="h-full flex flex-col">
+      <Card className="h-full w-[1000px]  flex flex-col">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
@@ -605,7 +605,7 @@ export function DynamicTable({
                     <TableHead className="w-10 h-8 bg-[#008d7a]">
                       <Checkbox checked={paginatedData.length > 0 && paginatedData.every(row => selectedRows.has(row.id))} onCheckedChange={handleSelectAll} aria-label="Select all rows" className="text-zinc-50 bg-transparent" />
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 text-white bg-[#009e89] min-w-[120px]">
+                    <TableHead className="text-xs font-medium h-8 text-white bg-[#009e89] min-w-[140px]">
                       <div className="flex items-center gap-1">
                         <FileText className="h-3 w-3" />
                         Submission ID
@@ -631,7 +631,7 @@ export function DynamicTable({
                     </TableHead>
                     
                     {/* Form fields */}
-                    {displayFields.map(field => <TableHead key={field.id} className="text-xs font-medium h-8 text-white bg-[#018c79] min-w-[150px]">
+                    {displayFields.map(field => <TableHead key={field.id} className="text-xs font-medium h-8 text-white bg-[#018c79] min-w-[170px]">
                         <div className="flex items-center gap-1">
                           <span className="font-medium">{field.label}</span>
                           {config.enableFiltering && <Popover>
@@ -653,7 +653,7 @@ export function DynamicTable({
                             </Popover>}
                         </div>
                       </TableHead>)}
-                    <TableHead className="text-xs font-medium text-center h-8 bg-green-600 text-white min-w-[100px]">Actions</TableHead>
+                    <TableHead className="text-xs font-medium text-center h-8 bg-green-600 text-white min-w-[110px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -708,13 +708,13 @@ export function DynamicTable({
                        
                         <TableCell className="py-2 bg-white">
                           <div className="flex items-center justify-center gap-1">
-                             <Button variant="ghost" size="sm" onClick={() => handleViewSubmission(row.id)} className="h-6 w-6 p-0 hover:bg-gray-100" title="View submission">
+                             <Button variant="ghost" size="sm" onClick={() => handleViewSubmission(row.id)} className="h-6 w-6 p-0" title="View submission">
                                <Eye className="h-3 w-3" />
                              </Button>
                              <Button variant="ghost" size="sm" onClick={e => {
                                e.stopPropagation();
                                handleEditSubmission(row);
-                             }} className="h-6 w-6 p-0 hover:bg-gray-100" title="Edit submission">
+                             }} className="h-6 w-6 p-0" title="Edit submission">
                                <Edit3 className="h-3 w-3" />
                              </Button>
                              {canDeleteSubmissions && (

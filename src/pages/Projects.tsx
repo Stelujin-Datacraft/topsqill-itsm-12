@@ -85,9 +85,13 @@ const Projects = () => {
 
         {/* Projects Table */}
         <Card>
-          <CardHeader>
-            <CardTitle>Your Projects</CardTitle>
-          </CardHeader>
+<CardHeader className="flex flex-row items-center justify-between">
+  <CardTitle>Your Projects</CardTitle>
+
+  {canCreateProject && (
+    <CreateProjectDialog onProjectCreated={handleProjectCreated} />
+  )}
+</CardHeader>
           <CardContent>
             {loading ? (
               <div className="flex items-center justify-center h-32">

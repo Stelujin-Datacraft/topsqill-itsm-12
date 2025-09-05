@@ -208,11 +208,14 @@ export function ProjectsTable({
                       <Badge 
                         variant={userRole.includes('Admin') ? 'default' : 'outline'}
                         className={
-                          userRole.includes('Admin') ? 'bg-blue-100 text-blue-800' :
-                          userRole.includes('Editor') ? 'bg-green-100 text-green-800' :
-                          userRole.includes('Viewer') ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-800'
-                        }
+        userRole.includes('Admin')
+          ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 hover:text-blue-900'
+          : userRole.includes('Editor')
+          ? 'bg-green-100 text-green-800 hover:bg-green-200 hover:text-green-900'
+          : userRole.includes('Viewer')
+          ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 hover:text-yellow-900'
+          : 'bg-gray-100 text-gray-800 hover:bg-gray-200 hover:text-gray-900'
+      }
                       >
                         {userRole}
                       </Badge>
@@ -246,14 +249,14 @@ export function ProjectsTable({
                           >
                             <Shield className="h-4 w-4" />
                           </Button>
-                          <Button
+                          {/* <Button
                             size="sm"
                             variant="outline"
                             onClick={(e) => handleManageSettings(e, project)}
                             title="Settings"
                           >
                             <Settings className="h-4 w-4" />
-                          </Button>
+                          </Button> */}
                           <Button
                             size="sm"
                             variant="outline"

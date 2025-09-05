@@ -55,7 +55,7 @@ export function UserEmailCell({ userId, fallbackEmail }: UserEmailCellProps) {
   return (
     <Badge 
       variant="secondary" 
-      className="cursor-pointer hover:opacity-90 bg-success/20 text-success-foreground border-success/30"
+      className="cursor-pointer"
       onClick={() => (window.location.href = `mailto:${userEmail}`)}
       title={`Email ${userEmail}`}
     >

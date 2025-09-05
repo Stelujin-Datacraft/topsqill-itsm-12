@@ -10,6 +10,9 @@ import { FormPagination } from '@/components/FormPagination';
 import { FieldLayoutRenderer } from './FieldLayoutRenderer';
 import { Form, FormPage, FormField } from '@/types/form';
 import { FileStack, ChevronUp, ChevronDown, Settings2, Grid3X3, Calendar, User, Hash, Share2, Settings, Globe, Eye } from 'lucide-react';
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
+
+
 interface FormDetailsPanelProps {
   formName: string;
   setFormName: (name: string) => void;
@@ -255,7 +258,7 @@ export function FormDetailsPanel({
         </div>
         
         {/* Settings Dropdown */}
-        <div className="relative flex-shrink-0">
+        {/* <div className="relative flex-shrink-0">
           <Button variant="ghost" size="sm" onClick={() => setShowLayoutControls(!showLayoutControls)} className="h-8 w-8 p-0">
             <Settings2 className="h-4 w-4" />
           </Button>
@@ -285,7 +288,45 @@ export function FormDetailsPanel({
                 </div>
               </div>
             </div>}
+        </div> */}
+                <div className="relative flex-shrink-0">
+  <Popover open={showLayoutControls} onOpenChange={setShowLayoutControls}>
+    <PopoverTrigger asChild>
+      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+        <Settings2 className="h-4 w-4" />
+      </Button>
+    </PopoverTrigger>
+
+    <PopoverContent align="end" className="min-w-[250px] p-4">
+      <div className="space-y-4">
+        <div>
+          <Label className="block mb-2 text-sm font-medium">Column Layout</Label>
+          <Select
+            value={columnLayout.toString()}
+            onValueChange={value => setColumnLayout(Number(value) as 1 | 2 | 3)}
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">1 Column</SelectItem>
+              <SelectItem value="2">2 Columns</SelectItem>
+              <SelectItem value="3">3 Columns</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+
+        <div>
+          <Label className="block mb-2 text-sm font-medium">Add New Page</Label>
+          <Button onClick={onAddPage} variant="outline" size="sm" className="w-full h-9">
+            <FileStack className="h-4 w-4 mr-2" />
+            Add Page
+          </Button>
+        </div>
+      </div>
+    </PopoverContent>
+  </Popover>
+</div>
       </div>
       
       {/* Page Info */}
