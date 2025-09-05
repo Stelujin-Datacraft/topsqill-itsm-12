@@ -1,12 +1,14 @@
 
 import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { SubmissionFormView } from '@/components/SubmissionFormView';
 import DashboardLayout from '@/components/DashboardLayout';
 
 const SubmissionView = () => {
   const { submissionId } = useParams<{ submissionId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const isEditing = searchParams.get('edit') === 'true';
 
   if (!submissionId) {
     return (
@@ -25,7 +27,7 @@ const SubmissionView = () => {
 
   return (
     <DashboardLayout 
-      title="Submission Details"
+      title={isEditing ? "Edit Submission" : "Submission Details"}
       actions={
         <button 
           onClick={handleBack}

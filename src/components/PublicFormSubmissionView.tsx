@@ -10,16 +10,18 @@ import { UserRoleAssignmentService } from '@/services/userRoleAssignmentService'
 interface PublicFormSubmissionViewProps {
   form: Form;
   onSubmit: (formData: Record<string, any>) => Promise<void>;
+  initialData?: Record<string, any>;
+  isEditing?: boolean;
 }
 
-export function PublicFormSubmissionView({ form, onSubmit }: PublicFormSubmissionViewProps) {
-  const [formData, setFormData] = useState<Record<string, any>>({});
+export function PublicFormSubmissionView({ form, onSubmit, initialData = {}, isEditing = false }: PublicFormSubmissionViewProps) {
+  const [formData, setFormData] = useState<Record<string, any>>(initialData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [fieldStates, setFieldStates] = useState<Record<string, any>>({});
 
-  // Initialize field states
+  // Initialize field states and form data
   useEffect(() => {
     const initialStates: Record<string, any> = {};
     form.fields.forEach(field => {
@@ -33,7 +35,12 @@ export function PublicFormSubmissionView({ form, onSubmit }: PublicFormSubmissio
       };
     });
     setFieldStates(initialStates);
-  }, [form.fields]);
+    
+    // Update form data with initial data if provided
+    if (Object.keys(initialData).length > 0) {
+      setFormData(initialData);
+    }
+  }, [form.fields, initialData]);
 
   const handleFieldChange = (fieldId: string, value: any) => {
     setFormData(prev => ({
@@ -157,7 +164,9 @@ export function PublicFormSubmissionView({ form, onSubmit }: PublicFormSubmissio
       <div className="max-w-4xl mx-auto">
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">{form.name}</CardTitle>
+            <CardTitle className="text-2xl">
+              {isEditing ? `Edit Submission - ${form.name}` : form.name}
+            </CardTitle>
             {form.description && (
               <p className="text-muted-foreground">{form.description}</p>
             )}

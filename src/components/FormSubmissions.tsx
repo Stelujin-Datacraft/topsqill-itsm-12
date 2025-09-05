@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form } from '@/types/form';
@@ -32,7 +31,6 @@ export function FormSubmissions({
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSubmission, setSelectedSubmission] = useState<FormSubmission | null>(null);
   const [approvalFilter, setApprovalFilter] = useState<string>('all');
 
   // Get all fields from all pages
@@ -98,7 +96,8 @@ export function FormSubmissions({
     return matchesSearch && matchesApprovalFilter;
   });
   const handleViewSubmission = (submission: FormSubmission) => {
-    setSelectedSubmission(submission);
+    // Navigate to submission view page
+    window.open(`/submission/${submission.id}`, '_blank');
   };
   const handleDeleteSubmission = async (submissionId: string) => {
     try {
@@ -263,57 +262,5 @@ export function FormSubmissions({
             </div>}
         </CardContent>
       </Card>
-
-      {/* Submission Detail Modal */}
-      {selectedSubmission && <Card>
-          <CardHeader>
-            <CardTitle>Submission Details</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium">Submitted By</Label>
-                  <p>{selectedSubmission.submittedBy}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Submitted At</Label>
-                  <p>{new Date(selectedSubmission.submittedAt).toLocaleString()}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Approval Status</Label>
-                  <div className="mt-1">
-                    {getApprovalBadge(selectedSubmission.approvalStatus || 'pending')}
-                  </div>
-                </div>
-                {selectedSubmission.approvalTimestamp && <div>
-                    <Label className="text-sm font-medium">Approval Date</Label>
-                    <p>{new Date(selectedSubmission.approvalTimestamp).toLocaleString()}</p>
-                  </div>}
-              </div>
-              
-              {selectedSubmission.approvalNotes && <div>
-                  <Label className="text-sm font-medium">Approval Notes</Label>
-                  <p className="mt-1 p-2 bg-gray-50 rounded">{selectedSubmission.approvalNotes}</p>
-                </div>}
-              
-              <div>
-                <Label className="text-sm font-medium">Form Data</Label>
-                <div className="mt-2 space-y-2">
-                  {allFields.map(field => <div key={field.id} className="flex justify-between py-2 border-b">
-                      <span className="font-medium">{field.label}:</span>
-                      <span>{getFieldValue(selectedSubmission, field.id)}</span>
-                    </div>)}
-                </div>
-              </div>
-
-              <div className="flex gap-2 pt-4">
-                <Button size="sm" variant="outline" onClick={() => setSelectedSubmission(null)}>
-                  Close
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>}
     </div>;
 }

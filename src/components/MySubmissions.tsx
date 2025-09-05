@@ -152,8 +152,8 @@ export function MySubmissions() {
   };
 
   const handleEditSubmission = (submission: FormSubmission) => {
-    // Navigate to form with pre-filled data for editing
-    window.location.href = `/form/${submission.form_id}/submit?edit=${submission.id}`;
+    // Navigate to submission edit page
+    navigate(`/submission/${submission.id}?edit=true`);
   };
 
   if (loading) {
