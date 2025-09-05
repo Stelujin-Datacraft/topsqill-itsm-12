@@ -24,9 +24,16 @@ export function FieldLayoutRenderer({
   onFieldDelete,
   onDragEnd,
 }: FieldLayoutRendererProps) {
-  // Separate full-width and standard fields
-  const fullWidthFields = fields.filter(field => field.isFullWidth);
-  const standardFields = fields.filter(field => !field.isFullWidth);
+  // Check if field is full-width based on type or explicit setting
+  const isFullWidthField = (field: FormField) => {
+    const fullWidthTypes = ['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'record-table', 'matrix-grid', 
+      'cross-reference', 'child-cross-reference', 'approval', 'geo-location', 'query-field', 'workflow-trigger', 'full-width-container'];
+    return fullWidthTypes.includes(field.type) || field.isFullWidth || field.fieldCategory === 'full-width';
+  };
+
+  // Separate full-width and standard fields using the enhanced logic
+  const fullWidthFields = fields.filter(field => isFullWidthField(field));
+  const standardFields = fields.filter(field => !isFullWidthField(field));
 
   if (fields.length === 0) {
     return (
@@ -49,7 +56,7 @@ export function FieldLayoutRenderer({
           >
             {/* Render all fields in their original order but with layout separation */}
             {fields.map((field, index) => {
-              if (field.isFullWidth) {
+              if (isFullWidthField(field)) {
                 // Full-width fields take full width
                 return (
                   <div key={field.id} className="w-full" data-field-id={field.id}>
@@ -65,14 +72,14 @@ export function FieldLayoutRenderer({
                 );
               } else {
                 // Check if this is the start of a group of standard fields
-                const isStartOfStandardGroup = index === 0 || fields[index - 1].isFullWidth;
-                const isEndOfStandardGroup = index === fields.length - 1 || fields[index + 1].isFullWidth;
+                const isStartOfStandardGroup = index === 0 || isFullWidthField(fields[index - 1]);
+                const isEndOfStandardGroup = index === fields.length - 1 || isFullWidthField(fields[index + 1]);
                 
                 // Get consecutive standard fields starting from this one
                 if (isStartOfStandardGroup) {
                   const standardFieldsGroup = [];
                   let currentIndex = index;
-                  while (currentIndex < fields.length && !fields[currentIndex].isFullWidth) {
+                  while (currentIndex < fields.length && !isFullWidthField(fields[currentIndex])) {
                     standardFieldsGroup.push(fields[currentIndex]);
                     currentIndex++;
                   }
