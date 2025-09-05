@@ -237,8 +237,24 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                 {submissions.length > 1 && (
                   <div className="mb-4 p-4 border rounded-lg bg-primary/5">
                     <div className="text-sm font-medium text-muted-foreground mb-3">Master Values (auto-fills all records):</div>
-                    <div className="flex gap-4">
-                         {formFields.filter(field => !['header', 'horizontal_line', 'section_break'].includes(field.field_type)).map((field) => (
+                     <div className="flex gap-4">
+                          {formFields.filter(field => {
+                            const excludedFieldTypes = [
+                              'header', 'description', 'section-break', 'horizontal-line', 
+                              'full-width-container', 'user-picker', 'approval', 'cross-reference', 
+                              'query-field', 'geo-location', 'conditional-section', 
+                              'submission-access', 'signature', 'dynamic-dropdown', 'rich-text',
+                              'record-table', 'matrix-grid', 'workflow-trigger'
+                            ];
+                            
+                            // Exclude by field type
+                            if (excludedFieldTypes.includes(field.field_type)) return false;
+                            
+                            // Exclude auto-generated cross-reference fields
+                            if (field.label && field.label.startsWith('Reference from ')) return false;
+                            
+                            return true;
+                          }).map((field) => (
                            <div key={field.id} className="flex-1 min-w-[200px]">
                              <Label className="text-sm font-medium mb-2 block">
                                {field.label}
@@ -263,8 +279,24 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                       <div className="text-sm font-medium text-muted-foreground mb-3">
                         Record {index + 1} (ID: {submission.submission_ref_id || submission.id.slice(0, 8) + '...'})
                       </div>
-                      <div className="flex gap-4">
-                         {formFields.filter(field => !['header', 'horizontal_line', 'section_break'].includes(field.field_type)).map((field) => (
+                       <div className="flex gap-4">
+                          {formFields.filter(field => {
+                            const excludedFieldTypes = [
+                              'header', 'description', 'section-break', 'horizontal-line', 
+                              'full-width-container', 'user-picker', 'approval', 'cross-reference', 
+                              'query-field', 'geo-location', 'conditional-section', 
+                              'submission-access', 'signature', 'dynamic-dropdown', 'rich-text',
+                              'record-table', 'matrix-grid', 'workflow-trigger'
+                            ];
+                            
+                            // Exclude by field type
+                            if (excludedFieldTypes.includes(field.field_type)) return false;
+                            
+                            // Exclude auto-generated cross-reference fields
+                            if (field.label && field.label.startsWith('Reference from ')) return false;
+                            
+                            return true;
+                          }).map((field) => (
                            <div key={field.id} className="flex-1 min-w-[200px]">
                              <Label className="text-sm font-medium mb-2 block">
                                {field.label}

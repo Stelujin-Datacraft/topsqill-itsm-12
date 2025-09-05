@@ -126,7 +126,18 @@ export function DynamicTable({
       'record-table', 'matrix-grid', 'workflow-trigger'
     ];
     const columnsToShow = selectedColumns.length > 0 ? selectedColumns : config.selectedColumns && config.selectedColumns.length > 0 ? config.selectedColumns : formFields.map(f => f.id);
-    return formFields.filter(field => columnsToShow.includes(field.id) && !excludedFieldTypes.includes(field.field_type));
+    
+    // Filter out fields by type and auto-generated cross-reference fields
+    return formFields.filter(field => {
+      // Exclude by field type
+      if (excludedFieldTypes.includes(field.field_type)) return false;
+      
+      // Exclude auto-generated cross-reference fields (format: "Reference from FormName")
+      if (field.label && field.label.startsWith('Reference from ')) return false;
+      
+      // Only include if column is selected
+      return columnsToShow.includes(field.id);
+    });
   }, [formFields, selectedColumns, config.selectedColumns]);
   const filteredAndSortedData = useMemo(() => {
     let filtered = data;

@@ -17,6 +17,24 @@ interface ColumnSelectorProps {
 }
 
 export function DynamicTableColumnSelector({ formFields, selectedColumns, onColumnToggle }: ColumnSelectorProps) {
+  // Filter fields to only show selectable ones (excluding structural and system fields)
+  const selectableFields = formFields.filter(field => {
+    const excludedFieldTypes = [
+      'header', 'description', 'section-break', 'horizontal-line', 
+      'full-width-container', 'user-picker', 'approval', 'cross-reference', 
+      'query-field', 'geo-location', 'conditional-section', 
+      'submission-access', 'signature', 'dynamic-dropdown', 'rich-text',
+      'record-table', 'matrix-grid', 'workflow-trigger'
+    ];
+    
+    // Exclude by field type
+    if (excludedFieldTypes.includes(field.field_type)) return false;
+    
+    // Exclude auto-generated cross-reference fields
+    if (field.label && field.label.startsWith('Reference from ')) return false;
+    
+    return true;
+  });
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -28,7 +46,7 @@ export function DynamicTableColumnSelector({ formFields, selectedColumns, onColu
       <DropdownMenuContent className="w-64 max-h-96 overflow-y-auto" align="end">
         <DropdownMenuLabel>Select Columns</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {formFields && formFields.length > 0 ? formFields.map((field) => (
+        {selectableFields && selectableFields.length > 0 ? selectableFields.map((field) => (
           <DropdownMenuCheckboxItem
             key={field.id}
             checked={selectedColumns.includes(field.id)}
