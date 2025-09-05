@@ -37,12 +37,13 @@ interface ProjectUser {
 export default function ProjectOverview() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { projects, getProjectUsers } = useProject();
+  const { projects, getProjectUsers, loadProjects } = useProject();
   const { userProfile } = useAuth();
   const [project, setProject] = useState<Project | null>(null);
   const [teamMembers, setTeamMembers] = useState<ProjectUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [creatorEmail, setCreatorEmail] = useState<string>('');
   const { isProjectAdmin, isOrgAdmin } = useUnifiedAccessControl(projectId);
 
   useEffect(() => {
@@ -52,6 +53,7 @@ export default function ProjectOverview() {
       
       if (foundProject) {
         loadTeamMembers(foundProject.id);
+        loadCreatorEmail(foundProject.created_by);
       }
     }
     setLoading(false);
@@ -63,6 +65,26 @@ export default function ProjectOverview() {
       setTeamMembers(users);
     } catch (error) {
       console.error('Error loading team members:', error);
+    }
+  };
+
+  const loadCreatorEmail = async (creatorId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('email')
+        .eq('id', creatorId)
+        .single();
+
+      if (error) {
+        console.error('Error loading creator email:', error);
+        setCreatorEmail(creatorId); // fallback to ID
+      } else {
+        setCreatorEmail(data.email);
+      }
+    } catch (error) {
+      console.error('Error loading creator email:', error);
+      setCreatorEmail(creatorId); // fallback to ID
     }
   };
 
@@ -102,6 +124,9 @@ export default function ProjectOverview() {
       }
 
       toast.success('Project deleted successfully');
+      
+      // Refresh the projects list and navigate
+      await loadProjects();
       navigate('/projects');
     } catch (error) {
       console.error('Error deleting project:', error);
@@ -218,7 +243,7 @@ export default function ProjectOverview() {
                 <label className="text-sm font-medium text-muted-foreground">Created By</label>
                 <div className="flex items-center gap-2 mt-1">
                   <User className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{project.created_by}</span>
+                  <span className="text-sm">{creatorEmail || project.created_by}</span>
                 </div>
               </div>
               <div>

@@ -147,9 +147,20 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       setProjects(typedProjects);
       setUserProjectPermissions(permissionsMap);
       
-      // Set current project if none selected and user has access to projects
+      // Only set current project if none selected and no saved project in localStorage
+      const savedProjectId = localStorage.getItem('currentProjectId');
       if (!currentProject && typedProjects.length > 0) {
-        setCurrentProject(typedProjects[0]);
+        if (savedProjectId) {
+          const savedProject = typedProjects.find(p => p.id === savedProjectId);
+          if (savedProject) {
+            setCurrentProject(savedProject);
+          } else {
+            // If saved project not found, default to first project
+            setCurrentProject(typedProjects[0]);
+          }
+        } else {
+          setCurrentProject(typedProjects[0]);
+        }
       }
     } catch (error) {
       console.error('ProjectContext: Error loading projects:', error);
@@ -406,18 +417,19 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   // Load project from localStorage on initialization
   useEffect(() => {
     const savedProjectId = localStorage.getItem('currentProjectId');
-    if (savedProjectId && projects.length > 0) {
+    if (savedProjectId && projects.length > 0 && !currentProject) {
       const savedProject = projects.find(p => p.id === savedProjectId);
-      if (savedProject && !currentProject) {
+      if (savedProject) {
         setCurrentProject(savedProject);
         return;
       }
     }
     
-    if (!currentProject && projects.length > 0) {
+    // Only set default project if no current project and no saved project
+    if (!currentProject && projects.length > 0 && !savedProjectId) {
       setCurrentProject(projects[0]);
     }
-  }, [projects, currentProject]);
+  }, [projects]);
 
   // Save project to localStorage when changed
   useEffect(() => {

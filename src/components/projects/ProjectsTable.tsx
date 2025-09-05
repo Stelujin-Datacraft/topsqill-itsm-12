@@ -21,10 +21,13 @@ import {
   Calendar,
   User,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface ProjectsTableProps {
   projects: Project[];
@@ -42,7 +45,7 @@ export function ProjectsTable({
   onManageSettings 
 }: ProjectsTableProps) {
   const { userProfile } = useAuth();
-  const { userProjectPermissions } = useProject();
+  const { userProjectPermissions, loadProjects } = useProject();
   const navigate = useNavigate();
 
   const getUserProjectRole = (project: Project) => {
@@ -109,6 +112,38 @@ export function ProjectsTable({
     console.log('Navigating to settings for project:', project.id);
     // For now, just show console log since settings page isn't implemented
     console.log('Settings page not yet implemented for project:', project.id);
+  };
+
+  const handleDeleteProject = async (e: React.MouseEvent, project: Project) => {
+    e.stopPropagation();
+    
+    const confirmMessage = `Are you sure you want to delete "${project.name}"? This action cannot be undone and will delete all forms, workflows, and reports in this project.`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      // Delete the project
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', project.id);
+
+      if (error) {
+        console.error('Error deleting project:', error);
+        toast.error('Failed to delete project');
+        return;
+      }
+
+      toast.success('Project deleted successfully');
+      
+      // Refresh the projects list
+      await loadProjects();
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      toast.error('An unexpected error occurred');
+    }
   };
 
   if (projects.length === 0) {
@@ -218,6 +253,15 @@ export function ProjectsTable({
                             title="Settings"
                           >
                             <Settings className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => handleDeleteProject(e, project)}
+                            title="Delete Project"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </>
                       ) : (
