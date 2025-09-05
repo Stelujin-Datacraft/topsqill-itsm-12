@@ -40,7 +40,8 @@ export function SubmissionFormRenderer({
     : form.fields;
 
   // Define full-width field types
-  const fullWidthTypes = ['header', 'description', 'section-break', 'horizontal-line', 'full-width-container'];
+  const fullWidthTypes = ['header', 'description', 'section-break', 'horizontal-line', 'full-width-container', 
+    'cross-reference', 'child-cross-reference', 'approval', 'geo-location', 'query-field', 'workflow-trigger'];
   
   // Smart field rendering that preserves order and handles layouts correctly
   const renderFieldsWithSmartLayout = () => {

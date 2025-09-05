@@ -49,7 +49,7 @@ export function useFieldData() {
         .from('form_fields')
         .select('*')
         .eq('id', fieldId)
-        .single();
+        .maybeSingle();
 
       if (fetchError) {
         console.error('❌ useFieldData: Database query error:', fetchError);

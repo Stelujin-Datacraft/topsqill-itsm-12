@@ -48,15 +48,15 @@ export type FieldType =
   // Full-width components
   | 'header' | 'description' | 'section-break' | 'horizontal-line' | 'full-width-container'
   | 'rich-text' | 'record-table' | 'matrix-grid' | 'cross-reference' | 'child-cross-reference'
+  | 'approval' | 'geo-location' | 'query-field' | 'workflow-trigger'
   // Standard components
   | 'text' | 'textarea' | 'number' | 'date' | 'time' | 'datetime'
   | 'select' | 'multi-select' | 'radio' | 'checkbox' | 'toggle-switch'
   | 'slider' | 'rating' | 'file' | 'image' | 'color'
   | 'country' | 'phone' | 'address' | 'currency' | 'email' | 'url' | 'password'
   | 'ip-address' | 'barcode' | 'user-picker' | 'group-picker'
-  | 'approval' | 'signature' | 'tags' | 'dynamic-dropdown'
-  | 'calculated' | 'conditional-section'
-  | 'geo-location' | 'workflow-trigger' | 'lookup'
+  | 'signature' | 'tags' | 'dynamic-dropdown'
+  | 'calculated' | 'conditional-section' | 'lookup'
   // New field types
   | 'submission-access' | 'query-field';
 
