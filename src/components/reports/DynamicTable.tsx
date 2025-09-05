@@ -492,7 +492,7 @@ export function DynamicTable({
       {/* Analytics Section */}
       {!isExpanded && <SubmissionAnalytics data={data} />}
       
-      <Card className="h-full w-[1000px]  flex flex-col">
+<Card className="h-full w-full max-w-full flex flex-col overflow-hidden">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
@@ -536,27 +536,22 @@ export function DynamicTable({
           {/* Compact Controls Row */}
           <div className="flex items-center justify-between gap-2">
             {/* Left Side Controls */}
-            <div className="flex items-center gap-1 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap">
               <SavedFiltersManager formId={config.formId} onApplyFilter={setComplexFilters} currentFilters={complexFilters} />
               
               <DynamicTableColumnSelector formFields={formFields} selectedColumns={selectedColumns} onColumnToggle={handleColumnToggle} />
 
               {config.enableFiltering && <ComplexFilter filters={complexFilters} onFiltersChange={setComplexFilters} availableFields={availableFields} formId={config.formId} />}
 
-              {config.enableSorting && <SortingControls availableFields={displayFields.map(f => ({
-              id: f.id,
-              label: f.label
-            }))} sortConfigs={sortConfigs} onAddSort={handleAddSort} onRemoveSort={handleRemoveSort} onToggleDirection={handleToggleDirection} />}
 
-              <ExportDropdown data={exportData} />
-              
-              <ImportButton formId={config.formId} formFields={formFields} onImportComplete={loadData} />
+           
             </div>
+
 
             {/* Right Side Controls */}
             <div className="flex items-center gap-2">
               {/* Search */}
-              {config.enableSearch && <div className="relative w-48">
+              {config.enableSearch && <div className="relative w-80">
                   <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
                   <Input placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-7 h-8 text-xs" />
                 </div>}
@@ -573,6 +568,20 @@ export function DynamicTable({
               </div>
             </div>
           </div>
+                    <div className="flex items-center justify-between gap-2">
+
+            <div className="flex items-center gap-3 flex-wrap">
+
+              {config.enableSorting && <SortingControls availableFields={displayFields.map(f => ({
+              id: f.id,
+              label: f.label
+            }))} sortConfigs={sortConfigs} onAddSort={handleAddSort} onRemoveSort={handleRemoveSort} onToggleDirection={handleToggleDirection} />}
+
+               <ExportDropdown data={exportData} />
+              
+              <ImportButton formId={config.formId} formFields={formFields} onImportComplete={loadData} />
+            </div>
+            </div>
         </CardHeader>
       
         <CardContent className="p-0 flex flex-col h-full">
@@ -596,10 +605,10 @@ export function DynamicTable({
                 </div>
               </div>
 
-              <div className="flex-1 min-h-0 border rounded-md overflow-hidden">
-                <div className="h-full w-full overflow-auto">
-                  <Table className="min-w-full"
->
+<div className="flex-1 min-h-0 border rounded-md overflow-hidden">
+  <div className="h-full w-full overflow-auto">
+    <Table className="min-w-full">
+
                 <TableHeader className="sticky top-0 z-[5] bg-green-600 border-b-2 border-green-700">
                   <TableRow className="border-b border-green-500">
                     <TableHead className="w-10 h-8 bg-[#008d7a]">
