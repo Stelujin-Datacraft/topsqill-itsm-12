@@ -184,12 +184,12 @@ export function FormsList() {
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                  <Button variant="ghost" size="sm" onClick={() => handleFormAccess(form.id)} title="User Access" className="text-purple-600 hover:text-purple-700 hover:bg-purple-50">
+                  {/* <Button variant="ghost" size="sm" onClick={() => handleFormAccess(form.id)} title="User Access" className="text-purple-600 hover:text-purple-700 hover:bg-purple-50">
                     <User className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => handleFormShare(form.id)} title="Share Form" className="text-orange-600 hover:text-orange-700 hover:bg-orange-50">
                     <Share className="h-4 w-4" />
-                  </Button>
+                  </Button> */}
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -261,10 +261,22 @@ export function FormsList() {
                         <p>{editButtonState.disabled ? editButtonState.tooltip : "Edit Form"}</p>
                       </TooltipContent>
                     </Tooltip>
+                                      <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteForm(form.id)} disabled={deleteButtonState.disabled} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{deleteButtonState.disabled ? deleteButtonState.tooltip : "Delete Form"}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   </TooltipProvider>
                   
                   
-                  <TooltipProvider>
+                  {/* <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="ghost" size="sm" onClick={() => handleFormSettings(form.id)} disabled={editButtonState.disabled} className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
@@ -275,7 +287,7 @@ export function FormsList() {
                         <p>{editButtonState.disabled ? editButtonState.tooltip : "Form Settings"}</p>
                       </TooltipContent>
                     </Tooltip>
-                  </TooltipProvider>
+                  </TooltipProvider> */}
                 </div>
               </div>
             </CardContent>
@@ -378,14 +390,14 @@ export function FormsList() {
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
-                            <Button variant="ghost" size="sm" onClick={() => handleFormAccess(form.id)} className="h-8 w-8 p-0 text-purple-600 hover:text-purple-700 hover:bg-purple-50">
+                            {/* <Button variant="ghost" size="sm" onClick={() => handleFormAccess(form.id)} className="h-8 w-8 p-0 text-purple-600 hover:text-purple-700 hover:bg-purple-50">
                               <User className="h-3 w-3" />
-                            </Button>
+                            </Button> */}
                           </div>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="sm" onClick={() => handleFormShare(form.id)} className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50">
+                            {/* <Button variant="ghost" size="sm" onClick={() => handleFormShare(form.id)} className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50">
                               <Share className="h-3 w-3" />
-                            </Button>
+                            </Button> */}
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
