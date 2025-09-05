@@ -29,15 +29,28 @@ export function SubmissionFormRenderer({
     : [{ id: 'default', name: 'Form', order: 0, fields: form.fields.map(f => f.id) }];
   
   const currentPage = pages.find(p => p.id === currentPageId);
-  const pageFields = currentPage 
-    ? form.fields
-        .filter(f => currentPage.fields.includes(f.id))
-        .sort((a, b) => {
-          const aIndex = currentPage.fields.indexOf(a.id);
-          const bIndex = currentPage.fields.indexOf(b.id);
-          return aIndex - bIndex;
-        })
-    : form.fields;
+  
+  // Get fields for the current page - if page has field references, use them, otherwise use all fields
+  let pageFields = form.fields;
+  
+  if (currentPage && currentPage.fields && currentPage.fields.length > 0) {
+    // Try to match fields by ID
+    const matchedFields = form.fields.filter(f => currentPage.fields.includes(f.id));
+    
+    // If we found matching fields, use them in the specified order
+    if (matchedFields.length > 0) {
+      pageFields = matchedFields.sort((a, b) => {
+        const aIndex = currentPage.fields.indexOf(a.id);
+        const bIndex = currentPage.fields.indexOf(b.id);
+        return aIndex - bIndex;
+      });
+    } else {
+      // No matching fields found - this indicates a data mismatch
+      // Fall back to showing all fields to ensure user can see the form
+      console.warn('Page field IDs do not match form field IDs. Showing all fields as fallback.');
+      pageFields = form.fields;
+    }
+  }
 
   // Define full-width field types
   const fullWidthTypes = ['header', 'description', 'section-break', 'horizontal-line', 'full-width-container', 
