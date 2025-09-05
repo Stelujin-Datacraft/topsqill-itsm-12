@@ -17,24 +17,9 @@ interface ColumnSelectorProps {
 }
 
 export function DynamicTableColumnSelector({ formFields, selectedColumns, onColumnToggle }: ColumnSelectorProps) {
-  // Filter fields to only show selectable ones (excluding structural and system fields)
-  const selectableFields = formFields.filter(field => {
-    const excludedFieldTypes = [
-      'header', 'description', 'section-break', 'horizontal-line', 
-      'full-width-container', 'user-picker', 'approval', 'cross-reference', 
-      'query-field', 'geo-location', 'conditional-section', 
-      'submission-access', 'signature', 'dynamic-dropdown', 'rich-text',
-      'record-table', 'matrix-grid', 'workflow-trigger'
-    ];
-    
-    // Exclude by field type
-    if (excludedFieldTypes.includes(field.field_type)) return false;
-    
-    // Exclude auto-generated cross-reference fields
-    if (field.label && field.label.startsWith('Reference from ')) return false;
-    
-    return true;
-  });
+  // Since unwanted fields are already filtered out at the query level,
+  // all formFields passed here are selectable
+  const selectableFields = formFields;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

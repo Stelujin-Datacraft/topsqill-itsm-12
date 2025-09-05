@@ -118,26 +118,11 @@ export function DynamicTable({
 
   // All useMemo hooks
   const displayFields = useMemo(() => {
-    const excludedFieldTypes = [
-      'header', 'description', 'section-break', 'horizontal-line', 
-      'full-width-container', 'user-picker', 'approval', 'cross-reference', 
-      'query-field', 'geo-location', 'conditional-section', 
-      'submission-access', 'signature', 'dynamic-dropdown', 'rich-text',
-      'record-table', 'matrix-grid', 'workflow-trigger'
-    ];
     const columnsToShow = selectedColumns.length > 0 ? selectedColumns : config.selectedColumns && config.selectedColumns.length > 0 ? config.selectedColumns : formFields.map(f => f.id);
     
-    // Filter out fields by type and auto-generated cross-reference fields
-    return formFields.filter(field => {
-      // Exclude by field type
-      if (excludedFieldTypes.includes(field.field_type)) return false;
-      
-      // Exclude auto-generated cross-reference fields (format: "Reference from FormName")
-      if (field.label && field.label.startsWith('Reference from ')) return false;
-      
-      // Only include if column is selected
-      return columnsToShow.includes(field.id);
-    });
+    // Since unwanted fields are already filtered out at the query level,
+    // we only need to filter by selected columns
+    return formFields.filter(field => columnsToShow.includes(field.id));
   }, [formFields, selectedColumns, config.selectedColumns]);
   const filteredAndSortedData = useMemo(() => {
     let filtered = data;
@@ -233,7 +218,9 @@ export function DynamicTable({
     };
   }, [filteredAndSortedData, displayFields, config]);
   const availableFields = useMemo(() => {
-    return formFields.filter(field => !['header', 'horizontal_line', 'section_break'].includes(field.field_type)).map(field => ({
+    // Since unwanted fields are already filtered out at the query level,
+    // all formFields are available for use
+    return formFields.map(field => ({
       id: field.id,
       label: field.label,
       type: field.field_type || 'text'
@@ -380,20 +367,34 @@ export function DynamicTable({
   };
   const loadFormFields = async () => {
     try {
+      // Define excluded field types at the query level
+      const excludedFieldTypes = [
+        'header', 'description', 'section-break', 'horizontal-line', 
+        'full-width-container', 'user-picker', 'approval', 'cross-reference', 
+        'query-field', 'geo-location', 'conditional-section', 
+        'submission-access', 'signature', 'dynamic-dropdown', 'rich-text',
+        'record-table', 'matrix-grid', 'workflow-trigger'
+      ];
+
       const {
         data: fields,
         error
-      } = await supabase.from('form_fields').select('*').eq('form_id', config.formId).order('field_order', {
-        ascending: true
-      });
+      } = await supabase
+        .from('form_fields')
+        .select('*')
+        .eq('form_id', config.formId)
+        .not('field_type', 'in', `(${excludedFieldTypes.map(type => `"${type}"`).join(',')})`)
+        .not('label', 'like', 'Reference from %')
+        .order('field_order', { ascending: true });
+
       if (error) {
         console.error('Error fetching form fields:', error);
         return;
       }
+
       setFormFields(fields || []);
       if (selectedColumns.length === 0 && fields && fields.length > 0) {
-        const dataFields = fields.filter(f => !['header', 'horizontal_line', 'section_break'].includes(f.field_type));
-        setSelectedColumns(dataFields.map(f => f.id));
+        setSelectedColumns(fields.map(f => f.id));
       }
     } catch (error) {
       console.error('Error loading form fields:', error);
