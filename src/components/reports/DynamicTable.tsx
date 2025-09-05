@@ -539,7 +539,7 @@ export function DynamicTable({
             <div className="flex items-center gap-1 flex-wrap">
               <SavedFiltersManager formId={config.formId} onApplyFilter={setComplexFilters} currentFilters={complexFilters} />
               
-              <DynamicTableColumnSelector formFields={displayFields} selectedColumns={selectedColumns} onColumnToggle={handleColumnToggle} />
+              <DynamicTableColumnSelector formFields={formFields} selectedColumns={selectedColumns} onColumnToggle={handleColumnToggle} />
 
               {config.enableFiltering && <ComplexFilter filters={complexFilters} onFiltersChange={setComplexFilters} availableFields={availableFields} formId={config.formId} />}
 
