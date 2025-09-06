@@ -107,10 +107,10 @@ export function RichTextField({ field, value = '', onChange, error, disabled }: 
 
       {/* Preview */}
       {config.allowHtml && content && (
-        <div className="p-3 border rounded-md bg-gray-50">
-          <Label className="text-sm text-gray-600 mb-2 block">Preview:</Label>
+        <div className="p-3 border rounded-md bg-muted">
+          <Label className="text-sm text-muted-foreground mb-2 block">Preview:</Label>
           <div 
-            className="prose prose-sm max-w-none"
+            className="prose prose-sm max-w-none dark:prose-invert"
             dangerouslySetInnerHTML={{ __html: content }}
           />
         </div>
