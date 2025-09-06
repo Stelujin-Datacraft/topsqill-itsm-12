@@ -352,28 +352,12 @@ export function FormFieldsRenderer({
           </div>
         );
 
-      // Enhanced Date with auto-fill and format support
+      // Enhanced Date with auto-fill
       case 'date':
         const dateConfig = field.customConfig || {};
-        const dateFormat = dateConfig.autoFormat || 'YYYY-MM-DD';
         const dateValue = dateConfig.autoPopulate && !formData[field.id] 
           ? new Date().toISOString().split('T')[0] 
           : formData[field.id] || '';
-        
-        // Format display value based on selected format
-        const getDisplayValue = (value: string) => {
-          if (!value) return value;
-          try {
-            const date = new Date(value);
-            // Handle different format types
-            if (dateFormat === true || dateFormat === 'YYYY-MM-DD') {
-              return value; // Default format
-            }
-            return date.toLocaleDateString();
-          } catch {
-            return value;
-          }
-        };
         
         return (
           <div className="space-y-2">
@@ -381,7 +365,6 @@ export function FormFieldsRenderer({
               <Label htmlFor={field.id}>
                 {fieldState.label}
                 {isRequired && <span className="text-red-500 ml-1">*</span>}
-                <span className="text-xs text-muted-foreground ml-2">(Format: Date)</span>
               </Label>
               <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
@@ -390,16 +373,11 @@ export function FormFieldsRenderer({
               type="date"
               value={dateValue}
               onChange={(e) => onFieldChange(field.id, e.target.value)}
-              placeholder={field.placeholder || 'Select date'}
+              placeholder={field.placeholder}
               disabled={!fieldState.isEnabled}
               min={dateConfig.minDate}
               max={dateConfig.maxDate}
             />
-            {dateValue && (
-              <p className="text-xs text-muted-foreground">
-                Selected: {getDisplayValue(dateValue)}
-              </p>
-            )}
             {errors[field.id] && (
               <p className="text-sm text-red-500">{errors[field.id]}</p>
             )}
@@ -465,38 +443,22 @@ export function FormFieldsRenderer({
 
       // Keep all existing field types
       case 'text':
-        const textValue = formData[field.id] || '';
-        const textMinLength = field.validation?.minLength;
-        const textMaxLength = field.validation?.maxLength;
         return (
           <div className="space-y-2">
             <div className="flex items-center">
               <Label htmlFor={field.id}>
                 {fieldState.label}
                 {isRequired && <span className="text-red-500 ml-1">*</span>}
-                {textMaxLength && (
-                  <span className="text-xs text-muted-foreground ml-2">
-                    ({textValue.length}/{textMaxLength})
-                  </span>
-                )}
               </Label>
               <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
             <Input
               id={field.id}
               type="text"
-              value={textValue}
-              onChange={(e) => {
-                let newValue = e.target.value;
-                if (textMaxLength && newValue.length > textMaxLength) {
-                  newValue = newValue.substring(0, textMaxLength);
-                }
-                onFieldChange(field.id, newValue);
-              }}
+              value={formData[field.id] || ''}
+              onChange={(e) => onFieldChange(field.id, e.target.value)}
               placeholder={field.placeholder}
               disabled={!fieldState.isEnabled}
-              minLength={textMinLength}
-              maxLength={textMaxLength}
             />
             {errors[field.id] && (
               <p className="text-sm text-red-500">{errors[field.id]}</p>
@@ -505,37 +467,21 @@ export function FormFieldsRenderer({
         );
 
       case 'textarea':
-        const textareaValue = formData[field.id] || '';
-        const textareaMinLength = field.validation?.minLength;
-        const textareaMaxLength = field.validation?.maxLength;
         return (
           <div className="space-y-2">
             <div className="flex items-center">
               <Label htmlFor={field.id}>
                 {fieldState.label}
                 {isRequired && <span className="text-red-500 ml-1">*</span>}
-                {textareaMaxLength && (
-                  <span className="text-xs text-muted-foreground ml-2">
-                    ({textareaValue.length}/{textareaMaxLength})
-                  </span>
-                )}
               </Label>
               <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
             <Textarea
               id={field.id}
-              value={textareaValue}
-              onChange={(e) => {
-                let newValue = e.target.value;
-                if (textareaMaxLength && newValue.length > textareaMaxLength) {
-                  newValue = newValue.substring(0, textareaMaxLength);
-                }
-                onFieldChange(field.id, newValue);
-              }}
+              value={formData[field.id] || ''}
+              onChange={(e) => onFieldChange(field.id, e.target.value)}
               placeholder={field.placeholder}
               disabled={!fieldState.isEnabled}
-              minLength={textareaMinLength}
-              maxLength={textareaMaxLength}
             />
             {errors[field.id] && (
               <p className="text-sm text-red-500">{errors[field.id]}</p>
@@ -544,10 +490,6 @@ export function FormFieldsRenderer({
         );
 
       case 'number':
-        const numberMin = field.validation?.min;
-        const numberMax = field.validation?.max;
-        const numberStep = field.customConfig?.step || 1;
-        const numberValue = formData[field.id];
         return (
           <div className="space-y-2">
             <div className="flex items-center">
@@ -560,27 +502,10 @@ export function FormFieldsRenderer({
             <Input
               id={field.id}
               type="number"
-              value={numberValue || ''}
-              onChange={(e) => {
-                const value = parseFloat(e.target.value);
-                if (!isNaN(value)) {
-                  let validatedValue = value;
-                  if (numberMin !== undefined && value < numberMin) {
-                    validatedValue = numberMin;
-                  }
-                  if (numberMax !== undefined && value > numberMax) {
-                    validatedValue = numberMax;
-                  }
-                  onFieldChange(field.id, validatedValue);
-                } else if (e.target.value === '') {
-                  onFieldChange(field.id, '');
-                }
-              }}
+              value={formData[field.id] || ''}
+              onChange={(e) => onFieldChange(field.id, e.target.value)}
               placeholder={field.placeholder}
               disabled={!fieldState.isEnabled}
-              min={numberMin}
-              max={numberMax}
-              step={numberStep}
             />
             {errors[field.id] && (
               <p className="text-sm text-red-500">{errors[field.id]}</p>
@@ -589,10 +514,6 @@ export function FormFieldsRenderer({
         );
       case 'select':
         const selectedOption = field.options?.find(opt => opt.value === formData[field.id]);
-        const selectConfig = field.customConfig || {};
-        const enableSearch = selectConfig.enableSearch || false;
-        const allowOther = selectConfig.allowOther || false;
-        
         return (
           <div className="space-y-2">
             <div className="flex items-center">
@@ -604,16 +525,7 @@ export function FormFieldsRenderer({
             </div>
             <Select
               value={formData[field.id] || ''}
-              onValueChange={(value) => {
-                if (value === '__other__' && allowOther) {
-                  const customValue = prompt('Enter custom value:');
-                  if (customValue) {
-                    onFieldChange(field.id, customValue);
-                  }
-                } else {
-                  onFieldChange(field.id, value);
-                }
-              }}
+              onValueChange={(value) => onFieldChange(field.id, value)}
               disabled={!fieldState.isEnabled}
             >
               <SelectTrigger>
@@ -622,42 +534,22 @@ export function FormFieldsRenderer({
                     <div className="flex items-center gap-2">
                       {selectedOption.color && (
                         <div 
-                          className="w-3 h-3 rounded-full border border-muted-foreground flex-shrink-0" 
+                          className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
                           style={{ backgroundColor: selectedOption.color }}
                         />
                       )}
                       <span>{selectedOption.label}</span>
                     </div>
                   )}
-                  {formData[field.id] && !selectedOption && (
-                    <span>{formData[field.id]}</span>
-                  )}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent className="max-h-60 overflow-y-auto bg-background border border-border">
-                {enableSearch && (
-                  <div className="p-2">
-                    <Input 
-                      placeholder="Search options..." 
-                      className="h-8"
-                      onChange={(e) => {
-                        const search = e.target.value.toLowerCase();
-                        const items = document.querySelectorAll('[data-option-item]');
-                        items.forEach(item => {
-                          const text = item.textContent?.toLowerCase() || '';
-                          const element = item as HTMLElement;
-                          element.style.display = text.includes(search) ? '' : 'none';
-                        });
-                      }}
-                    />
-                  </div>
-                )}
+              <SelectContent>
                 {field.options?.map((option) => (
-                  <SelectItem key={option.id} value={option.value} data-option-item>
+                  <SelectItem key={option.id} value={option.value}>
                     <div className="flex items-center gap-2">
                       {option.color && (
                         <div 
-                          className="w-3 h-3 rounded-full border border-muted-foreground flex-shrink-0" 
+                          className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
                           style={{ backgroundColor: option.color }}
                         />
                       )}
@@ -665,11 +557,6 @@ export function FormFieldsRenderer({
                     </div>
                   </SelectItem>
                 ))}
-                {allowOther && (
-                  <SelectItem value="__other__" data-option-item>
-                    <span className="italic text-muted-foreground">Add custom option...</span>
-                  </SelectItem>
-                )}
               </SelectContent>
             </Select>
             {errors[field.id] && (
@@ -680,132 +567,68 @@ export function FormFieldsRenderer({
       case 'radio':
         const radioConfig = field.customConfig || {};
         const radioOrientation = radioConfig.orientation || 'vertical';
-        const radioEnableSearch = radioConfig.enableSearch || false;
-        const radioAllowOther = radioConfig.allowOther || false;
-        const [radioSearchTerm, setRadioSearchTerm] = React.useState('');
-        
-        const filteredRadioOptions = field.options?.filter(option => 
-          option.label.toLowerCase().includes(radioSearchTerm.toLowerCase())
-        ) || [];
-        
         return (
           <div className="space-y-2">
             <div className="flex items-center">
-              <Label>{fieldState.label}</Label>
+              <Label>{field.label}</Label>
               <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
-            {radioEnableSearch && (
-              <Input
-                placeholder="Search options..."
-                value={radioSearchTerm}
-                onChange={(e) => setRadioSearchTerm(e.target.value)}
-                className="h-8"
-              />
-            )}
-            <div className={`${field.options && field.options.length > 5 ? 'max-h-40 overflow-y-auto border rounded-md p-2' : ''}`}>
-              <RadioGroup
-                value={formData[field.id] || ''}
-                onValueChange={(value) => {
-                  if (value === '__other__' && radioAllowOther) {
-                    const customValue = prompt('Enter custom value:');
-                    if (customValue) {
-                      onFieldChange(field.id, customValue);
-                    }
-                  } else {
-                    onFieldChange(field.id, value);
-                  }
-                }}
-                disabled={!fieldState.isEnabled}
-                className={radioOrientation === 'horizontal' ? 'flex flex-wrap gap-4' : 'space-y-2'}
-              >
-                {filteredRadioOptions.map((option) => (
-                  <div key={option.id} className="flex items-center space-x-2">
-                    <RadioGroupItem value={option.value} id={option.id} />
-                    <Label htmlFor={option.id} className="flex items-center gap-2 cursor-pointer">
-                      {option.color && (
-                        <div 
-                          className="w-3 h-3 rounded-full border border-muted-foreground flex-shrink-0" 
-                          style={{ backgroundColor: option.color }}
-                        />
-                      )}
-                      <span>{option.label}</span>
-                    </Label>
-                  </div>
-                ))}
-                {radioAllowOther && (
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="__other__" id="__other__" />
-                    <Label htmlFor="__other__" className="cursor-pointer italic text-muted-foreground">
-                      Add custom option...
-                    </Label>
-                  </div>
-                )}
-              </RadioGroup>
-            </div>
+            <RadioGroup
+              value={formData[field.id] || ''}
+              onValueChange={(value) => onFieldChange(field.id, value)}
+              disabled={!fieldState.isEnabled}
+              className={radioOrientation === 'horizontal' ? 'flex flex-wrap gap-4' : ''}
+            >
+              {field.options?.map((option) => (
+                <div key={option.id} className="flex items-center space-x-2">
+                  <RadioGroupItem value={option.value} id={option.id} />
+                  <Label htmlFor={option.id} className="flex items-center gap-2 cursor-pointer">
+                    {option.color && (
+                      <div 
+                        className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
+                        style={{ backgroundColor: option.color }}
+                      />
+                    )}
+                    <span>{option.label}</span>
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
             {errors[field.id] && (
               <p className="text-sm text-red-500">{errors[field.id]}</p>
             )}
           </div>
         );
       case 'checkbox':
-        const checkboxConfig = field.customConfig || {};
-        const checkboxValue = formData[field.id];
-        
         return (
           <div className="space-y-2">
             <div className="flex items-center space-x-2">
               <Checkbox
                 id={field.id}
-                checked={Boolean(checkboxValue)}
+                checked={formData[field.id] || false}
                 onCheckedChange={(checked) => onFieldChange(field.id, checked)}
                 disabled={!fieldState.isEnabled}
               />
-              <Label htmlFor={field.id} className="flex items-center gap-2 cursor-pointer">
-                {fieldState.label}
-                {isRequired && <span className="text-red-500 ml-1">*</span>}
-              </Label>
+              <Label htmlFor={field.id}>{field.label}</Label>
               <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
-            {checkboxConfig.description && (
-              <p className="text-sm text-muted-foreground ml-6">{checkboxConfig.description}</p>
-            )}
             {errors[field.id] && (
               <p className="text-sm text-red-500">{errors[field.id]}</p>
             )}
           </div>
         );
       case 'toggle-switch':
-        const toggleConfig = field.customConfig || {};
-        const toggleValue = Boolean(formData[field.id]);
-        const onLabel = toggleConfig.onLabel || 'On';
-        const offLabel = toggleConfig.offLabel || 'Off';
-        const showLabels = toggleConfig.showLabels !== false;
-        
         return (
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Label htmlFor={field.id}>{fieldState.label}</Label>
-                <HelpTooltip content={field.tooltip || fieldState.tooltip} />
-              </div>
-              <div className="flex items-center space-x-2">
-                {showLabels && (
-                  <span className={`text-sm ${!toggleValue ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
-                    {offLabel}
-                  </span>
-                )}
-                <Switch
-                  id={field.id}
-                  checked={toggleValue}
-                  onCheckedChange={(checked) => onFieldChange(field.id, checked)}
-                  disabled={!fieldState.isEnabled}
-                />
-                {showLabels && (
-                  <span className={`text-sm ${toggleValue ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
-                    {onLabel}
-                  </span>
-                )}
-              </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id={field.id}
+                checked={formData[field.id] || false}
+                onCheckedChange={(checked) => onFieldChange(field.id, checked)}
+                disabled={!fieldState.isEnabled}
+              />
+              <Label htmlFor={field.id}>{field.label}</Label>
+              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
             {errors[field.id] && (
               <p className="text-sm text-red-500">{errors[field.id]}</p>

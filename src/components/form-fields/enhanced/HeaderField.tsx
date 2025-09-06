@@ -32,8 +32,7 @@ export function HeaderField({ field }: HeaderFieldProps) {
   const level = config.level || config.headerSize || 'h2';
   const icon = config.icon;
   const alignment = config.alignment || 'left';
-  const color = config.color || 'hsl(var(--foreground))';
-  const fontSize = config.fontSize || '';
+  const color = config.color || '#000000';
 
   const IconComponent = icon ? ICON_MAP[icon as keyof typeof ICON_MAP] : null;
   const levelStyle = LEVEL_STYLES[level as keyof typeof LEVEL_STYLES] || LEVEL_STYLES.h2;
@@ -41,17 +40,14 @@ export function HeaderField({ field }: HeaderFieldProps) {
   const style = {
     textAlign: alignment as any,
     color,
-    fontSize: fontSize || levelStyle.fontSize,
+    fontSize: levelStyle.fontSize,
     fontWeight: levelStyle.fontWeight,
-    margin: 0,
   };
 
   const HeaderTag = level as keyof JSX.IntrinsicElements;
 
-  const alignmentClass = alignment === 'center' ? 'justify-center' : alignment === 'right' ? 'justify-end' : 'justify-start';
-
   return (
-    <HeaderTag style={style} className={`flex items-center gap-2 ${alignmentClass} w-full`}>
+    <HeaderTag style={style} className="flex items-center gap-2">
       {IconComponent && <IconComponent className="h-6 w-6" />}
       {field.label}
     </HeaderTag>
