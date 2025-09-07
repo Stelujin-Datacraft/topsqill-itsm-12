@@ -56,7 +56,7 @@ export function DynamicTable({
   const [complexFilters, setComplexFilters] = useState<FilterGroup[]>([]);
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(100);
   const [isExpanded, setIsExpanded] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
