@@ -38,14 +38,16 @@ const ALIGNMENTS = [
 export function HeaderFieldConfig({ config, onUpdate, errors }: HeaderFieldConfigProps) {
   const customConfig = config.customConfig || {};
 
-  const handleConfigUpdate = (key: string, value: any) => {
-    onUpdate({
-      customConfig: {
-        ...customConfig,
-        [key]: value,
-      },
-    });
-  };
+const handleConfigUpdate = (key: string, value: any) => {
+  onUpdate({
+    ...config, // keep existing field properties
+    customConfig: {
+      ...config.customConfig,
+      [key]: value,
+    },
+  });
+};
+
 
   return (
     <div className="space-y-4">
@@ -114,13 +116,13 @@ export function HeaderFieldConfig({ config, onUpdate, errors }: HeaderFieldConfi
         <Input
           id="header-color"
           type="color"
-          value={customConfig.color || '#000000'}
+          value={customConfig.color || '#d0bdbdff'}
           onChange={(e) => handleConfigUpdate('color', e.target.value)}
           className="w-full h-10"
         />
       </div>
 
-      <div>
+      {/* <div>
         <Label htmlFor="font-size">Font Size (px)</Label>
         <Input
           id="font-size"
@@ -131,7 +133,7 @@ export function HeaderFieldConfig({ config, onUpdate, errors }: HeaderFieldConfi
           min="12"
           max="72"
         />
-      </div>
+      </div> */}
 
       <div>
         <Label htmlFor="font-weight">Font Weight</Label>

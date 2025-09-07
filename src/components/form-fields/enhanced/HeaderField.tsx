@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FormField } from '@/types/form';
 import { Star, AlertTriangle, Info, CheckCircle } from 'lucide-react';
@@ -31,25 +30,32 @@ export function HeaderField({ field }: HeaderFieldProps) {
   const config = field.customConfig || {};
   const level = config.level || config.headerSize || 'h2';
   const icon = config.icon;
-  const alignment = config.alignment || 'left';
+  const alignment = config.alignment || 'left'; // left, center, right
   const color = config.color || '#000000';
 
   const IconComponent = icon ? ICON_MAP[icon as keyof typeof ICON_MAP] : null;
   const levelStyle = LEVEL_STYLES[level as keyof typeof LEVEL_STYLES] || LEVEL_STYLES.h2;
 
-  const style = {
-    textAlign: alignment as any,
-    color,
-    fontSize: levelStyle.fontSize,
-    fontWeight: levelStyle.fontWeight,
-  };
-
   const HeaderTag = level as keyof JSX.IntrinsicElements;
 
+  // Map alignment into flexbox justification
+  const justifyClass =
+    alignment === 'center' ? 'justify-center' :
+    alignment === 'right' ? 'justify-end' : 'justify-start';
+
   return (
-    <HeaderTag style={style} className="flex items-center gap-2">
-      {IconComponent && <IconComponent className="h-6 w-6" />}
-      {field.label}
-    </HeaderTag>
+    <div className={`flex ${justifyClass} w-full`}>
+      <HeaderTag
+        style={{
+          color,
+          fontSize: levelStyle.fontSize,
+          fontWeight: levelStyle.fontWeight,
+        }}
+        className="flex items-center gap-2"
+      >
+        {IconComponent && <IconComponent className="h-6 w-6" />}
+        {field.label}
+      </HeaderTag>
+    </div>
   );
 }

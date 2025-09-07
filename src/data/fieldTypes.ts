@@ -328,14 +328,14 @@ export const fieldTypes: FieldTypeConfig[] = [
     category: 'standard',
     isFullWidth: false,
   },
-  {
-    type: 'dynamic-dropdown',
-    label: 'Dynamic Dropdown',
-    icon: Database,
-    description: 'Options loaded in real-time from an external source',
-    category: 'standard',
-    isFullWidth: false,
-  },
+  // {
+  //   type: 'dynamic-dropdown',
+  //   label: 'Dynamic Dropdown',
+  //   icon: Database,
+  //   description: 'Options loaded in real-time from an external source',
+  //   category: 'standard',
+  //   isFullWidth: false,
+  // },
   {
     type: 'cross-reference',
     label: 'Cross-Reference Lookup',

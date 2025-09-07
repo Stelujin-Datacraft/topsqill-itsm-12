@@ -1,9 +1,7 @@
-
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FieldConfiguration } from '../../hooks/useFieldConfiguration';
 
 interface TextFieldConfigProps {
@@ -28,16 +26,16 @@ export function TextFieldConfig({ config, onUpdate, errors }: TextFieldConfigPro
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">Text Field Configuration</h3>
-      
+
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label htmlFor="min-length">Minimum Length</Label>
           <Input
             id="min-length"
             type="number"
-            value={config.validation?.minLength || ''}
+            value={config.validation?.minLength ?? ''}
             onChange={(e) => updateValidation('minLength', e.target.value ? Number(e.target.value) : undefined)}
-            min="0"
+            min={0}
           />
         </div>
         <div>
@@ -45,22 +43,20 @@ export function TextFieldConfig({ config, onUpdate, errors }: TextFieldConfigPro
           <Input
             id="max-length"
             type="number"
-            value={config.validation?.maxLength || ''}
+            value={config.validation?.maxLength ?? ''}
             onChange={(e) => updateValidation('maxLength', e.target.value ? Number(e.target.value) : undefined)}
-            min="1"
+            min={1}
           />
         </div>
       </div>
 
-      {errors.validation && <p className="text-sm text-red-500">{errors.validation}</p>}
-
       <div>
-        <Label htmlFor="pattern">Pattern (Regular Expression)</Label>
+        <Label htmlFor="pattern">Pattern (RegEx)</Label>
         <Input
           id="pattern"
-          value={config.validation?.pattern || ''}
+          value={config.validation?.pattern ?? ''}
           onChange={(e) => updateValidation('pattern', e.target.value)}
-          placeholder="e.g., ^[A-Za-z]+$ for letters only"
+          placeholder="e.g., ^[A-Za-z]+$"
         />
       </div>
 
@@ -93,14 +89,7 @@ export function TextFieldConfig({ config, onUpdate, errors }: TextFieldConfigPro
         </div>
       </div>
 
-      {config.validation?.pattern && (
-        <div className="p-3 bg-blue-50 rounded-md">
-          <p className="text-sm text-blue-700">
-            <strong>Pattern Help:</strong> Regular expressions allow you to validate input format.
-            Common patterns: Email: <code>[^@]+@[^@]+\.[^@]+</code>, Phone: <code>\d{3}-\d{3}-\d{4}</code>
-          </p>
-        </div>
-      )}
+      {errors.validation && <p className="text-sm text-red-500">{errors.validation}</p>}
     </div>
   );
 }

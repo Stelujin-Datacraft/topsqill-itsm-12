@@ -20,6 +20,7 @@ import { toast } from '@/hooks/use-toast';
 // Import field-specific configuration panels
 import { HeaderFieldConfig, DescriptionFieldConfig, SectionBreakFieldConfig, HorizontalLineFieldConfig, RichTextFieldConfig, FullWidthContainerFieldConfig, DateFieldConfig, TimeFieldConfig, DateTimeFieldConfig, AddressFieldConfig, EmailFieldConfig, UrlFieldConfig, IpAddressFieldConfig, UserPickerFieldConfig, BarcodeFieldConfig, ApprovalFieldConfig, DynamicDropdownFieldConfig, CalculatedFieldConfig, ConditionalSectionFieldConfig, GeoLocationFieldConfig, MatrixGridFieldConfig, PhoneFieldConfig, ColorFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes';
 import { TextFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/TextFieldConfig';
+import { NumberFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/NumberFieldConfig';
 import { SelectFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/SelectFieldConfig';
 import { OptimizedRecordTableConfig } from './FieldPropertiesDialog/panels/fieldTypes/OptimizedRecordTableConfig';
 import { FieldConfiguration } from './FieldPropertiesDialog/hooks/useFieldConfiguration';
@@ -496,6 +497,9 @@ export function FieldPropertiesDialog({
       case 'textarea':
       case 'password':
         return <TextFieldConfig {...props} />;
+
+      case 'number':
+        return <NumberFieldConfig {...props}/>;
 
       // Record Fields
       case 'record-table':

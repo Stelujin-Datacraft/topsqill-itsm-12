@@ -442,52 +442,73 @@ export function FormFieldsRenderer({
         );
 
       // Keep all existing field types
-      case 'text':
-        return (
-          <div className="space-y-2">
-            <div className="flex items-center">
-              <Label htmlFor={field.id}>
-                {fieldState.label}
-                {isRequired && <span className="text-red-500 ml-1">*</span>}
-              </Label>
-              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
-            </div>
-            <Input
-              id={field.id}
-              type="text"
-              value={formData[field.id] || ''}
-              onChange={(e) => onFieldChange(field.id, e.target.value)}
-              placeholder={field.placeholder}
-              disabled={!fieldState.isEnabled}
-            />
-            {errors[field.id] && (
-              <p className="text-sm text-red-500">{errors[field.id]}</p>
-            )}
-          </div>
-        );
+case 'text':
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center">
+        <Label htmlFor={field.id}>
+          {fieldState.label}
+          {isRequired && <span className="text-red-500 ml-1">*</span>}
+        </Label>
+        <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+      </div>
+      <Input
+        id={field.id}
+        type="text"
+        value={formData[field.id] ?? ''}
+        placeholder={field.placeholder}
+        disabled={!fieldState.isEnabled}
+        maxLength={field.validation?.maxLength} // Prevent typing beyond max length
+        onChange={(e) => onFieldChange(field.id, e.target.value)}
+      />
 
-      case 'textarea':
-        return (
-          <div className="space-y-2">
-            <div className="flex items-center">
-              <Label htmlFor={field.id}>
-                {fieldState.label}
-                {isRequired && <span className="text-red-500 ml-1">*</span>}
-              </Label>
-              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
-            </div>
-            <Textarea
-              id={field.id}
-              value={formData[field.id] || ''}
-              onChange={(e) => onFieldChange(field.id, e.target.value)}
-              placeholder={field.placeholder}
-              disabled={!fieldState.isEnabled}
-            />
-            {errors[field.id] && (
-              <p className="text-sm text-red-500">{errors[field.id]}</p>
-            )}
-          </div>
-        );
+      {/* Minimum length alert */}
+      {field.validation?.minLength !== undefined &&
+        (formData[field.id]?.length || 0) < field.validation.minLength && (
+          <p className="text-sm text-red-500">
+            Minimum length is {field.validation.minLength} characters
+          </p>
+        )}
+
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
+
+
+case 'textarea':
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center">
+        <Label htmlFor={field.id}>
+          {fieldState.label}
+          {isRequired && <span className="text-red-500 ml-1">*</span>}
+        </Label>
+        <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+      </div>
+      <Textarea
+        id={field.id}
+        value={formData[field.id] ?? ''}
+        placeholder={field.placeholder}
+        disabled={!fieldState.isEnabled}
+        maxLength={field.validation?.maxLength} // Prevent typing beyond max length
+        onChange={(e) => onFieldChange(field.id, e.target.value)}
+      />
+
+      {/* Minimum length alert */}
+      {field.validation?.minLength !== undefined &&
+        (formData[field.id]?.length || 0) < field.validation.minLength && (
+          <p className="text-sm text-red-500">
+            Minimum length is {field.validation.minLength} characters
+          </p>
+        )}
+
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
 
       case 'number':
         return (
@@ -512,6 +533,7 @@ export function FormFieldsRenderer({
             )}
           </div>
         );
+        
       case 'select':
         const selectedOption = field.options?.find(opt => opt.value === formData[field.id]);
         return (
