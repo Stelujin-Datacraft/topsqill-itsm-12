@@ -36,6 +36,7 @@ interface TableConfig {
   enableFiltering?: boolean;
   enableSorting?: boolean;
   enableSearch?: boolean;
+  highlightSubmissionRef?: string;
 }
 interface DynamicTableProps {
   config: TableConfig;
@@ -69,6 +70,7 @@ export function DynamicTable({
   const [showCrossReferenceDialog, setShowCrossReferenceDialog] = useState(false);
   const [crossReferenceData, setCrossReferenceData] = useState<string[]>([]);
   const [crossReferenceFieldName, setCrossReferenceFieldName] = useState<string>('Cross Reference');
+  const [highlightedSubmissionRef, setHighlightedSubmissionRef] = useState<string | null>(null);
 
   // Custom hooks
   const {
@@ -254,6 +256,22 @@ export function DynamicTable({
     }
   }, []);
 
+  // Handle highlighting submission reference
+  useEffect(() => {
+    if (config.highlightSubmissionRef) {
+      setHighlightedSubmissionRef(config.highlightSubmissionRef);
+      setSearchTerm(config.highlightSubmissionRef);
+      
+      // Auto-scroll to highlighted submission after data loads
+      setTimeout(() => {
+        const targetRow = document.querySelector(`[data-submission-ref="${config.highlightSubmissionRef}"]`);
+        if (targetRow) {
+          targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+    }
+  }, [config.highlightSubmissionRef, data]);
+
   // Regular functions and event handlers
   const handleViewSubmission = (submissionId: string) => {
     navigate(`/submission/${submissionId}`);
@@ -370,7 +388,7 @@ export function DynamicTable({
       // Define excluded field types at the query level
       const excludedFieldTypes = [
         'header', 'description', 'section-break', 'horizontal-line', 
-        'full-width-container', 'user-picker', 'approval', 'cross-reference', 
+        'full-width-container', 'user-picker', 'approval', 
         'query-field', 'geo-location', 'conditional-section', 
         'submission-access', 'signature', 'dynamic-dropdown', 'rich-text',
         'record-table', 'matrix-grid', 'workflow-trigger','child-cross-reference'
@@ -672,7 +690,14 @@ export function DynamicTable({
                           {data.length === 0 ? 'No data available' : 'No records match your filters'}
                         </div>
                       </TableCell>
-                    </TableRow> : paginatedData.map(row => <TableRow key={row.id} className={`hover:bg-gray-50 border-b border-gray-200 ${selectedRows.has(row.id) ? 'bg-blue-50' : 'bg-white'}`}>
+                    </TableRow> : paginatedData.map(row => <TableRow 
+                      key={row.id} 
+                      data-submission-ref={row.submission_ref_id}
+                      className={`hover:bg-gray-50 border-b border-gray-200 ${
+                        selectedRows.has(row.id) ? 'bg-blue-50' : 
+                        row.submission_ref_id === highlightedSubmissionRef ? 'bg-yellow-100 border-yellow-300' : 
+                        'bg-white'
+                      }`}>
                         <TableCell className="py-2 bg-white">
                           <Checkbox checked={selectedRows.has(row.id)} onCheckedChange={checked => handleRowSelect(row.id, Boolean(checked))} aria-label={`Select row ${row.id}`} />
                         </TableCell>

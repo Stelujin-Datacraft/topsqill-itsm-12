@@ -22,7 +22,8 @@ export function CrossReferenceDialog({
   const navigate = useNavigate();
 
   const handleSubmissionClick = (submissionId: string) => {
-    navigate(`/submissions/${submissionId}`);
+    // Navigate to the submission by finding it using submission_ref_id
+    navigate(`/form-submissions?submissionRef=${submissionId}`);
     onOpenChange(false);
   };
 

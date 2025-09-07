@@ -17,6 +17,7 @@ export default function FormSubmissionsTable() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialFormId = searchParams.get('formId') || '';
+  const submissionRef = searchParams.get('submissionRef');
   const [selectedFormId, setSelectedFormId] = useState(initialFormId);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const {
@@ -52,7 +53,8 @@ export default function FormSubmissionsTable() {
     showMetadata: true,
     enableFiltering: true,
     enableSorting: true,
-    enableSearch: true
+    enableSearch: true,
+    highlightSubmissionRef: submissionRef
   };
   const handleBack = () => {
     navigate(-1);

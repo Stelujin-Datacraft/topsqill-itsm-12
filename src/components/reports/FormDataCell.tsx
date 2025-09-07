@@ -22,38 +22,38 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
 
   // Handle cross-reference fields  
   if (fieldType === 'cross-reference') {
-    let submissionIds: string[] = [];
+    let submissionRefIds: string[] = [];
     
     if (typeof value === 'string') {
       try {
         const parsed = JSON.parse(value);
-        submissionIds = Array.isArray(parsed) ? parsed : [parsed];
+        submissionRefIds = Array.isArray(parsed) ? parsed : [parsed];
       } catch {
-        submissionIds = [value];
+        submissionRefIds = [value];
       }
     } else if (Array.isArray(value)) {
-      // Extract record_id from objects if they exist
-      submissionIds = value.map(item => {
+      // Extract submission_ref_id from objects if they exist
+      submissionRefIds = value.map(item => {
         if (typeof item === 'object' && item !== null) {
-          return item.record_id || item.id || item.submission_ref_id || String(item);
+          return item.submission_ref_id || item.record_id || item.id || String(item);
         }
         return String(item);
       });
     } else if (value && typeof value === 'object') {
-      // Handle single object with record_id
-      submissionIds = [value.record_id || value.id || value.submission_ref_id || String(value)];
+      // Handle single object with submission_ref_id
+      submissionRefIds = [value.submission_ref_id || value.record_id || value.id || String(value)];
     } else if (value) {
       // Handle any other non-null value by converting to array
-      submissionIds = [String(value)];
+      submissionRefIds = [String(value)];
     }
     
-    // Ensure submissionIds is always an array and filter out invalid entries
-    if (!Array.isArray(submissionIds)) {
-      submissionIds = [];
+    // Ensure submissionRefIds is always an array and filter out invalid entries
+    if (!Array.isArray(submissionRefIds)) {
+      submissionRefIds = [];
     }
     
     // Filter out empty, null, undefined, or [object Object] strings
-    submissionIds = submissionIds.filter(id => 
+    submissionRefIds = submissionRefIds.filter(id => 
       id && 
       String(id).trim() !== '' && 
       String(id) !== '[object Object]' &&
@@ -61,13 +61,9 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
       String(id) !== 'null'
     );
     
-    if (submissionIds.length === 0) {
+    if (submissionRefIds.length === 0) {
       return <Badge variant="outline" className="italic opacity-70">No references</Badge>;
     }
-    
-    // Show only first 5 IDs as requested
-    const displayIds = submissionIds.slice(0, 5);
-    const hasMore = submissionIds.length > 5;
     
     return (
       <Button
@@ -80,7 +76,7 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
           if (dynamicTable) {
             const event = new CustomEvent('showCrossReference', { 
               detail: { 
-                submissionIds,
+                submissionIds: submissionRefIds,
                 fieldName: field?.label || 'Cross Reference'
               } 
             });
@@ -89,8 +85,7 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
         }}
       >
         <div className="text-sm">
-          {displayIds.map(id => `#${String(id)}`).join(', ')}
-          {hasMore && <span className="text-muted-foreground ml-1">+{submissionIds.length - 5} more</span>}
+          <span className="text-primary font-medium">View ({submissionRefIds.length})</span>
         </div>
       </Button>
     );
