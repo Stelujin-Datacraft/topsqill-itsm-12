@@ -121,7 +121,7 @@ export function DynamicTable({
   // All useMemo hooks
   const displayFields = useMemo(() => {
     const columnsToShow = selectedColumns.length > 0 ? selectedColumns : config.selectedColumns && config.selectedColumns.length > 0 ? config.selectedColumns : formFields.map(f => f.id);
-    
+
     // Since unwanted fields are already filtered out at the query level,
     // we only need to filter by selected columns
     return formFields.filter(field => columnsToShow.includes(field.id));
@@ -131,7 +131,6 @@ export function DynamicTable({
     console.log('🔍 Search term:', searchTerm);
     console.log('🔍 Column filters:', columnFilters);
     console.log('🔍 Complex filters:', complexFilters);
-    
     let filtered = data;
 
     // Apply search
@@ -202,7 +201,6 @@ export function DynamicTable({
         return 0;
       });
     }
-
     console.log('✅ Final filtered count:', filtered.length);
     return filtered;
   }, [data, searchTerm, columnFilters, complexFilters, sortConfigs, displayFields, config, evaluateCondition]);
@@ -264,7 +262,7 @@ export function DynamicTable({
       setCrossReferenceFieldName(fieldName || 'Cross Reference');
       setShowCrossReferenceDialog(true);
     };
-    
+
     // Use a slight delay to ensure DOM is ready
     const setupListener = () => {
       const tableElement = document.querySelector('[data-dynamic-table="main"]');
@@ -279,10 +277,8 @@ export function DynamicTable({
         return undefined;
       }
     };
-
     const timer = setTimeout(setupListener, 100);
     const cleanup = setupListener();
-    
     return () => {
       clearTimeout(timer);
       if (cleanup) cleanup();
@@ -294,12 +290,15 @@ export function DynamicTable({
     if (config.highlightSubmissionRef) {
       setHighlightedSubmissionRef(config.highlightSubmissionRef);
       // Don't automatically set search term - just highlight the row
-      
+
       // Auto-scroll to highlighted submission after data loads
       setTimeout(() => {
         const targetRow = document.querySelector(`[data-submission-ref="${config.highlightSubmissionRef}"]`);
         if (targetRow) {
-          targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          targetRow.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          });
         }
       }, 100);
     }
@@ -419,30 +418,17 @@ export function DynamicTable({
   const loadFormFields = async () => {
     try {
       // Define excluded field types at the query level
-      const excludedFieldTypes = [
-        'header', 'description', 'section-break', 'horizontal-line', 
-        'full-width-container', 'user-picker', 'approval', 
-        'query-field', 'geo-location', 'conditional-section', 
-        'submission-access', 'signature', 'dynamic-dropdown', 'rich-text',
-        'record-table', 'matrix-grid', 'workflow-trigger','child-cross-reference'
-      ];
-
+      const excludedFieldTypes = ['header', 'description', 'section-break', 'horizontal-line', 'full-width-container', 'user-picker', 'approval', 'query-field', 'geo-location', 'conditional-section', 'submission-access', 'signature', 'dynamic-dropdown', 'rich-text', 'record-table', 'matrix-grid', 'workflow-trigger', 'child-cross-reference'];
       const {
         data: fields,
         error
-      } = await supabase
-        .from('form_fields')
-        .select('*')
-        .eq('form_id', config.formId)
-        .not('field_type', 'in', `(${excludedFieldTypes.map(type => `"${type}"`).join(',')})`)
-        .not('label', 'like', 'Reference from %')
-        .order('field_order', { ascending: true });
-
+      } = await supabase.from('form_fields').select('*').eq('form_id', config.formId).not('field_type', 'in', `(${excludedFieldTypes.map(type => `"${type}"`).join(',')})`).not('label', 'like', 'Reference from %').order('field_order', {
+        ascending: true
+      });
       if (error) {
         console.error('Error fetching form fields:', error);
         return;
       }
-
       setFormFields(fields || []);
       if (selectedColumns.length === 0 && fields && fields.length > 0) {
         setSelectedColumns(fields.map(f => f.id));
@@ -455,7 +441,6 @@ export function DynamicTable({
     try {
       setLoading(true);
       console.log('🔍 Loading data for form ID:', config.formId);
-      
       const {
         data: submissions,
         error
@@ -465,12 +450,10 @@ export function DynamicTable({
         `).eq('form_id', config.formId).order('submitted_at', {
         ascending: false
       });
-      
       if (error) {
         console.error('❌ Error fetching submissions:', error);
         return;
       }
-
       console.log('📊 Raw submissions fetched:', submissions?.length || 0);
       console.log('📋 Submissions data:', submissions);
 
@@ -479,7 +462,6 @@ export function DynamicTable({
         ...submission,
         submitted_by_email: submission.user_profiles?.email || submission.submitted_by
       }));
-      
       console.log('✅ Transformed submissions:', transformedSubmissions.length);
       setData(transformedSubmissions);
     } catch (error) {
@@ -551,7 +533,7 @@ export function DynamicTable({
       {/* Analytics Section */}
       {!isExpanded && <SubmissionAnalytics data={data} />}
       
-<Card className="h-full w-full max-w-full flex flex-col overflow-hidden">
+    <Card className="h-full w-full max-w-full flex flex-col overflow-hidden">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
@@ -613,14 +595,9 @@ export function DynamicTable({
               {config.enableSearch && <div className="relative w-80">
                   <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
                   <Input placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-7 pr-8 h-8 text-xs" />
-                  {searchTerm && (
-                    <button
-                      onClick={() => setSearchTerm('')}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground"
-                    >
+                  {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground">
                       ×
-                    </button>
-                  )}
+                    </button>}
                 </div>}
 
               {/* Auto Refresh Toggle */}
@@ -672,34 +649,34 @@ export function DynamicTable({
                 </div>
               </div>
 
-<div className="flex-1 min-h-0 border rounded-md overflow-hidden">
+            <div className="flex-1 min-h-0 border rounded-md overflow-hidden">
   <div className="h-full w-full overflow-auto">
     <Table className="min-w-full">
 
                 <TableHeader className="sticky top-0 z-[5] bg-green-600 border-b-2 border-green-700">
                   <TableRow className="border-b border-green-500">
-                    <TableHead className="w-10 h-8 bg-[#008d7a]">
+                    <TableHead className="w-10 h-8 bg-[#80a9ff]">
                       <Checkbox checked={paginatedData.length > 0 && paginatedData.every(row => selectedRows.has(row.id))} onCheckedChange={handleSelectAll} aria-label="Select all rows" className="text-zinc-50 bg-transparent" />
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 text-white bg-[#009e89] min-w-[140px]">
+                    <TableHead className="text-xs font-medium h-8 text-white min-w-[140px] bg-[#7ea7fe]">
                       <div className="flex items-center gap-1">
                         <FileText className="h-3 w-3" />
                         Submission ID
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 text-white bg-[#019e89] min-w-[100px]">
+                    <TableHead className="text-xs font-medium h-8 text-white min-w-[100px] bg-[#7ea7ff]">
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />
                         User
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 text-white bg-[#009e89] min-w-[120px]">
+                    <TableHead className="text-xs font-medium h-8 text-white min-w-[120px] bg-[#7ca6ff]">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         Submitted
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 text-white bg-[#009e89] min-w-[80px]">
+                    <TableHead className="text-xs font-medium h-8 text-white min-w-[80px] bg-[#7ba5ff]">
                       <div className="flex items-center gap-1">
                         <CheckCircle className="h-3 w-3" />
                         Status
@@ -707,7 +684,7 @@ export function DynamicTable({
                     </TableHead>
                     
                     {/* Form fields */}
-                    {displayFields.map(field => <TableHead key={field.id} className="text-xs font-medium h-8 text-white bg-[#018c79] min-w-[170px]">
+                    {displayFields.map(field => <TableHead key={field.id} className="text-xs font-medium h-8 text-white min-w-[170px] bg-[#7ba5ff]">
                         <div className="flex items-center gap-1">
                           <span className="font-medium">{field.label}</span>
                           {config.enableFiltering && <Popover>
@@ -729,7 +706,7 @@ export function DynamicTable({
                             </Popover>}
                         </div>
                       </TableHead>)}
-                    <TableHead className="text-xs font-medium text-center h-8 bg-green-600 text-white min-w-[110px]">Actions</TableHead>
+                    <TableHead className="text-xs font-medium text-center h-8 text-white min-w-[110px] bg-[#7ba5ff]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -739,14 +716,7 @@ export function DynamicTable({
                           {data.length === 0 ? 'No data available' : 'No records match your filters'}
                         </div>
                       </TableCell>
-                    </TableRow> : paginatedData.map(row => <TableRow 
-                      key={row.id} 
-                      data-submission-ref={row.submission_ref_id}
-                      className={`hover:bg-gray-50 border-b border-gray-200 ${
-                        selectedRows.has(row.id) ? 'bg-blue-50' : 
-                        row.submission_ref_id === highlightedSubmissionRef ? 'bg-yellow-100 border-yellow-300' : 
-                        'bg-white'
-                      }`}>
+                    </TableRow> : paginatedData.map(row => <TableRow key={row.id} data-submission-ref={row.submission_ref_id} className={`hover:bg-gray-50 border-b border-gray-200 ${selectedRows.has(row.id) ? 'bg-blue-50' : row.submission_ref_id === highlightedSubmissionRef ? 'bg-yellow-100 border-yellow-300' : 'bg-white'}`}>
                         <TableCell className="py-2 bg-white">
                           <Checkbox checked={selectedRows.has(row.id)} onCheckedChange={checked => handleRowSelect(row.id, Boolean(checked))} aria-label={`Select row ${row.id}`} />
                         </TableCell>
@@ -795,14 +765,12 @@ export function DynamicTable({
                                <Eye className="h-3 w-3" />
                              </Button>
                              <Button variant="ghost" size="sm" onClick={e => {
-                               e.stopPropagation();
-                               handleEditSubmission(row);
-                             }} className="h-6 w-6 p-0" title="Edit submission">
+                            e.stopPropagation();
+                            handleEditSubmission(row);
+                          }} className="h-6 w-6 p-0" title="Edit submission">
                                <Edit3 className="h-3 w-3" />
                              </Button>
-                             {canDeleteSubmissions && (
-                               <DeleteSubmissionButton submissionId={row.id} onDelete={() => handleDeleteSubmission(row.id)} checkPermission={() => checkDeletePermission(row.id)} />
-                             )}
+                             {canDeleteSubmissions && <DeleteSubmissionButton submissionId={row.id} onDelete={() => handleDeleteSubmission(row.id)} checkPermission={() => checkDeletePermission(row.id)} />}
                           </div>
                         </TableCell>
                     </TableRow>)}
@@ -851,12 +819,6 @@ export function DynamicTable({
 
       <BulkDeleteDialog isOpen={showBulkDelete} onOpenChange={setShowBulkDelete} submissionIds={Array.from(selectedRows)} onDelete={handleBulkDeleteComplete} />
 
-      <CrossReferenceDialog 
-        open={showCrossReferenceDialog} 
-        onOpenChange={setShowCrossReferenceDialog} 
-        submissionIds={crossReferenceData || []} 
-        parentFormId={config.formId}
-        fieldName={crossReferenceFieldName}
-      />
+      <CrossReferenceDialog open={showCrossReferenceDialog} onOpenChange={setShowCrossReferenceDialog} submissionIds={crossReferenceData || []} parentFormId={config.formId} fieldName={crossReferenceFieldName} />
     </div>;
 }
