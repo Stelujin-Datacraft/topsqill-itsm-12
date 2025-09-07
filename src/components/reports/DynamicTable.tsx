@@ -127,10 +127,17 @@ export function DynamicTable({
     return formFields.filter(field => columnsToShow.includes(field.id));
   }, [formFields, selectedColumns, config.selectedColumns]);
   const filteredAndSortedData = useMemo(() => {
+    console.log('🔍 Filtering data - Input count:', data.length);
+    console.log('🔍 Search term:', searchTerm);
+    console.log('🔍 Column filters:', columnFilters);
+    console.log('🔍 Complex filters:', complexFilters);
+    
     let filtered = data;
 
     // Apply search
     if (searchTerm && config.enableSearch) {
+      console.log('🔍 Applying search filter for term:', searchTerm);
+      const beforeSearch = filtered.length;
       filtered = data.filter(row => {
         // Search in submission ID
         if (row.submission_ref_id && row.submission_ref_id.toLowerCase().includes(searchTerm.toLowerCase())) {
@@ -148,22 +155,28 @@ export function DynamicTable({
           return value && value.toString().toLowerCase().includes(searchTerm.toLowerCase());
         });
       });
+      console.log('🔍 After search filter:', beforeSearch, '->', filtered.length);
     }
 
     // Apply column filters
     if (config.enableFiltering) {
       Object.entries(columnFilters).forEach(([fieldId, filterValue]) => {
         if (filterValue) {
+          console.log('🔍 Applying column filter:', fieldId, '=', filterValue);
+          const beforeFilter = filtered.length;
           filtered = filtered.filter(row => {
             const value = row.submission_data?.[fieldId];
             return value && value.toString().toLowerCase().includes(filterValue.toLowerCase());
           });
+          console.log('🔍 After column filter:', beforeFilter, '->', filtered.length);
         }
       });
     }
 
     // Apply complex filters
     if (complexFilters.length > 0) {
+      console.log('🔍 Applying complex filters:', complexFilters.length);
+      const beforeComplexFilter = filtered.length;
       filtered = filtered.filter(row => {
         return complexFilters.some(group => {
           if (group.conditions.length === 0) return true;
@@ -174,6 +187,7 @@ export function DynamicTable({
           }
         });
       });
+      console.log('🔍 After complex filters:', beforeComplexFilter, '->', filtered.length);
     }
 
     // Apply multi-level sorting
@@ -188,6 +202,8 @@ export function DynamicTable({
         return 0;
       });
     }
+
+    console.log('✅ Final filtered count:', filtered.length);
     return filtered;
   }, [data, searchTerm, columnFilters, complexFilters, sortConfigs, displayFields, config, evaluateCondition]);
   const paginatedData = useMemo(() => {
@@ -277,7 +293,7 @@ export function DynamicTable({
   useEffect(() => {
     if (config.highlightSubmissionRef) {
       setHighlightedSubmissionRef(config.highlightSubmissionRef);
-      setSearchTerm(config.highlightSubmissionRef);
+      // Don't automatically set search term - just highlight the row
       
       // Auto-scroll to highlighted submission after data loads
       setTimeout(() => {
@@ -438,6 +454,8 @@ export function DynamicTable({
   const loadData = async () => {
     try {
       setLoading(true);
+      console.log('🔍 Loading data for form ID:', config.formId);
+      
       const {
         data: submissions,
         error
@@ -447,19 +465,25 @@ export function DynamicTable({
         `).eq('form_id', config.formId).order('submitted_at', {
         ascending: false
       });
+      
       if (error) {
-        console.error('Error fetching submissions:', error);
+        console.error('❌ Error fetching submissions:', error);
         return;
       }
+
+      console.log('📊 Raw submissions fetched:', submissions?.length || 0);
+      console.log('📋 Submissions data:', submissions);
 
       // Transform submissions to include user email
       const transformedSubmissions = (submissions || []).map(submission => ({
         ...submission,
         submitted_by_email: submission.user_profiles?.email || submission.submitted_by
       }));
+      
+      console.log('✅ Transformed submissions:', transformedSubmissions.length);
       setData(transformedSubmissions);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('💥 Error loading data:', error);
     } finally {
       setLoading(false);
     }
@@ -588,7 +612,15 @@ export function DynamicTable({
               {/* Search */}
               {config.enableSearch && <div className="relative w-80">
                   <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                  <Input placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-7 h-8 text-xs" />
+                  <Input placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-7 pr-8 h-8 text-xs" />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground"
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>}
 
               {/* Auto Refresh Toggle */}
