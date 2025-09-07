@@ -6,8 +6,11 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ChartColorThemes } from './ChartColorThemes';
+import { DrilldownTab } from './DrilldownTab';
 import { ReportComponent } from '@/types/reports';
+import { FormField } from '@/types/form';
 import { 
   Edit3, 
   Trash2, 
@@ -30,6 +33,8 @@ interface ChartPropertiesPaneProps {
   onApplyFilter: (componentId: string) => void;
   onApplyDrilldown: (componentId: string) => void;
   onChangeTheme: (componentId: string, theme: any) => void;
+  onUpdateComponent: (componentId: string, updates: Partial<ReportComponent>) => void;
+  formFields: FormField[];
 }
 
 export function ChartPropertiesPane({
@@ -41,7 +46,9 @@ export function ChartPropertiesPane({
   onRename,
   onApplyFilter,
   onApplyDrilldown,
-  onChangeTheme
+  onChangeTheme,
+  onUpdateComponent,
+  formFields
 }: ChartPropertiesPaneProps) {
   const [componentName, setComponentName] = React.useState('');
 
@@ -142,28 +149,6 @@ export function ChartPropertiesPane({
                   Edit Configuration
                 </Button>
                 
-                {component.type === 'chart' && (
-                  <>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() => onApplyFilter(component.id)}
-                    >
-                      <Filter className="h-4 w-4 mr-2" />
-                      Apply Filters
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() => onApplyDrilldown(component.id)}
-                    >
-                      <TrendingDown className="h-4 w-4 mr-2" />
-                      Configure Drilldown
-                    </Button>
-                  </>
-                )}
-                
                 <Separator />
                 
                 <Button
@@ -177,22 +162,61 @@ export function ChartPropertiesPane({
               </CardContent>
             </Card>
 
-            {/* Color Themes (for charts) */}
+            {/* Chart-specific configurations */}
             {component.type === 'chart' && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <Palette className="h-4 w-4" />
-                    Color Themes
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ChartColorThemes
-                    selectedTheme={component.config?.colorTheme || 'theme1'}
-                    onThemeChange={(theme) => onChangeTheme(component.id, theme)}
+              <Tabs defaultValue="filters" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="filters">Filters</TabsTrigger>
+                  <TabsTrigger value="drilldown">Drilldown</TabsTrigger>
+                  <TabsTrigger value="themes">Themes</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="filters">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <Filter className="h-4 w-4" />
+                        Filters & Aggregation
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => onApplyFilter(component.id)}
+                      >
+                        <Filter className="h-4 w-4 mr-2" />
+                        Configure Filters
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="drilldown">
+                  <DrilldownTab
+                    component={component}
+                    formFields={formFields}
+                    onUpdateComponent={onUpdateComponent}
                   />
-                </CardContent>
-              </Card>
+                </TabsContent>
+                
+                <TabsContent value="themes">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <Palette className="h-4 w-4" />
+                        Color Themes
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ChartColorThemes
+                        selectedTheme={component.config?.colorTheme || 'theme1'}
+                        onThemeChange={(theme) => onChangeTheme(component.id, theme)}
+                      />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
             )}
 
             {/* Component Details */}

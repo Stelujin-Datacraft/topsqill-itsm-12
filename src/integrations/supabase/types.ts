@@ -1830,6 +1830,22 @@ export type Database = {
         Args: { form_ref_id: string }
         Returns: string
       }
+      get_chart_data: {
+        Args: {
+          p_aggregation?: string
+          p_dimensions?: string[]
+          p_drilldown_path?: string[]
+          p_drilldown_values?: string[]
+          p_filters?: Json
+          p_form_id: string
+          p_metrics?: string[]
+        }
+        Returns: {
+          additional_data: Json
+          name: string
+          value: number
+        }[]
+      }
       get_current_user_org_id: {
         Args: Record<PropertyKey, never>
         Returns: string

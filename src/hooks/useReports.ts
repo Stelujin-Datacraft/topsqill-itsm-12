@@ -149,6 +149,29 @@ export function useReports() {
     return data || [];
   };
 
+  const getChartData = async (
+    formId: string,
+    dimensions: string[] = [],
+    metrics: string[] = [],
+    aggregation: string = 'count',
+    filters: any[] = [],
+    drilldownPath: string[] = [],
+    drilldownValues: string[] = []
+  ) => {
+    const { data, error } = await supabase.rpc('get_chart_data', {
+      p_form_id: formId,
+      p_dimensions: dimensions,
+      p_metrics: metrics,
+      p_aggregation: aggregation,
+      p_filters: filters,
+      p_drilldown_path: drilldownPath,
+      p_drilldown_values: drilldownValues
+    });
+
+    if (error) throw error;
+    return data || [];
+  };
+
   const getFormFields = (formId: string) => {
     const form = forms.find(f => f.id === formId);
     return form?.fields || [];
@@ -176,6 +199,7 @@ export function useReports() {
     updateReportComponent,
     deleteReportComponent,
     getFormSubmissionData,
+    getChartData,
     getFormFields,
     getAvailableForms,
   };

@@ -45,13 +45,15 @@ export function ReportEditor({ reportId, reportName, onSave }: ReportEditorProps
   const [selectedComponent, setSelectedComponent] = useState<ReportComponent | null>(null);
   const [isPropertiesPaneOpen, setIsPropertiesPaneOpen] = useState(false);
   const [isDragEnabled, setIsDragEnabled] = useState(true);
+  const [drilldownStates, setDrilldownStates] = useState<{ [componentId: string]: { path: string[], values: string[] } }>({});
   const navigate = useNavigate();
 
   const { 
     fetchReportComponents, 
     saveReportComponent, 
     updateReportComponent, 
-    deleteReportComponent 
+    deleteReportComponent,
+    getFormFields
   } = useReports();
   const { toast } = useToast();
 
@@ -319,6 +321,35 @@ export function ReportEditor({ reportId, reportName, onSave }: ReportEditorProps
     }
   };
 
+  const handleDrilldown = (componentId: string, drilldownLevel: string, drilldownValue: string) => {
+    setDrilldownStates(prev => {
+      const currentState = prev[componentId] || { path: [], values: [] };
+      const component = components.find(c => c.id === componentId);
+      const config = component?.config as any;
+      
+      if (!config?.drilldownLevels) return prev;
+      
+      // Find the current level
+      const currentLevel = currentState.values.length;
+      
+      // If we're at the same level, replace the value; if going deeper, add the value
+      const newValues = [...currentState.values];
+      if (currentLevel < config.drilldownLevels.length) {
+        newValues[currentLevel] = drilldownValue;
+        // Remove any values beyond the current level
+        newValues.splice(currentLevel + 1);
+      }
+      
+      return {
+        ...prev,
+        [componentId]: {
+          path: config.drilldownLevels.slice(0, newValues.length),
+          values: newValues
+        }
+      };
+    });
+  };
+
   const renderComponent = (component: ReportComponent) => {
     switch (component.type) {
       case 'chart':
@@ -326,6 +357,8 @@ export function ReportEditor({ reportId, reportName, onSave }: ReportEditorProps
           <ChartPreview 
             config={component.config as any}
             hideControls={true}
+            onDrilldown={(level, value) => handleDrilldown(component.id, level, value)}
+            drilldownState={drilldownStates[component.id]}
           />
         );
       case 'table':
@@ -512,6 +545,11 @@ export function ReportEditor({ reportId, reportName, onSave }: ReportEditorProps
         onApplyFilter={handleApplyFilter}
         onApplyDrilldown={handleApplyDrilldown}
         onChangeTheme={handleChangeTheme}
+        onUpdateComponent={async (componentId, updates) => {
+          await updateReportComponent(componentId, updates);
+          loadComponents();
+        }}
+        formFields={selectedComponent?.config?.formId ? getFormFields(selectedComponent.config.formId) : []}
       />
 
       {/* Component Configuration Dialog */}

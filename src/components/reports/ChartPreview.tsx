@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Edit } from 'lucide-react';
+import { Edit, ArrowLeft } from 'lucide-react';
 import { 
   BarChart, 
   Bar, 
@@ -36,13 +36,24 @@ interface ChartPreviewProps {
   config: ChartConfig;
   onEdit?: () => void;
   hideControls?: boolean;
+  onDrilldown?: (drilldownLevel: string, drilldownValue: string) => void;
+  drilldownState?: {
+    path: string[];
+    values: string[];
+  };
 }
 
 
-export function ChartPreview({ config, onEdit, hideControls = false }: ChartPreviewProps) {
+export function ChartPreview({ 
+  config, 
+  onEdit, 
+  hideControls = false, 
+  onDrilldown,
+  drilldownState
+}: ChartPreviewProps) {
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const { getFormSubmissionData } = useReports();
+  const { getFormSubmissionData, getChartData } = useReports();
 
   useEffect(() => {
     const loadChartData = async () => {
@@ -62,33 +73,48 @@ export function ChartPreview({ config, onEdit, hideControls = false }: ChartPrev
         return;
       }
 
-      // For charts, we need either metrics/dimensions or the chart has built-in aggregation
-      const hasMetricsConfig = config.metrics?.length > 0 || config.yAxis;
-      const hasDimensionConfig = config.dimensions?.length > 0 || config.xAxis;
-      const hasAggregation = config.aggregation === 'count' || config.aggregationType === 'count';
-
-      if (!hasMetricsConfig && !hasAggregation && !hasDimensionConfig) {
-        console.log('Insufficient configuration for chart data');
-        setChartData([]);
-        setLoading(false);
-        return;
-      }
-
       try {
-        console.log('Fetching form submission data for form:', config.formId);
-        const submissions = await getFormSubmissionData(config.formId);
-        console.log('Received submissions:', submissions?.length || 0);
+        console.log('Fetching chart data for form:', config.formId);
         
-        if (!submissions || submissions.length === 0) {
-          console.log('No submissions found');
-          setChartData([]);
-          setLoading(false);
-          return;
-        }
+        // Use server-side RPC function for drilldown-enabled charts
+        if (config.drilldownEnabled && config.drilldownLevels?.length > 0) {
+          console.log('Using drilldown-enabled chart data fetch');
+          const serverData = await getChartData(
+            config.formId,
+            config.dimensions || [],
+            config.metrics || [],
+            config.aggregation || 'count',
+            config.filters || [],
+            config.drilldownLevels || [],
+            drilldownState?.values || []
+          );
+          
+          // Transform server data to chart format
+          const chartData = serverData.map((item: any) => ({
+            name: item.name,
+            value: Number(item.value),
+            [config.metrics?.[0] || 'count']: Number(item.value),
+            _drilldownData: item.additional_data
+          }));
+          
+          console.log('Processed drilldown chart data:', chartData);
+          setChartData(chartData);
+        } else {
+          // Fallback to client-side processing for non-drilldown charts
+          const submissions = await getFormSubmissionData(config.formId);
+          console.log('Received submissions:', submissions?.length || 0);
+          
+          if (!submissions || submissions.length === 0) {
+            console.log('No submissions found');
+            setChartData([]);
+            setLoading(false);
+            return;
+          }
 
-        const processedData = processSubmissionData(submissions);
-        console.log('Processed chart data:', processedData);
-        setChartData(processedData);
+          const processedData = processSubmissionData(submissions);
+          console.log('Processed chart data:', processedData);
+          setChartData(processedData);
+        }
       } catch (error) {
         console.error('Error loading chart data:', error);
         setChartData([]);
@@ -98,7 +124,22 @@ export function ChartPreview({ config, onEdit, hideControls = false }: ChartPrev
     };
 
     loadChartData();
-  }, [config.formId, config.dimensions, config.metrics, config.filters, config.xAxis, config.yAxis, config.aggregation, config.aggregationType, (config as any).data, getFormSubmissionData]);
+  }, [
+    config.formId, 
+    config.dimensions, 
+    config.metrics, 
+    config.filters, 
+    config.xAxis, 
+    config.yAxis, 
+    config.aggregation, 
+    config.aggregationType, 
+    config.drilldownEnabled,
+    config.drilldownLevels,
+    drilldownState?.values,
+    (config as any).data, 
+    getFormSubmissionData,
+    getChartData
+  ]);
 
   const processSubmissionData = (submissions: any[]) => {
     if (!submissions.length) {
@@ -227,6 +268,22 @@ export function ChartPreview({ config, onEdit, hideControls = false }: ChartPrev
 
   const colors = colorSchemes[config.colorTheme || 'default'];
 
+  const handleChartClick = (data: any) => {
+    if (!config.drilldownEnabled || !onDrilldown || !config.drilldownLevels?.length) return;
+    
+    // Check if we can drill down further
+    const currentLevel = drilldownState?.values?.length || 0;
+    if (currentLevel >= config.drilldownLevels.length) return;
+    
+    // Get the next drilldown level and the clicked value
+    const nextLevel = config.drilldownLevels[currentLevel];
+    const clickedValue = data?.activeLabel || data?.name;
+    
+    if (nextLevel && clickedValue) {
+      onDrilldown(nextLevel, clickedValue);
+    }
+  };
+
   const renderChart = () => {
     if (loading) {
       return (
@@ -255,7 +312,7 @@ export function ChartPreview({ config, onEdit, hideControls = false }: ChartPrev
     switch (chartType) {
       case 'bar':
         return (
-          <BarChart data={chartData}>
+          <BarChart data={chartData} onClick={handleChartClick}>
             <XAxis dataKey="name" />
             <YAxis />
             <Tooltip />
@@ -266,6 +323,7 @@ export function ChartPreview({ config, onEdit, hideControls = false }: ChartPrev
                 dataKey={metric} 
                 fill={colors[index % colors.length]} 
                 name={metric}
+                style={{ cursor: config.drilldownEnabled ? 'pointer' : 'default' }}
               />
             ))}
           </BarChart>
@@ -291,7 +349,7 @@ export function ChartPreview({ config, onEdit, hideControls = false }: ChartPrev
       
       case 'pie':
         return (
-          <RechartsPieChart>
+          <RechartsPieChart onClick={handleChartClick}>
             <Pie
               data={chartData}
               cx="50%"
@@ -300,6 +358,7 @@ export function ChartPreview({ config, onEdit, hideControls = false }: ChartPrev
               fill="#8884d8"
               dataKey={primaryMetric}
               label={({ name, value }) => `${name}: ${value}`}
+              style={{ cursor: config.drilldownEnabled ? 'pointer' : 'default' }}
             >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
@@ -485,15 +544,43 @@ export function ChartPreview({ config, onEdit, hideControls = false }: ChartPrev
     }
   };
 
+  const canDrillUp = drilldownState?.values && drilldownState.values.length > 0;
+
   return (
     <div className="space-y-4 relative group h-full">
       {/* Chart Header with Controls */}
       <div className="flex items-center justify-between">
         {config.title && (
-          <div>
-            <h3 className="text-lg font-semibold">{config.title}</h3>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold">{config.title}</h3>
+              {canDrillUp && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (onDrilldown && drilldownState?.values) {
+                      const newValues = [...drilldownState.values];
+                      newValues.pop(); // Remove last value to go up one level
+                      // Trigger drilldown with reduced values
+                      const lastLevel = config.drilldownLevels?.[newValues.length - 1] || '';
+                      const lastValue = newValues[newValues.length - 1] || '';
+                      onDrilldown(lastLevel, lastValue);
+                    }
+                  }}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-1" />
+                  Back
+                </Button>
+              )}
+            </div>
             {config.description && (
               <p className="text-sm text-muted-foreground">{config.description}</p>
+            )}
+            {drilldownState?.values && drilldownState.values.length > 0 && (
+              <div className="text-xs text-muted-foreground mt-1">
+                Drilldown: {drilldownState.values.join(' > ')}
+              </div>
             )}
           </div>
         )}
