@@ -52,36 +52,68 @@ export function ChartPreview({ config, onEdit }: ChartPreviewProps) {
     const loadChartData = async () => {
       // Use sample data if provided, otherwise fetch from form
       if ((config as any).data) {
+        console.log('Using provided sample data:', (config as any).data);
         setChartData((config as any).data);
         setLoading(false);
         return;
       }
 
-      if (!config.formId || (!config.dimensions?.length && !config.xAxis) || (!config.metrics?.length && !config.yAxis && config.aggregationType !== 'count')) {
+      // Check if we have minimum required configuration
+      if (!config.formId) {
+        console.log('No formId provided, showing empty state');
+        setChartData([]);
+        setLoading(false);
+        return;
+      }
+
+      // For charts, we need either metrics/dimensions or the chart has built-in aggregation
+      const hasMetricsConfig = config.metrics?.length > 0 || config.yAxis;
+      const hasDimensionConfig = config.dimensions?.length > 0 || config.xAxis;
+      const hasAggregation = config.aggregation === 'count' || config.aggregationType === 'count';
+
+      if (!hasMetricsConfig && !hasAggregation && !hasDimensionConfig) {
+        console.log('Insufficient configuration for chart data');
+        setChartData([]);
         setLoading(false);
         return;
       }
 
       try {
+        console.log('Fetching form submission data for form:', config.formId);
         const submissions = await getFormSubmissionData(config.formId);
+        console.log('Received submissions:', submissions?.length || 0);
+        
+        if (!submissions || submissions.length === 0) {
+          console.log('No submissions found');
+          setChartData([]);
+          setLoading(false);
+          return;
+        }
+
         const processedData = processSubmissionData(submissions);
+        console.log('Processed chart data:', processedData);
         setChartData(processedData);
       } catch (error) {
         console.error('Error loading chart data:', error);
+        setChartData([]);
       } finally {
         setLoading(false);
       }
     };
 
     loadChartData();
-  }, [config.formId, config.dimensions, config.metrics, config.filters, config.xAxis, config.yAxis, config.aggregationType, (config as any).data]);
+  }, [config.formId, config.dimensions, config.metrics, config.filters, config.xAxis, config.yAxis, config.aggregation, config.aggregationType, (config as any).data, getFormSubmissionData]);
 
   const processSubmissionData = (submissions: any[]) => {
-    if (!submissions.length) return [];
+    if (!submissions.length) {
+      console.log('No submissions to process');
+      return [];
+    }
 
+    console.log('Processing submissions:', submissions.length);
     const processedData: { [key: string]: any } = {};
 
-    submissions.forEach(submission => {
+    submissions.forEach((submission, index) => {
       const submissionData = submission.submission_data;
       
       // Apply filters
@@ -96,6 +128,16 @@ export function ChartPreview({ config, onEdit }: ChartPreviewProps) {
             return Number(value) > Number(filter.value);
           case 'less_than':
             return Number(value) < Number(filter.value);
+          case 'starts_with':
+            return String(value).startsWith(filter.value);
+          case 'ends_with':
+            return String(value).endsWith(filter.value);
+          case 'not_equals':
+            return value !== filter.value;
+          case 'is_empty':
+            return !value || value === '';
+          case 'is_not_empty':
+            return value && value !== '';
           default:
             return true;
         }
@@ -103,14 +145,27 @@ export function ChartPreview({ config, onEdit }: ChartPreviewProps) {
 
       if (!passesFilters) return;
 
-      // Create dimension key - use xAxis if dimensions not set
-      const dimensionFields = config.dimensions && config.dimensions.length > 0 ? config.dimensions : [config.xAxis];
+      // Create dimension key - use xAxis if dimensions not set, or use a default categorization
+      let dimensionFields = config.dimensions && config.dimensions.length > 0 
+        ? config.dimensions 
+        : config.xAxis 
+          ? [config.xAxis] 
+          : [];
+
+      // If no dimension is specified, create a simple count-based dimension
+      if (dimensionFields.length === 0) {
+        dimensionFields = ['_default'];
+      }
+
       const dimensionKey = dimensionFields
         .map(dim => {
+          if (dim === '_default') return 'Total';
+          
           const val = submissionData[dim];
           // Handle complex field types for dimensions
           if (typeof val === 'object' && val !== null) {
             if (val.status) return val.status; // For approval fields
+            if (val.label) return val.label; // For select fields with labels
             return JSON.stringify(val);
           }
           return val || 'Unknown';
@@ -122,12 +177,14 @@ export function ChartPreview({ config, onEdit }: ChartPreviewProps) {
           name: dimensionKey,
         };
         
-        // Initialize metrics - use yAxis/aggregationType if metrics not set
+        // Initialize metrics - use yAxis/aggregation if metrics not set
         const metricFields = config.metrics && config.metrics.length > 0 
           ? config.metrics 
-          : config.aggregationType === 'count' 
+          : config.aggregation === 'count' || config.aggregationType === 'count'
             ? ['count'] 
-            : config.yAxis ? [config.yAxis] : ['count'];
+            : config.yAxis 
+              ? [config.yAxis] 
+              : ['count'];
 
         metricFields.forEach(metric => {
           processedData[dimensionKey][metric] = 0;
@@ -137,12 +194,14 @@ export function ChartPreview({ config, onEdit }: ChartPreviewProps) {
       // Aggregate metrics
       const metricFields = config.metrics && config.metrics.length > 0 
         ? config.metrics 
-        : config.aggregationType === 'count' 
+        : config.aggregation === 'count' || config.aggregationType === 'count'
           ? ['count'] 
-          : config.yAxis ? [config.yAxis] : ['count'];
+          : config.yAxis 
+            ? [config.yAxis] 
+            : ['count'];
 
       metricFields.forEach(metric => {
-        if (metric === 'count' || config.aggregationType === 'count') {
+        if (metric === 'count' || config.aggregation === 'count' || config.aggregationType === 'count') {
           processedData[dimensionKey][metric] += 1;
         } else {
           const value = submissionData[metric] || submissionData[config.yAxis];
@@ -165,7 +224,9 @@ export function ChartPreview({ config, onEdit }: ChartPreviewProps) {
       });
     });
 
-    return Object.values(processedData);
+    const result = Object.values(processedData);
+    console.log('Final processed data:', result);
+    return result;
   };
 
   const colors = colorSchemes[config.colorTheme || 'default'];

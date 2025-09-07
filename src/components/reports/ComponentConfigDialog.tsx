@@ -23,6 +23,9 @@ import {
 } from '@/components/ui/select';
 import { useReports } from '@/hooks/useReports';
 import { GenericFieldSelector } from './GenericFieldSelector';
+import { FormJoinConfig } from './FormJoinConfig';
+import { FilterConfig } from './FilterConfig';
+import { DrilldownConfig } from './DrilldownConfig';
 import { 
   BarChart, 
   LineChart, 
@@ -211,6 +214,11 @@ export function ComponentConfigDialog({
             enableDrilldown: false,
             colorTheme: 'default',
             aggregation: 'count',
+            filters: [],
+            drilldownConfig: {
+              enabled: false,
+              levels: []
+            },
             joinConfig: {
               enabled: false,
               secondaryFormId: '',
@@ -374,9 +382,11 @@ export function ComponentConfigDialog({
   const renderChartConfig = () => {
     return (
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="basic">Basic</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
+          <TabsTrigger value="joins">Joins</TabsTrigger>
+          <TabsTrigger value="filters">Filters</TabsTrigger>
           <TabsTrigger value="style">Style</TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>
         </TabsList>
@@ -471,6 +481,72 @@ export function ComponentConfigDialog({
           {!config.formId && (
             <div className="p-4 text-center text-muted-foreground">
               Please select a form to configure data fields.
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="joins" className="space-y-4">
+          {config.formId && formFields.length > 0 ? (
+            <FormJoinConfig
+              enabled={joinEnabled}
+              onEnabledChange={setJoinEnabled}
+              primaryForm={{
+                id: config.formId,
+                name: forms.find(f => f.id === config.formId)?.name || 'Selected Form',
+                fields: formFields
+              }}
+              availableForms={forms.map(form => ({
+                id: form.id,
+                name: form.name,
+                fields: form.id === config.joinConfig?.secondaryFormId ? secondaryFormFields : []
+              }))}
+              joinConfig={config.joinConfig || {
+                secondaryFormId: '',
+                joinType: 'inner',
+                primaryFieldId: '',
+                secondaryFieldId: ''
+              }}
+              onJoinConfigChange={(joinConfig) => setConfig({ ...config, joinConfig })}
+            />
+          ) : (
+            <div className="p-4 text-center text-muted-foreground">
+              Please select a form first to configure joins.
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="filters" className="space-y-4">
+          {config.formId && formFields.length > 0 ? (
+            <div className="space-y-4">
+              <FilterConfig
+                formFields={formFields}
+                filters={config.filters || []}
+                onFiltersChange={(filters) => setConfig({ ...config, filters })}
+              />
+              
+              <DrilldownConfig
+                formFields={formFields}
+                enabled={config.drilldownConfig?.enabled || false}
+                onEnabledChange={(enabled) => setConfig({ 
+                  ...config, 
+                  drilldownConfig: { 
+                    ...config.drilldownConfig, 
+                    enabled 
+                  } 
+                })}
+                drilldownLevels={config.drilldownConfig?.levels || []}
+                onDrilldownLevelsChange={(levels) => setConfig({ 
+                  ...config, 
+                  drilldownConfig: { 
+                    ...config.drilldownConfig, 
+                    levels 
+                  } 
+                })}
+              />
+            </div>
+          ) : (
+            <div className="p-4 text-center text-muted-foreground">
+              Please select a form first to configure filters and drilldown.
             </div>
           )}
         </TabsContent>
