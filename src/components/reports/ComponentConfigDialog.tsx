@@ -24,6 +24,7 @@ import {
 import { useReports } from '@/hooks/useReports';
 import { GenericFieldSelector } from './GenericFieldSelector';
 import { FormJoinConfig } from './FormJoinConfig';
+import { getFieldDisplayName } from '@/utils/chartConfig';
 import { FilterConfig } from './FilterConfig';
 import { DrilldownConfig } from './DrilldownConfig';
 import { 
@@ -384,8 +385,8 @@ export function ComponentConfigDialog({
       <Tabs defaultValue="basic" className="w-full">
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="basic">Basic</TabsTrigger>
-          <TabsTrigger value="data">Data</TabsTrigger>
           <TabsTrigger value="joins">Joins</TabsTrigger>
+          <TabsTrigger value="data">Data</TabsTrigger>
           <TabsTrigger value="filters">Filters</TabsTrigger>
           <TabsTrigger value="style">Style</TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>
@@ -411,27 +412,27 @@ export function ComponentConfigDialog({
         </TabsContent>
 
         <TabsContent value="data" className="space-y-4">
-          {config.formId && formFields.length > 0 && (
+          {config.formId && (joinEnabled ? (config.joinConfig?.secondaryFormId && secondaryFormFields.length > 0) : formFields.length > 0) && (
             <>
               {config.chartType !== 'table' && (
                 <>
                   <GenericFieldSelector
-                    formFields={formFields}
+                    formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
                     selectedFields={config.metrics || []}
                     onFieldsChange={(fields) => setConfig({ ...config, metrics: fields })}
                     label="Metrics"
-                    description="Fields to measure and aggregate"
+                    description="Fields to measure and aggregate (from joined forms)"
                     selectionType="dropdown"
                     maxSelections={1}
                     placeholder="Select metric field..."
                   />
 
                   <GenericFieldSelector
-                    formFields={formFields}
+                    formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
                     selectedFields={config.dimensions || []}
                     onFieldsChange={(fields) => setConfig({ ...config, dimensions: fields })}
                     label="Dimensions"
-                    description="Fields to group by or categorize data"
+                    description="Fields to group by or categorize data (from joined forms)"
                     selectionType="dropdown"
                     maxSelections={1}
                     placeholder="Select dimension field..."
@@ -460,11 +461,11 @@ export function ComponentConfigDialog({
 
               {config.chartType === 'table' && (
                 <GenericFieldSelector
-                  formFields={formFields}
+                  formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
                   selectedFields={config.selectedColumns || []}
                   onFieldsChange={(fields) => setConfig({ ...config, selectedColumns: fields })}
                   label="Table Columns"
-                  description="Select columns to display in the table"
+                  description="Select columns to display in the table (from joined forms)"
                   selectionType="checkbox"
                   maxHeight="300px"
                 />
@@ -498,7 +499,7 @@ export function ComponentConfigDialog({
               availableForms={forms.map(form => ({
                 id: form.id,
                 name: form.name,
-                fields: form.id === config.joinConfig?.secondaryFormId ? secondaryFormFields : []
+                fields: form.id === config.joinConfig?.secondaryFormId ? secondaryFormFields : (form.fields || [])
               }))}
               joinConfig={config.joinConfig || {
                 secondaryFormId: '',
@@ -580,20 +581,71 @@ export function ComponentConfigDialog({
 
               <div>
                 <Label>Color Theme</Label>
-                <Select 
-                  value={config.colorTheme || 'default'} 
-                  onValueChange={(value) => setConfig({ ...config, colorTheme: value })}
-                >
-                  <SelectTrigger className="bg-background">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background border shadow-lg z-50">
-                    <SelectItem value="default">Default</SelectItem>
-                    <SelectItem value="vibrant">Vibrant</SelectItem>
-                    <SelectItem value="pastel">Pastel</SelectItem>
-                    <SelectItem value="monochrome">Monochrome</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  {[
+                    { 
+                      value: 'default', 
+                      label: 'Default', 
+                      colors: ['#8884d8', '#82ca9d', '#ffc658', '#ff7300'] 
+                    },
+                    { 
+                      value: 'vibrant', 
+                      label: 'Vibrant', 
+                      colors: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4'] 
+                    },
+                    { 
+                      value: 'pastel', 
+                      label: 'Pastel', 
+                      colors: ['#FFB3BA', '#BAFFC9', '#BAE1FF', '#FFFFBA'] 
+                    },
+                    { 
+                      value: 'monochrome', 
+                      label: 'Monochrome', 
+                      colors: ['#2C3E50', '#34495E', '#7F8C8D', '#95A5A6'] 
+                    },
+                    { 
+                      value: 'ocean', 
+                      label: 'Ocean', 
+                      colors: ['#006A6B', '#1B9AAA', '#40C9A2', '#9FFFCB'] 
+                    },
+                    { 
+                      value: 'sunset', 
+                      label: 'Sunset', 
+                      colors: ['#FF6B35', '#F7931E', '#FFD23F', '#F06292'] 
+                    },
+                    { 
+                      value: 'nature', 
+                      label: 'Nature', 
+                      colors: ['#8BC34A', '#4CAF50', '#009688', '#607D8B'] 
+                    },
+                    { 
+                      value: 'business', 
+                      label: 'Business', 
+                      colors: ['#1976D2', '#1565C0', '#0D47A1', '#42A5F5'] 
+                    }
+                  ].map((theme) => (
+                    <div
+                      key={theme.value}
+                      className={`p-3 border rounded-lg cursor-pointer transition-all hover:bg-muted/50 ${
+                        config.colorTheme === theme.value ? 'border-primary bg-primary/5' : 'border-border'
+                      }`}
+                      onClick={() => setConfig({ ...config, colorTheme: theme.value })}
+                    >
+                      <div className="space-y-2">
+                        <div className="font-medium text-sm">{theme.label}</div>
+                        <div className="flex gap-1">
+                          {theme.colors.map((color, index) => (
+                            <div
+                              key={index}
+                              className="w-4 h-4 rounded-full border border-border/50"
+                              style={{ backgroundColor: color }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Chart-specific configurations */}

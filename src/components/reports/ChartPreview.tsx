@@ -30,18 +30,13 @@ import {
 } from 'recharts';
 import { useReports } from '@/hooks/useReports';
 import { ChartConfig } from '@/types/reports';
+import { colorSchemes } from './ChartColorThemes';
 
 interface ChartPreviewProps {
   config: ChartConfig;
   onEdit?: () => void;
 }
 
-const colorSchemes = {
-  default: ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00', '#d084d0', '#8dd1e1', '#ffb347'],
-  vibrant: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'],
-  pastel: ['#FFB3BA', '#BAFFC9', '#BAE1FF', '#FFFFBA', '#FFB3FF', '#D5AAFF', '#FFD3A5', '#AAFFE6'],
-  monochrome: ['#2C3E50', '#34495E', '#7F8C8D', '#95A5A6', '#BDC3C7', '#85929E', '#5D6D7E', '#AEB6BF'],
-};
 
 export function ChartPreview({ config, onEdit }: ChartPreviewProps) {
   const [chartData, setChartData] = useState<any[]>([]);
@@ -490,7 +485,7 @@ export function ChartPreview({ config, onEdit }: ChartPreviewProps) {
   };
 
   return (
-    <div className="space-y-4 relative group">
+    <div className="space-y-4 relative group h-full">
       {onEdit && (
         <Button
           size="sm"

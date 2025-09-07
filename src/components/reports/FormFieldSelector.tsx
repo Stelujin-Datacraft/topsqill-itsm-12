@@ -37,11 +37,23 @@ export function FormFieldSelector({
       }))
     : (() => {
         const categorizedFields = categorizeFields(formFields);
-        return categorizedFields.filter(field => {
-          if (filterType === 'metrics') return field.canBeMetric;
-          if (filterType === 'dimensions') return field.canBeDimension;
-          return true;
-        });
+        let fieldsToFilter: ChartFieldOption[] = [];
+        
+        if (filterType === 'metrics') {
+          fieldsToFilter = categorizedFields.metrics;
+        } else if (filterType === 'dimensions') {
+          fieldsToFilter = categorizedFields.dimensions;
+        } else {
+          fieldsToFilter = [...categorizedFields.metrics, ...categorizedFields.dimensions, ...categorizedFields.other];
+        }
+        
+        return fieldsToFilter.map(field => ({
+          id: field.id,
+          label: field.label,
+          type: field.type,
+          canBeMetric: field.category === 'metrics',
+          canBeDimension: field.category === 'dimensions'
+        }));
       })();
 
   const handleFieldToggle = (fieldId: string, checked: boolean) => {
