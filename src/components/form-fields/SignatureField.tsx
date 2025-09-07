@@ -145,19 +145,20 @@ export function SignatureField({ field, value, onChange, error, disabled }: Sign
     <div className="space-y-3">
       <Label htmlFor={field.id}>{field.label}</Label>
       
-      <div className="border rounded-lg p-4 bg-white">
+      <div className="border rounded-lg p-4 bg-background">
         <canvas
           ref={canvasRef}
-          className="border border-dashed border-gray-300 cursor-crosshair rounded"
+          className="border border-dashed border-muted cursor-crosshair rounded max-w-full"
           onMouseDown={startDrawing}
           onMouseMove={draw}
           onMouseUp={stopDrawing}
           onMouseLeave={stopDrawing}
           onDoubleClick={config.clearOnDoubleTap ? clearSignature : undefined}
           style={{ 
-            width: `${canvasWidth}px`, 
-            height: `${canvasHeight}px`,
-            opacity: disabled ? 0.5 : 1 
+            width: `${Math.min(canvasWidth, 400)}px`, 
+            height: `${Math.min(canvasHeight, 200)}px`,
+            opacity: disabled ? 0.5 : 1,
+            maxWidth: '100%'
           }}
         />
         
@@ -198,9 +199,16 @@ export function SignatureField({ field, value, onChange, error, disabled }: Sign
           </Button>
         </div>
 
-        {config.showTimestamp && hasSignature && (
-          <p className="text-xs text-gray-500 mt-2">
-            Signed on: {new Date().toLocaleString()}
+        {config.showTimestamp && hasSignature && value && (
+          <p className="text-xs text-muted-foreground mt-2">
+            {(() => {
+              try {
+                const parsed = JSON.parse(value);
+                return `Signed on: ${new Date(parsed.timestamp).toLocaleString()}`;
+              } catch {
+                return `Signed on: ${new Date().toLocaleString()}`;
+              }
+            })()}
           </p>
         )}
       </div>

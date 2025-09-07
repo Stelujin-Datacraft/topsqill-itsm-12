@@ -104,7 +104,7 @@ export function MultiSelectField({ field, value = [], onChange, error, disabled 
       )}
 
       {/* Options list */}
-      <div className="max-h-48 overflow-y-auto space-y-2 border rounded p-3">
+      <div className={`space-y-2 border rounded p-3 bg-background ${filteredOptions.length > 7 ? 'max-h-64 overflow-y-auto' : ''}`}>
         {filteredOptions.map((option) => (
           <div key={option.id} className="flex items-center space-x-2">
             <Checkbox

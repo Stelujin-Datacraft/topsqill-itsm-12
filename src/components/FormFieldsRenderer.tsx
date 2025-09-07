@@ -352,12 +352,28 @@ export function FormFieldsRenderer({
           </div>
         );
 
-      // Enhanced Date with auto-fill
+      // Enhanced Date with auto-fill and format display
       case 'date':
         const dateConfig = field.customConfig || {};
         const dateValue = dateConfig.autoPopulate && !formData[field.id] 
           ? new Date().toISOString().split('T')[0] 
           : formData[field.id] || '';
+        
+        // Format display based on configuration
+        const getFormattedDateDisplay = (value: string) => {
+          if (!value) return '';
+          const date = new Date(value);
+          const format = dateConfig.format || 'default';
+          
+          switch (format) {
+            case 'MM/DD/YYYY': return date.toLocaleDateString('en-US');
+            case 'DD/MM/YYYY': return date.toLocaleDateString('en-GB');
+            case 'YYYY-MM-DD': return date.toISOString().split('T')[0];
+            case 'DD MMM YYYY': return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            case 'MMM DD, YYYY': return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+            default: return date.toLocaleDateString();
+          }
+        };
         
         return (
           <div className="space-y-2">
@@ -378,6 +394,12 @@ export function FormFieldsRenderer({
               min={dateConfig.minDate}
               max={dateConfig.maxDate}
             />
+            {/* Show formatted preview if different from input format */}
+            {dateValue && dateConfig.format && dateConfig.format !== 'YYYY-MM-DD' && (
+              <p className="text-xs text-muted-foreground">
+                Preview: {getFormattedDateDisplay(dateValue)}
+              </p>
+            )}
             {errors[field.id] && (
               <p className="text-sm text-red-500">{errors[field.id]}</p>
             )}
@@ -527,7 +549,20 @@ case 'textarea':
               onChange={(e) => onFieldChange(field.id, e.target.value)}
               placeholder={field.placeholder}
               disabled={!fieldState.isEnabled}
+              min={field.validation?.min}
+              max={field.validation?.max}
             />
+            {/* Min/Max validation warnings */}
+            {field.validation?.min !== undefined && formData[field.id] && Number(formData[field.id]) < field.validation.min && (
+              <p className="text-sm text-red-500">
+                Minimum value is {field.validation.min}
+              </p>
+            )}
+            {field.validation?.max !== undefined && formData[field.id] && Number(formData[field.id]) > field.validation.max && (
+              <p className="text-sm text-red-500">
+                Maximum value is {field.validation.max}
+              </p>
+            )}
             {errors[field.id] && (
               <p className="text-sm text-red-500">{errors[field.id]}</p>
             )}
@@ -589,33 +624,36 @@ case 'textarea':
       case 'radio':
         const radioConfig = field.customConfig || {};
         const radioOrientation = radioConfig.orientation || 'vertical';
+        const hasScrollbar = field.options && field.options.length > 7;
         return (
           <div className="space-y-2">
             <div className="flex items-center">
               <Label>{field.label}</Label>
               <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
-            <RadioGroup
-              value={formData[field.id] || ''}
-              onValueChange={(value) => onFieldChange(field.id, value)}
-              disabled={!fieldState.isEnabled}
-              className={radioOrientation === 'horizontal' ? 'flex flex-wrap gap-4' : ''}
-            >
-              {field.options?.map((option) => (
-                <div key={option.id} className="flex items-center space-x-2">
-                  <RadioGroupItem value={option.value} id={option.id} />
-                  <Label htmlFor={option.id} className="flex items-center gap-2 cursor-pointer">
-                    {option.color && (
-                      <div 
-                        className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
-                        style={{ backgroundColor: option.color }}
-                      />
-                    )}
-                    <span>{option.label}</span>
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+            <div className={hasScrollbar ? 'max-h-64 overflow-y-auto border rounded-lg p-3 bg-background' : ''}>
+              <RadioGroup
+                value={formData[field.id] || ''}
+                onValueChange={(value) => onFieldChange(field.id, value)}
+                disabled={!fieldState.isEnabled}
+                className={radioOrientation === 'horizontal' ? 'flex flex-wrap gap-4' : 'space-y-3'}
+              >
+                {field.options?.map((option) => (
+                  <div key={option.id} className="flex items-center space-x-2">
+                    <RadioGroupItem value={option.value} id={option.id} />
+                    <Label htmlFor={option.id} className="flex items-center gap-2 cursor-pointer">
+                      {option.color && (
+                        <div 
+                          className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
+                          style={{ backgroundColor: option.color }}
+                        />
+                      )}
+                      <span>{option.label}</span>
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
             {errors[field.id] && (
               <p className="text-sm text-red-500">{errors[field.id]}</p>
             )}
@@ -641,17 +679,17 @@ case 'textarea':
         );
       case 'toggle-switch':
         return (
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <Switch
-                id={field.id}
-                checked={formData[field.id] || false}
-                onCheckedChange={(checked) => onFieldChange(field.id, checked)}
-                disabled={!fieldState.isEnabled}
-              />
+          <div className="space-y-3">
+            <div className="flex items-center">
               <Label htmlFor={field.id}>{field.label}</Label>
               <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
+            <Switch
+              id={field.id}
+              checked={formData[field.id] || false}
+              onCheckedChange={(checked) => onFieldChange(field.id, checked)}
+              disabled={!fieldState.isEnabled}
+            />
             {errors[field.id] && (
               <p className="text-sm text-red-500">{errors[field.id]}</p>
             )}
