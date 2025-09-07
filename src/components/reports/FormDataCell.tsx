@@ -71,8 +71,10 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
         size="sm"
         className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1 px-2"
         onClick={() => {
+          console.log('Cross-reference button clicked', { submissionRefIds, field });
           // Trigger dialog with all IDs for this specific field
-          const dynamicTable = document.querySelector('[data-dynamic-table]');
+          const dynamicTable = document.querySelector('[data-dynamic-table="main"]');
+          console.log('Dynamic table element found:', dynamicTable);
           if (dynamicTable) {
             const event = new CustomEvent('showCrossReference', { 
               detail: { 
@@ -80,7 +82,10 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
                 fieldName: field?.label || 'Cross Reference'
               } 
             });
+            console.log('Dispatching event with data:', event.detail);
             dynamicTable.dispatchEvent(event);
+          } else {
+            console.error('Dynamic table element not found');
           }
         }}
       >

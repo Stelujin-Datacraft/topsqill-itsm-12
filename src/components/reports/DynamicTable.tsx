@@ -239,6 +239,7 @@ export function DynamicTable({
   }, [config.formId]);
   useEffect(() => {
     const handleCrossReference = (event: any) => {
+      console.log('Cross-reference event received:', event.detail);
       const {
         submissionIds,
         fieldName
@@ -247,7 +248,8 @@ export function DynamicTable({
       setCrossReferenceFieldName(fieldName || 'Cross Reference');
       setShowCrossReferenceDialog(true);
     };
-    const tableElement = document.querySelector('[data-dynamic-table]');
+    const tableElement = document.querySelector('[data-dynamic-table="main"]');
+    console.log('Setting up event listener on:', tableElement);
     if (tableElement) {
       tableElement.addEventListener('showCrossReference', handleCrossReference);
       return () => {
@@ -506,7 +508,7 @@ export function DynamicTable({
       </Card>;
   }
   const containerClasses = isExpanded ? "fixed inset-0 z-50 bg-background p-4 space-y-6" : "space-y-6";
-  return <div className={containerClasses} data-dynamic-table>
+  return <div className={containerClasses} data-dynamic-table="main">
       {/* Analytics Section */}
       {!isExpanded && <SubmissionAnalytics data={data} />}
       
@@ -603,7 +605,7 @@ export function DynamicTable({
         </CardHeader>
       
         <CardContent className="p-0 flex flex-col h-full">
-          <div className={`${isExpanded ? 'h-[85vh]' : 'flex-1 min-h-0'} flex flex-col`} data-dynamic-table>
+          <div className={`${isExpanded ? 'h-[85vh]' : 'flex-1 min-h-0'} flex flex-col`}>
             <div className="flex flex-col h-full space-y-2 p-2">
               {/* Compact Page Size Selector */}
               <div className="flex items-center justify-between px-2">
