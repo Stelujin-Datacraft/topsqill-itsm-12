@@ -35,10 +35,11 @@ import { colorSchemes } from './ChartColorThemes';
 interface ChartPreviewProps {
   config: ChartConfig;
   onEdit?: () => void;
+  hideControls?: boolean;
 }
 
 
-export function ChartPreview({ config, onEdit }: ChartPreviewProps) {
+export function ChartPreview({ config, onEdit, hideControls = false }: ChartPreviewProps) {
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { getFormSubmissionData } = useReports();

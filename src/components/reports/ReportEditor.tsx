@@ -5,6 +5,7 @@ import { ReportComponent } from '@/types/reports';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ComponentConfigDialog } from './ComponentConfigDialog';
+import { ChartPropertiesPane } from './ChartPropertiesPane';
 import { DynamicTable } from './DynamicTable';
 import { FormSubmissionsTable } from './FormSubmissionsTable';
 import { ChartPreview } from './ChartPreview';
@@ -17,7 +18,6 @@ import {
   Hash, 
   Type,
   FileText,
-  Trash2,
   Shield
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -40,6 +40,8 @@ export function ReportEditor({ reportId, reportName, onSave }: ReportEditorProps
   const [editingComponent, setEditingComponent] = useState<ReportComponent | null>(null);
   const [newComponentType, setNewComponentType] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [selectedComponent, setSelectedComponent] = useState<ReportComponent | null>(null);
+  const [isPropertiesPaneOpen, setIsPropertiesPaneOpen] = useState(false);
   const navigate = useNavigate();
 
   const { 
@@ -219,64 +221,129 @@ export function ReportEditor({ reportId, reportName, onSave }: ReportEditorProps
     }
   };
 
-  const renderComponent = (component: ReportComponent) => {
-    const commonProps = {
-      onEdit: () => handleEditComponent(component)
-    };
+  const handleComponentClick = (component: ReportComponent) => {
+    setSelectedComponent(component);
+    setIsPropertiesPaneOpen(true);
+  };
 
+  const handlePropertiesPaneClose = () => {
+    setIsPropertiesPaneOpen(false);
+    setSelectedComponent(null);
+  };
+
+  const handleComponentRename = async (componentId: string, newName: string) => {
+    try {
+      const component = components.find(c => c.id === componentId);
+      if (!component) return;
+
+      const updatedConfig = { ...component.config, name: newName };
+      await updateReportComponent(componentId, { config: updatedConfig });
+      
+      setComponents(prev => prev.map(comp => 
+        comp.id === componentId 
+          ? { ...comp, config: updatedConfig }
+          : comp
+      ));
+
+      toast({
+        title: "Success",
+        description: "Component renamed successfully",
+      });
+    } catch (error) {
+      console.error('Error renaming component:', error);
+      toast({
+        title: "Error",
+        description: "Failed to rename component",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleApplyFilter = (componentId: string) => {
+    const component = components.find(c => c.id === componentId);
+    if (component) {
+      handleEditComponent(component);
+      setIsPropertiesPaneOpen(false);
+    }
+  };
+
+  const handleApplyDrilldown = (componentId: string) => {
+    const component = components.find(c => c.id === componentId);
+    if (component) {
+      handleEditComponent(component);
+      setIsPropertiesPaneOpen(false);
+    }
+  };
+
+  const handleChangeTheme = async (componentId: string, theme: any) => {
+    try {
+      const component = components.find(c => c.id === componentId);
+      if (!component) return;
+
+      const updatedConfig = { ...component.config, colorTheme: theme };
+      await updateReportComponent(componentId, { config: updatedConfig });
+      
+      setComponents(prev => prev.map(comp => 
+        comp.id === componentId 
+          ? { ...comp, config: updatedConfig }
+          : comp
+      ));
+
+      toast({
+        title: "Success",
+        description: "Theme applied successfully",
+      });
+    } catch (error) {
+      console.error('Error updating theme:', error);
+      toast({
+        title: "Error",
+        description: "Failed to apply theme",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const renderComponent = (component: ReportComponent) => {
     switch (component.type) {
       case 'chart':
         return (
           <ChartPreview 
-            config={component.config as any} 
-            {...commonProps}
+            config={component.config as any}
+            hideControls={true}
           />
         );
       case 'table':
         return (
           <DynamicTable 
-            config={component.config as any} 
-            {...commonProps}
+            config={component.config as any}
           />
         );
       case 'form-submissions':
         return (
           <FormSubmissionsTable 
-            config={component.config as any} 
-            {...commonProps}
+            config={component.config as any}
           />
         );
       case 'metric-card':
         return (
           <MetricCard 
-            config={component.config as any} 
-            {...commonProps}
+            config={component.config as any}
           />
         );
       case 'text':
         return (
-          <div className="h-full p-4 relative group">
-            <Button
-              size="sm"
-              variant="outline"
-              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={() => handleEditComponent(component)}
-            >
-              Edit
-            </Button>
-            <div 
-              className="h-full"
-              style={{
-                fontSize: (component.config as any).fontSize || 'medium',
-                fontWeight: (component.config as any).fontWeight || 'normal',
-                textAlign: (component.config as any).textAlign || 'left',
-                color: (component.config as any).color || 'inherit',
-                backgroundColor: (component.config as any).backgroundColor || 'transparent',
-                padding: (component.config as any).padding || 'medium'
-              }}
-              dangerouslySetInnerHTML={{ __html: (component.config as any).content || 'Text content' }}
-            />
-          </div>
+          <div 
+            className="h-full"
+            style={{
+              fontSize: (component.config as any).fontSize || 'medium',
+              fontWeight: (component.config as any).fontWeight || 'normal',
+              textAlign: (component.config as any).textAlign || 'left',
+              color: (component.config as any).color || 'inherit',
+              backgroundColor: (component.config as any).backgroundColor || 'transparent',
+              padding: (component.config as any).padding || 'medium'
+            }}
+            dangerouslySetInnerHTML={{ __html: (component.config as any).content || 'Text content' }}
+          />
         );
       default:
         return (
@@ -339,52 +406,66 @@ export function ReportEditor({ reportId, reportName, onSave }: ReportEditorProps
       </div>
 
       {/* Grid Layout */}
-      {components.length > 0 ? (
-        <ResponsiveGridLayout
-          className="layout"
-          layouts={{ lg: gridItems }}
-          breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-          cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-          rowHeight={60}
-          isDraggable={true}
-          isResizable={true}
-          onLayoutChange={handleLayoutChange}
-        >
-          {components.map(component => (
-            <div key={component.id} className="relative group">
-              <Card className="h-full overflow-hidden">
-                <CardContent className="p-4 h-full relative">
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => handleDeleteComponent(component.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                  {renderComponent(component)}
-                </CardContent>
-              </Card>
+      <div className={`transition-all duration-300 ${isPropertiesPaneOpen ? 'mr-80' : 'mr-0'}`}>
+        {components.length > 0 ? (
+          <ResponsiveGridLayout
+            className="layout"
+            layouts={{ lg: gridItems }}
+            breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+            cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+            rowHeight={60}
+            isDraggable={true}
+            isResizable={true}
+            onLayoutChange={handleLayoutChange}
+          >
+            {components.map(component => (
+              <div key={component.id} className="relative group">
+                <Card 
+                  className={`h-full overflow-hidden cursor-pointer transition-all ${
+                    selectedComponent?.id === component.id 
+                      ? 'ring-2 ring-primary shadow-lg' 
+                      : 'hover:shadow-md'
+                  }`}
+                  onClick={() => handleComponentClick(component)}
+                >
+                  <CardContent className="p-4 h-full relative">
+                    {renderComponent(component)}
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
+          </ResponsiveGridLayout>
+        ) : (
+          <Card className="h-64 flex items-center justify-center">
+            <div className="text-center">
+              <Plus className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-lg font-medium mb-2">Start building your report</p>
+              <p className="text-muted-foreground mb-4">Add charts, tables, metrics, or text components</p>
+              <div className="flex gap-2 justify-center">
+                <Button variant="outline" onClick={() => handleAddComponent('chart')}>
+                  Add Chart
+                </Button>
+                <Button variant="outline" onClick={() => handleAddComponent('form-submissions')}>
+                  Add Form Submissions
+                </Button>
+              </div>
             </div>
-          ))}
-        </ResponsiveGridLayout>
-      ) : (
-        <Card className="h-64 flex items-center justify-center">
-          <div className="text-center">
-            <Plus className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-lg font-medium mb-2">Start building your report</p>
-            <p className="text-muted-foreground mb-4">Add charts, tables, metrics, or text components</p>
-            <div className="flex gap-2 justify-center">
-              <Button variant="outline" onClick={() => handleAddComponent('chart')}>
-                Add Chart
-              </Button>
-              <Button variant="outline" onClick={() => handleAddComponent('form-submissions')}>
-                Add Form Submissions
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
+          </Card>
+        )}
+      </div>
+
+      {/* Properties Pane */}
+      <ChartPropertiesPane
+        component={selectedComponent}
+        isOpen={isPropertiesPaneOpen}
+        onClose={handlePropertiesPaneClose}
+        onEdit={handleEditComponent}
+        onDelete={handleDeleteComponent}
+        onRename={handleComponentRename}
+        onApplyFilter={handleApplyFilter}
+        onApplyDrilldown={handleApplyDrilldown}
+        onChangeTheme={handleChangeTheme}
+      />
 
       {/* Component Configuration Dialog */}
       <ComponentConfigDialog

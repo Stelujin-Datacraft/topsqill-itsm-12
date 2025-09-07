@@ -1,3 +1,6 @@
+import React from 'react';
+import { Button } from '@/components/ui/button';
+
 export const colorSchemes = {
   default: ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00', '#d084d0', '#8dd1e1', '#ffb347'],
   vibrant: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'],
@@ -8,3 +11,47 @@ export const colorSchemes = {
   nature: ['#8BC34A', '#4CAF50', '#009688', '#607D8B', '#66BB6A', '#26A69A', '#78909C', '#689F38'],
   business: ['#1976D2', '#1565C0', '#0D47A1', '#42A5F5', '#2196F3', '#03A9F4', '#0288D1', '#1E88E5']
 };
+
+interface ChartColorThemesProps {
+  selectedTheme: string;
+  onThemeChange: (theme: string) => void;
+}
+
+export function ChartColorThemes({ selectedTheme, onThemeChange }: ChartColorThemesProps) {
+  const themes = [
+    { name: 'default', label: 'Default' },
+    { name: 'vibrant', label: 'Vibrant' },
+    { name: 'pastel', label: 'Pastel' },
+    { name: 'monochrome', label: 'Monochrome' },
+    { name: 'ocean', label: 'Ocean' },
+    { name: 'sunset', label: 'Sunset' },
+    { name: 'nature', label: 'Nature' },
+    { name: 'business', label: 'Business' }
+  ];
+
+  return (
+    <div className="space-y-3">
+      {themes.map((theme) => (
+        <Button
+          key={theme.name}
+          variant={selectedTheme === theme.name ? "default" : "outline"}
+          className="w-full justify-start h-auto p-3"
+          onClick={() => onThemeChange(theme.name)}
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex gap-1">
+              {colorSchemes[theme.name as keyof typeof colorSchemes].slice(0, 4).map((color, index) => (
+                <div
+                  key={index}
+                  className="w-4 h-4 rounded-full border border-white/20"
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+            <span className="text-sm font-medium">{theme.label}</span>
+          </div>
+        </Button>
+      ))}
+    </div>
+  );
+}
