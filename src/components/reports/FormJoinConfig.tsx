@@ -88,14 +88,15 @@ export function FormJoinConfig({
               <Label>Secondary Form</Label>
               <Select
                 value={joinConfig.secondaryFormId}
-                onValueChange={(value) => 
+                onValueChange={(value) => {
+                  console.log('Secondary form selected:', value);
                   onJoinConfigChange({ 
                     ...joinConfig, 
                     secondaryFormId: value,
                     primaryFieldId: '',
                     secondaryFieldId: ''
-                  })
-                }
+                  });
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select secondary form" />
@@ -103,16 +104,19 @@ export function FormJoinConfig({
                 <SelectContent>
                   {availableForms
                     .filter(form => form.id !== primaryForm.id)
-                    .map((form) => (
-                      <SelectItem key={form.id} value={form.id}>
-                        <div className="flex items-center justify-between w-full">
-                          <span>{form.name}</span>
-                          <Badge variant="outline" className="ml-2 text-xs">
-                            {form.fields.length} fields
-                          </Badge>
-                        </div>
-                      </SelectItem>
-                    ))}
+                    .map((form) => {
+                      console.log('Available form:', form.name, 'Fields:', form.fields?.length || 0);
+                      return (
+                        <SelectItem key={form.id} value={form.id}>
+                          <div className="flex items-center justify-between w-full">
+                            <span>{form.name}</span>
+                            <Badge variant="outline" className="ml-2 text-xs">
+                              {form.fields?.length || 0} fields
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                 </SelectContent>
               </Select>
             </div>
@@ -150,29 +154,36 @@ export function FormJoinConfig({
                 <Label>Primary Form Field</Label>
                 <Select
                   value={joinConfig.primaryFieldId}
-                  onValueChange={(value) => 
+                  onValueChange={(value) => {
+                    console.log('Primary field selected:', value);
                     onJoinConfigChange({ 
                       ...joinConfig, 
                       primaryFieldId: value,
                       secondaryFieldId: ''
-                    })
-                  }
+                    });
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select field" />
                   </SelectTrigger>
                   <SelectContent>
-                    {getJoinableFields(primaryForm.fields, secondaryForm?.fields || [])
-                      .map((field) => (
-                        <SelectItem key={field.id} value={field.id}>
-                          <div className="flex items-center justify-between w-full">
-                            <span>{field.label}</span>
-                            <Badge variant="outline" className="ml-2 text-xs">
-                              {field.type}
-                            </Badge>
-                          </div>
-                        </SelectItem>
-                      ))}
+                    {(() => {
+                      console.log('Primary form fields for join:', primaryForm.fields?.length || 0);
+                      return getJoinableFields(primaryForm.fields || [], secondaryForm?.fields || [])
+                        .map((field) => {
+                          console.log('Joinable primary field:', field.label, field.type);
+                          return (
+                            <SelectItem key={field.id} value={field.id}>
+                              <div className="flex items-center justify-between w-full">
+                                <span>{field.label}</span>
+                                <Badge variant="outline" className="ml-2 text-xs">
+                                  {field.type}
+                                </Badge>
+                              </div>
+                            </SelectItem>
+                          );
+                        });
+                    })()}
                   </SelectContent>
                 </Select>
               </div>
@@ -181,26 +192,33 @@ export function FormJoinConfig({
                 <Label>Secondary Form Field</Label>
                 <Select
                   value={joinConfig.secondaryFieldId}
-                  onValueChange={(value) => 
-                    onJoinConfigChange({ ...joinConfig, secondaryFieldId: value })
-                  }
+                  onValueChange={(value) => {
+                    console.log('Secondary field selected:', value);
+                    onJoinConfigChange({ ...joinConfig, secondaryFieldId: value });
+                  }}
                   disabled={!joinConfig.primaryFieldId}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select field" />
                   </SelectTrigger>
                   <SelectContent>
-                    {getCompatibleSecondaryFields(joinConfig.primaryFieldId)
-                      .map((field) => (
-                        <SelectItem key={field.id} value={field.id}>
-                          <div className="flex items-center justify-between w-full">
-                            <span>{field.label}</span>
-                            <Badge variant="outline" className="ml-2 text-xs">
-                              {field.type}
-                            </Badge>
-                          </div>
-                        </SelectItem>
-                      ))}
+                    {(() => {
+                      console.log('Secondary form fields for join:', secondaryForm?.fields?.length || 0);
+                      return getCompatibleSecondaryFields(joinConfig.primaryFieldId)
+                        .map((field) => {
+                          console.log('Compatible secondary field:', field.label, field.type);
+                          return (
+                            <SelectItem key={field.id} value={field.id}>
+                              <div className="flex items-center justify-between w-full">
+                                <span>{field.label}</span>
+                                <Badge variant="outline" className="ml-2 text-xs">
+                                  {field.type}
+                                </Badge>
+                              </div>
+                            </SelectItem>
+                          );
+                        });
+                    })()}
                   </SelectContent>
                 </Select>
               </div>

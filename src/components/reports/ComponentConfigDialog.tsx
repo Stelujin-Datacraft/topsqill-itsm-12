@@ -437,25 +437,6 @@ export function ComponentConfigDialog({
                     maxSelections={1}
                     placeholder="Select dimension field..."
                   />
-
-                  <div>
-                    <Label>Aggregation Function</Label>
-                    <Select 
-                      value={config.aggregation || 'count'} 
-                      onValueChange={(value) => setConfig({ ...config, aggregation: value })}
-                    >
-                      <SelectTrigger className="bg-background">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background border shadow-lg z-50">
-                        {AGGREGATION_FUNCTIONS.map(agg => (
-                          <SelectItem key={agg.value} value={agg.value}>
-                            {agg.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </>
               )}
 
@@ -490,7 +471,14 @@ export function ComponentConfigDialog({
           {config.formId && formFields.length > 0 ? (
             <FormJoinConfig
               enabled={joinEnabled}
-              onEnabledChange={setJoinEnabled}
+              onEnabledChange={(enabled) => {
+                setJoinEnabled(enabled);
+                if (!enabled) {
+                  // Clear join config when disabled
+                  setConfig(prev => ({ ...prev, joinConfig: undefined }));
+                  setSecondaryFormFields([]);
+                }
+              }}
               primaryForm={{
                 id: config.formId,
                 name: forms.find(f => f.id === config.formId)?.name || 'Selected Form',
@@ -507,7 +495,13 @@ export function ComponentConfigDialog({
                 primaryFieldId: '',
                 secondaryFieldId: ''
               }}
-              onJoinConfigChange={(joinConfig) => setConfig({ ...config, joinConfig })}
+              onJoinConfigChange={(joinConfig) => {
+                setConfig({ ...config, joinConfig });
+                // Fetch secondary form fields when secondary form is selected
+                if (joinConfig.secondaryFormId && joinConfig.secondaryFormId !== config.joinConfig?.secondaryFormId) {
+                  handleSecondaryFormChange(joinConfig.secondaryFormId);
+                }
+              }}
             />
           ) : (
             <div className="p-4 text-center text-muted-foreground">
@@ -518,15 +512,58 @@ export function ComponentConfigDialog({
 
         <TabsContent value="filters" className="space-y-4">
           {config.formId && formFields.length > 0 ? (
-            <div className="space-y-4">
+            <div className="space-y-6">
+              {/* Aggregation Toggle */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Database className="h-4 w-4" />
+                    Data Aggregation
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="enableAggregation"
+                      checked={config.aggregationEnabled !== false}
+                      onCheckedChange={(checked) => setConfig({ ...config, aggregationEnabled: checked })}
+                    />
+                    <Label htmlFor="enableAggregation">Enable data aggregation</Label>
+                  </div>
+                  
+                  {config.aggregationEnabled !== false && (
+                    <div>
+                      <Label>Aggregation Function</Label>
+                      <Select 
+                        value={config.aggregation || 'count'} 
+                        onValueChange={(value) => setConfig({ ...config, aggregation: value })}
+                      >
+                        <SelectTrigger className="bg-background">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-lg z-50">
+                          {AGGREGATION_FUNCTIONS.map(agg => (
+                            <SelectItem key={agg.value} value={agg.value}>
+                              {agg.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Filters */}
               <FilterConfig
-                formFields={formFields}
+                formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
                 filters={config.filters || []}
                 onFiltersChange={(filters) => setConfig({ ...config, filters })}
               />
               
+              {/* Drilldown */}
               <DrilldownConfig
-                formFields={formFields}
+                formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
                 enabled={config.drilldownConfig?.enabled || false}
                 onEnabledChange={(enabled) => setConfig({ 
                   ...config, 

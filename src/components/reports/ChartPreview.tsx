@@ -486,25 +486,57 @@ export function ChartPreview({ config, onEdit }: ChartPreviewProps) {
 
   return (
     <div className="space-y-4 relative group h-full">
-      {onEdit && (
-        <Button
-          size="sm"
-          variant="outline"
-          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-          onClick={onEdit}
-        >
-          <Edit className="h-4 w-4" />
-        </Button>
-      )}
-      {config.title && (
-        <div>
-          <h3 className="text-lg font-semibold">{config.title}</h3>
-          {config.description && (
-            <p className="text-sm text-muted-foreground">{config.description}</p>
+      {/* Chart Header with Controls */}
+      <div className="flex items-center justify-between">
+        {config.title && (
+          <div>
+            <h3 className="text-lg font-semibold">{config.title}</h3>
+            {config.description && (
+              <p className="text-sm text-muted-foreground">{config.description}</p>
+            )}
+          </div>
+        )}
+        
+        {/* Chart Controls */}
+        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onEdit && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-2"
+              onClick={onEdit}
+            >
+              <Edit className="h-3 w-3 mr-1" />
+              Edit
+            </Button>
+          )}
+          
+          {config.filters && config.filters.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-2"
+              onClick={() => {/* TODO: Open filter panel */}}
+            >
+              Filter ({config.filters.length})
+            </Button>
+          )}
+          
+          {config.drilldownConfig?.enabled && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-2"
+              onClick={() => {/* TODO: Open drilldown panel */}}
+            >
+              Drilldown
+            </Button>
           )}
         </div>
-      )}
-      <div className="h-64">
+      </div>
+
+      {/* Chart Container */}
+      <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           {renderChart()}
         </ResponsiveContainer>
