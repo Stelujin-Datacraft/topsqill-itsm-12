@@ -18,7 +18,9 @@ import {
   Hash, 
   Type,
   FileText,
-  Shield
+  Shield,
+  Move,
+  MousePointer
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingScreen } from '@/components/LoadingScreen';
@@ -42,6 +44,7 @@ export function ReportEditor({ reportId, reportName, onSave }: ReportEditorProps
   const [loading, setLoading] = useState(true);
   const [selectedComponent, setSelectedComponent] = useState<ReportComponent | null>(null);
   const [isPropertiesPaneOpen, setIsPropertiesPaneOpen] = useState(false);
+  const [isDragEnabled, setIsDragEnabled] = useState(true);
   const navigate = useNavigate();
 
   const { 
@@ -221,14 +224,27 @@ export function ReportEditor({ reportId, reportName, onSave }: ReportEditorProps
     }
   };
 
-  const handleComponentClick = (component: ReportComponent) => {
-    setSelectedComponent(component);
-    setIsPropertiesPaneOpen(true);
+  const handleComponentClick = (component: ReportComponent, event: React.MouseEvent) => {
+    // Only allow component selection when dragging is disabled
+    if (!isDragEnabled) {
+      event.stopPropagation();
+      setSelectedComponent(component);
+      setIsPropertiesPaneOpen(true);
+    }
   };
 
   const handlePropertiesPaneClose = () => {
     setIsPropertiesPaneOpen(false);
     setSelectedComponent(null);
+  };
+
+  const toggleDragMode = () => {
+    setIsDragEnabled(!isDragEnabled);
+    // Close properties pane when switching to drag mode
+    if (!isDragEnabled) {
+      setIsPropertiesPaneOpen(false);
+      setSelectedComponent(null);
+    }
   };
 
   const handleComponentRename = async (componentId: string, newName: string) => {
@@ -374,6 +390,25 @@ export function ReportEditor({ reportId, reportName, onSave }: ReportEditorProps
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">{reportName}</h2>
         <div className="flex gap-2">
+          {/* Drag Mode Toggle */}
+          <Button 
+            variant={isDragEnabled ? "default" : "outline"}
+            onClick={toggleDragMode}
+            className="flex items-center gap-2"
+          >
+            {isDragEnabled ? (
+              <>
+                <Move className="h-4 w-4" />
+                Drag Mode
+              </>
+            ) : (
+              <>
+                <MousePointer className="h-4 w-4" />
+                Select Mode
+              </>
+            )}
+          </Button>
+          
           <Button variant="outline" onClick={() => handleAddComponent('chart')}>
             <BarChart3 className="h-4 w-4 mr-2" />
             Add Chart
@@ -405,6 +440,16 @@ export function ReportEditor({ reportId, reportName, onSave }: ReportEditorProps
         </div>
       </div>
 
+      {/* Mode Indicator */}
+      {!isDragEnabled && (
+        <div className="bg-blue-100 dark:bg-blue-900 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-4">
+          <p className="text-sm text-blue-800 dark:text-blue-200 flex items-center gap-2">
+            <MousePointer className="h-4 w-4" />
+            <span><strong>Select Mode:</strong> Click on charts to open properties panel. Switch to Drag Mode to rearrange components.</span>
+          </p>
+        </div>
+      )}
+
       {/* Grid Layout */}
       <div className={`transition-all duration-300 ${isPropertiesPaneOpen ? 'mr-80' : 'mr-0'}`}>
         {components.length > 0 ? (
@@ -414,19 +459,21 @@ export function ReportEditor({ reportId, reportName, onSave }: ReportEditorProps
             breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
             cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
             rowHeight={60}
-            isDraggable={true}
-            isResizable={true}
-            onLayoutChange={handleLayoutChange}
+            isDraggable={isDragEnabled}
+            isResizable={isDragEnabled}
+            onLayoutChange={isDragEnabled ? handleLayoutChange : undefined}
           >
             {components.map(component => (
               <div key={component.id} className="relative group">
                 <Card 
-                  className={`h-full overflow-hidden cursor-pointer transition-all ${
+                  className={`h-full overflow-hidden transition-all ${
+                    !isDragEnabled ? 'cursor-pointer' : 'cursor-move'
+                  } ${
                     selectedComponent?.id === component.id 
                       ? 'ring-2 ring-primary shadow-lg' 
-                      : 'hover:shadow-md'
+                      : !isDragEnabled ? 'hover:shadow-md hover:ring-1 hover:ring-muted-foreground/20' : ''
                   }`}
-                  onClick={() => handleComponentClick(component)}
+                  onClick={(e) => handleComponentClick(component, e)}
                 >
                   <CardContent className="p-4 h-full relative">
                     {renderComponent(component)}
