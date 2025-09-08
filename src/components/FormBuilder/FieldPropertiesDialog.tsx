@@ -688,10 +688,10 @@ export function FieldPropertiesDialog({
                       <Label htmlFor="number-min">Minimum Value</Label>
                       <Input id="number-min" type="number" value={localConfig.validation?.min || ''} onChange={e => updateValidation('min', e.target.value ? Number(e.target.value) : undefined)} />
                     </div>
-                    <div className="space-y-2">
+                    {/* <div className="space-y-2">
                       <Label htmlFor="number-max">Maximum Value</Label>
                       <Input id="number-max" type="number" value={localConfig.validation?.max || ''} onChange={e => updateValidation('max', e.target.value ? Number(e.target.value) : undefined)} />
-                    </div>
+                    </div> */}
                     <div className="space-y-2">
                       <Label htmlFor="number-step">Step</Label>
                       <Input id="number-step" type="number" step="0.01" value={localConfig.customConfig?.step || 1} onChange={e => updateCustomConfig('step', Number(e.target.value))} />

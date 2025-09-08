@@ -38,7 +38,7 @@ export function NumberFieldConfig({ config, onUpdate, errors }: NumberFieldConfi
           />
         </div>
 
-        <div>
+        {/* <div>
           <Label htmlFor="max">Maximum Value</Label>
           <Input
             id="max"
@@ -46,7 +46,17 @@ export function NumberFieldConfig({ config, onUpdate, errors }: NumberFieldConfi
             value={config.validation?.max ?? ''}
             onChange={(e) => updateValidation('max', e.target.value ? Number(e.target.value) : undefined)}
           />
-        </div>
+        </div> */}
+          <div>
+        <Label htmlFor="maxLength">Maximum Value</Label>
+        <Input
+          id="maxLength"
+          type="number"
+          value={config.validation?.maxLength ?? ''}
+          onChange={(e) => updateValidation('maxLength', e.target.value ? Number(e.target.value) : undefined)}
+          min={1}
+        />
+      </div>
 
         <div>
           <Label htmlFor="step">Step</Label>
@@ -59,7 +69,7 @@ export function NumberFieldConfig({ config, onUpdate, errors }: NumberFieldConfi
           />
         </div>
       </div>
-
+{/* 
       <div>
         <Label htmlFor="maxLength">Maximum Digits</Label>
         <Input
@@ -69,7 +79,7 @@ export function NumberFieldConfig({ config, onUpdate, errors }: NumberFieldConfi
           onChange={(e) => updateValidation('maxLength', e.target.value ? Number(e.target.value) : undefined)}
           min={1}
         />
-      </div>
+      </div> */}
 
       <div className="flex items-center space-x-2">
         <Checkbox

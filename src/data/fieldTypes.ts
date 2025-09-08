@@ -296,14 +296,14 @@ export const fieldTypes: FieldTypeConfig[] = [
     isFullWidth: false,
     isHidden: true,
   },
-  {
-    type: 'approval',
-    label: 'Approval / Signature Field',
-    icon: FileCheck,
-    description: 'Checkbox or digital sign-off control',
-    category: 'full-width',
-    isFullWidth: true,
-  },
+  // {
+  //   type: 'approval',
+  //   label: 'Approval / Signature Field',
+  //   icon: FileCheck,
+  //   description: 'Checkbox or digital sign-off control',
+  //   category: 'full-width',
+  //   isFullWidth: true,
+  // },
   {
     type: 'submission-access',
     label: 'Submission Access Control',
