@@ -114,7 +114,7 @@ export function SubmissionAccessFieldConfig({ config, onUpdate, errors }: Submis
               } 
             })}
           />
-          <Label htmlFor="allowMultiple">Allow multiple user selection</Label>
+          <Label htmlFor="allowMultiple">Allow multiple user/group selection</Label>
         </div>
 
         <div className="flex items-center space-x-2">
