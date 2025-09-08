@@ -264,10 +264,18 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
   const handleFieldHighlight = (fieldId: string) => {
     setHighlightedFieldId(fieldId);
     
-    // Auto-clear highlight after 3 seconds
+    // Scroll to the field
+    setTimeout(() => {
+      const fieldElement = document.getElementById(`field-${fieldId}`);
+      if (fieldElement) {
+        fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+    
+    // Auto-clear highlight after 5 seconds
     setTimeout(() => {
       setHighlightedFieldId(null);
-    }, 3000);
+    }, 5000);
   };
 
   // Enhanced field rendering logic for proper layout handling

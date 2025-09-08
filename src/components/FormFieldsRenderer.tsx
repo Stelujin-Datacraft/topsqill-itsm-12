@@ -839,7 +839,7 @@ case 'textarea':
             id={`field-${field.id}`}
             className={`space-y-2 transition-all duration-300 ${
               highlightedFieldId === field.id 
-                ? 'ring-2 ring-gray-300/50 ring-offset-2 bg-gray-50/30 rounded-lg p-2' 
+                ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-950/20 dark:ring-blue-400 rounded-lg p-3 animate-pulse' 
                 : ''
             }`}
           >
