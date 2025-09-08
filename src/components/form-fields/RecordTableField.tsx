@@ -66,12 +66,12 @@ export function RecordTableField({ field, value = [], onChange, disabled = false
     }
   }, [targetFormId]);
 
-  // Load records only on initial mount
+  // Load records when targetFormId changes or search term changes
   useEffect(() => {
     if (targetFormId && displayColumns.length > 0) {
       loadRecords();
     }
-  }, [targetFormId]); // Only depend on targetFormId, not other changing values
+  }, [targetFormId, searchTerm]); // React to search term changes
 
   const loadTargetFormFields = async () => {
     if (!targetFormId) return;
@@ -204,6 +204,37 @@ export function RecordTableField({ field, value = [], onChange, disabled = false
     return targetField?.label || columnId;
   };
 
+  const handleViewRecord = (record: FormRecord) => {
+    console.log('Viewing record:', record);
+    // TODO: Implement view functionality - could open a modal or navigate to detail page
+  };
+
+  const handleEditRecord = (record: FormRecord) => {
+    console.log('Editing record:', record);
+    // TODO: Implement edit functionality - could open a form modal or navigate to edit page
+  };
+
+  const handleDeleteRecord = async (record: FormRecord) => {
+    if (!confirm('Are you sure you want to delete this record?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('form_submissions')
+        .delete()
+        .eq('id', record.id);
+      
+      if (error) {
+        console.error('Error deleting record:', error);
+        return;
+      }
+      
+      // Reload records after deletion
+      loadRecords();
+    } catch (error) {
+      console.error('Exception deleting record:', error);
+    }
+  };
+
   const formatCellValue = (value: any, columnId: string) => {
     if (value === null || value === undefined) return '-';
 
@@ -323,13 +354,40 @@ export function RecordTableField({ field, value = [], onChange, disabled = false
                       ))}
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleViewRecord(record);
+                            }}
+                            title="View Record"
+                          >
                             <Eye className="h-3 w-3" />
                           </Button>
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleEditRecord(record);
+                            }}
+                            title="Edit Record"
+                          >
                             <Edit className="h-3 w-3" />
                           </Button>
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDeleteRecord(record);
+                            }}
+                            title="Delete Record"
+                          >
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>

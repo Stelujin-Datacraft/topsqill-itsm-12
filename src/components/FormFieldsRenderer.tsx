@@ -368,11 +368,13 @@ export function FormFieldsRenderer({
           const format = dateConfig.format || 'default';
           
           switch (format) {
-            case 'MM/DD/YYYY': return date.toLocaleDateString('en-US');
-            case 'DD/MM/YYYY': return date.toLocaleDateString('en-GB');
-            case 'YYYY-MM-DD': return date.toISOString().split('T')[0];
-            case 'DD MMM YYYY': return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-            case 'MMM DD, YYYY': return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+            case 'MM/dd/yyyy': return date.toLocaleDateString('en-US');
+            case 'dd/MM/yyyy': return date.toLocaleDateString('en-GB');
+            case 'yyyy-MM-dd': return date.toISOString().split('T')[0];
+            case 'dd MMM yyyy': return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            case 'MMM dd, yyyy': return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+            case 'ISO': return date.toISOString().split('T')[0];
+            case 'Long Date': return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             default: return date.toLocaleDateString();
           }
         };

@@ -20,12 +20,21 @@ export function NumberInputField({ field, value, onChange, error, disabled = fal
   const precision = field.customConfig?.precision || 0;
   const readOnly = field.customConfig?.readOnly || false;
 
+  const maxLength = field.validation?.maxLength;
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = parseFloat(e.target.value);
+    const inputValue = e.target.value;
+    
+    // Check max length restriction
+    if (maxLength && inputValue.replace(/[^0-9]/g, '').length > maxLength) {
+      return; // Prevent input beyond max length
+    }
+    
+    const newValue = parseFloat(inputValue);
     if (!isNaN(newValue)) {
       const rounded = precision > 0 ? parseFloat(newValue.toFixed(precision)) : newValue;
       onChange(rounded);
-    } else if (e.target.value === '') {
+    } else if (inputValue === '') {
       onChange(0);
     }
   };

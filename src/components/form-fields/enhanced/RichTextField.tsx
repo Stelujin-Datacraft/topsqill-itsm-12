@@ -35,25 +35,47 @@ export function RichTextField({ field, value = '', onChange, error, disabled }: 
     const selectedText = content.substring(start, end);
     
     let replacement = '';
+    let newCursorPos = start;
+    
     switch (tag) {
       case 'bold':
-        replacement = `**${selectedText}**`;
+        replacement = `<strong>${selectedText}</strong>`;
+        newCursorPos = start + (selectedText ? replacement.length : 8); // Position after <strong>
         break;
       case 'italic':
-        replacement = `*${selectedText}*`;
+        replacement = `<em>${selectedText}</em>`;
+        newCursorPos = start + (selectedText ? replacement.length : 4); // Position after <em>
         break;
       case 'underline':
         replacement = `<u>${selectedText}</u>`;
+        newCursorPos = start + (selectedText ? replacement.length : 3); // Position after <u>
         break;
       case 'list':
-        replacement = `\n- ${selectedText}`;
+        replacement = `<ul><li>${selectedText}</li></ul>`;
+        newCursorPos = start + (selectedText ? replacement.length : 8); // Position after <ul><li>
+        break;
+      case 'link':
+        const url = selectedText || 'https://';
+        replacement = `<a href="${url}">${selectedText || 'Link text'}</a>`;
+        newCursorPos = start + replacement.length;
+        break;
+      case 'image':
+        replacement = `<img src="${selectedText || 'image-url'}" alt="Image" />`;
+        newCursorPos = start + replacement.length;
         break;
       default:
         replacement = selectedText;
+        newCursorPos = end;
     }
 
     const newContent = content.substring(0, start) + replacement + content.substring(end);
     handleContentChange(newContent);
+    
+    // Set cursor position after insertion
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
   };
 
   const toolbarButtons = [
