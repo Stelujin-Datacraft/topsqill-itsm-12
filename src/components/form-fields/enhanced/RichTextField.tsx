@@ -37,32 +37,16 @@ export function RichTextField({ field, value = '', onChange, error, disabled }: 
     let replacement = '';
     switch (tag) {
       case 'bold':
-        replacement = `<strong>${selectedText}</strong>`;
+        replacement = `**${selectedText}**`;
         break;
       case 'italic':
-        replacement = `<em>${selectedText}</em>`;
+        replacement = `*${selectedText}*`;
         break;
       case 'underline':
         replacement = `<u>${selectedText}</u>`;
         break;
       case 'list':
-        replacement = selectedText ? `<ul><li>${selectedText}</li></ul>` : `<ul><li></li></ul>`;
-        break;
-      case 'link':
-        const url = prompt('Enter URL:');
-        if (url) {
-          replacement = `<a href="${url}">${selectedText || url}</a>`;
-        } else {
-          replacement = selectedText;
-        }
-        break;
-      case 'image':
-        const imgUrl = prompt('Enter image URL:');
-        if (imgUrl) {
-          replacement = `<img src="${imgUrl}" alt="${selectedText || 'Image'}" />`;
-        } else {
-          replacement = selectedText;
-        }
+        replacement = `\n- ${selectedText}`;
         break;
       default:
         replacement = selectedText;
@@ -70,13 +54,6 @@ export function RichTextField({ field, value = '', onChange, error, disabled }: 
 
     const newContent = content.substring(0, start) + replacement + content.substring(end);
     handleContentChange(newContent);
-    
-    // Update cursor position
-    setTimeout(() => {
-      textarea.selectionStart = start + replacement.length;
-      textarea.selectionEnd = start + replacement.length;
-      textarea.focus();
-    }, 0);
   };
 
   const toolbarButtons = [

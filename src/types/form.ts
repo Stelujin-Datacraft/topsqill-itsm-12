@@ -153,7 +153,6 @@ export interface FormField {
     step?: number;
     unit?: string;
     precision?: number;
-    maxDigits?: number;
     
     // Text specific
     autoTrim?: boolean;

@@ -61,12 +61,12 @@ export function NumberFieldConfig({ config, onUpdate, errors }: NumberFieldConfi
       </div>
 
       <div>
-        <Label htmlFor="maxDigits">Maximum Digits</Label>
+        <Label htmlFor="maxLength">Maximum Digits</Label>
         <Input
-          id="maxDigits"
+          id="maxLength"
           type="number"
-          value={config.customConfig?.maxDigits ?? ''}
-          onChange={(e) => updateCustomConfig('maxDigits', e.target.value ? Number(e.target.value) : undefined)}
+          value={config.validation?.maxLength ?? ''}
+          onChange={(e) => updateValidation('maxLength', e.target.value ? Number(e.target.value) : undefined)}
           min={1}
         />
       </div>

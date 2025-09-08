@@ -21,19 +21,11 @@ export function NumberInputField({ field, value, onChange, error, disabled = fal
   const readOnly = field.customConfig?.readOnly || false;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value;
-    const maxDigits = field.customConfig?.maxDigits;
-    
-    // Check max digits restriction
-    if (maxDigits && inputValue.length > maxDigits) {
-      return; // Prevent input beyond max digits
-    }
-    
-    const newValue = parseFloat(inputValue);
+    const newValue = parseFloat(e.target.value);
     if (!isNaN(newValue)) {
       const rounded = precision > 0 ? parseFloat(newValue.toFixed(precision)) : newValue;
       onChange(rounded);
-    } else if (inputValue === '') {
+    } else if (e.target.value === '') {
       onChange(0);
     }
   };
