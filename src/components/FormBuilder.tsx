@@ -444,28 +444,34 @@ function FormBuilderContent({
                 {/* Left Panel - Navigation (Fixed) */}
                 <div className={`${state.isNavigationCollapsed ? 'col-span-1' : 'col-span-3'} border-r bg-muted/30 overflow-hidden flex flex-col transition-all duration-200`}>
                   <div className="flex-shrink-0">
-                    <FormNavigationPanel pages={pages} fields={workingForm?.fields || []} currentPageId={state.currentPageId} selectedField={state.selectedField} onPageChange={state.setCurrentPageId} onFieldSelect={field => {
-                    // Navigate to field's page and highlight it
-                    const fieldPage = pages.find(page => page.fields.includes(field.id) || field.pageId === page.id);
-                    if (fieldPage && fieldPage.id !== state.currentPageId) {
-                      state.setCurrentPageId(fieldPage.id);
-                    }
-                    state.setHighlightedFieldId(field.id);
-                    // Clear highlight after 5 seconds
-                    setTimeout(() => {
-                      state.setHighlightedFieldId(null);
-                    }, 5000);
-                    // Scroll to field after a short delay
-                    setTimeout(() => {
-                      const fieldElement = document.querySelector(`[data-field-id="${field.id}"]`);
-                      if (fieldElement) {
-                        fieldElement.scrollIntoView({
-                          behavior: 'smooth',
-                          block: 'center'
-                        });
-                      }
-                    }, 100);
-                  }} onFieldHighlight={state.setHighlightedFieldId} onToggleNavigation={() => state.setIsNavigationCollapsed(!state.isNavigationCollapsed)} isCollapsed={state.isNavigationCollapsed} />
+                     <FormNavigationPanel pages={pages} fields={workingForm?.fields || []} currentPageId={state.currentPageId} selectedField={state.selectedField} onPageChange={state.setCurrentPageId} onFieldSelect={field => {
+                     // Navigate to field's page and highlight it
+                     const fieldPage = pages.find(page => page.fields.includes(field.id) || field.pageId === page.id);
+                     if (fieldPage && fieldPage.id !== state.currentPageId) {
+                       state.setCurrentPageId(fieldPage.id);
+                     }
+                     state.setHighlightedFieldId(field.id);
+                     // Clear highlight after 5 seconds
+                     setTimeout(() => {
+                       state.setHighlightedFieldId(null);
+                     }, 5000);
+                     // Scroll to field after a short delay
+                     setTimeout(() => {
+                       const fieldElement = document.querySelector(`[data-field-id="${field.id}"]`);
+                       if (fieldElement) {
+                         fieldElement.scrollIntoView({
+                           behavior: 'smooth',
+                           block: 'center'
+                         });
+                       }
+                     }, 100);
+                   }} onFieldHighlight={(fieldId: string) => {
+                     state.setHighlightedFieldId(fieldId);
+                     // Clear highlight after 5 seconds
+                     setTimeout(() => {
+                       state.setHighlightedFieldId(null);
+                     }, 5000);
+                   }} onToggleNavigation={() => state.setIsNavigationCollapsed(!state.isNavigationCollapsed)} isCollapsed={state.isNavigationCollapsed} />
                   </div>
                 </div>
 
