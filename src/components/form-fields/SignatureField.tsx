@@ -47,7 +47,20 @@ export function SignatureField({ field, value, onChange, error, disabled }: Sign
         ctx.drawImage(img, 0, 0);
         setHasSignature(true);
       };
-      img.src = value;
+      
+      // Handle both timestamp and non-timestamp formats
+      let imageData = value;
+      try {
+        const parsed = JSON.parse(value);
+        if (parsed.signature) {
+          imageData = parsed.signature;
+        }
+      } catch {
+        // If it's not JSON, treat as direct image data
+        imageData = value;
+      }
+      
+      img.src = imageData;
     }
   }, [canvasWidth, canvasHeight, penColor, value]);
 
@@ -108,7 +121,10 @@ export function SignatureField({ field, value, onChange, error, disabled }: Sign
       finalValue = JSON.stringify({ signature: dataURL, timestamp });
     }
 
-    onChange(finalValue);
+    // Only call onChange if the value actually changed
+    if (finalValue !== value) {
+      onChange(finalValue);
+    }
   };
 
   const clearSignature = () => {

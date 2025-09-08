@@ -45,6 +45,8 @@ import { CurrencyField } from './form-fields/CurrencyField';
 import { CountryField } from './form-fields/CountryField';
 import { PhoneField } from './form-fields/PhoneField';
 import { SubmissionAccessField } from './form-fields/SubmissionAccessField';
+import { SelectFieldWithSearch } from './form-fields/SelectFieldWithSearch';
+import { RadioFieldWithSearch } from './form-fields/RadioFieldWithSearch';
 
 interface FormFieldsRendererProps {
   fields: FormField[];
@@ -533,6 +535,18 @@ case 'textarea':
   );
 
       case 'number':
+        const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+          const value = e.target.value;
+          const maxLength = field.validation?.maxLength;
+          
+          // Restrict input to maxLength if specified
+          if (maxLength && value.length > maxLength) {
+            return; // Don't allow typing beyond max length
+          }
+          
+          onFieldChange(field.id, value);
+        };
+        
         return (
           <div className="space-y-2">
             <div className="flex items-center">
@@ -546,12 +560,19 @@ case 'textarea':
               id={field.id}
               type="number"
               value={formData[field.id] || ''}
-              onChange={(e) => onFieldChange(field.id, e.target.value)}
+              onChange={handleNumberChange}
               placeholder={field.placeholder}
               disabled={!fieldState.isEnabled}
               min={field.validation?.min}
               max={field.validation?.max}
+              step={field.customConfig?.step || 1}
             />
+            {/* Max length warning */}
+            {field.validation?.maxLength && (formData[field.id]?.toString().length || 0) >= field.validation.maxLength && (
+              <p className="text-sm text-red-500">
+                Maximum length is {field.validation.maxLength} digits
+              </p>
+            )}
             {/* Min/Max validation warnings */}
             {field.validation?.min !== undefined && formData[field.id] && Number(formData[field.id]) < field.validation.min && (
               <p className="text-sm text-red-500">
@@ -571,6 +592,23 @@ case 'textarea':
         
       case 'select':
         const selectedOption = field.options?.find(opt => opt.value === formData[field.id]);
+        const selectConfig = field.customConfig || {};
+        const isSearchable = selectConfig.searchable;
+        
+        if (isSearchable) {
+          return (
+            <SelectFieldWithSearch
+              field={field}
+              value={formData[field.id] || ''}
+              onChange={(value) => onFieldChange(field.id, value)}
+              error={errors[field.id]}
+              disabled={!fieldState.isEnabled}
+              required={isRequired}
+              fieldState={fieldState}
+            />
+          );
+        }
+        
         return (
           <div className="space-y-2">
             <div className="flex items-center">
@@ -624,6 +662,22 @@ case 'textarea':
       case 'radio':
         const radioConfig = field.customConfig || {};
         const radioOrientation = radioConfig.orientation || 'vertical';
+        const isRadioSearchable = radioConfig.searchable;
+        
+        if (isRadioSearchable) {
+          return (
+            <RadioFieldWithSearch
+              field={field}
+              value={formData[field.id] || ''}
+              onChange={(value) => onFieldChange(field.id, value)}
+              error={errors[field.id]}
+              disabled={!fieldState.isEnabled}
+              required={isRequired}
+              fieldState={fieldState}
+            />
+          );
+        }
+        
         const hasScrollbar = field.options && field.options.length > 7;
         return (
           <div className="space-y-2">
