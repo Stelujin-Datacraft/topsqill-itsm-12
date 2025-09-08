@@ -66,12 +66,12 @@ export function RecordTableField({ field, value = [], onChange, disabled = false
     }
   }, [targetFormId]);
 
-  // Load records only on initial mount
+  // Load records when targetFormId changes or search changes
   useEffect(() => {
     if (targetFormId && displayColumns.length > 0) {
       loadRecords();
     }
-  }, [targetFormId]); // Only depend on targetFormId, not other changing values
+  }, [targetFormId, searchTerm]); // Include searchTerm to trigger reload on search
 
   const loadTargetFormFields = async () => {
     if (!targetFormId) return;
@@ -323,13 +323,48 @@ export function RecordTableField({ field, value = [], onChange, disabled = false
                       ))}
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            type="button"
+                            variant="ghost" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              // Handle view record
+                              console.log('View record:', record.id);
+                            }}
+                            title="View Record"
+                          >
                             <Eye className="h-3 w-3" />
                           </Button>
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            type="button"
+                            variant="ghost" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              // Handle edit record
+                              console.log('Edit record:', record.id);
+                            }}
+                            title="Edit Record"
+                          >
                             <Edit className="h-3 w-3" />
                           </Button>
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            type="button"
+                            variant="ghost" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              // Handle delete record
+                              if (confirm('Are you sure you want to delete this record?')) {
+                                console.log('Delete record:', record.id);
+                              }
+                            }}
+                            title="Delete Record"
+                          >
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>

@@ -365,14 +365,17 @@ export function FormFieldsRenderer({
         const getFormattedDateDisplay = (value: string) => {
           if (!value) return '';
           const date = new Date(value);
-          const format = dateConfig.format || 'default';
+          const format = dateConfig.format || 'MM/dd/yyyy';
           
           switch (format) {
-            case 'MM/DD/YYYY': return date.toLocaleDateString('en-US');
-            case 'DD/MM/YYYY': return date.toLocaleDateString('en-GB');
-            case 'YYYY-MM-DD': return date.toISOString().split('T')[0];
-            case 'DD MMM YYYY': return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-            case 'MMM DD, YYYY': return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+            case 'MM/dd/yyyy': return date.toLocaleDateString('en-US');
+            case 'dd/MM/yyyy': return date.toLocaleDateString('en-GB');
+            case 'yyyy-MM-dd': return date.toISOString().split('T')[0];
+            case 'MMM dd, yyyy': return date.toLocaleDateString('en-US', { 
+              month: 'short', 
+              day: '2-digit', 
+              year: 'numeric' 
+            });
             default: return date.toLocaleDateString();
           }
         };
@@ -397,7 +400,7 @@ export function FormFieldsRenderer({
               max={dateConfig.maxDate}
             />
             {/* Show formatted preview if different from input format */}
-            {dateValue && dateConfig.format && dateConfig.format !== 'YYYY-MM-DD' && (
+            {dateValue && dateConfig.format && dateConfig.format !== 'yyyy-MM-dd' && (
               <p className="text-xs text-muted-foreground">
                 Preview: {getFormattedDateDisplay(dateValue)}
               </p>
