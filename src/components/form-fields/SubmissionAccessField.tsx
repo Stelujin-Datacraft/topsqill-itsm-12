@@ -25,7 +25,7 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const { users, loading: usersLoading } = useOrganizationUsers();
-  const { groups, loading: groupsLoading } = useGroups();
+  const { groups, loading: groupsLoading, error: groupsError } = useGroups();
 
   const config = field.customConfig || {};
   const allowMultiple = config.allowMultiple || false;
@@ -288,6 +288,10 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
               {(usersLoading || groupsLoading) ? (
                 <div className="p-4 text-center text-sm text-gray-500">
                   Loading...
+                </div>
+              ) : groupsError ? (
+                <div className="p-4 text-center text-sm text-red-500">
+                  Error loading groups: {groupsError}
                 </div>
               ) : (filteredUsers.length === 0 && filteredGroups.length === 0) ? (
                 <div className="p-4 text-center text-sm text-gray-500">

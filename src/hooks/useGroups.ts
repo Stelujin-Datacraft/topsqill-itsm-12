@@ -30,14 +30,20 @@ export interface CreateGroupData {
 
 export function useGroups() {
   const [groups, setGroups] = useState<Group[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { currentOrganization } = useOrganization();
 
   const fetchGroups = async () => {
-    if (!currentOrganization?.id) return;
+    if (!currentOrganization?.id) {
+      setGroups([]);
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
+      setError(null);
       
       // Fetch groups with role information
       const { data: groupsData, error } = await supabase
@@ -54,22 +60,33 @@ export function useGroups() {
       // Get member counts for each group
       const enrichedGroups = await Promise.all(
         (groupsData || []).map(async (group) => {
-          const { count } = await supabase
-            .from('group_memberships')
-            .select('*', { count: 'exact', head: true })
-            .eq('group_id', group.id);
+          try {
+            const { count } = await supabase
+              .from('group_memberships')
+              .select('*', { count: 'exact', head: true })
+              .eq('group_id', group.id);
 
-          return {
-            ...group,
-            role_name: group.roles?.name,
-            member_count: count || 0
-          };
+            return {
+              ...group,
+              role_name: group.roles?.name,
+              member_count: count || 0
+            };
+          } catch (memberError) {
+            console.error('Error fetching member count for group:', group.id, memberError);
+            return {
+              ...group,
+              role_name: group.roles?.name,
+              member_count: 0
+            };
+          }
         })
       );
 
       setGroups(enrichedGroups);
     } catch (error) {
       console.error('Error fetching groups:', error);
+      setError('Failed to load groups');
+      setGroups([]);
     } finally {
       setLoading(false);
     }
@@ -218,6 +235,7 @@ export function useGroups() {
   return {
     groups,
     loading,
+    error,
     createGroup,
     updateGroup,
     deleteGroup,
