@@ -451,10 +451,10 @@ function FormBuilderContent({
                       state.setCurrentPageId(fieldPage.id);
                     }
                     state.setHighlightedFieldId(field.id);
-                    // Clear highlight after 2 seconds
+                    // Clear highlight after 5 seconds
                     setTimeout(() => {
                       state.setHighlightedFieldId(null);
-                    }, 2000);
+                    }, 5000);
                     // Scroll to field after a short delay
                     setTimeout(() => {
                       const fieldElement = document.querySelector(`[data-field-id="${field.id}"]`);

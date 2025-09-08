@@ -275,10 +275,10 @@ export function FormViewLayoutRenderer({
       });
     }
     
-    // Auto-clear highlight after 3 seconds
+    // Auto-clear highlight after 5 seconds
     setTimeout(() => {
       setHighlightedFieldId(null);
-    }, 3000);
+    }, 5000);
   };
 
   // Enhanced field rendering logic for proper layout handling - EXACT COPY from FormPreview

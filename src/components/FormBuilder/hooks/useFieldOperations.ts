@@ -188,7 +188,7 @@ export function useFieldOperations(
     setHighlightedFieldId(fieldId);
     setTimeout(() => {
       setHighlightedFieldId(null);
-    }, 3000);
+    }, 5000);
   };
 
   const handleDragEnd = async (result: any) => {
