@@ -55,6 +55,7 @@ export function DynamicTable({
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [complexFilters, setComplexFilters] = useState<FilterGroup[]>([]);
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+  const [hasUserInteractedWithColumns, setHasUserInteractedWithColumns] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -120,8 +121,8 @@ export function DynamicTable({
 
   // All useMemo hooks
   const displayFields = useMemo(() => {
-    // If user has manually selected columns, use only those
-    if (selectedColumns.length > 0) {
+    // If user has interacted with column selection, strictly respect their choices
+    if (hasUserInteractedWithColumns) {
       return formFields.filter(field => selectedColumns.includes(field.id));
     }
     
@@ -132,7 +133,7 @@ export function DynamicTable({
     
     // Default fallback: show all available fields
     return formFields;
-  }, [formFields, selectedColumns, config.selectedColumns]);
+  }, [formFields, selectedColumns, config.selectedColumns, hasUserInteractedWithColumns]);
   const filteredAndSortedData = useMemo(() => {
     console.log('🔍 Filtering data - Input count:', data.length);
     console.log('🔍 Search term:', searchTerm);
@@ -519,6 +520,7 @@ export function DynamicTable({
     }));
   };
   const handleColumnToggle = (fieldId: string) => {
+    setHasUserInteractedWithColumns(true);
     setSelectedColumns(prev => {
       if (prev.includes(fieldId)) {
         return prev.filter(id => id !== fieldId);
