@@ -120,11 +120,18 @@ export function DynamicTable({
 
   // All useMemo hooks
   const displayFields = useMemo(() => {
-    const columnsToShow = selectedColumns.length > 0 ? selectedColumns : config.selectedColumns && config.selectedColumns.length > 0 ? config.selectedColumns : formFields.map(f => f.id);
+    // If user has manually selected columns, use only those
+    if (selectedColumns.length > 0) {
+      return formFields.filter(field => selectedColumns.includes(field.id));
+    }
     
-    // Since unwanted fields are already filtered out at the query level,
-    // we only need to filter by selected columns
-    return formFields.filter(field => columnsToShow.includes(field.id));
+    // If config has selected columns, use those
+    if (config.selectedColumns && config.selectedColumns.length > 0) {
+      return formFields.filter(field => config.selectedColumns.includes(field.id));
+    }
+    
+    // Default fallback: show all available fields
+    return formFields;
   }, [formFields, selectedColumns, config.selectedColumns]);
   const filteredAndSortedData = useMemo(() => {
     console.log('🔍 Filtering data - Input count:', data.length);

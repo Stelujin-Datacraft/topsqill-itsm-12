@@ -568,7 +568,11 @@ export function FieldPropertiesDialog({
               {loadingFieldData && <span className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
                   Loading field data...
                 </span>}
-              {fieldDataError}
+              {fieldDataError && !selectedField.id && (
+                <span className="text-sm text-red-600 bg-red-50 px-2 py-1 rounded">
+                  {fieldDataError}
+                </span>
+              )}
               <Button onClick={handleSave} disabled={isSaving || loadingFieldData} className="ml-4">
                 {isSaving ? 'Saving...' : 'Save Configuration'}
               </Button>
