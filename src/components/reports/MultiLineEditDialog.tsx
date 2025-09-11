@@ -33,7 +33,7 @@ export function MultiLineEditDialog({
 
   // Initialize edit data when dialog opens - each submission gets its own data
   useEffect(() => {
-    if (isOpen && submissions.length > 0) {
+    if (isOpen && Array.isArray(submissions) && submissions.length > 0) {
       const initialData: Record<string, Record<string, any>> = {};
       
       submissions.forEach(submission => {
@@ -57,6 +57,10 @@ export function MultiLineEditDialog({
   const handleSave = async () => {
     setSaving(true);
     try {
+      if (!Array.isArray(submissions)) {
+        throw new Error('Invalid submissions data');
+      }
+      
       const updates = submissions.map(submission => ({
         id: submission.id,
         submission_data: editData[submission.id]
@@ -212,17 +216,17 @@ export function MultiLineEditDialog({
               <div className="bg-muted/50 p-3 rounded-lg">
                 <div className="grid grid-cols-12 gap-2 text-xs font-medium text-muted-foreground">
                   <div className="col-span-2">Record ID</div>
-                  {formFields.slice(0, 10).map(field => (
+                  {Array.isArray(formFields) ? formFields.slice(0, 10).map(field => (
                     <div key={field.id} className="col-span-1 truncate">
                       {field.label}
                     </div>
-                  ))}
+                  )) : null}
                 </div>
               </div>
 
               {/* Records for editing */}
               <div className="space-y-3">
-                {submissions.map((submission, submissionIndex) => (
+                {Array.isArray(submissions) ? submissions.map((submission, submissionIndex) => (
                   <div key={submission.id} className="border rounded-lg p-3">
                     <div className="grid grid-cols-12 gap-2 items-start">
                       {/* Record ID */}
@@ -233,7 +237,7 @@ export function MultiLineEditDialog({
                       </div>
                       
                       {/* Field inputs */}
-                      {formFields.slice(0, 10).map(field => (
+                      {Array.isArray(formFields) ? formFields.slice(0, 10).map(field => (
                         <div key={field.id} className="col-span-1">
                           {renderFieldInput(
                             field, 
@@ -241,11 +245,11 @@ export function MultiLineEditDialog({
                             submission.id
                           )}
                         </div>
-                      ))}
+                      )) : null}
                     </div>
                     
                     {/* Show remaining fields if more than 10 */}
-                    {formFields.length > 10 && (
+                    {Array.isArray(formFields) && formFields.length > 10 && (
                       <div className="mt-3 pt-3 border-t grid grid-cols-12 gap-2 items-start">
                         <div className="col-span-2 text-xs text-muted-foreground">
                           More fields:
@@ -265,7 +269,7 @@ export function MultiLineEditDialog({
                       </div>
                     )}
                   </div>
-                ))}
+                )) : null}
               </div>
             </div>
           </ScrollArea>
@@ -273,7 +277,7 @@ export function MultiLineEditDialog({
 
         <div className="flex justify-between items-center pt-4 border-t">
           <div className="text-sm text-muted-foreground">
-            Editing {submissions.length} record{submissions.length !== 1 ? 's' : ''} with {formFields.length} field{formFields.length !== 1 ? 's' : ''}
+            Editing {Array.isArray(submissions) ? submissions.length : 0} record{(Array.isArray(submissions) ? submissions.length : 0) !== 1 ? 's' : ''} with {Array.isArray(formFields) ? formFields.length : 0} field{(Array.isArray(formFields) ? formFields.length : 0) !== 1 ? 's' : ''}
           </div>
           
           <div className="flex gap-2">
@@ -290,7 +294,7 @@ export function MultiLineEditDialog({
               className="gap-2"
             >
               <Save className="h-4 w-4" />
-              {saving ? 'Saving...' : `Update ${submissions.length} Records`}
+              {saving ? 'Saving...' : `Update ${Array.isArray(submissions) ? submissions.length : 0} Records`}
             </Button>
           </div>
         </div>

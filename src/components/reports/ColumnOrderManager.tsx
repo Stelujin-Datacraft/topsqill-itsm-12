@@ -26,11 +26,14 @@ export function ColumnOrderManager({
   useEffect(() => {
     if (isOpen) {
       // Initialize with current selectedColumns order, maintaining the current table sequence
-      if (selectedColumns && selectedColumns.length > 0) {
+      if (Array.isArray(selectedColumns) && selectedColumns.length > 0) {
         setColumnOrder(selectedColumns);
-      } else {
+      } else if (Array.isArray(formFields) && formFields.length > 0) {
         // Fallback to all formFields if no selectedColumns
         setColumnOrder(formFields.map(f => f.id));
+      } else {
+        // Initialize with empty array if no data available
+        setColumnOrder([]);
       }
     }
   }, [isOpen, selectedColumns, formFields]);
@@ -70,11 +73,13 @@ export function ColumnOrderManager({
   };
 
   const getFieldLabel = (fieldId: string) => {
+    if (!Array.isArray(formFields)) return fieldId;
     const field = formFields.find(f => f.id === fieldId);
     return field?.label || fieldId;
   };
 
   const getFieldType = (fieldId: string) => {
+    if (!Array.isArray(formFields)) return 'text';
     const field = formFields.find(f => f.id === fieldId);
     return field?.field_type || 'text';
   };
@@ -109,7 +114,7 @@ export function ColumnOrderManager({
                       ref={provided.innerRef}
                       className="space-y-2 max-h-[50vh] overflow-y-auto pr-2"
                     >
-                      {columnOrder.map((fieldId, index) => (
+                      {Array.isArray(columnOrder) ? columnOrder.map((fieldId, index) => (
                         <Draggable
                           key={fieldId}
                           draggableId={fieldId}
@@ -169,7 +174,7 @@ export function ColumnOrderManager({
                             </Card>
                           )}
                         </Draggable>
-                      ))}
+                      )) : null}
                       {provided.placeholder}
                     </div>
                   )}
