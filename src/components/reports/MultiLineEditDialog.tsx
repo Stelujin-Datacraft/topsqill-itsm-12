@@ -107,7 +107,7 @@ export function MultiLineEditDialog({
             value={value || ''}
             onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
             placeholder={`Enter ${field.label}`}
-            className="text-sm min-w-[120px] max-w-[120px] overflow-x-auto"
+            className="text-sm w-full"
           />
         );
       
@@ -119,7 +119,7 @@ export function MultiLineEditDialog({
             onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
             placeholder={`Enter ${field.label}`}
             rows={2}
-            className="text-sm min-w-[120px] max-w-[120px] overflow-x-auto resize-none"
+            className="text-sm w-full resize-none"
           />
         );
       
@@ -130,7 +130,7 @@ export function MultiLineEditDialog({
             value={value || ''}
             onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
             placeholder={`Enter ${field.label}`}
-            className="text-sm min-w-[120px] max-w-[120px] overflow-x-auto"
+            className="text-sm w-full"
           />
         );
       
@@ -141,7 +141,7 @@ export function MultiLineEditDialog({
             value={value || ''}
             onValueChange={(newValue) => handleFieldValueChange(submissionId, field.id, newValue)}
           >
-            <SelectTrigger className="text-sm min-w-[120px] max-w-[120px]">
+            <SelectTrigger className="text-sm w-full">
               <SelectValue placeholder={`Select ${field.label}`} />
             </SelectTrigger>
             <SelectContent>
@@ -190,7 +190,7 @@ export function MultiLineEditDialog({
             value={value || ''}
             onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
             placeholder={`Enter ${field.label}`}
-            className="text-sm min-w-[120px] max-w-[120px] overflow-x-auto"
+            className="text-sm w-full"
           />
         );
     }

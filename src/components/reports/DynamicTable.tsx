@@ -934,7 +934,7 @@ export function DynamicTable({
 
       <BulkDeleteDialog isOpen={showBulkDelete} onOpenChange={setShowBulkDelete} submissionIds={Array.from(selectedRows)} onDelete={handleBulkDeleteComplete} />
 
-      <ColumnOrderManager isOpen={showColumnOrderManager} onOpenChange={setShowColumnOrderManager} formFields={formFields} selectedColumns={formFields.map(f => f.id)} onColumnOrderChange={handleColumnOrderChange} />
+      <ColumnOrderManager isOpen={showColumnOrderManager} onOpenChange={setShowColumnOrderManager} formFields={formFields} selectedColumns={columnOrder.length > 0 ? columnOrder : formFields.map(f => f.id)} onColumnOrderChange={handleColumnOrderChange} />
 
       <CrossReferenceDialog 
         open={showCrossReferenceDialog} 
