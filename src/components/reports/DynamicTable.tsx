@@ -29,6 +29,7 @@ import { BulkActionsBar } from './BulkActionsBar';
 import { BulkDeleteDialog } from './BulkDeleteDialog';
 import { CrossReferenceDialog } from './CrossReferenceDialog';
 import { ColumnOrderManager } from './ColumnOrderManager';
+import { CopyRecordsDialog } from './CopyRecordsDialog';
 import { ImportButton } from '@/components/ImportButton';
 interface TableConfig {
   title: string;
@@ -75,6 +76,7 @@ export function DynamicTable({
   const [showColumnOrderManager, setShowColumnOrderManager] = useState(false);
   const [canDeleteSubmissions, setCanDeleteSubmissions] = useState(false);
   const [showCrossReferenceDialog, setShowCrossReferenceDialog] = useState(false);
+  const [showCopyRecords, setShowCopyRecords] = useState(false);
   const [crossReferenceData, setCrossReferenceData] = useState<string[]>([]);
   const [crossReferenceFieldName, setCrossReferenceFieldName] = useState<string>('Cross Reference');
   const [highlightedSubmissionRef, setHighlightedSubmissionRef] = useState<string | null>(null);
@@ -398,6 +400,53 @@ export function DynamicTable({
     if (selectedSubmissions.length > 0) {
       setEditingSubmission(selectedSubmissions);
       setShowMultiLineEdit(true);
+    }
+  };
+
+  const handleCopyRecords = () => {
+    if (selectedRows.size > 0) {
+      setShowCopyRecords(true);
+    }
+  };
+
+  const handleCopySubmissions = async (numberOfCopies: number) => {
+    const selectedSubmissions = paginatedData.filter(row => selectedRows.has(row.id));
+    
+    try {
+      for (const submission of selectedSubmissions) {
+        for (let i = 0; i < numberOfCopies; i++) {
+          const { id, created_at, updated_at, submitted_at, submission_ref_id, ...submissionData } = submission;
+          
+          const { error } = await supabase
+            .from('form_submissions')
+            .insert({
+              form_id: submission.form_id,
+              submission_data: submission.submission_data,
+              submitted_by: submission.submitted_by,
+              ip_address: submission.ip_address,
+              user_agent: submission.user_agent,
+              approval_status: submission.approval_status,
+              approval_notes: submission.approval_notes,
+              approved_by: submission.approved_by,
+              approval_timestamp: submission.approval_timestamp
+            });
+
+          if (error) {
+            console.error('Error copying submission:', error);
+            throw error;
+          }
+        }
+      }
+
+      // Refresh data after successful copy
+      await loadData();
+      
+      // Clear selection
+      setSelectedRows(new Set());
+      
+    } catch (error) {
+      console.error('Error during copy operation:', error);
+      throw error;
     }
   };
   const handleBulkDelete = () => {
@@ -925,7 +974,7 @@ export function DynamicTable({
        </Card>
 
       {/* Bulk Actions Bar */}
-      {selectedRows.size > 0 && <BulkActionsBar selectedCount={selectedRows.size} onBulkEdit={handleBulkEdit} onMultiLineEdit={handleMultiLineEdit} onBulkDelete={handleBulkDelete} onClearSelection={handleClearSelection} canDelete={canDeleteSubmissions} />}
+      {selectedRows.size > 0 && <BulkActionsBar selectedCount={selectedRows.size} onBulkEdit={handleBulkEdit} onMultiLineEdit={handleMultiLineEdit} onCopyRecords={handleCopyRecords} onBulkDelete={handleBulkDelete} onClearSelection={handleClearSelection} canDelete={canDeleteSubmissions} />}
 
       {/* Dialogs */}
       <InlineEditDialog isOpen={showInlineEdit} onOpenChange={setShowInlineEdit} submissions={editingSubmission ? Array.isArray(editingSubmission) ? editingSubmission : [editingSubmission] : []} formFields={formFields || []} onSave={handleInlineEditSave} />
@@ -936,7 +985,14 @@ export function DynamicTable({
 
       <ColumnOrderManager isOpen={showColumnOrderManager} onOpenChange={setShowColumnOrderManager} formFields={formFields} selectedColumns={columnOrder.length > 0 ? columnOrder : formFields.map(f => f.id)} onColumnOrderChange={handleColumnOrderChange} />
 
-      <CrossReferenceDialog 
+      <CopyRecordsDialog 
+        isOpen={showCopyRecords} 
+        onOpenChange={setShowCopyRecords} 
+        selectedCount={selectedRows.size} 
+        onCopy={handleCopySubmissions} 
+      />
+
+      <CrossReferenceDialog
         open={showCrossReferenceDialog} 
         onOpenChange={setShowCrossReferenceDialog} 
         submissionIds={crossReferenceData || []} 
