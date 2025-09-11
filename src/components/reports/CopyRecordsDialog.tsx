@@ -9,12 +9,25 @@ interface CopyRecordsDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   selectedCount: number;
+  selectedRecords: any[];
   onCopy: (numberOfCopies: number) => Promise<void>;
 }
 
-export function CopyRecordsDialog({ isOpen, onOpenChange, selectedCount, onCopy }: CopyRecordsDialogProps) {
+export function CopyRecordsDialog({ isOpen, onOpenChange, selectedCount, selectedRecords, onCopy }: CopyRecordsDialogProps) {
   const [numberOfCopies, setNumberOfCopies] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === '') {
+      setNumberOfCopies(1);
+    } else {
+      const numValue = parseInt(value);
+      if (!isNaN(numValue) && numValue >= 1 && numValue <= 100) {
+        setNumberOfCopies(numValue);
+      }
+    }
+  };
 
   const handleCopy = async () => {
     if (numberOfCopies < 1 || numberOfCopies > 100) return;
@@ -47,6 +60,21 @@ export function CopyRecordsDialog({ isOpen, onOpenChange, selectedCount, onCopy 
           <div className="text-sm text-muted-foreground">
             You have selected <strong>{selectedCount}</strong> record{selectedCount > 1 ? 's' : ''} to copy.
           </div>
+
+          {selectedRecords.length > 0 && (
+            <div className="space-y-2">
+              <Label>Selected Records:</Label>
+              <div className="max-h-32 overflow-y-auto bg-muted/30 rounded-md p-2">
+                <div className="space-y-1">
+                  {selectedRecords.map((record, index) => (
+                    <div key={record.id} className="text-xs font-mono">
+                      #{record.submission_ref_id || record.id.slice(0, 8)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
           
           <div className="space-y-2">
             <Label htmlFor="copies">Number of copies per record</Label>
@@ -54,7 +82,7 @@ export function CopyRecordsDialog({ isOpen, onOpenChange, selectedCount, onCopy 
               id="copies"
               type="number"
               value={numberOfCopies}
-              onChange={(e) => setNumberOfCopies(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+              onChange={handleInputChange}
               min="1"
               max="100"
               className="w-full"
