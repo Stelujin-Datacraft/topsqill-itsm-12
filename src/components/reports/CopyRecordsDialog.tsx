@@ -14,29 +14,44 @@ interface CopyRecordsDialogProps {
 }
 
 export function CopyRecordsDialog({ isOpen, onOpenChange, selectedCount, selectedRecords, onCopy }: CopyRecordsDialogProps) {
-  const [numberOfCopies, setNumberOfCopies] = useState(1);
+  const [numberOfCopies, setNumberOfCopies] = useState('1');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
+    
+    // Allow empty input for better UX
     if (value === '') {
-      setNumberOfCopies(1);
-    } else {
-      const numValue = parseInt(value);
-      if (!isNaN(numValue) && numValue >= 1 && numValue <= 100) {
-        setNumberOfCopies(numValue);
+      setNumberOfCopies('');
+      return;
+    }
+    
+    // Allow digits only, remove any non-digit characters
+    const digitsOnly = value.replace(/\D/g, '');
+    
+    // Limit to 3 digits max (100 is max)
+    if (digitsOnly.length <= 3) {
+      const numValue = parseInt(digitsOnly);
+      if (numValue <= 100) {
+        setNumberOfCopies(digitsOnly);
       }
     }
   };
 
+  const getNumberOfCopies = () => {
+    const num = parseInt(numberOfCopies);
+    return isNaN(num) || num < 1 ? 1 : num;
+  };
+
   const handleCopy = async () => {
-    if (numberOfCopies < 1 || numberOfCopies > 100) return;
+    const finalNumberOfCopies = getNumberOfCopies();
+    if (finalNumberOfCopies < 1 || finalNumberOfCopies > 100) return;
     
     setIsLoading(true);
     try {
-      await onCopy(numberOfCopies);
+      await onCopy(finalNumberOfCopies);
       onOpenChange(false);
-      setNumberOfCopies(1);
+      setNumberOfCopies('1');
     } catch (error) {
       console.error('Error copying records:', error);
     } finally {
@@ -44,7 +59,7 @@ export function CopyRecordsDialog({ isOpen, onOpenChange, selectedCount, selecte
     }
   };
 
-  const totalNewRecords = selectedCount * numberOfCopies;
+  const totalNewRecords = selectedCount * getNumberOfCopies();
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -80,13 +95,15 @@ export function CopyRecordsDialog({ isOpen, onOpenChange, selectedCount, selecte
             <Label htmlFor="copies">Number of copies per record</Label>
             <Input
               id="copies"
-              type="number"
+              type="text"
               value={numberOfCopies}
               onChange={handleInputChange}
-              min="1"
-              max="100"
+              placeholder="1"
               className="w-full"
             />
+            <div className="text-xs text-muted-foreground">
+              Enter a number between 1 and 100
+            </div>
           </div>
           
           <div className="p-3 bg-muted rounded-lg">
@@ -109,7 +126,7 @@ export function CopyRecordsDialog({ isOpen, onOpenChange, selectedCount, selecte
           </Button>
           <Button
             onClick={handleCopy}
-            disabled={isLoading || numberOfCopies < 1}
+            disabled={isLoading || getNumberOfCopies() < 1}
           >
             {isLoading ? 'Copying...' : `Create ${totalNewRecords} Cop${totalNewRecords > 1 ? 'ies' : 'y'}`}
           </Button>
