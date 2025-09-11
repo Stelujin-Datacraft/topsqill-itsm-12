@@ -1,12 +1,13 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Edit3, Trash2, X } from 'lucide-react';
+import { Edit3, Trash2, X, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface BulkActionsBarProps {
   selectedCount: number;
   onBulkEdit: () => void;
+  onMultiLineEdit: () => void;
   onBulkDelete: () => void;
   onClearSelection: () => void;
   canDelete: boolean;
@@ -15,6 +16,7 @@ interface BulkActionsBarProps {
 export function BulkActionsBar({ 
   selectedCount, 
   onBulkEdit, 
+  onMultiLineEdit,
   onBulkDelete, 
   onClearSelection,
   canDelete 
@@ -37,6 +39,16 @@ export function BulkActionsBar({
           >
             <Edit3 className="h-4 w-4" />
             Bulk Edit
+          </Button>
+
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onMultiLineEdit}
+            className="flex items-center gap-2"
+          >
+            <Users className="h-4 w-4" />
+            Multi-Line Edit
           </Button>
           
           {canDelete && (

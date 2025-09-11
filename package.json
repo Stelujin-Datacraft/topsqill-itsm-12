@@ -50,6 +50,7 @@
     "@tiptap/react": "^2.25.0",
     "@tiptap/starter-kit": "^2.25.0",
     "@types/papaparse": "^5.3.16",
+    "@types/react-beautiful-dnd": "^13.1.8",
     "@uiw/react-codemirror": "^4.24.1",
     "@xyflow/react": "^12.6.4",
     "axios": "^1.11.0",

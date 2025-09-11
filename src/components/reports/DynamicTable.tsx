@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3, FileText, User, Calendar, CheckCircle, ExternalLink } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3, FileText, User, Calendar, CheckCircle, ExternalLink, Move } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useReports } from '@/hooks/useReports';
@@ -24,9 +24,11 @@ import { SortingControls, SortConfig } from './SortingControls';
 import { ComplexFilter, FilterGroup } from '@/components/ui/complex-filter';
 import { SavedFiltersManager } from './SavedFiltersManager';
 import { InlineEditDialog } from './InlineEditDialog';
+import { MultiLineEditDialog } from './MultiLineEditDialog';
 import { BulkActionsBar } from './BulkActionsBar';
 import { BulkDeleteDialog } from './BulkDeleteDialog';
 import { CrossReferenceDialog } from './CrossReferenceDialog';
+import { ColumnOrderManager } from './ColumnOrderManager';
 import { ImportButton } from '@/components/ImportButton';
 interface TableConfig {
   title: string;
@@ -54,7 +56,9 @@ export function DynamicTable({
   const [sortConfigs, setSortConfigs] = useState<SortConfig[]>([]);
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [complexFilters, setComplexFilters] = useState<FilterGroup[]>([]);
+  const [appliedFilters, setAppliedFilters] = useState<FilterGroup[]>([]);
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+  const [columnOrder, setColumnOrder] = useState<string[]>([]);
   const [hasUserInteractedWithColumns, setHasUserInteractedWithColumns] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
@@ -66,7 +70,9 @@ export function DynamicTable({
   const [showInlineEdit, setShowInlineEdit] = useState(false);
   const [editingSubmission, setEditingSubmission] = useState<any>(null);
   const [showBulkEdit, setShowBulkEdit] = useState(false);
+  const [showMultiLineEdit, setShowMultiLineEdit] = useState(false);
   const [showBulkDelete, setShowBulkDelete] = useState(false);
+  const [showColumnOrderManager, setShowColumnOrderManager] = useState(false);
   const [canDeleteSubmissions, setCanDeleteSubmissions] = useState(false);
   const [showCrossReferenceDialog, setShowCrossReferenceDialog] = useState(false);
   const [crossReferenceData, setCrossReferenceData] = useState<string[]>([]);
@@ -121,24 +127,48 @@ export function DynamicTable({
 
   // All useMemo hooks
   const displayFields = useMemo(() => {
+    let fields = [];
+    
     // If user has interacted with column selection, strictly respect their choices
     if (hasUserInteractedWithColumns) {
-      return formFields.filter(field => selectedColumns.includes(field.id));
+      fields = formFields.filter(field => selectedColumns.includes(field.id));
+    } else if (config.selectedColumns && config.selectedColumns.length > 0) {
+      // Use config selected columns if provided
+      fields = formFields.filter(field => config.selectedColumns.includes(field.id));
+    } else {
+      // Default fallback: show all available fields
+      fields = formFields;
     }
     
-    // If config has selected columns, use those
-    if (config.selectedColumns && config.selectedColumns.length > 0) {
-      return formFields.filter(field => config.selectedColumns.includes(field.id));
+    // Apply column ordering if specified
+    if (columnOrder.length > 0) {
+      const orderedFields = [];
+      
+      // Add fields in the specified order
+      columnOrder.forEach(fieldId => {
+        const field = fields.find(f => f.id === fieldId);
+        if (field) {
+          orderedFields.push(field);
+        }
+      });
+      
+      // Add any remaining fields that weren't in the order
+      fields.forEach(field => {
+        if (!columnOrder.includes(field.id)) {
+          orderedFields.push(field);
+        }
+      });
+      
+      return orderedFields;
     }
     
-    // Default fallback: show all available fields
-    return formFields;
-  }, [formFields, selectedColumns, config.selectedColumns, hasUserInteractedWithColumns]);
+    return fields;
+  }, [formFields, selectedColumns, config.selectedColumns, hasUserInteractedWithColumns, columnOrder]);
   const filteredAndSortedData = useMemo(() => {
     console.log('🔍 Filtering data - Input count:', data.length);
     console.log('🔍 Search term:', searchTerm);
     console.log('🔍 Column filters:', columnFilters);
-    console.log('🔍 Complex filters:', complexFilters);
+    console.log('🔍 Applied filters:', appliedFilters);
     
     let filtered = data;
 
@@ -181,12 +211,12 @@ export function DynamicTable({
       });
     }
 
-    // Apply complex filters
-    if (complexFilters.length > 0) {
-      console.log('🔍 Applying complex filters:', complexFilters.length);
+    // Apply complex filters using appliedFilters
+    if (appliedFilters.length > 0) {
+      console.log('🔍 Applying complex filters:', appliedFilters.length);
       const beforeComplexFilter = filtered.length;
       filtered = filtered.filter(row => {
-        return complexFilters.some(group => {
+        return appliedFilters.some(group => {
           if (group.conditions.length === 0) return true;
           if (group.logic === 'AND') {
             return group.conditions.every(condition => evaluateCondition(row, condition));
@@ -213,7 +243,7 @@ export function DynamicTable({
 
     console.log('✅ Final filtered count:', filtered.length);
     return filtered;
-  }, [data, searchTerm, columnFilters, complexFilters, sortConfigs, displayFields, config, evaluateCondition]);
+  }, [data, searchTerm, columnFilters, appliedFilters, sortConfigs, displayFields, config, evaluateCondition]);
   const paginatedData = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
@@ -360,6 +390,14 @@ export function DynamicTable({
     if (selectedSubmissions.length > 0) {
       setEditingSubmission(selectedSubmissions);
       setShowInlineEdit(true);
+    }
+  };
+
+  const handleMultiLineEdit = () => {
+    const selectedSubmissions = paginatedData.filter(row => selectedRows.has(row.id));
+    if (selectedSubmissions.length > 0) {
+      setEditingSubmission(selectedSubmissions);
+      setShowMultiLineEdit(true);
     }
   };
   const handleBulkDelete = () => {
@@ -529,6 +567,19 @@ export function DynamicTable({
       }
     });
   };
+
+  const handleApplyFilters = () => {
+    setAppliedFilters([...complexFilters]);
+  };
+
+  const handleClearFilters = () => {
+    setComplexFilters([]);
+    setAppliedFilters([]);
+  };
+
+  const handleColumnOrderChange = (newOrder: string[]) => {
+    setColumnOrder(newOrder);
+  };
   if (loading) {
     return <Card className="h-full">
         <CardContent className="flex items-center justify-center h-48">
@@ -582,7 +633,7 @@ export function DynamicTable({
           </div>
 
           {/* Applied Filters */}
-          {(Object.keys(columnFilters).length > 0 || complexFilters.length > 0) && <div className="flex flex-wrap gap-1 mb-2">
+          {(Object.keys(columnFilters).length > 0 || appliedFilters.length > 0) && <div className="flex flex-wrap gap-1 mb-2">
               {Object.entries(columnFilters).map(([fieldId, value]) => {
             if (!value) return null;
             const field = displayFields.find(f => f.id === fieldId);
@@ -593,9 +644,9 @@ export function DynamicTable({
                     </button>
                   </Badge>;
           })}
-              {complexFilters.map((group, index) => <Badge key={`complex-${index}`} variant="secondary" className="text-xs h-5">
-                  Complex Filter {index + 1}
-                  <button className="ml-1" onClick={() => setComplexFilters(prev => prev.filter((_, i) => i !== index))}>
+              {appliedFilters.map((group, index) => <Badge key={`complex-${index}`} variant="secondary" className="text-xs h-5">
+                  Applied Filter {index + 1}
+                  <button className="ml-1" onClick={() => setAppliedFilters(prev => prev.filter((_, i) => i !== index))}>
                     ×
                   </button>
                 </Badge>)}
@@ -605,13 +656,46 @@ export function DynamicTable({
           <div className="flex items-center justify-between gap-2">
             {/* Left Side Controls */}
             <div className="flex items-center gap-3 flex-wrap">
-              <SavedFiltersManager formId={config.formId} onApplyFilter={setComplexFilters} currentFilters={complexFilters} />
+              <SavedFiltersManager formId={config.formId} onApplyFilter={setAppliedFilters} currentFilters={appliedFilters} />
               
               <DynamicTableColumnSelector formFields={formFields} selectedColumns={selectedColumns} onColumnToggle={handleColumnToggle} />
 
-              {config.enableFiltering && <ComplexFilter filters={complexFilters} onFiltersChange={setComplexFilters} availableFields={availableFields} formId={config.formId} />}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowColumnOrderManager(true)}
+                disabled={selectedColumns.length === 0}
+                className="gap-2"
+              >
+                <Move className="h-4 w-4" />
+                Reorder
+              </Button>
 
-
+              {config.enableFiltering && (
+                <div className="flex items-center gap-2">
+                  <ComplexFilter filters={complexFilters} onFiltersChange={setComplexFilters} availableFields={availableFields} formId={config.formId} />
+                  {complexFilters.length > 0 && (
+                    <div className="flex gap-1">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={handleApplyFilters}
+                        className="gap-2"
+                      >
+                        Apply Filters
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleClearFilters}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        Clear All
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
            
             </div>
 
@@ -745,10 +829,20 @@ export function DynamicTable({
                   {paginatedData.length === 0 ? <TableRow>
                       <TableCell colSpan={displayFields.length + 6} className="text-center py-8">
                         <div className="text-muted-foreground">
-                          {data.length === 0 ? 'No data available' : 'No records match your filters'}
+                          {data.length === 0 ? (
+                            <div className="space-y-2">
+                              <div>No data available</div>
+                              <div className="text-sm">No submissions have been made for this form yet.</div>
+                            </div>
+                          ) : filteredAndSortedData.length === 0 ? (
+                            <div className="space-y-2">
+                              <div>No records match your filters</div>
+                              <div className="text-sm">Try adjusting your filter criteria or clearing all filters.</div>
+                            </div>
+                          ) : 'No records found'}
                         </div>
                       </TableCell>
-                    </TableRow> : paginatedData.map(row => <TableRow 
+                    </TableRow> : paginatedData.map(row => <TableRow
                       key={row.id} 
                       data-submission-ref={row.submission_ref_id}
                       className={`hover:bg-gray-50 border-b border-gray-200 ${
@@ -853,12 +947,16 @@ export function DynamicTable({
        </Card>
 
       {/* Bulk Actions Bar */}
-      {selectedRows.size > 0 && <BulkActionsBar selectedCount={selectedRows.size} onBulkEdit={handleBulkEdit} onBulkDelete={handleBulkDelete} onClearSelection={handleClearSelection} canDelete={canDeleteSubmissions} />}
+      {selectedRows.size > 0 && <BulkActionsBar selectedCount={selectedRows.size} onBulkEdit={handleBulkEdit} onMultiLineEdit={handleMultiLineEdit} onBulkDelete={handleBulkDelete} onClearSelection={handleClearSelection} canDelete={canDeleteSubmissions} />}
 
       {/* Dialogs */}
       <InlineEditDialog isOpen={showInlineEdit} onOpenChange={setShowInlineEdit} submissions={editingSubmission ? Array.isArray(editingSubmission) ? editingSubmission : [editingSubmission] : []} formFields={formFields || []} onSave={handleInlineEditSave} />
 
+      <MultiLineEditDialog isOpen={showMultiLineEdit} onOpenChange={setShowMultiLineEdit} submissions={editingSubmission ? Array.isArray(editingSubmission) ? editingSubmission : [editingSubmission] : []} formFields={formFields || []} onSave={handleInlineEditSave} />
+
       <BulkDeleteDialog isOpen={showBulkDelete} onOpenChange={setShowBulkDelete} submissionIds={Array.from(selectedRows)} onDelete={handleBulkDeleteComplete} />
+
+      <ColumnOrderManager isOpen={showColumnOrderManager} onOpenChange={setShowColumnOrderManager} formFields={formFields} selectedColumns={selectedColumns} onColumnOrderChange={handleColumnOrderChange} />
 
       <CrossReferenceDialog 
         open={showCrossReferenceDialog} 
