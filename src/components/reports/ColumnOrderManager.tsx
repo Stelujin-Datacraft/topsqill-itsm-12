@@ -27,7 +27,7 @@ export function ColumnOrderManager({
     if (isOpen) {
       // Initialize with current selectedColumns order, maintaining the current table sequence
       if (Array.isArray(selectedColumns) && selectedColumns.length > 0) {
-        setColumnOrder(selectedColumns);
+        setColumnOrder([...selectedColumns]); // Create a copy to avoid mutation
       } else if (Array.isArray(formFields) && formFields.length > 0) {
         // Fallback to all formFields if no selectedColumns
         setColumnOrder(formFields.map(f => f.id));
