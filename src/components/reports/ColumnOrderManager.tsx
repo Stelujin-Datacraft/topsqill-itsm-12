@@ -25,10 +25,15 @@ export function ColumnOrderManager({
 
   useEffect(() => {
     if (isOpen) {
-      // Initialize with all formFields in their original order
-      setColumnOrder(formFields.map(f => f.id));
+      // Initialize with current selectedColumns order, maintaining the current table sequence
+      if (selectedColumns && selectedColumns.length > 0) {
+        setColumnOrder(selectedColumns);
+      } else {
+        // Fallback to all formFields if no selectedColumns
+        setColumnOrder(formFields.map(f => f.id));
+      }
     }
-  }, [isOpen, formFields]);
+  }, [isOpen, selectedColumns, formFields]);
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;

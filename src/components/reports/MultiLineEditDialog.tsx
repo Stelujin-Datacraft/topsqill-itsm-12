@@ -27,81 +27,40 @@ export function MultiLineEditDialog({
   formFields,
   onSave
 }: MultiLineEditDialogProps) {
-  const [editData, setEditData] = useState<Record<string, any>>({});
-  const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set());
+  const [editData, setEditData] = useState<Record<string, Record<string, any>>>({});
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
-  // Initialize edit data when dialog opens
+  // Initialize edit data when dialog opens - each submission gets its own data
   useEffect(() => {
     if (isOpen && submissions.length > 0) {
-      const initialData: Record<string, any> = {};
+      const initialData: Record<string, Record<string, any>> = {};
       
-      // Find common values across all selected submissions
-      formFields.forEach(field => {
-        const values = submissions.map(sub => sub.submission_data?.[field.id]).filter(val => val !== undefined && val !== null && val !== '');
-        
-        // If all submissions have the same value for this field, use it as default
-        if (values.length > 0) {
-          const uniqueValues = [...new Set(values)];
-          if (uniqueValues.length === 1) {
-            initialData[field.id] = uniqueValues[0];
-          } else {
-            // Different values across submissions, show empty but indicate multiple values
-            initialData[field.id] = '';
-          }
-        } else {
-          initialData[field.id] = '';
-        }
+      submissions.forEach(submission => {
+        initialData[submission.id] = { ...submission.submission_data };
       });
       
       setEditData(initialData);
-      setSelectedFields(new Set());
     }
-  }, [isOpen, submissions, formFields]);
+  }, [isOpen, submissions]);
 
-  const handleFieldSelect = (fieldId: string, checked: boolean) => {
-    const newSelected = new Set(selectedFields);
-    if (checked) {
-      newSelected.add(fieldId);
-    } else {
-      newSelected.delete(fieldId);
-    }
-    setSelectedFields(newSelected);
-  };
-
-  const handleFieldValueChange = (fieldId: string, value: any) => {
+  const handleFieldValueChange = (submissionId: string, fieldId: string, value: any) => {
     setEditData(prev => ({
       ...prev,
-      [fieldId]: value
+      [submissionId]: {
+        ...prev[submissionId],
+        [fieldId]: value
+      }
     }));
   };
 
   const handleSave = async () => {
-    if (selectedFields.size === 0) {
-      toast({
-        title: "No Fields Selected",
-        description: "Please select at least one field to edit.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setSaving(true);
     try {
-      const updates = submissions.map(submission => {
-        const updatedData = { ...submission.submission_data };
-        
-        // Only update the selected fields
-        selectedFields.forEach(fieldId => {
-          updatedData[fieldId] = editData[fieldId];
-        });
-
-        return {
-          id: submission.id,
-          submission_data: updatedData
-        };
-      });
+      const updates = submissions.map(submission => ({
+        id: submission.id,
+        submission_data: editData[submission.id]
+      }));
 
       // Perform bulk update
       for (const update of updates) {
@@ -134,7 +93,7 @@ export function MultiLineEditDialog({
     }
   };
 
-  const renderFieldInput = (field: any, value: any) => {
+  const renderFieldInput = (field: any, value: any, submissionId: string) => {
     switch (field.field_type) {
       case 'text':
       case 'email':
@@ -142,8 +101,9 @@ export function MultiLineEditDialog({
         return (
           <Input
             value={value || ''}
-            onChange={(e) => handleFieldValueChange(field.id, e.target.value)}
+            onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
             placeholder={`Enter ${field.label}`}
+            className="text-sm"
           />
         );
       
@@ -152,9 +112,10 @@ export function MultiLineEditDialog({
         return (
           <Textarea
             value={value || ''}
-            onChange={(e) => handleFieldValueChange(field.id, e.target.value)}
+            onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
             placeholder={`Enter ${field.label}`}
-            rows={3}
+            rows={2}
+            className="text-sm"
           />
         );
       
@@ -163,8 +124,9 @@ export function MultiLineEditDialog({
           <Input
             type="number"
             value={value || ''}
-            onChange={(e) => handleFieldValueChange(field.id, e.target.value)}
+            onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
             placeholder={`Enter ${field.label}`}
+            className="text-sm"
           />
         );
       
@@ -173,9 +135,9 @@ export function MultiLineEditDialog({
         return (
           <Select
             value={value || ''}
-            onValueChange={(newValue) => handleFieldValueChange(field.id, newValue)}
+            onValueChange={(newValue) => handleFieldValueChange(submissionId, field.id, newValue)}
           >
-            <SelectTrigger>
+            <SelectTrigger className="text-sm">
               <SelectValue placeholder={`Select ${field.label}`} />
             </SelectTrigger>
             <SelectContent>
@@ -193,7 +155,7 @@ export function MultiLineEditDialog({
           <div className="flex items-center space-x-2">
             <Checkbox
               checked={value === true || value === 'true'}
-              onCheckedChange={(checked) => handleFieldValueChange(field.id, checked)}
+              onCheckedChange={(checked) => handleFieldValueChange(submissionId, field.id, checked)}
             />
             <label className="text-sm">{field.label}</label>
           </div>
@@ -206,10 +168,10 @@ export function MultiLineEditDialog({
               <div key={option.value} className="flex items-center space-x-2">
                 <input
                   type="radio"
-                  name={field.id}
+                  name={`${submissionId}-${field.id}`}
                   value={option.value}
                   checked={value === option.value}
-                  onChange={(e) => handleFieldValueChange(field.id, e.target.value)}
+                  onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
                   className="h-4 w-4"
                 />
                 <label className="text-sm">{option.label}</label>
@@ -222,8 +184,9 @@ export function MultiLineEditDialog({
         return (
           <Input
             value={value || ''}
-            onChange={(e) => handleFieldValueChange(field.id, e.target.value)}
+            onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
             placeholder={`Enter ${field.label}`}
+            className="text-sm"
           />
         );
     }
@@ -245,69 +208,60 @@ export function MultiLineEditDialog({
         <div className="flex-1 overflow-hidden">
           <ScrollArea className="h-full pr-4">
             <div className="space-y-4">
-              {/* Selected Records Info */}
-              <div className="bg-muted/50 p-4 rounded-lg">
-                <h4 className="font-medium mb-2">Selected Records:</h4>
-                <div className="flex flex-wrap gap-2">
-                  {submissions.slice(0, 10).map(submission => (
-                    <Badge key={submission.id} variant="outline">
-                      #{submission.submission_ref_id || submission.id.slice(0, 8)}
-                    </Badge>
+              {/* Header with field labels */}
+              <div className="bg-muted/50 p-3 rounded-lg">
+                <div className="grid grid-cols-12 gap-2 text-xs font-medium text-muted-foreground">
+                  <div className="col-span-2">Record ID</div>
+                  {formFields.slice(0, 10).map(field => (
+                    <div key={field.id} className="col-span-1 truncate">
+                      {field.label}
+                    </div>
                   ))}
-                  {submissions.length > 10 && (
-                    <Badge variant="secondary">
-                      +{submissions.length - 10} more
-                    </Badge>
-                  )}
                 </div>
               </div>
 
-              {/* Field Selection and Editing */}
-              <div className="space-y-6">
-                <h4 className="font-medium">Select Fields to Edit:</h4>
-                
-                {formFields.map(field => (
-                  <div key={field.id} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-center space-x-3">
-                      <Checkbox
-                        checked={selectedFields.has(field.id)}
-                        onCheckedChange={(checked) => handleFieldSelect(field.id, Boolean(checked))}
-                      />
-                      <Label className="font-medium">{field.label}</Label>
-                      <Badge variant="secondary" className="text-xs">
-                        {field.field_type}
-                      </Badge>
+              {/* Records for editing */}
+              <div className="space-y-3">
+                {submissions.map((submission, submissionIndex) => (
+                  <div key={submission.id} className="border rounded-lg p-3">
+                    <div className="grid grid-cols-12 gap-2 items-start">
+                      {/* Record ID */}
+                      <div className="col-span-2 flex items-center">
+                        <Badge variant="outline" className="text-xs">
+                          #{submission.submission_ref_id || submission.id.slice(0, 8)}
+                        </Badge>
+                      </div>
+                      
+                      {/* Field inputs */}
+                      {formFields.slice(0, 10).map(field => (
+                        <div key={field.id} className="col-span-1">
+                          {renderFieldInput(
+                            field, 
+                            editData[submission.id]?.[field.id], 
+                            submission.id
+                          )}
+                        </div>
+                      ))}
                     </div>
                     
-                     {selectedFields.has(field.id) && (
-                      <div className="pl-6 space-y-2">
-                        <Label className="text-sm text-muted-foreground mb-2 block">
-                          New value (will be applied to all {submissions.length} records):
-                        </Label>
-                        {renderFieldInput(field, editData[field.id])}
-                        
-                        {/* Show current values preview */}
-                        <div className="mt-2 p-2 bg-muted/50 rounded-md">
-                          <Label className="text-xs text-muted-foreground mb-1 block">Current values in selected records:</Label>
-                          <div className="space-y-1 max-h-20 overflow-y-auto">
-                            {submissions.slice(0, 5).map((submission, idx) => {
-                              const value = submission.submission_data?.[field.id];
-                              return (
-                                <div key={idx} className="text-xs flex items-center gap-2">
-                                  <Badge variant="outline" className="text-xs">
-                                    #{submission.submission_ref_id || submission.id.slice(0, 8)}
-                                  </Badge>
-                                  <span className="text-muted-foreground">
-                                    {value !== undefined && value !== null && value !== '' ? value : 'Empty'}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                            {submissions.length > 5 && (
-                              <div className="text-xs text-muted-foreground">... and {submissions.length - 5} more records</div>
+                    {/* Show remaining fields if more than 10 */}
+                    {formFields.length > 10 && (
+                      <div className="mt-3 pt-3 border-t grid grid-cols-12 gap-2 items-start">
+                        <div className="col-span-2 text-xs text-muted-foreground">
+                          More fields:
+                        </div>
+                        {formFields.slice(10).map(field => (
+                          <div key={field.id} className="col-span-2">
+                            <Label className="text-xs text-muted-foreground mb-1 block">
+                              {field.label}
+                            </Label>
+                            {renderFieldInput(
+                              field, 
+                              editData[submission.id]?.[field.id], 
+                              submission.id
                             )}
                           </div>
-                        </div>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -319,7 +273,7 @@ export function MultiLineEditDialog({
 
         <div className="flex justify-between items-center pt-4 border-t">
           <div className="text-sm text-muted-foreground">
-            {selectedFields.size} field{selectedFields.size !== 1 ? 's' : ''} selected
+            Editing {submissions.length} record{submissions.length !== 1 ? 's' : ''} with {formFields.length} field{formFields.length !== 1 ? 's' : ''}
           </div>
           
           <div className="flex gap-2">
@@ -332,7 +286,7 @@ export function MultiLineEditDialog({
             </Button>
             <Button
               onClick={handleSave}
-              disabled={saving || selectedFields.size === 0}
+              disabled={saving}
               className="gap-2"
             >
               <Save className="h-4 w-4" />
