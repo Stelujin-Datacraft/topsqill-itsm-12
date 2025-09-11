@@ -145,11 +145,11 @@ export function MultiLineEditDialog({
               <SelectValue placeholder={`Select ${field.label}`} />
             </SelectTrigger>
             <SelectContent>
-              {field.options?.map((option: any) => (
+              {Array.isArray(field.options) ? field.options.map((option: any) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
-              ))}
+              )) : null}
             </SelectContent>
           </Select>
         );
@@ -168,7 +168,7 @@ export function MultiLineEditDialog({
       case 'radio':
         return (
           <div className="space-y-2">
-            {field.options?.map((option: any) => (
+            {Array.isArray(field.options) ? field.options.map((option: any) => (
               <div key={option.value} className="flex items-center space-x-2">
                 <input
                   type="radio"
@@ -180,7 +180,7 @@ export function MultiLineEditDialog({
                 />
                 <label className="text-sm">{option.label}</label>
               </div>
-            ))}
+            )) : null}
           </div>
         );
       
