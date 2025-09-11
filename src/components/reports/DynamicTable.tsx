@@ -672,29 +672,7 @@ export function DynamicTable({
               </Button>
 
               {config.enableFiltering && (
-                <div className="flex items-center gap-2">
-                  <ComplexFilter filters={complexFilters} onFiltersChange={setComplexFilters} availableFields={availableFields} formId={config.formId} />
-                  {complexFilters.length > 0 && (
-                    <div className="flex gap-1">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={handleApplyFilters}
-                        className="gap-2"
-                      >
-                        Apply Filters
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleClearFilters}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        Clear All
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                <ComplexFilter filters={complexFilters} onFiltersChange={setComplexFilters} availableFields={availableFields} formId={config.formId} onApplyFilters={handleApplyFilters} onClearFilters={handleClearFilters} />
               )}
            
             </div>
@@ -956,7 +934,7 @@ export function DynamicTable({
 
       <BulkDeleteDialog isOpen={showBulkDelete} onOpenChange={setShowBulkDelete} submissionIds={Array.from(selectedRows)} onDelete={handleBulkDeleteComplete} />
 
-      <ColumnOrderManager isOpen={showColumnOrderManager} onOpenChange={setShowColumnOrderManager} formFields={formFields} selectedColumns={selectedColumns} onColumnOrderChange={handleColumnOrderChange} />
+      <ColumnOrderManager isOpen={showColumnOrderManager} onOpenChange={setShowColumnOrderManager} formFields={formFields} selectedColumns={formFields.map(f => f.id)} onColumnOrderChange={handleColumnOrderChange} />
 
       <CrossReferenceDialog 
         open={showCrossReferenceDialog} 

@@ -34,6 +34,8 @@ interface ComplexFilterProps {
   availableFields: Array<{ id: string; label: string; type: string }>;
   className?: string;
   formId?: string;
+  onApplyFilters?: () => void;
+  onClearFilters?: () => void;
 }
 
 const OPERATORS = [
@@ -51,7 +53,7 @@ const OPERATORS = [
   { value: 'is_not_empty', label: 'Is Not Empty', types: ['text', 'number'] },
 ];
 
-export function ComplexFilter({ filters, onFiltersChange, availableFields, className, formId }: ComplexFilterProps) {
+export function ComplexFilter({ filters, onFiltersChange, availableFields, className, formId, onApplyFilters, onClearFilters }: ComplexFilterProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const { saveFilter } = useSavedFilters(formId || '');
@@ -159,6 +161,9 @@ export function ComplexFilter({ filters, onFiltersChange, availableFields, class
 
   const clearAllFilters = () => {
     onFiltersChange([]);
+    if (onClearFilters) {
+      onClearFilters();
+    }
   };
 
   return (
@@ -365,7 +370,12 @@ export function ComplexFilter({ filters, onFiltersChange, availableFields, class
                   )}
                   <Button
                     size="sm"
-                    onClick={() => setIsOpen(false)}
+                    onClick={() => {
+                      if (onApplyFilters) {
+                        onApplyFilters();
+                      }
+                      setIsOpen(false);
+                    }}
                   >
                     Apply Filters
                   </Button>
@@ -376,16 +386,6 @@ export function ComplexFilter({ filters, onFiltersChange, availableFields, class
         </PopoverContent>
       </Popover>
       
-      {getActiveFilterCount() > 0 && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={clearAllFilters}
-          className="text-destructive hover:text-destructive"
-        >
-          Clear
-        </Button>
-      )}
       
       {formId && (
         <SaveFilterDialog

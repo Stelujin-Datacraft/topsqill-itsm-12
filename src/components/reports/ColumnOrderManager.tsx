@@ -25,10 +25,10 @@ export function ColumnOrderManager({
 
   useEffect(() => {
     if (isOpen) {
-      // Initialize with current selected columns order
-      setColumnOrder([...selectedColumns]);
+      // Initialize with all formFields in their original order
+      setColumnOrder(formFields.map(f => f.id));
     }
-  }, [isOpen, selectedColumns]);
+  }, [isOpen, formFields]);
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;

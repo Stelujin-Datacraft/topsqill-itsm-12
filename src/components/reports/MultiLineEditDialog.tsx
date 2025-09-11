@@ -37,9 +37,22 @@ export function MultiLineEditDialog({
     if (isOpen && submissions.length > 0) {
       const initialData: Record<string, any> = {};
       
-      // Initialize with empty values for all fields
+      // Find common values across all selected submissions
       formFields.forEach(field => {
-        initialData[field.id] = '';
+        const values = submissions.map(sub => sub.submission_data?.[field.id]).filter(val => val !== undefined && val !== null && val !== '');
+        
+        // If all submissions have the same value for this field, use it as default
+        if (values.length > 0) {
+          const uniqueValues = [...new Set(values)];
+          if (uniqueValues.length === 1) {
+            initialData[field.id] = uniqueValues[0];
+          } else {
+            // Different values across submissions, show empty but indicate multiple values
+            initialData[field.id] = '';
+          }
+        } else {
+          initialData[field.id] = '';
+        }
       });
       
       setEditData(initialData);
@@ -266,12 +279,35 @@ export function MultiLineEditDialog({
                       </Badge>
                     </div>
                     
-                    {selectedFields.has(field.id) && (
-                      <div className="pl-6">
+                     {selectedFields.has(field.id) && (
+                      <div className="pl-6 space-y-2">
                         <Label className="text-sm text-muted-foreground mb-2 block">
                           New value (will be applied to all {submissions.length} records):
                         </Label>
                         {renderFieldInput(field, editData[field.id])}
+                        
+                        {/* Show current values preview */}
+                        <div className="mt-2 p-2 bg-muted/50 rounded-md">
+                          <Label className="text-xs text-muted-foreground mb-1 block">Current values in selected records:</Label>
+                          <div className="space-y-1 max-h-20 overflow-y-auto">
+                            {submissions.slice(0, 5).map((submission, idx) => {
+                              const value = submission.submission_data?.[field.id];
+                              return (
+                                <div key={idx} className="text-xs flex items-center gap-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    #{submission.submission_ref_id || submission.id.slice(0, 8)}
+                                  </Badge>
+                                  <span className="text-muted-foreground">
+                                    {value !== undefined && value !== null && value !== '' ? value : 'Empty'}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                            {submissions.length > 5 && (
+                              <div className="text-xs text-muted-foreground">... and {submissions.length - 5} more records</div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
