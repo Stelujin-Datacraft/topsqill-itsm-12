@@ -20,21 +20,24 @@ export function CopyRecordsDialog({ isOpen, onOpenChange, selectedCount, selecte
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     
-    // Allow empty input for better UX
+    // Allow empty input or just clearing the field
     if (value === '') {
       setNumberOfCopies('');
       return;
     }
     
-    // Allow digits only, remove any non-digit characters
+    // Allow digits only
     const digitsOnly = value.replace(/\D/g, '');
     
-    // Limit to 3 digits max (100 is max)
-    if (digitsOnly.length <= 3) {
-      const numValue = parseInt(digitsOnly);
-      if (numValue <= 100) {
-        setNumberOfCopies(digitsOnly);
-      }
+    // Convert to number to validate range
+    const numValue = parseInt(digitsOnly);
+    
+    // Only allow values between 1-100
+    if (!isNaN(numValue) && numValue >= 1 && numValue <= 100) {
+      setNumberOfCopies(digitsOnly);
+    } else if (digitsOnly === '0' || (digitsOnly.length === 1 && numValue < 10)) {
+      // Allow typing single digits like 1,2,3... even if they start with 0
+      setNumberOfCopies(digitsOnly);
     }
   };
 
