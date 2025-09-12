@@ -302,24 +302,57 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
     return <span className="text-sm">{value.join(', ')}</span>;
   }
 
-  // Handle objects
+  // Handle objects - CRITICAL: This must NEVER return an object directly as React child
   if (typeof value === 'object') {
-    // Try to extract meaningful information
-    if (value.status) return String(value.status);
-    if (value.value !== undefined && value.value !== null) {
-      // Handle nested object structures like {"_type": "undefined", "value": "undefined"}
-      if (value.value === 'undefined' || value.value === 'null') {
+    try {
+      // Handle null case first
+      if (value === null) {
         return <Badge variant="outline" className="italic opacity-70 text-muted-foreground/80 bg-muted/50">N/A</Badge>;
       }
-      return <span className="text-sm">{String(value.value)}</span>;
+      
+      // Try to extract meaningful information safely
+      if (value.status) {
+        return <span className="text-sm">{String(value.status)}</span>;
+      }
+      
+      if (value.value !== undefined && value.value !== null) {
+        // Handle nested object structures like {"_type": "undefined", "value": "undefined"}
+        if (value.value === 'undefined' || value.value === 'null' || value.value === '' || value.value === null) {
+          return <Badge variant="outline" className="italic opacity-70 text-muted-foreground/80 bg-muted/50">N/A</Badge>;
+        }
+        // Ensure we return a string, not another object
+        const stringValue = typeof value.value === 'object' ? JSON.stringify(value.value) : String(value.value);
+        return <span className="text-sm">{stringValue}</span>;
+      }
+      
+      if (value.name) {
+        const stringName = typeof value.name === 'object' ? JSON.stringify(value.name) : String(value.name);
+        return <span className="text-sm">{stringName}</span>;
+      }
+      
+      // Check for empty object
+      if (Object.keys(value).length === 0) {
+        return <Badge variant="outline" className="italic opacity-70 text-muted-foreground/80 bg-muted/50">Empty</Badge>;
+      }
+      
+      // Fallback to safe JSON string representation
+      const jsonString = JSON.stringify(value);
+      return <span className="text-sm text-muted-foreground">{jsonString}</span>;
+    } catch (error) {
+      // If JSON.stringify fails, return a safe fallback
+      return <Badge variant="outline" className="italic opacity-70 text-muted-foreground/80 bg-muted/50">Invalid Data</Badge>;
     }
-    if (value.name) return String(value.name);
-    
-    // Fallback to JSON string representation
-    const jsonString = JSON.stringify(value);
-    return <span className="text-sm text-muted-foreground">{jsonString}</span>;
   }
 
-  // Default case - display as string
-  return <span className="text-sm">{value.toString()}</span>;
+  // Default case - display as string with additional safety check
+  try {
+    // Final safety check: ensure we never return an object
+    if (typeof value === 'object' && value !== null) {
+      return <span className="text-sm text-muted-foreground">{JSON.stringify(value)}</span>;
+    }
+    return <span className="text-sm">{String(value)}</span>;
+  } catch (error) {
+    // Ultimate fallback if anything fails
+    return <Badge variant="outline" className="italic opacity-70 text-muted-foreground/80 bg-muted/50">Error</Badge>;
+  }
 }
