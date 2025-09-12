@@ -114,8 +114,6 @@ export function MultiLineEditDialog({
   };
 
   const renderFieldInput = (field: any, value: any, submissionId: string) => {
-    console.log('MultiLineEdit renderFieldInput called with:', { field, value, submissionId });
-    
     return (
       <FieldEditorFactory
         field={field}
@@ -175,8 +173,7 @@ return (
                       {/* Record ID - Fixed width */}
                       <div className="w-[200px] flex-shrink-0 flex items-center p-3 border-r border-border">
                         <Badge variant="outline" className="text-xs">
-                          #{submission.submission_ref_id ||
-                            submission.id.slice(0, 8)}
+                          #{String(submission.submission_ref_id || submission.id.slice(0, 8))}
                         </Badge>
                       </div>
 

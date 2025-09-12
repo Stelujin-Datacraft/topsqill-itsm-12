@@ -26,13 +26,10 @@ interface FieldEditorProps {
 export function FieldEditorFactory({ field, value, onChange, className = "", disabled = false }: FieldEditorProps) {
   // Ensure we have a valid field object
   if (!field || typeof field !== 'object') {
-    console.error('FieldEditorFactory: Invalid field object', field);
     return <div className="text-xs text-red-500">Invalid field</div>;
   }
 
   const fieldType = field.field_type || field.type;
-  
-  console.log('FieldEditorFactory called with:', { fieldType, value, fieldLabel: field.label });
   
   switch (fieldType) {
     case 'text':
@@ -457,7 +454,6 @@ export function FieldEditorFactory({ field, value, onChange, className = "", dis
       );
     
     default:
-      console.log('FieldEditorFactory: Unknown field type:', fieldType);
       return (
         <Input
           value={String(value || '')}
