@@ -24,7 +24,15 @@ interface FieldEditorProps {
 }
 
 export function FieldEditorFactory({ field, value, onChange, className = "", disabled = false }: FieldEditorProps) {
+  // Ensure we have a valid field object
+  if (!field || typeof field !== 'object') {
+    console.error('FieldEditorFactory: Invalid field object', field);
+    return <div className="text-xs text-red-500">Invalid field</div>;
+  }
+
   const fieldType = field.field_type || field.type;
+  
+  console.log('FieldEditorFactory called with:', { fieldType, value, fieldLabel: field.label });
   
   switch (fieldType) {
     case 'text':
@@ -127,9 +135,9 @@ export function FieldEditorFactory({ field, value, onChange, className = "", dis
               >
                 {selectedValues.length > 0 ? (
                   <div className="flex flex-wrap gap-1">
-                    {selectedValues.slice(0, 2).map((val: string) => (
-                      <Badge key={val} variant="secondary" className="text-xs">
-                        {val}
+                    {selectedValues.slice(0, 2).map((val: string, index: number) => (
+                      <Badge key={index} variant="secondary" className="text-xs">
+                        {String(val)}
                       </Badge>
                     ))}
                     {selectedValues.length > 2 && (
@@ -309,7 +317,7 @@ export function FieldEditorFactory({ field, value, onChange, className = "", dis
       );
     
     case 'tags':
-      const tagList = Array.isArray(value) ? value : (value ? value.split(',').map((tag: string) => tag.trim()) : []);
+      const tagList = Array.isArray(value) ? value : (value ? String(value).split(',').map((tag: string) => tag.trim()) : []);
       return (
         <div className={cn("space-y-2", className)}>
           <Input
@@ -326,7 +334,7 @@ export function FieldEditorFactory({ field, value, onChange, className = "", dis
             <div className="flex flex-wrap gap-1">
               {tagList.map((tag: string, index: number) => (
                 <Badge key={index} variant="secondary" className="text-xs">
-                  {tag}
+                  {String(tag)}
                   {!disabled && (
                     <X 
                       className="h-3 w-3 ml-1 cursor-pointer"
@@ -449,11 +457,12 @@ export function FieldEditorFactory({ field, value, onChange, className = "", dis
       );
     
     default:
+      console.log('FieldEditorFactory: Unknown field type:', fieldType);
       return (
         <Input
-          value={value || ''}
+          value={String(value || '')}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={`Enter ${field.label}`}
+          placeholder={`Enter ${field.label || 'value'}`}
           className={cn("text-sm", className)}
           disabled={disabled}
         />

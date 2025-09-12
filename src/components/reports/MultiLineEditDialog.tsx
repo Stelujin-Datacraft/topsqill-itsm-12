@@ -114,6 +114,8 @@ export function MultiLineEditDialog({
   };
 
   const renderFieldInput = (field: any, value: any, submissionId: string) => {
+    console.log('MultiLineEdit renderFieldInput called with:', { field, value, submissionId });
+    
     return (
       <FieldEditorFactory
         field={field}
