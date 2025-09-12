@@ -135,7 +135,7 @@ export function FieldEditorFactory({ field, value, onChange, className = "", dis
                   <div className="flex flex-wrap gap-1">
                     {selectedValues.slice(0, 2).map((val: any, index: number) => (
                       <Badge key={index} variant="secondary" className="text-xs">
-                        {String(val)}
+                        {typeof val === 'object' ? JSON.stringify(val) : String(val || '')}
                       </Badge>
                     ))}
                     {selectedValues.length > 2 && (
@@ -145,7 +145,7 @@ export function FieldEditorFactory({ field, value, onChange, className = "", dis
                     )}
                   </div>
                 ) : (
-                  `Select ${String(field.label || 'options')}`
+                  `Select ${typeof field.label === 'object' ? JSON.stringify(field.label) : String(field.label || 'options')}`
                 )}
               </Button>
             </PopoverTrigger>
@@ -168,7 +168,7 @@ export function FieldEditorFactory({ field, value, onChange, className = "", dis
                           }
                         }}
                       />
-                      <label className="text-sm">{String(optionLabel)}</label>
+                      <label className="text-sm">{typeof optionLabel === 'object' ? JSON.stringify(optionLabel) : String(optionLabel || '')}</label>
                     </div>
                   );
                 }) : null}
@@ -319,7 +319,7 @@ export function FieldEditorFactory({ field, value, onChange, className = "", dis
       return (
         <div className={cn("space-y-2", className)}>
           <Input
-            value={tagList.map(tag => String(tag)).join(', ')}
+            value={tagList.map(tag => typeof tag === 'object' ? JSON.stringify(tag) : String(tag || '')).join(', ')}
             onChange={(e) => {
               const tags = e.target.value.split(',').map(tag => tag.trim()).filter(Boolean);
               onChange(tags);
@@ -332,7 +332,7 @@ export function FieldEditorFactory({ field, value, onChange, className = "", dis
             <div className="flex flex-wrap gap-1">
               {tagList.map((tag: any, index: number) => (
                 <Badge key={index} variant="secondary" className="text-xs">
-                  {String(tag)}
+                  {typeof tag === 'object' ? JSON.stringify(tag) : String(tag || '')}
                   {!disabled && (
                     <X 
                       className="h-3 w-3 ml-1 cursor-pointer"

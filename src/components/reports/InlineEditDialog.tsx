@@ -234,7 +234,12 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                   {submissions.map((submission, index) => (
                     <div key={submission.id} className="p-4 border rounded-lg bg-muted/20">
                       <div className="text-sm font-medium text-muted-foreground mb-3">
-                        Record {index + 1} (ID: {String(submission.submission_ref_id || submission.id.slice(0, 8) + '...')})
+                        Record {index + 1} (ID: {(() => {
+                          const refId = submission.submission_ref_id;
+                          const fallbackId = submission.id?.slice?.(0, 8) + '...';
+                          if (typeof refId === 'object') return JSON.stringify(refId);
+                          return String(refId || fallbackId || 'N/A');
+                        })()})
                       </div>
                        <div className="flex gap-4">
                           {formFields.filter(field => {

@@ -192,7 +192,12 @@ return (
                       {/* Record ID - Fixed width */}
                       <div className="w-[200px] flex-shrink-0 flex items-center p-3 border-r border-border">
                         <Badge variant="outline" className="text-xs">
-                          #{String(submission.submission_ref_id || submission.id.slice(0, 8))}
+                          #{(() => {
+                            const refId = submission.submission_ref_id;
+                            const fallbackId = submission.id?.slice?.(0, 8);
+                            if (typeof refId === 'object') return JSON.stringify(refId);
+                            return String(refId || fallbackId || 'N/A');
+                          })()}
                         </Badge>
                       </div>
 
