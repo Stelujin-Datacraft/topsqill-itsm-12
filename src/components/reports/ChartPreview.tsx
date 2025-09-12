@@ -155,7 +155,12 @@ export function ChartPreview({
       
       // Apply filters
       const passesFilters = config.filters?.every(filter => {
-        const value = submissionData[filter.field];
+        const rawValue = submissionData[filter.field];
+        // Extract primitive value from object structures for filtering
+        const value = rawValue && typeof rawValue === 'object' && 'value' in rawValue
+          ? (rawValue.value === 'undefined' ? '' : rawValue.value)
+          : rawValue;
+          
         switch (filter.operator) {
           case 'equals':
             return value === filter.value;
@@ -198,7 +203,14 @@ export function ChartPreview({
         .map(dim => {
           if (dim === '_default') return 'Total';
           
-          const val = submissionData[dim];
+          const rawVal = submissionData[dim];
+          
+          // Extract primitive value from object structures
+          let val = rawVal;
+          if (rawVal && typeof rawVal === 'object' && 'value' in rawVal) {
+            val = rawVal.value === 'undefined' ? '' : rawVal.value;
+          }
+          
           // Handle complex field types for dimensions
           if (typeof val === 'object' && val !== null) {
             if (val.status) return val.status; // For approval fields
@@ -241,7 +253,13 @@ export function ChartPreview({
         if (metric === 'count' || config.aggregation === 'count' || config.aggregationType === 'count') {
           processedData[dimensionKey][metric] += 1;
         } else {
-          const value = submissionData[metric] || submissionData[config.yAxis];
+          const rawValue = submissionData[metric] || submissionData[config.yAxis];
+          
+          // Extract primitive value from object structures
+          let value = rawValue;
+          if (rawValue && typeof rawValue === 'object' && 'value' in rawValue) {
+            value = rawValue.value === 'undefined' ? '' : rawValue.value;
+          }
           
           // Handle complex field types (approval, etc.)
           if (typeof value === 'object' && value !== null) {

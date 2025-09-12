@@ -134,9 +134,14 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
   const filteredAndSortedData = submissions
     .filter(submission => {
       const matchesSearch = searchTerm === '' || 
-        Object.values(submission.submission_data || {}).some(value => 
-          String(value).toLowerCase().includes(searchTerm.toLowerCase())
-        ) ||
+        Object.values(submission.submission_data || {}).some(value => {
+          // Extract primitive value from object structures for search
+          let searchValue = value;
+          if (value && typeof value === 'object' && 'value' in value) {
+            searchValue = value.value === 'undefined' ? '' : value.value;
+          }
+          return String(searchValue).toLowerCase().includes(searchTerm.toLowerCase());
+        }) ||
         submission.submitted_by.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesApprovalFilter = approvalFilter === 'all' || 
@@ -156,8 +161,17 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
         aValue = a[sortColumn as keyof typeof a];
         bValue = b[sortColumn as keyof typeof b];
       } else {
-        aValue = a.submission_data[sortColumn];
-        bValue = b.submission_data[sortColumn];
+        // Extract primitive values from object structures for sorting
+        const aRawValue = a.submission_data[sortColumn];
+        const bRawValue = b.submission_data[sortColumn];
+        
+        aValue = aRawValue && typeof aRawValue === 'object' && 'value' in aRawValue
+          ? (aRawValue.value === 'undefined' ? '' : aRawValue.value)
+          : aRawValue;
+          
+        bValue = bRawValue && typeof bRawValue === 'object' && 'value' in bRawValue
+          ? (bRawValue.value === 'undefined' ? '' : bRawValue.value)
+          : bRawValue;
       }
       
       if (typeof aValue === 'number' && typeof bValue === 'number') {
@@ -178,7 +192,14 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
     } else if (fieldId === 'submitted_by' || fieldId === 'approved_by' || fieldId === 'approval_status') {
       value = submission[fieldId];
     } else {
-      value = submission.submission_data[fieldId];
+      const rawValue = submission.submission_data[fieldId];
+      
+      // Extract primitive values from object structures
+      if (rawValue && typeof rawValue === 'object' && 'value' in rawValue) {
+        value = rawValue.value === 'undefined' ? '' : rawValue.value;
+      } else {
+        value = rawValue;
+      }
     }
 
     if (value === null || value === undefined) return '--';
@@ -208,11 +229,18 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
       headers.join(','),
       ...filteredAndSortedData.map(submission => 
         displayColumns.map(col => {
-          const value = col.id === 'submitted_at' || col.id === 'approval_timestamp' 
-            ? submission[col.id]
-            : col.id === 'submitted_by' || col.id === 'approved_by' || col.id === 'approval_status'
-            ? submission[col.id]
-            : submission.submission_data[col.id];
+          let value;
+          if (col.id === 'submitted_at' || col.id === 'approval_timestamp') {
+            value = submission[col.id];
+          } else if (col.id === 'submitted_by' || col.id === 'approved_by' || col.id === 'approval_status') {
+            value = submission[col.id];
+          } else {
+            const rawValue = submission.submission_data[col.id];
+            // Extract primitive values from object structures for CSV export
+            value = rawValue && typeof rawValue === 'object' && 'value' in rawValue
+              ? (rawValue.value === 'undefined' ? '' : rawValue.value)
+              : rawValue;
+          }
           return String(value || '').replace(/,/g, ';');
         }).join(',')
       )
