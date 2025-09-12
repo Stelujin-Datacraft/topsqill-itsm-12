@@ -27,8 +27,25 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
       const originalValues: Record<string, Record<string, any>> = {};
       
       submissions.forEach(submission => {
-        initialData[submission.id] = { ...submission.submission_data };
-        originalValues[submission.id] = { ...submission.submission_data };
+        const submissionData: Record<string, any> = {};
+        
+        // Extract primitive values from submission_data objects
+        if (submission.submission_data && typeof submission.submission_data === 'object') {
+          Object.keys(submission.submission_data).forEach(fieldId => {
+            const fieldData = submission.submission_data[fieldId];
+            
+            // If the field data is an object with a 'value' property, extract it
+            if (fieldData && typeof fieldData === 'object' && 'value' in fieldData) {
+              submissionData[fieldId] = fieldData.value === 'undefined' ? '' : fieldData.value;
+            } else {
+              // Otherwise, use the value directly
+              submissionData[fieldId] = fieldData;
+            }
+          });
+        }
+        
+        initialData[submission.id] = submissionData;
+        originalValues[submission.id] = { ...submissionData };
       });
       
       // Initialize master values for bulk editing

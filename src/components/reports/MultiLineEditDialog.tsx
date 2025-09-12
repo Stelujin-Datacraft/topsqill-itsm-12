@@ -32,7 +32,24 @@ export function MultiLineEditDialog({
       const initialData: Record<string, Record<string, any>> = {};
       
       submissions.forEach(submission => {
-        initialData[submission.id] = { ...submission.submission_data };
+        const submissionData: Record<string, any> = {};
+        
+        // Extract primitive values from submission_data objects
+        if (submission.submission_data && typeof submission.submission_data === 'object') {
+          Object.keys(submission.submission_data).forEach(fieldId => {
+            const fieldData = submission.submission_data[fieldId];
+            
+            // If the field data is an object with a 'value' property, extract it
+            if (fieldData && typeof fieldData === 'object' && 'value' in fieldData) {
+              submissionData[fieldId] = fieldData.value === 'undefined' ? '' : fieldData.value;
+            } else {
+              // Otherwise, use the value directly
+              submissionData[fieldId] = fieldData;
+            }
+          });
+        }
+        
+        initialData[submission.id] = submissionData;
       });
       
       setEditData(initialData);
@@ -114,20 +131,11 @@ export function MultiLineEditDialog({
   };
 
   const renderFieldInput = (field: any, value: any, submissionId: string) => {
-    console.log('MultiLineEdit renderFieldInput called with:', { 
-      fieldType: field?.field_type || field?.type, 
-      fieldLabel: field?.label,
-      value, 
-      valueType: typeof value,
-      submissionId 
-    });
-    
     return (
       <FieldEditorFactory
         field={field}
         value={value}
         onChange={(newValue) => {
-          console.log('MultiLineEdit onChange:', { field: field?.label, newValue, submissionId });
           handleFieldValueChange(submissionId, field.id, newValue);
         }}
         className="w-full min-w-[220px]"
