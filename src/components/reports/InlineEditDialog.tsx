@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { FieldEditorFactory } from './field-editors/FieldEditorFactory';
+import { Save, Edit3 } from 'lucide-react';
 
 interface InlineEditDialogProps {
   isOpen: boolean;
@@ -145,76 +143,17 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
   };
 
   const renderFieldInput = (field: any, submissionId: string, value: any, isBulkEdit: boolean = false) => {
-    const fieldValue = value || '';
     const isDisabled = isBulkEdit && submissionId !== 'master';
     
-    switch (field.field_type) {
-      case 'text':
-      case 'email':
-      case 'number':
-        return (
-          <Input
-            type={field.field_type === 'number' ? 'number' : 'text'}
-            value={fieldValue}
-            onChange={(e) => handleFieldChange(submissionId, field.id, e.target.value)}
-            className="w-full"
-            disabled={isDisabled}
-          />
-        );
-      
-      case 'textarea':
-        return (
-          <Textarea
-            value={fieldValue}
-            onChange={(e) => handleFieldChange(submissionId, field.id, e.target.value)}
-            className="w-full min-h-[60px]"
-            disabled={isDisabled}
-          />
-        );
-      
-      case 'select':
-      case 'radio':
-      case 'multiselect':
-        const options = field.field_options?.options || field.options || [];
-        const selectOptions = Array.isArray(options) ? options : [];
-        return (
-          <Select 
-            value={fieldValue} 
-            onValueChange={(value) => handleFieldChange(submissionId, field.id, value)}
-            disabled={isDisabled}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select option" />
-            </SelectTrigger>
-            <SelectContent>
-              {selectOptions.map((option: any) => (
-                <SelectItem key={option.value || option} value={option.value || option}>
-                  {option.label || option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        );
-      
-      case 'checkbox':
-        return (
-          <Checkbox
-            checked={fieldValue === true || fieldValue === 'true'}
-            onCheckedChange={(checked) => handleFieldChange(submissionId, field.id, checked)}
-            disabled={isDisabled}
-          />
-        );
-      
-      default:
-        return (
-          <Input
-            value={fieldValue}
-            onChange={(e) => handleFieldChange(submissionId, field.id, e.target.value)}
-            className="w-full"
-            disabled={isDisabled}
-          />
-        );
-    }
+    return (
+      <FieldEditorFactory
+        field={field}
+        value={value}
+        onChange={(newValue) => handleFieldChange(submissionId, field.id, newValue)}
+        className="w-full"
+        disabled={isDisabled}
+      />
+    );
   };
 
   if (submissions.length === 0) return null;
@@ -223,8 +162,9 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle>
-            Edit {submissions.length} Submission{submissions.length > 1 ? 's' : ''}
+          <DialogTitle className="flex items-center gap-2">
+            <Edit3 className="h-5 w-5" />
+            Bulk Edit - {submissions.length} Record{submissions.length > 1 ? 's' : ''}
           </DialogTitle>
         </DialogHeader>
         
@@ -323,8 +263,9 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving...' : `Save ${submissions.length} Record${submissions.length > 1 ? 's' : ''}`}
+          <Button onClick={handleSave} disabled={saving} className="gap-2">
+            <Save className="h-4 w-4" />
+            {saving ? 'Saving...' : `Update ${submissions.length} Record${submissions.length > 1 ? 's' : ''}`}
           </Button>
         </DialogFooter>
       </DialogContent>
