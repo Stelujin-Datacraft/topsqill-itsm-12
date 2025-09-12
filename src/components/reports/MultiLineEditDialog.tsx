@@ -8,9 +8,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Users } from 'lucide-react';
+import { Save, Users, Star, Calendar } from 'lucide-react';
 
 interface MultiLineEditDialogProps {
   isOpen: boolean;
@@ -98,16 +100,22 @@ export function MultiLineEditDialog({
   };
 
   const renderFieldInput = (field: any, value: any, submissionId: string) => {
-    switch (field.field_type) {
+    const fieldType = field.field_type || field.type;
+    
+    switch (fieldType) {
       case 'text':
       case 'email':
       case 'phone':
+      case 'url':
+      case 'ip-address':
+      case 'submission-access':
         return (
           <Input
             value={value || ''}
             onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
             placeholder={`Enter ${field.label}`}
-            className="text-sm w-full"
+            className="text-sm w-full min-w-[200px]"
+            type={fieldType === 'email' ? 'email' : fieldType === 'url' ? 'url' : 'text'}
           />
         );
       
@@ -119,32 +127,53 @@ export function MultiLineEditDialog({
             onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
             placeholder={`Enter ${field.label}`}
             rows={2}
-            className="text-sm w-full resize-none"
+            className="text-sm w-full min-w-[200px] resize-none"
           />
         );
       
       case 'number':
+      case 'currency':
         return (
           <Input
             type="number"
             value={value || ''}
             onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
             placeholder={`Enter ${field.label}`}
-            className="text-sm w-full"
+            className="text-sm w-full min-w-[200px]"
+            min={field.validation?.min}
+            max={field.validation?.max}
+            step={field.customConfig?.step || 1}
           />
+        );
+      
+      case 'date':
+      case 'time':
+      case 'datetime':
+        return (
+          <div className="flex items-center space-x-2 min-w-[200px]">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Input
+              type={fieldType === 'date' ? 'date' : fieldType === 'time' ? 'time' : 'datetime-local'}
+              value={value || ''}
+              onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
+              className="text-sm flex-1"
+            />
+          </div>
         );
       
       case 'select':
       case 'dropdown':
+      case 'country':
+      case 'multi-select':
         return (
           <Select
             value={value || ''}
             onValueChange={(newValue) => handleFieldValueChange(submissionId, field.id, newValue)}
           >
-            <SelectTrigger className="text-sm w-full">
+            <SelectTrigger className="text-sm w-full min-w-[200px]">
               <SelectValue placeholder={`Select ${field.label}`} />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-background border shadow-md z-50">
               {Array.isArray(field.options) ? field.options.map((option: any) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
@@ -156,18 +185,29 @@ export function MultiLineEditDialog({
       
       case 'checkbox':
         return (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 min-w-[200px]">
             <Checkbox
               checked={value === true || value === 'true'}
               onCheckedChange={(checked) => handleFieldValueChange(submissionId, field.id, checked)}
             />
-            <label className="text-sm">{field.label}</label>
+            <label className="text-sm truncate">{field.label}</label>
+          </div>
+        );
+      
+      case 'toggle-switch':
+        return (
+          <div className="flex items-center space-x-2 min-w-[200px]">
+            <Switch
+              checked={value === true || value === 'true'}
+              onCheckedChange={(checked) => handleFieldValueChange(submissionId, field.id, checked)}
+            />
+            <label className="text-sm truncate">{field.label}</label>
           </div>
         );
       
       case 'radio':
         return (
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-[200px]">
             {Array.isArray(field.options) ? field.options.map((option: any) => (
               <div key={option.value} className="flex items-center space-x-2">
                 <input
@@ -178,9 +218,201 @@ export function MultiLineEditDialog({
                   onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
                   className="h-4 w-4"
                 />
-                <label className="text-sm">{option.label}</label>
+                <label className="text-sm truncate">{option.label}</label>
               </div>
             )) : null}
+          </div>
+        );
+      
+      case 'rating':
+        const maxRating = field.customConfig?.ratingScale || 5;
+        return (
+          <div className="flex items-center space-x-1 min-w-[200px]">
+            {[...Array(maxRating)].map((_, index) => {
+              const starValue = index + 1;
+              return (
+                <Star
+                  key={index}
+                  className={`h-4 w-4 cursor-pointer transition-colors ${
+                    starValue <= (value || 0)
+                      ? 'fill-yellow-400 text-yellow-400'
+                      : 'text-gray-300'
+                  }`}
+                  onClick={() => handleFieldValueChange(submissionId, field.id, starValue)}
+                />
+              );
+            })}
+            {value > 0 && (
+              <span className="ml-2 text-xs text-muted-foreground">
+                {value}/{maxRating}
+              </span>
+            )}
+          </div>
+        );
+      
+      case 'slider':
+        const min = field.validation?.min || 0;
+        const max = field.validation?.max || 100;
+        return (
+          <div className="space-y-2 min-w-[200px]">
+            <Slider
+              value={[value || min]}
+              onValueChange={(newValue) => handleFieldValueChange(submissionId, field.id, newValue[0])}
+              min={min}
+              max={max}
+              step={field.customConfig?.step || 1}
+              className="w-full"
+            />
+            <div className="text-xs text-muted-foreground text-center">
+              {value || min} / {max}
+            </div>
+          </div>
+        );
+      
+      case 'color':
+        return (
+          <div className="flex items-center space-x-2 min-w-[200px]">
+            <Input
+              type="color"
+              value={value || '#000000'}
+              onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
+              className="w-12 h-8 p-1 border rounded"
+            />
+            <Input
+              type="text"
+              value={value || ''}
+              onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
+              placeholder="#000000"
+              className="text-sm flex-1"
+            />
+          </div>
+        );
+      
+      case 'file':
+      case 'image':
+      case 'signature':
+        return (
+          <div className="min-w-[200px]">
+            <Input
+              type="file"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  handleFieldValueChange(submissionId, field.id, file.name);
+                }
+              }}
+              className="text-sm w-full"
+              accept={fieldType === 'image' ? 'image/*' : undefined}
+            />
+            {value && (
+              <div className="text-xs text-muted-foreground mt-1 truncate">
+                Current: {value}
+              </div>
+            )}
+          </div>
+        );
+      
+      case 'tags':
+        return (
+          <Input
+            value={Array.isArray(value) ? value.join(', ') : value || ''}
+            onChange={(e) => {
+              const tags = e.target.value.split(',').map(tag => tag.trim()).filter(Boolean);
+              handleFieldValueChange(submissionId, field.id, tags);
+            }}
+            placeholder="Enter tags separated by commas"
+            className="text-sm w-full min-w-[200px]"
+          />
+        );
+      
+      case 'address':
+        const addressValue = typeof value === 'object' ? value : {};
+        return (
+          <div className="space-y-1 min-w-[200px]">
+            <Input
+              value={addressValue.street || ''}
+              onChange={(e) => handleFieldValueChange(submissionId, field.id, { ...addressValue, street: e.target.value })}
+              placeholder="Street"
+              className="text-xs w-full"
+            />
+            <div className="grid grid-cols-2 gap-1">
+              <Input
+                value={addressValue.city || ''}
+                onChange={(e) => handleFieldValueChange(submissionId, field.id, { ...addressValue, city: e.target.value })}
+                placeholder="City"
+                className="text-xs"
+              />
+              <Input
+                value={addressValue.zip || ''}
+                onChange={(e) => handleFieldValueChange(submissionId, field.id, { ...addressValue, zip: e.target.value })}
+                placeholder="ZIP"
+                className="text-xs"
+              />
+            </div>
+          </div>
+        );
+      
+      case 'user-picker':
+      case 'group-picker':
+        return (
+          <Input
+            value={value || ''}
+            onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
+            placeholder={`Select ${field.label}`}
+            className="text-sm w-full min-w-[200px]"
+          />
+        );
+      
+      case 'barcode':
+        return (
+          <Input
+            value={value || ''}
+            onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
+            placeholder="Scan or enter barcode"
+            className="text-sm w-full min-w-[200px]"
+          />
+        );
+      
+      case 'geo-location':
+        const geoValue = typeof value === 'object' ? value : {};
+        return (
+          <div className="grid grid-cols-2 gap-1 min-w-[200px]">
+            <Input
+              type="number"
+              value={geoValue.lat || ''}
+              onChange={(e) => handleFieldValueChange(submissionId, field.id, { ...geoValue, lat: parseFloat(e.target.value) })}
+              placeholder="Latitude"
+              className="text-xs"
+              step="any"
+            />
+            <Input
+              type="number"
+              value={geoValue.lng || ''}
+              onChange={(e) => handleFieldValueChange(submissionId, field.id, { ...geoValue, lng: parseFloat(e.target.value) })}
+              placeholder="Longitude"
+              className="text-xs"
+              step="any"
+            />
+          </div>
+        );
+      
+      // Non-editable field types
+      case 'header':
+      case 'description':
+      case 'section-break':
+      case 'horizontal-line':
+      case 'full-width-container':
+      case 'record-table':
+      case 'matrix-grid':
+      case 'cross-reference':
+      case 'child-cross-reference':
+      case 'calculated':
+      case 'conditional-section':
+      case 'workflow-trigger':
+      case 'query-field':
+        return (
+          <div className="text-xs text-muted-foreground italic min-w-[200px] p-2 bg-muted/20 rounded">
+            Non-editable field type: {fieldType}
           </div>
         );
       
@@ -190,7 +422,7 @@ export function MultiLineEditDialog({
             value={value || ''}
             onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
             placeholder={`Enter ${field.label}`}
-            className="text-sm w-full"
+            className="text-sm w-full min-w-[200px]"
           />
         );
     }
@@ -198,28 +430,36 @@ export function MultiLineEditDialog({
 
 return (
   <Dialog open={isOpen} onOpenChange={onOpenChange}>
-    <DialogContent className="max-w-6xl max-h-[80vh] flex flex-col">
+    <DialogContent className="max-w-[95vw] max-h-[90vh] flex flex-col">
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
           <Users className="h-5 w-5" />
           Multi-Line Edit - {submissions.length} Records
         </DialogTitle>
         <p className="text-sm text-muted-foreground">
-          Select fields and set values to apply to all selected records
+          Edit fields horizontally. Scroll left/right to view all fields.
         </p>
       </DialogHeader>
 
       <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full pr-4">
-          <div className="space-y-4 overflow-x-auto">
-            {/* Header with field labels */}
-            <div className="bg-muted/50 p-3 rounded-lg min-w-full">
-              <div className="grid grid-cols-[200px_repeat(auto-fit,minmax(200px,1fr))] gap-2 text-xs font-medium text-muted-foreground">
-                <div className="w-[200px]">Record ID</div>
+        {/* Horizontal scrollable container */}
+        <div className="h-full overflow-auto">
+          <div className="min-w-max">
+            {/* Sticky header with field labels */}
+            <div className="sticky top-0 bg-background border-b z-10">
+              <div className="flex bg-muted/50 p-3 rounded-t-lg">
+                <div className="w-[200px] flex-shrink-0 text-xs font-medium text-muted-foreground border-r border-border pr-3">
+                  Record ID
+                </div>
                 {Array.isArray(formFields)
-                  ? formFields.slice(0, 10).map((field) => (
-                      <div key={field.id} className="truncate">
-                        {field.label}
+                  ? formFields.map((field) => (
+                      <div key={field.id} className="w-[220px] flex-shrink-0 text-xs font-medium text-muted-foreground px-3 border-r border-border/50 last:border-r-0">
+                        <div className="truncate" title={field.label}>
+                          {field.label}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground/70 mt-1">
+                          {field.field_type || field.type}
+                        </div>
                       </div>
                     ))
                   : null}
@@ -227,60 +467,41 @@ return (
             </div>
 
             {/* Records for editing */}
-            <div className="space-y-3 min-w-full">
+            <div className="space-y-0">
               {Array.isArray(submissions)
-                ? submissions.map((submission) => (
-                    <div key={submission.id} className="border rounded-lg p-3">
-                      <div className="grid grid-cols-[200px_repeat(auto-fit,minmax(200px,1fr))] gap-2 items-start">
-                        {/* Record ID */}
-                        <div className="flex items-center w-[200px]">
-                          <Badge variant="outline" className="text-xs">
-                            #{submission.submission_ref_id ||
-                              submission.id.slice(0, 8)}
-                          </Badge>
-                        </div>
-
-                        {/* Field inputs */}
-                        {Array.isArray(formFields)
-                          ? formFields.slice(0, 10).map((field) => (
-                              <div key={field.id}>
-                                {renderFieldInput(
-                                  field,
-                                  editData[submission.id]?.[field.id],
-                                  submission.id
-                                )}
-                              </div>
-                            ))
-                          : null}
+                ? submissions.map((submission, index) => (
+                    <div 
+                      key={submission.id} 
+                      className={`flex border-b hover:bg-muted/20 transition-colors ${
+                        index % 2 === 0 ? 'bg-background' : 'bg-muted/10'
+                      }`}
+                    >
+                      {/* Record ID - Fixed width */}
+                      <div className="w-[200px] flex-shrink-0 flex items-center p-3 border-r border-border">
+                        <Badge variant="outline" className="text-xs">
+                          #{submission.submission_ref_id ||
+                            submission.id.slice(0, 8)}
+                        </Badge>
                       </div>
 
-                      {/* Show remaining fields if more than 10 */}
-                      {Array.isArray(formFields) &&
-                        formFields.length > 10 && (
-                          <div className="mt-3 pt-3 border-t grid grid-cols-[200px_repeat(auto-fit,minmax(200px,1fr))] gap-2 items-start">
-                            <div className="text-xs text-muted-foreground w-[200px]">
-                              More fields:
+                      {/* Field inputs - Horizontal layout */}
+                      {Array.isArray(formFields)
+                        ? formFields.map((field) => (
+                            <div key={field.id} className="w-[220px] flex-shrink-0 p-3 border-r border-border/50 last:border-r-0">
+                              {renderFieldInput(
+                                field,
+                                editData[submission.id]?.[field.id],
+                                submission.id
+                              )}
                             </div>
-                            {formFields.slice(10).map((field) => (
-                              <div key={field.id}>
-                                <Label className="text-xs text-muted-foreground mb-1 block">
-                                  {field.label}
-                                </Label>
-                                {renderFieldInput(
-                                  field,
-                                  editData[submission.id]?.[field.id],
-                                  submission.id
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                          ))
+                        : null}
                     </div>
                   ))
                 : null}
             </div>
           </div>
-        </ScrollArea>
+        </div>
       </div>
 
       <div className="flex justify-between items-center pt-4 border-t">
