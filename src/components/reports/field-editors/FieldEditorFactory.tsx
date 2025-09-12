@@ -24,12 +24,19 @@ interface FieldEditorProps {
 }
 
 export function FieldEditorFactory({ field, value, onChange, className = "", disabled = false }: FieldEditorProps) {
+  // Debug logging
+  console.log('FieldEditorFactory - field:', field);
+  console.log('FieldEditorFactory - value:', value);
+  console.log('FieldEditorFactory - value type:', typeof value);
+  
   // Ensure we have a valid field object
   if (!field || typeof field !== 'object') {
+    console.error('FieldEditorFactory: Invalid field object', field);
     return <div className="text-xs text-red-500">Invalid field</div>;
   }
 
   const fieldType = field.field_type || field.type;
+  console.log('FieldEditorFactory - fieldType:', fieldType);
   
   switch (fieldType) {
     case 'text':
@@ -121,6 +128,9 @@ export function FieldEditorFactory({ field, value, onChange, className = "", dis
       const multiSelectOptions = field.options || field.field_options?.options || [];
       const selectedValues = Array.isArray(value) ? value : (value ? [value] : []);
       
+      console.log('multi-select - options:', multiSelectOptions);
+      console.log('multi-select - selectedValues:', selectedValues);
+      
       return (
         <div className={cn("space-y-2", className)}>
           <Popover>
@@ -132,11 +142,14 @@ export function FieldEditorFactory({ field, value, onChange, className = "", dis
               >
                 {selectedValues.length > 0 ? (
                   <div className="flex flex-wrap gap-1">
-                    {selectedValues.slice(0, 2).map((val: string, index: number) => (
-                      <Badge key={index} variant="secondary" className="text-xs">
-                        {String(val)}
-                      </Badge>
-                    ))}
+                    {selectedValues.slice(0, 2).map((val: any, index: number) => {
+                      console.log('Rendering badge for val:', val, 'type:', typeof val);
+                      return (
+                        <Badge key={index} variant="secondary" className="text-xs">
+                          {String(val)}
+                        </Badge>
+                      );
+                    })}
                     {selectedValues.length > 2 && (
                       <Badge variant="secondary" className="text-xs">
                         +{selectedValues.length - 2} more
@@ -144,30 +157,32 @@ export function FieldEditorFactory({ field, value, onChange, className = "", dis
                     )}
                   </div>
                 ) : (
-                  `Select ${field.label}`
+                  `Select ${String(field.label || 'options')}`
                 )}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-full p-0">
               <div className="p-2 space-y-1">
-                {Array.isArray(multiSelectOptions) ? multiSelectOptions.map((option: any) => {
-                  const optionValue = option.value || option;
-                  const optionLabel = option.label || option;
+                {Array.isArray(multiSelectOptions) ? multiSelectOptions.map((option: any, index: number) => {
+                  const optionValue = option?.value || option;
+                  const optionLabel = option?.label || option;
                   const isSelected = selectedValues.includes(optionValue);
                   
+                  console.log('Rendering option:', { option, optionValue, optionLabel });
+                  
                   return (
-                    <div key={optionValue} className="flex items-center space-x-2">
+                    <div key={String(optionValue) || index} className="flex items-center space-x-2">
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={(checked) => {
                           if (checked) {
                             onChange([...selectedValues, optionValue]);
                           } else {
-                            onChange(selectedValues.filter((val: string) => val !== optionValue));
+                            onChange(selectedValues.filter((val: any) => val !== optionValue));
                           }
                         }}
                       />
-                      <label className="text-sm">{optionLabel}</label>
+                      <label className="text-sm">{String(optionLabel)}</label>
                     </div>
                   );
                 }) : null}
@@ -315,10 +330,11 @@ export function FieldEditorFactory({ field, value, onChange, className = "", dis
     
     case 'tags':
       const tagList = Array.isArray(value) ? value : (value ? String(value).split(',').map((tag: string) => tag.trim()) : []);
+      console.log('tags - value:', value, 'tagList:', tagList);
       return (
         <div className={cn("space-y-2", className)}>
           <Input
-            value={tagList.join(', ')}
+            value={tagList.map(tag => String(tag)).join(', ')}
             onChange={(e) => {
               const tags = e.target.value.split(',').map(tag => tag.trim()).filter(Boolean);
               onChange(tags);
@@ -329,31 +345,35 @@ export function FieldEditorFactory({ field, value, onChange, className = "", dis
           />
           {tagList.length > 0 && (
             <div className="flex flex-wrap gap-1">
-              {tagList.map((tag: string, index: number) => (
-                <Badge key={index} variant="secondary" className="text-xs">
-                  {String(tag)}
-                  {!disabled && (
-                    <X 
-                      className="h-3 w-3 ml-1 cursor-pointer"
-                      onClick={() => {
-                        const newTags = tagList.filter((_: string, i: number) => i !== index);
-                        onChange(newTags);
-                      }}
-                    />
-                  )}
-                </Badge>
-              ))}
+              {tagList.map((tag: any, index: number) => {
+                console.log('Rendering tag:', tag, 'type:', typeof tag);
+                return (
+                  <Badge key={index} variant="secondary" className="text-xs">
+                    {String(tag)}
+                    {!disabled && (
+                      <X 
+                        className="h-3 w-3 ml-1 cursor-pointer"
+                        onClick={() => {
+                          const newTags = tagList.filter((_: any, i: number) => i !== index);
+                          onChange(newTags);
+                        }}
+                      />
+                    )}
+                  </Badge>
+                );
+              })}
             </div>
           )}
         </div>
       );
     
     case 'address':
-      const addressValue = typeof value === 'object' ? value : {};
+      const addressValue = typeof value === 'object' && value !== null ? value : {};
+      console.log('address - value:', value, 'addressValue:', addressValue);
       return (
         <div className={cn("space-y-2", className)}>
           <Input
-            value={addressValue.street || ''}
+            value={String(addressValue.street || '')}
             onChange={(e) => onChange({ ...addressValue, street: e.target.value })}
             placeholder="Street"
             className="text-sm w-full"
@@ -361,14 +381,14 @@ export function FieldEditorFactory({ field, value, onChange, className = "", dis
           />
           <div className="grid grid-cols-2 gap-2">
             <Input
-              value={addressValue.city || ''}
+              value={String(addressValue.city || '')}
               onChange={(e) => onChange({ ...addressValue, city: e.target.value })}
               placeholder="City"
               className="text-sm"
               disabled={disabled}
             />
             <Input
-              value={addressValue.zip || ''}
+              value={String(addressValue.zip || '')}
               onChange={(e) => onChange({ ...addressValue, zip: e.target.value })}
               placeholder="ZIP"
               className="text-sm"
@@ -376,7 +396,7 @@ export function FieldEditorFactory({ field, value, onChange, className = "", dis
             />
           </div>
           <Input
-            value={addressValue.country || ''}
+            value={String(addressValue.country || '')}
             onChange={(e) => onChange({ ...addressValue, country: e.target.value })}
             placeholder="Country"
             className="text-sm w-full"
@@ -386,13 +406,14 @@ export function FieldEditorFactory({ field, value, onChange, className = "", dis
       );
     
     case 'geo-location':
-      const geoValue = typeof value === 'object' ? value : {};
+      const geoValue = typeof value === 'object' && value !== null ? value : {};
+      console.log('geo-location - value:', value, 'geoValue:', geoValue);
       return (
         <div className={cn("grid grid-cols-2 gap-2", className)}>
           <Input
             type="number"
-            value={geoValue.lat || ''}
-            onChange={(e) => onChange({ ...geoValue, lat: parseFloat(e.target.value) })}
+            value={String(geoValue.lat || '')}
+            onChange={(e) => onChange({ ...geoValue, lat: parseFloat(e.target.value) || 0 })}
             placeholder="Latitude"
             className="text-sm"
             step="any"
@@ -400,8 +421,8 @@ export function FieldEditorFactory({ field, value, onChange, className = "", dis
           />
           <Input
             type="number"
-            value={geoValue.lng || ''}
-            onChange={(e) => onChange({ ...geoValue, lng: parseFloat(e.target.value) })}
+            value={String(geoValue.lng || '')}
+            onChange={(e) => onChange({ ...geoValue, lng: parseFloat(e.target.value) || 0 })}
             placeholder="Longitude"
             className="text-sm"
             step="any"

@@ -114,11 +114,22 @@ export function MultiLineEditDialog({
   };
 
   const renderFieldInput = (field: any, value: any, submissionId: string) => {
+    console.log('MultiLineEdit renderFieldInput called with:', { 
+      fieldType: field?.field_type || field?.type, 
+      fieldLabel: field?.label,
+      value, 
+      valueType: typeof value,
+      submissionId 
+    });
+    
     return (
       <FieldEditorFactory
         field={field}
         value={value}
-        onChange={(newValue) => handleFieldValueChange(submissionId, field.id, newValue)}
+        onChange={(newValue) => {
+          console.log('MultiLineEdit onChange:', { field: field?.label, newValue, submissionId });
+          handleFieldValueChange(submissionId, field.id, newValue);
+        }}
         className="w-full min-w-[220px]"
       />
     );
