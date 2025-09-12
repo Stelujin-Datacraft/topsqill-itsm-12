@@ -305,10 +305,19 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
   // Handle objects
   if (typeof value === 'object') {
     // Try to extract meaningful information
-    if (value.status) return value.status;
-    if (value.value) return value.value;
-    if (value.name) return value.name;
-    return JSON.stringify(value);
+    if (value.status) return String(value.status);
+    if (value.value !== undefined && value.value !== null) {
+      // Handle nested object structures like {"_type": "undefined", "value": "undefined"}
+      if (value.value === 'undefined' || value.value === 'null') {
+        return <Badge variant="outline" className="italic opacity-70 text-muted-foreground/80 bg-muted/50">N/A</Badge>;
+      }
+      return <span className="text-sm">{String(value.value)}</span>;
+    }
+    if (value.name) return String(value.name);
+    
+    // Fallback to JSON string representation
+    const jsonString = JSON.stringify(value);
+    return <span className="text-sm text-muted-foreground">{jsonString}</span>;
   }
 
   // Default case - display as string
