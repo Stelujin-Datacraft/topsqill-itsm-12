@@ -309,7 +309,9 @@ export function AddressField({ field, value = {}, onChange, error, disabled }: A
     }
   };
 
-  const selectedCountry = COUNTRIES.find(country => country.code === addressData.country);
+const selectedCountry = COUNTRIES.find(
+  (country) => country.code === addressData.country
+);
 
   return (
     <div className="space-y-4">
@@ -383,45 +385,46 @@ export function AddressField({ field, value = {}, onChange, error, disabled }: A
             />
           </div>
         )}
+{addressFields.includes('country') && (
+  <div>
+    <Label htmlFor={`${field.id}-country`}>Country</Label>
+    <Popover open={countryOpen} onOpenChange={setCountryOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={countryOpen}
+          className="w-full justify-between"
+          disabled={disabled}
+        >
+          {selectedCountry ? selectedCountry.name : "Select country..."}
+          <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-full p-0">
+        <Command>
+          <CommandInput placeholder="Search country..." />
+          <CommandEmpty>No country found.</CommandEmpty>
+          <CommandGroup className="max-h-64 overflow-auto">
+            {COUNTRIES.map((country) => (
+              <CommandItem
+                key={country.code}
+                value={country.code}  // ✅ pass code as value
+                onSelect={(value) => {
+                  handleFieldChange("country", value); // ✅ store code (AF, IN, US, etc.)
+                  setCountryOpen(false);
+                }}
+              >
+                {country.name}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  </div>
+)}
 
-        {addressFields.includes('country') && (
-          <div>
-            <Label htmlFor={`${field.id}-country`}>Country</Label>
-            <Popover open={countryOpen} onOpenChange={setCountryOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={countryOpen}
-                  className="w-full justify-between"
-                  disabled={disabled}
-                >
-                  {selectedCountry ? selectedCountry.name : "Select country..."}
-                  <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-full p-0">
-                <Command>
-                  <CommandInput placeholder="Search country..." />
-                  <CommandEmpty>No country found.</CommandEmpty>
-                  <CommandGroup className="max-h-64 overflow-auto">
-                    {COUNTRIES.map((country) => (
-                      <CommandItem
-                        key={country.code}
-                        onSelect={() => {
-                          handleFieldChange('country', country.code);
-                          setCountryOpen(false);
-                        }}
-                      >
-                        {country.name}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
-        )}
       </div>
 
       {error && <p className="text-sm text-red-500">{error}</p>}

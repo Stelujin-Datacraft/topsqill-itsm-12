@@ -9,6 +9,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
+// For Rating (if you are using lucide-react icons)
+import { Star } from "lucide-react";
 
 interface InlineEditDialogProps {
   isOpen: boolean;
@@ -144,78 +150,184 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
     }
   };
 
-  const renderFieldInput = (field: any, submissionId: string, value: any, isBulkEdit: boolean = false) => {
-    const fieldValue = value || '';
-    const isDisabled = isBulkEdit && submissionId !== 'master';
-    
-    switch (field.field_type) {
-      case 'text':
-      case 'email':
-      case 'number':
-        return (
-          <Input
-            type={field.field_type === 'number' ? 'number' : 'text'}
-            value={fieldValue}
-            onChange={(e) => handleFieldChange(submissionId, field.id, e.target.value)}
-            className="w-full"
-            disabled={isDisabled}
-          />
-        );
-      
-      case 'textarea':
-        return (
-          <Textarea
-            value={fieldValue}
-            onChange={(e) => handleFieldChange(submissionId, field.id, e.target.value)}
-            className="w-full min-h-[60px]"
-            disabled={isDisabled}
-          />
-        );
-      
-      case 'select':
-      case 'radio':
-      case 'multiselect':
-        const options = field.field_options?.options || field.options || [];
-        const selectOptions = Array.isArray(options) ? options : [];
-        return (
-          <Select 
-            value={fieldValue} 
-            onValueChange={(value) => handleFieldChange(submissionId, field.id, value)}
-            disabled={isDisabled}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select option" />
-            </SelectTrigger>
-            <SelectContent>
-              {selectOptions.map((option: any) => (
-                <SelectItem key={option.value || option} value={option.value || option}>
-                  {option.label || option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        );
-      
-      case 'checkbox':
-        return (
+const renderFieldInput = (
+  field: any,
+  submissionId: string,
+  value: any,
+  isBulkEdit: boolean = false
+) => {
+  const fieldValue = value ?? '';
+  const isDisabled = isBulkEdit && submissionId !== 'master';
+
+  switch (field.field_type) {
+    case 'text':
+    case 'email':
+    case 'number':
+      return (
+        <Input
+          type={field.field_type === 'number' ? 'number' : 'text'}
+          value={fieldValue}
+          onChange={(e) => handleFieldChange(submissionId, field.id, e.target.value)}
+          className="w-full"
+          disabled={isDisabled}
+        />
+      );
+
+    case 'textarea':
+      return (
+        <Textarea
+          value={fieldValue}
+          onChange={(e) => handleFieldChange(submissionId, field.id, e.target.value)}
+          className="w-full min-h-[60px]"
+          disabled={isDisabled}
+        />
+      );
+
+    case 'select':
+    case 'radio':
+    case 'multiselect': {
+      const options = field.field_options?.options || field.options || [];
+      const selectOptions = Array.isArray(options) ? options : [];
+      return (
+        <Select
+          value={fieldValue}
+          onValueChange={(val) => handleFieldChange(submissionId, field.id, val)}
+          disabled={isDisabled}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select option" />
+          </SelectTrigger>
+          <SelectContent>
+            {selectOptions.map((option: any) => (
+              <SelectItem key={option.value || option} value={option.value || option}>
+                {option.label || option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+
+    case 'date':
+      return (
+        <Input
+          type="date"
+          value={fieldValue}
+          onChange={(e) => handleFieldChange(submissionId, field.id, e.target.value)}
+          className="w-full"
+          disabled={isDisabled}
+        />
+      );
+
+    case 'time':
+      return (
+        <Input
+          type="time"
+          value={fieldValue}
+          onChange={(e) => handleFieldChange(submissionId, field.id, e.target.value)}
+          className="w-full"
+          disabled={isDisabled}
+        />
+      );
+
+    case 'datetime':
+      return (
+        <Input
+          type="datetime-local"
+          value={fieldValue}
+          onChange={(e) => handleFieldChange(submissionId, field.id, e.target.value)}
+          className="w-full"
+          disabled={isDisabled}
+        />
+      );
+
+    case 'checkbox':
+      return (
+        <div className="flex items-center gap-2">
           <Checkbox
             checked={fieldValue === true || fieldValue === 'true'}
             onCheckedChange={(checked) => handleFieldChange(submissionId, field.id, checked)}
             disabled={isDisabled}
           />
-        );
-      
-      default:
-        return (
-          <Input
-            value={fieldValue}
-            onChange={(e) => handleFieldChange(submissionId, field.id, e.target.value)}
-            className="w-full"
+          <span className="text-sm">{field.label}</span>
+        </div>
+      );
+
+    case 'toggle-switch':
+      return (
+        <div className="flex items-center gap-2">
+          <Switch
+            checked={fieldValue === true || fieldValue === 'true'}
+            onCheckedChange={(checked) => handleFieldChange(submissionId, field.id, checked)}
             disabled={isDisabled}
           />
-        );
+          <span className="text-sm">{field.label}</span>
+        </div>
+      );
+
+    case 'rating': {
+      const maxRating = field.customConfig?.ratingScale || 5;
+      return (
+        <div className="flex items-center gap-1">
+          {[...Array(maxRating)].map((_, index) => {
+            const starValue = index + 1;
+            return (
+              <Star
+                key={index}
+                className={`h-4 w-4 cursor-pointer transition-colors ${
+                  starValue <= (fieldValue || 0)
+                    ? 'fill-yellow-400 text-yellow-400'
+                    : 'text-gray-300'
+                }`}
+                onClick={() =>
+                  !isDisabled && handleFieldChange(submissionId, field.id, starValue)
+                }
+              />
+            );
+          })}
+          {fieldValue > 0 && (
+            <span className="ml-2 text-xs text-muted-foreground">
+              {fieldValue}/{maxRating}
+            </span>
+          )}
+        </div>
+      );
     }
-  };
+
+    case 'slider': {
+      const min = field.validation?.min ?? 0;
+      const max = field.validation?.max ?? 100;
+      return (
+        <div className="space-y-2 w-full">
+          <Slider
+            value={[fieldValue || min]}
+            onValueChange={(newVal) =>
+              handleFieldChange(submissionId, field.id, newVal[0])
+            }
+            min={min}
+            max={max}
+            step={field.customConfig?.step || 1}
+            disabled={isDisabled}
+          />
+          <div className="text-xs text-muted-foreground text-center">
+            {fieldValue || min} / {max}
+          </div>
+        </div>
+      );
+    }
+
+    default:
+      return (
+        <Input
+          value={fieldValue}
+          onChange={(e) => handleFieldChange(submissionId, field.id, e.target.value)}
+          className="w-full"
+          disabled={isDisabled}
+        />
+      );
+  }
+};
+
 
   if (submissions.length === 0) return null;
 
