@@ -13,6 +13,11 @@ interface ColumnOrderManagerProps {
   selectedColumns: string[];
   onColumnOrderChange: (newOrder: string[]) => void;
 }
+import ReactDOM from "react-dom";
+
+export const DraggablePortal = ({ children }: { children: React.ReactNode }) => {
+  return ReactDOM.createPortal(children, document.body);
+};
 
 export function ColumnOrderManager({
   isOpen,
@@ -115,65 +120,68 @@ export function ColumnOrderManager({
                       className="space-y-2 max-h-[50vh] overflow-y-auto pr-2"
                     >
                       {Array.isArray(columnOrder) ? columnOrder.map((fieldId, index) => (
-                        <Draggable
-                          key={fieldId}
-                          draggableId={fieldId}
-                          index={index}
-                        >
-                          {(provided, snapshot) => (
-                            <Card
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              className={`p-3 transition-shadow ${
-                                snapshot.isDragging ? 'shadow-lg' : ''
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3 flex-1">
-                                  <div
-                                    {...provided.dragHandleProps}
-                                    className="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
-                                  >
-                                    <GripVertical className="h-4 w-4" />
-                                  </div>
-                                  
-                                  <div className="flex items-center gap-2 flex-1">
-                                    <span className="text-sm bg-muted px-2 py-1 rounded font-mono">
-                                      {index + 1}
-                                    </span>
-                                    <span className="font-medium">
-                                      {getFieldLabel(fieldId)}
-                                    </span>
-                                    <Badge variant="outline" className="text-xs">
-                                      {getFieldType(fieldId)}
-                                    </Badge>
-                                  </div>
-                                </div>
+<Draggable key={fieldId} draggableId={fieldId} index={index}>
+  {(provided, snapshot) => {
+    const card = (
+      <Card
+        ref={provided.innerRef}
+        {...provided.draggableProps}
+        {...provided.dragHandleProps}
+        style={{
+          ...provided.draggableProps.style,
+          margin: 0, // no margin offset
+        }}
+        className={`p-3 transition-shadow ${
+          snapshot.isDragging ? "shadow-lg" : ""
+        }`}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 flex-1">
+            <GripVertical className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing" />
+            <div className="flex items-center gap-2 flex-1">
+              <span className="text-sm bg-muted px-2 py-1 rounded font-mono">
+                {index + 1}
+              </span>
+              <span className="font-medium">{getFieldLabel(fieldId)}</span>
+              <Badge variant="outline" className="text-xs">
+                {getFieldType(fieldId)}
+              </Badge>
+            </div>
+          </div>
 
-                                <div className="flex items-center gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => moveUp(index)}
-                                    disabled={index === 0}
-                                    className="h-8 w-8 p-0"
-                                  >
-                                    <ArrowUp className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => moveDown(index)}
-                                    disabled={index === columnOrder.length - 1}
-                                    className="h-8 w-8 p-0"
-                                  >
-                                    <ArrowDown className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </Card>
-                          )}
-                        </Draggable>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => moveUp(index)}
+              disabled={index === 0}
+              className="h-8 w-8 p-0"
+            >
+              <ArrowUp className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => moveDown(index)}
+              disabled={index === columnOrder.length - 1}
+              className="h-8 w-8 p-0"
+            >
+              <ArrowDown className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+      </Card>
+    );
+
+    // 👇 Use portal only while dragging
+    return snapshot.isDragging ? (
+      <DraggablePortal>{card}</DraggablePortal>
+    ) : (
+      card
+    );
+  }}
+</Draggable>
+
                       )) : null}
                       {provided.placeholder}
                     </div>

@@ -384,7 +384,7 @@ export function AddressField({ field, value = {}, onChange, error, disabled }: A
           </div>
         )}
 
-        {addressFields.includes('country') && (
+        {/* {addressFields.includes('country') && (
           <div>
             <Label htmlFor={`${field.id}-country`}>Country</Label>
             <Popover open={countryOpen} onOpenChange={setCountryOpen}>
@@ -421,7 +421,7 @@ export function AddressField({ field, value = {}, onChange, error, disabled }: A
               </PopoverContent>
             </Popover>
           </div>
-        )}
+        )} */}
       </div>
 
       {error && <p className="text-sm text-red-500">{error}</p>}
