@@ -62,12 +62,7 @@ export function MetricCard({ config, isEditing, onConfigChange, onEdit }: Metric
       const filteredSubmissions = submissions.filter(submission => {
         const submissionData = submission.submission_data;
         return config.filters?.every(filter => {
-          const rawValue = submissionData[filter.field];
-          // Extract primitive value from object structures for filtering
-          const value = rawValue && typeof rawValue === 'object' && 'value' in rawValue
-            ? (rawValue.value === 'undefined' ? '' : rawValue.value)
-            : rawValue;
-            
+          const value = submissionData[filter.field];
           switch (filter.operator) {
             case 'equals':
               return value === filter.value;
@@ -91,24 +86,14 @@ export function MetricCard({ config, isEditing, onConfigChange, onEdit }: Metric
         case 'sum':
           value = filteredSubmissions.reduce((acc, submission) => {
             const submissionData = submission.submission_data;
-            const rawFieldValue = submissionData[config.field];
-            // Extract primitive value from object structures
-            const extractedValue = rawFieldValue && typeof rawFieldValue === 'object' && 'value' in rawFieldValue
-              ? (rawFieldValue.value === 'undefined' ? 0 : rawFieldValue.value)
-              : rawFieldValue;
-            const fieldValue = Number(extractedValue);
+            const fieldValue = Number(submissionData[config.field]);
             return acc + (isNaN(fieldValue) ? 0 : fieldValue);
           }, 0);
           break;
         case 'avg':
           const sum = filteredSubmissions.reduce((acc, submission) => {
             const submissionData = submission.submission_data;
-            const rawFieldValue = submissionData[config.field];
-            // Extract primitive value from object structures
-            const extractedValue = rawFieldValue && typeof rawFieldValue === 'object' && 'value' in rawFieldValue
-              ? (rawFieldValue.value === 'undefined' ? 0 : rawFieldValue.value)
-              : rawFieldValue;
-            const fieldValue = Number(extractedValue);
+            const fieldValue = Number(submissionData[config.field]);
             return acc + (isNaN(fieldValue) ? 0 : fieldValue);
           }, 0);
           value = filteredSubmissions.length > 0 ? sum / filteredSubmissions.length : 0;
@@ -116,12 +101,7 @@ export function MetricCard({ config, isEditing, onConfigChange, onEdit }: Metric
         case 'min':
           value = filteredSubmissions.reduce((min, submission) => {
             const submissionData = submission.submission_data;
-            const rawFieldValue = submissionData[config.field];
-            // Extract primitive value from object structures
-            const extractedValue = rawFieldValue && typeof rawFieldValue === 'object' && 'value' in rawFieldValue
-              ? (rawFieldValue.value === 'undefined' ? Infinity : rawFieldValue.value)
-              : rawFieldValue;
-            const fieldValue = Number(extractedValue);
+            const fieldValue = Number(submissionData[config.field]);
             return Math.min(min, isNaN(fieldValue) ? Infinity : fieldValue);
           }, Infinity);
           value = value === Infinity ? 0 : value;
@@ -129,12 +109,7 @@ export function MetricCard({ config, isEditing, onConfigChange, onEdit }: Metric
         case 'max':
           value = filteredSubmissions.reduce((max, submission) => {
             const submissionData = submission.submission_data;
-            const rawFieldValue = submissionData[config.field];
-            // Extract primitive value from object structures
-            const extractedValue = rawFieldValue && typeof rawFieldValue === 'object' && 'value' in rawFieldValue
-              ? (rawFieldValue.value === 'undefined' ? -Infinity : rawFieldValue.value)
-              : rawFieldValue;
-            const fieldValue = Number(extractedValue);
+            const fieldValue = Number(submissionData[config.field]);
             return Math.max(max, isNaN(fieldValue) ? -Infinity : fieldValue);
           }, -Infinity);
           value = value === -Infinity ? 0 : value;

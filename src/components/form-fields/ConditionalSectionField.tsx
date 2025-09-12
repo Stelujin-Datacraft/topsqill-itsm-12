@@ -110,7 +110,7 @@ export function ConditionalSectionField({
         placeholder="Value based on conditions"
       />
 
-      {/* <div className="space-y-2 p-3 bg-gray-50 border rounded text-sm">
+      <div className="space-y-2 p-3 bg-gray-50 border rounded text-sm">
         <div className="flex items-center space-x-2">
           <span className="font-medium">Status:</span>
           <span className={conditionsMatch ? 'text-green-600' : 'text-gray-600'}>
@@ -135,7 +135,7 @@ export function ConditionalSectionField({
             <p className="text-red-600">{config.falseValue || '(empty)'}</p>
           </div>
         </div>
-      </div> */}
+      </div>
 
       {error && (
         <p className="text-sm text-red-500">{error}</p>

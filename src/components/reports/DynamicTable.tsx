@@ -885,12 +885,7 @@ export function DynamicTable({
                         {/* Submission ID */}
                         <TableCell className="py-2 bg-white">
                           <Button variant="link" className="font-mono text-xs p-0 h-auto underline" onClick={() => navigate(`/submission/${row.id}`)}>
-                            #{(() => {
-                              const refId = row.submission_ref_id;
-                              const fallbackId = row.id?.slice?.(0, 8) || 'N/A';
-                              if (typeof refId === 'object') return JSON.stringify(refId);
-                              return String(refId || fallbackId);
-                            })()}
+                            #{row.submission_ref_id || row.id.slice(0, 8)}
                           </Button>
                         </TableCell>
                         

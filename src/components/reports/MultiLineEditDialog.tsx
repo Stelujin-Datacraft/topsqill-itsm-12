@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Users } from 'lucide-react';
-import { FieldEditorFactory } from './field-editors/FieldEditorFactory';
 
 interface MultiLineEditDialogProps {
   isOpen: boolean;
@@ -32,24 +37,7 @@ export function MultiLineEditDialog({
       const initialData: Record<string, Record<string, any>> = {};
       
       submissions.forEach(submission => {
-        const submissionData: Record<string, any> = {};
-        
-        // Extract primitive values from submission_data objects
-        if (submission.submission_data && typeof submission.submission_data === 'object') {
-          Object.keys(submission.submission_data).forEach(fieldId => {
-            const fieldData = submission.submission_data[fieldId];
-            
-            // If the field data is an object with a 'value' property, extract it
-            if (fieldData && typeof fieldData === 'object' && 'value' in fieldData) {
-              submissionData[fieldId] = fieldData.value === 'undefined' ? '' : fieldData.value;
-            } else {
-              // Otherwise, use the value directly
-              submissionData[fieldId] = fieldData;
-            }
-          });
-        }
-        
-        initialData[submission.id] = submissionData;
+        initialData[submission.id] = { ...submission.submission_data };
       });
       
       setEditData(initialData);
@@ -109,122 +97,198 @@ export function MultiLineEditDialog({
     }
   };
 
-  const getEditableFields = () => {
-    return Array.isArray(formFields) 
-      ? formFields.filter(field => {
-          const excludedFieldTypes = [
-            'header', 'description', 'section-break', 'horizontal-line', 
-            'full-width-container', 'record-table', 'matrix-grid', 
-            'cross-reference', 'child-cross-reference', 'calculated',
-            'conditional-section', 'workflow-trigger', 'query-field'
-          ];
-          
-          // Exclude by field type
-          if (excludedFieldTypes.includes(field.field_type || field.type)) return false;
-          
-          // Exclude auto-generated cross-reference fields
-          if (field.label && field.label.startsWith('Reference from ')) return false;
-          
-          return true;
-        })
-      : [];
-  };
-
   const renderFieldInput = (field: any, value: any, submissionId: string) => {
-    return (
-      <FieldEditorFactory
-        field={field}
-        value={value}
-        onChange={(newValue) => {
-          handleFieldValueChange(submissionId, field.id, newValue);
-        }}
-        className="w-full min-w-[220px]"
-      />
-    );
+    switch (field.field_type) {
+      case 'text':
+      case 'email':
+      case 'phone':
+        return (
+          <Input
+            value={value || ''}
+            onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
+            placeholder={`Enter ${field.label}`}
+            className="text-sm w-full"
+          />
+        );
+      
+      case 'textarea':
+      case 'rich-text':
+        return (
+          <Textarea
+            value={value || ''}
+            onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
+            placeholder={`Enter ${field.label}`}
+            rows={2}
+            className="text-sm w-full resize-none"
+          />
+        );
+      
+      case 'number':
+        return (
+          <Input
+            type="number"
+            value={value || ''}
+            onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
+            placeholder={`Enter ${field.label}`}
+            className="text-sm w-full"
+          />
+        );
+      
+      case 'select':
+      case 'dropdown':
+        return (
+          <Select
+            value={value || ''}
+            onValueChange={(newValue) => handleFieldValueChange(submissionId, field.id, newValue)}
+          >
+            <SelectTrigger className="text-sm w-full">
+              <SelectValue placeholder={`Select ${field.label}`} />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.isArray(field.options) ? field.options.map((option: any) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              )) : null}
+            </SelectContent>
+          </Select>
+        );
+      
+      case 'checkbox':
+        return (
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              checked={value === true || value === 'true'}
+              onCheckedChange={(checked) => handleFieldValueChange(submissionId, field.id, checked)}
+            />
+            <label className="text-sm">{field.label}</label>
+          </div>
+        );
+      
+      case 'radio':
+        return (
+          <div className="space-y-2">
+            {Array.isArray(field.options) ? field.options.map((option: any) => (
+              <div key={option.value} className="flex items-center space-x-2">
+                <input
+                  type="radio"
+                  name={`${submissionId}-${field.id}`}
+                  value={option.value}
+                  checked={value === option.value}
+                  onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
+                  className="h-4 w-4"
+                />
+                <label className="text-sm">{option.label}</label>
+              </div>
+            )) : null}
+          </div>
+        );
+      
+      default:
+        return (
+          <Input
+            value={value || ''}
+            onChange={(e) => handleFieldValueChange(submissionId, field.id, e.target.value)}
+            placeholder={`Enter ${field.label}`}
+            className="text-sm w-full"
+          />
+        );
+    }
   };
 
 return (
   <Dialog open={isOpen} onOpenChange={onOpenChange}>
-    <DialogContent className="max-w-[95vw] max-h-[90vh] flex flex-col">
+    <DialogContent className="max-w-6xl max-h-[80vh] flex flex-col">
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
           <Users className="h-5 w-5" />
           Multi-Line Edit - {submissions.length} Records
         </DialogTitle>
         <p className="text-sm text-muted-foreground">
-          Edit fields horizontally. Scroll left/right to view all fields.
+          Select fields and set values to apply to all selected records
         </p>
       </DialogHeader>
 
       <div className="flex-1 overflow-hidden">
-        {/* Horizontal scrollable container */}
-        <div className="h-full overflow-auto">
-          <div className="min-w-max">
-            {/* Sticky header with field labels */}
-            <div className="sticky top-0 bg-background border-b z-10">
-              <div className="flex bg-muted/50 p-3 rounded-t-lg">
-                <div className="w-[200px] flex-shrink-0 text-xs font-medium text-muted-foreground border-r border-border pr-3">
-                  Record ID
-                </div>
-                {getEditableFields().map((field) => (
-                  <div key={field.id} className="w-[220px] flex-shrink-0 text-xs font-medium text-muted-foreground px-3 border-r border-border/50 last:border-r-0">
-                    <div className="truncate" title={field.label}>
-                      {field.label}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground/70 mt-1">
-                      {field.field_type || field.type}
-                    </div>
-                  </div>
-                ))}
+        <ScrollArea className="h-full pr-4">
+          <div className="space-y-4 overflow-x-auto">
+            {/* Header with field labels */}
+            <div className="bg-muted/50 p-3 rounded-lg min-w-full">
+              <div className="grid grid-cols-[200px_repeat(auto-fit,minmax(200px,1fr))] gap-2 text-xs font-medium text-muted-foreground">
+                <div className="w-[200px]">Record ID</div>
+                {Array.isArray(formFields)
+                  ? formFields.slice(0, 10).map((field) => (
+                      <div key={field.id} className="truncate">
+                        {field.label}
+                      </div>
+                    ))
+                  : null}
               </div>
             </div>
 
             {/* Records for editing */}
-            <div className="space-y-0">
+            <div className="space-y-3 min-w-full">
               {Array.isArray(submissions)
-                ? submissions.map((submission, index) => (
-                    <div 
-                      key={submission.id} 
-                      className={`flex border-b hover:bg-muted/20 transition-colors ${
-                        index % 2 === 0 ? 'bg-background' : 'bg-muted/10'
-                      }`}
-                    >
-                      {/* Record ID - Fixed width */}
-                      <div className="w-[200px] flex-shrink-0 flex items-center p-3 border-r border-border">
-                        <Badge variant="outline" className="text-xs">
-                          #{(() => {
-                            const refId = submission.submission_ref_id;
-                            const fallbackId = submission.id?.slice?.(0, 8);
-                            if (typeof refId === 'object') return JSON.stringify(refId);
-                            return String(refId || fallbackId || 'N/A');
-                          })()}
-                        </Badge>
+                ? submissions.map((submission) => (
+                    <div key={submission.id} className="border rounded-lg p-3">
+                      <div className="grid grid-cols-[200px_repeat(auto-fit,minmax(200px,1fr))] gap-2 items-start">
+                        {/* Record ID */}
+                        <div className="flex items-center w-[200px]">
+                          <Badge variant="outline" className="text-xs">
+                            #{submission.submission_ref_id ||
+                              submission.id.slice(0, 8)}
+                          </Badge>
+                        </div>
+
+                        {/* Field inputs */}
+                        {Array.isArray(formFields)
+                          ? formFields.slice(0, 10).map((field) => (
+                              <div key={field.id}>
+                                {renderFieldInput(
+                                  field,
+                                  editData[submission.id]?.[field.id],
+                                  submission.id
+                                )}
+                              </div>
+                            ))
+                          : null}
                       </div>
 
-                      {/* Field inputs - Horizontal layout */}
-                      {getEditableFields().map((field) => (
-                        <div key={field.id} className="w-[220px] flex-shrink-0 p-3 border-r border-border/50 last:border-r-0">
-                          {renderFieldInput(
-                            field,
-                            editData[submission.id]?.[field.id],
-                            submission.id
-                          )}
-                        </div>
-                      ))}
+                      {/* Show remaining fields if more than 10 */}
+                      {Array.isArray(formFields) &&
+                        formFields.length > 10 && (
+                          <div className="mt-3 pt-3 border-t grid grid-cols-[200px_repeat(auto-fit,minmax(200px,1fr))] gap-2 items-start">
+                            <div className="text-xs text-muted-foreground w-[200px]">
+                              More fields:
+                            </div>
+                            {formFields.slice(10).map((field) => (
+                              <div key={field.id}>
+                                <Label className="text-xs text-muted-foreground mb-1 block">
+                                  {field.label}
+                                </Label>
+                                {renderFieldInput(
+                                  field,
+                                  editData[submission.id]?.[field.id],
+                                  submission.id
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                     </div>
                   ))
                 : null}
             </div>
           </div>
-        </div>
+        </ScrollArea>
       </div>
 
       <div className="flex justify-between items-center pt-4 border-t">
         <div className="text-sm text-muted-foreground">
           Editing {Array.isArray(submissions) ? submissions.length : 0} record
           {Array.isArray(submissions) && submissions.length !== 1 ? "s" : ""} with{" "}
-          {getEditableFields().length} editable field
-          {getEditableFields().length !== 1 ? "s" : ""}
+          {Array.isArray(formFields) ? formFields.length : 0} field
+          {Array.isArray(formFields) && formFields.length !== 1 ? "s" : ""}
         </div>
 
         <div className="flex gap-2">

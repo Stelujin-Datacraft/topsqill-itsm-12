@@ -127,14 +127,9 @@ export function MySubmissions() {
   const filteredSubmissions = submissions.filter(submission => {
     const matchesSearch = submission.form_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          submission.submission_ref_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         Object.values(submission.submission_data).some(value => {
-                           // Extract primitive value from object structures for search
-                           let searchValue = value;
-                           if (value && typeof value === 'object' && 'value' in value) {
-                             searchValue = value.value === 'undefined' ? '' : value.value;
-                           }
-                           return String(searchValue).toLowerCase().includes(searchTerm.toLowerCase());
-                         });
+                         Object.values(submission.submission_data).some(value => 
+                           String(value).toLowerCase().includes(searchTerm.toLowerCase())
+                         );
     
     const matchesForm = selectedFormId === 'all' || submission.form_id === selectedFormId;
     

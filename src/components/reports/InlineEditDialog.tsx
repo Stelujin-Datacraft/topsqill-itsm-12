@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { FieldEditorFactory } from './field-editors/FieldEditorFactory';
-import { Save, Edit3 } from 'lucide-react';
 
 interface InlineEditDialogProps {
   isOpen: boolean;
@@ -27,25 +29,8 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
       const originalValues: Record<string, Record<string, any>> = {};
       
       submissions.forEach(submission => {
-        const submissionData: Record<string, any> = {};
-        
-        // Extract primitive values from submission_data objects
-        if (submission.submission_data && typeof submission.submission_data === 'object') {
-          Object.keys(submission.submission_data).forEach(fieldId => {
-            const fieldData = submission.submission_data[fieldId];
-            
-            // If the field data is an object with a 'value' property, extract it
-            if (fieldData && typeof fieldData === 'object' && 'value' in fieldData) {
-              submissionData[fieldId] = fieldData.value === 'undefined' ? '' : fieldData.value;
-            } else {
-              // Otherwise, use the value directly
-              submissionData[fieldId] = fieldData;
-            }
-          });
-        }
-        
-        initialData[submission.id] = submissionData;
-        originalValues[submission.id] = { ...submissionData };
+        initialData[submission.id] = { ...submission.submission_data };
+        originalValues[submission.id] = { ...submission.submission_data };
       });
       
       // Initialize master values for bulk editing
@@ -160,17 +145,76 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
   };
 
   const renderFieldInput = (field: any, submissionId: string, value: any, isBulkEdit: boolean = false) => {
+    const fieldValue = value || '';
     const isDisabled = isBulkEdit && submissionId !== 'master';
     
-    return (
-      <FieldEditorFactory
-        field={field}
-        value={value}
-        onChange={(newValue) => handleFieldChange(submissionId, field.id, newValue)}
-        className="w-full"
-        disabled={isDisabled}
-      />
-    );
+    switch (field.field_type) {
+      case 'text':
+      case 'email':
+      case 'number':
+        return (
+          <Input
+            type={field.field_type === 'number' ? 'number' : 'text'}
+            value={fieldValue}
+            onChange={(e) => handleFieldChange(submissionId, field.id, e.target.value)}
+            className="w-full"
+            disabled={isDisabled}
+          />
+        );
+      
+      case 'textarea':
+        return (
+          <Textarea
+            value={fieldValue}
+            onChange={(e) => handleFieldChange(submissionId, field.id, e.target.value)}
+            className="w-full min-h-[60px]"
+            disabled={isDisabled}
+          />
+        );
+      
+      case 'select':
+      case 'radio':
+      case 'multiselect':
+        const options = field.field_options?.options || field.options || [];
+        const selectOptions = Array.isArray(options) ? options : [];
+        return (
+          <Select 
+            value={fieldValue} 
+            onValueChange={(value) => handleFieldChange(submissionId, field.id, value)}
+            disabled={isDisabled}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select option" />
+            </SelectTrigger>
+            <SelectContent>
+              {selectOptions.map((option: any) => (
+                <SelectItem key={option.value || option} value={option.value || option}>
+                  {option.label || option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      
+      case 'checkbox':
+        return (
+          <Checkbox
+            checked={fieldValue === true || fieldValue === 'true'}
+            onCheckedChange={(checked) => handleFieldChange(submissionId, field.id, checked)}
+            disabled={isDisabled}
+          />
+        );
+      
+      default:
+        return (
+          <Input
+            value={fieldValue}
+            onChange={(e) => handleFieldChange(submissionId, field.id, e.target.value)}
+            className="w-full"
+            disabled={isDisabled}
+          />
+        );
+    }
   };
 
   if (submissions.length === 0) return null;
@@ -179,9 +223,8 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Edit3 className="h-5 w-5" />
-            Bulk Edit - {submissions.length} Record{submissions.length > 1 ? 's' : ''}
+          <DialogTitle>
+            Edit {submissions.length} Submission{submissions.length > 1 ? 's' : ''}
           </DialogTitle>
         </DialogHeader>
         
@@ -234,12 +277,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                   {submissions.map((submission, index) => (
                     <div key={submission.id} className="p-4 border rounded-lg bg-muted/20">
                       <div className="text-sm font-medium text-muted-foreground mb-3">
-                        Record {index + 1} (ID: {(() => {
-                          const refId = submission.submission_ref_id;
-                          const fallbackId = submission.id?.slice?.(0, 8) + '...';
-                          if (typeof refId === 'object') return JSON.stringify(refId);
-                          return String(refId || fallbackId || 'N/A');
-                        })()})
+                        Record {index + 1} (ID: {submission.submission_ref_id || submission.id.slice(0, 8) + '...'})
                       </div>
                        <div className="flex gap-4">
                           {formFields.filter(field => {
@@ -285,9 +323,8 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving} className="gap-2">
-            <Save className="h-4 w-4" />
-            {saving ? 'Saving...' : `Update ${submissions.length} Record${submissions.length > 1 ? 's' : ''}`}
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : `Save ${submissions.length} Record${submissions.length > 1 ? 's' : ''}`}
           </Button>
         </DialogFooter>
       </DialogContent>

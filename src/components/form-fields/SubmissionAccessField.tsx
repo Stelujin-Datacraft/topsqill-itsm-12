@@ -188,7 +188,7 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Label htmlFor={field.id}>{field.label}</Label>
-        {/* {getAccessLevelBadge()} */}
+        {getAccessLevelBadge()}
       </div>
       
       {/* Selected users and groups display */}
@@ -374,7 +374,7 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
       </Popover>
 
       {/* Configuration info */}
-      {/* <div className="text-xs text-gray-500 space-y-1">
+      <div className="text-xs text-gray-500 space-y-1">
         <p>Access Level: {config.accessLevel || 'view'}</p>
         {config.accessDuration && (
           <p>Duration: {config.accessDuration} days</p>
@@ -385,7 +385,7 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
         {config.sendNotification !== false && (
           <p>📧 Email notification will be sent</p>
         )}
-      </div> */}
+      </div>
 
       {error && <p className="text-sm text-red-500">{error}</p>}
     </div>

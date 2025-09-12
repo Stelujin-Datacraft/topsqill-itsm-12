@@ -67,14 +67,14 @@ export const fieldTypes: FieldTypeConfig[] = [
     category: 'full-width',
     isFullWidth: true,
   },
-  // {
-  //   type: 'record-table',
-  //   label: 'Record Table Embed',
-  //   icon: Table,
-  //   description: 'Inline grid showing related records from another form or table',
-  //   category: 'full-width',
-  //   isFullWidth: true,
-  // },
+  {
+    type: 'record-table',
+    label: 'Record Table Embed',
+    icon: Table,
+    description: 'Inline grid showing related records from another form or table',
+    category: 'full-width',
+    isFullWidth: true,
+  },
   {
     type: 'matrix-grid',
     label: 'Matrix / Grid',
