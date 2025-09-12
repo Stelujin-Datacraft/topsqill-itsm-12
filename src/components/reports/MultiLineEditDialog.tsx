@@ -196,123 +196,109 @@ export function MultiLineEditDialog({
     }
   };
 
-return (
-  <Dialog open={isOpen} onOpenChange={onOpenChange}>
-    <DialogContent className="max-w-6xl max-h-[80vh] flex flex-col">
-      <DialogHeader>
-        <DialogTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
-          Multi-Line Edit - {submissions.length} Records
-        </DialogTitle>
-        <p className="text-sm text-muted-foreground">
-          Select fields and set values to apply to all selected records
-        </p>
-      </DialogHeader>
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Multi-Line Edit - {submissions.length} Records
+          </DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            Select fields and set values to apply to all selected records
+          </p>
+        </DialogHeader>
 
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full pr-4">
-          <div className="space-y-4 overflow-x-auto">
-            {/* Header with field labels */}
-            <div className="bg-muted/50 p-3 rounded-lg min-w-full">
-              <div className="grid grid-cols-[200px_repeat(auto-fit,minmax(200px,1fr))] gap-2 text-xs font-medium text-muted-foreground">
-                <div className="w-[200px]">Record ID</div>
-                {Array.isArray(formFields)
-                  ? formFields.slice(0, 10).map((field) => (
-                      <div key={field.id} className="truncate">
-                        {field.label}
+        <div className="flex-1 overflow-hidden">
+          <ScrollArea className="h-full pr-4">
+            <div className="space-y-4">
+              {/* Header with field labels */}
+              <div className="bg-muted/50 p-3 rounded-lg">
+                <div className="grid grid-cols-12 gap-2 text-xs font-medium text-muted-foreground">
+                  <div className="col-span-2">Record ID</div>
+                  {Array.isArray(formFields) ? formFields.slice(0, 10).map(field => (
+                    <div key={field.id} className="col-span-1 truncate">
+                      {field.label}
+                    </div>
+                  )) : null}
+                </div>
+              </div>
+
+              {/* Records for editing */}
+              <div className="space-y-3">
+                {Array.isArray(submissions) ? submissions.map((submission, submissionIndex) => (
+                  <div key={submission.id} className="border rounded-lg p-3">
+                    <div className="grid grid-cols-12 gap-2 items-start">
+                      {/* Record ID */}
+                      <div className="col-span-2 flex items-center">
+                        <Badge variant="outline" className="text-xs">
+                          #{submission.submission_ref_id || submission.id.slice(0, 8)}
+                        </Badge>
                       </div>
-                    ))
-                  : null}
+                      
+                      {/* Field inputs */}
+                      {Array.isArray(formFields) ? formFields.slice(0, 10).map(field => (
+                        <div key={field.id} className="col-span-1">
+                          {renderFieldInput(
+                            field, 
+                            editData[submission.id]?.[field.id], 
+                            submission.id
+                          )}
+                        </div>
+                      )) : null}
+                    </div>
+                    
+                    {/* Show remaining fields if more than 10 */}
+                    {Array.isArray(formFields) && formFields.length > 10 && (
+                      <div className="mt-3 pt-3 border-t grid grid-cols-12 gap-2 items-start">
+                        <div className="col-span-2 text-xs text-muted-foreground">
+                          More fields:
+                        </div>
+                        {formFields.slice(10).map(field => (
+                          <div key={field.id} className="col-span-2">
+                            <Label className="text-xs text-muted-foreground mb-1 block">
+                              {field.label}
+                            </Label>
+                            {renderFieldInput(
+                              field, 
+                              editData[submission.id]?.[field.id], 
+                              submission.id
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )) : null}
               </div>
             </div>
+          </ScrollArea>
+        </div>
 
-            {/* Records for editing */}
-            <div className="space-y-3 min-w-full">
-              {Array.isArray(submissions)
-                ? submissions.map((submission) => (
-                    <div key={submission.id} className="border rounded-lg p-3">
-                      <div className="grid grid-cols-[200px_repeat(auto-fit,minmax(200px,1fr))] gap-2 items-start">
-                        {/* Record ID */}
-                        <div className="flex items-center w-[200px]">
-                          <Badge variant="outline" className="text-xs">
-                            #{submission.submission_ref_id ||
-                              submission.id.slice(0, 8)}
-                          </Badge>
-                        </div>
-
-                        {/* Field inputs */}
-                        {Array.isArray(formFields)
-                          ? formFields.slice(0, 10).map((field) => (
-                              <div key={field.id}>
-                                {renderFieldInput(
-                                  field,
-                                  editData[submission.id]?.[field.id],
-                                  submission.id
-                                )}
-                              </div>
-                            ))
-                          : null}
-                      </div>
-
-                      {/* Show remaining fields if more than 10 */}
-                      {Array.isArray(formFields) &&
-                        formFields.length > 10 && (
-                          <div className="mt-3 pt-3 border-t grid grid-cols-[200px_repeat(auto-fit,minmax(200px,1fr))] gap-2 items-start">
-                            <div className="text-xs text-muted-foreground w-[200px]">
-                              More fields:
-                            </div>
-                            {formFields.slice(10).map((field) => (
-                              <div key={field.id}>
-                                <Label className="text-xs text-muted-foreground mb-1 block">
-                                  {field.label}
-                                </Label>
-                                {renderFieldInput(
-                                  field,
-                                  editData[submission.id]?.[field.id],
-                                  submission.id
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                    </div>
-                  ))
-                : null}
-            </div>
+        <div className="flex justify-between items-center pt-4 border-t">
+          <div className="text-sm text-muted-foreground">
+            Editing {Array.isArray(submissions) ? submissions.length : 0} record{(Array.isArray(submissions) ? submissions.length : 0) !== 1 ? 's' : ''} with {Array.isArray(formFields) ? formFields.length : 0} field{(Array.isArray(formFields) ? formFields.length : 0) !== 1 ? 's' : ''}
           </div>
-        </ScrollArea>
-      </div>
-
-      <div className="flex justify-between items-center pt-4 border-t">
-        <div className="text-sm text-muted-foreground">
-          Editing {Array.isArray(submissions) ? submissions.length : 0} record
-          {Array.isArray(submissions) && submissions.length !== 1 ? "s" : ""} with{" "}
-          {Array.isArray(formFields) ? formFields.length : 0} field
-          {Array.isArray(formFields) && formFields.length !== 1 ? "s" : ""}
+          
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="gap-2"
+            >
+              <Save className="h-4 w-4" />
+              {saving ? 'Saving...' : `Update ${Array.isArray(submissions) ? submissions.length : 0} Records`}
+            </Button>
+          </div>
         </div>
-
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={saving}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            className="gap-2"
-          >
-            <Save className="h-4 w-4" />
-            {saving
-              ? "Saving..."
-              : `Update ${Array.isArray(submissions) ? submissions.length : 0} Records`}
-          </Button>
-        </div>
-      </div>
-    </DialogContent>
-  </Dialog>
-);
-
+      </DialogContent>
+    </Dialog>
+  );
 }
