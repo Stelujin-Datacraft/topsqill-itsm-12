@@ -213,7 +213,6 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
 
     case 'user-picker':
     case 'group-picker':
-    case 'barcode':
       return (
         <Wrapper>
           <Input
@@ -372,10 +371,13 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
     case 'conditional-section':
     case 'workflow-trigger':
     case 'query-field':
+    case 'barcode':
+    case 'address':
+      case'file':
       return (
         <Wrapper>
           <div className="text-xs text-muted-foreground italic p-2 bg-muted/20 rounded">
-            Non-editable field type: {fieldType}
+            Non-editable field: {fieldType}
           </div>
         </Wrapper>
       );
