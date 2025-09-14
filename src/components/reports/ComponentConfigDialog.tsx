@@ -925,67 +925,176 @@ export function ComponentConfigDialog({
 
   const renderTableConfig = () => {
     return (
-      <div className="space-y-4">
-        <div>
-          <Label htmlFor="title">Table Title</Label>
-          <Input
-            id="title"
-            value={config.title || ''}
-            onChange={(e) => setConfig({ ...config, title: e.target.value })}
-            placeholder="Enter table title"
-          />
-        </div>
+      <Tabs defaultValue="basic" className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="basic">Basic</TabsTrigger>
+          <TabsTrigger value="joins">Joins</TabsTrigger>
+          <TabsTrigger value="drilldown">Drilldown</TabsTrigger>
+          <TabsTrigger value="columns">Columns</TabsTrigger>
+          <TabsTrigger value="filters">Filters</TabsTrigger>
+        </TabsList>
 
-        {renderFormSelection()}
+        <TabsContent value="basic" className="space-y-4">
+          <div>
+            <Label htmlFor="title">Table Title</Label>
+            <Input
+              id="title"
+              value={config.title || ''}
+              onChange={(e) => setConfig({ ...config, title: e.target.value })}
+              placeholder="Enter table title"
+            />
+          </div>
 
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="showMetadata"
-            checked={config.showMetadata || false}
-            onCheckedChange={(checked) => setConfig({ ...config, showMetadata: checked })}
-          />
-          <Label htmlFor="showMetadata">Show metadata columns (created date, etc.)</Label>
-        </div>
+          {renderFormSelection()}
 
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="enableFiltering"
-            checked={config.enableFiltering !== false}
-            onCheckedChange={(checked) => setConfig({ ...config, enableFiltering: checked })}
-          />
-          <Label htmlFor="enableFiltering">Enable column filtering</Label>
-        </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="showMetadata"
+                checked={config.showMetadata || false}
+                onCheckedChange={(checked) => setConfig({ ...config, showMetadata: checked })}
+              />
+              <Label htmlFor="showMetadata">Show metadata</Label>
+            </div>
 
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="enableSorting"
-            checked={config.enableSorting !== false}
-            onCheckedChange={(checked) => setConfig({ ...config, enableSorting: checked })}
-          />
-          <Label htmlFor="enableSorting">Enable column sorting</Label>
-        </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="enableFiltering"
+                checked={config.enableFiltering !== false}
+                onCheckedChange={(checked) => setConfig({ ...config, enableFiltering: checked })}
+              />
+              <Label htmlFor="enableFiltering">Enable filtering</Label>
+            </div>
 
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="enableSearch"
-            checked={config.enableSearch !== false}
-            onCheckedChange={(checked) => setConfig({ ...config, enableSearch: checked })}
-          />
-          <Label htmlFor="enableSearch">Enable search functionality</Label>
-        </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="enableSorting"
+                checked={config.enableSorting !== false}
+                onCheckedChange={(checked) => setConfig({ ...config, enableSorting: checked })}
+              />
+              <Label htmlFor="enableSorting">Enable sorting</Label>
+            </div>
 
-        {config.formId && formFields.length > 0 && (
-          <GenericFieldSelector
-            formFields={formFields}
-            selectedFields={config.selectedColumns || []}
-            onFieldsChange={(fields) => setConfig({ ...config, selectedColumns: fields })}
-            label="Table Columns"
-            description="Select which columns to display in the table"
-            selectionType="checkbox"
-            maxHeight="400px"
-          />
-        )}
-      </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="enableSearch"
+                checked={config.enableSearch !== false}
+                onCheckedChange={(checked) => setConfig({ ...config, enableSearch: checked })}
+              />
+              <Label htmlFor="enableSearch">Enable search</Label>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="joins" className="space-y-4">
+          {config.formId && formFields.length > 0 ? (
+            <FormJoinConfig
+              enabled={joinEnabled}
+              onEnabledChange={(enabled) => {
+                setJoinEnabled(enabled);
+                if (!enabled) {
+                  setConfig(prev => ({ ...prev, joinConfig: undefined }));
+                  setSecondaryFormFields([]);
+                }
+              }}
+              primaryForm={{
+                id: config.formId,
+                name: forms.find(f => f.id === config.formId)?.name || 'Selected Form',
+                fields: formFields
+              }}
+              availableForms={forms.map(form => ({
+                id: form.id,
+                name: form.name,
+                fields: form.id === config.joinConfig?.secondaryFormId ? secondaryFormFields : (form.fields || [])
+              }))}
+              joinConfig={config.joinConfig || {
+                secondaryFormId: '',
+                joinType: 'inner',
+                primaryFieldId: '',
+                secondaryFieldId: ''
+              }}
+              onJoinConfigChange={(joinConfig) => {
+                setConfig({ ...config, joinConfig });
+                if (joinConfig.secondaryFormId && joinConfig.secondaryFormId !== config.joinConfig?.secondaryFormId) {
+                  handleSecondaryFormChange(joinConfig.secondaryFormId);
+                }
+              }}
+            />
+          ) : (
+            <div className="p-4 text-center text-muted-foreground">
+              Please select a form first to configure joins.
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="drilldown" className="space-y-4">
+          {config.formId && formFields.length > 0 ? (
+            <DrilldownConfig
+              formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
+              enabled={config.drilldownConfig?.enabled || false}
+              onEnabledChange={(enabled) => setConfig({ 
+                ...config, 
+                drilldownConfig: { 
+                  ...config.drilldownConfig, 
+                  enabled 
+                } 
+              })}
+              drilldownLevels={config.drilldownConfig?.levels || []}
+              onDrilldownLevelsChange={(levels) => setConfig({ 
+                ...config, 
+                drilldownConfig: { 
+                  ...config.drilldownConfig, 
+                  levels 
+                } 
+              })}
+            />
+          ) : (
+            <div className="p-4 text-center text-muted-foreground">
+              Please select a form first to configure drilldown.
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="columns" className="space-y-4">
+          {config.formId && (joinEnabled ? (config.joinConfig?.secondaryFormId && secondaryFormFields.length > 0) : formFields.length > 0) && (
+            <GenericFieldSelector
+              formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
+              selectedFields={config.selectedColumns || []}
+              onFieldsChange={(fields) => setConfig({ ...config, selectedColumns: fields })}
+              label="Table Columns"
+              description="Select which columns to display in the table (from joined forms)"
+              selectionType="checkbox"
+              maxHeight="400px"
+            />
+          )}
+
+          {config.formId && formFields.length === 0 && !loadingFields && (
+            <div className="p-4 text-center text-muted-foreground">
+              The selected form has no fields configured yet.
+            </div>
+          )}
+
+          {!config.formId && (
+            <div className="p-4 text-center text-muted-foreground">
+              Please select a form to configure table columns.
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="filters" className="space-y-4">
+          {config.formId && formFields.length > 0 ? (
+            <FilterConfig
+              formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
+              filters={config.filters || []}
+              onFiltersChange={(filters) => setConfig({ ...config, filters })}
+            />
+          ) : (
+            <div className="p-4 text-center text-muted-foreground">
+              Please select a form first to configure filters.
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     );
   };
 

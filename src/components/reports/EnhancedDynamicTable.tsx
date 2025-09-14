@@ -45,25 +45,56 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
 
     try {
       setLoading(true);
-      const { data: submissions, error } = await supabase
+      
+      // Load primary form data
+      let query = supabase
         .from('form_submissions')
         .select('*')
-        .eq('form_id', config.formId)
-        .order('submitted_at', { ascending: false });
+        .eq('form_id', config.formId);
+
+      // Apply drilldown filters if active
+      if (drilldownState.filters.length > 0) {
+        drilldownState.filters.forEach(filter => {
+          query = query.eq(`submission_data->>${filter.field}`, filter.value);
+        });
+      }
+
+      const { data: submissions, error } = await query.order('submitted_at', { ascending: false });
 
       if (error) throw error;
-      setData(submissions || []);
+
+      let processedData = submissions || [];
+
+      // If joins are enabled, process joined data
+      if (config.joinConfig?.enabled && config.joinConfig.secondaryFormId) {
+        const { data: secondarySubmissions, error: secondaryError } = await supabase
+          .from('form_submissions')
+          .select('*')
+          .eq('form_id', config.joinConfig.secondaryFormId);
+
+        if (!secondaryError && secondarySubmissions) {
+          // Perform the join based on join type and field mapping
+          processedData = performJoin(
+            processedData,
+            secondarySubmissions,
+            config.joinConfig
+          );
+        }
+      }
+
+      setData(processedData);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
-  }, [config.formId]);
+  }, [config.formId, config.joinConfig, drilldownState.filters]);
 
   const loadFormFields = useCallback(async () => {
     if (!config.formId) return;
 
     try {
+      // Load primary form fields
       const { data: fields, error } = await supabase
         .from('form_fields')
         .select('*')
@@ -71,13 +102,73 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
         .order('field_order', { ascending: true });
 
       if (error) throw error;
-      setFormFields(fields || []);
+      
+      let allFields = fields || [];
+
+      // Load secondary form fields if join is enabled
+      if (config.joinConfig?.enabled && config.joinConfig.secondaryFormId) {
+        const { data: secondaryFields, error: secondaryError } = await supabase
+          .from('form_fields')
+          .select('*')
+          .eq('form_id', config.joinConfig.secondaryFormId)
+          .order('field_order', { ascending: true });
+
+        if (!secondaryError && secondaryFields) {
+          // Add secondary fields with prefixed IDs
+          const prefixedSecondaryFields = secondaryFields.map(field => ({
+            ...field,
+            id: `secondary_${field.id}`,
+            label: `[Joined] ${field.label}`
+          }));
+          allFields = [...allFields, ...prefixedSecondaryFields];
+        }
+      }
+
+      setFormFields(allFields);
     } catch (error) {
       console.error('Error loading form fields:', error);
     }
-  }, [config.formId]);
+  }, [config.formId, config.joinConfig]);
+
+  // Helper function to perform joins
+  const performJoin = (primaryData: any[], secondaryData: any[], joinConfig: any) => {
+    const { joinType, primaryFieldId, secondaryFieldId } = joinConfig;
+    
+    return primaryData.map(primaryRow => {
+      const matchingSecondary = secondaryData.find(secondaryRow => 
+        primaryRow.submission_data?.[primaryFieldId] === secondaryRow.submission_data?.[secondaryFieldId]
+      );
+
+      if (matchingSecondary) {
+        // Merge the submission data with prefixed keys for secondary form
+        return {
+          ...primaryRow,
+          submission_data: {
+            ...primaryRow.submission_data,
+            ...Object.keys(matchingSecondary.submission_data || {}).reduce((acc, key) => {
+              acc[`secondary_${key}`] = matchingSecondary.submission_data[key];
+              return acc;
+            }, {} as any)
+          }
+        };
+      }
+
+      // Handle different join types
+      switch (joinType) {
+        case 'inner':
+          return null; // Exclude from results
+        case 'left':
+        default:
+          return primaryRow; // Keep primary row
+      }
+    }).filter(Boolean);
+  };
 
   const getFieldValue = (row: any, fieldId: string) => {
+    // Handle secondary form fields (prefixed with secondary_)
+    if (fieldId.startsWith('secondary_')) {
+      return row.submission_data?.[fieldId] || 'N/A';
+    }
     return row.submission_data?.[fieldId] || 'N/A';
   };
 
@@ -107,16 +198,51 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
   }, [formFields, config.selectedColumns]);
 
   const filteredData = useMemo(() => {
-    return data.filter(row => {
-      if (searchTerm && config.enableSearch) {
+    let filtered = data;
+
+    // Apply search filter
+    if (searchTerm && config.enableSearch) {
+      filtered = filtered.filter(row => {
         return displayFields.some(field => {
           const value = getFieldValue(row, field.id);
           return value.toString().toLowerCase().includes(searchTerm.toLowerCase());
         });
+      });
+    }
+
+    // Apply drilldown aggregation if enabled and at appropriate level
+    if (config.drilldownConfig?.enabled && Array.isArray(config.drilldownConfig.levels) && 
+        drilldownState.currentLevel < config.drilldownConfig.levels.length) {
+      const currentLevelConfig = config.drilldownConfig.levels[drilldownState.currentLevel];
+      if (currentLevelConfig) {
+        // Group data by the current drilldown field
+        const groupedData = filtered.reduce((groups, row) => {
+          const key = getFieldValue(row, currentLevelConfig.field);
+          if (!groups[key]) {
+            groups[key] = [];
+          }
+          groups[key].push(row);
+          return groups;
+        }, {} as Record<string, any[]>);
+
+        // Convert to summary rows for drilldown
+        filtered = Object.entries(groupedData).map(([key, rowsGroup]) => {
+          const rows = rowsGroup as any[];
+          return {
+            id: `drilldown_${key}`,
+            submission_data: {
+              [currentLevelConfig.field]: key,
+              _count: rows.length,
+              _isGrouped: true
+            },
+            submitted_at: rows[0]?.submitted_at
+          };
+        });
       }
-      return true;
-    });
-  }, [data, searchTerm, displayFields, config.enableSearch]);
+    }
+
+    return filtered;
+  }, [data, searchTerm, displayFields, config.enableSearch, config.drilldownConfig, drilldownState]);
 
   useEffect(() => {
     loadFormFields();
@@ -217,13 +343,23 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                 filteredData.map(row => (
                   <TableRow key={row.id}>
                     {displayFields.map(field => (
-                      <TableCell 
-                        key={field.id}
-                        className={config.drilldownConfig?.enabled ? 'cursor-pointer text-blue-600 hover:bg-blue-50' : ''}
-                        onClick={() => config.drilldownConfig?.enabled && handleDrilldown(field.id, getFieldValue(row, field.id), field.label)}
-                      >
-                        {getFieldValue(row, field.id)}
-                      </TableCell>
+                  <TableCell 
+                    key={field.id}
+                    className={config.drilldownConfig?.enabled ? 'cursor-pointer text-blue-600 hover:bg-blue-50' : ''}
+                    onClick={() => config.drilldownConfig?.enabled && handleDrilldown(field.id, getFieldValue(row, field.id), field.label)}
+                  >
+                    <div className="flex items-center gap-2">
+                      {typeof getFieldValue(row, field.id) === 'object' ? 
+                        JSON.stringify(getFieldValue(row, field.id)) : 
+                        getFieldValue(row, field.id)
+                      }
+                      {row.submission_data?._isGrouped && (
+                        <Badge variant="secondary" className="text-xs">
+                          {row.submission_data._count} records
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
                     ))}
                     {config.showMetadata && (
                       <>
