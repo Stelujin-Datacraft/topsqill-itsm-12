@@ -424,12 +424,32 @@ export function ComponentConfigDialog({
           {config.formId && formFields.length > 0 ? (
             <>
               {config.chartType !== 'table' ? (
-                <div className="border rounded-lg p-1">
-                  <ChartConfigurationTabs
-                    config={config}
-                    onConfigChange={setConfig}
+                <div className="space-y-6">
+                  <MetricsSelector
                     formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-                    forms={forms}
+                    selectedMetrics={config.metrics || []}
+                    onMetricsChange={(metrics) => setConfig({ ...config, metrics })}
+                    aggregationEnabled={config.aggregationEnabled !== false}
+                    onAggregationEnabledChange={(enabled) => 
+                      setConfig({ ...config, aggregationEnabled: enabled })
+                    }
+                    metricAggregations={config.metricAggregations || []}
+                    onMetricAggregationsChange={(aggregations) => 
+                      setConfig({ ...config, metricAggregations: aggregations })
+                    }
+                    groupByField={config.groupByField}
+                    onGroupByFieldChange={(field) => 
+                      setConfig({ ...config, groupByField: field })
+                    }
+                  />
+                  
+                  <DimensionsSelector
+                    formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
+                    selectedDimensions={config.dimensions || []}
+                    onDimensionsChange={(dimensions) => setConfig({ ...config, dimensions })}
+                    maxDimensions={5}
+                    label="Chart Dimensions"
+                    description="Select categorical fields to group your data by (e.g., status, category, date)"
                   />
                 </div>
               ) : (
