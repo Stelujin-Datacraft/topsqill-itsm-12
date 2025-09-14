@@ -199,12 +199,16 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
   };
 
   const handleCellDrilldown = (fieldId: string, value: string, label: string) => {
+    console.log('Cell drilldown clicked:', { fieldId, value, label, hasOnDrilldown: !!onDrilldown });
+    
     // Use external drilldown handler if available (for report editor)
     if (onDrilldown) {
+      console.log('Using external drilldown handler');
       onDrilldown(fieldId, value);
       return;
     }
     
+    console.log('Using internal drilldown state');
     // Otherwise use internal state management
     setDrilldownState(prev => {
       // Check if this filter already exists
@@ -220,6 +224,7 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
         newFilters = [...prev.activeColumnFilters, { fieldId, value, label }];
       }
 
+      console.log('New internal filters:', newFilters);
       return {
         ...prev,
         activeColumnFilters: newFilters
@@ -252,6 +257,12 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
   }, [formFields, config.selectedColumns]);
 
   const filteredData = useMemo(() => {
+    console.log('Computing filtered data:', { 
+      totalData: data.length, 
+      externalDrilldownState, 
+      internalFilters: drilldownState.activeColumnFilters.length,
+      drilldownConfig: config.drilldownConfig
+    });
     let filtered = data;
 
     // Apply external drilldown filters (from report editor)
