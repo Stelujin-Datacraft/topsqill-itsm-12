@@ -268,7 +268,7 @@ export function ChartPreview({
 
   const colors = colorSchemes[config.colorTheme || 'default'];
 
-  const handleChartClick = (data: any) => {
+  const handleChartClick = (data: any, event?: any) => {
     if (!config.drilldownEnabled || !onDrilldown || !config.drilldownLevels?.length) return;
     
     // Check if we can drill down further
@@ -277,9 +277,45 @@ export function ChartPreview({
     
     // Get the next drilldown level and the clicked value
     const nextLevel = config.drilldownLevels[currentLevel];
-    const clickedValue = data?.activeLabel || data?.name;
+    let clickedValue = data?.activeLabel || data?.name || data?.payload?.name;
+    
+    // Handle different chart click scenarios
+    if (event && event.activePayload && event.activePayload[0]) {
+      clickedValue = event.activePayload[0].payload.name;
+    }
     
     if (nextLevel && clickedValue) {
+      console.log('Chart drilldown:', { nextLevel, clickedValue, currentLevel });
+      onDrilldown(nextLevel, clickedValue);
+    }
+  };
+
+  const handleBarClick = (data: any, index: number) => {
+    if (!config.drilldownEnabled || !onDrilldown || !config.drilldownLevels?.length) return;
+    
+    const currentLevel = drilldownState?.values?.length || 0;
+    if (currentLevel >= config.drilldownLevels.length) return;
+    
+    const nextLevel = config.drilldownLevels[currentLevel];
+    const clickedValue = data.name;
+    
+    if (nextLevel && clickedValue) {
+      console.log('Bar click drilldown:', { nextLevel, clickedValue, currentLevel });
+      onDrilldown(nextLevel, clickedValue);
+    }
+  };
+
+  const handlePieClick = (data: any, index: number) => {
+    if (!config.drilldownEnabled || !onDrilldown || !config.drilldownLevels?.length) return;
+    
+    const currentLevel = drilldownState?.values?.length || 0;
+    if (currentLevel >= config.drilldownLevels.length) return;
+    
+    const nextLevel = config.drilldownLevels[currentLevel];
+    const clickedValue = data.name;
+    
+    if (nextLevel && clickedValue) {
+      console.log('Pie click drilldown:', { nextLevel, clickedValue, currentLevel });
       onDrilldown(nextLevel, clickedValue);
     }
   };
@@ -312,7 +348,7 @@ export function ChartPreview({
     switch (chartType) {
       case 'bar':
         return (
-          <BarChart data={chartData} onClick={handleChartClick}>
+          <BarChart data={chartData}>
             <XAxis dataKey="name" />
             <YAxis />
             <Tooltip />
@@ -324,6 +360,7 @@ export function ChartPreview({
                 fill={colors[index % colors.length]} 
                 name={metric}
                 style={{ cursor: config.drilldownEnabled ? 'pointer' : 'default' }}
+                onClick={config.drilldownEnabled ? handleBarClick : undefined}
               />
             ))}
           </BarChart>
@@ -349,7 +386,7 @@ export function ChartPreview({
       
       case 'pie':
         return (
-          <RechartsPieChart onClick={handleChartClick}>
+          <RechartsPieChart>
             <Pie
               data={chartData}
               cx="50%"
@@ -359,9 +396,14 @@ export function ChartPreview({
               dataKey={primaryMetric}
               label={({ name, value }) => `${name}: ${value}`}
               style={{ cursor: config.drilldownEnabled ? 'pointer' : 'default' }}
+              onClick={config.drilldownEnabled ? handlePieClick : undefined}
             >
               {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={colors[index % colors.length]}
+                  style={{ cursor: config.drilldownEnabled ? 'pointer' : 'default' }}
+                />
               ))}
             </Pie>
             <Tooltip />
@@ -578,8 +620,16 @@ export function ChartPreview({
               <p className="text-sm text-muted-foreground">{config.description}</p>
             )}
             {drilldownState?.values && drilldownState.values.length > 0 && (
-              <div className="text-xs text-muted-foreground mt-1">
-                Drilldown: {drilldownState.values.join(' > ')}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                <span>Drilldown:</span>
+                {drilldownState.values.map((value, index) => (
+                  <React.Fragment key={index}>
+                    {index > 0 && <span>{'>'}</span>}
+                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                      {value}
+                    </span>
+                  </React.Fragment>
+                ))}
               </div>
             )}
           </div>

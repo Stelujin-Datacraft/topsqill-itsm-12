@@ -32,7 +32,7 @@ export function DrilldownConfig({
 }: DrilldownConfigProps) {
   const getDrilldownableFields = () => {
     return formFields.filter(field => 
-      ['text', 'select', 'radio', 'dropdown', 'date', 'category'].includes(field.type)
+      ['text', 'select', 'radio', 'dropdown', 'date', 'category', 'number', 'email', 'url'].includes(field.type)
     );
   };
 
@@ -79,8 +79,7 @@ export function DrilldownConfig({
       {enabled && (
         <CardContent className="space-y-4">
           <div className="text-sm text-muted-foreground mb-4">
-            Configure drilldown levels to allow users to explore data hierarchically. 
-            Users can click on chart elements to drill down through the levels.
+            Configure drilldown levels to enable Power BI-style exploration. For tables, click column headers to enable drilldown, then click cell values to filter. For charts, click chart elements to drill into the next hierarchy level.
           </div>
 
           {drilldownLevels.length === 0 ? (
