@@ -394,19 +394,21 @@ export function ComponentConfigDialog({
 
         <TabsContent value="basic" className="space-y-4">
           <div>
-            <Label htmlFor="title">Chart Title</Label>
+            <Label htmlFor="title">{componentType === 'table' ? 'Table Title' : 'Chart Title'}</Label>
             <Input
               id="title"
               value={config.title || ''}
               onChange={(e) => setConfig({ ...config, title: e.target.value })}
-              placeholder="Enter chart title"
+              placeholder={componentType === 'table' ? 'Enter table title' : 'Enter chart title'}
             />
           </div>
 
-          <div>
-            <Label>Chart Type</Label>
-            {renderChartTypeSelector()}
-          </div>
+          {componentType === 'chart' && (
+            <div>
+              <Label>Chart Type</Label>
+              {renderChartTypeSelector()}
+            </div>
+          )}
 
           {renderFormSelection()}
         </TabsContent>

@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ComponentConfigDialog } from './ComponentConfigDialog';
 import { ChartPropertiesPane } from './ChartPropertiesPane';
 import { DynamicTable } from './DynamicTable';
+import { EnhancedDynamicTable } from './EnhancedDynamicTable';
 import { FormSubmissionsTable } from './FormSubmissionsTable';
 import { ChartPreview } from './ChartPreview';
 import { MetricCard } from './MetricCard';
@@ -363,8 +364,9 @@ export function ReportEditor({ reportId, reportName, onSave }: ReportEditorProps
         );
       case 'table':
         return (
-          <DynamicTable 
+          <EnhancedDynamicTable 
             config={component.config as any}
+            onEdit={() => handleEditComponent(component)}
           />
         );
       case 'form-submissions':
