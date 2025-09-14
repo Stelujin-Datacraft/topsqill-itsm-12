@@ -175,14 +175,26 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
     return row.submission_data?.[fieldId] || 'N/A';
   };
 
-  const handleDrilldown = (fieldId: string, value: string, label: string) => {
+  const handleDrilldown = (fieldId: string, value: string, label: string, rowData?: any) => {
     if (!config.drilldownConfig?.enabled) return;
 
-    setDrilldownState(prev => ({
-      currentLevel: prev.currentLevel + 1,
-      filters: [...prev.filters, { field: fieldId, value, label }],
-      breadcrumbs: [...prev.breadcrumbs, { field: fieldId, value, label }]
-    }));
+    // If this is a grouped row, expand to show individual records
+    if (rowData?.submission_data?._isGrouped && rowData?.submission_data?._rawRows) {
+      // Replace current filtered data with the raw rows from this group
+      setData(rowData.submission_data._rawRows);
+      setDrilldownState(prev => ({
+        currentLevel: prev.currentLevel + 1,
+        filters: [...prev.filters, { field: fieldId, value, label }],
+        breadcrumbs: [...prev.breadcrumbs, { field: fieldId, value, label }]
+      }));
+    } else {
+      // Normal drilldown logic
+      setDrilldownState(prev => ({
+        currentLevel: prev.currentLevel + 1,
+        filters: [...prev.filters, { field: fieldId, value, label }],
+        breadcrumbs: [...prev.breadcrumbs, { field: fieldId, value, label }]
+      }));
+    }
   };
 
   const resetDrilldown = () => {
@@ -231,16 +243,27 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
           return groups;
         }, {} as Record<string, any[]>);
 
-        // Convert to summary rows for drilldown
+        // Convert to summary rows for drilldown - show all columns with aggregate data
         filtered = Object.entries(groupedData).map(([key, rowsGroup]) => {
           const rows = rowsGroup as any[];
+          const aggregatedData: any = {
+            [currentLevelConfig.field]: key,
+            _count: rows.length,
+            _isGrouped: true,
+            _rawRows: rows
+          };
+
+          // For non-drilldown columns, show sample data from first row
+          displayFields.forEach(field => {
+            if (field.id !== currentLevelConfig.field && field.id) {
+              const firstValue = getFieldValue(rows[0], field.id);
+              aggregatedData[field.id] = firstValue;
+            }
+          });
+
           return {
             id: `drilldown_${key}`,
-            submission_data: {
-              [currentLevelConfig.field]: key,
-              _count: rows.length,
-              _isGrouped: true
-            },
+            submission_data: aggregatedData,
             submitted_at: rows[0]?.submitted_at
           };
         });
@@ -348,25 +371,44 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
               ) : (
                 filteredData.map(row => (
                   <TableRow key={row.id}>
-                    {displayFields.map(field => (
-                  <TableCell 
-                    key={field.id}
-                    className={config.drilldownConfig?.enabled ? 'cursor-pointer text-blue-600 hover:bg-blue-50' : ''}
-                    onClick={() => config.drilldownConfig?.enabled && handleDrilldown(field.id, getFieldValue(row, field.id), field.label)}
-                  >
-                    <div className="flex items-center gap-2">
-                      {typeof getFieldValue(row, field.id) === 'object' ? 
-                        JSON.stringify(getFieldValue(row, field.id)) : 
-                        getFieldValue(row, field.id)
-                      }
-                      {row.submission_data?._isGrouped && (
-                        <Badge variant="secondary" className="text-xs">
-                          {row.submission_data._count} records
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                    ))}
+                    {displayFields.map(field => {
+                      const fieldValue = getFieldValue(row, field.id);
+                      const isDrilldownField = config.drilldownConfig?.enabled && 
+                        config.drilldownConfig.levels?.some(level => level.field === field.id);
+                      
+                      return (
+                        <TableCell key={field.id}>
+                          <div className="flex items-center justify-between gap-2">
+                            <span>
+                              {typeof fieldValue === 'object' ? 
+                                JSON.stringify(fieldValue) : 
+                                fieldValue
+                              }
+                            </span>
+                            
+                            {/* Show record count for grouped data */}
+                            {row.submission_data?._isGrouped && (
+                              <Badge variant="secondary" className="text-xs">
+                                {row.submission_data._count} records
+                              </Badge>
+                            )}
+                            
+                            {/* Show drilldown button for drilldown fields */}
+                            {isDrilldownField && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs"
+                                onClick={() => handleDrilldown(field.id, fieldValue.toString(), field.label, row)}
+                              >
+                                <ChevronDown className="h-3 w-3" />
+                                Drill
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      );
+                    })}
                     {config.showMetadata && (
                       <>
                         <TableCell>{new Date(row.submitted_at).toLocaleDateString()}</TableCell>
