@@ -199,16 +199,12 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
   };
 
   const handleCellDrilldown = (fieldId: string, value: string, label: string) => {
-    console.log('Cell drilldown clicked:', { fieldId, value, label, hasOnDrilldown: !!onDrilldown });
-    
     // Use external drilldown handler if available (for report editor)
     if (onDrilldown) {
-      console.log('Using external drilldown handler');
       onDrilldown(fieldId, value);
       return;
     }
     
-    console.log('Using internal drilldown state');
     // Otherwise use internal state management
     setDrilldownState(prev => {
       // Check if this filter already exists
@@ -224,7 +220,6 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
         newFilters = [...prev.activeColumnFilters, { fieldId, value, label }];
       }
 
-      console.log('New internal filters:', newFilters);
       return {
         ...prev,
         activeColumnFilters: newFilters
@@ -257,12 +252,6 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
   }, [formFields, config.selectedColumns]);
 
   const filteredData = useMemo(() => {
-    console.log('Computing filtered data:', { 
-      totalData: data.length, 
-      externalDrilldownState, 
-      internalFilters: drilldownState.activeColumnFilters.length,
-      drilldownConfig: config.drilldownConfig
-    });
     let filtered = data;
 
     // Apply external drilldown filters (from report editor)
@@ -374,6 +363,35 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
                 </div>
               </React.Fragment>
             ))}
+          </div>
+        )}
+
+        {/* External drilldown breadcrumb navigation */}
+        {externalDrilldownState?.values?.length > 0 && config.drilldownConfig?.levels && (
+          <div className="flex items-center gap-2 pt-2 border-t">
+            <span className="text-sm font-medium">Drilldown:</span>
+            {externalDrilldownState.values.map((value, index) => {
+              const fieldId = config.drilldownConfig.levels[index];
+              const field = formFields.find(f => f.id === fieldId);
+              return (
+                <React.Fragment key={fieldId}>
+                  {index > 0 && <ChevronRight className="h-4 w-4" />}
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                      Level {index + 1}: {field?.label || fieldId} = {value}
+                    </span>
+                  </div>
+                </React.Fragment>
+              );
+            })}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => onDrilldown && onDrilldown('', '')}
+              className="ml-2"
+            >
+              Reset
+            </Button>
           </div>
         )}
 
