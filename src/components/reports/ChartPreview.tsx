@@ -102,7 +102,9 @@ export function ChartPreview({
             config.aggregation || 'count',
             config.filters || [],
             config.drilldownConfig?.drilldownLevels || [],
-            drilldownState?.values || []
+            drilldownState?.values || [],
+            config.metricAggregations || [],
+            config.groupByField
           );
           
           // Transform server data to chart format

@@ -1831,15 +1831,27 @@ export type Database = {
         Returns: string
       }
       get_chart_data: {
-        Args: {
-          p_aggregation?: string
-          p_dimensions?: string[]
-          p_drilldown_path?: string[]
-          p_drilldown_values?: string[]
-          p_filters?: Json
-          p_form_id: string
-          p_metrics?: string[]
-        }
+        Args:
+          | {
+              p_aggregation?: string
+              p_dimensions?: string[]
+              p_drilldown_path?: string[]
+              p_drilldown_values?: string[]
+              p_filters?: Json
+              p_form_id: string
+              p_group_by_field?: string
+              p_metric_aggregations?: Json
+              p_metrics?: string[]
+            }
+          | {
+              p_aggregation?: string
+              p_dimensions?: string[]
+              p_drilldown_path?: string[]
+              p_drilldown_values?: string[]
+              p_filters?: Json
+              p_form_id: string
+              p_metrics?: string[]
+            }
         Returns: {
           additional_data: Json
           name: string

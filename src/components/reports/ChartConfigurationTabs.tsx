@@ -14,7 +14,8 @@ import { ChartPreview } from './ChartPreview';
 import { GenericFieldSelector } from './GenericFieldSelector';
 import { MetricsSelector } from './MetricsSelector';
 import { DimensionsSelector } from './DimensionsSelector';
-import { Database, Sparkles } from 'lucide-react';
+import { ChartExamples } from './ChartExamples';
+import { Database, Sparkles, Lightbulb } from 'lucide-react';
 import { getChartMetricCapabilities } from '@/utils/chartConfig';
 
 interface ChartConfigurationTabsProps {
@@ -186,10 +187,11 @@ export function ChartConfigurationTabs({
 
   return (
     <Tabs defaultValue="basic" className="w-full">
-      <TabsList className="grid w-full grid-cols-4">
+      <TabsList className="grid w-full grid-cols-5">
         <TabsTrigger value="basic">Basic</TabsTrigger>
         <TabsTrigger value="data">Data</TabsTrigger>
         <TabsTrigger value="style">Style</TabsTrigger>
+        <TabsTrigger value="examples">Examples</TabsTrigger>
         <TabsTrigger value="preview">Preview</TabsTrigger>
       </TabsList>
 
@@ -308,6 +310,39 @@ export function ChartConfigurationTabs({
             Please select a form to configure data fields.
           </div>
         )}
+      </TabsContent>
+
+      <TabsContent value="examples" className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Lightbulb className="h-5 w-5" />
+              Chart Examples
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {config.formId ? (
+              <ChartExamples 
+                formId={config.formId}
+                onSelectExample={(example) => {
+                  // Apply the example configuration
+                  handleConfigUpdate({
+                    chartType: example.chartType as any,
+                    metrics: example.metrics,
+                    dimensions: example.dimensions,
+                    aggregationEnabled: example.aggregationEnabled,
+                    metricAggregations: example.metricAggregations,
+                    title: example.title
+                  });
+                }}
+              />
+            ) : (
+              <div className="p-4 text-center text-muted-foreground">
+                Please select a form first to see relevant examples.
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </TabsContent>
 
       <TabsContent value="style" className="space-y-4">

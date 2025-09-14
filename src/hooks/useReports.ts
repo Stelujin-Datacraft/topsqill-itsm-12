@@ -156,7 +156,9 @@ export function useReports() {
     aggregation: string = 'count',
     filters: any[] = [],
     drilldownPath: string[] = [],
-    drilldownValues: string[] = []
+    drilldownValues: string[] = [],
+    metricAggregations: any[] = [],
+    groupByField?: string
   ) => {
     const { data, error } = await supabase.rpc('get_chart_data', {
       p_form_id: formId,
@@ -165,10 +167,16 @@ export function useReports() {
       p_aggregation: aggregation,
       p_filters: filters,
       p_drilldown_path: drilldownPath,
-      p_drilldown_values: drilldownValues
+      p_drilldown_values: drilldownValues,
+      p_metric_aggregations: metricAggregations,
+      p_group_by_field: groupByField
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching chart data:', error);
+      throw error;
+    }
+
     return data || [];
   };
 
