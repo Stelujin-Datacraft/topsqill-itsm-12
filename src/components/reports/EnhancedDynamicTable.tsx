@@ -363,7 +363,7 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
               <TableRow>
                  {displayFields.map(field => {
                    const isDrilldownField = config.drilldownConfig?.enabled && 
-                     config.drilldownConfig?.drilldownLevels?.includes(field.id);
+                     config.drilldownConfig?.levels?.includes(field.id);
                    const isColumnDrilldownActive = drilldownState.drilldownColumns.has(field.id);
                    const hasActiveFilter = drilldownState.activeColumnFilters.some(f => f.fieldId === field.id);
                   
