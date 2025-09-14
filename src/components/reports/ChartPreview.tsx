@@ -59,21 +59,38 @@ export function ChartPreview({
   const { getFormSubmissionData, getChartData, getFormFields } = useReports();
   const { forms } = useFormsData();
 
-  // Get field names mapping
-  const formFields = useMemo(() => {
-    if (!config.formId) return [];
-    return getFormFields(config.formId);
-  }, [config.formId, getFormFields]);
+  // Get current form and its fields from useFormsData for better reliability
+  const currentForm = useMemo(() => {
+    return forms.find(f => f.id === config.formId);
+  }, [forms, config.formId]);
 
-  // Helper functions to get form and field names
+  const formFields = useMemo(() => {
+    return currentForm?.fields || [];
+  }, [currentForm]);
+
+  // Helper functions to get form and field names with robust fallbacks
   const getFormName = (formId: string): string => {
     const form = forms.find(f => f.id === formId);
-    return form?.name || formId;
+    const formName = form?.name || formId;
+    console.log(`Getting form name for ${formId}: ${formName}`);
+    return formName;
   };
 
   const getFormFieldName = (fieldId: string): string => {
-    const field = formFields.find(f => f.id === fieldId);
-    return field?.label || fieldId;
+    // First try to find field in current form fields
+    let field = formFields.find(f => f.id === fieldId);
+    
+    // If not found and we have forms data, search across all forms
+    if (!field && forms.length > 0) {
+      for (const form of forms) {
+        field = form.fields?.find(f => f.id === fieldId);
+        if (field) break;
+      }
+    }
+    
+    const fieldName = field?.label || fieldId;
+    console.log(`Getting field name for ${fieldId}: ${fieldName} (field found: ${!!field})`);
+    return fieldName;
   };
 
   const getFieldName = (fieldId: string): string => {
@@ -328,6 +345,7 @@ export function ChartPreview({
 
     console.log('Multi-dimensional processed data:', result);
     console.log('All series keys:', Array.from(allSeries));
+    console.log('Form fields loaded:', formFields.length, 'Current form:', currentForm?.name);
     
     return result;
   };
@@ -563,13 +581,12 @@ export function ChartPreview({
                   />
                    <Tooltip 
                      formatter={(value, name, props) => {
-                       // For multi-dimensional charts, the name is already formatted as "Field Name: Value"
-                       // For single-dimensional charts, we need to use getFormFieldName
+                       // For multi-dimensional charts, name is already "Field Name: Value"
+                       // For single-dimensional charts, name is the field ID, so get field name
                        const displayName = isMultiDimensional ? name : getFormFieldName(name.toString());
                        return [
                          `${displayName}: ${value}`,
-                         `Category: ${props.payload?.name || 'N/A'}`,
-                         `Total Records: ${chartData.length}`
+                         `Category: ${props.payload?.name || 'N/A'}`
                        ];
                      }}
                      labelFormatter={(label) => `Category: ${label}`}
@@ -712,14 +729,13 @@ export function ChartPreview({
                       />
                     ))}
                   </Pie>
-                   <Tooltip 
+                  <Tooltip 
                      formatter={(value, name, props) => {
                        const numValue = Number(value) || 0;
                        const total = chartData.reduce((sum, item) => sum + (Number(item[primaryMetric]) || 0), 0);
                        return [
-                         `${getFormFieldName(name.toString())}: ${numValue}`,
-                         `Percentage: ${total > 0 ? ((numValue / total) * 100).toFixed(1) : 0}%`,
-                         `Total: ${total}`
+                         `${props.payload?.name || 'Unknown'}: ${numValue}`,
+                         `Percentage: ${total > 0 ? ((numValue / total) * 100).toFixed(1) : 0}%`
                        ];
                      }}
                      contentStyle={{
@@ -731,7 +747,7 @@ export function ChartPreview({
                    />
                    {showLegend && (
                      <Legend 
-                       formatter={(value) => getFormFieldName(value.toString())}
+                       formatter={(value) => value}
                      />
                    )}
                 </RechartsPieChart>
@@ -787,13 +803,12 @@ export function ChartPreview({
                     label={{ value: getFormFieldName(primaryMetric), angle: -90, position: 'insideLeft' }}
                     domain={[0, 'dataMax']}
                   />
-                   <Tooltip 
+                  <Tooltip 
                      formatter={(value, name, props) => {
                        const displayName = isMultiDimensional ? name : getFormFieldName(name.toString());
                        return [
                          `${displayName}: ${value}`,
-                         `Category: ${props.payload?.name || 'N/A'}`,
-                         `Total Records: ${chartData.length}`
+                         `Category: ${props.payload?.name || 'N/A'}`
                        ];
                      }}
                      labelFormatter={(label) => `Category: ${label}`}
@@ -878,13 +893,12 @@ export function ChartPreview({
                     label={{ value: getFormFieldName(primaryMetric), angle: -90, position: 'insideLeft' }}
                     domain={[0, 'dataMax']}
                   />
-                   <Tooltip 
+                  <Tooltip 
                      formatter={(value, name, props) => {
                        const displayName = getFormFieldName(name.toString());
                        return [
                          `${displayName}: ${value}`,
-                         `Category: ${props.payload?.name || 'N/A'}`,
-                         `Total Records: ${chartData.length}`
+                         `Category: ${props.payload?.name || 'N/A'}`
                        ];
                      }}
                      labelFormatter={(label) => `Category: ${label}`}
