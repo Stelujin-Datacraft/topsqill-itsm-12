@@ -11,7 +11,7 @@ import { EnhancedDynamicTable } from './EnhancedDynamicTable';
 import { FormSubmissionsTable } from './FormSubmissionsTable';
 import { ChartPreview } from './ChartPreview';
 import { MetricCard } from './MetricCard';
-import { Plus, Save, BarChart3, Table as TableIcon, Hash, Type, FileText, Shield, Move, MousePointer } from 'lucide-react';
+import { Plus, Save, BarChart3, Table as TableIcon, Hash, Type, FileText, Shield, Move, MousePointer, Edit2, Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { useNavigate } from 'react-router-dom';
@@ -36,6 +36,8 @@ export function ReportEditor({
   const [selectedComponent, setSelectedComponent] = useState<ReportComponent | null>(null);
   const [isPropertiesPaneOpen, setIsPropertiesPaneOpen] = useState(false);
   const [isDragEnabled, setIsDragEnabled] = useState(true);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempReportName, setTempReportName] = useState(reportName);
   const [drilldownStates, setDrilldownStates] = useState<{
     [componentId: string]: {
       path: string[];
@@ -56,6 +58,10 @@ export function ReportEditor({
   useEffect(() => {
     loadComponents();
   }, [reportId]);
+
+  useEffect(() => {
+    setTempReportName(reportName);
+  }, [reportName]);
   const loadComponents = async () => {
     try {
       // Skip loading components for new reports
@@ -86,6 +92,23 @@ export function ReportEditor({
   };
   const handleAccessManagement = () => {
     navigate(`/report-access/${reportId}`);
+  };
+
+  const handleStartEditingName = () => {
+    setIsEditingName(true);
+    setTempReportName(reportName);
+  };
+
+  const handleSaveReportName = () => {
+    // This would typically save to the backend
+    // For now, we'll just update the local name and call onSave
+    setIsEditingName(false);
+    onSave();
+  };
+
+  const handleCancelEditingName = () => {
+    setIsEditingName(false);
+    setTempReportName(reportName);
   };
   const handleAddComponent = (type: string) => {
     setNewComponentType(type);
@@ -376,11 +399,56 @@ export function ReportEditor({
     minW: 2,
     minH: 2
   }));
-  return <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">{reportName}</h2>
-        <div className="flex gap-2">
+  return (
+    <div className="space-y-6">
+      {/* Report Name Header */}
+      <div className="flex items-center gap-3">
+        {isEditingName ? (
+          <>
+            <input
+              type="text"
+              value={tempReportName}
+              onChange={(e) => setTempReportName(e.target.value)}
+              className="text-2xl font-bold bg-transparent border-b-2 border-primary focus:outline-none flex-1"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveReportName();
+                if (e.key === 'Escape') handleCancelEditingName();
+              }}
+              autoFocus
+            />
+            <Button
+              size="sm"
+              onClick={handleSaveReportName}
+              className="h-8 w-8 p-0"
+            >
+              <Check className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleCancelEditingName}
+              className="h-8 w-8 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </>
+        ) : (
+          <>
+            <h1 className="text-2xl font-bold flex-1">{reportName}</h1>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleStartEditingName}
+              className="h-8 w-8 p-0 hover:bg-muted"
+            >
+              <Edit2 className="h-4 w-4" />
+            </Button>
+          </>
+        )}
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex items-center justify-end gap-2">
           {/* Drag Mode Toggle */}
           <Button variant={isDragEnabled ? "default" : "outline"} onClick={toggleDragMode} className="flex items-center gap-2">
             {isDragEnabled ? <>
@@ -418,7 +486,6 @@ export function ReportEditor({
             Save Report
           </Button>
         </div>
-      </div>
 
       {/* Mode Indicator */}
       {!isDragEnabled && <div className="bg-blue-100 dark:bg-blue-900 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-4">
@@ -477,5 +544,6 @@ export function ReportEditor({
 
       {/* Component Configuration Dialog */}
       <ComponentConfigDialog open={isConfigDialogOpen} onOpenChange={setIsConfigDialogOpen} componentType={newComponentType || editingComponent?.type || ''} initialConfig={editingComponent?.config} onSave={handleSaveComponent} />
-    </div>;
+    </div>
+  );
 }
