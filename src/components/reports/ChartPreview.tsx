@@ -166,163 +166,215 @@ export function ChartPreview({
     }
 
     console.log('Processing submissions:', submissions.length);
+    
+    // Get dimension fields
+    let dimensionFields: string[] = [];
+    
+    if (config.drilldownConfig?.enabled && config.drilldownConfig?.drilldownLevels?.length > 0) {
+      const currentDrilldownLevel = drilldownState?.values?.length || 0;
+      const currentDimension = config.drilldownConfig.drilldownLevels[currentDrilldownLevel] || 
+                               config.drilldownConfig.drilldownLevels[0];
+      dimensionFields = [currentDimension];
+    } else {
+      dimensionFields = config.dimensions && config.dimensions.length > 0 
+        ? config.dimensions 
+        : config.xAxis 
+          ? [config.xAxis] 
+          : [];
+    }
+
+    if (dimensionFields.length === 0) {
+      dimensionFields = ['_default'];
+    }
+
+    // Get metric fields
+    const metricFields = config.metrics && config.metrics.length > 0 
+      ? config.metrics 
+      : config.aggregation === 'count' || config.aggregationType === 'count'
+        ? ['count'] 
+        : config.yAxis 
+          ? [config.yAxis] 
+          : ['count'];
+
+    console.log('Processing with dimensions:', dimensionFields, 'metrics:', metricFields);
+
+    // For multiple dimensions, we need to create a cross-product structure
+    if (dimensionFields.length > 1) {
+      return processMultiDimensionalData(submissions, dimensionFields, metricFields);
+    } else {
+      return processSingleDimensionalData(submissions, dimensionFields, metricFields);
+    }
+  };
+
+  const processSingleDimensionalData = (submissions: any[], dimensionFields: string[], metricFields: string[]) => {
     const processedData: { [key: string]: any } = {};
 
-    submissions.forEach((submission, index) => {
+    submissions.forEach((submission) => {
       const submissionData = submission.submission_data;
       
-      // Apply drilldown filters if we're in a drilldown state
-      const drilldownFilters: any[] = [];
-      if (config.drilldownConfig?.enabled && drilldownState?.values?.length > 0) {
-        drilldownState.values.forEach((value, index) => {
-          const field = config.drilldownConfig?.drilldownLevels?.[index];
-          if (field) {
-            drilldownFilters.push({
-              field,
-              operator: 'equals',
-              value
-            });
-          }
-        });
-      }
-      
-      // Apply all filters (config filters + drilldown filters)
-      const allFilters = [...(config.filters || []), ...drilldownFilters];
-      const passesFilters = allFilters?.every(filter => {
-        const value = submissionData[filter.field];
-        switch (filter.operator) {
-          case 'equals':
-            return value === filter.value;
-          case 'contains':
-            return String(value).includes(filter.value);
-          case 'greater_than':
-            return Number(value) > Number(filter.value);
-          case 'less_than':
-            return Number(value) < Number(filter.value);
-          case 'starts_with':
-            return String(value).startsWith(filter.value);
-          case 'ends_with':
-            return String(value).endsWith(filter.value);
-          case 'not_equals':
-            return value !== filter.value;
-          case 'is_empty':
-            return !value || value === '';
-          case 'is_not_empty':
-            return value && value !== '';
-          default:
-            return true;
-        }
-      }) ?? true;
+      // Apply filters
+      if (!passesFilters(submissionData)) return;
 
-      if (!passesFilters) return;
-
-      // Create dimension key - use drilldown current level if drilldown is enabled
-      let dimensionFields: string[] = [];
-      
-      if (config.drilldownConfig?.enabled && config.drilldownConfig?.drilldownLevels?.length > 0) {
-        // Use the current drilldown level as the dimension
-        const currentDrilldownLevel = drilldownState?.values?.length || 0;
-        const currentDimension = config.drilldownConfig.drilldownLevels[currentDrilldownLevel] || 
-                                 config.drilldownConfig.drilldownLevels[0];
-        dimensionFields = [currentDimension];
-      } else {
-        // Use configured dimensions or fallback to xAxis
-        dimensionFields = config.dimensions && config.dimensions.length > 0 
-          ? config.dimensions 
-          : config.xAxis 
-            ? [config.xAxis] 
-            : [];
-      }
-
-      // If no dimension is specified, create a simple count-based dimension
-      if (dimensionFields.length === 0) {
-        dimensionFields = ['_default'];
-      }
-
-      const dimensionKey = dimensionFields
-        .map(dim => {
-          if (dim === '_default') return 'Total';
-          
-          const val = submissionData[dim];
-          // Handle complex field types for dimensions
-          if (typeof val === 'object' && val !== null) {
-            if (val.status) return val.status; // For approval fields
-            if (val.label) return val.label; // For select fields with labels
-            return JSON.stringify(val);
-          }
-          // Better handling of empty values - use field name or skip if truly empty
-          if (val === null || val === undefined || val === '') {
-            return 'Not Specified';
-          }
-          return String(val);
-        })
-        .filter(key => key !== 'Not Specified' || dimensionFields.length === 1) // Only include 'Not Specified' if it's the only dimension
-        .join(' - ') || 'Not Specified';
+      const dimensionKey = getDimensionKey(submissionData, dimensionFields);
 
       if (!processedData[dimensionKey]) {
-        processedData[dimensionKey] = {
-          name: dimensionKey,
-        };
-        
-        // Initialize metrics - use yAxis/aggregation if metrics not set
-        const metricFields = config.metrics && config.metrics.length > 0 
-          ? config.metrics 
-          : config.aggregation === 'count' || config.aggregationType === 'count'
-            ? ['count'] 
-            : config.yAxis 
-              ? [config.yAxis] 
-              : ['count'];
-
+        processedData[dimensionKey] = { name: dimensionKey, value: 0 };
         metricFields.forEach(metric => {
           processedData[dimensionKey][metric] = 0;
         });
-        
-        // Also initialize a 'value' field for backward compatibility
-        processedData[dimensionKey]['value'] = 0;
       }
 
       // Aggregate metrics
-      const metricFields = config.metrics && config.metrics.length > 0 
-        ? config.metrics 
-        : config.aggregation === 'count' || config.aggregationType === 'count'
-          ? ['count'] 
-          : config.yAxis 
-            ? [config.yAxis] 
-            : ['count'];
-
       metricFields.forEach(metric => {
-        if (metric === 'count' || config.aggregation === 'count' || config.aggregationType === 'count') {
-          processedData[dimensionKey][metric] += 1;
-          processedData[dimensionKey]['value'] += 1; // For backward compatibility
-        } else {
-          const value = submissionData[metric] || submissionData[config.yAxis];
-          
-          // Handle complex field types (approval, etc.)
-          if (typeof value === 'object' && value !== null) {
-            // For approval fields, count based on status
-            if (value.status) {
-              const numericValue = value.status === 'approved' ? 1 : 0;
-              processedData[dimensionKey][metric] += numericValue;
-              processedData[dimensionKey]['value'] += numericValue;
-            } else {
-              // For other object types, just count as 1 if present
-              processedData[dimensionKey][metric] += 1;
-              processedData[dimensionKey]['value'] += 1;
-            }
-          } else if (typeof value === 'number') {
-            processedData[dimensionKey][metric] += value;
-            processedData[dimensionKey]['value'] += value;
-          } else if (value) {
-            processedData[dimensionKey][metric] += 1;
-            processedData[dimensionKey]['value'] += 1;
-          }
-        }
+        const metricValue = getMetricValue(submissionData, metric);
+        processedData[dimensionKey][metric] += metricValue;
+        processedData[dimensionKey]['value'] += metricValue;
       });
     });
 
-    const result = Object.values(processedData);
-    console.log('Final processed data:', result);
-    return result;
+    return Object.values(processedData);
+  };
+
+  const processMultiDimensionalData = (submissions: any[], dimensionFields: string[], metricFields: string[]) => {
+    // For multiple dimensions, create separate data points for each dimension value
+    const dimensionValueSets: { [key: string]: Set<string> } = {};
+    const processedData: { [key: string]: any } = {};
+
+    // First pass: collect all unique values for each dimension
+    submissions.forEach((submission) => {
+      const submissionData = submission.submission_data;
+      if (!passesFilters(submissionData)) return;
+
+      dimensionFields.forEach(dim => {
+        if (!dimensionValueSets[dim]) {
+          dimensionValueSets[dim] = new Set();
+        }
+        const value = getDimensionValue(submissionData, dim);
+        dimensionValueSets[dim].add(value);
+      });
+    });
+
+    // Create data structure: each unique value becomes a separate series
+    const allDimensionValues: string[] = [];
+    Object.entries(dimensionValueSets).forEach(([dim, values]) => {
+      values.forEach(value => {
+        const seriesName = `${dim}: ${value}`;
+        allDimensionValues.push(seriesName);
+      });
+    });
+
+    // Second pass: aggregate data
+    submissions.forEach((submission) => {
+      const submissionData = submission.submission_data;
+      if (!passesFilters(submissionData)) return;
+
+      // Create a composite key for grouping (could be time-based or just "All")
+      const groupKey = "All Data";
+      
+      if (!processedData[groupKey]) {
+        processedData[groupKey] = { name: groupKey };
+        allDimensionValues.forEach(dimValue => {
+          processedData[groupKey][dimValue] = 0;
+        });
+      }
+
+      // Add to appropriate dimension series
+      dimensionFields.forEach(dim => {
+        const value = getDimensionValue(submissionData, dim);
+        const seriesName = `${dim}: ${value}`;
+        
+        metricFields.forEach(metric => {
+          const metricValue = getMetricValue(submissionData, metric);
+          processedData[groupKey][seriesName] += metricValue;
+        });
+      });
+    });
+
+    return Object.values(processedData);
+  };
+
+  const passesFilters = (submissionData: any): boolean => {
+    const drilldownFilters: any[] = [];
+    if (config.drilldownConfig?.enabled && drilldownState?.values?.length > 0) {
+      drilldownState.values.forEach((value, index) => {
+        const field = config.drilldownConfig?.drilldownLevels?.[index];
+        if (field) {
+          drilldownFilters.push({
+            field,
+            operator: 'equals',
+            value
+          });
+        }
+      });
+    }
+    
+    const allFilters = [...(config.filters || []), ...drilldownFilters];
+    return allFilters?.every(filter => {
+      const value = submissionData[filter.field];
+      switch (filter.operator) {
+        case 'equals':
+          return value === filter.value;
+        case 'contains':
+          return String(value).includes(filter.value);
+        case 'greater_than':
+          return Number(value) > Number(filter.value);
+        case 'less_than':
+          return Number(value) < Number(filter.value);
+        case 'starts_with':
+          return String(value).startsWith(filter.value);
+        case 'ends_with':
+          return String(value).endsWith(filter.value);
+        case 'not_equals':
+          return value !== filter.value;
+        case 'is_empty':
+          return !value || value === '';
+        case 'is_not_empty':
+          return value && value !== '';
+        default:
+          return true;
+      }
+    }) ?? true;
+  };
+
+  const getDimensionKey = (submissionData: any, dimensionFields: string[]): string => {
+    return dimensionFields
+      .map(dim => getDimensionValue(submissionData, dim))
+      .join(' - ') || 'Not Specified';
+  };
+
+  const getDimensionValue = (submissionData: any, dim: string): string => {
+    if (dim === '_default') return 'Total';
+    
+    const val = submissionData[dim];
+    if (typeof val === 'object' && val !== null) {
+      if (val.status) return val.status;
+      if (val.label) return val.label;
+      return JSON.stringify(val);
+    }
+    if (val === null || val === undefined || val === '') {
+      return 'Not Specified';
+    }
+    return String(val);
+  };
+
+  const getMetricValue = (submissionData: any, metric: string): number => {
+    if (metric === 'count' || config.aggregation === 'count' || config.aggregationType === 'count') {
+      return 1;
+    }
+    
+    const value = submissionData[metric] || submissionData[config.yAxis];
+    
+    if (typeof value === 'object' && value !== null) {
+      if (value.status) {
+        return value.status === 'approved' ? 1 : 0;
+      }
+      return 1;
+    } else if (typeof value === 'number') {
+      return value;
+    } else if (value) {
+      return 1;
+    }
+    return 0;
   };
 
   const colors = colorSchemes[config.colorTheme || 'default'];
@@ -429,6 +481,13 @@ export function ChartPreview({
       totalRecords: chartData.length
     });
 
+    // Get all dimension-based data keys (for multi-dimensional charts)
+    const dimensionKeys = chartData.length > 0 
+      ? Object.keys(chartData[0]).filter(key => key !== 'name' && typeof chartData[0][key] === 'number')
+      : [];
+    
+    const isMultiDimensional = config.dimensions && config.dimensions.length > 1;
+
     switch (chartType) {
       case 'bar':
         return (
@@ -457,23 +516,40 @@ export function ChartPreview({
                 labelFormatter={(label) => `${label}`}
               />
               <Legend />
-              <Bar 
-                dataKey={primaryMetric} 
-                fill={colors[0]} 
-                name={primaryMetric}
-                style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
-              />
-              {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
-                <Bar 
-                  key={metric} 
-                  dataKey={metric} 
-                  fill={colors[(index + 1) % colors.length]} 
-                  name={metric}
-                  style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                  onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
-                />
-              ))}
+              {isMultiDimensional ? (
+                // Render separate bars for each dimension value
+                dimensionKeys.map((key, index) => (
+                  <Bar 
+                    key={key} 
+                    dataKey={key} 
+                    fill={colors[index % colors.length]} 
+                    name={key}
+                    style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                    onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
+                  />
+                ))
+              ) : (
+                // Single dimension - render primary metric and additional metrics if any
+                <>
+                  <Bar 
+                    dataKey={primaryMetric} 
+                    fill={colors[0]} 
+                    name={primaryMetric}
+                    style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                    onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
+                  />
+                  {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
+                    <Bar 
+                      key={metric} 
+                      dataKey={metric} 
+                      fill={colors[(index + 1) % colors.length]} 
+                      name={metric}
+                      style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                      onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
+                    />
+                  ))}
+                </>
+              )}
             </BarChart>
           </div>
         );
@@ -583,6 +659,7 @@ export function ChartPreview({
               height={400} 
               data={chartData} 
               margin={{ top: 20, right: 30, left: 40, bottom: 80 }}
+              onClick={handleChartClick}
             >
               <XAxis 
                 dataKey="name" 
@@ -602,25 +679,46 @@ export function ChartPreview({
                 labelFormatter={(label) => `${label}`}
               />
               <Legend />
-              <Line 
-                type="monotone" 
-                dataKey={primaryMetric} 
-                stroke={colors[0]} 
-                strokeWidth={3}
-                name={primaryMetric}
-                dot={{ fill: colors[0], strokeWidth: 2, r: 4 }}
-              />
-              {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
-                <Line 
-                  key={metric}
-                  type="monotone" 
-                  dataKey={metric} 
-                  stroke={colors[(index + 1) % colors.length]} 
-                  strokeWidth={3}
-                  name={metric}
-                  dot={{ fill: colors[(index + 1) % colors.length], strokeWidth: 2, r: 4 }}
-                />
-              ))}
+              {isMultiDimensional ? (
+                // Render separate lines for each dimension value
+                dimensionKeys.map((key, index) => (
+                  <Line 
+                    key={key} 
+                    type="monotone" 
+                    dataKey={key} 
+                    stroke={colors[index % colors.length]} 
+                    strokeWidth={3}
+                    name={key}
+                    dot={{ fill: colors[index % colors.length], strokeWidth: 2, r: 4 }}
+                    style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                  />
+                ))
+              ) : (
+                // Single dimension - render primary metric and additional metrics if any
+                <>
+                  <Line 
+                    type="monotone" 
+                    dataKey={primaryMetric} 
+                    stroke={colors[0]} 
+                    strokeWidth={3}
+                    name={primaryMetric}
+                    dot={{ fill: colors[0], strokeWidth: 2, r: 4 }}
+                    style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                  />
+                  {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
+                    <Line 
+                      key={metric}
+                      type="monotone" 
+                      dataKey={metric} 
+                      stroke={colors[(index + 1) % colors.length]} 
+                      strokeWidth={3}
+                      name={metric}
+                      dot={{ fill: colors[(index + 1) % colors.length], strokeWidth: 2, r: 4 }}
+                      style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                    />
+                  ))}
+                </>
+              )}
             </RechartsLineChart>
           </div>
         );
