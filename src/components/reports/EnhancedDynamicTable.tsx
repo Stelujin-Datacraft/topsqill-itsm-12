@@ -419,10 +419,6 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
           </div>
         )}
 
-        {/* Debug: Show search config status */}
-        <div className="text-xs text-muted-foreground mb-2">
-          Search enabled: {config.enableSearch ? 'Yes' : 'No'}
-        </div>
         
         {config.enableSearch && (
           <div className="flex items-center gap-2 pt-2">

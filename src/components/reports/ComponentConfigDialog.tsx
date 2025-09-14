@@ -232,10 +232,12 @@ export function ComponentConfigDialog({
             title: 'New Table',
             formId: '',
             selectedColumns: [],
-            showMetadata: true,
+            showMetadata: false,
             tableTheme: 'default',
-            enableFiltering: true,
-            enableSorting: true,
+            enableFiltering: false,
+            enableSorting: false,
+            enableSearch: false,
+            enableExport: false,
             filters: []
           },
           'form-submissions': {
