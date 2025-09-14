@@ -53,6 +53,7 @@ export function ChartPreview({
 }: ChartPreviewProps) {
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showFormFields, setShowFormFields] = useState(false);
   const { getFormSubmissionData, getChartData, getFormFields } = useReports();
 
   // Get field names mapping
@@ -247,63 +248,75 @@ export function ChartPreview({
   };
 
   const processMultiDimensionalData = (submissions: any[], dimensionFields: string[], metricFields: string[]) => {
-    // For multiple dimensions, create separate data points for each dimension value
-    const dimensionValueSets: { [key: string]: Set<string> } = {};
-    const processedData: { [key: string]: any } = {};
+    // For multiple dimensions, create a matrix where each row represents unique combinations
+    const groupedData: { [key: string]: { [seriesKey: string]: number } } = {};
+    const allSeries = new Set<string>();
 
-    // First pass: collect all unique values for each dimension
+    // Process each submission
     submissions.forEach((submission) => {
       const submissionData = submission.submission_data;
       if (!passesFilters(submissionData)) return;
 
-      dimensionFields.forEach(dim => {
-        if (!dimensionValueSets[dim]) {
-          dimensionValueSets[dim] = new Set();
-        }
-        const value = getDimensionValue(submissionData, dim);
-        dimensionValueSets[dim].add(value);
-      });
-    });
-
-    // Create data structure: each unique value becomes a separate series
-    const allDimensionValues: string[] = [];
-    Object.entries(dimensionValueSets).forEach(([dim, values]) => {
-      values.forEach((value, index) => {
-        const fieldName = getFieldName(dim);
-        const seriesName = `${fieldName}: ${value}`;
-        allDimensionValues.push(seriesName);
-      });
-    });
-
-    // Second pass: aggregate data
-    submissions.forEach((submission) => {
-      const submissionData = submission.submission_data;
-      if (!passesFilters(submissionData)) return;
-
-      // Create a composite key for grouping (could be time-based or just "All")
-      const groupKey = "All Data";
-      
-      if (!processedData[groupKey]) {
-        processedData[groupKey] = { name: groupKey };
-        allDimensionValues.forEach(dimValue => {
-          processedData[groupKey][dimValue] = 0;
-        });
-      }
-
-      // Add to appropriate dimension series
-      dimensionFields.forEach(dim => {
+      // Create combinations for each dimension
+      dimensionFields.forEach((dim, dimIndex) => {
         const value = getDimensionValue(submissionData, dim);
         const fieldName = getFieldName(dim);
-        const seriesName = `${fieldName}: ${value}`;
+        const seriesKey = `${fieldName}: ${value}`;
         
+        allSeries.add(seriesKey);
+
+        // Group by dimension field for proper separation
+        const groupKey = fieldName;
+        
+        if (!groupedData[groupKey]) {
+          groupedData[groupKey] = {};
+        }
+        
+        if (!groupedData[groupKey][seriesKey]) {
+          groupedData[groupKey][seriesKey] = 0;
+        }
+
         metricFields.forEach(metric => {
           const metricValue = getMetricValue(submissionData, metric);
-          processedData[groupKey][seriesName] += metricValue;
+          groupedData[groupKey][seriesKey] += metricValue;
         });
       });
     });
 
-    return Object.values(processedData);
+    // Convert to chart-friendly format - create separate data points for each dimension group
+    const result: any[] = [];
+    
+    Object.entries(groupedData).forEach(([groupName, series]) => {
+      const dataPoint: any = { name: groupName };
+      
+      // Add all series as separate properties
+      Object.entries(series).forEach(([seriesKey, value]) => {
+        dataPoint[seriesKey] = value;
+      });
+      
+      // Fill missing series with 0
+      allSeries.forEach(seriesKey => {
+        if (!(seriesKey in dataPoint)) {
+          dataPoint[seriesKey] = 0;
+        }
+      });
+      
+      result.push(dataPoint);
+    });
+
+    // If no groups were created, create a single "All Data" group
+    if (result.length === 0) {
+      const dataPoint: any = { name: "All Data" };
+      allSeries.forEach(seriesKey => {
+        dataPoint[seriesKey] = 0;
+      });
+      result.push(dataPoint);
+    }
+
+    console.log('Multi-dimensional processed data:', result);
+    console.log('All series keys:', Array.from(allSeries));
+    
+    return result;
   };
 
   const passesFilters = (submissionData: any): boolean => {
@@ -495,11 +508,22 @@ export function ChartPreview({
     });
 
     // Get all dimension-based data keys (for multi-dimensional charts)
-    const dimensionKeys = chartData.length > 0 
+    let dimensionKeys = chartData.length > 0 
       ? Object.keys(chartData[0]).filter(key => key !== 'name' && typeof chartData[0][key] === 'number')
       : [];
     
     const isMultiDimensional = config.dimensions && config.dimensions.length > 1;
+    
+    // For multi-dimensional charts, limit the number of series to avoid cluttered display
+    if (isMultiDimensional && dimensionKeys.length > 8) {
+      // Sort by total value and take top 8 series
+      const seriesValues = dimensionKeys.map(key => ({
+        key,
+        total: chartData.reduce((sum, item) => sum + (item[key] || 0), 0)
+      }));
+      seriesValues.sort((a, b) => b.total - a.total);
+      dimensionKeys = seriesValues.slice(0, 8).map(s => s.key);
+    }
 
     switch (chartType) {
       case 'bar':
@@ -1039,6 +1063,15 @@ export function ChartPreview({
         
         {/* Chart Controls */}
         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 px-2"
+            onClick={() => setShowFormFields(!showFormFields)}
+          >
+            {showFormFields ? 'Hide' : 'Show'} Form Fields & Values
+          </Button>
+          
           {onEdit && (
             <Button
               size="sm"
@@ -1075,11 +1108,46 @@ export function ChartPreview({
         </div>
       </div>
 
+      {/* Form Fields Display */}
+      {showFormFields && (
+        <div className="p-4 bg-muted/30 rounded-lg border">
+          <h4 className="font-semibold mb-2">Form Fields & Available Values</h4>
+          <div className="space-y-2">
+            {formFields.map((field) => (
+              <div key={field.id} className="text-sm">
+                <span className="font-medium">{field.label}:</span>
+                <span className="ml-2 text-muted-foreground">
+                  {field.type} field
+                  {config.dimensions?.includes(field.id) && (
+                    <span className="ml-2 text-xs bg-primary/10 text-primary px-1 rounded">
+                      Selected as dimension
+                    </span>
+                  )}
+                  {config.metrics?.includes(field.id) && (
+                    <span className="ml-2 text-xs bg-secondary/10 text-secondary px-1 rounded">
+                      Selected as metric
+                    </span>
+                  )}
+                </span>
+              </div>
+            ))}
+            {chartData.length > 0 && (
+              <div className="mt-4 pt-2 border-t">
+                <div className="text-xs text-muted-foreground">
+                  <strong>Data Keys in Chart:</strong> {Object.keys(chartData[0]).filter(k => k !== 'name').join(', ')}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  <strong>Sample Data:</strong> {JSON.stringify(chartData[0], null, 2).substring(0, 200)}...
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Chart Container */}
       <div className="flex-1 min-h-0">
-        <ResponsiveContainer width="100%" height="100%">
-          {renderChart()}
-        </ResponsiveContainer>
+        {renderChart()}
       </div>
     </div>
   );
