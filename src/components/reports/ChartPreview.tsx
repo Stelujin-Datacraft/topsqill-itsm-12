@@ -54,6 +54,7 @@ export function ChartPreview({
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showFormFields, setShowFormFields] = useState(false);
+  const [showLegend, setShowLegend] = useState(true);
   const { getFormSubmissionData, getChartData, getFormFields } = useReports();
 
   // Get field names mapping
@@ -548,57 +549,64 @@ export function ChartPreview({
                     label={{ value: getFieldName(primaryMetric), angle: -90, position: 'insideLeft' }}
                     domain={[0, 'dataMax']}
                   />
-                  <Tooltip 
-                    formatter={(value, name, props) => [
-                      `${getFieldName(name.toString())}: ${value}`,
-                      `Category: ${props.payload?.name || 'N/A'}`
-                    ]}
-                    labelFormatter={(label) => `${label}`}
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: 'var(--radius)',
-                      fontSize: '12px'
-                    }}
-                  />
-                  <Legend 
-                    formatter={(value) => getFieldName(value.toString())}
-                    iconType="rect"
-                  />
-                  {isMultiDimensional ? (
-                    // Render separate bars for each dimension value
-                    dimensionKeys.map((key, index) => (
-                      <Bar 
-                        key={key} 
-                        dataKey={key} 
-                        fill={colors[index % colors.length]} 
-                        name={key}
-                        style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                        onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
-                      />
-                    ))
-                  ) : (
-                    // Single dimension - render primary metric and additional metrics if any
-                    <>
-                      <Bar 
-                        dataKey={primaryMetric} 
-                        fill={colors[0]} 
-                        name={primaryMetric}
-                        style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                        onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
-                      />
-                      {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
-                        <Bar 
-                          key={metric} 
-                          dataKey={metric} 
-                          fill={colors[(index + 1) % colors.length]} 
-                          name={metric}
-                          style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                          onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
-                        />
-                      ))}
-                    </>
-                  )}
+                   <Tooltip 
+                     formatter={(value, name, props) => {
+                       // For multi-dimensional charts, the name is already formatted as "Field Name: Value"
+                       // For single-dimensional charts, we need to use getFieldName
+                       const displayName = isMultiDimensional ? name : getFieldName(name.toString());
+                       return [
+                         `${displayName}: ${value}`,
+                         `Category: ${props.payload?.name || 'N/A'}`
+                       ];
+                     }}
+                     labelFormatter={(label) => `${label}`}
+                     contentStyle={{
+                       backgroundColor: 'hsl(var(--popover))',
+                       border: '1px solid hsl(var(--border))',
+                       borderRadius: 'var(--radius)',
+                       fontSize: '12px'
+                     }}
+                   />
+                   {showLegend && (
+                     <Legend 
+                       formatter={(value) => isMultiDimensional ? value : getFieldName(value.toString())}
+                       iconType="rect"
+                     />
+                   )}
+                   {isMultiDimensional ? (
+                     // Render separate bars for each dimension value
+                     dimensionKeys.map((key, index) => (
+                       <Bar 
+                         key={key} 
+                         dataKey={key} 
+                         fill={colors[index % colors.length]} 
+                         name={key}
+                         style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                         onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
+                       />
+                     ))
+                   ) : (
+                     // Single dimension - render primary metric and additional metrics if any
+                     <>
+                       <Bar 
+                         dataKey={primaryMetric} 
+                         fill={colors[0]} 
+                         name={getFieldName(primaryMetric)}
+                         style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                         onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
+                       />
+                       {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
+                         <Bar 
+                           key={metric} 
+                           dataKey={metric} 
+                           fill={colors[(index + 1) % colors.length]} 
+                           name={getFieldName(metric)}
+                           style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                           onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
+                         />
+                       ))}
+                     </>
+                   )}
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -640,23 +648,25 @@ export function ChartPreview({
                       fontSize: '12px'
                     }}
                   />
-                  <Legend 
-                    formatter={(value) => getFieldName(value.toString())}
-                    iconType="rect"
-                  />
-                  <Bar 
-                    dataKey={primaryMetric} 
-                    fill={colors[0]} 
-                    name={primaryMetric}
-                  />
-                  {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
-                    <Bar 
-                      key={metric} 
-                      dataKey={metric} 
-                      fill={colors[(index + 1) % colors.length]} 
-                      name={metric}
-                    />
-                  ))}
+                   {showLegend && (
+                     <Legend 
+                       formatter={(value) => getFieldName(value.toString())}
+                       iconType="rect"
+                     />
+                   )}
+                   <Bar 
+                     dataKey={primaryMetric} 
+                     fill={colors[0]} 
+                     name={getFieldName(primaryMetric)}
+                   />
+                   {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
+                     <Bar 
+                       key={metric} 
+                       dataKey={metric} 
+                       fill={colors[(index + 1) % colors.length]} 
+                       name={getFieldName(metric)}
+                     />
+                   ))}
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -688,21 +698,23 @@ export function ChartPreview({
                       />
                     ))}
                   </Pie>
-                  <Tooltip 
-                    formatter={(value, name, props) => [
-                      `${getFieldName(name.toString())}: ${value}`,
-                      `Total: ${chartData.reduce((sum, item) => sum + item[primaryMetric], 0)}`
-                    ]}
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: 'var(--radius)',
-                      fontSize: '12px'
-                    }}
-                  />
-                  <Legend 
-                    formatter={(value) => getFieldName(value.toString())}
-                  />
+                   <Tooltip 
+                     formatter={(value, name, props) => [
+                       `${getFieldName(name.toString())}: ${value}`,
+                       `Total: ${chartData.reduce((sum, item) => sum + item[primaryMetric], 0)}`
+                     ]}
+                     contentStyle={{
+                       backgroundColor: 'hsl(var(--popover))',
+                       border: '1px solid hsl(var(--border))',
+                       borderRadius: 'var(--radius)',
+                       fontSize: '12px'
+                     }}
+                   />
+                   {showLegend && (
+                     <Legend 
+                       formatter={(value) => getFieldName(value.toString())}
+                     />
+                   )}
                 </RechartsPieChart>
               </ResponsiveContainer>
             </div>
@@ -727,8 +739,8 @@ export function ChartPreview({
                   <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value, name) => [value, name]} />
-              <Legend />
+               <Tooltip formatter={(value, name) => [value, name]} />
+               {showLegend && <Legend />}
             </RechartsPieChart>
           </ResponsiveContainer>
         );
@@ -756,63 +768,68 @@ export function ChartPreview({
                     label={{ value: getFieldName(primaryMetric), angle: -90, position: 'insideLeft' }}
                     domain={[0, 'dataMax']}
                   />
-                  <Tooltip 
-                    formatter={(value, name, props) => [
-                      `${getFieldName(name.toString())}: ${value}`,
-                      `Category: ${props.payload?.name || 'N/A'}`
-                    ]}
-                    labelFormatter={(label) => `${label}`}
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: 'var(--radius)',
-                      fontSize: '12px'
-                    }}
-                  />
-                  <Legend 
-                    formatter={(value) => getFieldName(value.toString())}
-                    iconType="line"
-                  />
-                  {isMultiDimensional ? (
-                    // Render separate lines for each dimension value
-                    dimensionKeys.map((key, index) => (
-                      <Line 
-                        key={key} 
-                        type="monotone" 
-                        dataKey={key} 
-                        stroke={colors[index % colors.length]} 
-                        strokeWidth={3}
-                        name={key}
-                        dot={{ fill: colors[index % colors.length], strokeWidth: 2, r: 4 }}
-                        style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                      />
-                    ))
-                  ) : (
-                    // Single dimension - render primary metric and additional metrics if any
-                    <>
-                      <Line 
-                        type="monotone" 
-                        dataKey={primaryMetric} 
-                        stroke={colors[0]} 
-                        strokeWidth={3}
-                        name={primaryMetric}
-                        dot={{ fill: colors[0], strokeWidth: 2, r: 4 }}
-                        style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                      />
-                      {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
-                        <Line 
-                          key={metric}
-                          type="monotone" 
-                          dataKey={metric} 
-                          stroke={colors[(index + 1) % colors.length]} 
-                          strokeWidth={3}
-                          name={metric}
-                          dot={{ fill: colors[(index + 1) % colors.length], strokeWidth: 2, r: 4 }}
-                          style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                        />
-                      ))}
-                    </>
-                  )}
+                   <Tooltip 
+                     formatter={(value, name, props) => {
+                       const displayName = isMultiDimensional ? name : getFieldName(name.toString());
+                       return [
+                         `${displayName}: ${value}`,
+                         `Category: ${props.payload?.name || 'N/A'}`
+                       ];
+                     }}
+                     labelFormatter={(label) => `${label}`}
+                     contentStyle={{
+                       backgroundColor: 'hsl(var(--popover))',
+                       border: '1px solid hsl(var(--border))',
+                       borderRadius: 'var(--radius)',
+                       fontSize: '12px'
+                     }}
+                   />
+                   {showLegend && (
+                     <Legend 
+                       formatter={(value) => isMultiDimensional ? value : getFieldName(value.toString())}
+                       iconType="line"
+                     />
+                   )}
+                   {isMultiDimensional ? (
+                     // Render separate lines for each dimension value
+                     dimensionKeys.map((key, index) => (
+                       <Line 
+                         key={key} 
+                         type="monotone" 
+                         dataKey={key} 
+                         stroke={colors[index % colors.length]} 
+                         strokeWidth={3}
+                         name={key}
+                         dot={{ fill: colors[index % colors.length], strokeWidth: 2, r: 4 }}
+                         style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                       />
+                     ))
+                   ) : (
+                     // Single dimension - render primary metric and additional metrics if any
+                     <>
+                       <Line 
+                         type="monotone" 
+                         dataKey={primaryMetric} 
+                         stroke={colors[0]} 
+                         strokeWidth={3}
+                         name={getFieldName(primaryMetric)}
+                         dot={{ fill: colors[0], strokeWidth: 2, r: 4 }}
+                         style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                       />
+                       {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
+                         <Line 
+                           key={metric}
+                           type="monotone" 
+                           dataKey={metric} 
+                           stroke={colors[(index + 1) % colors.length]} 
+                           strokeWidth={3}
+                           name={getFieldName(metric)}
+                           dot={{ fill: colors[(index + 1) % colors.length], strokeWidth: 2, r: 4 }}
+                           style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                         />
+                       ))}
+                     </>
+                   )}
                 </RechartsLineChart>
               </ResponsiveContainer>
             </div>
@@ -841,42 +858,47 @@ export function ChartPreview({
                     label={{ value: getFieldName(primaryMetric), angle: -90, position: 'insideLeft' }}
                     domain={[0, 'dataMax']}
                   />
-                  <Tooltip 
-                    formatter={(value, name, props) => [
-                      `${getFieldName(name.toString())}: ${value}`,
-                      `Category: ${props.payload?.name || 'N/A'}`
-                    ]}
-                    labelFormatter={(label) => `${label}`}
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: 'var(--radius)',
-                      fontSize: '12px'
-                    }}
-                  />
-                  <Legend 
-                    formatter={(value) => getFieldName(value.toString())}
-                    iconType="rect"
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey={primaryMetric} 
-                    stroke={colors[0]} 
-                    fill={colors[0]} 
-                    fillOpacity={0.6}
-                    name={primaryMetric}
-                  />
-                  {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
-                    <Area 
-                      key={metric}
-                      type="monotone" 
-                      dataKey={metric} 
-                      stroke={colors[(index + 1) % colors.length]} 
-                      fill={colors[(index + 1) % colors.length]} 
-                      fillOpacity={0.6}
-                      name={metric}
-                    />
-                  ))}
+                   <Tooltip 
+                     formatter={(value, name, props) => {
+                       const displayName = getFieldName(name.toString());
+                       return [
+                         `${displayName}: ${value}`,
+                         `Category: ${props.payload?.name || 'N/A'}`
+                       ];
+                     }}
+                     labelFormatter={(label) => `${label}`}
+                     contentStyle={{
+                       backgroundColor: 'hsl(var(--popover))',
+                       border: '1px solid hsl(var(--border))',
+                       borderRadius: 'var(--radius)',
+                       fontSize: '12px'
+                     }}
+                   />
+                   {showLegend && (
+                     <Legend 
+                       formatter={(value) => getFieldName(value.toString())}
+                       iconType="rect"
+                     />
+                   )}
+                   <Area 
+                     type="monotone" 
+                     dataKey={primaryMetric} 
+                     stroke={colors[0]} 
+                     fill={colors[0]} 
+                     fillOpacity={0.6}
+                     name={getFieldName(primaryMetric)}
+                   />
+                   {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
+                     <Area 
+                       key={metric}
+                       type="monotone" 
+                       dataKey={metric} 
+                       stroke={colors[(index + 1) % colors.length]} 
+                       fill={colors[(index + 1) % colors.length]} 
+                       fillOpacity={0.6}
+                       name={getFieldName(metric)}
+                     />
+                   ))}
                 </RechartsAreaChart>
               </ResponsiveContainer>
             </div>
@@ -978,11 +1000,11 @@ export function ChartPreview({
                   <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Category
                   </th>
-                  {(config.metrics || [primaryMetric]).map((metric) => (
-                    <th key={metric} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      {metric}
-                    </th>
-                  ))}
+                     {(config.metrics || [primaryMetric]).map((metric) => (
+                       <th key={metric} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                         {getFieldName(metric)}
+                       </th>
+                     ))}
                 </tr>
               </thead>
               <tbody className="bg-background divide-y divide-border">
@@ -1062,15 +1084,24 @@ export function ChartPreview({
         )}
         
         {/* Chart Controls */}
-        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 px-2"
-            onClick={() => setShowFormFields(!showFormFields)}
-          >
-            {showFormFields ? 'Hide' : 'Show'} Form Fields & Values
-          </Button>
+         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+           <Button
+             size="sm"
+             variant="outline"
+             className="h-8 px-2"
+             onClick={() => setShowLegend(!showLegend)}
+           >
+             {showLegend ? 'Hide' : 'Show'} Legend
+           </Button>
+           
+           <Button
+             size="sm"
+             variant="outline"
+             className="h-8 px-2"
+             onClick={() => setShowFormFields(!showFormFields)}
+           >
+             {showFormFields ? 'Hide' : 'Show'} Form Fields & Values
+           </Button>
           
           {onEdit && (
             <Button
