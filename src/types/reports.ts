@@ -37,7 +37,9 @@ export interface ChartConfig {
   yAxis?: string;
   dimensions?: string[];
   metrics?: string[];
-  aggregationType?: 'count' | 'sum' | 'average' | 'min' | 'max';
+  aggregationType?: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'median' | 'stddev';
+  aggregationEnabled?: boolean;
+  groupByField?: string;
   colorTheme: 'default' | 'vibrant' | 'pastel' | 'monochrome' | 'custom';
   customColors?: string[];
   filters?: Array<{
@@ -51,6 +53,22 @@ export interface ChartConfig {
   heatmapIntensityField?: string; // For heatmap
   gridColumns?: number; // For heatmap
   gridRows?: number; // For heatmap
+  
+  // Enhanced configurations
+  enableMultipleMetrics?: boolean;
+  metricAggregations?: Array<{
+    field: string;
+    aggregation: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'median' | 'stddev';
+  }>;
+  
+  // Drilldown configuration
+  drilldownConfig?: {
+    enabled: boolean;
+    drilldownLevels: string[];
+  };
+  drilldownEnabled?: boolean;
+  drilldownLevels?: string[];
+  
   [key: string]: any;
 }
 

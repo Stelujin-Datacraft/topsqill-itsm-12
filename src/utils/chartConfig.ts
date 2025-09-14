@@ -83,19 +83,36 @@ export function categorizeFields(fields: FormField[]): { [category: string]: Cha
       category: ''
     };
 
-    if (['text', 'select', 'radio', 'checkbox', 'date'].includes(field.type)) {
+    // Dimensions: Categorical data that can be used for grouping
+    if (['text', 'select', 'radio', 'checkbox', 'date', 'datetime', 'email', 'url', 'tel'].includes(field.type)) {
       option.category = 'dimensions';
       categories.dimensions.push(option);
-    } else if (['number', 'currency', 'rating'].includes(field.type)) {
+    } 
+    // Metrics: Numeric data that can be measured and aggregated
+    else if (['number', 'currency', 'rating', 'slider'].includes(field.type)) {
       option.category = 'metrics';
       categories.metrics.push(option);
-    } else {
+    } 
+    // Other fields that don't fit standard metric/dimension categories
+    else {
       option.category = 'other';
       categories.other.push(option);
     }
   });
 
   return categories;
+}
+
+export function getMetricCompatibleFields(fields: FormField[]): FormField[] {
+  return fields.filter(field => 
+    ['number', 'currency', 'rating', 'slider'].includes(field.type)
+  );
+}
+
+export function getDimensionCompatibleFields(fields: FormField[]): FormField[] {
+  return fields.filter(field => 
+    ['text', 'select', 'radio', 'checkbox', 'date', 'datetime', 'email', 'url', 'tel'].includes(field.type)
+  );
 }
 
 export function getCompatibleAggregations(fieldType: string): AggregationOption[] {
@@ -109,10 +126,27 @@ export function getCompatibleAggregations(fieldType: string): AggregationOption[
     { value: 'stddev', label: 'Standard Deviation', description: 'Standard deviation' }
   ];
 
-  if (['number', 'currency', 'rating'].includes(fieldType)) {
+  if (['number', 'currency', 'rating', 'slider'].includes(fieldType)) {
     return allAggregations;
   }
 
   // For non-numeric fields, only count makes sense
   return [allAggregations[0]];
+}
+
+export function getChartMetricCapabilities(chartType: string): { maxMetrics: number; maxDimensions: number } {
+  const capabilities: { [key: string]: { maxMetrics: number; maxDimensions: number } } = {
+    'bar': { maxMetrics: 5, maxDimensions: 2 },
+    'column': { maxMetrics: 5, maxDimensions: 2 },
+    'line': { maxMetrics: 5, maxDimensions: 1 },
+    'area': { maxMetrics: 3, maxDimensions: 1 },
+    'pie': { maxMetrics: 1, maxDimensions: 1 },
+    'donut': { maxMetrics: 1, maxDimensions: 1 },
+    'scatter': { maxMetrics: 2, maxDimensions: 1 },
+    'bubble': { maxMetrics: 3, maxDimensions: 1 },
+    'heatmap': { maxMetrics: 1, maxDimensions: 2 },
+    'table': { maxMetrics: 10, maxDimensions: 10 }
+  };
+  
+  return capabilities[chartType] || { maxMetrics: 1, maxDimensions: 1 };
 }
