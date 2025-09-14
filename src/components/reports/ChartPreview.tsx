@@ -79,9 +79,25 @@ export function ChartPreview({
         // Use server-side RPC function for drilldown-enabled charts
         if (config.drilldownConfig?.enabled && config.drilldownConfig?.drilldownLevels?.length > 0) {
           console.log('Using drilldown-enabled chart data fetch');
+          
+          // Determine the current dimension based on drilldown state
+          const currentDrilldownLevel = drilldownState?.values?.length || 0;
+          const currentDimension = config.drilldownConfig.drilldownLevels[currentDrilldownLevel] || 
+                                   config.drilldownConfig.drilldownLevels[0];
+          
+          // Use the current dimension for the chart
+          const chartDimensions = [currentDimension];
+          
+          console.log('Drilldown chart config:', {
+            currentLevel: currentDrilldownLevel,
+            currentDimension,
+            drilldownValues: drilldownState?.values || [],
+            allLevels: config.drilldownConfig.drilldownLevels
+          });
+          
           const serverData = await getChartData(
             config.formId,
-            config.dimensions || [],
+            chartDimensions,
             config.metrics || [],
             config.aggregation || 'count',
             config.filters || [],
@@ -133,8 +149,8 @@ export function ChartPreview({
     config.yAxis, 
     config.aggregation, 
     config.aggregationType, 
-    config.drilldownEnabled,
-    config.drilldownLevels,
+    config.drilldownConfig?.enabled,
+    config.drilldownConfig?.drilldownLevels,
     drilldownState?.values,
     (config as any).data, 
     getFormSubmissionData,
@@ -153,8 +169,24 @@ export function ChartPreview({
     submissions.forEach((submission, index) => {
       const submissionData = submission.submission_data;
       
-      // Apply filters
-      const passesFilters = config.filters?.every(filter => {
+      // Apply drilldown filters if we're in a drilldown state
+      const drilldownFilters: any[] = [];
+      if (config.drilldownConfig?.enabled && drilldownState?.values?.length > 0) {
+        drilldownState.values.forEach((value, index) => {
+          const field = config.drilldownConfig?.drilldownLevels?.[index];
+          if (field) {
+            drilldownFilters.push({
+              field,
+              operator: 'equals',
+              value
+            });
+          }
+        });
+      }
+      
+      // Apply all filters (config filters + drilldown filters)
+      const allFilters = [...(config.filters || []), ...drilldownFilters];
+      const passesFilters = allFilters?.every(filter => {
         const value = submissionData[filter.field];
         switch (filter.operator) {
           case 'equals':
@@ -182,12 +214,23 @@ export function ChartPreview({
 
       if (!passesFilters) return;
 
-      // Create dimension key - use xAxis if dimensions not set, or use a default categorization
-      let dimensionFields = config.dimensions && config.dimensions.length > 0 
-        ? config.dimensions 
-        : config.xAxis 
-          ? [config.xAxis] 
-          : [];
+      // Create dimension key - use drilldown current level if drilldown is enabled
+      let dimensionFields: string[] = [];
+      
+      if (config.drilldownConfig?.enabled && config.drilldownConfig?.drilldownLevels?.length > 0) {
+        // Use the current drilldown level as the dimension
+        const currentDrilldownLevel = drilldownState?.values?.length || 0;
+        const currentDimension = config.drilldownConfig.drilldownLevels[currentDrilldownLevel] || 
+                                 config.drilldownConfig.drilldownLevels[0];
+        dimensionFields = [currentDimension];
+      } else {
+        // Use configured dimensions or fallback to xAxis
+        dimensionFields = config.dimensions && config.dimensions.length > 0 
+          ? config.dimensions 
+          : config.xAxis 
+            ? [config.xAxis] 
+            : [];
+      }
 
       // If no dimension is specified, create a simple count-based dimension
       if (dimensionFields.length === 0) {
@@ -306,12 +349,12 @@ export function ChartPreview({
   };
 
   const handlePieClick = (data: any, index: number) => {
-    if (!config.drilldownEnabled || !onDrilldown || !config.drilldownLevels?.length) return;
+    if (!config.drilldownConfig?.enabled || !onDrilldown || !config.drilldownConfig?.drilldownLevels?.length) return;
     
     const currentLevel = drilldownState?.values?.length || 0;
-    if (currentLevel >= config.drilldownLevels.length) return;
+    if (currentLevel >= config.drilldownConfig.drilldownLevels.length) return;
     
-    const nextLevel = config.drilldownLevels[currentLevel];
+    const nextLevel = config.drilldownConfig.drilldownLevels[currentLevel];
     const clickedValue = data.name;
     
     if (nextLevel && clickedValue) {
@@ -359,8 +402,8 @@ export function ChartPreview({
                 dataKey={metric} 
                 fill={colors[index % colors.length]} 
                 name={metric}
-                style={{ cursor: config.drilldownEnabled ? 'pointer' : 'default' }}
-                onClick={config.drilldownEnabled ? handleBarClick : undefined}
+                style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
               />
             ))}
           </BarChart>
@@ -395,14 +438,14 @@ export function ChartPreview({
               fill="#8884d8"
               dataKey={primaryMetric}
               label={({ name, value }) => `${name}: ${value}`}
-              style={{ cursor: config.drilldownEnabled ? 'pointer' : 'default' }}
-              onClick={config.drilldownEnabled ? handlePieClick : undefined}
+              style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+              onClick={config.drilldownConfig?.enabled ? handlePieClick : undefined}
             >
               {chartData.map((entry, index) => (
                 <Cell 
                   key={`cell-${index}`} 
                   fill={colors[index % colors.length]}
-                  style={{ cursor: config.drilldownEnabled ? 'pointer' : 'default' }}
+                  style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
                 />
               ))}
             </Pie>
@@ -605,7 +648,7 @@ export function ChartPreview({
                       const newValues = [...drilldownState.values];
                       newValues.pop(); // Remove last value to go up one level
                       // Trigger drilldown with reduced values
-                      const lastLevel = config.drilldownLevels?.[newValues.length - 1] || '';
+                      const lastLevel = config.drilldownConfig?.drilldownLevels?.[newValues.length - 1] || '';
                       const lastValue = newValues[newValues.length - 1] || '';
                       onDrilldown(lastLevel, lastValue);
                     }
