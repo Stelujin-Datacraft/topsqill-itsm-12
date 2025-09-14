@@ -14,7 +14,7 @@ import { Slider } from "@/components/ui/slider";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 // For Rating (if you are using lucide-react icons)
-import { Star } from "lucide-react";
+import { Badge, Eye, Star } from "lucide-react";
 import axios from 'axios';
 
 interface InlineEditDialogProps {
@@ -66,20 +66,6 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
       handleAutoFill(fieldId, value);
     }
   };
-
-  // const handleFieldChange = (submissionId: string, fieldId: string, value: any) => {
-  //   if (submissionId === 'master') {
-  //     handleMasterValueChange(fieldId, value);
-  //   } else {
-  //     setEditedData(prev => ({
-  //       ...prev,
-  //       [submissionId]: {
-  //         ...prev[submissionId],
-  //         [fieldId]: value
-  //       }
-  //     }));
-  //   }
-  // };
 
   // ✅ updated handleFieldChange with master sync
 const handleFieldChange = (submissionId: string, fieldId: string, value: any) => {
@@ -232,6 +218,83 @@ const normalizeStoredValue = (field: any, raw: any): string | string[] => {
   return raw == null ? "" : String(raw);
 };
 
+const COUNTRY_CODES = [
+  { code: '+1', country: 'US', name: 'United States' },
+  { code: '+1', country: 'CA', name: 'Canada' },
+  { code: '+44', country: 'GB', name: 'United Kingdom' },
+  { code: '+33', country: 'FR', name: 'France' },
+  { code: '+49', country: 'DE', name: 'Germany' },
+  { code: '+81', country: 'JP', name: 'Japan' },
+  { code: '+61', country: 'AU', name: 'Australia' },
+  { code: '+55', country: 'BR', name: 'Brazil' },
+  { code: '+91', country: 'IN', name: 'India' },
+  { code: '+86', country: 'CN', name: 'China' },
+];
+
+const CURRENCIES = [
+  { code: 'USD', name: 'US Dollar', symbol: '$', rate: 1 },
+  { code: 'EUR', name: 'Euro', symbol: '€', rate: 0.85 },
+  { code: 'GBP', name: 'British Pound', symbol: '£', rate: 0.73 },
+  { code: 'JPY', name: 'Japanese Yen', symbol: '¥', rate: 110 },
+  { code: 'CAD', name: 'Canadian Dollar', symbol: 'C$', rate: 1.25 },
+  { code: 'AUD', name: 'Australian Dollar', symbol: 'A$', rate: 1.35 },
+  { code: 'CHF', name: 'Swiss Franc', symbol: 'CHF', rate: 0.92 },
+  { code: 'CNY', name: 'Chinese Yuan', symbol: '¥', rate: 6.45 },
+  { code: 'INR', name: 'Indian Rupee', symbol: '₹', rate: 74 },
+];
+
+function countryCodeToEmoji(code: string) {
+  if (!code) return "";
+  return code
+    .toUpperCase()
+    .replace(/./g, char =>
+      String.fromCodePoint(127397 + char.charCodeAt(0))
+    );
+}
+
+interface Country {
+  code: string;
+  name: string;
+  flag: string;
+}
+
+const useCountries=()=> {
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await axios.get(
+          "https://restcountries.com/v3.1/all?fields=name,cca2"
+        );
+        const data = response.data.map((country: any) => ({
+          code: country.cca2,
+          name: country.name?.common || "",
+        }));
+        // sort alphabetically
+        data.sort((a: Country, b: Country) =>
+          a.name.localeCompare(b.name)
+        );
+        setCountries(data);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching countries:", err);
+        setError("Failed to fetch countries");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCountries();
+  }, []);
+
+  return { countries, loading, error };
+}
+
+// 👇 Top of InlineEditDialog component
+const { countries, loading: countriesLoading, error: countriesError } = useCountries();
+
 
 const renderFieldInput = (
   field: any,
@@ -290,6 +353,170 @@ case "select":{
         ))}
       </SelectContent>
     </Select>
+  );
+}
+
+case "currency": {
+  type CurrencyValue = { currency: string; amount: string };
+  let parsed: CurrencyValue = { currency: "USD", amount: "" };
+
+  try {
+    parsed =
+      typeof value === "string"
+        ? JSON.parse(value)
+        : (value as CurrencyValue) || parsed;
+  } catch {
+    // keep defaults
+  }
+
+  const currencyVal = parsed.currency;
+  const amountVal = parsed.amount;
+
+  const handleCurrencyChange = (newCurrency: string) => {
+    handleFieldChange(
+      submissionId,
+      field.id,
+      JSON.stringify({ currency: newCurrency, amount: amountVal })
+    );
+  };
+
+  const handleAmountChange = (newAmount: string) => {
+    handleFieldChange(
+      submissionId,
+      field.id,
+      JSON.stringify({ currency: currencyVal, amount: newAmount })
+    );
+  };
+
+  return (
+    <div className="flex gap-2">
+      <Select
+        value={currencyVal}
+        onValueChange={handleCurrencyChange}
+        disabled={isDisabled}
+      >
+        <SelectTrigger className="w-18">
+          <SelectValue placeholder="Currency" />
+        </SelectTrigger>
+        <SelectContent>
+          {CURRENCIES.map((c) => (
+            <SelectItem key={c.code} value={c.code}>
+              {c.symbol}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Input
+        type="number"
+        step="0.01"
+        value={amountVal}
+        onChange={(e) => handleAmountChange(e.target.value)}
+        className="flex-1 w-38"
+        disabled={isDisabled}
+        placeholder="Amount"
+
+      />
+    </div>
+  );
+}
+
+case "phone": {
+  type PhoneValue = { code: string; number: string };
+  let parsed: PhoneValue = { code: "+1", number: "" };
+
+  try {
+    parsed =
+      typeof value === "string"
+        ? JSON.parse(value)
+        : (value as PhoneValue) || parsed;
+  } catch {
+    // keep defaults
+  }
+
+  const codeVal = parsed.code;
+  const numberVal = parsed.number;
+
+  const handleCodeChange = (newCode: string) => {
+    handleFieldChange(
+      submissionId,
+      field.id,
+      JSON.stringify({ code: newCode, number: numberVal })
+    );
+  };
+
+  const handleNumberChange = (newNumber: string) => {
+    handleFieldChange(
+      submissionId,
+      field.id,
+      JSON.stringify({ code: codeVal, number: newNumber })
+    );
+  };
+
+  return (
+    <div className="flex gap-2">
+      <Select
+        value={codeVal}
+        onValueChange={handleCodeChange}
+        disabled={isDisabled}
+      >
+        <SelectTrigger className="w-32">
+          <SelectValue placeholder="Code" />
+        </SelectTrigger>
+        <SelectContent>
+          {COUNTRY_CODES.map((c) => (
+            <SelectItem key={`${c.country}-${c.code}`} value={c.code}>
+              {c.code} {c.country}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Input
+        type="tel"
+        value={numberVal}
+        onChange={(e) => handleNumberChange(e.target.value)}
+        className="flex-1 w-30"
+        disabled={isDisabled}
+        placeholder="Phone number"
+      />
+    </div>
+  );
+}
+case "country": {
+  if (countriesLoading) {
+    return (
+      <div className="flex items-center gap-2">
+        <span>Loading countries...</span>
+      </div>
+    );
+  }
+
+  if (countriesError) {
+    return <p className="text-red-600">{countriesError}</p>;
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Select
+        value={value || ""}
+        onValueChange={(newCode) =>
+          handleFieldChange(submissionId, field.id, newCode)
+        }
+        disabled={isDisabled}
+      >
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="Select country" />
+        </SelectTrigger>
+        <SelectContent>
+          {countries.map((c) => (
+            <SelectItem key={c.code} value={c.code}>
+              <span className="flex items-center gap-2">
+                {countryCodeToEmoji(c.code)} {c.name}
+              </span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 
@@ -521,8 +748,67 @@ case "multi-select": {
     </div>
   );
 }
+case 'file':
+case 'image': {
+  if (!value) {
+    return (
+      <Badge  className="italic opacity-70 text-muted-foreground/80 bg-muted/50">
+        No file
+      </Badge>
+    );
+  }
 
+  // Normalize value into an array
+  const files: { name: string; url: string }[] = [];
 
+  if (typeof value === 'string' && value.startsWith('http')) {
+    files.push({ name: value.split('/').pop() || 'file', url: value });
+  } else if (Array.isArray(value)) {
+    value.forEach((f: any) => {
+      if (typeof f === 'string' && f.startsWith('http')) {
+        files.push({ name: f.split('/').pop() || 'file', url: f });
+      } else if (f?.url) {
+        files.push({ name: f.name || f.url.split('/').pop() || 'file', url: f.url });
+      }
+    });
+  } else if (value.url) {
+    files.push({ name: value.name || value.url.split('/').pop() || 'file', url: value.url });
+  }
+
+  if (files.length === 0) {
+    return <span className="text-sm text-muted-foreground">File attached</span>;
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      {files.map((f, index) => (
+        <div key={index} className="flex gap-2 items-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open(f.url, '_blank')}
+            className="h-8"
+          >
+            <Eye className="h-3 w-3 mr-1" /> View
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const link = document.createElement('a');
+              link.href = f.url;
+              link.download = f.name;
+              link.click();
+            }}
+            className="h-8"
+          >
+            Download
+          </Button>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 
     case 'header':
@@ -539,8 +825,7 @@ case "multi-select": {
     case 'workflow-trigger':
     case 'query-field':
     case 'barcode':
-    case 'address':
-    case 'file': 
+    case 'address': 
     {
       return (
         <div className="text-xs text-muted-foreground italic p-2 bg-muted/20 rounded">
@@ -579,7 +864,6 @@ case "multi-select": {
             {/* Display fields horizontally */}
             <div className="overflow-x-auto">
               <div className="min-w-max">
-                {/* Master row for bulk editing */}
 {/* Master row for bulk editing */}
 {submissions.length > 1 && (
   <div className="mb-4 p-4 border rounded-lg bg-primary/5">
@@ -608,6 +892,7 @@ case "multi-select": {
             'record-table',
             'matrix-grid',
             'workflow-trigger',
+            'barcode'
           ];
 
           if (excludedFieldTypes.includes(field.field_type)) return false;
@@ -671,6 +956,8 @@ case "multi-select": {
               'record-table',
               'matrix-grid',
               'workflow-trigger',
+              'barcode',
+              'addresss'
             ];
 
             if (excludedFieldTypes.includes(field.field_type)) return false;

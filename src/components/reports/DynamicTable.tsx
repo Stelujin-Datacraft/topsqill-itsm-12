@@ -166,6 +166,7 @@ export function DynamicTable({
     
     return fields;
   }, [formFields, selectedColumns, config.selectedColumns, hasUserInteractedWithColumns, columnOrder]);
+  
   const filteredAndSortedData = useMemo(() => {
     console.log('🔍 Filtering data - Input count:', data.length);
     console.log('🔍 Search term:', searchTerm);
@@ -520,7 +521,7 @@ export function DynamicTable({
         'full-width-container', 'user-picker', 'approval', 
         'query-field', 'geo-location', 'conditional-section', 
         'submission-access', 'signature', 'dynamic-dropdown', 'rich-text',
-        'record-table', 'matrix-grid', 'workflow-trigger','child-cross-reference'
+        'record-table', 'matrix-grid', 'workflow-trigger','child-cross-reference','address','barcode'
       ];
 
       const {

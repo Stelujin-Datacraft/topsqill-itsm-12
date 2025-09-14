@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Eye, Calendar, DollarSign, Clock, Link as LinkIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useEffect,useState } from 'react';
+import  axios  from 'axios';
 
 interface FormDataCellProps {
   value: any;
@@ -11,6 +13,60 @@ interface FormDataCellProps {
 }
 
 export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
+
+  function countryCodeToEmoji(code: string) {
+    if (!code) return "";
+    return code
+      .toUpperCase()
+      .replace(/./g, char =>
+        String.fromCodePoint(127397 + char.charCodeAt(0))
+      );
+  }
+  
+  interface Country {
+    code: string;
+    name: string;
+    flag: string;
+  }
+  
+  const useCountries=()=> {
+    const [countries, setCountries] = useState<Country[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+  
+    useEffect(() => {
+      const fetchCountries = async () => {
+        try {
+          const response = await axios.get(
+            "https://restcountries.com/v3.1/all?fields=name,cca2"
+          );
+          const data = response.data.map((country: any) => ({
+            code: country.cca2,
+            name: country.name?.common || "",
+          }));
+          // sort alphabetically
+          data.sort((a: Country, b: Country) =>
+            a.name.localeCompare(b.name)
+          );
+          setCountries(data);
+          setError(null);
+        } catch (err) {
+          console.error("Error fetching countries:", err);
+          setError("Failed to fetch countries");
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchCountries();
+    }, []);
+  
+    return { countries, loading, error };
+  }
+  
+  // 👇 Top of InlineEditDialog component
+  const { countries, loading: countriesLoading, error: countriesError } = useCountries();
+  
+  
   const navigate = useNavigate();
 
   // Handle null/undefined values
@@ -145,6 +201,35 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
   }
 
   // Handle currency fields
+if (fieldType === 'currency' && value) {
+  let parsed: { currency: string; amount: number | string } = { currency: '', amount: 0 };
+
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      parsed = { currency: '', amount: value };
+    }
+  } else if (typeof value === 'object') {
+    parsed = { currency: value.currency || '', amount: value.amount || value.value || 0 };
+  }
+
+  const { currency, amount } = parsed;
+
+  // Only format currency if a valid ISO code is present
+  const formatted = currency
+    ? new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(Number(amount))
+    : amount; // fallback: show just the number if currency invalid
+
+  return (
+    <div className="flex items-center space-x-1">
+      <span className="text-sm font-medium">{formatted}</span>
+    </div>
+  );
+}
+
+
+  // Handle currency fields
   if (fieldType === 'currency' && typeof value === 'object') {
     const amount = value?.amount || value?.value || 0;
     const currency = value?.currency || 'USD';
@@ -177,6 +262,30 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
     );
   }
 
+  // Handle phone fields
+if (fieldType === 'phone' && value) {
+  let parsed: { code: string; number: string } = { code: '+1', number: '' };
+
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      parsed = { code: '+1', number: value };
+    }
+  } else if (typeof value === 'object') {
+    parsed = { code: value.code || '+1', number: value.number || '' };
+  }
+
+  const { code, number } = parsed;
+
+  return (
+    <a href={`tel:${code}${number}`} className="text-sm text-primary hover:underline">
+      {code} {number}
+    </a>
+  );
+}
+
+
   // Handle select/dropdown fields
   if (['select', 'radio'].includes(fieldType) && field?.options && Array.isArray(field.options)) {
     const selectedOption = field.options.find((opt: any) => opt.value === value);
@@ -189,8 +298,37 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
     );
   }
 
+  // Handle single or bulk checkbox
+if (fieldType === 'checkbox') {
+  if (Array.isArray(value)) {
+    // Multiple checkboxes (bulk) - show True/False for each
+    return (
+      <div className="flex flex-wrap gap-1">
+        {value.map((v, index) => (
+          <Badge
+            key={index}
+            variant={v ? 'default' : 'secondary'}
+            className="text-xs"
+          >
+            {v ? 'True' : 'False'}
+          </Badge>
+        ))}
+      </div>
+    );
+  }
+
+  // Single checkbox
+  return (
+    <Badge variant={value ? 'default' : 'secondary'} className="text-xs">
+      {value ? 'True' : 'False'}
+    </Badge>
+  );
+}
+
+
+
   // Handle multi-select fields
-  if (['multi-select', 'checkbox'].includes(fieldType)) {
+  if (['multi-select'].includes(fieldType)) {
     if (Array.isArray(value)) {
       return (
         <div className="flex flex-wrap gap-1">
@@ -252,6 +390,23 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
     );
   }
 
+  // Handle country fields
+if (fieldType === 'country' && value) {
+  // Map code to full name
+  const countryObj = countries.find((c: any) => c.code === value);
+
+  if (!countryObj) {
+    return <Badge variant="outline" className="text-xs">N/A</Badge>;
+  }
+
+  return (
+    <span className="text-sm flex items-center gap-1">
+      {countryCodeToEmoji(countryObj.code)} {countryObj.name}
+    </span>
+  );
+}
+
+
   // Handle boolean fields (toggle-switch, checkbox)
   if (['toggle-switch'].includes(fieldType) && typeof value === 'boolean') {
     return (
@@ -273,22 +428,80 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
   }
 
   // Handle file/image fields
-  if (['file', 'image'].includes(fieldType) && value) {
-    if (typeof value === 'string' && value.startsWith('http')) {
-      return (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => window.open(value, '_blank')}
-          className="h-8"
-        >
-          <Eye className="h-3 w-3 mr-1" />
-          View
-        </Button>
-      );
-    }
+  // if (['file', 'image'].includes(fieldType) && value) {
+  //   if (typeof value === 'string' && value.startsWith('http')) {
+  //     return (
+  //       <Button
+  //         variant="outline"
+  //         size="sm"
+  //         onClick={() => window.open(value, '_blank')}
+  //         className="h-8"
+  //       >
+  //         <Eye className="h-3 w-3 mr-1" />
+  //         View
+  //       </Button>
+  //     );
+  //   }
+  //   return <span className="text-sm text-muted-foreground">File attached</span>;
+  // }
+
+  // Handle file/image fields
+if (['file', 'image'].includes(fieldType) && value) {
+  // Normalize value into an array of files
+  const files: { name: string; url: string }[] = [];
+
+  if (typeof value === 'string' && value.startsWith('http')) {
+    files.push({ name: value.split('/').pop() || 'file', url: value });
+  } else if (Array.isArray(value)) {
+    value.forEach((f: any) => {
+      if (typeof f === 'string' && f.startsWith('http')) {
+        files.push({ name: f.split('/').pop() || 'file', url: f });
+      } else if (f?.url) {
+        files.push({ name: f.name || f.url.split('/').pop() || 'file', url: f.url });
+      }
+    });
+  } else if (value.url) {
+    files.push({ name: value.name || value.url.split('/').pop() || 'file', url: value.url });
+  }
+
+  if (files.length === 0) {
     return <span className="text-sm text-muted-foreground">File attached</span>;
   }
+
+  return (
+    <div className="flex flex-col gap-1">
+      {files.map((f, index) => (
+        <div key={index} className="flex gap-2 items-center">
+          {/* View Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open(f.url, '_blank')}
+            className="h-8"
+          >
+            <Eye className="h-3 w-3 mr-1" /> View
+          </Button>
+
+          {/* Download Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const link = document.createElement('a');
+              link.href = f.url;
+              link.download = f.name;
+              link.click();
+            }}
+            className="h-8"
+          >
+            Download
+          </Button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 
   // Handle non-input fields (headers, descriptions, etc.)
   if (['header', 'description', 'section-break', 'horizontal-line'].includes(fieldType)) {
