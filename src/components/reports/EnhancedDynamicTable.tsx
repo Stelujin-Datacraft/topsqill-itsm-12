@@ -352,11 +352,11 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
           <Table>
             <TableHeader>
               <TableRow>
-                {displayFields.map(field => {
-                  const isDrilldownField = config.drilldownConfig?.enabled && 
-                    config.drilldownConfig.drilldownLevels?.includes(field.id);
-                  const isColumnDrilldownActive = drilldownState.drilldownColumns.has(field.id);
-                  const hasActiveFilter = drilldownState.activeColumnFilters.some(f => f.fieldId === field.id);
+                 {displayFields.map(field => {
+                   const isDrilldownField = config.drilldownConfig?.enabled && 
+                     config.drilldownConfig?.drilldownLevels?.includes(field.id);
+                   const isColumnDrilldownActive = drilldownState.drilldownColumns.has(field.id);
+                   const hasActiveFilter = drilldownState.activeColumnFilters.some(f => f.fieldId === field.id);
                   
                   return (
                     <TableHead key={field.id}>

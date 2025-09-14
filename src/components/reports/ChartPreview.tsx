@@ -77,7 +77,7 @@ export function ChartPreview({
         console.log('Fetching chart data for form:', config.formId);
         
         // Use server-side RPC function for drilldown-enabled charts
-        if (config.drilldownEnabled && config.drilldownLevels?.length > 0) {
+        if (config.drilldownConfig?.enabled && config.drilldownConfig?.drilldownLevels?.length > 0) {
           console.log('Using drilldown-enabled chart data fetch');
           const serverData = await getChartData(
             config.formId,
@@ -85,7 +85,7 @@ export function ChartPreview({
             config.metrics || [],
             config.aggregation || 'count',
             config.filters || [],
-            config.drilldownLevels || [],
+            config.drilldownConfig?.drilldownLevels || [],
             drilldownState?.values || []
           );
           
@@ -269,14 +269,14 @@ export function ChartPreview({
   const colors = colorSchemes[config.colorTheme || 'default'];
 
   const handleChartClick = (data: any, event?: any) => {
-    if (!config.drilldownEnabled || !onDrilldown || !config.drilldownLevels?.length) return;
+    if (!config.drilldownConfig?.enabled || !onDrilldown || !config.drilldownConfig?.drilldownLevels?.length) return;
     
     // Check if we can drill down further
     const currentLevel = drilldownState?.values?.length || 0;
-    if (currentLevel >= config.drilldownLevels.length) return;
+    if (currentLevel >= config.drilldownConfig?.drilldownLevels.length) return;
     
     // Get the next drilldown level and the clicked value
-    const nextLevel = config.drilldownLevels[currentLevel];
+    const nextLevel = config.drilldownConfig?.drilldownLevels[currentLevel];
     let clickedValue = data?.activeLabel || data?.name || data?.payload?.name;
     
     // Handle different chart click scenarios
@@ -291,12 +291,12 @@ export function ChartPreview({
   };
 
   const handleBarClick = (data: any, index: number) => {
-    if (!config.drilldownEnabled || !onDrilldown || !config.drilldownLevels?.length) return;
+    if (!config.drilldownConfig?.enabled || !onDrilldown || !config.drilldownConfig?.drilldownLevels?.length) return;
     
     const currentLevel = drilldownState?.values?.length || 0;
-    if (currentLevel >= config.drilldownLevels.length) return;
+    if (currentLevel >= config.drilldownConfig?.drilldownLevels.length) return;
     
-    const nextLevel = config.drilldownLevels[currentLevel];
+    const nextLevel = config.drilldownConfig?.drilldownLevels[currentLevel];
     const clickedValue = data.name;
     
     if (nextLevel && clickedValue) {

@@ -328,14 +328,14 @@ export function ReportEditor({ reportId, reportName, onSave }: ReportEditorProps
       const component = components.find(c => c.id === componentId);
       const config = component?.config as any;
       
-      if (!config?.drilldownLevels) return prev;
+      if (!config?.drilldownConfig?.drilldownLevels) return prev;
       
       // Find the current level
       const currentLevel = currentState.values.length;
       
       // If we're at the same level, replace the value; if going deeper, add the value
       const newValues = [...currentState.values];
-      if (currentLevel < config.drilldownLevels.length) {
+      if (currentLevel < config.drilldownConfig.drilldownLevels.length) {
         newValues[currentLevel] = drilldownValue;
         // Remove any values beyond the current level
         newValues.splice(currentLevel + 1);
@@ -344,7 +344,7 @@ export function ReportEditor({ reportId, reportName, onSave }: ReportEditorProps
       return {
         ...prev,
         [componentId]: {
-          path: config.drilldownLevels.slice(0, newValues.length),
+          path: config.drilldownConfig.drilldownLevels.slice(0, newValues.length),
           values: newValues
         }
       };
