@@ -399,82 +399,133 @@ export function ChartPreview({
       );
     }
 
-    const primaryMetric = (config.metrics && config.metrics.length > 0) ? config.metrics[0] : 
-                         config.yAxis || 
-                         (config.aggregationType === 'count' ? 'count' : 'value');
+    // Determine the primary metric to display
+    let primaryMetric = 'value'; // Default fallback
+    
+    if (config.metrics && config.metrics.length > 0) {
+      primaryMetric = config.metrics[0];
+    } else if (config.yAxis) {
+      primaryMetric = config.yAxis;
+    } else if (config.aggregationType === 'count' || config.aggregation === 'count') {
+      primaryMetric = 'count';
+    }
+    
+    // Ensure the primary metric exists in the data
+    if (chartData.length > 0 && !chartData[0].hasOwnProperty(primaryMetric)) {
+      // Fallback to available keys
+      const availableKeys = Object.keys(chartData[0]).filter(key => key !== 'name' && typeof chartData[0][key] === 'number');
+      if (availableKeys.length > 0) {
+        primaryMetric = availableKeys[0];
+      }
+    }
+    
     const chartType = config.type || config.chartType || 'bar';
+    
+    console.log('Chart rendering config:', {
+      chartType,
+      primaryMetric,
+      dataKeys: chartData.length > 0 ? Object.keys(chartData[0]) : [],
+      sampleData: chartData[0],
+      totalRecords: chartData.length
+    });
 
     switch (chartType) {
       case 'bar':
         return (
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <div style={{ width: '100%', height: '400px' }}>
+            <BarChart 
+              width={800} 
+              height={400} 
+              data={chartData} 
+              margin={{ top: 20, right: 30, left: 40, bottom: 80 }}
+            >
               <XAxis 
                 dataKey="name" 
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 11 }}
                 angle={-45}
                 textAnchor="end"
                 height={80}
+                interval={0}
               />
               <YAxis 
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 11 }}
                 label={{ value: primaryMetric, angle: -90, position: 'insideLeft' }}
+                domain={[0, 'dataMax']}
               />
               <Tooltip 
-                formatter={(value, name) => [value, name]}
-                labelFormatter={(label) => `Category: ${label}`}
+                formatter={(value, name) => [`${value}`, `${name}`]}
+                labelFormatter={(label) => `${label}`}
               />
               <Legend />
-              {(config.metrics || [primaryMetric]).map((metric, index) => (
+              <Bar 
+                dataKey={primaryMetric} 
+                fill={colors[0]} 
+                name={primaryMetric}
+                style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
+              />
+              {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
                 <Bar 
                   key={metric} 
                   dataKey={metric} 
-                  fill={colors[index % colors.length]} 
+                  fill={colors[(index + 1) % colors.length]} 
                   name={metric}
                   style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
                   onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
                 />
               ))}
             </BarChart>
-          </ResponsiveContainer>
+          </div>
         );
 
       case 'column':
         return (
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={chartData} layout="horizontal" margin={{ top: 20, right: 30, left: 100, bottom: 5 }}>
+          <div style={{ width: '100%', height: '400px' }}>
+            <BarChart 
+              width={800} 
+              height={400} 
+              data={chartData} 
+              layout="horizontal" 
+              margin={{ top: 20, right: 30, left: 120, bottom: 20 }}
+            >
               <XAxis 
                 type="number" 
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 11 }}
                 label={{ value: primaryMetric, position: 'insideBottom', offset: -5 }}
+                domain={[0, 'dataMax']}
               />
               <YAxis 
                 dataKey="name" 
                 type="category" 
-                width={100}
-                tick={{ fontSize: 12 }}
+                width={120}
+                tick={{ fontSize: 11 }}
               />
               <Tooltip 
-                formatter={(value, name) => [value, name]}
-                labelFormatter={(label) => `Category: ${label}`}
+                formatter={(value, name) => [`${value}`, `${name}`]}
+                labelFormatter={(label) => `${label}`}
               />
               <Legend />
-              {(config.metrics || [primaryMetric]).map((metric, index) => (
+              <Bar 
+                dataKey={primaryMetric} 
+                fill={colors[0]} 
+                name={primaryMetric}
+              />
+              {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
                 <Bar 
                   key={metric} 
                   dataKey={metric} 
-                  fill={colors[index % colors.length]} 
+                  fill={colors[(index + 1) % colors.length]} 
                   name={metric}
                 />
               ))}
             </BarChart>
-          </ResponsiveContainer>
+          </div>
         );
       
       case 'pie':
         return (
-          <ResponsiveContainer width="100%" height={400}>
-            <RechartsPieChart>
+          <div style={{ width: '100%', height: '400px' }}>
+            <RechartsPieChart width={800} height={400}>
               <Pie
                 data={chartData}
                 cx="50%"
@@ -494,10 +545,10 @@ export function ChartPreview({
                   />
                 ))}
               </Pie>
-              <Tooltip formatter={(value, name) => [value, name]} />
+              <Tooltip formatter={(value, name) => [`${value}`, `${name}`]} />
               <Legend />
             </RechartsPieChart>
-          </ResponsiveContainer>
+          </div>
         );
 
       case 'donut':
@@ -526,72 +577,102 @@ export function ChartPreview({
       
       case 'line':
         return (
-          <ResponsiveContainer width="100%" height={400}>
-            <RechartsLineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <div style={{ width: '100%', height: '400px' }}>
+            <RechartsLineChart 
+              width={800} 
+              height={400} 
+              data={chartData} 
+              margin={{ top: 20, right: 30, left: 40, bottom: 80 }}
+            >
               <XAxis 
                 dataKey="name" 
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 11 }}
                 angle={-45}
                 textAnchor="end"
                 height={80}
+                interval={0}
               />
               <YAxis 
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 11 }}
                 label={{ value: primaryMetric, angle: -90, position: 'insideLeft' }}
+                domain={[0, 'dataMax']}
               />
               <Tooltip 
-                formatter={(value, name) => [value, name]}
-                labelFormatter={(label) => `Category: ${label}`}
+                formatter={(value, name) => [`${value}`, `${name}`]}
+                labelFormatter={(label) => `${label}`}
               />
               <Legend />
-              {(config.metrics || [primaryMetric]).map((metric, index) => (
+              <Line 
+                type="monotone" 
+                dataKey={primaryMetric} 
+                stroke={colors[0]} 
+                strokeWidth={3}
+                name={primaryMetric}
+                dot={{ fill: colors[0], strokeWidth: 2, r: 4 }}
+              />
+              {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
                 <Line 
                   key={metric}
                   type="monotone" 
                   dataKey={metric} 
-                  stroke={colors[index % colors.length]} 
+                  stroke={colors[(index + 1) % colors.length]} 
                   strokeWidth={3}
                   name={metric}
-                  dot={{ fill: colors[index % colors.length], strokeWidth: 2, r: 4 }}
+                  dot={{ fill: colors[(index + 1) % colors.length], strokeWidth: 2, r: 4 }}
                 />
               ))}
             </RechartsLineChart>
-          </ResponsiveContainer>
+          </div>
         );
       
       case 'area':
         return (
-          <ResponsiveContainer width="100%" height={400}>
-            <RechartsAreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <div style={{ width: '100%', height: '400px' }}>
+            <RechartsAreaChart 
+              width={800} 
+              height={400} 
+              data={chartData} 
+              margin={{ top: 20, right: 30, left: 40, bottom: 80 }}
+            >
               <XAxis 
                 dataKey="name" 
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 11 }}
                 angle={-45}
                 textAnchor="end"
                 height={80}
+                interval={0}
               />
               <YAxis 
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 11 }}
                 label={{ value: primaryMetric, angle: -90, position: 'insideLeft' }}
+                domain={[0, 'dataMax']}
               />
               <Tooltip 
-                formatter={(value, name) => [value, name]}
-                labelFormatter={(label) => `Category: ${label}`}
+                formatter={(value, name) => [`${value}`, `${name}`]}
+                labelFormatter={(label) => `${label}`}
               />
               <Legend />
-              {(config.metrics || [primaryMetric]).map((metric, index) => (
+              <Area 
+                type="monotone" 
+                dataKey={primaryMetric} 
+                stroke={colors[0]} 
+                fill={colors[0]} 
+                fillOpacity={0.6}
+                name={primaryMetric}
+              />
+              {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
                 <Area 
                   key={metric}
                   type="monotone" 
                   dataKey={metric} 
-                  stroke={colors[index % colors.length]} 
-                  fill={colors[index % colors.length]} 
+                  stroke={colors[(index + 1) % colors.length]} 
+                  fill={colors[(index + 1) % colors.length]} 
                   fillOpacity={0.6}
                   name={metric}
                 />
               ))}
             </RechartsAreaChart>
-          </ResponsiveContainer>
+          </div>
         );
       
       case 'scatter':
