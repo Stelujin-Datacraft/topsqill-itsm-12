@@ -38,6 +38,7 @@ import {
   Link,
   Loader2
 } from 'lucide-react';
+import { ChartConfigurationTabs } from './ChartConfigurationTabs';
 import { ChartPreview } from './ChartPreview';
 import { FormField } from '@/types/form';
 import { supabase } from '@/integrations/supabase/client';
@@ -416,35 +417,18 @@ export function ComponentConfigDialog({
         </TabsContent>
 
         <TabsContent value="data" className="space-y-4">
-          {config.formId && (joinEnabled ? (config.joinConfig?.secondaryFormId && secondaryFormFields.length > 0) : formFields.length > 0) && (
+          {config.formId && formFields.length > 0 ? (
             <>
-              {config.chartType !== 'table' && (
-                <>
-                  <GenericFieldSelector
+              {config.chartType !== 'table' ? (
+                <div className="border rounded-lg p-1">
+                  <ChartConfigurationTabs
+                    config={config}
+                    onConfigChange={setConfig}
                     formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-                    selectedFields={config.metrics || []}
-                    onFieldsChange={(fields) => setConfig({ ...config, metrics: fields })}
-                    label="Metrics"
-                    description="Fields to measure and aggregate (from joined forms)"
-                    selectionType="dropdown"
-                    maxSelections={1}
-                    placeholder="Select metric field..."
+                    forms={forms}
                   />
-
-                  <GenericFieldSelector
-                    formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-                    selectedFields={config.dimensions || []}
-                    onFieldsChange={(fields) => setConfig({ ...config, dimensions: fields })}
-                    label="Dimensions"
-                    description="Fields to group by or categorize data (from joined forms)"
-                    selectionType="dropdown"
-                    maxSelections={1}
-                    placeholder="Select dimension field..."
-                  />
-                </>
-              )}
-
-              {config.chartType === 'table' && (
+                </div>
+              ) : (
                 <GenericFieldSelector
                   formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
                   selectedFields={config.selectedColumns || []}
@@ -456,17 +440,12 @@ export function ComponentConfigDialog({
                 />
               )}
             </>
-          )}
-
-          {config.formId && formFields.length === 0 && !loadingFields && (
+          ) : (
             <div className="p-4 text-center text-muted-foreground">
-              The selected form has no fields configured yet.
-            </div>
-          )}
-
-          {!config.formId && (
-            <div className="p-4 text-center text-muted-foreground">
-              Please select a form to configure data fields.
+              {config.formId ? 
+                (loadingFields ? 'Loading form fields...' : 'The selected form has no fields configured yet.') :
+                'Please select a form to configure data fields.'
+              }
             </div>
           )}
         </TabsContent>
