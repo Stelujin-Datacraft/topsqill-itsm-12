@@ -190,14 +190,14 @@ export function MetricsSelector({
         <div className="space-y-2">
           <Label className="text-xs text-muted-foreground">Group Aggregation By</Label>
           <Select
-            value={groupByField || ''}
-            onValueChange={(value) => onGroupByFieldChange(value || undefined)}
+            value={groupByField || '__none__'}
+            onValueChange={(value) => onGroupByFieldChange(value === '__none__' ? undefined : value)}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select grouping field (optional)..." />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">No grouping</SelectItem>
+              <SelectItem value="__none__">No grouping</SelectItem>
               {allFields
                 .filter(field => ['text', 'select', 'radio', 'date', 'email'].includes(field.type))
                 .map((field) => (
