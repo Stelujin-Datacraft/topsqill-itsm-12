@@ -165,6 +165,9 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
   };
 
   const getFieldValue = (row: any, fieldId: string) => {
+    // Handle null/undefined fieldId
+    if (!fieldId) return 'N/A';
+    
     // Handle secondary form fields (prefixed with secondary_)
     if (fieldId.startsWith('secondary_')) {
       return row.submission_data?.[fieldId] || 'N/A';
@@ -191,10 +194,13 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
   };
 
   const displayFields = useMemo(() => {
+    // Filter out fields without valid IDs
+    const validFields = formFields.filter(field => field && field.id);
+    
     if (config.selectedColumns?.length > 0) {
-      return formFields.filter(field => config.selectedColumns.includes(field.id));
+      return validFields.filter(field => config.selectedColumns.includes(field.id));
     }
-    return formFields.slice(0, 10);
+    return validFields.slice(0, 10);
   }, [formFields, config.selectedColumns]);
 
   const filteredData = useMemo(() => {
