@@ -280,18 +280,42 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
     // Apply search filter
     if (searchTerm && config.enableSearch) {
       filtered = filtered.filter(row => {
-        return displayFields.some(field => {
+        // Search in form fields
+        const formFieldMatch = displayFields.some(field => {
           const value = getFieldValue(row, field.id);
           return value.toString().toLowerCase().includes(searchTerm.toLowerCase());
         });
+        
+        // Search in metadata fields if enabled
+        if (config.showMetadata) {
+          const metadataMatch = 
+            row.submitted_at?.toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
+            row.approval_status?.toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
+            row.submitted_by?.toString().toLowerCase().includes(searchTerm.toLowerCase());
+          return formFieldMatch || metadataMatch;
+        }
+        
+        return formFieldMatch;
       });
     }
 
     // Apply sorting if configured
     if (sortConfig) {
       filtered = [...filtered].sort((a, b) => {
-        const aValue = getFieldValue(a, sortConfig.field);
-        const bValue = getFieldValue(b, sortConfig.field);
+        let aValue, bValue;
+        
+        // Handle metadata fields
+        if (sortConfig.field === 'submitted_at') {
+          aValue = new Date(a.submitted_at).getTime();
+          bValue = new Date(b.submitted_at).getTime();
+        } else if (sortConfig.field === 'approval_status') {
+          aValue = a.approval_status || 'pending';
+          bValue = b.approval_status || 'pending';
+        } else {
+          // Handle form fields
+          aValue = getFieldValue(a, sortConfig.field);
+          bValue = getFieldValue(b, sortConfig.field);
+        }
         
         if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
         if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
@@ -404,6 +428,20 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-sm"
             />
+            {sortConfig && (
+              <div className="flex items-center gap-2 ml-4">
+                <span className="text-sm text-muted-foreground">
+                  Sorted by: {sortConfig.field} ({sortConfig.direction})
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSortConfig(null)}
+                >
+                  Clear Sort
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </CardHeader>
@@ -421,32 +459,110 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
                   
                   return (
                     <TableHead key={field.id}>
-                      <div className="flex items-center gap-2">
-                        <span>{field.label}</span>
-                        {isDrilldownField && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className={`h-6 w-6 p-0 ${isColumnDrilldownActive ? 'bg-blue-100 text-blue-600' : ''}`}
-                            onClick={() => toggleColumnDrilldown(field.id)}
-                            title={isColumnDrilldownActive ? 'Disable drilldown' : 'Enable drilldown'}
-                          >
-                            <ChevronDown className="h-3 w-3" />
-                          </Button>
-                        )}
-                        {hasActiveFilter && (
-                          <Badge variant="secondary" className="text-xs">Filtered</Badge>
-                        )}
+                       <div className="flex items-center gap-2">
+                         <span>{field.label}</span>
+                         
+                         {/* Sorting controls */}
+                         {config.enableSorting && (
+                           <div className="flex flex-col">
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               className="h-4 w-4 p-0"
+                               onClick={() => setSortConfig({ field: field.id, direction: 'asc' })}
+                               title="Sort ascending"
+                             >
+                               <ArrowUp className="h-3 w-3" />
+                             </Button>
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               className="h-4 w-4 p-0"
+                               onClick={() => setSortConfig({ field: field.id, direction: 'desc' })}
+                               title="Sort descending"
+                             >
+                               <ArrowDown className="h-3 w-3" />
+                             </Button>
+                           </div>
+                         )}
+                         
+                         {/* Drilldown controls */}
+                         {isDrilldownField && (
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             className={`h-6 w-6 p-0 ${isColumnDrilldownActive ? 'bg-blue-100 text-blue-600' : ''}`}
+                             onClick={() => toggleColumnDrilldown(field.id)}
+                             title={isColumnDrilldownActive ? 'Disable drilldown' : 'Enable drilldown'}
+                           >
+                             <ChevronDown className="h-3 w-3" />
+                           </Button>
+                         )}
+                         {hasActiveFilter && (
+                           <Badge variant="secondary" className="text-xs">Filtered</Badge>
+                         )}
                       </div>
                     </TableHead>
                   );
-                })}
-                {config.showMetadata && (
-                  <>
-                    <TableHead>Submitted At</TableHead>
-                    <TableHead>Status</TableHead>
-                  </>
-                )}
+                 })}
+                 {config.showMetadata && (
+                   <>
+                     <TableHead>
+                       <div className="flex items-center gap-2">
+                         <span>Submitted At</span>
+                         {config.enableSorting && (
+                           <div className="flex flex-col">
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               className="h-4 w-4 p-0"
+                               onClick={() => setSortConfig({ field: 'submitted_at', direction: 'asc' })}
+                               title="Sort ascending"
+                             >
+                               <ArrowUp className="h-3 w-3" />
+                             </Button>
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               className="h-4 w-4 p-0"
+                               onClick={() => setSortConfig({ field: 'submitted_at', direction: 'desc' })}
+                               title="Sort descending"
+                             >
+                               <ArrowDown className="h-3 w-3" />
+                             </Button>
+                           </div>
+                         )}
+                       </div>
+                     </TableHead>
+                     <TableHead>
+                       <div className="flex items-center gap-2">
+                         <span>Status</span>
+                         {config.enableSorting && (
+                           <div className="flex flex-col">
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               className="h-4 w-4 p-0"
+                               onClick={() => setSortConfig({ field: 'approval_status', direction: 'asc' })}
+                               title="Sort ascending"
+                             >
+                               <ArrowUp className="h-3 w-3" />
+                             </Button>
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               className="h-4 w-4 p-0"
+                               onClick={() => setSortConfig({ field: 'approval_status', direction: 'desc' })}
+                               title="Sort descending"
+                             >
+                               <ArrowDown className="h-3 w-3" />
+                             </Button>
+                           </div>
+                         )}
+                       </div>
+                     </TableHead>
+                   </>
+                 )}
               </TableRow>
             </TableHeader>
             <TableBody>
