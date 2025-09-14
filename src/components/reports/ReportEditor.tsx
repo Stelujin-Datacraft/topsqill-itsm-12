@@ -367,6 +367,8 @@ export function ReportEditor({ reportId, reportName, onSave }: ReportEditorProps
           <EnhancedDynamicTable 
             config={component.config as any}
             onEdit={() => handleEditComponent(component)}
+            onDrilldown={(level, value) => handleDrilldown(component.id, level, value)}
+            drilldownState={drilldownStates[component.id]}
           />
         );
       case 'form-submissions':

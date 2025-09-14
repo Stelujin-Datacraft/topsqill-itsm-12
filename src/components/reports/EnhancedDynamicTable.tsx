@@ -24,9 +24,11 @@ interface EnhancedTableConfig {
 interface EnhancedDynamicTableProps {
   config: EnhancedTableConfig;
   onEdit?: () => void;
+  onDrilldown?: (level: string, value: string) => void;
+  drilldownState?: { path: string[], values: string[] };
 }
 
-export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTableProps) {
+export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownState: externalDrilldownState }: EnhancedDynamicTableProps) {
   const [data, setData] = useState<any[]>([]);
   const [formFields, setFormFields] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -197,6 +199,13 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
   };
 
   const handleCellDrilldown = (fieldId: string, value: string, label: string) => {
+    // Use external drilldown handler if available (for report editor)
+    if (onDrilldown) {
+      onDrilldown(fieldId, value);
+      return;
+    }
+    
+    // Otherwise use internal state management
     setDrilldownState(prev => {
       // Check if this filter already exists
       const existingFilterIndex = prev.activeColumnFilters.findIndex(f => f.fieldId === fieldId);
