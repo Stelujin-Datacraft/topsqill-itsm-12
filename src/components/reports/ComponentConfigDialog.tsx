@@ -40,6 +40,9 @@ import {
 } from 'lucide-react';
 import { ChartConfigurationTabs } from './ChartConfigurationTabs';
 import { ChartPreview } from './ChartPreview';
+import { ChartExamples } from './ChartExamples';
+import { MetricsSelector } from './MetricsSelector';
+import { DimensionsSelector } from './DimensionsSelector';
 import { FormField } from '@/types/form';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -386,10 +389,11 @@ export function ComponentConfigDialog({
   const renderChartConfig = () => {
     return (
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="basic">Basic</TabsTrigger>
-          <TabsTrigger value="joins">Joins</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
+          <TabsTrigger value="examples">Examples</TabsTrigger>
+          <TabsTrigger value="joins">Joins</TabsTrigger>
           <TabsTrigger value="filters">Filters</TabsTrigger>
           <TabsTrigger value="style">Style</TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>
@@ -446,6 +450,28 @@ export function ComponentConfigDialog({
                 (loadingFields ? 'Loading form fields...' : 'The selected form has no fields configured yet.') :
                 'Please select a form to configure data fields.'
               }
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="examples" className="space-y-4">
+          {config.formId ? (
+            <ChartExamples
+              onSelectExample={(example) => {
+                setConfig({
+                  ...config,
+                  chartType: example.chartType,
+                  metrics: example.metrics,
+                  dimensions: example.dimensions,
+                  metricAggregations: example.metricAggregations,
+                  aggregationEnabled: example.aggregationEnabled
+                });
+              }}
+              formId={config.formId}
+            />
+          ) : (
+            <div className="p-4 text-center text-muted-foreground">
+              Please select a form first to view chart examples.
             </div>
           )}
         </TabsContent>
@@ -754,16 +780,15 @@ export function ComponentConfigDialog({
             </CardHeader>
             <CardContent>
               <div className="h-64">
-                {/* Sample data for preview */}
                 <ChartPreview 
                   config={{
                     ...config,
                     data: [
-                      { name: 'Product A', sales: 120, revenue: 15000, customers: 45 },
-                      { name: 'Product B', sales: 98, revenue: 12500, customers: 32 },
-                      { name: 'Product C', sales: 86, revenue: 9800, customers: 28 },
-                      { name: 'Product D', sales: 145, revenue: 18200, customers: 56 },
-                      { name: 'Product E', sales: 73, revenue: 8900, customers: 21 }
+                      { name: 'Sample A', value: 120, revenue: 15000, customers: 45 },
+                      { name: 'Sample B', value: 98, revenue: 12500, customers: 32 },
+                      { name: 'Sample C', value: 86, revenue: 9800, customers: 28 },
+                      { name: 'Sample D', value: 145, revenue: 18200, customers: 56 },
+                      { name: 'Sample E', value: 73, revenue: 8900, customers: 21 }
                     ]
                   }}
                 />
@@ -788,6 +813,12 @@ export function ComponentConfigDialog({
                 </div>
                 <div>
                   <span className="font-medium">Dimensions:</span> {config.dimensions?.length || 0} selected
+                </div>
+                <div>
+                  <span className="font-medium">Group By:</span> {config.groupByField ? 'Enabled' : 'None'}
+                </div>
+                <div>
+                  <span className="font-medium">Aggregation:</span> {config.aggregationEnabled !== false ? 'Enabled' : 'Disabled'}
                 </div>
               </div>
             </CardContent>
