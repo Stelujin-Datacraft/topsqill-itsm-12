@@ -254,6 +254,29 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
   const filteredData = useMemo(() => {
     let filtered = data;
 
+    // Apply external drilldown filters (from report editor)
+    if (externalDrilldownState?.values?.length > 0 && config.drilldownConfig?.levels) {
+      externalDrilldownState.values.forEach((value, index) => {
+        const fieldId = config.drilldownConfig.levels[index];
+        if (fieldId && value) {
+          filtered = filtered.filter(row => {
+            const fieldValue = getFieldValue(row, fieldId);
+            return fieldValue.toString() === value;
+          });
+        }
+      });
+    }
+
+    // Apply internal drilldown filters
+    if (drilldownState.activeColumnFilters.length > 0) {
+      drilldownState.activeColumnFilters.forEach(filter => {
+        filtered = filtered.filter(row => {
+          const fieldValue = getFieldValue(row, filter.fieldId);
+          return fieldValue.toString() === filter.value;
+        });
+      });
+    }
+
     // Apply search filter
     if (searchTerm && config.enableSearch) {
       filtered = filtered.filter(row => {
@@ -277,7 +300,7 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
     }
 
     return filtered;
-  }, [data, searchTerm, displayFields, config.enableSearch, sortConfig]);
+  }, [data, searchTerm, displayFields, config.enableSearch, sortConfig, drilldownState.activeColumnFilters, externalDrilldownState, config.drilldownConfig]);
 
   useEffect(() => {
     loadFormFields();
@@ -407,38 +430,47 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
               ) : (
                 filteredData.map(row => (
                   <TableRow key={row.id}>
-                    {displayFields.map(field => {
-                      const fieldValue = getFieldValue(row, field.id);
-                      const isColumnDrilldownActive = drilldownState.drilldownColumns.has(field.id);
-                      const activeFilter = drilldownState.activeColumnFilters.find(f => f.fieldId === field.id);
-                      const isFilteredValue = activeFilter?.value === fieldValue.toString();
+                     {displayFields.map(field => {
+                       const fieldValue = getFieldValue(row, field.id);
+                       const isDrilldownField = config.drilldownConfig?.enabled && 
+                         config.drilldownConfig?.levels?.includes(field.id);
+                       const isColumnDrilldownActive = drilldownState.drilldownColumns.has(field.id);
+                       const activeFilter = drilldownState.activeColumnFilters.find(f => f.fieldId === field.id);
+                       const isFilteredValue = activeFilter?.value === fieldValue.toString();
+                       
+                       // Check external drilldown state
+                       const externalActiveFilter = externalDrilldownState?.values?.some((value, index) => {
+                         const levelField = config.drilldownConfig?.levels?.[index];
+                         return levelField === field.id && value === fieldValue.toString();
+                       });
+                       const isExternalFiltered = externalActiveFilter || false;
                       
                       return (
                         <TableCell key={field.id}>
-                          <div className="flex items-center gap-2">
-                            <span className={`${isFilteredValue ? 'font-semibold text-blue-600' : ''}`}>
+                           <div className="flex items-center gap-2">
+                             <span className={`${isFilteredValue || isExternalFiltered ? 'font-semibold text-blue-600' : ''}`}>
                               {typeof fieldValue === 'object' ? 
                                 JSON.stringify(fieldValue) : 
                                 fieldValue
                               }
                             </span>
-                            
-                            {/* Show drilldown button for active drilldown columns */}
-                            {isColumnDrilldownActive && !isFilteredValue && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-5 w-5 p-0 text-xs"
-                                onClick={() => handleCellDrilldown(field.id, fieldValue.toString(), field.label)}
-                                title="Filter by this value"
-                              >
-                                ⬇
-                              </Button>
-                            )}
-                            
-                            {isFilteredValue && (
-                              <Badge variant="default" className="text-xs">Active</Badge>
-                            )}
+                             
+                             {/* Show drilldown button for drilldown fields when column is active or when it's a configured drilldown field */}
+                             {((isColumnDrilldownActive && !isFilteredValue) || (isDrilldownField && !isExternalFiltered)) && (
+                               <Button
+                                 variant="ghost"
+                                 size="sm"
+                                 className="h-5 w-5 p-0 text-xs"
+                                 onClick={() => handleCellDrilldown(field.id, fieldValue.toString(), field.label)}
+                                 title="Filter by this value"
+                               >
+                                 ⬇
+                               </Button>
+                             )}
+                             
+                             {(isFilteredValue || isExternalFiltered) && (
+                               <Badge variant="default" className="text-xs">Active</Badge>
+                             )}
                           </div>
                         </TableCell>
                       );
