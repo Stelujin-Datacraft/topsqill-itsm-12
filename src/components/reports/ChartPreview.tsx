@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Edit, ArrowLeft } from 'lucide-react';
 import { 
@@ -53,7 +53,18 @@ export function ChartPreview({
 }: ChartPreviewProps) {
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const { getFormSubmissionData, getChartData } = useReports();
+  const { getFormSubmissionData, getChartData, getFormFields } = useReports();
+
+  // Get field names mapping
+  const formFields = useMemo(() => {
+    if (!config.formId) return [];
+    return getFormFields(config.formId);
+  }, [config.formId, getFormFields]);
+
+  const getFieldName = (fieldId: string): string => {
+    const field = formFields.find(f => f.id === fieldId);
+    return field?.label || fieldId;
+  };
 
   useEffect(() => {
     const loadChartData = async () => {
@@ -257,8 +268,9 @@ export function ChartPreview({
     // Create data structure: each unique value becomes a separate series
     const allDimensionValues: string[] = [];
     Object.entries(dimensionValueSets).forEach(([dim, values]) => {
-      values.forEach(value => {
-        const seriesName = `${dim}: ${value}`;
+      values.forEach((value, index) => {
+        const fieldName = getFieldName(dim);
+        const seriesName = `${fieldName}: ${value}`;
         allDimensionValues.push(seriesName);
       });
     });
@@ -281,7 +293,8 @@ export function ChartPreview({
       // Add to appropriate dimension series
       dimensionFields.forEach(dim => {
         const value = getDimensionValue(submissionData, dim);
-        const seriesName = `${dim}: ${value}`;
+        const fieldName = getFieldName(dim);
+        const seriesName = `${fieldName}: ${value}`;
         
         metricFields.forEach(metric => {
           const metricValue = getMetricValue(submissionData, metric);
@@ -491,52 +504,126 @@ export function ChartPreview({
     switch (chartType) {
       case 'bar':
         return (
-          <div style={{ width: '100%', height: '400px' }}>
-            <BarChart 
-              width={800} 
-              height={400} 
-              data={chartData} 
-              margin={{ top: 20, right: 30, left: 40, bottom: 80 }}
-            >
-              <XAxis 
-                dataKey="name" 
-                tick={{ fontSize: 11 }}
-                angle={-45}
-                textAnchor="end"
-                height={80}
-                interval={0}
-              />
-              <YAxis 
-                tick={{ fontSize: 11 }}
-                label={{ value: primaryMetric, angle: -90, position: 'insideLeft' }}
-                domain={[0, 'dataMax']}
-              />
-              <Tooltip 
-                formatter={(value, name) => [`${value}`, `${name}`]}
-                labelFormatter={(label) => `${label}`}
-              />
-              <Legend />
-              {isMultiDimensional ? (
-                // Render separate bars for each dimension value
-                dimensionKeys.map((key, index) => (
-                  <Bar 
-                    key={key} 
-                    dataKey={key} 
-                    fill={colors[index % colors.length]} 
-                    name={key}
-                    style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                    onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
+          <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
+            <div className="absolute inset-0" style={{ bottom: '40px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart 
+                  data={chartData} 
+                  margin={{ top: 20, right: 30, left: 40, bottom: 80 }}
+                >
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 11 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                    interval={0}
                   />
-                ))
-              ) : (
-                // Single dimension - render primary metric and additional metrics if any
-                <>
+                  <YAxis 
+                    tick={{ fontSize: 11 }}
+                    label={{ value: getFieldName(primaryMetric), angle: -90, position: 'insideLeft' }}
+                    domain={[0, 'dataMax']}
+                  />
+                  <Tooltip 
+                    formatter={(value, name, props) => [
+                      `${getFieldName(name.toString())}: ${value}`,
+                      `Category: ${props.payload?.name || 'N/A'}`
+                    ]}
+                    labelFormatter={(label) => `${label}`}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--popover))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: 'var(--radius)',
+                      fontSize: '12px'
+                    }}
+                  />
+                  <Legend 
+                    formatter={(value) => getFieldName(value.toString())}
+                    iconType="rect"
+                  />
+                  {isMultiDimensional ? (
+                    // Render separate bars for each dimension value
+                    dimensionKeys.map((key, index) => (
+                      <Bar 
+                        key={key} 
+                        dataKey={key} 
+                        fill={colors[index % colors.length]} 
+                        name={key}
+                        style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                        onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
+                      />
+                    ))
+                  ) : (
+                    // Single dimension - render primary metric and additional metrics if any
+                    <>
+                      <Bar 
+                        dataKey={primaryMetric} 
+                        fill={colors[0]} 
+                        name={primaryMetric}
+                        style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                        onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
+                      />
+                      {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
+                        <Bar 
+                          key={metric} 
+                          dataKey={metric} 
+                          fill={colors[(index + 1) % colors.length]} 
+                          name={metric}
+                          style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                          onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
+                        />
+                      ))}
+                    </>
+                  )}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+
+      case 'column':
+        return (
+          <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
+            <div className="absolute inset-0" style={{ bottom: '40px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart 
+                  data={chartData} 
+                  layout="horizontal" 
+                  margin={{ top: 20, right: 30, left: 120, bottom: 20 }}
+                >
+                  <XAxis 
+                    type="number" 
+                    tick={{ fontSize: 11 }}
+                    label={{ value: getFieldName(primaryMetric), position: 'insideBottom', offset: -5 }}
+                    domain={[0, 'dataMax']}
+                  />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    width={120}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <Tooltip 
+                    formatter={(value, name, props) => [
+                      `${getFieldName(name.toString())}: ${value}`,
+                      `Category: ${props.payload?.name || 'N/A'}`
+                    ]}
+                    labelFormatter={(label) => `${label}`}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--popover))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: 'var(--radius)',
+                      fontSize: '12px'
+                    }}
+                  />
+                  <Legend 
+                    formatter={(value) => getFieldName(value.toString())}
+                    iconType="rect"
+                  />
                   <Bar 
                     dataKey={primaryMetric} 
                     fill={colors[0]} 
                     name={primaryMetric}
-                    style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                    onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
                   />
                   {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
                     <Bar 
@@ -544,86 +631,57 @@ export function ChartPreview({
                       dataKey={metric} 
                       fill={colors[(index + 1) % colors.length]} 
                       name={metric}
-                      style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                      onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
                     />
                   ))}
-                </>
-              )}
-            </BarChart>
-          </div>
-        );
-
-      case 'column':
-        return (
-          <div style={{ width: '100%', height: '400px' }}>
-            <BarChart 
-              width={800} 
-              height={400} 
-              data={chartData} 
-              layout="horizontal" 
-              margin={{ top: 20, right: 30, left: 120, bottom: 20 }}
-            >
-              <XAxis 
-                type="number" 
-                tick={{ fontSize: 11 }}
-                label={{ value: primaryMetric, position: 'insideBottom', offset: -5 }}
-                domain={[0, 'dataMax']}
-              />
-              <YAxis 
-                dataKey="name" 
-                type="category" 
-                width={120}
-                tick={{ fontSize: 11 }}
-              />
-              <Tooltip 
-                formatter={(value, name) => [`${value}`, `${name}`]}
-                labelFormatter={(label) => `${label}`}
-              />
-              <Legend />
-              <Bar 
-                dataKey={primaryMetric} 
-                fill={colors[0]} 
-                name={primaryMetric}
-              />
-              {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
-                <Bar 
-                  key={metric} 
-                  dataKey={metric} 
-                  fill={colors[(index + 1) % colors.length]} 
-                  name={metric}
-                />
-              ))}
-            </BarChart>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         );
       
       case 'pie':
         return (
-          <div style={{ width: '100%', height: '400px' }}>
-            <RechartsPieChart width={800} height={400}>
-              <Pie
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                outerRadius={120}
-                fill="#8884d8"
-                dataKey={primaryMetric}
-                label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
-                style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                onClick={config.drilldownConfig?.enabled ? handlePieClick : undefined}
-              >
-                {chartData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={colors[index % colors.length]}
+          <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
+            <div className="absolute inset-0" style={{ bottom: '40px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsPieChart>
+                  <Pie
+                    data={chartData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={120}
+                    fill="#8884d8"
+                    dataKey={primaryMetric}
+                    label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
                     style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                    onClick={config.drilldownConfig?.enabled ? handlePieClick : undefined}
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={colors[index % colors.length]}
+                        style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(value, name, props) => [
+                      `${getFieldName(name.toString())}: ${value}`,
+                      `Total: ${chartData.reduce((sum, item) => sum + item[primaryMetric], 0)}`
+                    ]}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--popover))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: 'var(--radius)',
+                      fontSize: '12px'
+                    }}
                   />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value, name) => [`${value}`, `${name}`]} />
-              <Legend />
-            </RechartsPieChart>
+                  <Legend 
+                    formatter={(value) => getFieldName(value.toString())}
+                  />
+                </RechartsPieChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         );
 
@@ -653,123 +711,151 @@ export function ChartPreview({
       
       case 'line':
         return (
-          <div style={{ width: '100%', height: '400px' }}>
-            <RechartsLineChart 
-              width={800} 
-              height={400} 
-              data={chartData} 
-              margin={{ top: 20, right: 30, left: 40, bottom: 80 }}
-              onClick={handleChartClick}
-            >
-              <XAxis 
-                dataKey="name" 
-                tick={{ fontSize: 11 }}
-                angle={-45}
-                textAnchor="end"
-                height={80}
-                interval={0}
-              />
-              <YAxis 
-                tick={{ fontSize: 11 }}
-                label={{ value: primaryMetric, angle: -90, position: 'insideLeft' }}
-                domain={[0, 'dataMax']}
-              />
-              <Tooltip 
-                formatter={(value, name) => [`${value}`, `${name}`]}
-                labelFormatter={(label) => `${label}`}
-              />
-              <Legend />
-              {isMultiDimensional ? (
-                // Render separate lines for each dimension value
-                dimensionKeys.map((key, index) => (
-                  <Line 
-                    key={key} 
-                    type="monotone" 
-                    dataKey={key} 
-                    stroke={colors[index % colors.length]} 
-                    strokeWidth={3}
-                    name={key}
-                    dot={{ fill: colors[index % colors.length], strokeWidth: 2, r: 4 }}
-                    style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+          <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
+            <div className="absolute inset-0" style={{ bottom: '40px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsLineChart 
+                  data={chartData} 
+                  margin={{ top: 20, right: 30, left: 40, bottom: 80 }}
+                  onClick={handleChartClick}
+                >
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 11 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                    interval={0}
                   />
-                ))
-              ) : (
-                // Single dimension - render primary metric and additional metrics if any
-                <>
-                  <Line 
-                    type="monotone" 
-                    dataKey={primaryMetric} 
-                    stroke={colors[0]} 
-                    strokeWidth={3}
-                    name={primaryMetric}
-                    dot={{ fill: colors[0], strokeWidth: 2, r: 4 }}
-                    style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                  <YAxis 
+                    tick={{ fontSize: 11 }}
+                    label={{ value: getFieldName(primaryMetric), angle: -90, position: 'insideLeft' }}
+                    domain={[0, 'dataMax']}
                   />
-                  {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
-                    <Line 
-                      key={metric}
-                      type="monotone" 
-                      dataKey={metric} 
-                      stroke={colors[(index + 1) % colors.length]} 
-                      strokeWidth={3}
-                      name={metric}
-                      dot={{ fill: colors[(index + 1) % colors.length], strokeWidth: 2, r: 4 }}
-                      style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                    />
-                  ))}
-                </>
-              )}
-            </RechartsLineChart>
+                  <Tooltip 
+                    formatter={(value, name, props) => [
+                      `${getFieldName(name.toString())}: ${value}`,
+                      `Category: ${props.payload?.name || 'N/A'}`
+                    ]}
+                    labelFormatter={(label) => `${label}`}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--popover))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: 'var(--radius)',
+                      fontSize: '12px'
+                    }}
+                  />
+                  <Legend 
+                    formatter={(value) => getFieldName(value.toString())}
+                    iconType="line"
+                  />
+                  {isMultiDimensional ? (
+                    // Render separate lines for each dimension value
+                    dimensionKeys.map((key, index) => (
+                      <Line 
+                        key={key} 
+                        type="monotone" 
+                        dataKey={key} 
+                        stroke={colors[index % colors.length]} 
+                        strokeWidth={3}
+                        name={key}
+                        dot={{ fill: colors[index % colors.length], strokeWidth: 2, r: 4 }}
+                        style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                      />
+                    ))
+                  ) : (
+                    // Single dimension - render primary metric and additional metrics if any
+                    <>
+                      <Line 
+                        type="monotone" 
+                        dataKey={primaryMetric} 
+                        stroke={colors[0]} 
+                        strokeWidth={3}
+                        name={primaryMetric}
+                        dot={{ fill: colors[0], strokeWidth: 2, r: 4 }}
+                        style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                      />
+                      {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
+                        <Line 
+                          key={metric}
+                          type="monotone" 
+                          dataKey={metric} 
+                          stroke={colors[(index + 1) % colors.length]} 
+                          strokeWidth={3}
+                          name={metric}
+                          dot={{ fill: colors[(index + 1) % colors.length], strokeWidth: 2, r: 4 }}
+                          style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                        />
+                      ))}
+                    </>
+                  )}
+                </RechartsLineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         );
       
       case 'area':
         return (
-          <div style={{ width: '100%', height: '400px' }}>
-            <RechartsAreaChart 
-              width={800} 
-              height={400} 
-              data={chartData} 
-              margin={{ top: 20, right: 30, left: 40, bottom: 80 }}
-            >
-              <XAxis 
-                dataKey="name" 
-                tick={{ fontSize: 11 }}
-                angle={-45}
-                textAnchor="end"
-                height={80}
-                interval={0}
-              />
-              <YAxis 
-                tick={{ fontSize: 11 }}
-                label={{ value: primaryMetric, angle: -90, position: 'insideLeft' }}
-                domain={[0, 'dataMax']}
-              />
-              <Tooltip 
-                formatter={(value, name) => [`${value}`, `${name}`]}
-                labelFormatter={(label) => `${label}`}
-              />
-              <Legend />
-              <Area 
-                type="monotone" 
-                dataKey={primaryMetric} 
-                stroke={colors[0]} 
-                fill={colors[0]} 
-                fillOpacity={0.6}
-                name={primaryMetric}
-              />
-              {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
-                <Area 
-                  key={metric}
-                  type="monotone" 
-                  dataKey={metric} 
-                  stroke={colors[(index + 1) % colors.length]} 
-                  fill={colors[(index + 1) % colors.length]} 
-                  fillOpacity={0.6}
-                  name={metric}
-                />
-              ))}
-            </RechartsAreaChart>
+          <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
+            <div className="absolute inset-0" style={{ bottom: '40px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsAreaChart 
+                  data={chartData} 
+                  margin={{ top: 20, right: 30, left: 40, bottom: 80 }}
+                >
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 11 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                    interval={0}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 11 }}
+                    label={{ value: getFieldName(primaryMetric), angle: -90, position: 'insideLeft' }}
+                    domain={[0, 'dataMax']}
+                  />
+                  <Tooltip 
+                    formatter={(value, name, props) => [
+                      `${getFieldName(name.toString())}: ${value}`,
+                      `Category: ${props.payload?.name || 'N/A'}`
+                    ]}
+                    labelFormatter={(label) => `${label}`}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--popover))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: 'var(--radius)',
+                      fontSize: '12px'
+                    }}
+                  />
+                  <Legend 
+                    formatter={(value) => getFieldName(value.toString())}
+                    iconType="rect"
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey={primaryMetric} 
+                    stroke={colors[0]} 
+                    fill={colors[0]} 
+                    fillOpacity={0.6}
+                    name={primaryMetric}
+                  />
+                  {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
+                    <Area 
+                      key={metric}
+                      type="monotone" 
+                      dataKey={metric} 
+                      stroke={colors[(index + 1) % colors.length]} 
+                      fill={colors[(index + 1) % colors.length]} 
+                      fillOpacity={0.6}
+                      name={metric}
+                    />
+                  ))}
+                </RechartsAreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         );
       
