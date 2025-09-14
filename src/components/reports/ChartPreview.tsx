@@ -250,9 +250,14 @@ export function ChartPreview({
             if (val.label) return val.label; // For select fields with labels
             return JSON.stringify(val);
           }
-          return val || 'Unknown';
+          // Better handling of empty values - use field name or skip if truly empty
+          if (val === null || val === undefined || val === '') {
+            return 'Not Specified';
+          }
+          return String(val);
         })
-        .join(' - ');
+        .filter(key => key !== 'Not Specified' || dimensionFields.length === 1) // Only include 'Not Specified' if it's the only dimension
+        .join(' - ') || 'Not Specified';
 
       if (!processedData[dimensionKey]) {
         processedData[dimensionKey] = {
@@ -271,6 +276,9 @@ export function ChartPreview({
         metricFields.forEach(metric => {
           processedData[dimensionKey][metric] = 0;
         });
+        
+        // Also initialize a 'value' field for backward compatibility
+        processedData[dimensionKey]['value'] = 0;
       }
 
       // Aggregate metrics
@@ -285,6 +293,7 @@ export function ChartPreview({
       metricFields.forEach(metric => {
         if (metric === 'count' || config.aggregation === 'count' || config.aggregationType === 'count') {
           processedData[dimensionKey][metric] += 1;
+          processedData[dimensionKey]['value'] += 1; // For backward compatibility
         } else {
           const value = submissionData[metric] || submissionData[config.yAxis];
           
@@ -292,15 +301,20 @@ export function ChartPreview({
           if (typeof value === 'object' && value !== null) {
             // For approval fields, count based on status
             if (value.status) {
-              processedData[dimensionKey][metric] += value.status === 'approved' ? 1 : 0;
+              const numericValue = value.status === 'approved' ? 1 : 0;
+              processedData[dimensionKey][metric] += numericValue;
+              processedData[dimensionKey]['value'] += numericValue;
             } else {
               // For other object types, just count as 1 if present
               processedData[dimensionKey][metric] += 1;
+              processedData[dimensionKey]['value'] += 1;
             }
           } else if (typeof value === 'number') {
             processedData[dimensionKey][metric] += value;
+            processedData[dimensionKey]['value'] += value;
           } else if (value) {
             processedData[dimensionKey][metric] += 1;
+            processedData[dimensionKey]['value'] += 1;
           }
         }
       });
@@ -393,138 +407,216 @@ export function ChartPreview({
     switch (chartType) {
       case 'bar':
         return (
-          <BarChart data={chartData}>
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            {(config.metrics || [primaryMetric]).map((metric, index) => (
-              <Bar 
-                key={metric} 
-                dataKey={metric} 
-                fill={colors[index % colors.length]} 
-                name={metric}
-                style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <XAxis 
+                dataKey="name" 
+                tick={{ fontSize: 12 }}
+                angle={-45}
+                textAnchor="end"
+                height={80}
               />
-            ))}
-          </BarChart>
+              <YAxis 
+                tick={{ fontSize: 12 }}
+                label={{ value: primaryMetric, angle: -90, position: 'insideLeft' }}
+              />
+              <Tooltip 
+                formatter={(value, name) => [value, name]}
+                labelFormatter={(label) => `Category: ${label}`}
+              />
+              <Legend />
+              {(config.metrics || [primaryMetric]).map((metric, index) => (
+                <Bar 
+                  key={metric} 
+                  dataKey={metric} 
+                  fill={colors[index % colors.length]} 
+                  name={metric}
+                  style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                  onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
+                />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
         );
 
       case 'column':
         return (
-          <BarChart data={chartData} layout="horizontal">
-            <XAxis type="number" />
-            <YAxis dataKey="name" type="category" width={80} />
-            <Tooltip />
-            <Legend />
-            {(config.metrics || [primaryMetric]).map((metric, index) => (
-              <Bar 
-                key={metric} 
-                dataKey={metric} 
-                fill={colors[index % colors.length]} 
-                name={metric}
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart data={chartData} layout="horizontal" margin={{ top: 20, right: 30, left: 100, bottom: 5 }}>
+              <XAxis 
+                type="number" 
+                tick={{ fontSize: 12 }}
+                label={{ value: primaryMetric, position: 'insideBottom', offset: -5 }}
               />
-            ))}
-          </BarChart>
+              <YAxis 
+                dataKey="name" 
+                type="category" 
+                width={100}
+                tick={{ fontSize: 12 }}
+              />
+              <Tooltip 
+                formatter={(value, name) => [value, name]}
+                labelFormatter={(label) => `Category: ${label}`}
+              />
+              <Legend />
+              {(config.metrics || [primaryMetric]).map((metric, index) => (
+                <Bar 
+                  key={metric} 
+                  dataKey={metric} 
+                  fill={colors[index % colors.length]} 
+                  name={metric}
+                />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
         );
       
       case 'pie':
         return (
-          <RechartsPieChart>
-            <Pie
-              data={chartData}
-              cx="50%"
-              cy="50%"
-              outerRadius={80}
-              fill="#8884d8"
-              dataKey={primaryMetric}
-              label={({ name, value }) => `${name}: ${value}`}
-              style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-              onClick={config.drilldownConfig?.enabled ? handlePieClick : undefined}
-            >
-              {chartData.map((entry, index) => (
-                <Cell 
-                  key={`cell-${index}`} 
-                  fill={colors[index % colors.length]}
-                  style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                />
-              ))}
-            </Pie>
-            <Tooltip />
-          </RechartsPieChart>
+          <ResponsiveContainer width="100%" height={400}>
+            <RechartsPieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                outerRadius={120}
+                fill="#8884d8"
+                dataKey={primaryMetric}
+                label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+                style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                onClick={config.drilldownConfig?.enabled ? handlePieClick : undefined}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={colors[index % colors.length]}
+                    style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                  />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value, name) => [value, name]} />
+              <Legend />
+            </RechartsPieChart>
+          </ResponsiveContainer>
         );
 
       case 'donut':
         return (
-          <RechartsPieChart>
-            <Pie
-              data={chartData}
-              cx="50%"
-              cy="50%"
-              innerRadius={config.innerRadius || 40}
-              outerRadius={80}
-              fill="#8884d8"
-              dataKey={primaryMetric}
-              label={({ name, value }) => `${name}: ${value}`}
-            >
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-              ))}
-            </Pie>
-            <Tooltip />
-          </RechartsPieChart>
+          <ResponsiveContainer width="100%" height={400}>
+            <RechartsPieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                innerRadius={config.innerRadius || 60}
+                outerRadius={120}
+                fill="#8884d8"
+                dataKey={primaryMetric}
+                label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value, name) => [value, name]} />
+              <Legend />
+            </RechartsPieChart>
+          </ResponsiveContainer>
         );
       
       case 'line':
         return (
-          <RechartsLineChart data={chartData}>
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            {(config.metrics || [primaryMetric]).map((metric, index) => (
-              <Line 
-                key={metric}
-                type="monotone" 
-                dataKey={metric} 
-                stroke={colors[index % colors.length]} 
-                strokeWidth={2}
-                name={metric}
+          <ResponsiveContainer width="100%" height={400}>
+            <RechartsLineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <XAxis 
+                dataKey="name" 
+                tick={{ fontSize: 12 }}
+                angle={-45}
+                textAnchor="end"
+                height={80}
               />
-            ))}
-          </RechartsLineChart>
+              <YAxis 
+                tick={{ fontSize: 12 }}
+                label={{ value: primaryMetric, angle: -90, position: 'insideLeft' }}
+              />
+              <Tooltip 
+                formatter={(value, name) => [value, name]}
+                labelFormatter={(label) => `Category: ${label}`}
+              />
+              <Legend />
+              {(config.metrics || [primaryMetric]).map((metric, index) => (
+                <Line 
+                  key={metric}
+                  type="monotone" 
+                  dataKey={metric} 
+                  stroke={colors[index % colors.length]} 
+                  strokeWidth={3}
+                  name={metric}
+                  dot={{ fill: colors[index % colors.length], strokeWidth: 2, r: 4 }}
+                />
+              ))}
+            </RechartsLineChart>
+          </ResponsiveContainer>
         );
       
       case 'area':
         return (
-          <RechartsAreaChart data={chartData}>
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            {(config.metrics || [primaryMetric]).map((metric, index) => (
-              <Area 
-                key={metric}
-                type="monotone" 
-                dataKey={metric} 
-                stroke={colors[index % colors.length]} 
-                fill={colors[index % colors.length]} 
-                fillOpacity={0.6}
-                name={metric}
+          <ResponsiveContainer width="100%" height={400}>
+            <RechartsAreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <XAxis 
+                dataKey="name" 
+                tick={{ fontSize: 12 }}
+                angle={-45}
+                textAnchor="end"
+                height={80}
               />
-            ))}
-          </RechartsAreaChart>
+              <YAxis 
+                tick={{ fontSize: 12 }}
+                label={{ value: primaryMetric, angle: -90, position: 'insideLeft' }}
+              />
+              <Tooltip 
+                formatter={(value, name) => [value, name]}
+                labelFormatter={(label) => `Category: ${label}`}
+              />
+              <Legend />
+              {(config.metrics || [primaryMetric]).map((metric, index) => (
+                <Area 
+                  key={metric}
+                  type="monotone" 
+                  dataKey={metric} 
+                  stroke={colors[index % colors.length]} 
+                  fill={colors[index % colors.length]} 
+                  fillOpacity={0.6}
+                  name={metric}
+                />
+              ))}
+            </RechartsAreaChart>
+          </ResponsiveContainer>
         );
       
       case 'scatter':
         return (
-          <RechartsScatterChart data={chartData}>
-            <XAxis dataKey="name" />
-            <YAxis dataKey={primaryMetric} />
-            <Tooltip />
-            <Scatter dataKey={primaryMetric} fill={colors[0]} />
-          </RechartsScatterChart>
+          <ResponsiveContainer width="100%" height={400}>
+            <RechartsScatterChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <XAxis 
+                dataKey="name" 
+                tick={{ fontSize: 12 }}
+                angle={-45}
+                textAnchor="end"
+                height={80}
+              />
+              <YAxis 
+                dataKey={primaryMetric} 
+                tick={{ fontSize: 12 }}
+                label={{ value: primaryMetric, angle: -90, position: 'insideLeft' }}
+              />
+              <Tooltip 
+                formatter={(value, name) => [value, name]}
+                labelFormatter={(label) => `Category: ${label}`}
+              />
+              <Scatter dataKey={primaryMetric} fill={colors[0]} />
+            </RechartsScatterChart>
+          </ResponsiveContainer>
         );
 
       case 'bubble':
