@@ -68,25 +68,47 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
   };
 
   // ✅ updated handleFieldChange with master sync
+// const handleFieldChange = (submissionId: string, fieldId: string, value: any) => {
+//   setEditedData((prev: any) => {
+//     const updated = { ...prev };
+
+//     if (submissionId === 'master') {
+//       // Update master
+//       updated['master'] = { ...updated['master'], [fieldId]: value };
+
+//       // Sync to all child records
+//       submissions.forEach((sub) => {
+//         if (!updated[sub.id]) updated[sub.id] = {};
+//         updated[sub.id][fieldId] = value;
+//       });
+//     } else {
+//       // Update only this record
+//       updated[submissionId] = {
+//         ...updated[submissionId],
+//         [fieldId]: value,
+//       };
+//     }
+
+//     return updated;
+//   });
+// };
+// ✅ Updated handleFieldChange with master sync for cross-reference multi-select
 const handleFieldChange = (submissionId: string, fieldId: string, value: any) => {
   setEditedData((prev: any) => {
     const updated = { ...prev };
 
     if (submissionId === 'master') {
-      // Update master
+      // Update master row
       updated['master'] = { ...updated['master'], [fieldId]: value };
 
       // Sync to all child records
-      submissions.forEach((sub) => {
+      submissions.forEach(sub => {
         if (!updated[sub.id]) updated[sub.id] = {};
-        updated[sub.id][fieldId] = value;
+        updated[sub.id][fieldId] = value; // value is an array of selected record IDs
       });
     } else {
-      // Update only this record
-      updated[submissionId] = {
-        ...updated[submissionId],
-        [fieldId]: value,
-      };
+      // Update only this record (child row)
+      updated[submissionId] = { ...updated[submissionId], [fieldId]: value };
     }
 
     return updated;
@@ -295,6 +317,36 @@ const useCountries=()=> {
 // 👇 Top of InlineEditDialog component
 const { countries, loading: countriesLoading, error: countriesError } = useCountries();
 
+// --- Add this in the same file ---
+const MasterCrossReferenceSelect = ({ allRecords, selectedRecords, onChange }) => {
+  const [open, setOpen] = useState(false);
+
+  const handleToggle = (recordId) => {
+    if (selectedRecords.includes(recordId)) {
+      onChange(selectedRecords.filter(id => id !== recordId));
+    } else {
+      onChange([...selectedRecords, recordId]);
+    }
+  };
+
+  return (
+    <Select open={open} onOpenChange={setOpen} value={''}>
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder={selectedRecords.length > 0 ? `${selectedRecords.length} selected` : 'Select records'} />
+      </SelectTrigger>
+      <SelectContent className="max-h-60 overflow-auto">
+        {allRecords.map(record => (
+          <SelectItem key={record.id} value={record.submission_ref_id}>
+            <div className="flex items-center gap-2">
+              <Checkbox checked={selectedRecords.includes(record.submission_ref_id)} onCheckedChange={() => handleToggle(record.submission_ref_id)} />
+              <span>{record.displayData}</span>
+            </div>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+};
 
 const renderFieldInput = (
   field: any,
@@ -306,6 +358,162 @@ const renderFieldInput = (
   const isDisabled = isBulkEdit && submissionId !== 'master';
 
   switch (field.field_type) {
+
+//     case 'cross-reference': {
+//   let displayValues: string[] = [];
+
+//   if (Array.isArray(value)) {
+//     displayValues = value.map(item => {
+//       if (typeof item === 'object' && item !== null) {
+//         // Use submission_ref_id or fallback to id
+//         return item.submission_ref_id || item.id || '[Unknown]';
+//       }
+//       return String(item);
+//     });
+//   } else if (value && typeof value === 'object') {
+//     displayValues = [value.submission_ref_id || value.id || '[Unknown]'];
+//   } else if (value) {
+//     displayValues = [String(value)];
+//   }
+
+//   if (displayValues.length === 0) {
+//     return (
+//       <span className="italic text-muted-foreground">No references</span>
+//     );
+//   }
+
+//   return (
+//     <div className="flex flex-wrap gap-1">
+//       {displayValues.map((v, i) => (
+//         <span key={i} className="px-2 py-1 bg-primary/10 text-primary rounded text-sm">
+//           {v}
+//         </span>
+//       ))}
+//     </div>
+//   );
+// }
+
+// case 'cross-reference': {
+//   // Options should come from field.customConfig.records
+//   // Each option: { submission_ref_id: string, displayData: string }
+//   const options: { submission_ref_id: string; displayData: string }[] =
+//     field.customConfig?.records || [];
+
+//   // Normalize value into an array of submission_ref_id
+//   const selectedValues: string[] = Array.isArray(value)
+//     ? value.map((v) => (typeof v === 'object' ? v.submission_ref_id : v))
+//     : value
+//     ? [typeof value === 'object' ? value.submission_ref_id : value]
+//     : [];
+
+//   if (submissionId === 'master') {
+//     // Master row: multi-select dropdown
+//     return (
+//       <Select>
+//         <SelectTrigger className="w-full">
+//           <SelectValue
+//             placeholder={
+//               selectedValues.length
+//                 ? selectedValues
+//                     .map(
+//                       (v) =>
+//                         options.find((o) => o.submission_ref_id === v)?.displayData || v
+//                     )
+//                     .join(', ')
+//                 : 'Select records'
+//             }
+//           />
+//         </SelectTrigger>
+//         <SelectContent>
+//           {options.map((opt) => (
+//             <SelectItem
+//               key={opt.submission_ref_id}
+//               value={opt.submission_ref_id}
+//               onClick={() => {
+//                 const newSelected = selectedValues.includes(opt.submission_ref_id)
+//                   ? selectedValues.filter((v) => v !== opt.submission_ref_id)
+//                   : [...selectedValues, opt.submission_ref_id];
+
+//                 handleFieldChange('master', field.id, newSelected);
+//               }}
+//             >
+//               <div className="flex items-center gap-2">
+//                 <input
+//                   type="checkbox"
+//                   checked={selectedValues.includes(opt.submission_ref_id)}
+//                   readOnly
+//                 />
+//                 <span>{opt.displayData || opt.submission_ref_id}</span>
+//               </div>
+//             </SelectItem>
+//           ))}
+//         </SelectContent>
+//       </Select>
+//     );
+//   } else {
+//     // Child rows: display selected records as badges only
+//     if (selectedValues.length === 0) {
+//       return <span className="italic text-muted-foreground">No references</span>;
+//     }
+
+//     return (
+//       <div className="flex flex-wrap gap-1">
+//         {selectedValues.map((v) => {
+//           const record = options.find((o) => o.submission_ref_id === v);
+//           return (
+//             <span
+//               key={v}
+//               className="px-2 py-1 bg-primary/10 text-primary rounded text-sm"
+//             >
+//               {record?.displayData || v}
+//             </span>
+//           );
+//         })}
+//       </div>
+//     );
+//   }
+// }
+
+case 'cross-reference': {
+  // Make sure allRecords is fetched/passed from parent or backend
+  // Example: const allRecords = field.customConfig?.allRecords || [];
+  const allRecords = field.customConfig?.allRecords || []; // <- replace with real fetch
+
+  // Use field.id instead of fieldId
+  const currentFieldId = field.id;
+
+  // Master record: show multi-select dropdown
+  if (submissionId === 'master') {
+    return (
+      <MasterCrossReferenceSelect
+        allRecords={allRecords} // full list of records
+        selectedRecords={editedData.master?.[currentFieldId] || []} // current master selection
+        onChange={(selectedIds: string[]) =>
+          handleFieldChange('master', currentFieldId, selectedIds)
+        }
+      />
+    );
+  }
+
+  // Child records: show badges of selected records only
+  const displayValues = (value || []).map((v: any) => v.submission_ref_id || v.id || '[Unknown]');
+
+  if (displayValues.length === 0) {
+    return <span className="italic text-muted-foreground">No references</span>;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1">
+      {displayValues.map((v, i) => (
+        <span key={i} className="px-2 py-1 bg-primary/10 text-primary rounded text-sm">
+          {v}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+
     case 'text':
     case 'email':
     case 'number':
@@ -818,8 +1026,8 @@ case 'image': {
     case 'full-width-container':
     case 'record-table':
     case 'matrix-grid':
-    case 'cross-reference':
-    case 'child-cross-reference':
+    // case 'cross-reference':
+    // case 'child-cross-reference':
     case 'calculated':
     case 'conditional-section':
     case 'workflow-trigger':
@@ -879,13 +1087,13 @@ case 'image': {
             'section-break',
             'horizontal-line',
             'full-width-container',
-            'user-picker',
+            // 'user-picker',
             'approval',
-            'cross-reference',
+            // 'cross-reference',
             'query-field',
             'geo-location',
             'conditional-section',
-            'submission-access',
+            // 'submission-access',
             'signature',
             'dynamic-dropdown',
             'rich-text',
@@ -943,13 +1151,13 @@ case 'image': {
               'section-break',
               'horizontal-line',
               'full-width-container',
-              'user-picker',
+              // 'user-picker',
               'approval',
-              'cross-reference',
+              // 'cross-reference',
               'query-field',
               'geo-location',
               'conditional-section',
-              'submission-access',
+              // 'submission-access',
               'signature',
               'dynamic-dropdown',
               'rich-text',

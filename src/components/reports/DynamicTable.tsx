@@ -518,9 +518,9 @@ export function DynamicTable({
       // Define excluded field types at the query level
       const excludedFieldTypes = [
         'header', 'description', 'section-break', 'horizontal-line', 
-        'full-width-container', 'user-picker', 'approval', 
+        'full-width-container', 'approval', 
         'query-field', 'geo-location', 'conditional-section', 
-        'submission-access', 'signature', 'dynamic-dropdown', 'rich-text',
+        , 'signature', 'dynamic-dropdown', 'rich-text',
         'record-table', 'matrix-grid', 'workflow-trigger','child-cross-reference','address','barcode'
       ];
 
