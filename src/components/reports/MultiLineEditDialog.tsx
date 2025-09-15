@@ -10,10 +10,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-// import { Save, Users } from 'lucide-react';
 import { Save, Users, Star, Calendar } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
+import { useUsersAndGroups } from '@/hooks/useUsersAndGroups';
+import { useCrossReferenceData } from '@/hooks/useCrossReferenceData';
 
 
 
@@ -35,6 +36,9 @@ export function MultiLineEditDialog({
   const [editData, setEditData] = useState<Record<string, Record<string, any>>>({});
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+  const { users, groups, getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
+  const formId = submissions[0]?.form_id;
+  const { records: crossRefRecords } = useCrossReferenceData(formId);
 
   // Initialize edit data when dialog opens - each submission gets its own data
   useEffect(() => {
@@ -217,16 +221,35 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
         
         return (
           <Wrapper>
-            <Input
-              value={selectedUserIds.join(', ')}
-              onChange={(e) => {
-                const userIds = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                const newValue = field.customConfig?.allowMultiple ? userIds : (userIds[0] || '');
+            <Select
+              value=""
+              onValueChange={(userId) => {
+                const newValue = field.customConfig?.allowMultiple 
+                  ? [...selectedUserIds, userId].filter((v, i, arr) => arr.indexOf(v) === i)
+                  : userId;
                 handleFieldValueChange(submissionId, field.id, newValue);
               }}
-              placeholder="Enter user IDs (comma-separated)"
-              className="text-sm"
-            />
+            >
+              <SelectTrigger className="text-sm">
+                <SelectValue placeholder="Select users" />
+              </SelectTrigger>
+              <SelectContent>
+                {users.map(user => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {getUserDisplayName(user.id)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedUserIds.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {selectedUserIds.map((userId, i) => (
+                  <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 text-xs">
+                    {getUserDisplayName(userId)}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </Wrapper>
         );
       }
@@ -234,29 +257,71 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
       case 'submission-access': {
         const accessValue = value || { users: [], groups: [] };
         const normalizedValue = typeof accessValue === 'object' ? accessValue : { users: [], groups: [] };
-        const { users = [], groups = [] } = normalizedValue;
+        const { users: currentUsers = [], groups: currentGroups = [] } = normalizedValue;
         
         return (
           <Wrapper>
-            <div className="space-y-1">
-              <Input
-                value={Array.isArray(users) ? users.join(', ') : ''}
-                onChange={(e) => {
-                  const userIds = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                  handleFieldValueChange(submissionId, field.id, { users: userIds, groups });
-                }}
-                placeholder="User IDs (comma-separated)"
-                className="text-sm"
-              />
-              <Input
-                value={Array.isArray(groups) ? groups.join(', ') : ''}
-                onChange={(e) => {
-                  const groupIds = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                  handleFieldValueChange(submissionId, field.id, { users, groups: groupIds });
-                }}
-                placeholder="Group IDs (comma-separated)"
-                className="text-sm"
-              />
+            <div className="space-y-2">
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Users</Label>
+                <Select
+                  value=""
+                  onValueChange={(userId) => {
+                    const newUsers = [...currentUsers, userId].filter((v, i, arr) => arr.indexOf(v) === i);
+                    handleFieldValueChange(submissionId, field.id, { users: newUsers, groups: currentGroups });
+                  }}
+                >
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="Add user" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map(user => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {getUserDisplayName(user.id)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {currentUsers.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {currentUsers.map((userId, i) => (
+                      <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 text-xs">
+                        {getUserDisplayName(userId)}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Groups</Label>
+                <Select
+                  value=""
+                  onValueChange={(groupId) => {
+                    const newGroups = [...currentGroups, groupId].filter((v, i, arr) => arr.indexOf(v) === i);
+                    handleFieldValueChange(submissionId, field.id, { users: currentUsers, groups: newGroups });
+                  }}
+                >
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="Add group" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {groups.map(group => (
+                      <SelectItem key={group.id} value={group.id}>
+                        {getGroupDisplayName(group.id)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {currentGroups.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {currentGroups.map((groupId, i) => (
+                      <Badge key={i} variant="outline" className="bg-green-100 text-green-800 text-xs">
+                        {getGroupDisplayName(groupId)}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </Wrapper>
         );
@@ -420,15 +485,33 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
 
       return (
         <Wrapper>
-          <Input
-            value={displayValues.join(', ')}
-            onChange={(e) => {
-              const refs = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-              handleFieldValueChange(submissionId, field.id, refs);
+          <Select
+            value=""
+            onValueChange={(recordRef) => {
+              const newRefs = [...displayValues, recordRef].filter((v, i, arr) => arr.indexOf(v) === i);
+              handleFieldValueChange(submissionId, field.id, newRefs);
             }}
-            placeholder="Enter cross-reference IDs (comma-separated)"
-            className="text-sm"
-          />
+          >
+            <SelectTrigger className="text-sm">
+              <SelectValue placeholder="Select records" />
+            </SelectTrigger>
+            <SelectContent>
+              {crossRefRecords.map(record => (
+                <SelectItem key={record.id} value={record.submission_ref_id}>
+                  {record.displayData}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {displayValues.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {displayValues.map((ref, i) => (
+                <Badge key={i} variant="outline" className="bg-primary/10 text-primary text-xs">
+                  {ref}
+                </Badge>
+              ))}
+            </div>
+          )}
         </Wrapper>
       );
     }

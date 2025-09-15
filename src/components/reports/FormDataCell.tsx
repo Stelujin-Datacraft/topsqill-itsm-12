@@ -5,6 +5,7 @@ import { Eye, Calendar, DollarSign, Clock, Link as LinkIcon } from 'lucide-react
 import { useNavigate } from 'react-router-dom';
 import { useEffect,useState } from 'react';
 import  axios  from 'axios';
+import { useUsersAndGroups } from '@/hooks/useUsersAndGroups';
 
 interface FormDataCellProps {
   value: any;
@@ -13,6 +14,7 @@ interface FormDataCellProps {
 }
 
 export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
+  const { getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
 
   function countryCodeToEmoji(code: string) {
     if (!code) return "";
@@ -520,24 +522,24 @@ if (['file', 'image'].includes(fieldType) && value) {
     const { users = [], groups = [] } = value;
     const displayItems = [];
 
-    // Add user names
+    // Add user names with proper display
     if (Array.isArray(users) && users.length > 0) {
       users.forEach(userId => {
         displayItems.push({
           type: 'user',
           id: userId,
-          display: `User: ${userId}` // This will be improved with actual user names
+          display: getUserDisplayName(userId)
         });
       });
     }
 
-    // Add group names  
+    // Add group names with proper display
     if (Array.isArray(groups) && groups.length > 0) {
       groups.forEach(groupId => {
         displayItems.push({
           type: 'group',
           id: groupId,
-          display: `Group: ${groupId}` // This will be improved with actual group names
+          display: getGroupDisplayName(groupId)
         });
       });
     }
@@ -571,7 +573,7 @@ if (['file', 'image'].includes(fieldType) && value) {
         <div className="flex flex-wrap gap-1">
           {value.map((userId, index) => (
             <Badge key={`user-${userId}-${index}`} variant="default" className="bg-blue-100 text-blue-800">
-              User: {userId} {/* This will be improved with actual user names */}
+              {getUserDisplayName(userId)}
             </Badge>
           ))}
         </div>
@@ -579,7 +581,7 @@ if (['file', 'image'].includes(fieldType) && value) {
     } else if (value) {
       return (
         <Badge variant="default" className="bg-blue-100 text-blue-800">
-          User: {value} {/* This will be improved with actual user names */}
+          {getUserDisplayName(value)}
         </Badge>
       );
     } else {

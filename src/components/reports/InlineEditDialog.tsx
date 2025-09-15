@@ -12,9 +12,12 @@ import { toast } from '@/hooks/use-toast';
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Badge } from '@/components/ui/badge';
+import { useUsersAndGroups } from '@/hooks/useUsersAndGroups';
+import { useCrossReferenceData } from '@/hooks/useCrossReferenceData';
 
 // For Rating (if you are using lucide-react icons)
-import { Badge, Eye, Star } from "lucide-react";
+import { Eye, Star } from "lucide-react";
 import axios from 'axios';
 
 interface InlineEditDialogProps {
@@ -29,6 +32,9 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
   const [editedData, setEditedData] = useState<Record<string, Record<string, any>>>({});
   const [originalData, setOriginalData] = useState<Record<string, Record<string, any>>>({});
   const [saving, setSaving] = useState(false);
+  const { users, groups, getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
+  const formId = submissions[0]?.form_id;
+  const { records: crossRefRecords } = useCrossReferenceData(formId);
 
   useEffect(() => {
     if (isOpen && submissions.length > 0) {
@@ -292,34 +298,135 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
   // Top of InlineEditDialog component
   const { countries, loading: countriesLoading, error: countriesError } = useCountries();
 
-  // --- Add this in the same file ---
-  const MasterCrossReferenceSelect = ({ allRecords, selectedRecords, onChange }) => {
-    const [open, setOpen] = useState(false);
+  // Multi-select component for cross-reference
+  const MultiSelectCrossReference = ({ value, onChange, disabled, records }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const selectedIds = Array.isArray(value) ? value : [];
 
-    const handleToggle = (recordId) => {
-      if (selectedRecords.includes(recordId)) {
-        onChange(selectedRecords.filter(id => id !== recordId));
+    const handleToggle = (recordId: string) => {
+      if (selectedIds.includes(recordId)) {
+        onChange(selectedIds.filter(id => id !== recordId));
       } else {
-        onChange([...selectedRecords, recordId]);
+        onChange([...selectedIds, recordId]);
       }
     };
 
     return (
-      <Select open={open} onOpenChange={setOpen} value={''}>
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder={selectedRecords.length > 0 ? `${selectedRecords.length} selected` : 'Select records'} />
-        </SelectTrigger>
-        <SelectContent className="max-h-60 overflow-auto">
-          {allRecords.map(record => (
-            <SelectItem key={record.id} value={record.submission_ref_id}>
-              <div className="flex items-center gap-2">
-                <Checkbox checked={selectedRecords.includes(record.submission_ref_id)} onCheckedChange={() => handleToggle(record.submission_ref_id)} />
-                <span>{record.displayData}</span>
+      <div className="relative">
+        <Button
+          variant="outline"
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          disabled={disabled}
+          className="w-full justify-between"
+        >
+          {selectedIds.length > 0 ? `${selectedIds.length} records selected` : "Select records"}
+        </Button>
+        {isOpen && !disabled && (
+          <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-background border rounded-md shadow-lg max-h-60 overflow-auto">
+            {records.map(record => (
+              <div
+                key={record.id}
+                className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer"
+                onClick={() => handleToggle(record.submission_ref_id)}
+              >
+                <Checkbox
+                  checked={selectedIds.includes(record.submission_ref_id)}
+                  onChange={() => {}}
+                />
+                <span className="text-sm">{record.displayData}</span>
               </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Multi-select component for users
+  const MultiSelectUsers = ({ value, onChange, disabled }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const selectedIds = Array.isArray(value) ? value : (value ? [value] : []);
+
+    const handleToggle = (userId: string) => {
+      if (selectedIds.includes(userId)) {
+        onChange(selectedIds.filter(id => id !== userId));
+      } else {
+        onChange([...selectedIds, userId]);
+      }
+    };
+
+    return (
+      <div className="relative">
+        <Button
+          variant="outline"
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          disabled={disabled}
+          className="w-full justify-between"
+        >
+          {selectedIds.length > 0 ? `${selectedIds.length} users selected` : "Select users"}
+        </Button>
+        {isOpen && !disabled && (
+          <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-background border rounded-md shadow-lg max-h-60 overflow-auto">
+            {users.map(user => (
+              <div
+                key={user.id}
+                className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer"
+                onClick={() => handleToggle(user.id)}
+              >
+                <Checkbox
+                  checked={selectedIds.includes(user.id)}
+                  onChange={() => {}}
+                />
+                <span className="text-sm">{getUserDisplayName(user.id)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Multi-select component for groups
+  const MultiSelectGroups = ({ value, onChange, disabled }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const selectedIds = Array.isArray(value) ? value : [];
+
+    const handleToggle = (groupId: string) => {
+      if (selectedIds.includes(groupId)) {
+        onChange(selectedIds.filter(id => id !== groupId));
+      } else {
+        onChange([...selectedIds, groupId]);
+      }
+    };
+
+    return (
+      <div className="relative">
+        <Button
+          variant="outline"
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          disabled={disabled}
+          className="w-full justify-between"
+        >
+          {selectedIds.length > 0 ? `${selectedIds.length} groups selected` : "Select groups"}
+        </Button>
+        {isOpen && !disabled && (
+          <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-background border rounded-md shadow-lg max-h-60 overflow-auto">
+            {groups.map(group => (
+              <div
+                key={group.id}
+                className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer"
+                onClick={() => handleToggle(group.id)}
+              >
+                <Checkbox
+                  checked={selectedIds.includes(group.id)}
+                  onChange={() => {}}
+                />
+                <span className="text-sm">{getGroupDisplayName(group.id)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -334,7 +441,6 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
 
     switch (field.field_type) {
       case 'cross-reference': {
-        // Handle cross-reference display and editing
         const crossRefValue = value || [];
         let displayValues: string[] = [];
 
@@ -351,18 +457,14 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           displayValues = [String(crossRefValue)];
         }
 
-        // Master record: show editable multi-select (simplified for now)
+        // Master record: show editable multi-select
         if (submissionId === 'master') {
           return (
-            <Input
-              value={displayValues.join(', ')}
-              onChange={(e) => {
-                const refs = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                handleFieldChange('master', field.id, refs);
-              }}
-              placeholder="Enter cross-reference IDs (comma-separated)"
+            <MultiSelectCrossReference
+              value={displayValues}
+              onChange={(newRefs) => handleFieldChange('master', field.id, newRefs)}
               disabled={isDisabled}
-              className="w-full"
+              records={crossRefRecords}
             />
           );
         }
@@ -375,9 +477,9 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         return (
           <div className="flex flex-wrap gap-1">
             {displayValues.map((v, i) => (
-              <span key={i} className="px-2 py-1 bg-primary/10 text-primary rounded text-sm">
+              <Badge key={i} variant="outline" className="bg-primary/10 text-primary">
                 {v}
-              </span>
+              </Badge>
             ))}
           </div>
         );
@@ -387,19 +489,16 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         const userValue = value || [];
         const selectedUserIds = Array.isArray(userValue) ? userValue : (userValue ? [userValue] : []);
 
-        // Master record: show editable input (simplified for now)
+        // Master record: show editable multi-select
         if (submissionId === 'master') {
           return (
-            <Input
-              value={selectedUserIds.join(', ')}
-              onChange={(e) => {
-                const userIds = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                const newValue = field.customConfig?.allowMultiple ? userIds : (userIds[0] || '');
+            <MultiSelectUsers
+              value={selectedUserIds}
+              onChange={(newUsers) => {
+                const newValue = field.customConfig?.allowMultiple ? newUsers : (newUsers[0] || '');
                 handleFieldChange('master', field.id, newValue);
               }}
-              placeholder="Enter user IDs (comma-separated)"
               disabled={isDisabled}
-              className="w-full"
             />
           );
         }
@@ -412,9 +511,9 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         return (
           <div className="flex flex-wrap gap-1">
             {selectedUserIds.map((userId, i) => (
-              <span key={i} className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
-                User: {userId}
-              </span>
+              <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800">
+                {getUserDisplayName(userId)}
+              </Badge>
             ))}
           </div>
         );
@@ -425,30 +524,26 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         const normalizedValue = typeof accessValue === 'object' ? accessValue : { users: [], groups: [] };
         const { users = [], groups = [] } = normalizedValue;
 
-        // Master record: show editable inputs
+        // Master record: show editable multi-selects
         if (submissionId === 'master') {
           return (
             <div className="space-y-2">
-              <Input
-                value={Array.isArray(users) ? users.join(', ') : ''}
-                onChange={(e) => {
-                  const userIds = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                  handleFieldChange('master', field.id, { users: userIds, groups });
-                }}
-                placeholder="Enter user IDs (comma-separated)"
-                disabled={isDisabled}
-                className="w-full"
-              />
-              <Input
-                value={Array.isArray(groups) ? groups.join(', ') : ''}
-                onChange={(e) => {
-                  const groupIds = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                  handleFieldChange('master', field.id, { users, groups: groupIds });
-                }}
-                placeholder="Enter group IDs (comma-separated)"
-                disabled={isDisabled}
-                className="w-full"
-              />
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Users</Label>
+                <MultiSelectUsers
+                  value={users}
+                  onChange={(newUsers) => handleFieldChange('master', field.id, { users: newUsers, groups })}
+                  disabled={isDisabled}
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Groups</Label>
+                <MultiSelectGroups
+                  value={groups}
+                  onChange={(newGroups) => handleFieldChange('master', field.id, { users, groups: newGroups })}
+                  disabled={isDisabled}
+                />
+              </div>
             </div>
           );
         }
@@ -469,16 +564,13 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         return (
           <div className="flex flex-wrap gap-1">
             {displayItems.map((item, i) => (
-              <span 
+              <Badge
                 key={`${item.type}-${item.id}-${i}`} 
-                className={`px-2 py-1 rounded text-sm ${
-                  item.type === 'user' 
-                    ? 'bg-blue-100 text-blue-800' 
-                    : 'bg-green-100 text-green-800'
-                }`}
+                variant="outline"
+                className={item.type === 'user' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}
               >
-                {item.type === 'user' ? 'User:' : 'Group:'} {item.id}
-              </span>
+                {item.type === 'user' ? getUserDisplayName(item.id) : getGroupDisplayName(item.id)}
+              </Badge>
             ))}
           </div>
         );
