@@ -211,20 +211,56 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
         </Wrapper>
       );
 
-    case 'user-picker':
-    case 'group-picker':
-      return (
-        <Wrapper>
-          <Input
-            value={value || ''}
-            onChange={(e) =>
-              handleFieldValueChange(submissionId, field.id, e.target.value)
-            }
-            placeholder={`Enter ${field.label}`}
-            className="text-sm"
-          />
-        </Wrapper>
-      );
+      case 'user-picker': {
+        const userValue = value || [];
+        const selectedUserIds = Array.isArray(userValue) ? userValue : (userValue ? [userValue] : []);
+        
+        return (
+          <Wrapper>
+            <Input
+              value={selectedUserIds.join(', ')}
+              onChange={(e) => {
+                const userIds = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                const newValue = field.customConfig?.allowMultiple ? userIds : (userIds[0] || '');
+                handleFieldValueChange(submissionId, field.id, newValue);
+              }}
+              placeholder="Enter user IDs (comma-separated)"
+              className="text-sm"
+            />
+          </Wrapper>
+        );
+      }
+
+      case 'submission-access': {
+        const accessValue = value || { users: [], groups: [] };
+        const normalizedValue = typeof accessValue === 'object' ? accessValue : { users: [], groups: [] };
+        const { users = [], groups = [] } = normalizedValue;
+        
+        return (
+          <Wrapper>
+            <div className="space-y-1">
+              <Input
+                value={Array.isArray(users) ? users.join(', ') : ''}
+                onChange={(e) => {
+                  const userIds = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                  handleFieldValueChange(submissionId, field.id, { users: userIds, groups });
+                }}
+                placeholder="User IDs (comma-separated)"
+                className="text-sm"
+              />
+              <Input
+                value={Array.isArray(groups) ? groups.join(', ') : ''}
+                onChange={(e) => {
+                  const groupIds = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                  handleFieldValueChange(submissionId, field.id, { users, groups: groupIds });
+                }}
+                placeholder="Group IDs (comma-separated)"
+                className="text-sm"
+              />
+            </div>
+          </Wrapper>
+        );
+      }
 
     case 'checkbox':
       return (
@@ -365,7 +401,38 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
     case 'full-width-container':
     case 'record-table':
     case 'matrix-grid':
-    case 'cross-reference':
+    case 'cross-reference': {
+      const crossRefValue = value || [];
+      let displayValues: string[] = [];
+
+      if (Array.isArray(crossRefValue)) {
+        displayValues = crossRefValue.map(item => {
+          if (typeof item === 'object' && item !== null) {
+            return item.submission_ref_id || item.id || '[Unknown]';
+          }
+          return String(item);
+        });
+      } else if (crossRefValue && typeof crossRefValue === 'object') {
+        displayValues = [crossRefValue.submission_ref_id || crossRefValue.id || '[Unknown]'];
+      } else if (crossRefValue) {
+        displayValues = [String(crossRefValue)];
+      }
+
+      return (
+        <Wrapper>
+          <Input
+            value={displayValues.join(', ')}
+            onChange={(e) => {
+              const refs = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+              handleFieldValueChange(submissionId, field.id, refs);
+            }}
+            placeholder="Enter cross-reference IDs (comma-separated)"
+            className="text-sm"
+          />
+        </Wrapper>
+      );
+    }
+
     case 'child-cross-reference':
     case 'calculated':
     case 'conditional-section':

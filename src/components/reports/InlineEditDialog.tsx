@@ -67,53 +67,27 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
     }
   };
 
-  // ✅ updated handleFieldChange with master sync
-// const handleFieldChange = (submissionId: string, fieldId: string, value: any) => {
-//   setEditedData((prev: any) => {
-//     const updated = { ...prev };
+  const handleFieldChange = (submissionId: string, fieldId: string, value: any) => {
+    setEditedData((prev: any) => {
+      const updated = { ...prev };
 
-//     if (submissionId === 'master') {
-//       // Update master
-//       updated['master'] = { ...updated['master'], [fieldId]: value };
+      if (submissionId === 'master') {
+        // Update master row
+        updated['master'] = { ...updated['master'], [fieldId]: value };
 
-//       // Sync to all child records
-//       submissions.forEach((sub) => {
-//         if (!updated[sub.id]) updated[sub.id] = {};
-//         updated[sub.id][fieldId] = value;
-//       });
-//     } else {
-//       // Update only this record
-//       updated[submissionId] = {
-//         ...updated[submissionId],
-//         [fieldId]: value,
-//       };
-//     }
+        // Sync to all child records
+        submissions.forEach(sub => {
+          if (!updated[sub.id]) updated[sub.id] = {};
+          updated[sub.id][fieldId] = value;
+        });
+      } else {
+        // Update only this record (child row)
+        updated[submissionId] = { ...updated[submissionId], [fieldId]: value };
+      }
 
-//     return updated;
-//   });
-// };
-// ✅ Updated handleFieldChange with master sync for cross-reference multi-select
-const handleFieldChange = (submissionId: string, fieldId: string, value: any) => {
-  setEditedData((prev: any) => {
-    const updated = { ...prev };
-
-    if (submissionId === 'master') {
-      // Update master row
-      updated['master'] = { ...updated['master'], [fieldId]: value };
-
-      // Sync to all child records
-      submissions.forEach(sub => {
-        if (!updated[sub.id]) updated[sub.id] = {};
-        updated[sub.id][fieldId] = value; // value is an array of selected record IDs
-      });
-    } else {
-      // Update only this record (child row)
-      updated[submissionId] = { ...updated[submissionId], [fieldId]: value };
-    }
-
-    return updated;
-  });
-};
+      return updated;
+    });
+  };
 
   const handleAutoFill = (fieldId: string, value: any) => {
     setEditedData(prev => {
@@ -184,877 +158,871 @@ const handleFieldChange = (submissionId: string, fieldId: string, value: any) =>
       setSaving(false);
     }
   };
-// ensure options are always [{ value: string, label: string }]
-const normalizeOptions = (field: any) => {
-  let raw = field.field_options?.options ?? field.options ?? [];
 
-  if (typeof raw === "string") {
-    // "A,B,C" or '["A","B"]'
-    try {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) raw = parsed;
-    } catch (e) {
-      raw = raw.split(",").map((s: string) => s.trim());
-    }
-  }
+  // ensure options are always [{ value: string, label: string }]
+  const normalizeOptions = (field: any) => {
+    let raw = field.field_options?.options ?? field.options ?? [];
 
-  if (!Array.isArray(raw)) return [];
-
-  return raw.map((opt: any) => {
-    if (typeof opt === "string") {
-      return { value: String(opt), label: opt };
-    }
-    // handle various shapes like { value, label } or { id, name } etc.
-    const value = opt.value ?? opt.id ?? opt.key ?? opt.name ?? opt.label;
-    const label = opt.label ?? opt.name ?? opt.title ?? String(value);
-    return { value: String(value), label: String(label) };
-  });
-};
-
-// get display label(s) for a stored value or array of values
-const getLabelForValue = (field: any, value: any) => {
-  const opts = normalizeOptions(field);
-  if (Array.isArray(value)) {
-    return value
-      .map((v) => opts.find((o) => String(o.value) === String(v))?.label ?? String(v))
-      .join(", ");
-  }
-  return opts.find((o) => String(o.value) === String(value))?.label ?? (value ?? "");
-};
-
-// normalize stored field value into the type we expect in UI
-const normalizeStoredValue = (field: any, raw: any): string | string[] => {
-  const t = field.field_type;
-  if (t === "multi-select") {
-    if (Array.isArray(raw)) return raw.map(String);
     if (typeof raw === "string") {
+      // "A,B,C" or '["A","B"]'
       try {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) return parsed.map(String);
-      } catch (e) {}
-      return raw === "" ? [] : raw.split(",").map((s) => s.trim());
+        if (Array.isArray(parsed)) raw = parsed;
+      } catch (e) {
+        raw = raw.split(",").map((s: string) => s.trim());
+      }
     }
-    return [];
+
+    if (!Array.isArray(raw)) return [];
+
+    return raw.map((opt: any) => {
+      if (typeof opt === "string") {
+        return { value: String(opt), label: opt };
+      }
+      // handle various shapes like { value, label } or { id, name } etc.
+      const value = opt.value ?? opt.id ?? opt.key ?? opt.name ?? opt.label;
+      const label = opt.label ?? opt.name ?? opt.title ?? String(value);
+      return { value: String(value), label: String(label) };
+    });
+  };
+
+  // get display label(s) for a stored value or array of values
+  const getLabelForValue = (field: any, value: any) => {
+    const opts = normalizeOptions(field);
+    if (Array.isArray(value)) {
+      return value
+        .map((v) => opts.find((o) => String(o.value) === String(v))?.label ?? String(v))
+        .join(", ");
+    }
+    return opts.find((o) => String(o.value) === String(value))?.label ?? (value ?? "");
+  };
+
+  // normalize stored field value into the type we expect in UI
+  const normalizeStoredValue = (field: any, raw: any): string | string[] => {
+    const t = field.field_type;
+    if (t === "multi-select") {
+      if (Array.isArray(raw)) return raw.map(String);
+      if (typeof raw === "string") {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) return parsed.map(String);
+        } catch (e) {}
+        return raw === "" ? [] : raw.split(",").map((s) => s.trim());
+      }
+      return [];
+    }
+    // single-value case
+    return raw == null ? "" : String(raw);
+  };
+
+  const COUNTRY_CODES = [
+    { code: '+1', country: 'US', name: 'United States' },
+    { code: '+1', country: 'CA', name: 'Canada' },
+    { code: '+44', country: 'GB', name: 'United Kingdom' },
+    { code: '+33', country: 'FR', name: 'France' },
+    { code: '+49', country: 'DE', name: 'Germany' },
+    { code: '+81', country: 'JP', name: 'Japan' },
+    { code: '+61', country: 'AU', name: 'Australia' },
+    { code: '+55', country: 'BR', name: 'Brazil' },
+    { code: '+91', country: 'IN', name: 'India' },
+    { code: '+86', country: 'CN', name: 'China' },
+  ];
+
+  const CURRENCIES = [
+    { code: 'USD', name: 'US Dollar', symbol: '$', rate: 1 },
+    { code: 'EUR', name: 'Euro', symbol: '€', rate: 0.85 },
+    { code: 'GBP', name: 'British Pound', symbol: '£', rate: 0.73 },
+    { code: 'JPY', name: 'Japanese Yen', symbol: '¥', rate: 110 },
+    { code: 'CAD', name: 'Canadian Dollar', symbol: 'C$', rate: 1.25 },
+    { code: 'AUD', name: 'Australian Dollar', symbol: 'A$', rate: 1.35 },
+    { code: 'CHF', name: 'Swiss Franc', symbol: 'CHF', rate: 0.92 },
+    { code: 'CNY', name: 'Chinese Yuan', symbol: '¥', rate: 6.45 },
+    { code: 'INR', name: 'Indian Rupee', symbol: '₹', rate: 74 },
+  ];
+
+  function countryCodeToEmoji(code: string) {
+    if (!code) return "";
+    return code
+      .toUpperCase()
+      .replace(/./g, char =>
+        String.fromCodePoint(127397 + char.charCodeAt(0))
+      );
   }
-  // single-value case
-  return raw == null ? "" : String(raw);
-};
 
-const COUNTRY_CODES = [
-  { code: '+1', country: 'US', name: 'United States' },
-  { code: '+1', country: 'CA', name: 'Canada' },
-  { code: '+44', country: 'GB', name: 'United Kingdom' },
-  { code: '+33', country: 'FR', name: 'France' },
-  { code: '+49', country: 'DE', name: 'Germany' },
-  { code: '+81', country: 'JP', name: 'Japan' },
-  { code: '+61', country: 'AU', name: 'Australia' },
-  { code: '+55', country: 'BR', name: 'Brazil' },
-  { code: '+91', country: 'IN', name: 'India' },
-  { code: '+86', country: 'CN', name: 'China' },
-];
+  interface Country {
+    code: string;
+    name: string;
+    flag: string;
+  }
 
-const CURRENCIES = [
-  { code: 'USD', name: 'US Dollar', symbol: '$', rate: 1 },
-  { code: 'EUR', name: 'Euro', symbol: '€', rate: 0.85 },
-  { code: 'GBP', name: 'British Pound', symbol: '£', rate: 0.73 },
-  { code: 'JPY', name: 'Japanese Yen', symbol: '¥', rate: 110 },
-  { code: 'CAD', name: 'Canadian Dollar', symbol: 'C$', rate: 1.25 },
-  { code: 'AUD', name: 'Australian Dollar', symbol: 'A$', rate: 1.35 },
-  { code: 'CHF', name: 'Swiss Franc', symbol: 'CHF', rate: 0.92 },
-  { code: 'CNY', name: 'Chinese Yuan', symbol: '¥', rate: 6.45 },
-  { code: 'INR', name: 'Indian Rupee', symbol: '₹', rate: 74 },
-];
+  const useCountries = () => {
+    const [countries, setCountries] = useState<Country[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-function countryCodeToEmoji(code: string) {
-  if (!code) return "";
-  return code
-    .toUpperCase()
-    .replace(/./g, char =>
-      String.fromCodePoint(127397 + char.charCodeAt(0))
-    );
-}
+    useEffect(() => {
+      const fetchCountries = async () => {
+        try {
+          const response = await axios.get(
+            "https://restcountries.com/v3.1/all?fields=name,cca2"
+          );
+          const data = response.data.map((country: any) => ({
+            code: country.cca2,
+            name: country.name?.common || "",
+          }));
+          // sort alphabetically
+          data.sort((a: Country, b: Country) =>
+            a.name.localeCompare(b.name)
+          );
+          setCountries(data);
+          setError(null);
+        } catch (err) {
+          console.error("Error fetching countries:", err);
+          setError("Failed to fetch countries");
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchCountries();
+    }, []);
 
-interface Country {
-  code: string;
-  name: string;
-  flag: string;
-}
+    return { countries, loading, error };
+  }
 
-const useCountries=()=> {
-  const [countries, setCountries] = useState<Country[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Top of InlineEditDialog component
+  const { countries, loading: countriesLoading, error: countriesError } = useCountries();
 
-  useEffect(() => {
-    const fetchCountries = async () => {
-      try {
-        const response = await axios.get(
-          "https://restcountries.com/v3.1/all?fields=name,cca2"
-        );
-        const data = response.data.map((country: any) => ({
-          code: country.cca2,
-          name: country.name?.common || "",
-        }));
-        // sort alphabetically
-        data.sort((a: Country, b: Country) =>
-          a.name.localeCompare(b.name)
-        );
-        setCountries(data);
-        setError(null);
-      } catch (err) {
-        console.error("Error fetching countries:", err);
-        setError("Failed to fetch countries");
-      } finally {
-        setLoading(false);
+  // --- Add this in the same file ---
+  const MasterCrossReferenceSelect = ({ allRecords, selectedRecords, onChange }) => {
+    const [open, setOpen] = useState(false);
+
+    const handleToggle = (recordId) => {
+      if (selectedRecords.includes(recordId)) {
+        onChange(selectedRecords.filter(id => id !== recordId));
+      } else {
+        onChange([...selectedRecords, recordId]);
       }
     };
-    fetchCountries();
-  }, []);
 
-  return { countries, loading, error };
-}
-
-// 👇 Top of InlineEditDialog component
-const { countries, loading: countriesLoading, error: countriesError } = useCountries();
-
-// --- Add this in the same file ---
-const MasterCrossReferenceSelect = ({ allRecords, selectedRecords, onChange }) => {
-  const [open, setOpen] = useState(false);
-
-  const handleToggle = (recordId) => {
-    if (selectedRecords.includes(recordId)) {
-      onChange(selectedRecords.filter(id => id !== recordId));
-    } else {
-      onChange([...selectedRecords, recordId]);
-    }
-  };
-
-  return (
-    <Select open={open} onOpenChange={setOpen} value={''}>
-      <SelectTrigger className="w-full">
-        <SelectValue placeholder={selectedRecords.length > 0 ? `${selectedRecords.length} selected` : 'Select records'} />
-      </SelectTrigger>
-      <SelectContent className="max-h-60 overflow-auto">
-        {allRecords.map(record => (
-          <SelectItem key={record.id} value={record.submission_ref_id}>
-            <div className="flex items-center gap-2">
-              <Checkbox checked={selectedRecords.includes(record.submission_ref_id)} onCheckedChange={() => handleToggle(record.submission_ref_id)} />
-              <span>{record.displayData}</span>
-            </div>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-};
-
-const renderFieldInput = (
-  field: any,
-  submissionId: string,
-  value: any,
-  isBulkEdit: boolean = false
-) => {
-  const fieldValue = value ?? '';
-  const isDisabled = isBulkEdit && submissionId !== 'master';
-
-  switch (field.field_type) {
-
-//     case 'cross-reference': {
-//   let displayValues: string[] = [];
-
-//   if (Array.isArray(value)) {
-//     displayValues = value.map(item => {
-//       if (typeof item === 'object' && item !== null) {
-//         // Use submission_ref_id or fallback to id
-//         return item.submission_ref_id || item.id || '[Unknown]';
-//       }
-//       return String(item);
-//     });
-//   } else if (value && typeof value === 'object') {
-//     displayValues = [value.submission_ref_id || value.id || '[Unknown]'];
-//   } else if (value) {
-//     displayValues = [String(value)];
-//   }
-
-//   if (displayValues.length === 0) {
-//     return (
-//       <span className="italic text-muted-foreground">No references</span>
-//     );
-//   }
-
-//   return (
-//     <div className="flex flex-wrap gap-1">
-//       {displayValues.map((v, i) => (
-//         <span key={i} className="px-2 py-1 bg-primary/10 text-primary rounded text-sm">
-//           {v}
-//         </span>
-//       ))}
-//     </div>
-//   );
-// }
-
-// case 'cross-reference': {
-//   // Options should come from field.customConfig.records
-//   // Each option: { submission_ref_id: string, displayData: string }
-//   const options: { submission_ref_id: string; displayData: string }[] =
-//     field.customConfig?.records || [];
-
-//   // Normalize value into an array of submission_ref_id
-//   const selectedValues: string[] = Array.isArray(value)
-//     ? value.map((v) => (typeof v === 'object' ? v.submission_ref_id : v))
-//     : value
-//     ? [typeof value === 'object' ? value.submission_ref_id : value]
-//     : [];
-
-//   if (submissionId === 'master') {
-//     // Master row: multi-select dropdown
-//     return (
-//       <Select>
-//         <SelectTrigger className="w-full">
-//           <SelectValue
-//             placeholder={
-//               selectedValues.length
-//                 ? selectedValues
-//                     .map(
-//                       (v) =>
-//                         options.find((o) => o.submission_ref_id === v)?.displayData || v
-//                     )
-//                     .join(', ')
-//                 : 'Select records'
-//             }
-//           />
-//         </SelectTrigger>
-//         <SelectContent>
-//           {options.map((opt) => (
-//             <SelectItem
-//               key={opt.submission_ref_id}
-//               value={opt.submission_ref_id}
-//               onClick={() => {
-//                 const newSelected = selectedValues.includes(opt.submission_ref_id)
-//                   ? selectedValues.filter((v) => v !== opt.submission_ref_id)
-//                   : [...selectedValues, opt.submission_ref_id];
-
-//                 handleFieldChange('master', field.id, newSelected);
-//               }}
-//             >
-//               <div className="flex items-center gap-2">
-//                 <input
-//                   type="checkbox"
-//                   checked={selectedValues.includes(opt.submission_ref_id)}
-//                   readOnly
-//                 />
-//                 <span>{opt.displayData || opt.submission_ref_id}</span>
-//               </div>
-//             </SelectItem>
-//           ))}
-//         </SelectContent>
-//       </Select>
-//     );
-//   } else {
-//     // Child rows: display selected records as badges only
-//     if (selectedValues.length === 0) {
-//       return <span className="italic text-muted-foreground">No references</span>;
-//     }
-
-//     return (
-//       <div className="flex flex-wrap gap-1">
-//         {selectedValues.map((v) => {
-//           const record = options.find((o) => o.submission_ref_id === v);
-//           return (
-//             <span
-//               key={v}
-//               className="px-2 py-1 bg-primary/10 text-primary rounded text-sm"
-//             >
-//               {record?.displayData || v}
-//             </span>
-//           );
-//         })}
-//       </div>
-//     );
-//   }
-// }
-
-case 'cross-reference': {
-  // Make sure allRecords is fetched/passed from parent or backend
-  // Example: const allRecords = field.customConfig?.allRecords || [];
-  const allRecords = field.customConfig?.allRecords || []; // <- replace with real fetch
-
-  // Use field.id instead of fieldId
-  const currentFieldId = field.id;
-
-  // Master record: show multi-select dropdown
-  if (submissionId === 'master') {
     return (
-      <MasterCrossReferenceSelect
-        allRecords={allRecords} // full list of records
-        selectedRecords={editedData.master?.[currentFieldId] || []} // current master selection
-        onChange={(selectedIds: string[]) =>
-          handleFieldChange('master', currentFieldId, selectedIds)
-        }
-      />
-    );
-  }
-
-  // Child records: show badges of selected records only
-  const displayValues = (value || []).map((v: any) => v.submission_ref_id || v.id || '[Unknown]');
-
-  if (displayValues.length === 0) {
-    return <span className="italic text-muted-foreground">No references</span>;
-  }
-
-  return (
-    <div className="flex flex-wrap gap-1">
-      {displayValues.map((v, i) => (
-        <span key={i} className="px-2 py-1 bg-primary/10 text-primary rounded text-sm">
-          {v}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-
-    case 'text':
-    case 'email':
-    case 'number':
-      return (
-        <Input
-          type={field.field_type === 'number' ? 'number' : 'text'}
-          value={fieldValue}
-          onChange={(e) =>
-            handleFieldChange(submissionId, field.id, e.target.value)
-          }
-          className="w-full"
-          disabled={isDisabled}
-        />
-      );
-
-    case 'textarea':
-      return (
-        <Textarea
-          value={fieldValue}
-          onChange={(e) =>
-            handleFieldChange(submissionId, field.id, e.target.value)
-          }
-          className="w-full min-h-[60px]"
-          disabled={isDisabled}
-        />
-      );
-case "select":{
-  const selectOptions = normalizeOptions(field);
-  const normalizedValue = normalizeStoredValue(field, value);
-
-  return (
-    <Select
-      value={typeof normalizedValue === "string" ? normalizedValue : ""}
-      onValueChange={(val) => handleFieldChange(submissionId, field.id, val)}
-      disabled={isDisabled}
-    >
-      <SelectTrigger className="w-full">
-        <SelectValue placeholder="Select option" />
-      </SelectTrigger>
-      <SelectContent>
-        {selectOptions.map((option: any) => (
-          <SelectItem key={option.value} value={option.value}>
-            {option.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
-case "currency": {
-  type CurrencyValue = { currency: string; amount: string };
-  let parsed: CurrencyValue = { currency: "USD", amount: "" };
-
-  try {
-    parsed =
-      typeof value === "string"
-        ? JSON.parse(value)
-        : (value as CurrencyValue) || parsed;
-  } catch {
-    // keep defaults
-  }
-
-  const currencyVal = parsed.currency;
-  const amountVal = parsed.amount;
-
-  const handleCurrencyChange = (newCurrency: string) => {
-    handleFieldChange(
-      submissionId,
-      field.id,
-      JSON.stringify({ currency: newCurrency, amount: amountVal })
-    );
-  };
-
-  const handleAmountChange = (newAmount: string) => {
-    handleFieldChange(
-      submissionId,
-      field.id,
-      JSON.stringify({ currency: currencyVal, amount: newAmount })
-    );
-  };
-
-  return (
-    <div className="flex gap-2">
-      <Select
-        value={currencyVal}
-        onValueChange={handleCurrencyChange}
-        disabled={isDisabled}
-      >
-        <SelectTrigger className="w-18">
-          <SelectValue placeholder="Currency" />
-        </SelectTrigger>
-        <SelectContent>
-          {CURRENCIES.map((c) => (
-            <SelectItem key={c.code} value={c.code}>
-              {c.symbol}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Input
-        type="number"
-        step="0.01"
-        value={amountVal}
-        onChange={(e) => handleAmountChange(e.target.value)}
-        className="flex-1 w-38"
-        disabled={isDisabled}
-        placeholder="Amount"
-
-      />
-    </div>
-  );
-}
-
-case "phone": {
-  type PhoneValue = { code: string; number: string };
-  let parsed: PhoneValue = { code: "+1", number: "" };
-
-  try {
-    parsed =
-      typeof value === "string"
-        ? JSON.parse(value)
-        : (value as PhoneValue) || parsed;
-  } catch {
-    // keep defaults
-  }
-
-  const codeVal = parsed.code;
-  const numberVal = parsed.number;
-
-  const handleCodeChange = (newCode: string) => {
-    handleFieldChange(
-      submissionId,
-      field.id,
-      JSON.stringify({ code: newCode, number: numberVal })
-    );
-  };
-
-  const handleNumberChange = (newNumber: string) => {
-    handleFieldChange(
-      submissionId,
-      field.id,
-      JSON.stringify({ code: codeVal, number: newNumber })
-    );
-  };
-
-  return (
-    <div className="flex gap-2">
-      <Select
-        value={codeVal}
-        onValueChange={handleCodeChange}
-        disabled={isDisabled}
-      >
-        <SelectTrigger className="w-32">
-          <SelectValue placeholder="Code" />
-        </SelectTrigger>
-        <SelectContent>
-          {COUNTRY_CODES.map((c) => (
-            <SelectItem key={`${c.country}-${c.code}`} value={c.code}>
-              {c.code} {c.country}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Input
-        type="tel"
-        value={numberVal}
-        onChange={(e) => handleNumberChange(e.target.value)}
-        className="flex-1 w-30"
-        disabled={isDisabled}
-        placeholder="Phone number"
-      />
-    </div>
-  );
-}
-case "country": {
-  if (countriesLoading) {
-    return (
-      <div className="flex items-center gap-2">
-        <span>Loading countries...</span>
-      </div>
-    );
-  }
-
-  if (countriesError) {
-    return <p className="text-red-600">{countriesError}</p>;
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      <Select
-        value={value || ""}
-        onValueChange={(newCode) =>
-          handleFieldChange(submissionId, field.id, newCode)
-        }
-        disabled={isDisabled}
-      >
+      <Select open={open} onOpenChange={setOpen} value={''}>
         <SelectTrigger className="w-full">
-          <SelectValue placeholder="Select country" />
+          <SelectValue placeholder={selectedRecords.length > 0 ? `${selectedRecords.length} selected` : 'Select records'} />
         </SelectTrigger>
-        <SelectContent>
-          {countries.map((c) => (
-            <SelectItem key={c.code} value={c.code}>
-              <span className="flex items-center gap-2">
-                {countryCodeToEmoji(c.code)} {c.name}
-              </span>
+        <SelectContent className="max-h-60 overflow-auto">
+          {allRecords.map(record => (
+            <SelectItem key={record.id} value={record.submission_ref_id}>
+              <div className="flex items-center gap-2">
+                <Checkbox checked={selectedRecords.includes(record.submission_ref_id)} onCheckedChange={() => handleToggle(record.submission_ref_id)} />
+                <span>{record.displayData}</span>
+              </div>
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
-    </div>
-  );
-}
-
-
-
-case "radio": {
-  const selectOptions = normalizeOptions(field);
-  // ensure single-value string
-  const normalizedValue = normalizeStoredValue(field, value) as string;
-
-  // make a safe unique group name per record/master
-  const safeSubmissionId = String(submissionId).replace(/[^a-zA-Z0-9_-]/g, "_");
-  const groupName = `${field.id}_radio_${safeSubmissionId}`;
-
-  return (
-    <div className="flex flex-col gap-2">
-      {selectOptions.map((opt: any) => (
-        <label key={opt.value} className="inline-flex items-center gap-2 text-sm">
-          <input
-            type="radio"
-            name={groupName} // << unique per record
-            value={opt.value}
-            checked={String(normalizedValue) === String(opt.value)}
-            onChange={() => handleFieldChange(submissionId, field.id, opt.value)}
-            disabled={isDisabled}
-          />
-          <span>{opt.label}</span> {/* show only label */}
-        </label>
-      ))}
-    </div>
-  );
-}
-
-case "multi-select": {
-  const selectOptions = normalizeOptions(field);
-  const selectedValues = Array.isArray(normalizeStoredValue(field, value))
-    ? (normalizeStoredValue(field, value) as string[])
-    : [];
-
-  const toggle = (val: string) => {
-    const updated = selectedValues.includes(val)
-      ? selectedValues.filter((v) => v !== val)
-      : [...selectedValues, val];
-    handleFieldChange(submissionId, field.id, updated);
+    );
   };
 
-  return (
-    <div className="flex flex-col gap-2">
-      {selectOptions.map((opt: any) => (
-        <label key={opt.value} className="inline-flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={selectedValues.includes(opt.value)}
-            onChange={() => toggle(opt.value)}
-            disabled={isDisabled}
-          />
-          <span>{opt.label}</span>
-        </label>
-      ))}
-    </div>
-  );
-}
+  const renderFieldInput = (
+    field: any,
+    submissionId: string,
+    value: any,
+    isBulkEdit: boolean = false
+  ) => {
+    const fieldValue = value ?? '';
+    const isDisabled = isBulkEdit && submissionId !== 'master';
 
-    case 'date':
-      return (
-        <Input
-          type="date"
-          value={fieldValue}
-          onChange={(e) =>
-            handleFieldChange(submissionId, field.id, e.target.value)
-          }
-          className="w-full"
-          disabled={isDisabled}
-        />
-      );
+    switch (field.field_type) {
+      case 'cross-reference': {
+        // Handle cross-reference display and editing
+        const crossRefValue = value || [];
+        let displayValues: string[] = [];
 
-    case 'time':
-      return (
-        <Input
-          type="time"
-          value={fieldValue}
-          onChange={(e) =>
-            handleFieldChange(submissionId, field.id, e.target.value)
-          }
-          className="w-full"
-          disabled={isDisabled}
-        />
-      );
-
-    case 'datetime':
-      return (
-        <Input
-          type="datetime-local"
-          value={fieldValue}
-          onChange={(e) =>
-            handleFieldChange(submissionId, field.id, e.target.value)
-          }
-          className="w-full"
-          disabled={isDisabled}
-        />
-      );
-
-    case 'checkbox':
-      return (
-        <div className="flex items-center gap-2">
-          <Checkbox
-            checked={fieldValue === true}
-            onCheckedChange={(checked) =>
-              handleFieldChange(submissionId, field.id, checked === true)
+        if (Array.isArray(crossRefValue)) {
+          displayValues = crossRefValue.map(item => {
+            if (typeof item === 'object' && item !== null) {
+              return item.submission_ref_id || item.id || '[Unknown]';
             }
-            disabled={isDisabled}
-          />
-          <span className="text-sm">{field.label}</span>
-        </div>
-      );
+            return String(item);
+          });
+        } else if (crossRefValue && typeof crossRefValue === 'object') {
+          displayValues = [crossRefValue.submission_ref_id || crossRefValue.id || '[Unknown]'];
+        } else if (crossRefValue) {
+          displayValues = [String(crossRefValue)];
+        }
 
-    case 'toggle-switch':
-      return (
-        <div className="flex items-center gap-2">
-          <Switch
-            checked={fieldValue === true}
-            onCheckedChange={(checked) =>
-              handleFieldChange(submissionId, field.id, checked === true)
-            }
-            disabled={isDisabled}
-          />
-          <span className="text-sm">{field.label}</span>
-        </div>
-      );
+        // Master record: show editable multi-select (simplified for now)
+        if (submissionId === 'master') {
+          return (
+            <Input
+              value={displayValues.join(', ')}
+              onChange={(e) => {
+                const refs = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                handleFieldChange('master', field.id, refs);
+              }}
+              placeholder="Enter cross-reference IDs (comma-separated)"
+              disabled={isDisabled}
+              className="w-full"
+            />
+          );
+        }
 
-    case 'rating': {
-      const maxRating = field.customConfig?.ratingScale || 5;
-      return (
-        <div className="flex items-center gap-1">
-          {[...Array(maxRating)].map((_, index) => {
-            const starValue = index + 1;
-            return (
-              <Star
-                key={index}
-                className={`h-4 w-4 cursor-pointer transition-colors ${
-                  starValue <= (fieldValue || 0)
-                    ? 'fill-yellow-400 text-yellow-400'
-                    : 'text-gray-300'
-                }`}
-                onClick={() =>
-                  !isDisabled &&
-                  handleFieldChange(submissionId, field.id, starValue)
-                }
-              />
-            );
-          })}
-          {fieldValue > 0 && (
-            <span className="ml-2 text-xs text-muted-foreground">
-              {fieldValue}/{maxRating}
-            </span>
-          )}
-        </div>
-      );
-    }
+        // Child records: show selected references as badges
+        if (displayValues.length === 0) {
+          return <span className="italic text-muted-foreground">No references</span>;
+        }
 
-    case 'slider': {
-      const min = field.validation?.min ?? 0;
-      const max = field.validation?.max ?? 100;
-      return (
-        <div className="space-y-2 w-full">
-          <Slider
-            value={[fieldValue || min]}
-            onValueChange={(newVal) =>
-              handleFieldChange(submissionId, field.id, newVal[0])
-            }
-            min={min}
-            max={max}
-            step={field.customConfig?.step || 1}
-            disabled={isDisabled}
-          />
-          <div className="text-xs text-muted-foreground text-center">
-            {fieldValue || min} / {max}
+        return (
+          <div className="flex flex-wrap gap-1">
+            {displayValues.map((v, i) => (
+              <span key={i} className="px-2 py-1 bg-primary/10 text-primary rounded text-sm">
+                {v}
+              </span>
+            ))}
           </div>
-        </div>
-      );
-    }
+        );
+      }
 
-    case "tags": {
-  const tags = Array.isArray(value) ? value : [];
+      case 'user-picker': {
+        const userValue = value || [];
+        const selectedUserIds = Array.isArray(userValue) ? userValue : (userValue ? [userValue] : []);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && e.currentTarget.value.trim()) {
-      e.preventDefault();
-      const newTag = e.currentTarget.value.trim();
-      const updated = [...tags, newTag];
-      handleFieldChange(submissionId, field.id, updated);
-      e.currentTarget.value = ""; // clear input
-    }
-  };
+        // Master record: show editable input (simplified for now)
+        if (submissionId === 'master') {
+          return (
+            <Input
+              value={selectedUserIds.join(', ')}
+              onChange={(e) => {
+                const userIds = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                const newValue = field.customConfig?.allowMultiple ? userIds : (userIds[0] || '');
+                handleFieldChange('master', field.id, newValue);
+              }}
+              placeholder="Enter user IDs (comma-separated)"
+              disabled={isDisabled}
+              className="w-full"
+            />
+          );
+        }
 
-  const removeTag = (tagToRemove: string) => {
-    const updated = tags.filter((t) => t !== tagToRemove);
-    handleFieldChange(submissionId, field.id, updated);
-  };
+        // Child records: show selected users as badges
+        if (selectedUserIds.length === 0) {
+          return <span className="italic text-muted-foreground">No users selected</span>;
+        }
 
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap gap-2">
-        {tags.map((tag: string, idx: number) => (
-          <span
-            key={idx}
-            className="flex items-center gap-1 bg-primary/10 text-primary px-2 py-1 rounded-full text-sm"
+        return (
+          <div className="flex flex-wrap gap-1">
+            {selectedUserIds.map((userId, i) => (
+              <span key={i} className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
+                User: {userId}
+              </span>
+            ))}
+          </div>
+        );
+      }
+
+      case 'submission-access': {
+        const accessValue = value || { users: [], groups: [] };
+        const normalizedValue = typeof accessValue === 'object' ? accessValue : { users: [], groups: [] };
+        const { users = [], groups = [] } = normalizedValue;
+
+        // Master record: show editable inputs
+        if (submissionId === 'master') {
+          return (
+            <div className="space-y-2">
+              <Input
+                value={Array.isArray(users) ? users.join(', ') : ''}
+                onChange={(e) => {
+                  const userIds = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                  handleFieldChange('master', field.id, { users: userIds, groups });
+                }}
+                placeholder="Enter user IDs (comma-separated)"
+                disabled={isDisabled}
+                className="w-full"
+              />
+              <Input
+                value={Array.isArray(groups) ? groups.join(', ') : ''}
+                onChange={(e) => {
+                  const groupIds = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                  handleFieldChange('master', field.id, { users, groups: groupIds });
+                }}
+                placeholder="Enter group IDs (comma-separated)"
+                disabled={isDisabled}
+                className="w-full"
+              />
+            </div>
+          );
+        }
+
+        // Child records: show assigned access as badges
+        const displayItems = [];
+        if (Array.isArray(users)) {
+          users.forEach(userId => displayItems.push({ type: 'user', id: userId }));
+        }
+        if (Array.isArray(groups)) {
+          groups.forEach(groupId => displayItems.push({ type: 'group', id: groupId }));
+        }
+
+        if (displayItems.length === 0) {
+          return <span className="italic text-muted-foreground">No access assigned</span>;
+        }
+
+        return (
+          <div className="flex flex-wrap gap-1">
+            {displayItems.map((item, i) => (
+              <span 
+                key={`${item.type}-${item.id}-${i}`} 
+                className={`px-2 py-1 rounded text-sm ${
+                  item.type === 'user' 
+                    ? 'bg-blue-100 text-blue-800' 
+                    : 'bg-green-100 text-green-800'
+                }`}
+              >
+                {item.type === 'user' ? 'User:' : 'Group:'} {item.id}
+              </span>
+            ))}
+          </div>
+        );
+      }
+
+      case 'text':
+      case 'email':
+      case 'number':
+        return (
+          <Input
+            type={field.field_type === 'number' ? 'number' : 'text'}
+            value={fieldValue}
+            onChange={(e) =>
+              handleFieldChange(submissionId, field.id, e.target.value)
+            }
+            className="w-full"
+            disabled={isDisabled}
+          />
+        );
+
+      case 'textarea':
+        return (
+          <Textarea
+            value={fieldValue}
+            onChange={(e) =>
+              handleFieldChange(submissionId, field.id, e.target.value)
+            }
+            className="w-full min-h-[60px]"
+            disabled={isDisabled}
+          />
+        );
+
+      case "select": {
+        const selectOptions = normalizeOptions(field);
+        const normalizedValue = normalizeStoredValue(field, value);
+
+        return (
+          <Select
+            value={typeof normalizedValue === "string" ? normalizedValue : ""}
+            onValueChange={(val) => handleFieldChange(submissionId, field.id, val)}
+            disabled={isDisabled}
           >
-            {tag}
-            <button
-              type="button"
-              onClick={() => removeTag(tag)}
-              className="text-xs text-red-500 hover:text-red-700"
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select option" />
+            </SelectTrigger>
+            <SelectContent>
+              {selectOptions.map((option: any) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      }
+
+      case "currency": {
+        type CurrencyValue = { currency: string; amount: string };
+        let parsed: CurrencyValue = { currency: "USD", amount: "" };
+
+        try {
+          parsed =
+            typeof value === "string"
+              ? JSON.parse(value)
+              : (value as CurrencyValue) || parsed;
+        } catch {
+          // keep defaults
+        }
+
+        const currencyVal = parsed.currency;
+        const amountVal = parsed.amount;
+
+        const handleCurrencyChange = (newCurrency: string) => {
+          handleFieldChange(
+            submissionId,
+            field.id,
+            JSON.stringify({ currency: newCurrency, amount: amountVal })
+          );
+        };
+
+        const handleAmountChange = (newAmount: string) => {
+          handleFieldChange(
+            submissionId,
+            field.id,
+            JSON.stringify({ currency: currencyVal, amount: newAmount })
+          );
+        };
+
+        return (
+          <div className="flex gap-2">
+            <Select
+              value={currencyVal}
+              onValueChange={handleCurrencyChange}
               disabled={isDisabled}
             >
-              ×
-            </button>
-          </span>
-        ))}
-      </div>
-      {!isDisabled && (
-        <Input
-          type="text"
-          placeholder="Type and press Enter..."
-          onKeyDown={handleKeyDown}
-          className="w-full"
-        />
-      )}
-    </div>
-  );
-}
-case 'file':
-case 'image': {
-  if (!value) {
-    return (
-      <Badge  className="italic opacity-70 text-muted-foreground/80 bg-muted/50">
-        No file
-      </Badge>
-    );
-  }
-
-  // Normalize value into an array
-  const files: { name: string; url: string }[] = [];
-
-  if (typeof value === 'string' && value.startsWith('http')) {
-    files.push({ name: value.split('/').pop() || 'file', url: value });
-  } else if (Array.isArray(value)) {
-    value.forEach((f: any) => {
-      if (typeof f === 'string' && f.startsWith('http')) {
-        files.push({ name: f.split('/').pop() || 'file', url: f });
-      } else if (f?.url) {
-        files.push({ name: f.name || f.url.split('/').pop() || 'file', url: f.url });
+              <SelectTrigger className="w-18">
+                <SelectValue placeholder="Currency" />
+              </SelectTrigger>
+              <SelectContent>
+                {CURRENCIES.map((c) => (
+                  <SelectItem key={c.code} value={c.code}>
+                    {c.symbol}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              type="number"
+              step="0.01"
+              value={amountVal}
+              onChange={(e) => handleAmountChange(e.target.value)}
+              className="flex-1 w-38"
+              disabled={isDisabled}
+              placeholder="Amount"
+            />
+          </div>
+        );
       }
-    });
-  } else if (value.url) {
-    files.push({ name: value.name || value.url.split('/').pop() || 'file', url: value.url });
-  }
 
-  if (files.length === 0) {
-    return <span className="text-sm text-muted-foreground">File attached</span>;
-  }
+      case "phone": {
+        type PhoneValue = { code: string; number: string };
+        let parsed: PhoneValue = { code: "+1", number: "" };
 
-  return (
-    <div className="flex flex-col gap-1">
-      {files.map((f, index) => (
-        <div key={index} className="flex gap-2 items-center">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.open(f.url, '_blank')}
-            className="h-8"
-          >
-            <Eye className="h-3 w-3 mr-1" /> View
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const link = document.createElement('a');
-              link.href = f.url;
-              link.download = f.name;
-              link.click();
-            }}
-            className="h-8"
-          >
-            Download
-          </Button>
-        </div>
-      ))}
-    </div>
-  );
-}
+        try {
+          parsed =
+            typeof value === "string"
+              ? JSON.parse(value)
+              : (value as PhoneValue) || parsed;
+        } catch {
+          // keep defaults
+        }
 
+        const codeVal = parsed.code;
+        const numberVal = parsed.number;
 
-    case 'header':
-    case 'description':
-    case 'section-break':
-    case 'horizontal-line':
-    case 'full-width-container':
-    case 'record-table':
-    case 'matrix-grid':
-    // case 'cross-reference':
-    // case 'child-cross-reference':
-    case 'calculated':
-    case 'conditional-section':
-    case 'workflow-trigger':
-    case 'query-field':
-    case 'barcode':
-    case 'address': 
-    {
-      return (
-        <div className="text-xs text-muted-foreground italic p-2 bg-muted/20 rounded">
-          Non-editable field
-        </div>
-      );
-    }
+        const handleCodeChange = (newCode: string) => {
+          handleFieldChange(
+            submissionId,
+            field.id,
+            JSON.stringify({ code: newCode, number: numberVal })
+          );
+        };
 
-    default:
-      return (
-        <Input
-          value={fieldValue}
-          onChange={(e) =>
-            handleFieldChange(submissionId, field.id, e.target.value)
+        const handleNumberChange = (newNumber: string) => {
+          handleFieldChange(
+            submissionId,
+            field.id,
+            JSON.stringify({ code: codeVal, number: newNumber })
+          );
+        };
+
+        return (
+          <div className="flex gap-2">
+            <Select
+              value={codeVal}
+              onValueChange={handleCodeChange}
+              disabled={isDisabled}
+            >
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="Code" />
+              </SelectTrigger>
+              <SelectContent>
+                {COUNTRY_CODES.map((c) => (
+                  <SelectItem key={`${c.country}-${c.code}`} value={c.code}>
+                    {c.code} {c.country}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              type="tel"
+              value={numberVal}
+              onChange={(e) => handleNumberChange(e.target.value)}
+              className="flex-1 w-30"
+              disabled={isDisabled}
+              placeholder="Phone number"
+            />
+          </div>
+        );
+      }
+
+      case "country": {
+        if (countriesLoading) {
+          return (
+            <div className="flex items-center gap-2">
+              <span>Loading countries...</span>
+            </div>
+          );
+        }
+
+        if (countriesError) {
+          return <p className="text-red-600">{countriesError}</p>;
+        }
+
+        return (
+          <div className="flex flex-col gap-2">
+            <Select
+              value={value || ""}
+              onValueChange={(newCode) =>
+                handleFieldChange(submissionId, field.id, newCode)
+              }
+              disabled={isDisabled}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select country" />
+              </SelectTrigger>
+              <SelectContent>
+                {countries.map((c) => (
+                  <SelectItem key={c.code} value={c.code}>
+                    <span className="flex items-center gap-2">
+                      {countryCodeToEmoji(c.code)} {c.name}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        );
+      }
+
+      case "radio": {
+        const selectOptions = normalizeOptions(field);
+        // ensure single-value string
+        const normalizedValue = normalizeStoredValue(field, value) as string;
+
+        // make a safe unique group name per record/master
+        const safeSubmissionId = String(submissionId).replace(/[^a-zA-Z0-9_-]/g, "_");
+        const groupName = `${field.id}_radio_${safeSubmissionId}`;
+
+        return (
+          <div className="flex flex-col gap-2">
+            {selectOptions.map((opt: any) => (
+              <label key={opt.value} className="inline-flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name={groupName} // << unique per record
+                  value={opt.value}
+                  checked={String(normalizedValue) === String(opt.value)}
+                  onChange={() => handleFieldChange(submissionId, field.id, opt.value)}
+                  disabled={isDisabled}
+                />
+                <span>{opt.label}</span> {/* show only label */}
+              </label>
+            ))}
+          </div>
+        );
+      }
+
+      case "multi-select": {
+        const selectOptions = normalizeOptions(field);
+        const selectedValues = Array.isArray(normalizeStoredValue(field, value))
+          ? (normalizeStoredValue(field, value) as string[])
+          : [];
+
+        const toggle = (val: string) => {
+          const updated = selectedValues.includes(val)
+            ? selectedValues.filter((v) => v !== val)
+            : [...selectedValues, val];
+          handleFieldChange(submissionId, field.id, updated);
+        };
+
+        return (
+          <div className="flex flex-col gap-2">
+            {selectOptions.map((opt: any) => (
+              <label key={opt.value} className="inline-flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={selectedValues.includes(opt.value)}
+                  onChange={() => toggle(opt.value)}
+                  disabled={isDisabled}
+                />
+                <span>{opt.label}</span>
+              </label>
+            ))}
+          </div>
+        );
+      }
+
+      case 'date':
+        return (
+          <Input
+            type="date"
+            value={fieldValue}
+            onChange={(e) =>
+              handleFieldChange(submissionId, field.id, e.target.value)
+            }
+            className="w-full"
+            disabled={isDisabled}
+          />
+        );
+
+      case 'time':
+        return (
+          <Input
+            type="time"
+            value={fieldValue}
+            onChange={(e) =>
+              handleFieldChange(submissionId, field.id, e.target.value)
+            }
+            className="w-full"
+            disabled={isDisabled}
+          />
+        );
+
+      case 'datetime':
+        return (
+          <Input
+            type="datetime-local"
+            value={fieldValue}
+            onChange={(e) =>
+              handleFieldChange(submissionId, field.id, e.target.value)
+            }
+            className="w-full"
+            disabled={isDisabled}
+          />
+        );
+
+      case 'checkbox':
+        return (
+          <div className="flex items-center gap-2">
+            <Checkbox
+              checked={fieldValue === true}
+              onCheckedChange={(checked) =>
+                handleFieldChange(submissionId, field.id, checked === true)
+              }
+              disabled={isDisabled}
+            />
+            <span className="text-sm">{field.label}</span>
+          </div>
+        );
+
+      case 'toggle-switch':
+        return (
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={fieldValue === true}
+              onCheckedChange={(checked) =>
+                handleFieldChange(submissionId, field.id, checked === true)
+              }
+              disabled={isDisabled}
+            />
+            <span className="text-sm">{field.label}</span>
+          </div>
+        );
+
+      case 'rating': {
+        const maxRating = field.customConfig?.ratingScale || 5;
+        return (
+          <div className="flex items-center gap-1">
+            {[...Array(maxRating)].map((_, index) => {
+              const starValue = index + 1;
+              return (
+                <Star
+                  key={index}
+                  className={`h-4 w-4 cursor-pointer transition-colors ${
+                    starValue <= (fieldValue || 0)
+                      ? 'fill-yellow-400 text-yellow-400'
+                      : 'text-gray-300'
+                  }`}
+                  onClick={() =>
+                    !isDisabled &&
+                    handleFieldChange(submissionId, field.id, starValue)
+                  }
+                />
+              );
+            })}
+            {fieldValue > 0 && (
+              <span className="ml-2 text-xs text-muted-foreground">
+                {fieldValue}/{maxRating}
+              </span>
+            )}
+          </div>
+        );
+      }
+
+      case 'slider': {
+        const min = field.validation?.min ?? 0;
+        const max = field.validation?.max ?? 100;
+        return (
+          <div className="space-y-2 w-full">
+            <Slider
+              value={[fieldValue || min]}
+              onValueChange={(newVal) =>
+                handleFieldChange(submissionId, field.id, newVal[0])
+              }
+              min={min}
+              max={max}
+              step={field.customConfig?.step || 1}
+              disabled={isDisabled}
+            />
+            <div className="text-xs text-muted-foreground text-center">
+              {fieldValue || min} / {max}
+            </div>
+          </div>
+        );
+      }
+
+      case "tags": {
+        const tags = Array.isArray(value) ? value : [];
+
+        const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+          if (e.key === "Enter" && e.currentTarget.value.trim()) {
+            e.preventDefault();
+            const newTag = e.currentTarget.value.trim();
+            const updated = [...tags, newTag];
+            handleFieldChange(submissionId, field.id, updated);
+            e.currentTarget.value = ""; // clear input
           }
-          className="w-full"
-          disabled={isDisabled}
-        />
-      );
-  }
-};
+        };
+
+        const removeTag = (tagToRemove: string) => {
+          const updated = tags.filter((t) => t !== tagToRemove);
+          handleFieldChange(submissionId, field.id, updated);
+        };
+
+        return (
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag: string, idx: number) => (
+                <span
+                  key={idx}
+                  className="flex items-center gap-1 bg-primary/10 text-primary px-2 py-1 rounded-full text-sm"
+                >
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() => removeTag(tag)}
+                    className="text-xs text-red-500 hover:text-red-700"
+                    disabled={isDisabled}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            {!isDisabled && (
+              <Input
+                type="text"
+                placeholder="Type and press Enter..."
+                onKeyDown={handleKeyDown}
+                className="w-full"
+              />
+            )}
+          </div>
+        );
+      }
+
+      case 'file':
+      case 'image': {
+        if (!value) {
+          return (
+            <Badge className="italic opacity-70 text-muted-foreground/80 bg-muted/50">
+              No file
+            </Badge>
+          );
+        }
+
+        // Normalize value into an array
+        const files: { name: string; url: string }[] = [];
+
+        if (typeof value === 'string' && value.startsWith('http')) {
+          files.push({ name: value.split('/').pop() || 'file', url: value });
+        } else if (Array.isArray(value)) {
+          value.forEach((f: any) => {
+            if (typeof f === 'string' && f.startsWith('http')) {
+              files.push({ name: f.split('/').pop() || 'file', url: f });
+            } else if (f?.url) {
+              files.push({ name: f.name || f.url.split('/').pop() || 'file', url: f.url });
+            }
+          });
+        } else if (value.url) {
+          files.push({ name: value.name || value.url.split('/').pop() || 'file', url: value.url });
+        }
+
+        if (files.length === 0) {
+          return <span className="text-sm text-muted-foreground">File attached</span>;
+        }
+
+        return (
+          <div className="flex flex-col gap-1">
+            {files.map((f, index) => (
+              <div key={index} className="flex gap-2 items-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(f.url, '_blank')}
+                  className="h-8"
+                >
+                  <Eye className="h-3 w-3 mr-1" /> View
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = f.url;
+                    link.download = f.name;
+                    link.click();
+                  }}
+                  className="h-8"
+                >
+                  Download
+                </Button>
+              </div>
+            ))}
+          </div>
+        );
+      }
+
+      case 'header':
+      case 'description':
+      case 'section-break':
+      case 'horizontal-line':
+      case 'full-width-container':
+      case 'record-table':
+      case 'matrix-grid':
+      case 'child-cross-reference':
+      case 'calculated':
+      case 'conditional-section':
+      case 'workflow-trigger':
+      case 'query-field':
+      case 'barcode':
+      case 'address': 
+      {
+        return (
+          <div className="text-xs text-muted-foreground italic p-2 bg-muted/20 rounded">
+            Non-editable field
+          </div>
+        );
+      }
+
+      default:
+        return (
+          <Input
+            value={fieldValue}
+            onChange={(e) =>
+              handleFieldChange(submissionId, field.id, e.target.value)
+            }
+            className="w-full"
+            disabled={isDisabled}
+          />
+        );
+    }
+  };
 
   if (submissions.length === 0) return null;
 
@@ -1072,128 +1040,122 @@ case 'image': {
             {/* Display fields horizontally */}
             <div className="overflow-x-auto">
               <div className="min-w-max">
-{/* Master row for bulk editing */}
-{submissions.length > 1 && (
-  <div className="mb-4 p-4 border rounded-lg bg-primary/5">
-    <div className="text-sm font-medium text-muted-foreground mb-3">
-      Master Values (auto-fills all records):
-    </div>
-    <div className="flex gap-4">
-      {formFields
-        .filter((field) => {
-          const excludedFieldTypes = [
-            'header',
-            'description',
-            'section-break',
-            'horizontal-line',
-            'full-width-container',
-            // 'user-picker',
-            'approval',
-            // 'cross-reference',
-            'query-field',
-            'geo-location',
-            'conditional-section',
-            // 'submission-access',
-            'signature',
-            'dynamic-dropdown',
-            'rich-text',
-            'record-table',
-            'matrix-grid',
-            'workflow-trigger',
-            'barcode'
-          ];
+                {/* Master row for bulk editing */}
+                {submissions.length > 1 && (
+                  <div className="mb-4 p-4 border rounded-lg bg-primary/5">
+                    <div className="text-sm font-medium text-muted-foreground mb-3">
+                      Master Values (auto-fills all records):
+                    </div>
+                    <div className="flex gap-4">
+                      {formFields
+                        .filter((field) => {
+                          const excludedFieldTypes = [
+                            'header',
+                            'description',
+                            'section-break',
+                            'horizontal-line',
+                            'full-width-container',
+                            'approval',
+                            'query-field',
+                            'geo-location',
+                            'conditional-section',
+                            'signature',
+                            'dynamic-dropdown',
+                            'rich-text',
+                            'record-table',
+                            'matrix-grid',
+                            'workflow-trigger',
+                            'barcode'
+                          ];
 
-          if (excludedFieldTypes.includes(field.field_type)) return false;
-          if (field.label && field.label.startsWith('Reference from '))
-            return false;
+                          if (excludedFieldTypes.includes(field.field_type)) return false;
+                          if (field.label && field.label.startsWith('Reference from '))
+                            return false;
 
-          return true;
-        })
-        .map((field) => (
-          <div key={field.id} className="flex-1 min-w-[200px]">
-            <Label className="text-sm font-medium mb-2 block">
-              {field.label}
-              {field.required && (
-                <span className="text-destructive ml-1">*</span>
-              )}
-            </Label>
-            {renderFieldInput(
-              field,
-              'master',
-              editedData['master']?.[field.id] || '',
-              true // ✅ pass bulkEdit true here
-            )}
-          </div>
-        ))}
-    </div>
-  </div>
-)}
-
-{/* Records */}
-<div className="space-y-3">
-  {submissions.map((submission, index) => (
-    <div
-      key={submission.id}
-      className="p-4 border rounded-lg bg-muted/20"
-    >
-      <div className="text-sm font-medium text-muted-foreground mb-3">
-        Record {index + 1} (ID:{' '}
-        {submission.submission_ref_id ||
-          submission.id.slice(0, 8) + '...'}
-        )
-      </div>
-      <div className="flex gap-4">
-        {formFields
-          .filter((field) => {
-            const excludedFieldTypes = [
-              'header',
-              'description',
-              'section-break',
-              'horizontal-line',
-              'full-width-container',
-              // 'user-picker',
-              'approval',
-              // 'cross-reference',
-              'query-field',
-              'geo-location',
-              'conditional-section',
-              // 'submission-access',
-              'signature',
-              'dynamic-dropdown',
-              'rich-text',
-              'record-table',
-              'matrix-grid',
-              'workflow-trigger',
-              'barcode',
-              'addresss'
-            ];
-
-            if (excludedFieldTypes.includes(field.field_type)) return false;
-            if (field.label && field.label.startsWith('Reference from '))
-              return false;
-
-            return true;
-          })
-          .map((field) => (
-            <div key={field.id} className="flex-1 min-w-[250px]">
-              <Label className="text-sm font-medium mb-2 block">
-                {field.label}
-                {field.required && (
-                  <span className="text-destructive ml-1">*</span>
+                          return true;
+                        })
+                        .map((field) => (
+                          <div key={field.id} className="flex-1 min-w-[200px]">
+                            <Label className="text-sm font-medium mb-2 block">
+                              {field.label}
+                              {field.required && (
+                                <span className="text-destructive ml-1">*</span>
+                              )}
+                            </Label>
+                            {renderFieldInput(
+                              field,
+                              'master',
+                              editedData['master']?.[field.id] || '',
+                              true // ✅ pass bulkEdit true here
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
                 )}
-              </Label>
-              {renderFieldInput(
-                field,
-                submission.id,
-                editedData[submission.id]?.[field.id],
-                submissions.length > 1
-              )}
-            </div>
-          ))}
-      </div>
-    </div>
-  ))}
-</div>
+
+                {/* Records */}
+                <div className="space-y-3">
+                  {submissions.map((submission, index) => (
+                    <div
+                      key={submission.id}
+                      className="p-4 border rounded-lg bg-muted/20"
+                    >
+                      <div className="text-sm font-medium text-muted-foreground mb-3">
+                        Record {index + 1} (ID:{' '}
+                        {submission.submission_ref_id ||
+                          submission.id.slice(0, 8) + '...'}
+                        )
+                      </div>
+                      <div className="flex gap-4">
+                        {formFields
+                          .filter((field) => {
+                            const excludedFieldTypes = [
+                              'header',
+                              'description',
+                              'section-break',
+                              'horizontal-line',
+                              'full-width-container',
+                              'approval',
+                              'query-field',
+                              'geo-location',
+                              'conditional-section',
+                              'signature',
+                              'dynamic-dropdown',
+                              'rich-text',
+                              'record-table',
+                              'matrix-grid',
+                              'workflow-trigger',
+                              'barcode',
+                              'addresss'
+                            ];
+
+                            if (excludedFieldTypes.includes(field.field_type)) return false;
+                            if (field.label && field.label.startsWith('Reference from '))
+                              return false;
+
+                            return true;
+                          })
+                          .map((field) => (
+                            <div key={field.id} className="flex-1 min-w-[250px]">
+                              <Label className="text-sm font-medium mb-2 block">
+                                {field.label}
+                                {field.required && (
+                                  <span className="text-destructive ml-1">*</span>
+                                )}
+                              </Label>
+                              {renderFieldInput(
+                                field,
+                                submission.id,
+                                editedData[submission.id]?.[field.id],
+                                submissions.length > 1
+                              )}
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

@@ -515,6 +515,78 @@ if (['file', 'image'].includes(fieldType) && value) {
     return <span className="text-sm">{value.join(', ')}</span>;
   }
 
+  // Handle submission-access fields
+  if (fieldType === 'submission-access' && typeof value === 'object' && value !== null) {
+    const { users = [], groups = [] } = value;
+    const displayItems = [];
+
+    // Add user names
+    if (Array.isArray(users) && users.length > 0) {
+      users.forEach(userId => {
+        displayItems.push({
+          type: 'user',
+          id: userId,
+          display: `User: ${userId}` // This will be improved with actual user names
+        });
+      });
+    }
+
+    // Add group names  
+    if (Array.isArray(groups) && groups.length > 0) {
+      groups.forEach(groupId => {
+        displayItems.push({
+          type: 'group',
+          id: groupId,
+          display: `Group: ${groupId}` // This will be improved with actual group names
+        });
+      });
+    }
+
+    if (displayItems.length === 0) {
+      return <Badge variant="outline" className="italic opacity-70">No access assigned</Badge>;
+    }
+
+    return (
+      <div className="flex flex-wrap gap-1">
+        {displayItems.map((item, index) => (
+          <Badge 
+            key={`${item.type}-${item.id}-${index}`} 
+            variant={item.type === 'user' ? 'default' : 'secondary'}
+            className={item.type === 'user' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}
+          >
+            {item.display}
+          </Badge>
+        ))}
+      </div>
+    );
+  }
+
+  // Handle user-picker fields
+  if (fieldType === 'user-picker') {
+    if (Array.isArray(value)) {
+      if (value.length === 0) {
+        return <Badge variant="outline" className="italic opacity-70">No users selected</Badge>;
+      }
+      return (
+        <div className="flex flex-wrap gap-1">
+          {value.map((userId, index) => (
+            <Badge key={`user-${userId}-${index}`} variant="default" className="bg-blue-100 text-blue-800">
+              User: {userId} {/* This will be improved with actual user names */}
+            </Badge>
+          ))}
+        </div>
+      );
+    } else if (value) {
+      return (
+        <Badge variant="default" className="bg-blue-100 text-blue-800">
+          User: {value} {/* This will be improved with actual user names */}
+        </Badge>
+      );
+    } else {
+      return <Badge variant="outline" className="italic opacity-70">No user selected</Badge>;
+    }
+  }
+
   // Handle objects
   if (typeof value === 'object') {
     // Try to extract meaningful information
