@@ -347,39 +347,75 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
     const [isOpen, setIsOpen] = useState(false);
     const selectedIds = Array.isArray(value) ? value : [];
 
-    const handleToggle = (recordId: string) => {
-      if (selectedIds.includes(recordId)) {
-        onChange(selectedIds.filter(id => id !== recordId));
+    const handleToggle = (recordRefId: string) => {
+      if (selectedIds.includes(recordRefId)) {
+        onChange(selectedIds.filter(id => id !== recordRefId));
       } else {
-        onChange([...selectedIds, recordId]);
+        onChange([...selectedIds, recordRefId]);
       }
     };
 
+    const selectedRecords = records.filter(r => selectedIds.includes(r.submission_ref_id));
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        const target = event.target as Element;
+        if (!target.closest(`[data-dropdown="cross-ref-${Math.random()}"]`)) {
+          setIsOpen(false);
+        }
+      };
+
+      if (isOpen) {
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+      }
+    }, [isOpen]);
+
     return (
-      <div className="relative">
+      <div className="relative" data-dropdown={`cross-ref-${Math.random()}`}>
         <Button
           variant="outline"
           onClick={() => !disabled && setIsOpen(!isOpen)}
           disabled={disabled}
-          className="w-full justify-between"
+          className="w-full justify-between h-auto min-h-[2.5rem] py-2"
         >
-          {selectedIds.length > 0 ? `${selectedIds.length} records selected` : "Select records"}
+          <div className="flex flex-wrap gap-1">
+            {selectedRecords.length > 0 ? (
+              selectedRecords.map(record => (
+                <Badge key={record.submission_ref_id} variant="secondary" className="text-xs">
+                  {record.submission_ref_id}
+                </Badge>
+              ))
+            ) : (
+              <span className="text-muted-foreground">Select cross-reference records</span>
+            )}
+          </div>
         </Button>
         {isOpen && !disabled && (
-          <div className="absolute top-full left-0 right-0 z-[9999] mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-y-auto">
-            {records.map(record => (
-              <div
-                key={record.id}
-                className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer"
-                onClick={() => handleToggle(record.submission_ref_id)}
-              >
-                <Checkbox
-                  checked={selectedIds.includes(record.submission_ref_id)}
-                  onChange={() => {}}
-                />
-                <span className="text-sm">{record.displayData}</span>
+          <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
+            <ScrollArea className="max-h-48">
+              <div className="p-1">
+                {records.map(record => (
+                  <div
+                    key={record.id}
+                    className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer rounded-sm"
+                    onClick={() => handleToggle(record.submission_ref_id)}
+                  >
+                    <Checkbox
+                      checked={selectedIds.includes(record.submission_ref_id)}
+                      onChange={() => {}}
+                    />
+                    <span className="text-sm">{record.displayData}</span>
+                  </div>
+                ))}
+                {records.length === 0 && (
+                  <div className="p-2 text-sm text-muted-foreground">
+                    No records available
+                  </div>
+                )}
               </div>
-            ))}
+            </ScrollArea>
           </div>
         )}
       </div>
@@ -399,31 +435,52 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
       }
     };
 
+    const selectedUsers = users.filter(u => selectedIds.includes(u.id));
+
     return (
       <div className="relative">
         <Button
           variant="outline"
           onClick={() => !disabled && setIsOpen(!isOpen)}
           disabled={disabled}
-          className="w-full justify-between"
+          className="w-full justify-between h-auto min-h-[2.5rem] py-2"
         >
-          {selectedIds.length > 0 ? `${selectedIds.length} users selected` : "Select users"}
+          <div className="flex flex-wrap gap-1">
+            {selectedUsers.length > 0 ? (
+              selectedUsers.map(user => (
+                <Badge key={user.id} variant="secondary" className="text-xs">
+                  {getUserDisplayName(user.id)}
+                </Badge>
+              ))
+            ) : (
+              <span className="text-muted-foreground">Select users</span>
+            )}
+          </div>
         </Button>
         {isOpen && !disabled && (
-          <div className="absolute top-full left-0 right-0 z-[9999] mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-y-auto">
-            {users.map(user => (
-              <div
-                key={user.id}
-                className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer"
-                onClick={() => handleToggle(user.id)}
-              >
-                <Checkbox
-                  checked={selectedIds.includes(user.id)}
-                  onChange={() => {}}
-                />
-                <span className="text-sm">{getUserDisplayName(user.id)}</span>
+          <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
+            <ScrollArea className="max-h-48">
+              <div className="p-1">
+                {users.map(user => (
+                  <div
+                    key={user.id}
+                    className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer rounded-sm"
+                    onClick={() => handleToggle(user.id)}
+                  >
+                    <Checkbox
+                      checked={selectedIds.includes(user.id)}
+                      onChange={() => {}}
+                    />
+                    <span className="text-sm">{getUserDisplayName(user.id)}</span>
+                  </div>
+                ))}
+                {users.length === 0 && (
+                  <div className="p-2 text-sm text-muted-foreground">
+                    No users available
+                  </div>
+                )}
               </div>
-            ))}
+            </ScrollArea>
           </div>
         )}
       </div>
@@ -443,31 +500,52 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
       }
     };
 
+    const selectedGroups = groups.filter(g => selectedIds.includes(g.id));
+
     return (
       <div className="relative">
         <Button
           variant="outline"
           onClick={() => !disabled && setIsOpen(!isOpen)}
           disabled={disabled}
-          className="w-full justify-between"
+          className="w-full justify-between h-auto min-h-[2.5rem] py-2"
         >
-          {selectedIds.length > 0 ? `${selectedIds.length} groups selected` : "Select groups"}
+          <div className="flex flex-wrap gap-1">
+            {selectedGroups.length > 0 ? (
+              selectedGroups.map(group => (
+                <Badge key={group.id} variant="secondary" className="text-xs">
+                  {getGroupDisplayName(group.id)}
+                </Badge>
+              ))
+            ) : (
+              <span className="text-muted-foreground">Select groups</span>
+            )}
+          </div>
         </Button>
         {isOpen && !disabled && (
-          <div className="absolute top-full left-0 right-0 z-[9999] mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-y-auto">
-            {groups.map(group => (
-              <div
-                key={group.id}
-                className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer"
-                onClick={() => handleToggle(group.id)}
-              >
-                <Checkbox
-                  checked={selectedIds.includes(group.id)}
-                  onChange={() => {}}
-                />
-                <span className="text-sm">{getGroupDisplayName(group.id)}</span>
+          <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
+            <ScrollArea className="max-h-48">
+              <div className="p-1">
+                {groups.map(group => (
+                  <div
+                    key={group.id}
+                    className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer rounded-sm"
+                    onClick={() => handleToggle(group.id)}
+                  >
+                    <Checkbox
+                      checked={selectedIds.includes(group.id)}
+                      onChange={() => {}}
+                    />
+                    <span className="text-sm">{getGroupDisplayName(group.id)}</span>
+                  </div>
+                ))}
+                {groups.length === 0 && (
+                  <div className="p-2 text-sm text-muted-foreground">
+                    No groups available
+                  </div>
+                )}
               </div>
-            ))}
+            </ScrollArea>
           </div>
         )}
       </div>
@@ -525,11 +603,15 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         return (
           <ScrollArea className="max-h-20 w-full">
             <div className="flex flex-col gap-1 pr-2">
-              {displayValues.map((v, i) => (
-                <Badge key={i} variant="outline" className="bg-primary/10 text-primary justify-start">
-                  {v}
-                </Badge>
-              ))}
+              {displayValues.map((refId, i) => {
+                const record = availableRecords.find(r => r.submission_ref_id === refId);
+                const displayText = record ? record.displayData : refId;
+                return (
+                  <Badge key={i} variant="outline" className="bg-primary/10 text-primary justify-start">
+                    {displayText}
+                  </Badge>
+                );
+              })}
             </div>
           </ScrollArea>
         );
