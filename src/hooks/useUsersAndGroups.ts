@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface User {
@@ -58,19 +58,28 @@ export function useUsersAndGroups() {
     fetchData();
   }, []);
 
-  const getUserDisplayName = (userId: string): string => {
-    const user = users.find(u => u.id === userId);
-    if (!user) return `User: ${userId}`;
+  // Memoize display name functions for better performance
+  const getUserDisplayName = useMemo(() => {
+    const userMap = new Map(users.map(u => [u.id, u]));
     
-    const name = (user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.first_name) ||
-                 user.email;
-    return `${name} (${user.email})`;
-  };
+    return (userId: string): string => {
+      const user = userMap.get(userId);
+      if (!user) return `User: ${userId}`;
+      
+      const name = (user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.first_name) ||
+                   user.email;
+      return `${name} (${user.email})`;
+    };
+  }, [users]);
 
-  const getGroupDisplayName = (groupId: string): string => {
-    const group = groups.find(g => g.id === groupId);
-    return group ? group.name : `Group: ${groupId}`;
-  };
+  const getGroupDisplayName = useMemo(() => {
+    const groupMap = new Map(groups.map(g => [g.id, g]));
+    
+    return (groupId: string): string => {
+      const group = groupMap.get(groupId);
+      return group ? group.name : `Group: ${groupId}`;
+    };
+  }, [groups]);
 
   return {
     users,

@@ -549,12 +549,13 @@ if (['file', 'image'].includes(fieldType) && value) {
     }
 
     return (
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-col gap-1 max-w-[200px]">
         {displayItems.map((item, index) => (
           <Badge 
             key={`${item.type}-${item.id}-${index}`} 
             variant={item.type === 'user' ? 'default' : 'secondary'}
-            className={item.type === 'user' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}
+            className={`text-xs max-w-full truncate ${item.type === 'user' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}
+            title={item.display}
           >
             {item.display}
           </Badge>
@@ -570,9 +571,14 @@ if (['file', 'image'].includes(fieldType) && value) {
         return <Badge variant="outline" className="italic opacity-70">No users selected</Badge>;
       }
       return (
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-col gap-1 max-w-[200px]">
           {value.map((userId, index) => (
-            <Badge key={`user-${userId}-${index}`} variant="default" className="bg-blue-100 text-blue-800">
+            <Badge 
+              key={`user-${userId}-${index}`} 
+              variant="default" 
+              className="bg-blue-100 text-blue-800 text-xs max-w-full truncate"
+              title={getUserDisplayName(userId)}
+            >
               {getUserDisplayName(userId)}
             </Badge>
           ))}
@@ -580,7 +586,11 @@ if (['file', 'image'].includes(fieldType) && value) {
       );
     } else if (value) {
       return (
-        <Badge variant="default" className="bg-blue-100 text-blue-800">
+        <Badge 
+          variant="default" 
+          className="bg-blue-100 text-blue-800 text-xs max-w-[200px] truncate"
+          title={getUserDisplayName(value)}
+        >
           {getUserDisplayName(value)}
         </Badge>
       );

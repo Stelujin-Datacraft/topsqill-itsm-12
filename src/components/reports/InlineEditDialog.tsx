@@ -394,7 +394,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         </Button>
         {isOpen && !disabled && (
           <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
-            <ScrollArea className="max-h-48">
+            <ScrollArea className="max-h-60">
               <div className="p-1">
                 {records.map(record => (
                   <div
@@ -406,12 +406,13 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                       checked={selectedIds.includes(record.submission_ref_id)}
                       onChange={() => {}}
                     />
-                    <span className="text-sm">{record.displayData}</span>
+                    <span className="text-sm font-medium text-primary">ID: {record.submission_ref_id}</span>
+                    <span className="text-xs text-muted-foreground">- {record.displayData}</span>
                   </div>
                 ))}
                 {records.length === 0 && (
                   <div className="p-2 text-sm text-muted-foreground">
-                    No records available
+                    No records available from target form
                   </div>
                 )}
               </div>
@@ -459,7 +460,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         </Button>
         {isOpen && !disabled && (
           <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
-            <ScrollArea className="max-h-48">
+            <ScrollArea className="max-h-60">
               <div className="p-1">
                 {users.map(user => (
                   <div
@@ -524,7 +525,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         </Button>
         {isOpen && !disabled && (
           <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
-            <ScrollArea className="max-h-48">
+            <ScrollArea className="max-h-60">
               <div className="p-1">
                 {groups.map(group => (
                   <div
@@ -559,7 +560,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
     isBulkEdit: boolean = false
   ) => {
     const fieldValue = value ?? '';
-    const isDisabled = isBulkEdit && submissionId !== 'master';
+    const isDisabled = isBulkEdit && submissionId !== 'master' && submissions.length > 1;
 
     switch (field.field_type) {
       case 'cross-reference': {
@@ -583,19 +584,19 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         const targetFormId = field.customConfig?.targetFormId;
         const availableRecords = targetFormId ? crossRefRecordsByForm[targetFormId] || [] : [];
 
-        // Master record: show editable multi-select
-        if (submissionId === 'master') {
+        // Show editable multi-select for master record OR single record editing
+        if (submissionId === 'master' || submissions.length === 1) {
           return (
             <MultiSelectCrossReference
               value={displayValues}
-              onChange={(newRefs) => handleFieldChange('master', field.id, newRefs)}
+              onChange={(newRefs) => handleFieldChange(submissionId, field.id, newRefs)}
               disabled={isDisabled}
               records={availableRecords}
             />
           );
         }
 
-        // Child records: show selected references as badges with proper scrolling
+        // Child records in bulk edit: show selected references as badges with proper scrolling
         if (displayValues.length === 0) {
           return <span className="italic text-muted-foreground">No references</span>;
         }
@@ -621,30 +622,30 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         const userValue = value || [];
         const selectedUserIds = Array.isArray(userValue) ? userValue : (userValue ? [userValue] : []);
 
-        // Master record: show editable multi-select
-        if (submissionId === 'master') {
+        // Show editable multi-select for master record OR single record editing
+        if (submissionId === 'master' || submissions.length === 1) {
           return (
             <MultiSelectUsers
               value={selectedUserIds}
               onChange={(newUsers) => {
                 const newValue = field.customConfig?.allowMultiple ? newUsers : (newUsers[0] || '');
-                handleFieldChange('master', field.id, newValue);
+                handleFieldChange(submissionId, field.id, newValue);
               }}
               disabled={isDisabled}
             />
           );
         }
 
-        // Child records: show selected users as badges with proper scrolling
+        // Child records in bulk edit: show selected users as badges with proper scrolling
         if (selectedUserIds.length === 0) {
           return <span className="italic text-muted-foreground">No users selected</span>;
         }
 
         return (
-          <ScrollArea className="max-h-20 w-full">
+          <ScrollArea className="max-h-24 w-full">
             <div className="flex flex-col gap-1 pr-2">
               {selectedUserIds.map((userId, i) => (
-                <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 justify-start">
+                <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 justify-start text-xs max-w-[200px] truncate">
                   {getUserDisplayName(userId)}
                 </Badge>
               ))}
@@ -658,15 +659,15 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         const normalizedValue = typeof accessValue === 'object' ? accessValue : { users: [], groups: [] };
         const { users = [], groups = [] } = normalizedValue;
 
-        // Master record: show editable multi-selects
-        if (submissionId === 'master') {
+        // Show editable multi-selects for master record OR single record editing
+        if (submissionId === 'master' || submissions.length === 1) {
           return (
             <div className="space-y-2">
               <div>
                 <Label className="text-xs text-muted-foreground mb-1 block">Users</Label>
                 <MultiSelectUsers
                   value={users}
-                  onChange={(newUsers) => handleFieldChange('master', field.id, { users: newUsers, groups })}
+                  onChange={(newUsers) => handleFieldChange(submissionId, field.id, { users: newUsers, groups })}
                   disabled={isDisabled}
                 />
               </div>
@@ -674,7 +675,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                 <Label className="text-xs text-muted-foreground mb-1 block">Groups</Label>
                 <MultiSelectGroups
                   value={groups}
-                  onChange={(newGroups) => handleFieldChange('master', field.id, { users, groups: newGroups })}
+                  onChange={(newGroups) => handleFieldChange(submissionId, field.id, { users, groups: newGroups })}
                   disabled={isDisabled}
                 />
               </div>
@@ -682,7 +683,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           );
         }
 
-        // Child records: show assigned access as badges with proper scrolling
+        // Child records in bulk edit: show assigned access as badges with proper scrolling
         const displayItems = [];
         if (Array.isArray(users)) {
           users.forEach(userId => displayItems.push({ type: 'user', id: userId }));
@@ -696,13 +697,13 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         }
 
         return (
-          <ScrollArea className="max-h-20 w-full">
+          <ScrollArea className="max-h-24 w-full">
             <div className="flex flex-col gap-1 pr-2">
               {displayItems.map((item, i) => (
                 <Badge
                   key={`${item.type}-${item.id}-${i}`} 
                   variant="outline"
-                  className={`justify-start ${item.type === 'user' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}
+                  className={`justify-start text-xs max-w-[200px] truncate ${item.type === 'user' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}
                 >
                   {item.type === 'user' ? getUserDisplayName(item.id) : getGroupDisplayName(item.id)}
                 </Badge>

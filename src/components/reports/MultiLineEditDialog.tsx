@@ -547,22 +547,43 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
             }}
           >
             <SelectTrigger className="text-sm">
-              <SelectValue placeholder="Select records" />
+              <SelectValue placeholder="Add cross-reference record" />
             </SelectTrigger>
-            <SelectContent className="max-h-48 overflow-y-auto z-[9999]">
+            <SelectContent className="max-h-60 overflow-y-auto z-[9999]">
               {availableRecords.map(record => (
                 <SelectItem key={record.id} value={record.submission_ref_id}>
-                  {record.displayData}
+                  <div className="flex flex-col">
+                    <span className="font-medium text-primary">ID: {record.submission_ref_id}</span>
+                    <span className="text-xs text-muted-foreground">{record.displayData}</span>
+                  </div>
                 </SelectItem>
               ))}
+              {availableRecords.length === 0 && (
+                <div className="p-2 text-sm text-muted-foreground">
+                  No records available from target form
+                </div>
+              )}
             </SelectContent>
           </Select>
           {displayValues.length > 0 && (
-            <ScrollArea className="max-h-16 w-full mt-1">
+            <ScrollArea className="max-h-20 w-full mt-1">
               <div className="flex flex-col gap-1 pr-2">
                 {displayValues.map((ref, i) => (
-                  <Badge key={i} variant="outline" className="bg-primary/10 text-primary text-xs justify-start">
-                    {ref}
+                  <Badge 
+                    key={i} 
+                    variant="outline" 
+                    className="bg-primary/10 text-primary text-xs justify-between max-w-full"
+                  >
+                    <span className="truncate">ID: {ref}</span>
+                    <button
+                      onClick={() => {
+                        const newRefs = displayValues.filter(r => r !== ref);
+                        handleFieldValueChange(submissionId, field.id, newRefs);
+                      }}
+                      className="ml-1 text-xs hover:text-destructive"
+                    >
+                      ×
+                    </button>
                   </Badge>
                 ))}
               </div>
