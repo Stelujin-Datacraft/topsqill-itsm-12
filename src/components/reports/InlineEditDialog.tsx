@@ -33,8 +33,9 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
   const [originalData, setOriginalData] = useState<Record<string, Record<string, any>>>({});
   const [saving, setSaving] = useState(false);
   const { users, groups, getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
-  const formId = submissions[0]?.form_id;
-  const { records: crossRefRecords } = useCrossReferenceData(formId);
+  
+  // Get cross-reference records from all forms - we'll filter by target form in renderFieldInput
+  const [crossRefRecordsByForm, setCrossRefRecordsByForm] = useState<Record<string, any[]>>({});
 
   useEffect(() => {
     if (isOpen && submissions.length > 0) {
@@ -298,6 +299,49 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
   // Top of InlineEditDialog component
   const { countries, loading: countriesLoading, error: countriesError } = useCountries();
 
+  // Fetch cross-reference records for each target form
+  useEffect(() => {
+    const fetchCrossRefData = async () => {
+      const formIds = new Set<string>();
+      
+      // Collect all target form IDs from cross-reference fields
+      formFields.forEach(field => {
+        if (field.field_type === 'cross-reference' && field.customConfig?.targetFormId) {
+          formIds.add(field.customConfig.targetFormId);
+        }
+      });
+
+      const recordsByForm: Record<string, any[]> = {};
+      
+      for (const formId of formIds) {
+        try {
+          const { data: submissions, error } = await supabase
+            .from('form_submissions')
+            .select('id, submission_ref_id, form_id, submission_data')
+            .eq('form_id', formId);
+
+          if (error) throw error;
+
+          recordsByForm[formId] = (submissions || []).map(sub => ({
+            id: sub.id,
+            submission_ref_id: sub.submission_ref_id || sub.id.slice(0, 8),
+            form_id: sub.form_id,
+            displayData: `${sub.submission_ref_id || sub.id.slice(0, 8)} - Record`
+          }));
+        } catch (error) {
+          console.error(`Error fetching cross-reference data for form ${formId}:`, error);
+          recordsByForm[formId] = [];
+        }
+      }
+      
+      setCrossRefRecordsByForm(recordsByForm);
+    };
+
+    if (formFields.length > 0) {
+      fetchCrossRefData();
+    }
+  }, [formFields]);
+
   // Multi-select component for cross-reference
   const MultiSelectCrossReference = ({ value, onChange, disabled, records }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -322,7 +366,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           {selectedIds.length > 0 ? `${selectedIds.length} records selected` : "Select records"}
         </Button>
         {isOpen && !disabled && (
-          <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-background border rounded-md shadow-lg max-h-60 overflow-auto">
+          <div className="absolute top-full left-0 right-0 z-[9999] mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-y-auto">
             {records.map(record => (
               <div
                 key={record.id}
@@ -366,7 +410,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           {selectedIds.length > 0 ? `${selectedIds.length} users selected` : "Select users"}
         </Button>
         {isOpen && !disabled && (
-          <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-background border rounded-md shadow-lg max-h-60 overflow-auto">
+          <div className="absolute top-full left-0 right-0 z-[9999] mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-y-auto">
             {users.map(user => (
               <div
                 key={user.id}
@@ -410,7 +454,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           {selectedIds.length > 0 ? `${selectedIds.length} groups selected` : "Select groups"}
         </Button>
         {isOpen && !disabled && (
-          <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-background border rounded-md shadow-lg max-h-60 overflow-auto">
+          <div className="absolute top-full left-0 right-0 z-[9999] mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-y-auto">
             {groups.map(group => (
               <div
                 key={group.id}
@@ -457,6 +501,10 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           displayValues = [String(crossRefValue)];
         }
 
+        // Get records for this field's target form
+        const targetFormId = field.customConfig?.targetFormId;
+        const availableRecords = targetFormId ? crossRefRecordsByForm[targetFormId] || [] : [];
+
         // Master record: show editable multi-select
         if (submissionId === 'master') {
           return (
@@ -464,24 +512,26 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
               value={displayValues}
               onChange={(newRefs) => handleFieldChange('master', field.id, newRefs)}
               disabled={isDisabled}
-              records={crossRefRecords}
+              records={availableRecords}
             />
           );
         }
 
-        // Child records: show selected references as badges
+        // Child records: show selected references as badges with proper scrolling
         if (displayValues.length === 0) {
           return <span className="italic text-muted-foreground">No references</span>;
         }
 
         return (
-          <div className="flex flex-wrap gap-1">
-            {displayValues.map((v, i) => (
-              <Badge key={i} variant="outline" className="bg-primary/10 text-primary">
-                {v}
-              </Badge>
-            ))}
-          </div>
+          <ScrollArea className="max-h-20 w-full">
+            <div className="flex flex-col gap-1 pr-2">
+              {displayValues.map((v, i) => (
+                <Badge key={i} variant="outline" className="bg-primary/10 text-primary justify-start">
+                  {v}
+                </Badge>
+              ))}
+            </div>
+          </ScrollArea>
         );
       }
 
@@ -503,19 +553,21 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           );
         }
 
-        // Child records: show selected users as badges
+        // Child records: show selected users as badges with proper scrolling
         if (selectedUserIds.length === 0) {
           return <span className="italic text-muted-foreground">No users selected</span>;
         }
 
         return (
-          <div className="flex flex-wrap gap-1">
-            {selectedUserIds.map((userId, i) => (
-              <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800">
-                {getUserDisplayName(userId)}
-              </Badge>
-            ))}
-          </div>
+          <ScrollArea className="max-h-20 w-full">
+            <div className="flex flex-col gap-1 pr-2">
+              {selectedUserIds.map((userId, i) => (
+                <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 justify-start">
+                  {getUserDisplayName(userId)}
+                </Badge>
+              ))}
+            </div>
+          </ScrollArea>
         );
       }
 
@@ -548,7 +600,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           );
         }
 
-        // Child records: show assigned access as badges
+        // Child records: show assigned access as badges with proper scrolling
         const displayItems = [];
         if (Array.isArray(users)) {
           users.forEach(userId => displayItems.push({ type: 'user', id: userId }));
@@ -562,17 +614,19 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         }
 
         return (
-          <div className="flex flex-wrap gap-1">
-            {displayItems.map((item, i) => (
-              <Badge
-                key={`${item.type}-${item.id}-${i}`} 
-                variant="outline"
-                className={item.type === 'user' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}
-              >
-                {item.type === 'user' ? getUserDisplayName(item.id) : getGroupDisplayName(item.id)}
-              </Badge>
-            ))}
-          </div>
+          <ScrollArea className="max-h-20 w-full">
+            <div className="flex flex-col gap-1 pr-2">
+              {displayItems.map((item, i) => (
+                <Badge
+                  key={`${item.type}-${item.id}-${i}`} 
+                  variant="outline"
+                  className={`justify-start ${item.type === 'user' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}
+                >
+                  {item.type === 'user' ? getUserDisplayName(item.id) : getGroupDisplayName(item.id)}
+                </Badge>
+              ))}
+            </div>
+          </ScrollArea>
         );
       }
 

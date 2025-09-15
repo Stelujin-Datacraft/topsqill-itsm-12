@@ -37,8 +37,52 @@ export function MultiLineEditDialog({
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
   const { users, groups, getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
-  const formId = submissions[0]?.form_id;
-  const { records: crossRefRecords } = useCrossReferenceData(formId);
+  
+  // Get cross-reference records from all forms - we'll filter by target form in renderFieldInput
+  const [crossRefRecordsByForm, setCrossRefRecordsByForm] = useState<Record<string, any[]>>({});
+
+  // Fetch cross-reference records for each target form
+  useEffect(() => {
+    const fetchCrossRefData = async () => {
+      const formIds = new Set<string>();
+      
+      // Collect all target form IDs from cross-reference fields
+      formFields.forEach(field => {
+        if (field.field_type === 'cross-reference' && field.customConfig?.targetFormId) {
+          formIds.add(field.customConfig.targetFormId);
+        }
+      });
+
+      const recordsByForm: Record<string, any[]> = {};
+      
+      for (const formId of formIds) {
+        try {
+          const { data: submissions, error } = await supabase
+            .from('form_submissions')
+            .select('id, submission_ref_id, form_id, submission_data')
+            .eq('form_id', formId);
+
+          if (error) throw error;
+
+          recordsByForm[formId] = (submissions || []).map(sub => ({
+            id: sub.id,
+            submission_ref_id: sub.submission_ref_id || sub.id.slice(0, 8),
+            form_id: sub.form_id,
+            displayData: `${sub.submission_ref_id || sub.id.slice(0, 8)} - Record`
+          }));
+        } catch (error) {
+          console.error(`Error fetching cross-reference data for form ${formId}:`, error);
+          recordsByForm[formId] = [];
+        }
+      }
+      
+      setCrossRefRecordsByForm(recordsByForm);
+    };
+
+    if (formFields.length > 0) {
+      fetchCrossRefData();
+    }
+  }, [formFields]);
 
   // Initialize edit data when dialog opens - each submission gets its own data
   useEffect(() => {
@@ -242,13 +286,15 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
               </SelectContent>
             </Select>
             {selectedUserIds.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1">
-                {selectedUserIds.map((userId, i) => (
-                  <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 text-xs">
-                    {getUserDisplayName(userId)}
-                  </Badge>
-                ))}
-              </div>
+              <ScrollArea className="max-h-16 w-full mt-1">
+                <div className="flex flex-col gap-1 pr-2">
+                  {selectedUserIds.map((userId, i) => (
+                    <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 text-xs justify-start">
+                      {getUserDisplayName(userId)}
+                    </Badge>
+                  ))}
+                </div>
+              </ScrollArea>
             )}
           </Wrapper>
         );
@@ -283,13 +329,15 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
                   </SelectContent>
                 </Select>
                 {currentUsers.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {currentUsers.map((userId, i) => (
-                      <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 text-xs">
-                        {getUserDisplayName(userId)}
-                      </Badge>
-                    ))}
-                  </div>
+                  <ScrollArea className="max-h-12 w-full mt-1">
+                    <div className="flex flex-col gap-1 pr-2">
+                      {currentUsers.map((userId, i) => (
+                        <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 text-xs justify-start">
+                          {getUserDisplayName(userId)}
+                        </Badge>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 )}
               </div>
               <div>
@@ -313,13 +361,15 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
                   </SelectContent>
                 </Select>
                 {currentGroups.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {currentGroups.map((groupId, i) => (
-                      <Badge key={i} variant="outline" className="bg-green-100 text-green-800 text-xs">
-                        {getGroupDisplayName(groupId)}
-                      </Badge>
-                    ))}
-                  </div>
+                  <ScrollArea className="max-h-12 w-full mt-1">
+                    <div className="flex flex-col gap-1 pr-2">
+                      {currentGroups.map((groupId, i) => (
+                        <Badge key={i} variant="outline" className="bg-green-100 text-green-800 text-xs justify-start">
+                          {getGroupDisplayName(groupId)}
+                        </Badge>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 )}
               </div>
             </div>
@@ -483,6 +533,10 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
         displayValues = [String(crossRefValue)];
       }
 
+      // Get records for this field's target form
+      const targetFormId = field.customConfig?.targetFormId;
+      const availableRecords = targetFormId ? crossRefRecordsByForm[targetFormId] || [] : [];
+
       return (
         <Wrapper>
           <Select
@@ -495,8 +549,8 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
             <SelectTrigger className="text-sm">
               <SelectValue placeholder="Select records" />
             </SelectTrigger>
-            <SelectContent>
-              {crossRefRecords.map(record => (
+            <SelectContent className="max-h-48 overflow-y-auto z-[9999]">
+              {availableRecords.map(record => (
                 <SelectItem key={record.id} value={record.submission_ref_id}>
                   {record.displayData}
                 </SelectItem>
@@ -504,13 +558,15 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
             </SelectContent>
           </Select>
           {displayValues.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1">
-              {displayValues.map((ref, i) => (
-                <Badge key={i} variant="outline" className="bg-primary/10 text-primary text-xs">
-                  {ref}
-                </Badge>
-              ))}
-            </div>
+            <ScrollArea className="max-h-16 w-full mt-1">
+              <div className="flex flex-col gap-1 pr-2">
+                {displayValues.map((ref, i) => (
+                  <Badge key={i} variant="outline" className="bg-primary/10 text-primary text-xs justify-start">
+                    {ref}
+                  </Badge>
+                ))}
+              </div>
+            </ScrollArea>
           )}
         </Wrapper>
       );

@@ -8,14 +8,14 @@ interface CrossReferenceRecord {
   displayData: string;
 }
 
-export function useCrossReferenceData(formId?: string) {
+export function useCrossReferenceData(targetFormId?: string) {
   const [records, setRecords] = useState<CrossReferenceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchCrossReferenceData = async () => {
-      if (!formId) {
+      if (!targetFormId) {
         setLoading(false);
         return;
       }
@@ -23,11 +23,11 @@ export function useCrossReferenceData(formId?: string) {
       try {
         setLoading(true);
         
-        // Fetch all submissions for cross-reference
+        // Fetch all submissions from the TARGET form for cross-reference
         const { data: submissions, error: submissionsError } = await supabase
           .from('form_submissions')
           .select('id, submission_ref_id, form_id, submission_data')
-          .eq('form_id', formId);
+          .eq('form_id', targetFormId);
 
         if (submissionsError) {
           throw submissionsError;
@@ -51,7 +51,7 @@ export function useCrossReferenceData(formId?: string) {
     };
 
     fetchCrossReferenceData();
-  }, [formId]);
+  }, [targetFormId]);
 
   return {
     records,
