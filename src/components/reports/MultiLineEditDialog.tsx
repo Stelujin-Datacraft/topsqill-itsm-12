@@ -262,40 +262,78 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
       case 'user-picker': {
         const userValue = value || [];
         const selectedUserIds = Array.isArray(userValue) ? userValue : (userValue ? [userValue] : []);
+        const [isOpen, setIsOpen] = useState(false);
         
         return (
           <Wrapper>
-            <Select
-              value=""
-              onValueChange={(userId) => {
-                const newValue = field.customConfig?.allowMultiple 
-                  ? [...selectedUserIds, userId].filter((v, i, arr) => arr.indexOf(v) === i)
-                  : userId;
-                handleFieldValueChange(submissionId, field.id, newValue);
-              }}
-            >
-              <SelectTrigger className="text-sm">
-                <SelectValue placeholder="Select users" />
-              </SelectTrigger>
-              <SelectContent>
-                {users.map(user => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {getUserDisplayName(user.id)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedUserIds.length > 0 && (
-              <ScrollArea className="max-h-16 w-full mt-1">
-                <div className="flex flex-col gap-1 pr-2">
-                  {selectedUserIds.map((userId, i) => (
-                    <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 text-xs justify-start">
-                      {getUserDisplayName(userId)}
+            <div className="relative">
+              <Button
+                variant="outline"
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full justify-between h-auto min-h-[2.5rem] py-2"
+              >
+                <div className="flex flex-wrap gap-1">
+                  {selectedUserIds.length > 0 ? (
+                    selectedUserIds.slice(0, 2).map((userId, i) => (
+                      <Badge key={i} variant="secondary" className="text-xs">
+                        {getUserDisplayName(userId)}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const newIds = selectedUserIds.filter(id => id !== userId);
+                            const newValue = field.customConfig?.allowMultiple ? newIds : (newIds[0] || '');
+                            handleFieldValueChange(submissionId, field.id, newValue);
+                          }}
+                          className="ml-1 text-xs hover:text-destructive"
+                        >
+                          ×
+                        </button>
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-muted-foreground">Select users</span>
+                  )}
+                  {selectedUserIds.length > 2 && (
+                    <Badge variant="outline" className="text-xs">
+                      +{selectedUserIds.length - 2} more
                     </Badge>
-                  ))}
+                  )}
                 </div>
-              </ScrollArea>
-            )}
+              </Button>
+              {isOpen && (
+                <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
+                  <ScrollArea className="max-h-60">
+                    <div className="p-1">
+                      {users.map(user => (
+                        <div
+                          key={user.id}
+                          className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer rounded-sm"
+                          onClick={() => {
+                            const isSelected = selectedUserIds.includes(user.id);
+                            let newIds;
+                            if (isSelected) {
+                              newIds = selectedUserIds.filter(id => id !== user.id);
+                            } else {
+                              newIds = field.customConfig?.allowMultiple 
+                                ? [...selectedUserIds, user.id]
+                                : [user.id];
+                            }
+                            const newValue = field.customConfig?.allowMultiple ? newIds : (newIds[0] || '');
+                            handleFieldValueChange(submissionId, field.id, newValue);
+                          }}
+                        >
+                          <Checkbox
+                            checked={selectedUserIds.includes(user.id)}
+                            onChange={() => {}}
+                          />
+                          <span className="text-sm">{getUserDisplayName(user.id)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              )}
+            </div>
           </Wrapper>
         );
       }
@@ -304,73 +342,139 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
         const accessValue = value || { users: [], groups: [] };
         const normalizedValue = typeof accessValue === 'object' ? accessValue : { users: [], groups: [] };
         const { users: currentUsers = [], groups: currentGroups = [] } = normalizedValue;
+        const [isUsersOpen, setIsUsersOpen] = useState(false);
+        const [isGroupsOpen, setIsGroupsOpen] = useState(false);
         
         return (
           <Wrapper>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div>
                 <Label className="text-xs text-muted-foreground mb-1 block">Users</Label>
-                <Select
-                  value=""
-                  onValueChange={(userId) => {
-                    const newUsers = [...currentUsers, userId].filter((v, i, arr) => arr.indexOf(v) === i);
-                    handleFieldValueChange(submissionId, field.id, { users: newUsers, groups: currentGroups });
-                  }}
-                >
-                  <SelectTrigger className="text-sm">
-                    <SelectValue placeholder="Add user" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map(user => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {getUserDisplayName(user.id)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {currentUsers.length > 0 && (
-                  <ScrollArea className="max-h-12 w-full mt-1">
-                    <div className="flex flex-col gap-1 pr-2">
-                      {currentUsers.map((userId, i) => (
-                        <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 text-xs justify-start">
-                          {getUserDisplayName(userId)}
+                <div className="relative">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsUsersOpen(!isUsersOpen)}
+                    className="w-full justify-between h-auto min-h-[2.5rem] py-2"
+                  >
+                    <div className="flex flex-wrap gap-1">
+                      {currentUsers.length > 0 ? (
+                        currentUsers.slice(0, 2).map((userId, i) => (
+                          <Badge key={i} variant="secondary" className="text-xs">
+                            {getUserDisplayName(userId)}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newUsers = currentUsers.filter(id => id !== userId);
+                                handleFieldValueChange(submissionId, field.id, { users: newUsers, groups: currentGroups });
+                              }}
+                              className="ml-1 text-xs hover:text-destructive"
+                            >
+                              ×
+                            </button>
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-muted-foreground text-sm">Select users</span>
+                      )}
+                      {currentUsers.length > 2 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{currentUsers.length - 2} more
                         </Badge>
-                      ))}
+                      )}
                     </div>
-                  </ScrollArea>
-                )}
+                  </Button>
+                  {isUsersOpen && (
+                    <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
+                      <ScrollArea className="max-h-60">
+                        <div className="p-1">
+                          {users.map(user => (
+                            <div
+                              key={user.id}
+                              className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer rounded-sm"
+                              onClick={() => {
+                                const isSelected = currentUsers.includes(user.id);
+                                const newUsers = isSelected 
+                                  ? currentUsers.filter(id => id !== user.id)
+                                  : [...currentUsers, user.id];
+                                handleFieldValueChange(submissionId, field.id, { users: newUsers, groups: currentGroups });
+                              }}
+                            >
+                              <Checkbox
+                                checked={currentUsers.includes(user.id)}
+                                onChange={() => {}}
+                              />
+                              <span className="text-sm">{getUserDisplayName(user.id)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground mb-1 block">Groups</Label>
-                <Select
-                  value=""
-                  onValueChange={(groupId) => {
-                    const newGroups = [...currentGroups, groupId].filter((v, i, arr) => arr.indexOf(v) === i);
-                    handleFieldValueChange(submissionId, field.id, { users: currentUsers, groups: newGroups });
-                  }}
-                >
-                  <SelectTrigger className="text-sm">
-                    <SelectValue placeholder="Add group" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {groups.map(group => (
-                      <SelectItem key={group.id} value={group.id}>
-                        {getGroupDisplayName(group.id)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {currentGroups.length > 0 && (
-                  <ScrollArea className="max-h-12 w-full mt-1">
-                    <div className="flex flex-col gap-1 pr-2">
-                      {currentGroups.map((groupId, i) => (
-                        <Badge key={i} variant="outline" className="bg-green-100 text-green-800 text-xs justify-start">
-                          {getGroupDisplayName(groupId)}
+                <div className="relative">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsGroupsOpen(!isGroupsOpen)}
+                    className="w-full justify-between h-auto min-h-[2.5rem] py-2"
+                  >
+                    <div className="flex flex-wrap gap-1">
+                      {currentGroups.length > 0 ? (
+                        currentGroups.slice(0, 2).map((groupId, i) => (
+                          <Badge key={i} variant="secondary" className="text-xs">
+                            {getGroupDisplayName(groupId)}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newGroups = currentGroups.filter(id => id !== groupId);
+                                handleFieldValueChange(submissionId, field.id, { users: currentUsers, groups: newGroups });
+                              }}
+                              className="ml-1 text-xs hover:text-destructive"
+                            >
+                              ×
+                            </button>
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-muted-foreground text-sm">Select groups</span>
+                      )}
+                      {currentGroups.length > 2 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{currentGroups.length - 2} more
                         </Badge>
-                      ))}
+                      )}
                     </div>
-                  </ScrollArea>
-                )}
+                  </Button>
+                  {isGroupsOpen && (
+                    <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
+                      <ScrollArea className="max-h-60">
+                        <div className="p-1">
+                          {groups.map(group => (
+                            <div
+                              key={group.id}
+                              className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer rounded-sm"
+                              onClick={() => {
+                                const isSelected = currentGroups.includes(group.id);
+                                const newGroups = isSelected 
+                                  ? currentGroups.filter(id => id !== group.id)
+                                  : [...currentGroups, group.id];
+                                handleFieldValueChange(submissionId, field.id, { users: currentUsers, groups: newGroups });
+                              }}
+                            >
+                              <Checkbox
+                                checked={currentGroups.includes(group.id)}
+                                onChange={() => {}}
+                              />
+                              <span className="text-sm">{getGroupDisplayName(group.id)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </Wrapper>
@@ -536,59 +640,79 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
       // Get records for this field's target form
       const targetFormId = field.customConfig?.targetFormId;
       const availableRecords = targetFormId ? crossRefRecordsByForm[targetFormId] || [] : [];
+      const [isOpen, setIsOpen] = useState(false);
 
       return (
         <Wrapper>
-          <Select
-            value=""
-            onValueChange={(recordRef) => {
-              const newRefs = [...displayValues, recordRef].filter((v, i, arr) => arr.indexOf(v) === i);
-              handleFieldValueChange(submissionId, field.id, newRefs);
-            }}
-          >
-            <SelectTrigger className="text-sm">
-              <SelectValue placeholder="Add cross-reference record" />
-            </SelectTrigger>
-            <SelectContent className="max-h-60 overflow-y-auto z-[9999]">
-              {availableRecords.map(record => (
-                <SelectItem key={record.id} value={record.submission_ref_id}>
-                  <div className="flex flex-col">
-                    <span className="font-medium text-primary">ID: {record.submission_ref_id}</span>
-                    <span className="text-xs text-muted-foreground">{record.displayData}</span>
-                  </div>
-                </SelectItem>
-              ))}
-              {availableRecords.length === 0 && (
-                <div className="p-2 text-sm text-muted-foreground">
-                  No records available from target form
-                </div>
-              )}
-            </SelectContent>
-          </Select>
-          {displayValues.length > 0 && (
-            <ScrollArea className="max-h-20 w-full mt-1">
-              <div className="flex flex-col gap-1 pr-2">
-                {displayValues.map((ref, i) => (
-                  <Badge 
-                    key={i} 
-                    variant="outline" 
-                    className="bg-primary/10 text-primary text-xs justify-between max-w-full"
-                  >
-                    <span className="truncate">ID: {ref}</span>
-                    <button
-                      onClick={() => {
-                        const newRefs = displayValues.filter(r => r !== ref);
-                        handleFieldValueChange(submissionId, field.id, newRefs);
-                      }}
-                      className="ml-1 text-xs hover:text-destructive"
-                    >
-                      ×
-                    </button>
+          <div className="relative">
+            <Button
+              variant="outline"
+              onClick={() => setIsOpen(!isOpen)}
+              className="w-full justify-between h-auto min-h-[2.5rem] py-2"
+            >
+              <div className="flex flex-wrap gap-1">
+                {displayValues.length > 0 ? (
+                  displayValues.slice(0, 2).map((ref, i) => (
+                    <Badge key={i} variant="secondary" className="text-xs">
+                      ID: {ref}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const newRefs = displayValues.filter(r => r !== ref);
+                          handleFieldValueChange(submissionId, field.id, newRefs);
+                        }}
+                        className="ml-1 text-xs hover:text-destructive"
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  ))
+                ) : (
+                  <span className="text-muted-foreground">Select cross-reference records</span>
+                )}
+                {displayValues.length > 2 && (
+                  <Badge variant="outline" className="text-xs">
+                    +{displayValues.length - 2} more
                   </Badge>
-                ))}
+                )}
               </div>
-            </ScrollArea>
-          )}
+            </Button>
+            {isOpen && (
+              <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
+                <ScrollArea className="max-h-60">
+                  <div className="p-1">
+                    {availableRecords.map(record => (
+                      <div
+                        key={record.id}
+                        className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer rounded-sm"
+                        onClick={() => {
+                          const isSelected = displayValues.includes(record.submission_ref_id);
+                          const newRefs = isSelected 
+                            ? displayValues.filter(ref => ref !== record.submission_ref_id)
+                            : [...displayValues, record.submission_ref_id];
+                          handleFieldValueChange(submissionId, field.id, newRefs);
+                        }}
+                      >
+                        <Checkbox
+                          checked={displayValues.includes(record.submission_ref_id)}
+                          onChange={() => {}}
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-primary">ID: {record.submission_ref_id}</span>
+                          <span className="text-xs text-muted-foreground">{record.displayData}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {availableRecords.length === 0 && (
+                      <div className="p-2 text-sm text-muted-foreground">
+                        No records available from target form
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+          </div>
         </Wrapper>
       );
     }
