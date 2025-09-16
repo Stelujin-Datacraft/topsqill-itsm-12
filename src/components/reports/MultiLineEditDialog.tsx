@@ -262,78 +262,43 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
       case 'user-picker': {
         const userValue = value || [];
         const selectedUserIds = Array.isArray(userValue) ? userValue : (userValue ? [userValue] : []);
-        const [isOpen, setIsOpen] = useState(false);
         
         return (
           <Wrapper>
-            <div className="relative">
-              <Button
-                variant="outline"
-                onClick={() => setIsOpen(!isOpen)}
-                className="w-full justify-between h-auto min-h-[2.5rem] py-2"
-              >
-                <div className="flex flex-wrap gap-1">
-                  {selectedUserIds.length > 0 ? (
-                    selectedUserIds.slice(0, 2).map((userId, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs">
-                        {getUserDisplayName(userId)}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const newIds = selectedUserIds.filter(id => id !== userId);
-                            const newValue = field.customConfig?.allowMultiple ? newIds : (newIds[0] || '');
-                            handleFieldValueChange(submissionId, field.id, newValue);
-                          }}
-                          className="ml-1 text-xs hover:text-destructive"
-                        >
-                          ×
-                        </button>
-                      </Badge>
-                    ))
-                  ) : (
-                    <span className="text-muted-foreground">Select users</span>
-                  )}
-                  {selectedUserIds.length > 2 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{selectedUserIds.length - 2} more
-                    </Badge>
-                  )}
-                </div>
-              </Button>
-              {isOpen && (
-                <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
-                  <ScrollArea className="max-h-60">
-                    <div className="p-1">
-                      {users.map(user => (
-                        <div
-                          key={user.id}
-                          className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer rounded-sm"
-                          onClick={() => {
-                            const isSelected = selectedUserIds.includes(user.id);
-                            let newIds;
-                            if (isSelected) {
-                              newIds = selectedUserIds.filter(id => id !== user.id);
-                            } else {
-                              newIds = field.customConfig?.allowMultiple 
-                                ? [...selectedUserIds, user.id]
-                                : [user.id];
-                            }
-                            const newValue = field.customConfig?.allowMultiple ? newIds : (newIds[0] || '');
-                            handleFieldValueChange(submissionId, field.id, newValue);
-                          }}
-                        >
-                          <Checkbox
-                            checked={selectedUserIds.includes(user.id)}
-                            onChange={() => {}}
-                          />
-                          <span className="text-sm">{getUserDisplayName(user.id)}</span>
-                        </div>
+            <Select
+              value={Array.isArray(selectedUserIds) ? selectedUserIds.join(',') : (selectedUserIds || '')}
+              onValueChange={(newValue) => {
+                const ids = newValue ? newValue.split(',').filter(Boolean) : [];
+                const finalValue = field.customConfig?.allowMultiple ? ids : (ids[0] || '');
+                handleFieldValueChange(submissionId, field.id, finalValue);
+              }}
+            >
+              <SelectTrigger className="text-sm">
+                <SelectValue placeholder={`Select ${field.label}`}>
+                  {selectedUserIds.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {selectedUserIds.slice(0, 2).map((userId, i) => (
+                        <Badge key={i} variant="secondary" className="text-xs">
+                          {getUserDisplayName(userId)}
+                        </Badge>
                       ))}
+                      {selectedUserIds.length > 2 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{selectedUserIds.length - 2} more
+                        </Badge>
+                      )}
                     </div>
-                  </ScrollArea>
-                </div>
-              )}
-            </div>
+                  )}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {users.map(user => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {getUserDisplayName(user.id)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Wrapper>
         );
       }
@@ -342,139 +307,81 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
         const accessValue = value || { users: [], groups: [] };
         const normalizedValue = typeof accessValue === 'object' ? accessValue : { users: [], groups: [] };
         const { users: currentUsers = [], groups: currentGroups = [] } = normalizedValue;
-        const [isUsersOpen, setIsUsersOpen] = useState(false);
-        const [isGroupsOpen, setIsGroupsOpen] = useState(false);
         
         return (
           <Wrapper>
             <div className="space-y-3">
               <div>
                 <Label className="text-xs text-muted-foreground mb-1 block">Users</Label>
-                <div className="relative">
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsUsersOpen(!isUsersOpen)}
-                    className="w-full justify-between h-auto min-h-[2.5rem] py-2"
-                  >
-                    <div className="flex flex-wrap gap-1">
-                      {currentUsers.length > 0 ? (
-                        currentUsers.slice(0, 2).map((userId, i) => (
-                          <Badge key={i} variant="secondary" className="text-xs">
-                            {getUserDisplayName(userId)}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const newUsers = currentUsers.filter(id => id !== userId);
-                                handleFieldValueChange(submissionId, field.id, { users: newUsers, groups: currentGroups });
-                              }}
-                              className="ml-1 text-xs hover:text-destructive"
-                            >
-                              ×
-                            </button>
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-muted-foreground text-sm">Select users</span>
-                      )}
-                      {currentUsers.length > 2 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{currentUsers.length - 2} more
-                        </Badge>
-                      )}
-                    </div>
-                  </Button>
-                  {isUsersOpen && (
-                    <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
-                      <ScrollArea className="max-h-60">
-                        <div className="p-1">
-                          {users.map(user => (
-                            <div
-                              key={user.id}
-                              className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer rounded-sm"
-                              onClick={() => {
-                                const isSelected = currentUsers.includes(user.id);
-                                const newUsers = isSelected 
-                                  ? currentUsers.filter(id => id !== user.id)
-                                  : [...currentUsers, user.id];
-                                handleFieldValueChange(submissionId, field.id, { users: newUsers, groups: currentGroups });
-                              }}
-                            >
-                              <Checkbox
-                                checked={currentUsers.includes(user.id)}
-                                onChange={() => {}}
-                              />
-                              <span className="text-sm">{getUserDisplayName(user.id)}</span>
-                            </div>
+                <Select
+                  value={currentUsers.join(',')}
+                  onValueChange={(newValue) => {
+                    const userIds = newValue ? newValue.split(',').filter(Boolean) : [];
+                    handleFieldValueChange(submissionId, field.id, { users: userIds, groups: currentGroups });
+                  }}
+                >
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="Select users">
+                      {currentUsers.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {currentUsers.slice(0, 2).map((userId, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs">
+                              {getUserDisplayName(userId)}
+                            </Badge>
                           ))}
+                          {currentUsers.length > 2 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{currentUsers.length - 2} more
+                            </Badge>
+                          )}
                         </div>
-                      </ScrollArea>
-                    </div>
-                  )}
-                </div>
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map(user => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {getUserDisplayName(user.id)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground mb-1 block">Groups</Label>
-                <div className="relative">
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsGroupsOpen(!isGroupsOpen)}
-                    className="w-full justify-between h-auto min-h-[2.5rem] py-2"
-                  >
-                    <div className="flex flex-wrap gap-1">
-                      {currentGroups.length > 0 ? (
-                        currentGroups.slice(0, 2).map((groupId, i) => (
-                          <Badge key={i} variant="secondary" className="text-xs">
-                            {getGroupDisplayName(groupId)}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const newGroups = currentGroups.filter(id => id !== groupId);
-                                handleFieldValueChange(submissionId, field.id, { users: currentUsers, groups: newGroups });
-                              }}
-                              className="ml-1 text-xs hover:text-destructive"
-                            >
-                              ×
-                            </button>
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-muted-foreground text-sm">Select groups</span>
-                      )}
-                      {currentGroups.length > 2 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{currentGroups.length - 2} more
-                        </Badge>
-                      )}
-                    </div>
-                  </Button>
-                  {isGroupsOpen && (
-                    <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
-                      <ScrollArea className="max-h-60">
-                        <div className="p-1">
-                          {groups.map(group => (
-                            <div
-                              key={group.id}
-                              className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer rounded-sm"
-                              onClick={() => {
-                                const isSelected = currentGroups.includes(group.id);
-                                const newGroups = isSelected 
-                                  ? currentGroups.filter(id => id !== group.id)
-                                  : [...currentGroups, group.id];
-                                handleFieldValueChange(submissionId, field.id, { users: currentUsers, groups: newGroups });
-                              }}
-                            >
-                              <Checkbox
-                                checked={currentGroups.includes(group.id)}
-                                onChange={() => {}}
-                              />
-                              <span className="text-sm">{getGroupDisplayName(group.id)}</span>
-                            </div>
+                <Select
+                  value={currentGroups.join(',')}
+                  onValueChange={(newValue) => {
+                    const groupIds = newValue ? newValue.split(',').filter(Boolean) : [];
+                    handleFieldValueChange(submissionId, field.id, { users: currentUsers, groups: groupIds });
+                  }}
+                >
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="Select groups">
+                      {currentGroups.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {currentGroups.slice(0, 2).map((groupId, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs">
+                              {getGroupDisplayName(groupId)}
+                            </Badge>
                           ))}
+                          {currentGroups.length > 2 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{currentGroups.length - 2} more
+                            </Badge>
+                          )}
                         </div>
-                      </ScrollArea>
-                    </div>
-                  )}
-                </div>
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {groups.map(group => (
+                      <SelectItem key={group.id} value={group.id}>
+                        {getGroupDisplayName(group.id)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </Wrapper>

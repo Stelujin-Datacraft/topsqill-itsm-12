@@ -344,7 +344,6 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
 
   // Multi-select component for cross-reference
   const MultiSelectCrossReference = ({ value, onChange, disabled, records }) => {
-    const [isOpen, setIsOpen] = useState(false);
     const selectedIds = Array.isArray(value) ? value : [];
 
     const handleToggle = (recordRefId: string) => {
@@ -361,7 +360,6 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
       <div className="relative">
         <Button
           variant="outline"
-          onClick={() => !disabled && setIsOpen(!isOpen)}
           disabled={disabled}
           className="w-full justify-between h-auto min-h-[2.5rem] py-2"
         >
@@ -391,7 +389,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
             )}
           </div>
         </Button>
-        {isOpen && !disabled && (
+        {false && !disabled && (
           <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
             <ScrollArea className="max-h-60">
               <div className="p-1">
@@ -426,7 +424,6 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
 
   // Multi-select component for users
   const MultiSelectUsers = ({ value, onChange, disabled }) => {
-    const [isOpen, setIsOpen] = useState(false);
     const selectedIds = Array.isArray(value) ? value : (value ? [value] : []);
 
     const handleToggle = (userId: string) => {
@@ -443,7 +440,6 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
       <div className="relative">
         <Button
           variant="outline"
-          onClick={() => !disabled && setIsOpen(!isOpen)}
           disabled={disabled}
           className="w-full justify-between h-auto min-h-[2.5rem] py-2"
         >
@@ -473,7 +469,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
             )}
           </div>
         </Button>
-        {isOpen && !disabled && (
+        {false && !disabled && (
           <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
             <ScrollArea className="max-h-60">
               <div className="p-1">
