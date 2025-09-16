@@ -344,6 +344,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
 
   // Multi-select component for cross-reference
   const MultiSelectCrossReference = ({ value, onChange, disabled, records }) => {
+    const [isOpen, setIsOpen] = useState(false);
     const selectedIds = Array.isArray(value) ? value : [];
 
     const handleToggle = (recordRefId: string) => {
@@ -356,40 +357,42 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
 
     const selectedRecords = records.filter(r => selectedIds.includes(r.submission_ref_id));
 
+    // Close dropdown when clicking outside
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        const target = event.target as Element;
+        if (!target.closest(`[data-dropdown="cross-ref-${Math.random()}"]`)) {
+          setIsOpen(false);
+        }
+      };
+
+      if (isOpen) {
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+      }
+    }, [isOpen]);
+
     return (
-      <div className="relative">
+      <div className="relative" data-dropdown={`cross-ref-${Math.random()}`}>
         <Button
           variant="outline"
+          onClick={() => !disabled && setIsOpen(!isOpen)}
           disabled={disabled}
           className="w-full justify-between h-auto min-h-[2.5rem] py-2"
         >
           <div className="flex flex-wrap gap-1">
             {selectedRecords.length > 0 ? (
-              selectedRecords.slice(0, 2).map(record => (
+              selectedRecords.map(record => (
                 <Badge key={record.submission_ref_id} variant="secondary" className="text-xs">
-                  ID: {record.submission_ref_id}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onChange(selectedIds.filter(id => id !== record.submission_ref_id));
-                    }}
-                    className="ml-1 text-xs hover:text-destructive"
-                  >
-                    ×
-                  </button>
+                  {record.submission_ref_id}
                 </Badge>
               ))
             ) : (
               <span className="text-muted-foreground">Select cross-reference records</span>
             )}
-            {selectedRecords.length > 2 && (
-              <Badge variant="outline" className="text-xs">
-                +{selectedRecords.length - 2} more
-              </Badge>
-            )}
           </div>
         </Button>
-        {false && !disabled && (
+        {isOpen && !disabled && (
           <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
             <ScrollArea className="max-h-60">
               <div className="p-1">
@@ -403,10 +406,8 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                       checked={selectedIds.includes(record.submission_ref_id)}
                       onChange={() => {}}
                     />
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-primary">ID: {record.submission_ref_id}</span>
-                      <span className="text-xs text-muted-foreground">{record.displayData}</span>
-                    </div>
+                    <span className="text-sm font-medium text-primary">ID: {record.submission_ref_id}</span>
+                    <span className="text-xs text-muted-foreground">- {record.displayData}</span>
                   </div>
                 ))}
                 {records.length === 0 && (
@@ -424,6 +425,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
 
   // Multi-select component for users
   const MultiSelectUsers = ({ value, onChange, disabled }) => {
+    const [isOpen, setIsOpen] = useState(false);
     const selectedIds = Array.isArray(value) ? value : (value ? [value] : []);
 
     const handleToggle = (userId: string) => {
@@ -440,36 +442,23 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
       <div className="relative">
         <Button
           variant="outline"
+          onClick={() => !disabled && setIsOpen(!isOpen)}
           disabled={disabled}
           className="w-full justify-between h-auto min-h-[2.5rem] py-2"
         >
           <div className="flex flex-wrap gap-1">
             {selectedUsers.length > 0 ? (
-              selectedUsers.slice(0, 2).map(user => (
+              selectedUsers.map(user => (
                 <Badge key={user.id} variant="secondary" className="text-xs">
                   {getUserDisplayName(user.id)}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onChange(selectedIds.filter(id => id !== user.id));
-                    }}
-                    className="ml-1 text-xs hover:text-destructive"
-                  >
-                    ×
-                  </button>
                 </Badge>
               ))
             ) : (
               <span className="text-muted-foreground">Select users</span>
             )}
-            {selectedUsers.length > 2 && (
-              <Badge variant="outline" className="text-xs">
-                +{selectedUsers.length - 2} more
-              </Badge>
-            )}
           </div>
         </Button>
-        {false && !disabled && (
+        {isOpen && !disabled && (
           <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
             <ScrollArea className="max-h-60">
               <div className="p-1">
@@ -524,27 +513,13 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         >
           <div className="flex flex-wrap gap-1">
             {selectedGroups.length > 0 ? (
-              selectedGroups.slice(0, 2).map(group => (
+              selectedGroups.map(group => (
                 <Badge key={group.id} variant="secondary" className="text-xs">
                   {getGroupDisplayName(group.id)}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onChange(selectedIds.filter(id => id !== group.id));
-                    }}
-                    className="ml-1 text-xs hover:text-destructive"
-                  >
-                    ×
-                  </button>
                 </Badge>
               ))
             ) : (
               <span className="text-muted-foreground">Select groups</span>
-            )}
-            {selectedGroups.length > 2 && (
-              <Badge variant="outline" className="text-xs">
-                +{selectedGroups.length - 2} more
-              </Badge>
             )}
           </div>
         </Button>

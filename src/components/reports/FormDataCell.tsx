@@ -549,7 +549,7 @@ if (['file', 'image'].includes(fieldType) && value) {
     }
 
     return (
-      <div className="flex flex-col gap-1 max-w-[200px] mr-4">
+      <div className="flex flex-col gap-1 max-w-[200px]">
         {displayItems.map((item, index) => (
           <Badge 
             key={`${item.type}-${item.id}-${index}`} 
@@ -571,7 +571,7 @@ if (['file', 'image'].includes(fieldType) && value) {
         return <Badge variant="outline" className="italic opacity-70">No users selected</Badge>;
       }
       return (
-        <div className="flex flex-col gap-1 max-w-[200px] mr-4">
+        <div className="flex flex-col gap-1 max-w-[200px]">
           {value.map((userId, index) => (
             <Badge 
               key={`user-${userId}-${index}`} 
