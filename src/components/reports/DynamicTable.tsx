@@ -662,26 +662,34 @@ export function DynamicTable({
       {/* Analytics Section */}
       {!isExpanded && <SubmissionAnalytics data={data} />}
       
-<Card className="h-full w-full max-w-full flex flex-col overflow-hidden">
+<Card
+  className="h-full flex flex-col overflow-hidden"
+  style={{
+    width: isExpanded ? '100vw' : 'calc(100vw - 280px)',
+  }}
+>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <CardTitle className="text-lg font-semibold">{config.title}</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                {filteredAndSortedData.length} record{filteredAndSortedData.length !== 1 ? 's' : ''} found
-              </p>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Button variant="outline" size="sm" onClick={() => setIsExpanded(!isExpanded)}>
-                {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                {isExpanded ? 'Normal View' : 'Expand'}
-              </Button>
-              {onEdit && <Button variant="outline" size="sm" onClick={onEdit}>
-                  <Settings className="h-4 w-4" />
-                  Configure
-                </Button>}
-            </div>
-          </div>
+      <div className="space-y-1">
+        <CardTitle className="text-lg font-semibold">{config.title}</CardTitle>
+        <p className="text-xs text-muted-foreground">
+          {filteredAndSortedData.length} record{filteredAndSortedData.length !== 1 ? 's' : ''}
+        </p>
+      </div>
+
+      <div className="flex items-center space-x-2">
+        <Button variant="outline" size="sm" onClick={() => setIsExpanded(!isExpanded)}>
+          {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          {isExpanded ? 'Normal View' : 'Expand'}
+        </Button>
+        {onEdit && (
+          <Button variant="outline" size="sm" onClick={onEdit}>
+            <Settings className="h-4 w-4" />
+            Configure
+          </Button>
+        )}
+      </div>
+    </div>
 
           {/* Applied Filters */}
           {(Object.keys(columnFilters).length > 0 || appliedFilters.length > 0) && <div className="flex flex-wrap gap-1 mb-2">
@@ -800,28 +808,28 @@ export function DynamicTable({
 
                 <TableHeader className="sticky top-0 z-[5] bg-blue-600 border-b-2 border-blue-700">
                   <TableRow className="border-b border-blue-500">
-                    <TableHead className="w-10 h-8 bg-[#008d7a]">
+                    <TableHead className="w-10 h-8 ">
                       <Checkbox checked={paginatedData.length > 0 && paginatedData.every(row => selectedRows.has(row.id))} onCheckedChange={handleSelectAll} aria-label="Select all rows" className="text-zinc-50 bg-transparent" />
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 text-white bg-[#009e89] min-w-[140px]">
+                    <TableHead className="text-xs font-medium h-8 text-white  min-w-[140px]">
                       <div className="flex items-center gap-1">
                         <FileText className="h-3 w-3" />
                         Submission ID
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 text-white bg-[#019e89] min-w-[100px]">
+                    <TableHead className="text-xs font-medium h-8 text-white  min-w-[100px]">
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />
                         User
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 text-white bg-[#009e89] min-w-[120px]">
+                    <TableHead className="text-xs font-medium h-8 text-white min-w-[120px]">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         Submitted
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 text-white bg-[#009e89] min-w-[80px]">
+                    <TableHead className="text-xs font-medium h-8 text-white  min-w-[80px]">
                       <div className="flex items-center gap-1">
                         <CheckCircle className="h-3 w-3" />
                         Status
@@ -829,7 +837,7 @@ export function DynamicTable({
                     </TableHead>
                     
                     {/* Form fields */}
-                    {displayFields.map(field => <TableHead key={field.id} className="text-xs font-medium h-8 text-white bg-[#018c79] min-w-[200px]">
+                    {displayFields.map(field => <TableHead key={field.id} className="text-xs font-medium h-8 text-white min-w-[200px]">
                         <div className="flex items-center gap-1">
                           <span className="font-medium">{field.label}</span>
                           {config.enableFiltering && <Popover>
