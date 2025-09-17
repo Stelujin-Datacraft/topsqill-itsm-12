@@ -28,46 +28,63 @@ export function UserPickerField({ field, value, onChange, error, disabled }: Use
   const { projectMembers, loading } = useProjectMembership(currentProject?.id || '');
   const { roles } = useRoles();
   
+  const config = field.customConfig || {};
+  const isMultiple = config.allowMultiple || config.maxSelections > 1;
+  const maxSelections = config.maxSelections || 1;
+  
   // Debug logging
   useEffect(() => {
     console.log('🔍 UserPickerField Debug Info:');
     console.log('Current Project ID:', currentProject?.id);
     console.log('Project Members:', projectMembers);
     console.log('Loading:', loading);
-  }, [currentProject?.id, projectMembers, loading]);
-  
-  const config = field.customConfig || {};
-  const isMultiple = config.allowMultiple || config.maxSelections > 1;
-  const maxSelections = config.maxSelections || 1;
+    console.log('Field Config:', config);
+    console.log('Allowed Users:', (config as any)?.allowedUsers);
+    console.log('Is Multiple:', isMultiple);
+    console.log('Field:', field);
+  }, [currentProject?.id, projectMembers, loading, config, isMultiple, field]);
 
   // Filter users based on configuration
   const filteredUsers = useMemo(() => {
     let users = projectMembers || [];
+    console.log('🔍 Filtering users - Initial users:', users.length);
+    console.log('🔍 Allowed Users Config:', (config as any)?.allowedUsers);
     
     // Apply admin pre-selection filter - if allowedUsers exists but is empty, show no users
     if ((config as any)?.allowedUsers) {
       if ((config as any).allowedUsers.length > 0) {
+        const beforeFilter = users.length;
         users = users.filter(user => (config as any).allowedUsers.includes(user.user_id));
+        console.log('🔍 After allowedUsers filter:', beforeFilter, '->', users.length);
+        console.log('🔍 Filtered users:', users.map(u => ({ id: u.user_id, email: u.email })));
       } else {
         // If allowedUsers exists but is empty, show no users
         users = [];
+        console.log('🔍 AllowedUsers exists but empty, showing no users');
       }
+    } else {
+      console.log('🔍 No allowedUsers config, showing all users');
     }
     // If allowedUsers doesn't exist, show all users (backward compatibility)
     
     // Apply role filter if specified
     if (config.roleFilter && users.length > 0) {
+      const beforeRoleFilter = users.length;
       users = users.filter(user => user.role === config.roleFilter);
+      console.log('🔍 After role filter:', beforeRoleFilter, '->', users.length);
     }
     
     // Apply search filter
     if (searchTerm && users.length > 0) {
+      const beforeSearchFilter = users.length;
       users = users.filter(user => 
         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
       );
+      console.log('🔍 After search filter:', beforeSearchFilter, '->', users.length);
     }
     
+    console.log('🔍 Final filtered users:', users.length);
     return users;
   }, [projectMembers, (config as any)?.allowedUsers, config.roleFilter, searchTerm]);
 
