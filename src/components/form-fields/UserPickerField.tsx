@@ -72,8 +72,8 @@ export function UserPickerField({ field, value, onChange, error, disabled }: Use
   }, [value]);
 
   const selectedUsers = useMemo(() => {
-    return filteredUsers.filter(user => selectedUserIds.includes(user.user_id));
-  }, [filteredUsers, selectedUserIds]);
+    return (projectMembers || []).filter(user => selectedUserIds.includes(user.user_id));
+  }, [projectMembers, selectedUserIds]);
 
   const handleUserSelect = (userId: string) => {
     if (disabled) return;
