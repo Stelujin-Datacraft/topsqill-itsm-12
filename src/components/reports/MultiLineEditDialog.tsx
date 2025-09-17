@@ -14,6 +14,7 @@ import { Save, Users, Star, Calendar } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { useUsersAndGroups } from '@/hooks/useUsersAndGroups';
+import { Eye } from 'lucide-react';
 import { useCrossReferenceData } from '@/hooks/useCrossReferenceData';
 
 
@@ -37,6 +38,35 @@ export function MultiLineEditDialog({
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
   const { users, groups, getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
+  
+  // Filter users and groups based on field configuration
+  const getFilteredUsers = (field: any) => {
+    const config = field.customConfig || {};
+    if (config.allowedUsers) {
+      if (config.allowedUsers.length > 0) {
+        return users.filter(user => config.allowedUsers.includes(user.id));
+      } else {
+        return []; // Empty allowedUsers means no users should be shown
+      }
+    }
+    // Apply role filter if specified
+    if (config.roleFilter) {
+      return users.filter(user => (user as any).role === config.roleFilter);
+    }
+    return users; // Show all users if no filter
+  };
+
+  const getFilteredGroups = (field: any) => {
+    const config = field.customConfig || {};
+    if (config.allowedGroups) {
+      if (config.allowedGroups.length > 0) {
+        return groups.filter(group => config.allowedGroups.includes(group.id));
+      } else {
+        return []; // Empty allowedGroups means no groups should be shown
+      }
+    }
+    return groups; // Show all groups if no filter
+  };
   
   // Get cross-reference records from all forms - we'll filter by target form in renderFieldInput
   const [crossRefRecordsByForm, setCrossRefRecordsByForm] = useState<Record<string, any[]>>({});
@@ -262,6 +292,7 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
       case 'user-picker': {
         const userValue = value || [];
         const selectedUserIds = Array.isArray(userValue) ? userValue : (userValue ? [userValue] : []);
+        const filteredUsers = getFilteredUsers(field);
         
         return (
           <Wrapper>
@@ -274,25 +305,48 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
                 handleFieldValueChange(submissionId, field.id, newValue);
               }}
             >
-              <SelectTrigger className="text-sm">
+              <SelectTrigger className="text-sm h-auto min-h-[2.5rem] py-2">
                 <SelectValue placeholder="Select users" />
               </SelectTrigger>
-              <SelectContent>
-                {users.map(user => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {getUserDisplayName(user.id)}
+              <SelectContent className="max-h-60">
+                {filteredUsers.map(user => {
+                  const displayName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;
+                  return (
+                    <SelectItem key={user.id} value={user.id} className="flex flex-col items-start p-2">
+                      <div className="flex flex-col">
+                        <span className="font-medium">{displayName}</span>
+                        {user.email && displayName !== user.email && (
+                          <span className="text-xs text-muted-foreground">{user.email}</span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+                {filteredUsers.length === 0 && (
+                  <SelectItem value="no-users" disabled>
+                    No users available
                   </SelectItem>
-                ))}
+                )}
               </SelectContent>
             </Select>
             {selectedUserIds.length > 0 && (
-              <ScrollArea className="max-h-16 w-full mt-1">
-                <div className="flex flex-col gap-1 pr-2">
-                  {selectedUserIds.map((userId, i) => (
-                    <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 text-xs justify-start">
-                      {getUserDisplayName(userId)}
-                    </Badge>
-                  ))}
+              <ScrollArea className="max-h-20 w-full mt-2">
+                <div className="flex flex-col gap-2 pr-2">
+                  {selectedUserIds.map((userId, i) => {
+                    const userObj = users.find(u => u.id === userId);
+                    const displayName = userObj ? `${userObj.first_name || ''} ${userObj.last_name || ''}`.trim() || userObj.email : getUserDisplayName(userId);
+                    const email = userObj?.email;
+                    return (
+                      <div key={i} className="flex flex-col gap-1 p-2 border rounded">
+                        <Badge variant="outline" className="bg-blue-100 text-blue-800 text-xs justify-start w-fit">
+                          {displayName}
+                        </Badge>
+                        {email && displayName !== email && (
+                          <span className="text-xs text-muted-foreground">{email}</span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </ScrollArea>
             )}
@@ -304,12 +358,14 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
         const accessValue = value || { users: [], groups: [] };
         const normalizedValue = typeof accessValue === 'object' ? accessValue : { users: [], groups: [] };
         const { users: currentUsers = [], groups: currentGroups = [] } = normalizedValue;
+        const filteredUsers = getFilteredUsers(field);
+        const filteredGroups = getFilteredGroups(field);
         
         return (
           <Wrapper>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Users</Label>
+                <Label className="text-xs text-muted-foreground mb-2 block">Users</Label>
                 <Select
                   value=""
                   onValueChange={(userId) => {
@@ -317,31 +373,54 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
                     handleFieldValueChange(submissionId, field.id, { users: newUsers, groups: currentGroups });
                   }}
                 >
-                  <SelectTrigger className="text-sm">
+                  <SelectTrigger className="text-sm h-auto min-h-[2.5rem] py-2">
                     <SelectValue placeholder="Add user" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {users.map(user => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {getUserDisplayName(user.id)}
+                  <SelectContent className="max-h-60">
+                    {filteredUsers.map(user => {
+                      const displayName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;
+                      return (
+                        <SelectItem key={user.id} value={user.id} className="flex flex-col items-start p-2">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{displayName}</span>
+                            {user.email && displayName !== user.email && (
+                              <span className="text-xs text-muted-foreground">{user.email}</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                    {filteredUsers.length === 0 && (
+                      <SelectItem value="no-users" disabled>
+                        No users available
                       </SelectItem>
-                    ))}
+                    )}
                   </SelectContent>
                 </Select>
                 {currentUsers.length > 0 && (
-                  <ScrollArea className="max-h-12 w-full mt-1">
-                    <div className="flex flex-col gap-1 pr-2">
-                      {currentUsers.map((userId, i) => (
-                        <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 text-xs justify-start">
-                          {getUserDisplayName(userId)}
-                        </Badge>
-                      ))}
+                  <ScrollArea className="max-h-20 w-full mt-2">
+                    <div className="flex flex-col gap-2 pr-2">
+                      {currentUsers.map((userId, i) => {
+                        const userObj = users.find(u => u.id === userId);
+                        const displayName = userObj ? `${userObj.first_name || ''} ${userObj.last_name || ''}`.trim() || userObj.email : getUserDisplayName(userId);
+                        const email = userObj?.email;
+                        return (
+                          <div key={i} className="flex flex-col gap-1 p-2 border rounded">
+                            <Badge variant="outline" className="bg-blue-100 text-blue-800 text-xs justify-start w-fit">
+                              {displayName}
+                            </Badge>
+                            {email && displayName !== email && (
+                              <span className="text-xs text-muted-foreground">{email}</span>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </ScrollArea>
                 )}
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Groups</Label>
+                <Label className="text-xs text-muted-foreground mb-2 block">Groups</Label>
                 <Select
                   value=""
                   onValueChange={(groupId) => {
@@ -349,24 +428,31 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
                     handleFieldValueChange(submissionId, field.id, { users: currentUsers, groups: newGroups });
                   }}
                 >
-                  <SelectTrigger className="text-sm">
+                  <SelectTrigger className="text-sm h-auto min-h-[2.5rem] py-2">
                     <SelectValue placeholder="Add group" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {groups.map(group => (
+                  <SelectContent className="max-h-60">
+                    {filteredGroups.map(group => (
                       <SelectItem key={group.id} value={group.id}>
                         {getGroupDisplayName(group.id)}
                       </SelectItem>
                     ))}
+                    {filteredGroups.length === 0 && (
+                      <SelectItem value="no-groups" disabled>
+                        No groups available
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
                 {currentGroups.length > 0 && (
-                  <ScrollArea className="max-h-12 w-full mt-1">
-                    <div className="flex flex-col gap-1 pr-2">
+                  <ScrollArea className="max-h-20 w-full mt-2">
+                    <div className="flex flex-col gap-2 pr-2">
                       {currentGroups.map((groupId, i) => (
-                        <Badge key={i} variant="outline" className="bg-green-100 text-green-800 text-xs justify-start">
-                          {getGroupDisplayName(groupId)}
-                        </Badge>
+                        <div key={i} className="flex flex-col gap-1 p-2 border rounded">
+                          <Badge variant="outline" className="bg-green-100 text-green-800 text-xs justify-start w-fit">
+                            {getGroupDisplayName(groupId)}
+                          </Badge>
+                        </div>
                       ))}
                     </div>
                   </ScrollArea>
@@ -593,14 +679,133 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
       );
     }
 
+    case 'address': {
+      const addressValue = value || {};
+      const { street = '', city = '', state = '', postal_code = '', country = '' } = addressValue;
+      
+      return (
+        <Wrapper>
+          <div className="grid grid-cols-1 gap-2">
+            <Input
+              placeholder="Street Address"
+              value={street}
+              onChange={(e) => handleFieldValueChange(submissionId, field.id, { ...addressValue, street: e.target.value })}
+              className="text-sm"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                placeholder="City"
+                value={city}
+                onChange={(e) => handleFieldValueChange(submissionId, field.id, { ...addressValue, city: e.target.value })}
+                className="text-sm"
+              />
+              <Input
+                placeholder="State/Province"
+                value={state}
+                onChange={(e) => handleFieldValueChange(submissionId, field.id, { ...addressValue, state: e.target.value })}
+                className="text-sm"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                placeholder="Postal Code"
+                value={postal_code}
+                onChange={(e) => handleFieldValueChange(submissionId, field.id, { ...addressValue, postal_code: e.target.value })}
+                className="text-sm"
+              />
+              <Input
+                placeholder="Country"
+                value={country}
+                onChange={(e) => handleFieldValueChange(submissionId, field.id, { ...addressValue, country: e.target.value })}
+                className="text-sm"
+              />
+            </div>
+          </div>
+        </Wrapper>
+      );
+    }
+
+    case 'file': {
+      return (
+        <Wrapper>
+          <div className="space-y-2">
+            {/* File upload input */}
+            <Input
+              type="file"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  // Create a file object that can be stored
+                  const fileObj = {
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    url: URL.createObjectURL(file) // Temporary URL for preview
+                  };
+                  handleFieldValueChange(submissionId, field.id, fileObj);
+                }
+              }}
+              accept={field.customConfig?.acceptedTypes?.join(',') || '*/*'}
+              className="text-sm"
+            />
+            
+            {/* Display current file */}
+            {value && (
+              <div className="flex items-center gap-2 p-2 border rounded text-sm">
+                <span className="truncate flex-1">
+                  {typeof value === 'string' ? value.split('/').pop() : value.name || 'File'}
+                </span>
+                <div className="flex gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const url = typeof value === 'string' ? value : value.url;
+                      if (url) window.open(url, '_blank');
+                    }}
+                    className="h-7 px-2"
+                  >
+                    <Eye className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const url = typeof value === 'string' ? value : value.url;
+                      const name = typeof value === 'string' ? value.split('/').pop() : value.name;
+                      if (url) {
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = name || 'file';
+                        link.click();
+                      }
+                    }}
+                    className="h-7 px-2"
+                  >
+                    Download
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleFieldValueChange(submissionId, field.id, null)}
+                    className="h-7 px-2 text-red-500"
+                  >
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </Wrapper>
+      );
+    }
+
     case 'child-cross-reference':
     case 'calculated':
     case 'conditional-section':
     case 'workflow-trigger':
     case 'query-field':
     case 'barcode':
-    case 'address':
-      case'file':
       return (
         <Wrapper>
           <div className="text-xs text-muted-foreground italic p-2 bg-muted/20 rounded">

@@ -34,6 +34,35 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
   const [saving, setSaving] = useState(false);
   const { users, groups, getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
   
+  // Filter users and groups based on field configuration
+  const getFilteredUsers = (field: any) => {
+    const config = field.customConfig || {};
+    if (config.allowedUsers) {
+      if (config.allowedUsers.length > 0) {
+        return users.filter(user => config.allowedUsers.includes(user.id));
+      } else {
+        return []; // Empty allowedUsers means no users should be shown
+      }
+    }
+    // Apply role filter if specified (note: user object might not have role property)
+    if (config.roleFilter) {
+      return users.filter(user => (user as any).role === config.roleFilter);
+    }
+    return users; // Show all users if no filter
+  };
+
+  const getFilteredGroups = (field: any) => {
+    const config = field.customConfig || {};
+    if (config.allowedGroups) {
+      if (config.allowedGroups.length > 0) {
+        return groups.filter(group => config.allowedGroups.includes(group.id));
+      } else {
+        return []; // Empty allowedGroups means no groups should be shown
+      }
+    }
+    return groups; // Show all groups if no filter
+  };
+  
   // Get cross-reference records from all forms - we'll filter by target form in renderFieldInput
   const [crossRefRecordsByForm, setCrossRefRecordsByForm] = useState<Record<string, any[]>>({});
 
@@ -424,9 +453,10 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
   };
 
   // Multi-select component for users
-  const MultiSelectUsers = ({ value, onChange, disabled }) => {
+  const MultiSelectUsers = ({ value, onChange, disabled, field }) => {
     const [isOpen, setIsOpen] = useState(false);
     const selectedIds = Array.isArray(value) ? value : (value ? [value] : []);
+    const filteredUsers = getFilteredUsers(field);
 
     const handleToggle = (userId: string) => {
       if (selectedIds.includes(userId)) {
@@ -436,7 +466,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
       }
     };
 
-    const selectedUsers = users.filter(u => selectedIds.includes(u.id));
+    const selectedUsers = filteredUsers.filter(u => selectedIds.includes(u.id));
 
     return (
       <div className="relative">
@@ -446,13 +476,23 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           disabled={disabled}
           className="w-full justify-between h-auto min-h-[2.5rem] py-2"
         >
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1 min-h-[1.5rem]">
             {selectedUsers.length > 0 ? (
-              selectedUsers.map(user => (
-                <Badge key={user.id} variant="secondary" className="text-xs">
-                  {getUserDisplayName(user.id)}
-                </Badge>
-              ))
+              selectedUsers.map(user => {
+                const userObj = users.find(u => u.id === user.id);
+                const displayName = userObj ? `${userObj.first_name || ''} ${userObj.last_name || ''}`.trim() || userObj.email : getUserDisplayName(user.id);
+                const email = userObj?.email;
+                return (
+                  <div key={user.id} className="flex flex-col items-start">
+                    <Badge variant="secondary" className="text-xs mb-1">
+                      {displayName}
+                    </Badge>
+                    {email && displayName !== email && (
+                      <span className="text-xs text-muted-foreground">{email}</span>
+                    )}
+                  </div>
+                );
+              })
             ) : (
               <span className="text-muted-foreground">Select users</span>
             )}
@@ -462,20 +502,28 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
             <ScrollArea className="max-h-60">
               <div className="p-1">
-                {users.map(user => (
-                  <div
-                    key={user.id}
-                    className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer rounded-sm"
-                    onClick={() => handleToggle(user.id)}
-                  >
-                    <Checkbox
-                      checked={selectedIds.includes(user.id)}
-                      onChange={() => {}}
-                    />
-                    <span className="text-sm">{getUserDisplayName(user.id)}</span>
-                  </div>
-                ))}
-                {users.length === 0 && (
+                {filteredUsers.map(user => {
+                  const displayName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;
+                  return (
+                    <div
+                      key={user.id}
+                      className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer rounded-sm"
+                      onClick={() => handleToggle(user.id)}
+                    >
+                      <Checkbox
+                        checked={selectedIds.includes(user.id)}
+                        onChange={() => {}}
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{displayName}</span>
+                        {user.email && displayName !== user.email && (
+                          <span className="text-xs text-muted-foreground">{user.email}</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                {filteredUsers.length === 0 && (
                   <div className="p-2 text-sm text-muted-foreground">
                     No users available
                   </div>
@@ -489,9 +537,10 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
   };
 
   // Multi-select component for groups
-  const MultiSelectGroups = ({ value, onChange, disabled }) => {
+  const MultiSelectGroups = ({ value, onChange, disabled, field }) => {
     const [isOpen, setIsOpen] = useState(false);
     const selectedIds = Array.isArray(value) ? value : [];
+    const filteredGroups = getFilteredGroups(field);
 
     const handleToggle = (groupId: string) => {
       if (selectedIds.includes(groupId)) {
@@ -527,7 +576,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
             <ScrollArea className="max-h-60">
               <div className="p-1">
-                {groups.map(group => (
+                {filteredGroups.map(group => (
                   <div
                     key={group.id}
                     className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer rounded-sm"
@@ -540,7 +589,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                     <span className="text-sm">{getGroupDisplayName(group.id)}</span>
                   </div>
                 ))}
-                {groups.length === 0 && (
+                {filteredGroups.length === 0 && (
                   <div className="p-2 text-sm text-muted-foreground">
                     No groups available
                   </div>
@@ -632,6 +681,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                 handleFieldChange(submissionId, field.id, newValue);
               }}
               disabled={isDisabled}
+              field={field}
             />
           );
         }
@@ -644,11 +694,21 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         return (
           <ScrollArea className="max-h-24 w-full">
             <div className="flex flex-col gap-1 pr-2">
-              {selectedUserIds.map((userId, i) => (
-                <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 justify-start text-xs max-w-[200px] truncate">
-                  {getUserDisplayName(userId)}
-                </Badge>
-              ))}
+              {selectedUserIds.map((userId, i) => {
+                const userObj = users.find(u => u.id === userId);
+                const displayName = userObj ? `${userObj.first_name || ''} ${userObj.last_name || ''}`.trim() || userObj.email : getUserDisplayName(userId);
+                const email = userObj?.email;
+                return (
+                  <div key={i} className="flex flex-col gap-1">
+                    <Badge variant="outline" className="bg-blue-100 text-blue-800 justify-start text-xs max-w-[200px] truncate">
+                      {displayName}
+                    </Badge>
+                    {email && displayName !== email && (
+                      <span className="text-xs text-muted-foreground ml-2">{email}</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </ScrollArea>
         );
@@ -669,6 +729,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                   value={users}
                   onChange={(newUsers) => handleFieldChange(submissionId, field.id, { users: newUsers, groups })}
                   disabled={isDisabled}
+                  field={field}
                 />
               </div>
               <div>
@@ -677,6 +738,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                   value={groups}
                   onChange={(newGroups) => handleFieldChange(submissionId, field.id, { users, groups: newGroups })}
                   disabled={isDisabled}
+                  field={field}
                 />
               </div>
             </div>
@@ -1217,6 +1279,170 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         );
       }
 
+      case 'address': {
+        const addressValue = value || {};
+        const { street = '', city = '', state = '', postal_code = '', country = '' } = addressValue;
+        
+        if (submissionId === 'master' || submissions.length === 1) {
+          return (
+            <div className="grid grid-cols-1 gap-2">
+              <Input
+                placeholder="Street Address"
+                value={street}
+                onChange={(e) => handleFieldChange(submissionId, field.id, { ...addressValue, street: e.target.value })}
+                disabled={isDisabled}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="City"
+                  value={city}
+                  onChange={(e) => handleFieldChange(submissionId, field.id, { ...addressValue, city: e.target.value })}
+                  disabled={isDisabled}
+                />
+                <Input
+                  placeholder="State/Province"
+                  value={state}
+                  onChange={(e) => handleFieldChange(submissionId, field.id, { ...addressValue, state: e.target.value })}
+                  disabled={isDisabled}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="Postal Code"
+                  value={postal_code}
+                  onChange={(e) => handleFieldChange(submissionId, field.id, { ...addressValue, postal_code: e.target.value })}
+                  disabled={isDisabled}
+                />
+                <Select 
+                  value={country} 
+                  onValueChange={(val) => handleFieldChange(submissionId, field.id, { ...addressValue, country: val })}
+                  disabled={isDisabled}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries.map(c => (
+                      <SelectItem key={c.code} value={c.code}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          );
+        }
+
+        // Display mode for bulk editing child records
+        const addressText = [street, city, state, postal_code, country].filter(Boolean).join(', ');
+        return (
+          <div className="text-sm">
+            {addressText || <span className="italic text-muted-foreground">No address</span>}
+          </div>
+        );
+      }
+
+      case 'file': {
+        // Enhanced file field with upload, preview, and download capabilities
+        if (submissionId === 'master' || submissions.length === 1) {
+          return (
+            <div className="space-y-2">
+              {/* File upload input */}
+              <Input
+                type="file"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    // Create a file object that can be stored
+                    const fileObj = {
+                      name: file.name,
+                      size: file.size,
+                      type: file.type,
+                      url: URL.createObjectURL(file) // Temporary URL for preview
+                    };
+                    handleFieldChange(submissionId, field.id, fileObj);
+                  }
+                }}
+                disabled={isDisabled}
+                accept={field.customConfig?.acceptedTypes?.join(',') || '*/*'}
+              />
+              
+              {/* Display current file */}
+              {value && (
+                <div className="flex items-center gap-2 p-2 border rounded">
+                  <span className="text-sm truncate flex-1">
+                    {typeof value === 'string' ? value.split('/').pop() : value.name || 'File'}
+                  </span>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const url = typeof value === 'string' ? value : value.url;
+                        if (url) window.open(url, '_blank');
+                      }}
+                      className="h-7 px-2"
+                    >
+                      <Eye className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const url = typeof value === 'string' ? value : value.url;
+                        const name = typeof value === 'string' ? value.split('/').pop() : value.name;
+                        if (url) {
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.download = name || 'file';
+                          link.click();
+                        }
+                      }}
+                      className="h-7 px-2"
+                    >
+                      Download
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleFieldChange(submissionId, field.id, null)}
+                      className="h-7 px-2 text-red-500"
+                      disabled={isDisabled}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        // Display mode for bulk editing child records
+        if (!value) {
+          return <span className="italic text-muted-foreground">No file</span>;
+        }
+
+        const fileName = typeof value === 'string' ? value.split('/').pop() : value.name || 'File';
+        return (
+          <div className="flex items-center gap-2">
+            <span className="text-sm truncate">{fileName}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const url = typeof value === 'string' ? value : value.url;
+                if (url) window.open(url, '_blank');
+              }}
+              className="h-7 px-2"
+            >
+              <Eye className="h-3 w-3" />
+            </Button>
+          </div>
+        );
+      }
+
       case 'header':
       case 'description':
       case 'section-break':
@@ -1230,7 +1456,6 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
       case 'workflow-trigger':
       case 'query-field':
       case 'barcode':
-      case 'address': 
       {
         return (
           <div className="text-xs text-muted-foreground italic p-2 bg-muted/20 rounded">
@@ -1355,8 +1580,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                               'record-table',
                               'matrix-grid',
                               'workflow-trigger',
-                              'barcode',
-                              'addresss'
+                              'barcode'
                             ];
 
                             if (excludedFieldTypes.includes(field.field_type)) return false;
