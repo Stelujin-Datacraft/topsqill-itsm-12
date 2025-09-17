@@ -392,6 +392,44 @@ if (fieldType === 'checkbox') {
     );
   }
 
+  // Handle address fields
+  if (fieldType === 'address' && value) {
+    let addressData;
+    
+    if (typeof value === 'string') {
+      try {
+        addressData = JSON.parse(value);
+      } catch {
+        return <span className="text-sm">{value}</span>;
+      }
+    } else if (typeof value === 'object') {
+      addressData = value;
+    }
+
+    if (addressData) {
+      const { street, city, state, postal_code, country } = addressData;
+      const addressParts = [street, city, state, postal_code, country].filter(Boolean);
+      
+      if (addressParts.length === 0) {
+        return <Badge variant="outline" className="italic opacity-70">No address</Badge>;
+      }
+
+      return (
+        <div className="text-sm max-w-[200px]">
+          <div className="font-medium">{street}</div>
+          {(city || state || postal_code) && (
+            <div className="text-muted-foreground">
+              {[city, state, postal_code].filter(Boolean).join(', ')}
+            </div>
+          )}
+          {country && (
+            <div className="text-muted-foreground text-xs">{country}</div>
+          )}
+        </div>
+      );
+    }
+  }
+
   // Handle country fields
 if (fieldType === 'country' && value) {
   // Map code to full name

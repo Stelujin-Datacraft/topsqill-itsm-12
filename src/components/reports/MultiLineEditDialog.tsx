@@ -41,26 +41,34 @@ export function MultiLineEditDialog({
   
   // Filter users and groups based on field configuration
   const getFilteredUsers = (field: any) => {
-    const config = field.customConfig || {};
+    const config = field.custom_config || field.customConfig || {};
+    console.log('🔧 MultiLine getFilteredUsers - field config:', config);
+    
     if (config.allowedUsers) {
       if (config.allowedUsers.length > 0) {
-        return users.filter(user => config.allowedUsers.includes(user.id));
+        const filtered = users.filter(user => config.allowedUsers.includes(user.id));
+        console.log('🔧 MultiLine Filtered users:', filtered);
+        return filtered;
       } else {
         return []; // Empty allowedUsers means no users should be shown
       }
     }
     // Apply role filter if specified
-    if (config.roleFilter) {
+    if (config.roleFilter && config.roleFilter !== 'all') {
       return users.filter(user => (user as any).role === config.roleFilter);
     }
     return users; // Show all users if no filter
   };
 
   const getFilteredGroups = (field: any) => {
-    const config = field.customConfig || {};
+    const config = field.custom_config || field.customConfig || {};
+    console.log('🔧 MultiLine getFilteredGroups - field config:', config);
+    
     if (config.allowedGroups) {
       if (config.allowedGroups.length > 0) {
-        return groups.filter(group => config.allowedGroups.includes(group.id));
+        const filtered = groups.filter(group => config.allowedGroups.includes(group.id));
+        console.log('🔧 MultiLine Filtered groups:', filtered);
+        return filtered;
       } else {
         return []; // Empty allowedGroups means no groups should be shown
       }
@@ -78,8 +86,8 @@ export function MultiLineEditDialog({
       
       // Collect all target form IDs from cross-reference fields
       formFields.forEach(field => {
-        if (field.field_type === 'cross-reference' && field.customConfig?.targetFormId) {
-          formIds.add(field.customConfig.targetFormId);
+        if (field.field_type === 'cross-reference' && (field.custom_config || field.customConfig)?.targetFormId) {
+          formIds.add((field.custom_config || field.customConfig).targetFormId);
         }
       });
 
@@ -299,7 +307,7 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
             <Select
               value=""
               onValueChange={(userId) => {
-                const newValue = field.customConfig?.allowMultiple 
+                const newValue = (field.custom_config || field.customConfig)?.allowMultiple 
                   ? [...selectedUserIds, userId].filter((v, i, arr) => arr.indexOf(v) === i)
                   : userId;
                 handleFieldValueChange(submissionId, field.id, newValue);
