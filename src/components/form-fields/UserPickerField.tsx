@@ -44,7 +44,7 @@ export function UserPickerField({ field, value, onChange, error, disabled }: Use
   const filteredUsers = useMemo(() => {
     let users = projectMembers || [];
     
-    // Apply admin pre-selection filter
+    // Apply admin pre-selection filter - if no users are pre-selected, show all users
     if ((config as any).allowedUsers && (config as any).allowedUsers.length > 0) {
       users = users.filter(user => (config as any).allowedUsers.includes(user.user_id));
     }

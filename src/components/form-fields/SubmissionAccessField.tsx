@@ -104,9 +104,12 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
     
     let groupList = transformedGroups;
     
-    // Apply admin pre-selection filter
+    // Apply admin pre-selection filter - if no groups are pre-selected, don't show any groups
     if ((config as any)?.allowedGroups && (config as any).allowedGroups.length > 0) {
       groupList = groupList.filter(group => (config as any).allowedGroups.includes(group.id));
+    } else if ((config as any)?.allowedGroups) {
+      // If allowedGroups exists but is empty, show no groups
+      groupList = [];
     }
     
     if (!searchValue?.trim()) return groupList;
