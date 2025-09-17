@@ -84,10 +84,16 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
     
     let userList = transformedUsers;
     
-    // Apply admin pre-selection filter
-    if ((config as any)?.allowedUsers && (config as any).allowedUsers.length > 0) {
-      userList = userList.filter(user => (config as any).allowedUsers.includes(user.id));
+    // Apply admin pre-selection filter - if allowedUsers exists but is empty, show no users
+    if ((config as any)?.allowedUsers) {
+      if ((config as any).allowedUsers.length > 0) {
+        userList = userList.filter(user => (config as any).allowedUsers.includes(user.id));
+      } else {
+        // If allowedUsers exists but is empty, show no users
+        userList = [];
+      }
     }
+    // If allowedUsers doesn't exist, show all users (backward compatibility)
     
     if (!searchValue?.trim()) return userList;
     
@@ -104,13 +110,16 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
     
     let groupList = transformedGroups;
     
-    // Apply admin pre-selection filter - if no groups are pre-selected, don't show any groups
-    if ((config as any)?.allowedGroups && (config as any).allowedGroups.length > 0) {
-      groupList = groupList.filter(group => (config as any).allowedGroups.includes(group.id));
-    } else if ((config as any)?.allowedGroups) {
-      // If allowedGroups exists but is empty, show no groups
-      groupList = [];
+    // Apply admin pre-selection filter - if allowedGroups exists but is empty, show no groups
+    if ((config as any)?.allowedGroups) {
+      if ((config as any).allowedGroups.length > 0) {
+        groupList = groupList.filter(group => (config as any).allowedGroups.includes(group.id));
+      } else {
+        // If allowedGroups exists but is empty, show no groups
+        groupList = [];
+      }
     }
+    // If allowedGroups doesn't exist, show all groups (backward compatibility)
     
     if (!searchValue?.trim()) return groupList;
     

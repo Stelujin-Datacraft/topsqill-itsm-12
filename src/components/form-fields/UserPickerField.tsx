@@ -44,18 +44,24 @@ export function UserPickerField({ field, value, onChange, error, disabled }: Use
   const filteredUsers = useMemo(() => {
     let users = projectMembers || [];
     
-    // Apply admin pre-selection filter - if no users are pre-selected, show all users
-    if ((config as any).allowedUsers && (config as any).allowedUsers.length > 0) {
-      users = users.filter(user => (config as any).allowedUsers.includes(user.user_id));
+    // Apply admin pre-selection filter - if allowedUsers exists but is empty, show no users
+    if ((config as any)?.allowedUsers) {
+      if ((config as any).allowedUsers.length > 0) {
+        users = users.filter(user => (config as any).allowedUsers.includes(user.user_id));
+      } else {
+        // If allowedUsers exists but is empty, show no users
+        users = [];
+      }
     }
+    // If allowedUsers doesn't exist, show all users (backward compatibility)
     
     // Apply role filter if specified
-    if (config.roleFilter) {
+    if (config.roleFilter && users.length > 0) {
       users = users.filter(user => user.role === config.roleFilter);
     }
     
     // Apply search filter
-    if (searchTerm) {
+    if (searchTerm && users.length > 0) {
       users = users.filter(user => 
         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
