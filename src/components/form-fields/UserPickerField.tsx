@@ -44,6 +44,11 @@ export function UserPickerField({ field, value, onChange, error, disabled }: Use
   const filteredUsers = useMemo(() => {
     let users = projectMembers || [];
     
+    // Apply admin pre-selection filter
+    if ((config as any).allowedUsers && (config as any).allowedUsers.length > 0) {
+      users = users.filter(user => (config as any).allowedUsers.includes(user.user_id));
+    }
+    
     // Apply role filter if specified
     if (config.roleFilter) {
       users = users.filter(user => user.role === config.roleFilter);
@@ -58,7 +63,7 @@ export function UserPickerField({ field, value, onChange, error, disabled }: Use
     }
     
     return users;
-  }, [projectMembers, config.roleFilter, searchTerm]);
+  }, [projectMembers, (config as any)?.allowedUsers, config.roleFilter, searchTerm]);
 
   // Convert value to array for easier handling
   const selectedUserIds = useMemo(() => {

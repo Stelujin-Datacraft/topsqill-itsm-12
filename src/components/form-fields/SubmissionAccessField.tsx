@@ -82,27 +82,41 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
   const filteredUsers = React.useMemo(() => {
     if (!transformedUsers.length) return [];
     
-    if (!searchValue?.trim()) return transformedUsers;
+    let userList = transformedUsers;
+    
+    // Apply admin pre-selection filter
+    if ((config as any)?.allowedUsers && (config as any).allowedUsers.length > 0) {
+      userList = userList.filter(user => (config as any).allowedUsers.includes(user.id));
+    }
+    
+    if (!searchValue?.trim()) return userList;
     
     const searchLower = searchValue.toLowerCase();
-    return transformedUsers.filter(user =>
+    return userList.filter(user =>
       user.name.toLowerCase().includes(searchLower) ||
       user.email.toLowerCase().includes(searchLower) ||
       user.role.toLowerCase().includes(searchLower)
     );
-  }, [transformedUsers, searchValue]);
+  }, [transformedUsers, (config as any)?.allowedUsers, searchValue]);
 
   const filteredGroups = React.useMemo(() => {
     if (!transformedGroups.length) return [];
     
-    if (!searchValue?.trim()) return transformedGroups;
+    let groupList = transformedGroups;
+    
+    // Apply admin pre-selection filter
+    if ((config as any)?.allowedGroups && (config as any).allowedGroups.length > 0) {
+      groupList = groupList.filter(group => (config as any).allowedGroups.includes(group.id));
+    }
+    
+    if (!searchValue?.trim()) return groupList;
     
     const searchLower = searchValue.toLowerCase();
-    return transformedGroups.filter(group =>
+    return groupList.filter(group =>
       group.name.toLowerCase().includes(searchLower) ||
       (group.role_name && group.role_name.toLowerCase().includes(searchLower))
     );
-  }, [transformedGroups, searchValue]);
+  }, [transformedGroups, (config as any)?.allowedGroups, searchValue]);
 
   const selectedUsers = React.useMemo(() => {
     return transformedUsers.filter(user => selectedUserIds.includes(user.id));
