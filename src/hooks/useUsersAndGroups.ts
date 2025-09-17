@@ -68,7 +68,9 @@ export function useUsersAndGroups() {
       
       const name = (user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.first_name) ||
                    user.email;
-      return `${name} (${user.email})`;
+      // return `${name} (${user.email})`;
+            return `${user.email}`;
+
     };
   }, [users]);
 

@@ -642,10 +642,10 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         }
 
         return (
-          <ScrollArea className="max-h-24 w-full">
+          <ScrollArea className="max-h-full w-full">
             <div className="flex flex-col gap-1 pr-2">
               {selectedUserIds.map((userId, i) => (
-                <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 justify-start text-xs max-w-[200px] truncate">
+                <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 justify-start text-xs max-w-[270px] truncate">
                   {getUserDisplayName(userId)}
                 </Badge>
               ))}
@@ -664,7 +664,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           return (
             <div className="space-y-2">
               <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Users</Label>
+                {/* <Label className="text-xs text-muted-foreground mb-1 block">Users</Label> */}
                 <MultiSelectUsers
                   value={users}
                   onChange={(newUsers) => handleFieldChange(submissionId, field.id, { users: newUsers, groups })}
@@ -672,7 +672,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                 />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Groups</Label>
+                {/* <Label className="text-xs text-muted-foreground mb-1 block">Groups</Label> */}
                 <MultiSelectGroups
                   value={groups}
                   onChange={(newGroups) => handleFieldChange(submissionId, field.id, { users, groups: newGroups })}
@@ -697,13 +697,13 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         }
 
         return (
-          <ScrollArea className="max-h-24 w-full">
+          <ScrollArea className="max-h-full w-full">
             <div className="flex flex-col gap-1 pr-2">
               {displayItems.map((item, i) => (
                 <Badge
                   key={`${item.type}-${item.id}-${i}`} 
                   variant="outline"
-                  className={`justify-start text-xs max-w-[200px] truncate ${item.type === 'user' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}
+                  className={`justify-start text-xs max-w-[270px] truncate ${item.type === 'user' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}
                 >
                   {item.type === 'user' ? getUserDisplayName(item.id) : getGroupDisplayName(item.id)}
                 </Badge>
@@ -1155,64 +1155,228 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         );
       }
 
-      case 'file':
-      case 'image': {
-        if (!value) {
+      // case 'file':
+      // case 'image': {
+      //   if (!value) {
+      //     return (
+      //       <Badge className="italic opacity-70 text-muted-foreground/80 bg-muted/50">
+      //         No file
+      //       </Badge>
+      //     );
+      //   }
+
+      //   // Normalize value into an array
+      //   const files: { name: string; url: string }[] = [];
+
+      //   if (typeof value === 'string' && value.startsWith('http')) {
+      //     files.push({ name: value.split('/').pop() || 'file', url: value });
+      //   } else if (Array.isArray(value)) {
+      //     value.forEach((f: any) => {
+      //       if (typeof f === 'string' && f.startsWith('http')) {
+      //         files.push({ name: f.split('/').pop() || 'file', url: f });
+      //       } else if (f?.url) {
+      //         files.push({ name: f.name || f.url.split('/').pop() || 'file', url: f.url });
+      //       }
+      //     });
+      //   } else if (value.url) {
+      //     files.push({ name: value.name || value.url.split('/').pop() || 'file', url: value.url });
+      //   }
+
+      //   if (files.length === 0) {
+      //     return <span className="text-sm text-muted-foreground">File attached</span>;
+      //   }
+
+      //   return (
+      //     <div className="flex flex-col gap-1">
+      //       {files.map((f, index) => (
+      //         <div key={index} className="flex gap-2 items-center">
+      //           <Button
+      //             variant="outline"
+      //             size="sm"
+      //             onClick={() => window.open(f.url, '_blank')}
+      //             className="h-8"
+      //           >
+      //             <Eye className="h-3 w-3 mr-1" /> View
+      //           </Button>
+      //           <Button
+      //             variant="outline"
+      //             size="sm"
+      //             onClick={() => {
+      //               const link = document.createElement('a');
+      //               link.href = f.url;
+      //               link.download = f.name;
+      //               link.click();
+      //             }}
+      //             className="h-8"
+      //           >
+      //             Download
+      //           </Button>
+      //         </div>
+      //       ))}
+      //     </div>
+      //   );
+      // }
+
+        case 'address': {
+        const addressValue = value || {};
+        const { street = '', city = '', state = '', postal = '', country = '' } = addressValue;
+        
+        if (submissionId === 'master' || submissions.length === 1) {
           return (
-            <Badge className="italic opacity-70 text-muted-foreground/80 bg-muted/50">
-              No file
-            </Badge>
+            <div className="grid grid-cols-1 gap-2">
+              <Input
+                placeholder="Street Address"
+                value={street}
+                onChange={(e) => handleFieldChange(submissionId, field.id, { ...addressValue, street: e.target.value })}
+                disabled={isDisabled}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="City"
+                  value={city}
+                  onChange={(e) => handleFieldChange(submissionId, field.id, { ...addressValue, city: e.target.value })}
+                  disabled={isDisabled}
+                />
+                <Input
+                  placeholder="State/Province"
+                  value={state}
+                  onChange={(e) => handleFieldChange(submissionId, field.id, { ...addressValue, state: e.target.value })}
+                  disabled={isDisabled}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="Postal Code"
+                  value={postal}
+                  onChange={(e) => handleFieldChange(submissionId, field.id, { ...addressValue, postal: e.target.value })}
+                  disabled={isDisabled}
+                />
+                <Select 
+                  value={country} 
+                  onValueChange={(val) => handleFieldChange(submissionId, field.id, { ...addressValue, country: val })}
+                  disabled={isDisabled}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries.map(c => (
+                      <SelectItem key={c.code} value={c.code}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           );
         }
 
-        // Normalize value into an array
-        const files: { name: string; url: string }[] = [];
-
-        if (typeof value === 'string' && value.startsWith('http')) {
-          files.push({ name: value.split('/').pop() || 'file', url: value });
-        } else if (Array.isArray(value)) {
-          value.forEach((f: any) => {
-            if (typeof f === 'string' && f.startsWith('http')) {
-              files.push({ name: f.split('/').pop() || 'file', url: f });
-            } else if (f?.url) {
-              files.push({ name: f.name || f.url.split('/').pop() || 'file', url: f.url });
-            }
-          });
-        } else if (value.url) {
-          files.push({ name: value.name || value.url.split('/').pop() || 'file', url: value.url });
-        }
-
-        if (files.length === 0) {
-          return <span className="text-sm text-muted-foreground">File attached</span>;
-        }
-
+        // Display mode for bulk editing child records
+        const addressText = [street, city, state, postal, country].filter(Boolean).join(', ');
         return (
-          <div className="flex flex-col gap-1">
-            {files.map((f, index) => (
-              <div key={index} className="flex gap-2 items-center">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.open(f.url, '_blank')}
-                  className="h-8"
-                >
-                  <Eye className="h-3 w-3 mr-1" /> View
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const link = document.createElement('a');
-                    link.href = f.url;
-                    link.download = f.name;
-                    link.click();
-                  }}
-                  className="h-8"
-                >
-                  Download
-                </Button>
-              </div>
-            ))}
+          <div className="text-sm">
+            {addressText || <span className="italic text-muted-foreground">No address</span>}
+          </div>
+        );
+      }
+
+      case 'file': {
+        // Enhanced file field with upload, preview, and download capabilities
+        if (submissionId === 'master' || submissions.length === 1) {
+          return (
+            <div className="space-y-2">
+              {/* File upload input */}
+              <Input
+                type="file"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    // Create a file object that can be stored
+                    const fileObj = {
+                      name: file.name,
+                      size: file.size,
+                      type: file.type,
+                      url: URL.createObjectURL(file) // Temporary URL for preview
+                    };
+                    handleFieldChange(submissionId, field.id, fileObj);
+                  }
+                }}
+                disabled={isDisabled}
+                accept={field.customConfig?.acceptedTypes?.join(',') || '*/*'}
+              />
+              
+              {/* Display current file */}
+              {value && (
+                <div className="flex items-center gap-2 p-2 border rounded">
+                  <span className="text-sm truncate flex-1">
+                    {typeof value === 'string' ? value.split('/').pop() : value.name || 'File'}
+                  </span>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const url = typeof value === 'string' ? value : value.url;
+                        if (url) window.open(url, '_blank');
+                      }}
+                      className="h-7 px-2"
+                    >
+                      <Eye className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const url = typeof value === 'string' ? value : value.url;
+                        const name = typeof value === 'string' ? value.split('/').pop() : value.name;
+                        if (url) {
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.download = name || 'file';
+                          link.click();
+                        }
+                      }}
+                      className="h-7 px-2"
+                    >
+                      Download
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleFieldChange(submissionId, field.id, null)}
+                      className="h-7 px-2 text-red-500"
+                      disabled={isDisabled}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        // Display mode for bulk editing child records
+        if (!value) {
+          return <span className="italic text-muted-foreground">No file</span>;
+        }
+
+        const fileName = typeof value === 'string' ? value.split('/').pop() : value.name || 'File';
+        return (
+          <div className="flex items-center gap-2">
+            <span className="text-sm truncate">{fileName}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const url = typeof value === 'string' ? value : value.url;
+                if (url) window.open(url, '_blank');
+              }}
+              className="h-7 px-2"
+            >
+              <Eye className="h-3 w-3" />
+            </Button>
           </div>
         );
       }
@@ -1230,7 +1394,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
       case 'workflow-trigger':
       case 'query-field':
       case 'barcode':
-      case 'address': 
+      // case 'address': 
       {
         return (
           <div className="text-xs text-muted-foreground italic p-2 bg-muted/20 rounded">
@@ -1294,7 +1458,9 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                             'record-table',
                             'matrix-grid',
                             'workflow-trigger',
-                            'barcode'
+                            'barcode',
+                            'cross-reference'
+
                           ];
 
                           if (excludedFieldTypes.includes(field.field_type)) return false;
@@ -1356,7 +1522,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                               'matrix-grid',
                               'workflow-trigger',
                               'barcode',
-                              'addresss'
+                              'cross-reference'
                             ];
 
                             if (excludedFieldTypes.includes(field.field_type)) return false;

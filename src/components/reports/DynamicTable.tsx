@@ -521,7 +521,7 @@ export function DynamicTable({
         'full-width-container', 'approval', 
         'query-field', 'geo-location', 'conditional-section', 
         , 'signature', 'dynamic-dropdown', 'rich-text',
-        'record-table', 'matrix-grid', 'workflow-trigger','child-cross-reference','address','barcode'
+        'record-table', 'matrix-grid', 'workflow-trigger','child-cross-reference','barcode'
       ];
 
       const {
@@ -829,7 +829,7 @@ export function DynamicTable({
                     </TableHead>
                     
                     {/* Form fields */}
-                    {displayFields.map(field => <TableHead key={field.id} className="text-xs font-medium h-8 text-white bg-[#018c79] min-w-[170px]">
+                    {displayFields.map(field => <TableHead key={field.id} className="text-xs font-medium h-8 text-white bg-[#018c79] min-w-[200px]">
                         <div className="flex items-center gap-1">
                           <span className="font-medium">{field.label}</span>
                           {config.enableFiltering && <Popover>
@@ -915,7 +915,7 @@ export function DynamicTable({
                        </TableCell>
                        
                        {/* Form Fields */}
-                      {displayFields.map(field => <TableCell key={field.id} className="py-2 max-w-48 bg-white">
+                      {displayFields.map(field => <TableCell key={field.id} className="py-2 max-w-58 bg-white">
                            <div className="min-w-0">
                              <FormDataCell value={row.submission_data?.[field.id]} fieldType={field.field_type || field.type} field={field} />
                            </div>

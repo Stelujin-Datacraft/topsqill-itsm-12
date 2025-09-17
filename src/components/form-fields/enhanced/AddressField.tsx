@@ -388,6 +388,7 @@ const selectedCountry = COUNTRIES.find(
 {addressFields.includes('country') && (
   <div>
     <Label htmlFor={`${field.id}-country`}>Country</Label>
+
     <Popover open={countryOpen} onOpenChange={setCountryOpen}>
       <PopoverTrigger asChild>
         <Button
@@ -398,29 +399,40 @@ const selectedCountry = COUNTRIES.find(
           disabled={disabled}
         >
           {selectedCountry ? selectedCountry.name : "Select country..."}
-          <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <svg
+            className="ml-2 h-4 w-4 opacity-50"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M5.23 7.21a.75.75 0 011.06-.02L10 10.584l3.71-3.4a.75.75 0 111.02 1.1l-4.2 3.847a.75.75 0 01-1.02 0L5.25 8.29a.75.75 0 01-.02-1.08z"
+              clipRule="evenodd"
+            />
+          </svg>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0">
-        <Command>
-          <CommandInput placeholder="Search country..." />
-          <CommandEmpty>No country found.</CommandEmpty>
-          <CommandGroup className="max-h-64 overflow-auto">
-            {COUNTRIES.map((country) => (
-              <CommandItem
-                key={country.code}
-                value={country.code}  // ✅ pass code as value
-                onSelect={(value) => {
-                  handleFieldChange("country", value); // ✅ store code (AF, IN, US, etc.)
-                  setCountryOpen(false);
-                }}
-              >
-                {country.name}
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        </Command>
-      </PopoverContent>
+
+<PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+  <div className="max-h-60 overflow-auto">
+    {COUNTRIES.map((country) => (
+      <button
+        key={country.code}
+        type="button"
+        className={`w-full px-3 py-2 text-left hover:bg-accent/40 ${
+          selectedCountry?.code === country.code ? "bg-accent/20" : ""
+        }`}
+        onClick={() => {
+          handleFieldChange("country", country.code);
+          setCountryOpen(false);
+        }}
+      >
+        <span className="text-sm">{country.name}</span>
+      </button>
+    ))}
+  </div>
+</PopoverContent>
+
     </Popover>
   </div>
 )}

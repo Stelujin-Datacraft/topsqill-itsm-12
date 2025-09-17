@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Users, Star, Calendar } from 'lucide-react';
+import { Save, Users, Star, Calendar, Eye } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { useUsersAndGroups } from '@/hooks/useUsersAndGroups';
@@ -150,9 +150,11 @@ export function MultiLineEditDialog({
     }
   };
 
-const renderFieldInput = (field: any, value: any, submissionId: string) => {
+const renderFieldInput = (field: any, value: any, submissionId: string,    isBulkEdit: boolean = false
+) => {
   const fieldType = field.field_type || field.type;
-
+    const isDisabled = isBulkEdit && submissionId !== 'master' && submissions.length > 1;
+    
   // Common wrapper for consistency
   const Wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="flex flex-col gap-1 min-w-[220px] px-2 py-1">
@@ -286,7 +288,7 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
               </SelectContent>
             </Select>
             {selectedUserIds.length > 0 && (
-              <ScrollArea className="max-h-16 w-full mt-1">
+              <ScrollArea className="max-h-full w-full mt-1">
                 <div className="flex flex-col gap-1 pr-2">
                   {selectedUserIds.map((userId, i) => (
                     <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 text-xs justify-start">
@@ -329,7 +331,7 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
                   </SelectContent>
                 </Select>
                 {currentUsers.length > 0 && (
-                  <ScrollArea className="max-h-12 w-full mt-1">
+                  <ScrollArea className="max-h-full w-full mt-1">
                     <div className="flex flex-col gap-1 pr-2">
                       {currentUsers.map((userId, i) => (
                         <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 text-xs justify-start">
@@ -515,8 +517,7 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
     case 'horizontal-line':
     case 'full-width-container':
     case 'record-table':
-    case 'matrix-grid':
-    case 'cross-reference': {
+    case 'matrix-grid': {
       const crossRefValue = value || [];
       let displayValues: string[] = [];
 
@@ -593,14 +594,180 @@ const renderFieldInput = (field: any, value: any, submissionId: string) => {
       );
     }
 
+
+            case 'address': {
+            const addressValue = value || {};
+            const { street = '', city = '', state = '', postal = '', country = '' } = addressValue;
+            
+            if (submissionId === 'master' || submissions.length === 1) {
+              return (
+                <div className="grid grid-cols-1 gap-2">
+                  <Input
+                    placeholder="Street Address"
+                    value={street}
+                    onChange={(e) => handleFieldValueChange(submissionId, field.id, { ...addressValue, street: e.target.value })}
+                    disabled={isDisabled}
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="City"
+                      value={city}
+                      onChange={(e) => handleFieldValueChange(submissionId, field.id, { ...addressValue, city: e.target.value })}
+                      disabled={isDisabled}
+                    />
+                    <Input
+                      placeholder="State/Province"
+                      value={state}
+                      onChange={(e) => handleFieldValueChange(submissionId, field.id, { ...addressValue, state: e.target.value })}
+                      disabled={isDisabled}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Postal Code"
+                      value={postal}
+                      onChange={(e) => handleFieldValueChange(submissionId, field.id, { ...addressValue, postal: e.target.value })}
+                      disabled={isDisabled}
+                    />
+                    {/* <Select 
+                      value={country} 
+                      onValueChange={(val) => handleFieldValueChange(submissionId, field.id, { ...addressValue, country: val })}
+                      disabled={isDisabled}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countries.map(c => (
+                          <SelectItem key={c.code} value={c.code}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select> */}
+                  </div>
+                </div>
+              );
+            }
+    
+            // Display mode for bulk editing child records
+            const addressText = [street, city, state, postal, country].filter(Boolean).join(', ');
+            return (
+              <div className="text-sm">
+                {addressText || <span className="italic text-muted-foreground">No address</span>}
+              </div>
+            );
+          }
+    
+
+
+      case 'file': {
+        // Enhanced file field with upload, preview, and download capabilities
+        if (submissionId === 'master' || submissions.length === 1) {
+          return (
+            <div className="space-y-2">
+              {/* File upload input */}
+              <Input
+                type="file"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    // Create a file object that can be stored
+                    const fileObj = {
+                      name: file.name,
+                      size: file.size,
+                      type: file.type,
+                      url: URL.createObjectURL(file) // Temporary URL for preview
+                    };
+                    handleFieldValueChange(submissionId, field.id, fileObj);
+                  }
+                }}
+                disabled={isDisabled}
+                accept={field.customConfig?.acceptedTypes?.join(',') || '*/*'}
+              />
+              
+              {/* Display current file */}
+              {value && (
+                <div className="flex items-center gap-2 p-2 border rounded">
+                  <span className="text-sm truncate flex-1">
+                    {typeof value === 'string' ? value.split('/').pop() : value.name || 'File'}
+                  </span>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const url = typeof value === 'string' ? value : value.url;
+                        if (url) window.open(url, '_blank');
+                      }}
+                      className="h-7 px-2"
+                    >
+                      <Eye className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const url = typeof value === 'string' ? value : value.url;
+                        const name = typeof value === 'string' ? value.split('/').pop() : value.name;
+                        if (url) {
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.download = name || 'file';
+                          link.click();
+                        }
+                      }}
+                      className="h-7 px-2"
+                    >
+                      Download
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleFieldValueChange(submissionId, field.id, null)}
+                      className="h-7 px-2 text-red-500"
+                      disabled={isDisabled}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        // Display mode for bulk editing child records
+        if (!value) {
+          return <span className="italic text-muted-foreground">No file</span>;
+        }
+
+        const fileName = typeof value === 'string' ? value.split('/').pop() : value.name || 'File';
+        return (
+          <div className="flex items-center gap-2">
+            <span className="text-sm truncate">{fileName}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const url = typeof value === 'string' ? value : value.url;
+                if (url) window.open(url, '_blank');
+              }}
+              className="h-7 px-2"
+            >
+              <Eye className="h-3 w-3" />
+            </Button>
+          </div>
+        );
+      }
+
+
     case 'child-cross-reference':
     case 'calculated':
     case 'conditional-section':
     case 'workflow-trigger':
     case 'query-field':
     case 'barcode':
-    case 'address':
-      case'file':
       return (
         <Wrapper>
           <div className="text-xs text-muted-foreground italic p-2 bg-muted/20 rounded">
@@ -643,66 +810,118 @@ return (
         <ScrollArea className="h-full pr-4">
           <div className="overflow-x-auto">
             {/* Table-like container */}
-            <div className="table w-full border-collapse min-w-max">
-              {/* Header row */}
-              <div className="table-row bg-muted/50 text-xs font-medium text-muted-foreground">
-                <div className="table-cell px-3 py-2 w-32">Record ID</div>
-                {Array.isArray(formFields)
-                  ? formFields.map((field) => (
-                      <div
-                        key={field.id}
-                        className="table-cell px-3 py-2 min-w-[180px] text-left truncate"
-                        title={field.label}
-                      >
-                        {field.label}
-                      </div>
-                    ))
-                  : null}
-              </div>
+<div className="table w-full border-collapse min-w-max">
+  {/* Header row */}
+  <div className="table-row bg-muted/50 text-xs font-medium text-muted-foreground">
+    <div className="table-cell px-3 py-2 w-32">Record ID</div>
+    {Array.isArray(formFields)
+      ? formFields
+          .filter((field) => {
+            const excludedFieldTypes = [
+              "header",
+              "description",
+              "section-break",
+              "horizontal-line",
+              "full-width-container",
+              "approval",
+              "query-field",
+              "geo-location",
+              "conditional-section",
+              "signature",
+              "dynamic-dropdown",
+              "rich-text",
+              "record-table",
+              "matrix-grid",
+              "workflow-trigger",
+              "barcode",
+              "cross-reference",
+            ];
+
+            if (excludedFieldTypes.includes(field.field_type)) return false;
+            if (field.label && field.label.startsWith("Reference from "))
+              return false;
+
+            return true;
+          })
+          .map((field) => (
+            <div
+              key={field.id}
+              className="table-cell px-3 py-2 min-w-[180px] text-left truncate"
+              title={field.label}
+            >
+              {field.label}
+            </div>
+          ))
+      : null}
+  </div>
+
 
               {/* Data rows */}
-              {Array.isArray(submissions)
-                ? submissions.map((submission) => (
-                    <div key={submission.id} className="table-row border-b">
-                      {/* Record ID cell */}
-                      <div className="table-cell px-3 py-2 align-top w-32">
-                        <Badge
-                          variant="outline"
-                          className="text-xs truncate w-full"
-                          title={submission.submission_ref_id || submission.id}
-                        >
-                          #{submission.submission_ref_id ||
-                            submission.id.slice(0, 8)}
-                        </Badge>
-                      </div>
+{Array.isArray(submissions)
+  ? submissions.map((submission) => (
+      <div key={submission.id} className="table-row border-b">
+        {/* Record ID cell */}
+        <div className="table-cell px-3 py-2 align-top w-32">
+          <Badge
+            variant="outline"
+            className="text-xs truncate w-full"
+            title={submission.submission_ref_id || submission.id}
+          >
+            #{submission.submission_ref_id || submission.id.slice(0, 8)}
+          </Badge>
+        </div>
 
-                      {/* Dynamic field cells */}
-                      {Array.isArray(formFields)
-                        ? formFields.map((field) => {
-                            const currentValue =
-                              editData?.[submission.id]?.[field.id];
-                            return (
-                              <div
-                                key={field.id}
-                                className="table-cell px-3 py-2 align-top min-w-[180px]"
-                                title={
-                                  typeof currentValue === "string"
-                                    ? currentValue
-                                    : currentValue ?? ""
-                                }
-                              >
-                                {renderFieldInput(
-                                  field,
-                                  currentValue,
-                                  submission.id
-                                )}
-                              </div>
-                            );
-                          })
-                        : null}
-                    </div>
-                  ))
-                : null}
+        {/* Dynamic field cells */}
+        {Array.isArray(formFields)
+          ? formFields
+              .filter((field) => {
+                const excludedFieldTypes = [
+                  "header",
+                  "description",
+                  "section-break",
+                  "horizontal-line",
+                  "full-width-container",
+                  "approval",
+                  "query-field",
+                  "geo-location",
+                  "conditional-section",
+                  "signature",
+                  "dynamic-dropdown",
+                  "rich-text",
+                  "record-table",
+                  "matrix-grid",
+                  "workflow-trigger",
+                  "barcode",
+                  "cross-reference",
+                ];
+
+                if (excludedFieldTypes.includes(field.field_type)) return false;
+                if (field.label && field.label.startsWith("Reference from "))
+                  return false;
+
+                return true;
+              })
+              .map((field) => {
+                const currentValue = editData?.[submission.id]?.[field.id];
+                return (
+                  <div
+                    key={field.id}
+                    className="table-cell px-3 py-2 align-top min-w-[180px]"
+                    title={
+                      typeof currentValue === "string"
+                        ? currentValue
+                        : currentValue ?? ""
+                    }
+                  >
+                    {renderFieldInput(field, currentValue, submission.id)}
+                  </div>
+                );
+              })
+          : null}
+      </div>
+    ))
+  : null}
+
             </div>
           </div>
         </ScrollArea>
