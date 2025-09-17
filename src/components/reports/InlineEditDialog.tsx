@@ -36,34 +36,26 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
   
   // Filter users and groups based on field configuration
   const getFilteredUsers = (field: any) => {
-    const config = field.custom_config || field.customConfig || {};
-    console.log('🔧 InlineEdit getFilteredUsers - field config:', config);
-    
+    const config = field.customConfig || {};
     if (config.allowedUsers) {
       if (config.allowedUsers.length > 0) {
-        const filtered = users.filter(user => config.allowedUsers.includes(user.id));
-        console.log('🔧 InlineEdit Filtered users:', filtered);
-        return filtered;
+        return users.filter(user => config.allowedUsers.includes(user.id));
       } else {
         return []; // Empty allowedUsers means no users should be shown
       }
     }
     // Apply role filter if specified (note: user object might not have role property)
-    if (config.roleFilter && config.roleFilter !== 'all') {
+    if (config.roleFilter) {
       return users.filter(user => (user as any).role === config.roleFilter);
     }
     return users; // Show all users if no filter
   };
 
   const getFilteredGroups = (field: any) => {
-    const config = field.custom_config || field.customConfig || {};
-    console.log('🔧 InlineEdit getFilteredGroups - field config:', config);
-    
+    const config = field.customConfig || {};
     if (config.allowedGroups) {
       if (config.allowedGroups.length > 0) {
-        const filtered = groups.filter(group => config.allowedGroups.includes(group.id));
-        console.log('🔧 InlineEdit Filtered groups:', filtered);
-        return filtered;
+        return groups.filter(group => config.allowedGroups.includes(group.id));
       } else {
         return []; // Empty allowedGroups means no groups should be shown
       }
@@ -685,7 +677,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
             <MultiSelectUsers
               value={selectedUserIds}
               onChange={(newUsers) => {
-                const newValue = (field.custom_config || field.customConfig)?.allowMultiple ? newUsers : (newUsers[0] || '');
+                const newValue = field.customConfig?.allowMultiple ? newUsers : (newUsers[0] || '');
                 handleFieldChange(submissionId, field.id, newValue);
               }}
               disabled={isDisabled}

@@ -27,7 +27,6 @@ import { InlineEditDialog } from './InlineEditDialog';
 import { MultiLineEditDialog } from './MultiLineEditDialog';
 import { BulkActionsBar } from './BulkActionsBar';
 import { BulkDeleteDialog } from './BulkDeleteDialog';
-import { BulkEditDialog } from './BulkEditDialog';
 import { CrossReferenceDialog } from './CrossReferenceDialog';
 import { ColumnOrderManager } from './ColumnOrderManager';
 import { CopyRecordsDialog } from './CopyRecordsDialog';
@@ -393,7 +392,7 @@ export function DynamicTable({
     const selectedSubmissions = paginatedData.filter(row => selectedRows.has(row.id));
     if (selectedSubmissions.length > 0) {
       setEditingSubmission(selectedSubmissions);
-      setShowBulkEdit(true);
+      setShowInlineEdit(true);
     }
   };
 
@@ -983,8 +982,6 @@ export function DynamicTable({
       <InlineEditDialog isOpen={showInlineEdit} onOpenChange={setShowInlineEdit} submissions={editingSubmission ? Array.isArray(editingSubmission) ? editingSubmission : [editingSubmission] : []} formFields={formFields || []} onSave={handleInlineEditSave} />
 
       <MultiLineEditDialog isOpen={showMultiLineEdit} onOpenChange={setShowMultiLineEdit} submissions={editingSubmission ? Array.isArray(editingSubmission) ? editingSubmission : [editingSubmission] : []} formFields={formFields || []} onSave={handleInlineEditSave} />
-
-      <BulkEditDialog isOpen={showBulkEdit} onOpenChange={setShowBulkEdit} submissions={editingSubmission ? Array.isArray(editingSubmission) ? editingSubmission : [editingSubmission] : []} formFields={formFields || []} onSave={handleInlineEditSave} />
 
       <BulkDeleteDialog isOpen={showBulkDelete} onOpenChange={setShowBulkDelete} submissionIds={Array.from(selectedRows)} onDelete={handleBulkDeleteComplete} />
 
