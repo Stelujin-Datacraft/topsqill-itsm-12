@@ -150,10 +150,9 @@ export function MultiLineEditDialog({
     }
   };
 
-const renderFieldInput = (field: any, value: any, submissionId: string,    isBulkEdit: boolean = false
+const renderFieldInput = (field: any, value: any, submissionId: string
 ) => {
   const fieldType = field.field_type || field.type;
-    const isDisabled = isBulkEdit && submissionId !== 'master' && submissions.length > 1;
     
   // Common wrapper for consistency
   const Wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -599,27 +598,23 @@ const renderFieldInput = (field: any, value: any, submissionId: string,    isBul
             const addressValue = value || {};
             const { street = '', city = '', state = '', postal = '', country = '' } = addressValue;
             
-            if (submissionId === 'master' || submissions.length === 1) {
               return (
                 <div className="grid grid-cols-1 gap-2">
                   <Input
                     placeholder="Street Address"
                     value={street}
                     onChange={(e) => handleFieldValueChange(submissionId, field.id, { ...addressValue, street: e.target.value })}
-                    disabled={isDisabled}
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <Input
                       placeholder="City"
                       value={city}
                       onChange={(e) => handleFieldValueChange(submissionId, field.id, { ...addressValue, city: e.target.value })}
-                      disabled={isDisabled}
                     />
                     <Input
                       placeholder="State/Province"
                       value={state}
                       onChange={(e) => handleFieldValueChange(submissionId, field.id, { ...addressValue, state: e.target.value })}
-                      disabled={isDisabled}
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -627,7 +622,6 @@ const renderFieldInput = (field: any, value: any, submissionId: string,    isBul
                       placeholder="Postal Code"
                       value={postal}
                       onChange={(e) => handleFieldValueChange(submissionId, field.id, { ...addressValue, postal: e.target.value })}
-                      disabled={isDisabled}
                     />
                     {/* <Select 
                       value={country} 
@@ -648,22 +642,20 @@ const renderFieldInput = (field: any, value: any, submissionId: string,    isBul
                   </div>
                 </div>
               );
-            }
     
             // Display mode for bulk editing child records
-            const addressText = [street, city, state, postal, country].filter(Boolean).join(', ');
-            return (
-              <div className="text-sm">
-                {addressText || <span className="italic text-muted-foreground">No address</span>}
-              </div>
-            );
+            // const addressText = [street, city, state, postal, country].filter(Boolean).join(', ');
+            // return (
+            //   <div className="text-sm">
+            //     {addressText || <span className="italic text-muted-foreground">No address</span>}
+            //   </div>
+            // );
           }
     
 
 
       case 'file': {
         // Enhanced file field with upload, preview, and download capabilities
-        if (submissionId === 'master' || submissions.length === 1) {
           return (
             <div className="space-y-2">
               {/* File upload input */}
@@ -682,7 +674,6 @@ const renderFieldInput = (field: any, value: any, submissionId: string,    isBul
                     handleFieldValueChange(submissionId, field.id, fileObj);
                   }
                 }}
-                disabled={isDisabled}
                 accept={field.customConfig?.acceptedTypes?.join(',') || '*/*'}
               />
               
@@ -726,7 +717,6 @@ const renderFieldInput = (field: any, value: any, submissionId: string,    isBul
                       size="sm"
                       onClick={() => handleFieldValueChange(submissionId, field.id, null)}
                       className="h-7 px-2 text-red-500"
-                      disabled={isDisabled}
                     >
                       Remove
                     </Button>
@@ -735,7 +725,6 @@ const renderFieldInput = (field: any, value: any, submissionId: string,    isBul
               )}
             </div>
           );
-        }
 
         // Display mode for bulk editing child records
         if (!value) {
