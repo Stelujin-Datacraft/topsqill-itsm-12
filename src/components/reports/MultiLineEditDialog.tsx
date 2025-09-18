@@ -264,25 +264,6 @@ const renderFieldInput = (field: any, value: any, submissionId: string
         const userValue = value || [];
         const selectedUserIds = Array.isArray(userValue) ? userValue : (userValue ? [userValue] : []);
         
-        // Filter users based on admin-configured allowedUsers
-        const allowedUsers = field?.customConfig?.allowedUsers;
-        const filteredUsers = React.useMemo(() => {
-          let userList = users || [];
-          
-          // Apply admin pre-selection filter - if allowedUsers exists but is empty, show no users
-          if (allowedUsers) {
-            if (allowedUsers.length > 0) {
-              userList = userList.filter(user => allowedUsers.includes(user.id));
-            } else {
-              // If allowedUsers exists but is empty, show no users
-              userList = [];
-            }
-          }
-          // If allowedUsers doesn't exist, show all users (backward compatibility)
-          
-          return userList;
-        }, [users, allowedUsers]);
-        
         return (
           <Wrapper>
             <Select
@@ -298,7 +279,7 @@ const renderFieldInput = (field: any, value: any, submissionId: string
                 <SelectValue placeholder="Select users" />
               </SelectTrigger>
               <SelectContent>
-                {filteredUsers.map(user => (
+                {users.map(user => (
                   <SelectItem key={user.id} value={user.id}>
                     {getUserDisplayName(user.id)}
                   </SelectItem>
@@ -325,44 +306,6 @@ const renderFieldInput = (field: any, value: any, submissionId: string
         const normalizedValue = typeof accessValue === 'object' ? accessValue : { users: [], groups: [] };
         const { users: currentUsers = [], groups: currentGroups = [] } = normalizedValue;
         
-        // Filter users based on admin-configured allowedUsers
-        const allowedUsers = field?.customConfig?.allowedUsers;
-        const filteredUsers = React.useMemo(() => {
-          let userList = users || [];
-          
-          // Apply admin pre-selection filter - if allowedUsers exists but is empty, show no users
-          if (allowedUsers) {
-            if (allowedUsers.length > 0) {
-              userList = userList.filter(user => allowedUsers.includes(user.id));
-            } else {
-              // If allowedUsers exists but is empty, show no users
-              userList = [];
-            }
-          }
-          // If allowedUsers doesn't exist, show all users (backward compatibility)
-          
-          return userList;
-        }, [users, allowedUsers]);
-        
-        // Filter groups based on admin-configured allowedGroups
-        const allowedGroups = field?.customConfig?.allowedGroups;
-        const filteredGroups = React.useMemo(() => {
-          let groupList = groups || [];
-          
-          // Apply admin pre-selection filter - if allowedGroups exists but is empty, show no groups
-          if (allowedGroups) {
-            if (allowedGroups.length > 0) {
-              groupList = groupList.filter(group => allowedGroups.includes(group.id));
-            } else {
-              // If allowedGroups exists but is empty, show no groups
-              groupList = [];
-            }
-          }
-          // If allowedGroups doesn't exist, show all groups (backward compatibility)
-          
-          return groupList;
-        }, [groups, allowedGroups]);
-        
         return (
           <Wrapper>
             <div className="space-y-2">
@@ -379,7 +322,7 @@ const renderFieldInput = (field: any, value: any, submissionId: string
                     <SelectValue placeholder="Add user" />
                   </SelectTrigger>
                   <SelectContent>
-                    {filteredUsers.map(user => (
+                    {users.map(user => (
                       <SelectItem key={user.id} value={user.id}>
                         {getUserDisplayName(user.id)}
                       </SelectItem>
@@ -411,7 +354,7 @@ const renderFieldInput = (field: any, value: any, submissionId: string
                     <SelectValue placeholder="Add group" />
                   </SelectTrigger>
                   <SelectContent>
-                    {filteredGroups.map(group => (
+                    {groups.map(group => (
                       <SelectItem key={group.id} value={group.id}>
                         {getGroupDisplayName(group.id)}
                       </SelectItem>

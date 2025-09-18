@@ -424,7 +424,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
   };
 
   // Multi-select component for users
-  const MultiSelectUsers = ({ value, onChange, disabled, field }) => {
+  const MultiSelectUsers = ({ value, onChange, disabled }) => {
     const [isOpen, setIsOpen] = useState(false);
     const selectedIds = Array.isArray(value) ? value : (value ? [value] : []);
 
@@ -436,26 +436,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
       }
     };
 
-    // Filter users based on admin-configured allowedUsers
-    const allowedUsers = field?.customConfig?.allowedUsers;
-    const filteredUsers = React.useMemo(() => {
-      let userList = users || [];
-      
-      // Apply admin pre-selection filter - if allowedUsers exists but is empty, show no users
-      if (allowedUsers) {
-        if (allowedUsers.length > 0) {
-          userList = userList.filter(user => allowedUsers.includes(user.id));
-        } else {
-          // If allowedUsers exists but is empty, show no users
-          userList = [];
-        }
-      }
-      // If allowedUsers doesn't exist, show all users (backward compatibility)
-      
-      return userList;
-    }, [users, allowedUsers]);
-
-    const selectedUsers = filteredUsers.filter(u => selectedIds.includes(u.id));
+    const selectedUsers = users.filter(u => selectedIds.includes(u.id));
 
     return (
       <div className="relative">
@@ -481,7 +462,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
             <ScrollArea className="max-h-60">
               <div className="p-1">
-                {filteredUsers.map(user => (
+                {users.map(user => (
                   <div
                     key={user.id}
                     className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer rounded-sm"
@@ -494,7 +475,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                     <span className="text-sm">{getUserDisplayName(user.id)}</span>
                   </div>
                 ))}
-                {filteredUsers.length === 0 && (
+                {users.length === 0 && (
                   <div className="p-2 text-sm text-muted-foreground">
                     No users available
                   </div>
@@ -508,7 +489,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
   };
 
   // Multi-select component for groups
-  const MultiSelectGroups = ({ value, onChange, disabled, field }) => {
+  const MultiSelectGroups = ({ value, onChange, disabled }) => {
     const [isOpen, setIsOpen] = useState(false);
     const selectedIds = Array.isArray(value) ? value : [];
 
@@ -520,25 +501,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
       }
     };
 
-    // Filter groups based on admin-configured allowedGroups
-    const filteredGroups = React.useMemo(() => {
-      let groupList = groups || [];
-      
-      // Apply admin pre-selection filter - if allowedGroups exists but is empty, show no groups
-      if (field?.customConfig?.allowedGroups) {
-        if (field.customConfig.allowedGroups.length > 0) {
-          groupList = groupList.filter(group => field.customConfig.allowedGroups.includes(group.id));
-        } else {
-          // If allowedGroups exists but is empty, show no groups
-          groupList = [];
-        }
-      }
-      // If allowedGroups doesn't exist, show all groups (backward compatibility)
-      
-      return groupList;
-    }, [groups, field?.customConfig?.allowedGroups]);
-
-    const selectedGroups = filteredGroups.filter(g => selectedIds.includes(g.id));
+    const selectedGroups = groups.filter(g => selectedIds.includes(g.id));
 
     return (
       <div className="relative">
@@ -564,7 +527,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           <div className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg">
             <ScrollArea className="max-h-60">
               <div className="p-1">
-                {filteredGroups.map(group => (
+                {groups.map(group => (
                   <div
                     key={group.id}
                     className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer rounded-sm"
@@ -577,7 +540,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                     <span className="text-sm">{getGroupDisplayName(group.id)}</span>
                   </div>
                 ))}
-                {filteredGroups.length === 0 && (
+                {groups.length === 0 && (
                   <div className="p-2 text-sm text-muted-foreground">
                     No groups available
                   </div>
@@ -669,7 +632,6 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                 handleFieldChange(submissionId, field.id, newValue);
               }}
               disabled={isDisabled}
-              field={field}
             />
           );
         }
@@ -707,7 +669,6 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                   value={users}
                   onChange={(newUsers) => handleFieldChange(submissionId, field.id, { users: newUsers, groups })}
                   disabled={isDisabled}
-                  field={field}
                 />
               </div>
               <div>
@@ -716,7 +677,6 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                   value={groups}
                   onChange={(newGroups) => handleFieldChange(submissionId, field.id, { users, groups: newGroups })}
                   disabled={isDisabled}
-                  field={field}
                 />
               </div>
             </div>
