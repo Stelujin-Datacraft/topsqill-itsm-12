@@ -265,13 +265,14 @@ const renderFieldInput = (field: any, value: any, submissionId: string
         const selectedUserIds = Array.isArray(userValue) ? userValue : (userValue ? [userValue] : []);
         
         // Filter users based on admin-configured allowedUsers
+        const allowedUsers = field?.customConfig?.allowedUsers;
         const filteredUsers = React.useMemo(() => {
           let userList = users || [];
           
           // Apply admin pre-selection filter - if allowedUsers exists but is empty, show no users
-          if (field?.customConfig?.allowedUsers) {
-            if (field.customConfig.allowedUsers.length > 0) {
-              userList = userList.filter(user => field.customConfig.allowedUsers.includes(user.id));
+          if (allowedUsers) {
+            if (allowedUsers.length > 0) {
+              userList = userList.filter(user => allowedUsers.includes(user.id));
             } else {
               // If allowedUsers exists but is empty, show no users
               userList = [];
@@ -280,7 +281,7 @@ const renderFieldInput = (field: any, value: any, submissionId: string
           // If allowedUsers doesn't exist, show all users (backward compatibility)
           
           return userList;
-        }, [users, field?.customConfig?.allowedUsers]);
+        }, [users, allowedUsers]);
         
         return (
           <Wrapper>
@@ -325,13 +326,14 @@ const renderFieldInput = (field: any, value: any, submissionId: string
         const { users: currentUsers = [], groups: currentGroups = [] } = normalizedValue;
         
         // Filter users based on admin-configured allowedUsers
+        const allowedUsers = field?.customConfig?.allowedUsers;
         const filteredUsers = React.useMemo(() => {
           let userList = users || [];
           
           // Apply admin pre-selection filter - if allowedUsers exists but is empty, show no users
-          if (field?.customConfig?.allowedUsers) {
-            if (field.customConfig.allowedUsers.length > 0) {
-              userList = userList.filter(user => field.customConfig.allowedUsers.includes(user.id));
+          if (allowedUsers) {
+            if (allowedUsers.length > 0) {
+              userList = userList.filter(user => allowedUsers.includes(user.id));
             } else {
               // If allowedUsers exists but is empty, show no users
               userList = [];
@@ -340,16 +342,17 @@ const renderFieldInput = (field: any, value: any, submissionId: string
           // If allowedUsers doesn't exist, show all users (backward compatibility)
           
           return userList;
-        }, [users, field?.customConfig?.allowedUsers]);
+        }, [users, allowedUsers]);
         
         // Filter groups based on admin-configured allowedGroups
+        const allowedGroups = field?.customConfig?.allowedGroups;
         const filteredGroups = React.useMemo(() => {
           let groupList = groups || [];
           
           // Apply admin pre-selection filter - if allowedGroups exists but is empty, show no groups
-          if (field?.customConfig?.allowedGroups) {
-            if (field.customConfig.allowedGroups.length > 0) {
-              groupList = groupList.filter(group => field.customConfig.allowedGroups.includes(group.id));
+          if (allowedGroups) {
+            if (allowedGroups.length > 0) {
+              groupList = groupList.filter(group => allowedGroups.includes(group.id));
             } else {
               // If allowedGroups exists but is empty, show no groups
               groupList = [];
@@ -358,7 +361,7 @@ const renderFieldInput = (field: any, value: any, submissionId: string
           // If allowedGroups doesn't exist, show all groups (backward compatibility)
           
           return groupList;
-        }, [groups, field?.customConfig?.allowedGroups]);
+        }, [groups, allowedGroups]);
         
         return (
           <Wrapper>

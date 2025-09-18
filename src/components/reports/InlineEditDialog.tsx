@@ -437,13 +437,14 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
     };
 
     // Filter users based on admin-configured allowedUsers
+    const allowedUsers = field?.customConfig?.allowedUsers;
     const filteredUsers = React.useMemo(() => {
       let userList = users || [];
       
       // Apply admin pre-selection filter - if allowedUsers exists but is empty, show no users
-      if (field?.customConfig?.allowedUsers) {
-        if (field.customConfig.allowedUsers.length > 0) {
-          userList = userList.filter(user => field.customConfig.allowedUsers.includes(user.id));
+      if (allowedUsers) {
+        if (allowedUsers.length > 0) {
+          userList = userList.filter(user => allowedUsers.includes(user.id));
         } else {
           // If allowedUsers exists but is empty, show no users
           userList = [];
@@ -452,7 +453,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
       // If allowedUsers doesn't exist, show all users (backward compatibility)
       
       return userList;
-    }, [users, field?.customConfig?.allowedUsers]);
+    }, [users, allowedUsers]);
 
     const selectedUsers = filteredUsers.filter(u => selectedIds.includes(u.id));
 
