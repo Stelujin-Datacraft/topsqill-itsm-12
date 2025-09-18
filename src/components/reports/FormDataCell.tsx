@@ -397,50 +397,33 @@ const COUNTRIES = [
     }
     
     return (
-      <div className="flex flex-col gap-1">
-        {submissionRefIds.map((refId, index) => (
-          <Button
-            key={`ref-${refId}-${index}`}
-            variant="link"
-            size="sm"
-            className="cursor-pointer hover:underline text-left justify-start h-auto py-0 px-0 text-primary font-medium"
-            onClick={() => {
-              navigate(`/form-submissions?submissionRef=${refId}`);
-            }}
-            title={`Navigate to submission: ${refId}`}
-          >
-            <LinkIcon className="h-3 w-3 mr-1" />
-            {refId}
-          </Button>
-        ))}
-        <Button
-          variant="outline"
-          size="sm"
-          className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1 px-2 mt-1"
-          onClick={() => {
-            console.log('Cross-reference button clicked', { submissionRefIds, field });
-            // Trigger dialog with all IDs for this specific field
-            const dynamicTable = document.querySelector('[data-dynamic-table="main"]');
-            console.log('Dynamic table element found:', dynamicTable);
-            if (dynamicTable) {
-              const event = new CustomEvent('showCrossReference', { 
-                detail: { 
-                  submissionIds: submissionRefIds,
-                  fieldName: field?.label || 'Cross Reference'
-                } 
-              });
-              console.log('Dispatching event with data:', event.detail);
-              dynamicTable.dispatchEvent(event);
-            } else {
-              console.error('Dynamic table element not found');
-            }
-          }}
-        >
-          <div className="text-sm">
-            <span className="text-primary font-medium">View All ({submissionRefIds.length})</span>
-          </div>
-        </Button>
-      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1 px-2"
+        onClick={() => {
+          console.log('Cross-reference button clicked', { submissionRefIds, field });
+          // Trigger dialog with all IDs for this specific field
+          const dynamicTable = document.querySelector('[data-dynamic-table="main"]');
+          console.log('Dynamic table element found:', dynamicTable);
+          if (dynamicTable) {
+            const event = new CustomEvent('showCrossReference', { 
+              detail: { 
+                submissionIds: submissionRefIds,
+                fieldName: field?.label || 'Cross Reference'
+              } 
+            });
+            console.log('Dispatching event with data:', event.detail);
+            dynamicTable.dispatchEvent(event);
+          } else {
+            console.error('Dynamic table element not found');
+          }
+        }}
+      >
+        <div className="text-sm">
+          <span className="text-primary font-medium">View ({submissionRefIds.length})</span>
+        </div>
+      </Button>
     );
   }
 
