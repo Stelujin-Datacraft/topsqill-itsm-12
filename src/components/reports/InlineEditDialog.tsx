@@ -560,7 +560,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
     isBulkEdit: boolean = false
   ) => {
     const fieldValue = value ?? '';
-    const isDisabled = isBulkEdit && submissionId !== 'master' && submissions.length > 1;
+    const isDisabled = isBulkEdit && submissionId !== 'master' && submissions.length > 1 ;
 
     switch (field.field_type) {
       case 'cross-reference': {
@@ -1321,6 +1321,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                         if (url) window.open(url, '_blank');
                       }}
                       className="h-7 px-2"
+                      disabled={isDisabled}
                     >
                       <Eye className="h-3 w-3" />
                     </Button>
@@ -1337,6 +1338,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                           link.click();
                         }
                       }}
+                       disabled={isDisabled}
                       className="h-7 px-2"
                     >
                       Download
@@ -1373,6 +1375,8 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                 const url = typeof value === 'string' ? value : value.url;
                 if (url) window.open(url, '_blank');
               }}
+
+              disabled={isDisabled}
               className="h-7 px-2"
             >
               <Eye className="h-3 w-3" />

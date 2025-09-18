@@ -660,14 +660,14 @@ export function DynamicTable({
   const containerClasses = isExpanded ? "fixed inset-0 z-50 bg-background p-4 space-y-6" : "space-y-6";
   return <div className={containerClasses} data-dynamic-table="main">
       {/* Analytics Section */}
-      {!isExpanded && <SubmissionAnalytics data={data} />}
+      {/* {!isExpanded && <SubmissionAnalytics data={data} />} */}
       
-<Card
-  className="h-full flex flex-col overflow-hidden"
-  style={{
-    width: isExpanded ? '100vw' : 'calc(100vw - 280px)',
-  }}
->
+      <Card
+        className="h-full flex flex-col overflow-hidden"
+        style={{
+          width: isExpanded ? '100vw' : 'calc(100vw - 280px)',
+        }}
+      >
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
       <div className="space-y-1">
