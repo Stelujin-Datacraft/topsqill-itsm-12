@@ -855,7 +855,7 @@ if (fieldType === "user-picker") {
         displayItems.push({
           type: "user",
           id: userId,
-          display: getUserDisplayName(user),
+          display: getUserDisplayName(userId),
         });
       });
     }
@@ -864,7 +864,7 @@ if (fieldType === "user-picker") {
     displayItems.push({
       type: "user",
       id: userId,
-      display: getUserDisplayName(value),
+      display: getUserDisplayName(userId),
     });
   }
 
