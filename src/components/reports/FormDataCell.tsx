@@ -855,52 +855,52 @@ if (['file', 'image'].includes(fieldType) && value) {
   }
 
   
-if (fieldType === "user-picker") {
-  const displayItems: { type: "user"; id: string; display: string }[] = [];
+// if (fieldType === "user-picker") {
+//   const displayItems: { type: "user"; id: string; display: string }[] = [];
 
-  if (Array.isArray(value)) {
-    if (value.length > 0) {
-      value.forEach(user => {
-        const userId = typeof user === "string" ? user : user.id;
-        displayItems.push({
-          type: "user",
-          id: userId,
-          display: getUserDisplayName(userId),
-        });
-      });
-    }
-  } else if (value) {
-    const userId = typeof value === "string" ? value : value.id;
-    displayItems.push({
-      type: "user",
-      id: userId,
-      display: getUserDisplayName(userId),
-    });
-  }
+//   if (Array.isArray(value)) {
+//     if (value.length > 0) {
+//       value.forEach(user => {
+//         const userId = typeof user === "string" ? user : user.id;
+//         displayItems.push({
+//           type: "user",
+//           id: userId,
+//           display: getUserDisplayName(userId),
+//         });
+//       });
+//     }
+//   } else if (value) {
+//     const userId = typeof value === "string" ? value : value.id;
+//     displayItems.push({
+//       type: "user",
+//       id: userId,
+//       display: getUserDisplayName(userId),
+//     });
+//   }
 
-  if (displayItems.length === 0) {
-    return (
-      <Badge variant="outline" className="italic opacity-70">
-        No users selected
-      </Badge>
-    );
-  }
+//   if (displayItems.length === 0) {
+//     return (
+//       <Badge variant="outline" className="italic opacity-70">
+//         No users selected
+//       </Badge>
+//     );
+//   }
 
-  return (
-    <div className="flex flex-col gap-1 max-w-[270px]">
-      {displayItems.map((item, index) => (
-        <Badge
-          key={`${item.type}-${item.id}-${index}`}
-          variant="outline"
-          className="bg-blue-100 text-blue-800 text-xs max-w-full truncate"
-          title={item.display}
-        >
-          {item.display}
-        </Badge>
-      ))}
-    </div>
-  );
-}
+//   return (
+//     <div className="flex flex-col gap-1 max-w-[270px]">
+//       {displayItems.map((item, index) => (
+//         <Badge
+//           key={`${item.type}-${item.id}-${index}`}
+//           variant="outline"
+//           className="bg-blue-100 text-blue-800 text-xs max-w-full truncate"
+//           title={item.display}
+//         >
+//           {item.display}
+//         </Badge>
+//       ))}
+//     </div>
+//   );
+// }
 
 
 
