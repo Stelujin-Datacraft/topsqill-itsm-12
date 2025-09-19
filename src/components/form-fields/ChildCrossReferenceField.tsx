@@ -176,16 +176,6 @@ export function ChildCrossReferenceField({
         isAutoSelectionLoading={autoSelectionLoading} 
       />
       
-      {/* Debug info */}
-      <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
-        <strong>Debug Info:</strong><br/>
-        Auto-selected records: {autoSelectedRecords?.length || 0}<br/>
-        Loading: {autoSelectionLoading ? 'Yes' : 'No'}<br/>
-        Has config: {hasAutoConfig ? 'Yes' : 'No'}<br/>
-        Current submission: {currentSubmissionId || 'None'}<br/>
-        Parent form: {field.customConfig?.parentFormId || 'None'}
-      </div>
-      
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       {!isPreview && <FieldConfigurationDialog field={field} open={configOpen} onClose={() => setConfigOpen(false)} onSave={handleConfigSave} />}
