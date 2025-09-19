@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Edit, ArrowLeft } from 'lucide-react';
+import { Edit, ArrowLeft, ChevronRight } from 'lucide-react';
 import { 
   BarChart, 
   Bar, 
@@ -127,14 +127,15 @@ export function ChartPreview({
           const currentDimension = config.drilldownConfig.drilldownLevels[currentDrilldownLevel] || 
                                    config.drilldownConfig.drilldownLevels[0];
           
-          // Use the current dimension for the chart
+          // Use the current dimension for the chart - show the NEXT level after current drilldown
           const chartDimensions = [currentDimension];
           
           console.log('Drilldown chart config:', {
             currentLevel: currentDrilldownLevel,
             currentDimension,
             drilldownValues: drilldownState?.values || [],
-            allLevels: config.drilldownConfig.drilldownLevels
+            allLevels: config.drilldownConfig.drilldownLevels,
+            dimensionForChart: chartDimensions
           });
           
           const serverData = await getChartData(
@@ -153,11 +154,18 @@ export function ChartPreview({
           const chartData = serverData.map((item: any) => ({
             name: item.name,
             value: Number(item.value),
+            count: Number(item.value), // Always include count
             [config.metrics?.[0] || 'count']: Number(item.value),
             _drilldownData: item.additional_data
           }));
           
-          console.log('Processed drilldown chart data:', chartData);
+          console.log('✅ Processed drilldown chart data:', {
+            totalItems: chartData.length,
+            sampleData: chartData[0],
+            currentLevel: currentDrilldownLevel,
+            nextDimension: config.drilldownConfig?.drilldownLevels[currentDrilldownLevel + 1] || 'none',
+            allData: chartData
+          });
           setChartData(chartData);
         } else {
           // Fallback to client-side processing for non-drilldown charts
@@ -467,8 +475,14 @@ export function ChartPreview({
     const nextLevel = config.drilldownConfig?.drilldownLevels[currentLevel];
     const clickedValue = data.name;
     
-    if (nextLevel && clickedValue) {
-      console.log('Bar click drilldown:', { nextLevel, clickedValue, currentLevel });
+    if (nextLevel && clickedValue && clickedValue !== 'Not Specified') {
+      console.log('🔍 Bar click drilldown:', { 
+        nextLevel, 
+        clickedValue, 
+        currentLevel, 
+        fieldName: getFormFieldName(nextLevel),
+        totalLevels: config.drilldownConfig?.drilldownLevels.length 
+      });
       onDrilldown(nextLevel, clickedValue);
     }
   };
@@ -482,8 +496,14 @@ export function ChartPreview({
     const nextLevel = config.drilldownConfig.drilldownLevels[currentLevel];
     const clickedValue = data.name;
     
-    if (nextLevel && clickedValue) {
-      console.log('Pie click drilldown:', { nextLevel, clickedValue, currentLevel });
+    if (nextLevel && clickedValue && clickedValue !== 'Not Specified') {
+      console.log('🥧 Pie click drilldown:', { 
+        nextLevel, 
+        clickedValue, 
+        currentLevel,
+        fieldName: getFormFieldName(nextLevel),
+        totalLevels: config.drilldownConfig.drilldownLevels.length 
+      });
       onDrilldown(nextLevel, clickedValue);
     }
   };
@@ -1103,16 +1123,27 @@ export function ChartPreview({
               <p className="text-sm text-muted-foreground">{config.description}</p>
             )}
             {drilldownState?.values && drilldownState.values.length > 0 && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                <span>Drilldown:</span>
-                {drilldownState.values.map((value, index) => (
-                  <React.Fragment key={index}>
-                    {index > 0 && <span>{'>'}</span>}
-                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-                      {value}
-                    </span>
-                  </React.Fragment>
-                ))}
+              <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700 mt-2">
+                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Filtered by:</span>
+                <div className="flex items-center gap-1 flex-wrap">
+                  {drilldownState.values.map((value, index) => {
+                    const fieldName = getFormFieldName(config.drilldownConfig?.drilldownLevels?.[index] || '');
+                    return (
+                      <React.Fragment key={index}>
+                        {index > 0 && <ChevronRight className="h-4 w-4 text-blue-500" />}
+                        <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-2 py-1 rounded border">
+                          <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{fieldName}:</span>
+                          <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">{value}</span>
+                        </div>
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {config.drilldownConfig?.enabled && (!drilldownState?.values || drilldownState.values.length === 0) && (
+              <div className="text-xs text-muted-foreground italic mt-1">
+                📊 Click on chart elements to drill down through: {config.drilldownConfig?.drilldownLevels?.map(level => getFormFieldName(level)).join(' → ')}
               </div>
             )}
           </div>
