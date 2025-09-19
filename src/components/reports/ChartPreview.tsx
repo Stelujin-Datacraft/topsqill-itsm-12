@@ -520,6 +520,18 @@ export function ChartPreview({
 
   const currentLevelInfo = getCurrentLevelInfo();
 
+  // Debug logging for drilldown functionality
+  useEffect(() => {
+    console.log('🔍 ChartPreview Drilldown Debug:', {
+      drilldownEnabled: config.drilldownConfig?.enabled,
+      drilldownLevels: config.drilldownConfig?.drilldownLevels,
+      drilldownState: drilldownState,
+      currentLevelInfo: currentLevelInfo,
+      chartDataLength: chartData.length,
+      hasOnDrilldown: !!onDrilldown
+    });
+  }, [config.drilldownConfig, drilldownState, currentLevelInfo, chartData.length, onDrilldown]);
+
   const handlePieClick = (data: any, index?: number, event?: any) => {
     if (!config.drilldownConfig?.enabled || !onDrilldown || !config.drilldownConfig?.drilldownLevels?.length) return;
     
@@ -1239,6 +1251,14 @@ export function ChartPreview({
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
               
+              {/* Debug info */}
+              <div className="text-xs text-muted-foreground bg-muted p-1 rounded">
+                Debug: enabled={config.drilldownConfig?.enabled?.toString()}, 
+                levels={config.drilldownConfig?.drilldownLevels?.length || 0}, 
+                currentLevel={currentLevelInfo?.levelIndex || 'null'},
+                availableValues={currentLevelInfo?.availableValues?.length || 0}
+              </div>
+              
               {/* Drilldown Path Breadcrumb */}
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
                 <span className="font-medium">All Records</span>
@@ -1253,22 +1273,28 @@ export function ChartPreview({
               </div>
               
               {/* Drilldown Level Selector */}
-              {currentLevelInfo && currentLevelInfo.availableValues.length > 0 && (
+              {currentLevelInfo ? (
                 <div className="flex items-center gap-2 ml-4">
                   <span className="text-sm text-muted-foreground">Drill down by {currentLevelInfo.fieldName}:</span>
-                  <Select onValueChange={handleDrilldownSelect}>
-                    <SelectTrigger className="w-48 h-8">
-                      <SelectValue placeholder={`Select ${currentLevelInfo.fieldName}`} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {currentLevelInfo.availableValues.map((value) => (
-                        <SelectItem key={value} value={value}>
-                          {value}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {currentLevelInfo.availableValues.length > 0 ? (
+                    <Select onValueChange={handleDrilldownSelect}>
+                      <SelectTrigger className="w-48 h-8">
+                        <SelectValue placeholder={`Select ${currentLevelInfo.fieldName}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {currentLevelInfo.availableValues.map((value) => (
+                          <SelectItem key={value} value={value}>
+                            {value}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <span className="text-sm text-muted-foreground italic">No values available</span>
+                  )}
                 </div>
+              ) : (
+                <span className="text-sm text-red-500">Current level info is null</span>
               )}
               
               {/* Reset Drilldown Button */}

@@ -335,8 +335,16 @@ export function ReportEditor({
     }
   };
   const handleDrilldown = (componentId: string, drilldownLevel: string, drilldownValue: string) => {
+    console.log('🎯 ReportEditor handleDrilldown called:', {
+      componentId,
+      drilldownLevel,
+      drilldownValue,
+      currentState: drilldownStates[componentId]
+    });
+    
     // Handle reset case
     if (!drilldownLevel && !drilldownValue) {
+      console.log('🔄 Resetting drilldown for component:', componentId);
       setDrilldownStates(prev => ({
         ...prev,
         [componentId]: {
