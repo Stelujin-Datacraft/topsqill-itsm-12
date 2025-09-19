@@ -57,6 +57,7 @@ export function ChartPreview({
   const [loading, setLoading] = useState(true);
   const [showFormFields, setShowFormFields] = useState(false);
   const [showLegend, setShowLegend] = useState(true);
+  const [showDrilldownPanel, setShowDrilldownPanel] = useState(false);
   const { getFormSubmissionData, getChartData, getFormFields } = useReports();
   const { forms } = useFormsData();
 
@@ -519,18 +520,6 @@ export function ChartPreview({
   };
 
   const currentLevelInfo = getCurrentLevelInfo();
-
-  // Debug logging for drilldown functionality
-  useEffect(() => {
-    console.log('🔍 ChartPreview Drilldown Debug:', {
-      drilldownEnabled: config.drilldownConfig?.enabled,
-      drilldownLevels: config.drilldownConfig?.drilldownLevels,
-      drilldownState: drilldownState,
-      currentLevelInfo: currentLevelInfo,
-      chartDataLength: chartData.length,
-      hasOnDrilldown: !!onDrilldown
-    });
-  }, [config.drilldownConfig, drilldownState, currentLevelInfo, chartData.length, onDrilldown]);
 
   const handlePieClick = (data: any, index?: number, event?: any) => {
     if (!config.drilldownConfig?.enabled || !onDrilldown || !config.drilldownConfig?.drilldownLevels?.length) return;
@@ -1223,6 +1212,17 @@ export function ChartPreview({
           >
             {showFormFields ? 'Hide' : 'Show'} Form Details ({getFormName(config.formId)})
           </Button>
+          
+          {config.drilldownConfig?.enabled && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-2"
+              onClick={() => setShowDrilldownPanel(!showDrilldownPanel)}
+            >
+              {showDrilldownPanel ? 'Hide' : 'Show'} Drilldown
+            </Button>
+          )}
           
           {onEdit && (
             <Button

@@ -18,8 +18,11 @@ export function DrilldownTab({ component, formFields, onUpdateComponent }: Drill
     onUpdateComponent(component.id, {
       config: {
         ...config,
-        drilldownEnabled: enabled,
-        drilldownLevels: enabled ? (config.drilldownLevels || []) : []
+        drilldownConfig: {
+          ...config.drilldownConfig,
+          enabled: enabled,
+          drilldownLevels: enabled ? (config.drilldownConfig?.drilldownLevels || []) : []
+        }
       }
     });
   };
@@ -28,7 +31,11 @@ export function DrilldownTab({ component, formFields, onUpdateComponent }: Drill
     onUpdateComponent(component.id, {
       config: {
         ...config,
-        drilldownLevels: levels
+        drilldownConfig: {
+          ...config.drilldownConfig,
+          enabled: config.drilldownConfig?.enabled || false,
+          drilldownLevels: levels
+        }
       }
     });
   };
@@ -45,9 +52,9 @@ export function DrilldownTab({ component, formFields, onUpdateComponent }: Drill
         <CardContent>
           <DrilldownConfig
             formFields={formFields}
-            enabled={config.drilldownEnabled || false}
+            enabled={config.drilldownConfig?.enabled || false}
             onEnabledChange={handleDrilldownEnabledChange}
-            drilldownLevels={config.drilldownLevels || []}
+            drilldownLevels={config.drilldownConfig?.drilldownLevels || []}
             onDrilldownLevelsChange={handleDrilldownLevelsChange}
             maxLevels={5}
           />
