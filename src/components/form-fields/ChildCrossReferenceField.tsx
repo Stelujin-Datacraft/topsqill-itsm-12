@@ -71,6 +71,21 @@ export function ChildCrossReferenceField({
     enabled: hasAutoConfig && !!currentSubmissionId && !isPreview
   });
 
+  console.log('🔍 ChildCrossReferenceField Debug:', {
+    fieldId: field.id,
+    fieldLabel: field.label,
+    hasAutoConfig,
+    currentFormId,
+    currentSubmissionId,
+    parentFormId: field.customConfig?.parentFormId,
+    crossReferenceFieldId: field.customConfig?.parentFieldId,
+    displayColumns: field.customConfig?.displayColumns,
+    autoSelectedRecords,
+    autoSelectionLoading,
+    isPreview,
+    enabled: hasAutoConfig && !!currentSubmissionId && !isPreview
+  });
+
   // Create properly typed config object with better defaults
   const tableConfig = hasAutoConfig ? {
     targetFormId: field.customConfig.targetFormId,
@@ -152,7 +167,24 @@ export function ChildCrossReferenceField({
         </div>
       </div>
       
-      <OptimizedFormDataTable config={tableConfig} fieldType="cross-reference" value={value} onChange={handleSelectionChange} autoSelectedRecords={autoSelectedRecords} isAutoSelectionLoading={autoSelectionLoading} />
+      <OptimizedFormDataTable 
+        config={tableConfig} 
+        fieldType="cross-reference" 
+        value={value} 
+        onChange={handleSelectionChange} 
+        autoSelectedRecords={autoSelectedRecords} 
+        isAutoSelectionLoading={autoSelectionLoading} 
+      />
+      
+      {/* Debug info */}
+      <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
+        <strong>Debug Info:</strong><br/>
+        Auto-selected records: {autoSelectedRecords?.length || 0}<br/>
+        Loading: {autoSelectionLoading ? 'Yes' : 'No'}<br/>
+        Has config: {hasAutoConfig ? 'Yes' : 'No'}<br/>
+        Current submission: {currentSubmissionId || 'None'}<br/>
+        Parent form: {field.customConfig?.parentFormId || 'None'}
+      </div>
       
       {error && <p className="text-sm text-red-500">{error}</p>}
 

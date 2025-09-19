@@ -29,13 +29,30 @@ export function useChildCrossReferenceAutoSelection({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('🔍 useChildCrossReferenceAutoSelection - Starting effect with params:', {
+      currentFormId,
+      currentSubmissionId,
+      parentFormId,
+      crossReferenceFieldId,
+      displayColumns,
+      enabled
+    });
+
     if (!enabled || !currentFormId || !parentFormId || !currentSubmissionId) {
+      console.log('❌ useChildCrossReferenceAutoSelection - Effect disabled:', {
+        enabled,
+        currentFormId,
+        parentFormId,
+        currentSubmissionId,
+        hasDisplayColumns: displayColumns && displayColumns.length > 0
+      });
       setAutoSelectedRecords([]);
       return;
     }
 
     const fetchAutoSelectedRecords = async () => {
       try {
+        console.log('🚀 Fetching auto-selected records...');
         setLoading(true);
         setError(null);
 
@@ -107,6 +124,12 @@ export function useChildCrossReferenceAutoSelection({
             }
 
             if (foundCurrentRecord) {
+              console.log('✅ Found parent record that references current submission:', {
+                parentSubmissionId: submission.id,
+                parentSubmissionRefId: submission.submission_ref_id,
+                parentSubmissionData: submission.submission_data
+              });
+              
               // Create display data from submission data
               const displayData: Record<string, any> = {};
               
@@ -128,7 +151,11 @@ export function useChildCrossReferenceAutoSelection({
           }
         }
 
-        console.log('Auto-selected records found:', matchingSubmissions.length);
+        console.log('🔍 Final auto-selected records found:', {
+          count: matchingSubmissions.length,
+          records: matchingSubmissions,
+          displayColumns
+        });
         setAutoSelectedRecords(matchingSubmissions);
 
       } catch (err) {
