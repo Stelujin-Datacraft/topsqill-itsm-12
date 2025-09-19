@@ -1247,12 +1247,78 @@ export function ChartPreview({
             </Button>
           )}
           
-          {config.drilldownConfig?.enabled && (
+          {config.drilldownConfig?.enabled && showDrilldownPanel && (
+            <div className="mb-4 p-3 bg-muted/30 rounded-lg border">
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Drilldown Controls</span>
+                  
+                  {/* Debug info */}
+                  <div className="text-xs text-muted-foreground bg-red-100 p-1 rounded">
+                    Debug: enabled={config.drilldownConfig?.enabled?.toString()}, 
+                    levels={config.drilldownConfig?.drilldownLevels?.length || 0}, 
+                    currentLevel={currentLevelInfo?.levelIndex || 'null'},
+                    availableValues={currentLevelInfo?.availableValues?.length || 0}
+                  </div>
+                </div>
+                
+                {/* Drilldown Path Breadcrumb */}
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <span className="font-medium">Path: All Records</span>
+                  {drilldownState?.path?.map((level, index) => (
+                    <React.Fragment key={index}>
+                      <ChevronRight className="h-3 w-3" />
+                      <span className="font-medium">
+                        {getFormFieldName(level)}: {drilldownState.values?.[index] || ''}
+                      </span>
+                    </React.Fragment>
+                  ))}
+                </div>
+                
+                {/* Drilldown Level Selector */}
+                {currentLevelInfo && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Drill down by {currentLevelInfo.fieldName}:</span>
+                    {currentLevelInfo.availableValues.length > 0 ? (
+                      <Select onValueChange={handleDrilldownSelect}>
+                        <SelectTrigger className="w-48 h-8">
+                          <SelectValue placeholder={`Select ${currentLevelInfo.fieldName}`} />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover border shadow-md z-50">
+                          {currentLevelInfo.availableValues.map((value) => (
+                            <SelectItem key={value} value={value} className="hover:bg-accent hover:text-accent-foreground">
+                              {value}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <span className="text-sm text-muted-foreground italic">No values available</span>
+                    )}
+                  </div>
+                )}
+                
+                {/* Reset Drilldown Button */}
+                {drilldownState?.values?.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={resetDrilldown}
+                  >
+                    Reset to All Records
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {config.drilldownConfig?.enabled && !showDrilldownPanel && (
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
               
               {/* Debug info */}
-              <div className="text-xs text-muted-foreground bg-muted p-1 rounded">
+              <div className="text-xs text-muted-foreground bg-red-100 p-1 rounded">
                 Debug: enabled={config.drilldownConfig?.enabled?.toString()}, 
                 levels={config.drilldownConfig?.drilldownLevels?.length || 0}, 
                 currentLevel={currentLevelInfo?.levelIndex || 'null'},
@@ -1271,44 +1337,6 @@ export function ChartPreview({
                   </React.Fragment>
                 ))}
               </div>
-              
-              {/* Drilldown Level Selector */}
-              {currentLevelInfo ? (
-                <div className="flex items-center gap-2 ml-4">
-                  <span className="text-sm text-muted-foreground">Drill down by {currentLevelInfo.fieldName}:</span>
-                  {currentLevelInfo.availableValues.length > 0 ? (
-                    <Select onValueChange={handleDrilldownSelect}>
-                      <SelectTrigger className="w-48 h-8">
-                        <SelectValue placeholder={`Select ${currentLevelInfo.fieldName}`} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {currentLevelInfo.availableValues.map((value) => (
-                          <SelectItem key={value} value={value}>
-                            {value}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <span className="text-sm text-muted-foreground italic">No values available</span>
-                  )}
-                </div>
-              ) : (
-                <span className="text-sm text-red-500">Current level info is null</span>
-              )}
-              
-              {/* Reset Drilldown Button */}
-              {drilldownState?.values && drilldownState.values.length > 0 && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 px-2 ml-2"
-                  onClick={resetDrilldown}
-                >
-                  <RotateCcw className="h-3 w-3 mr-1" />
-                  Reset
-                </Button>
-              )}
             </div>
           )}
         </div>

@@ -103,9 +103,9 @@ export function DrilldownConfig({
                       <SelectTrigger>
                         <SelectValue placeholder="Select field for this level" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-popover border shadow-md z-50">
                         {getAvailableFields(index).map((field) => (
-                          <SelectItem key={field.id} value={field.id}>
+                          <SelectItem key={field.id} value={field.id} className="hover:bg-accent hover:text-accent-foreground">
                             <div className="flex items-center justify-between w-full">
                               <span>{field.label}</span>
                               <Badge variant="outline" className="ml-2 text-xs">
