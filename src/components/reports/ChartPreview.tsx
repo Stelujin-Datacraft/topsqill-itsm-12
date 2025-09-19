@@ -447,14 +447,19 @@ export function ChartPreview({
 
   // Get available values for the current drilldown level
   const getAvailableValuesForLevel = (levelIndex: number) => {
-    if (!config.drilldownConfig?.enabled || !chartData.length) return [];
+    if (!config.drilldownConfig?.enabled || 
+        !config.drilldownConfig?.drilldownLevels || 
+        !Array.isArray(config.drilldownConfig.drilldownLevels) ||
+        !chartData.length) {
+      return [];
+    }
     
-    const currentDimension = config.drilldownConfig?.drilldownLevels[levelIndex];
+    const currentDimension = config.drilldownConfig.drilldownLevels[levelIndex];
     if (!currentDimension) return [];
     
     // Extract unique values from chart data
     const values = chartData
-      .map(item => item.name)
+      .map(item => item?.name)
       .filter(name => name && name !== 'Not Specified')
       .filter((value, index, array) => array.indexOf(value) === index)
       .sort();
@@ -463,10 +468,15 @@ export function ChartPreview({
   };
 
   const handleDrilldownSelect = (value: string) => {
-    if (!config.drilldownConfig?.enabled || !onDrilldown) return;
+    if (!config.drilldownConfig?.enabled || 
+        !config.drilldownConfig?.drilldownLevels || 
+        !Array.isArray(config.drilldownConfig.drilldownLevels) ||
+        !onDrilldown) {
+      return;
+    }
     
     const currentLevel = drilldownState?.values?.length || 0;
-    const nextLevel = config.drilldownConfig?.drilldownLevels[currentLevel];
+    const nextLevel = config.drilldownConfig.drilldownLevels[currentLevel];
     
     if (nextLevel && value) {
       console.log('🔍 Drilldown select:', { 
@@ -488,10 +498,14 @@ export function ChartPreview({
 
   // Get the current level info for the drilldown selector
   const getCurrentLevelInfo = () => {
-    if (!config.drilldownConfig?.enabled) return null;
+    if (!config.drilldownConfig?.enabled || 
+        !config.drilldownConfig?.drilldownLevels || 
+        !Array.isArray(config.drilldownConfig.drilldownLevels)) {
+      return null;
+    }
     
     const currentLevel = drilldownState?.values?.length || 0;
-    const nextDimension = config.drilldownConfig?.drilldownLevels[currentLevel];
+    const nextDimension = config.drilldownConfig.drilldownLevels[currentLevel];
     
     if (!nextDimension) return null;
     
@@ -500,7 +514,7 @@ export function ChartPreview({
       fieldId: nextDimension,
       fieldName: getFormFieldName(nextDimension),
       availableValues: getAvailableValuesForLevel(currentLevel),
-      canDrillFurther: currentLevel < (config.drilldownConfig?.drilldownLevels?.length || 0)
+      canDrillFurther: currentLevel < (config.drilldownConfig.drilldownLevels?.length || 0)
     };
   };
 
