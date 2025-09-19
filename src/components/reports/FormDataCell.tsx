@@ -16,6 +16,16 @@ interface FormDataCellProps {
 export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
   const { getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
 
+  // Debug logging to identify problematic values
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    console.log('FormDataCell object value debug:', {
+      fieldType,
+      fieldLabel: field?.label,
+      value,
+      valueKeys: Object.keys(value)
+    });
+  }
+
   function countryCodeToEmoji(code: string) {
     if (!code) return "";
     return code
@@ -896,10 +906,10 @@ if (fieldType === "user-picker") {
 
   // Handle objects
   if (typeof value === 'object') {
-    // Try to extract meaningful information
-    if (value.status) return value.status;
-    if (value.value) return value.value;
-    if (value.name) return value.name;
+    // Try to extract meaningful information and ensure we return strings
+    if (value.status && typeof value.status === 'string') return value.status;
+    if (value.value && typeof value.value !== 'object') return String(value.value);
+    if (value.name && typeof value.name === 'string') return value.name;
     return JSON.stringify(value);
   }
 

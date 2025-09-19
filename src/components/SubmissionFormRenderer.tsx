@@ -94,6 +94,17 @@ export function SubmissionFormRenderer({
 
     // Process fields in their original order
     pageFields.forEach((field) => {
+      // Debug logging for each field being processed
+      if (formData[field.id] && typeof formData[field.id] === 'object') {
+        console.log('SubmissionFormRenderer field with object value:', {
+          fieldId: field.id,
+          fieldType: field.type,
+          fieldLabel: field.label,
+          value: formData[field.id],
+          valueType: typeof formData[field.id]
+        });
+      }
+      
       if (fullWidthTypes.includes(field.type)) {
         // Flush any accumulated standard fields first
         flushStandardFields();
@@ -129,7 +140,38 @@ export function SubmissionFormRenderer({
 
   return (
     <div className="space-y-8">
-      {renderFieldsWithSmartLayout()}
+      <div className="text-xs text-muted-foreground bg-yellow-50 p-2 rounded border">
+        Debug: Rendering {pageFields.length} fields. Check console for object value details.
+      </div>
+      {(() => {
+        try {
+          return renderFieldsWithSmartLayout();
+        } catch (error) {
+          console.error('Error rendering fields:', error);
+          console.log('Current page fields causing error:', pageFields.map(f => ({
+            id: f.id,
+            type: f.type,
+            label: f.label,
+            value: formData[f.id],
+            valueType: typeof formData[f.id]
+          })));
+          
+          return (
+            <div className="border border-red-200 bg-red-50 p-4 rounded">
+              <h3 className="font-semibold text-red-800 mb-2">Rendering Error</h3>
+              <p className="text-red-700 text-sm mb-2">
+                There was an error rendering the form fields. Check the console for details.
+              </p>
+              <details className="text-xs">
+                <summary className="cursor-pointer text-red-600">Error Details</summary>
+                <pre className="mt-2 whitespace-pre-wrap text-red-600">
+                  {error instanceof Error ? error.message : String(error)}
+                </pre>
+              </details>
+            </div>
+          );
+        }
+      })()}
     </div>
   );
 }
