@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Edit, ArrowLeft, ChevronRight } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Edit, ArrowLeft, ChevronRight, Filter, RotateCcw } from 'lucide-react';
 import { 
   BarChart, 
   Bar, 
@@ -444,59 +445,70 @@ export function ChartPreview({
 
   const colors = colorSchemes[config.colorTheme || 'default'];
 
-  const handleChartClick = (data: any, event?: any) => {
-    if (!config.drilldownConfig?.enabled || !onDrilldown || !config.drilldownConfig?.drilldownLevels?.length) return;
+  // Get available values for the current drilldown level
+  const getAvailableValuesForLevel = (levelIndex: number) => {
+    if (!config.drilldownConfig?.enabled || !chartData.length) return [];
     
-    // Check if we can drill down further
+    const currentDimension = config.drilldownConfig?.drilldownLevels[levelIndex];
+    if (!currentDimension) return [];
+    
+    // Extract unique values from chart data
+    const values = chartData
+      .map(item => item.name)
+      .filter(name => name && name !== 'Not Specified')
+      .filter((value, index, array) => array.indexOf(value) === index)
+      .sort();
+    
+    return values;
+  };
+
+  const handleDrilldownSelect = (value: string) => {
+    if (!config.drilldownConfig?.enabled || !onDrilldown) return;
+    
     const currentLevel = drilldownState?.values?.length || 0;
-    if (currentLevel >= config.drilldownConfig?.drilldownLevels.length) return;
-    
-    // Get the next drilldown level and the clicked value
     const nextLevel = config.drilldownConfig?.drilldownLevels[currentLevel];
-    let clickedValue = data?.activeLabel || data?.name || data?.payload?.name;
     
-    // Handle different chart click scenarios
-    if (event && event.activePayload && event.activePayload[0]) {
-      clickedValue = event.activePayload[0].payload.name;
-    }
-    
-    if (nextLevel && clickedValue) {
-      console.log('Chart drilldown:', { nextLevel, clickedValue, currentLevel });
-      onDrilldown(nextLevel, clickedValue);
+    if (nextLevel && value) {
+      console.log('🔍 Drilldown select:', { 
+        nextLevel, 
+        selectedValue: value, 
+        currentLevel, 
+        fieldName: getFormFieldName(nextLevel) 
+      });
+      onDrilldown(nextLevel, value);
     }
   };
 
-  const handleBarClick = (data: any, event?: any) => {
-    if (!config.drilldownConfig?.enabled || !onDrilldown || !config.drilldownConfig?.drilldownLevels?.length) return;
-    
-    // Stop propagation to prevent triggering the Card component's click handler
-    if (event?.domEvent) {
-      event.domEvent.stopPropagation();
-    }
-    
-    const currentLevel = drilldownState?.values?.length || 0;
-    if (currentLevel >= config.drilldownConfig?.drilldownLevels.length) return;
-    
-    const nextLevel = config.drilldownConfig?.drilldownLevels[currentLevel];
-    // For Recharts onClick, data is directly the clicked data
-    const clickedValue = data?.activeLabel || data?.name || data;
-    
-    if (nextLevel && clickedValue && clickedValue !== 'Not Specified') {
-      console.log('🔍 Bar click drilldown:', { 
-        nextLevel, 
-        clickedValue, 
-        currentLevel, 
-        fieldName: getFormFieldName(nextLevel),
-        totalLevels: config.drilldownConfig?.drilldownLevels.length 
-      });
-      onDrilldown(nextLevel, clickedValue);
+  const resetDrilldown = () => {
+    if (onDrilldown) {
+      // Reset to initial state by calling drilldown with empty values
+      onDrilldown('', '');
     }
   };
+
+  // Get the current level info for the drilldown selector
+  const getCurrentLevelInfo = () => {
+    if (!config.drilldownConfig?.enabled) return null;
+    
+    const currentLevel = drilldownState?.values?.length || 0;
+    const nextDimension = config.drilldownConfig?.drilldownLevels[currentLevel];
+    
+    if (!nextDimension) return null;
+    
+    return {
+      levelIndex: currentLevel,
+      fieldId: nextDimension,
+      fieldName: getFormFieldName(nextDimension),
+      availableValues: getAvailableValuesForLevel(currentLevel),
+      canDrillFurther: currentLevel < (config.drilldownConfig?.drilldownLevels?.length || 0)
+    };
+  };
+
+  const currentLevelInfo = getCurrentLevelInfo();
 
   const handlePieClick = (data: any, index?: number, event?: any) => {
     if (!config.drilldownConfig?.enabled || !onDrilldown || !config.drilldownConfig?.drilldownLevels?.length) return;
     
-    // Stop propagation to prevent triggering the Card component's click handler
     if (event) {
       event.stopPropagation();
     }
@@ -517,6 +529,16 @@ export function ChartPreview({
       });
       onDrilldown(nextLevel, clickedValue);
     }
+  };
+
+  const handleBarClick = (data: any, event?: any) => {
+    // This will be handled by the drilldown controls instead of direct click
+    console.log('Bar clicked, use drilldown controls instead');
+  };
+
+  const handleChartClick = (data: any, event?: any) => {
+    // This will be handled by the drilldown controls instead of direct click
+    console.log('Chart clicked, use drilldown controls instead');
   };
 
   const renderChart = () => {
@@ -680,7 +702,6 @@ export function ChartPreview({
                   data={chartData} 
                   layout="horizontal" 
                   margin={{ top: 20, right: 30, left: 120, bottom: 20 }}
-                  onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
                 >
                   <XAxis 
                     type="number" 
@@ -817,7 +838,6 @@ export function ChartPreview({
                 <RechartsLineChart 
                   data={chartData} 
                   margin={{ top: 20, right: 30, left: 40, bottom: 80 }}
-                  onClick={handleChartClick}
                 >
                   <XAxis 
                     dataKey="name" 
@@ -1202,14 +1222,54 @@ export function ChartPreview({
           )}
           
           {config.drilldownConfig?.enabled && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 px-2"
-              onClick={() => {/* TODO: Open drilldown panel */}}
-            >
-              Drilldown
-            </Button>
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              
+              {/* Drilldown Path Breadcrumb */}
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                <span className="font-medium">All Records</span>
+                {drilldownState?.path?.map((level, index) => (
+                  <React.Fragment key={index}>
+                    <ChevronRight className="h-3 w-3" />
+                    <span className="font-medium">
+                      {getFormFieldName(level)}: {drilldownState.values?.[index] || ''}
+                    </span>
+                  </React.Fragment>
+                ))}
+              </div>
+              
+              {/* Drilldown Level Selector */}
+              {currentLevelInfo && currentLevelInfo.availableValues.length > 0 && (
+                <div className="flex items-center gap-2 ml-4">
+                  <span className="text-sm text-muted-foreground">Drill down by {currentLevelInfo.fieldName}:</span>
+                  <Select onValueChange={handleDrilldownSelect}>
+                    <SelectTrigger className="w-48 h-8">
+                      <SelectValue placeholder={`Select ${currentLevelInfo.fieldName}`} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currentLevelInfo.availableValues.map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {value}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
+              {/* Reset Drilldown Button */}
+              {drilldownState?.values && drilldownState.values.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 px-2 ml-2"
+                  onClick={resetDrilldown}
+                >
+                  <RotateCcw className="h-3 w-3 mr-1" />
+                  Reset
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </div>
