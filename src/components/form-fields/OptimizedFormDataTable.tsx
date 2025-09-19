@@ -36,6 +36,7 @@ interface FormDataTableConfig {
   enableSearch?: boolean;
   pageSize?: number;
   isParentReference?: boolean;
+  isChildField?: boolean;
 }
 interface OptimizedFormDataTableProps {
   config: FormDataTableConfig;
@@ -72,6 +73,7 @@ export function OptimizedFormDataTable({
   const pageSize = config.pageSize || 10;
   const displayColumns = config.displayColumns || [];
   const isCrossReference = fieldType === 'cross-reference';
+  const isChildCrossReference = config.isChildField === true;
 
   // Convert config filters to the format expected by the hook
   const configFilters = (config.filters || []).map(filter => ({
@@ -280,7 +282,10 @@ export function OptimizedFormDataTable({
   };
 
   // Filter data to show only selected records in the main table for cross-reference
-  const displayData = isCrossReference ? data.filter(record => selectedRecords.some(selected => selected.id === record.id)) : data;
+  // For child cross-reference fields, show all auto-selected records automatically
+  const displayData = isCrossReference && !isChildCrossReference 
+    ? data.filter(record => selectedRecords.some(selected => selected.id === record.id)) 
+    : data;
   if (!config.targetFormId) {
     return <Card className="w-full">
         <CardContent className="p-8 text-center">
@@ -306,7 +311,7 @@ export function OptimizedFormDataTable({
             <Badge variant="outline">
               {isCrossReference ? selectedRecords.length : totalRecords} record{(isCrossReference ? selectedRecords.length : totalRecords) !== 1 ? 's' : ''}
             </Badge>
-            {isCrossReference && <Dialog open={isSelectionModalOpen} onOpenChange={setIsSelectionModalOpen}>
+            {isCrossReference && !isChildCrossReference && <Dialog open={isSelectionModalOpen} onOpenChange={setIsSelectionModalOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm" onClick={handleModalOpen}>
                     <Plus className="h-4 w-4 mr-2" />
