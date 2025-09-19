@@ -158,7 +158,7 @@ export function DynamicDropdownField({
               <em>None selected</em>
             </SelectItem>
           )}
-          {options.map((option) => (
+          {options.filter(option => option.value && option.value.trim() !== '').map((option) => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}
             </SelectItem>

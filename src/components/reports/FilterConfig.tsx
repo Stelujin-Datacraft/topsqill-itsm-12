@@ -141,7 +141,7 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
                 <SelectValue placeholder="Select value" />
               </SelectTrigger>
               <SelectContent>
-                {field.options.map((option) => (
+                {field.options.filter(option => option.value && option.value.trim() !== '').map((option) => (
                   <SelectItem key={option.id} value={option.value}>
                     {option.label}
                   </SelectItem>

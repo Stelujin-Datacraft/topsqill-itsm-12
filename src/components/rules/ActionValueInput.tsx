@@ -297,7 +297,7 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
             <SelectValue placeholder="Select value" />
           </SelectTrigger>
           <SelectContent>
-            {targetField.options.map((option: any) => (
+            {targetField.options.filter((option: any) => option.value && option.value.trim() !== '').map((option: any) => (
               <SelectItem key={option.id || option.value} value={option.value}>
                 {option.label || option.value}
               </SelectItem>

@@ -754,7 +754,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
               <SelectValue placeholder="Select option" />
             </SelectTrigger>
             <SelectContent>
-              {selectOptions.map((option: any) => (
+              {selectOptions.filter((option: any) => option.value && option.value.trim() !== '').map((option: any) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>

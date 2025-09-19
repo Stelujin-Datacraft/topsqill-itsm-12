@@ -231,7 +231,7 @@ const renderFieldInput = (field: any, value: any, submissionId: string
             </SelectTrigger>
             <SelectContent>
               {Array.isArray(field.options)
-                ? field.options.map((option: any) => (
+                ? field.options.filter((option: any) => option.value && option.value.trim() !== '').map((option: any) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>

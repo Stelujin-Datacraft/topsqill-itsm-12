@@ -93,7 +93,7 @@ export function SelectFieldWithSearch({
                 {filteredOptions.map((option) => (
                   <CommandItem
                     key={option.id}
-                    value={option.value}
+                    value={option.value || `option-${option.id}`}
                     onSelect={() => handleSelect(option.value)}
                   >
                     <Check

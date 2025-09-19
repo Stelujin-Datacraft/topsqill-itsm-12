@@ -226,7 +226,7 @@ const FormLevelConditionBuilder = React.memo(({ condition, forms, onChange }: Fo
               {getConditionTypeOptions.map((option) => {
                 const IconComponent = option.icon;
                 return (
-                  <SelectItem key={option.value} value={option.value}>
+                  <SelectItem key={option.value} value={option.value || `option-${option.label}`}>
                     <div className="flex items-center gap-2">
                       <IconComponent className="h-4 w-4" />
                       {option.label}
@@ -298,7 +298,7 @@ const FormLevelConditionBuilder = React.memo(({ condition, forms, onChange }: Fo
               <SelectValue placeholder="Select condition" />
             </SelectTrigger>
             <SelectContent>
-              {getValueOptions.map((option) => (
+              {getValueOptions.filter(option => option.value && option.value.trim() !== '').map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>

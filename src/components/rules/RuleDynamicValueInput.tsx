@@ -96,12 +96,12 @@ export function RuleDynamicValueInput({
               <SelectValue placeholder="Select value" />
             </SelectTrigger>
             <SelectContent>
-              {field.options && field.options.length > 0 ? field.options.map((option) => (
+              {field.options && field.options.length > 0 ? field.options.filter((option) => option.value && option.value.trim() !== '').map((option) => (
                 <SelectItem key={option.id} value={option.value}>
                   {option.label || option.value}
                 </SelectItem>
               )) : (
-                <SelectItem value="" disabled>No options available</SelectItem>
+                <SelectItem value="__no_options__" disabled>No options available</SelectItem>
               )}
             </SelectContent>
           </Select>

@@ -641,7 +641,7 @@ case 'textarea':
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {field.options?.map((option) => (
+                {field.options?.filter(option => option.value && option.value.trim() !== '').map((option) => (
                   <SelectItem key={option.id} value={option.value}>
                     <div className="flex items-center gap-2">
                       {option.color && (
