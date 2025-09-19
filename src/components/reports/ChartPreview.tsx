@@ -466,14 +466,20 @@ export function ChartPreview({
     }
   };
 
-  const handleBarClick = (data: any, index: number) => {
+  const handleBarClick = (data: any, event?: any) => {
     if (!config.drilldownConfig?.enabled || !onDrilldown || !config.drilldownConfig?.drilldownLevels?.length) return;
+    
+    // Stop propagation to prevent triggering the Card component's click handler
+    if (event?.domEvent) {
+      event.domEvent.stopPropagation();
+    }
     
     const currentLevel = drilldownState?.values?.length || 0;
     if (currentLevel >= config.drilldownConfig?.drilldownLevels.length) return;
     
     const nextLevel = config.drilldownConfig?.drilldownLevels[currentLevel];
-    const clickedValue = data.name;
+    // For Recharts onClick, data is directly the clicked data
+    const clickedValue = data?.activeLabel || data?.name || data;
     
     if (nextLevel && clickedValue && clickedValue !== 'Not Specified') {
       console.log('🔍 Bar click drilldown:', { 
@@ -487,14 +493,19 @@ export function ChartPreview({
     }
   };
 
-  const handlePieClick = (data: any, index: number) => {
+  const handlePieClick = (data: any, index?: number, event?: any) => {
     if (!config.drilldownConfig?.enabled || !onDrilldown || !config.drilldownConfig?.drilldownLevels?.length) return;
+    
+    // Stop propagation to prevent triggering the Card component's click handler
+    if (event) {
+      event.stopPropagation();
+    }
     
     const currentLevel = drilldownState?.values?.length || 0;
     if (currentLevel >= config.drilldownConfig.drilldownLevels.length) return;
     
     const nextLevel = config.drilldownConfig.drilldownLevels[currentLevel];
-    const clickedValue = data.name;
+    const clickedValue = data?.name || data;
     
     if (nextLevel && clickedValue && clickedValue !== 'Not Specified') {
       console.log('🥧 Pie click drilldown:', { 
@@ -626,35 +637,32 @@ export function ChartPreview({
                    {isMultiDimensional ? (
                      // Render separate bars for each dimension value
                      dimensionKeys.map((key, index) => (
-                       <Bar 
-                         key={key} 
-                         dataKey={key} 
-                         fill={colors[index % colors.length]} 
-                         name={key}
-                         style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                         onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
-                       />
+                        <Bar 
+                          key={key} 
+                          dataKey={key} 
+                          fill={colors[index % colors.length]} 
+                          name={key}
+                          style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                        />
                      ))
                    ) : (
                      // Single dimension - render primary metric and additional metrics if any
                      <>
-                        <Bar 
-                          dataKey={primaryMetric} 
-                          fill={colors[0]} 
-                          name={getFormFieldName(primaryMetric)}
-                          style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                          onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
-                        />
-                        {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
-                          <Bar 
-                            key={metric} 
-                            dataKey={metric} 
-                            fill={colors[(index + 1) % colors.length]} 
-                            name={getFormFieldName(metric)}
-                            style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                            onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
-                          />
-                        ))}
+                         <Bar 
+                           dataKey={primaryMetric} 
+                           fill={colors[0]} 
+                           name={getFormFieldName(primaryMetric)}
+                           style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                         />
+                         {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
+                           <Bar 
+                             key={metric} 
+                             dataKey={metric} 
+                             fill={colors[(index + 1) % colors.length]} 
+                             name={getFormFieldName(metric)}
+                             style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
+                           />
+                         ))}
                      </>
                    )}
                 </BarChart>
@@ -672,6 +680,7 @@ export function ChartPreview({
                   data={chartData} 
                   layout="horizontal" 
                   margin={{ top: 20, right: 30, left: 120, bottom: 20 }}
+                  onClick={config.drilldownConfig?.enabled ? handleBarClick : undefined}
                 >
                   <XAxis 
                     type="number" 

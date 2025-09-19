@@ -233,6 +233,20 @@ export function ReportEditor({
   const handleComponentClick = (component: ReportComponent, event: React.MouseEvent) => {
     // Only allow component selection when dragging is disabled
     if (!isDragEnabled) {
+      const target = event.target as HTMLElement;
+      
+      // Check if the click originated from within a chart that supports drilldown
+      const isChartDrilldownClick = target.closest('.recharts-bar, .recharts-pie-sector, .recharts-line, .recharts-area') ||
+                                   target.classList.contains('recharts-bar') ||
+                                   target.classList.contains('recharts-pie-sector') ||
+                                   target.classList.contains('recharts-line') ||
+                                   target.classList.contains('recharts-area');
+      
+      // If it's a chart drilldown click and the component supports drilldown, don't open properties
+      if (isChartDrilldownClick && component.config && (component.config as any).drilldownConfig?.enabled) {
+        return; // Let the chart handle the drilldown
+      }
+      
       event.stopPropagation();
       setSelectedComponent(component);
       setIsPropertiesPaneOpen(true);
