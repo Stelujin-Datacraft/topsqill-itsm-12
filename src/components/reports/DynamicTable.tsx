@@ -521,7 +521,7 @@ export function DynamicTable({
         'full-width-container', 'approval', 
         'query-field', 'geo-location', 'conditional-section', 
         , 'signature', 'dynamic-dropdown', 'rich-text',
-        'record-table', 'matrix-grid', 'workflow-trigger','child-cross-reference','barcode'
+        'record-table', 'matrix-grid', 'workflow-trigger','child-cross-reference','barcode','user-picker'
       ];
 
       const {

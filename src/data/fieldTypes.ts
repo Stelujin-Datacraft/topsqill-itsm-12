@@ -279,14 +279,14 @@ export const fieldTypes: FieldTypeConfig[] = [
     category: 'standard',
     isFullWidth: false,
   },
-  {
-    type: 'user-picker',
-    label: 'User Picker',
-    icon: Users,
-    description: 'Searchable dropdown to select one or more users',
-    category: 'standard',
-    isFullWidth: false,
-  },
+  // {
+  //   type: 'user-picker',
+  //   label: 'User Picker',
+  //   icon: Users,
+  //   description: 'Searchable dropdown to select one or more users',
+  //   category: 'standard',
+  //   isFullWidth: false,
+  // },
   {
     type: 'group-picker',
     label: 'Group / Role Picker',
