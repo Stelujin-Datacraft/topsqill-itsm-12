@@ -12,9 +12,9 @@ export function useFormSubmissionHandler(formId: string | undefined, form?: Form
     if (!form?.fields) return;
 
     // Find user picker fields with role assignment configuration
-    // const userPickerFields = form.fields.filter(
-    //   field => field.type === 'user-picker' && field.customConfig?.assignRole
-    // );
+    const userPickerFields = form.fields.filter(
+      field => field.type === 'user-picker' && field.customConfig?.assignRole
+    );
 
     for (const field of userPickerFields) {
       const fieldValue = formData[field.id];

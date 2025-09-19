@@ -260,46 +260,46 @@ const renderFieldInput = (field: any, value: any, submissionId: string
         </Wrapper>
       );
 
-      // case 'user-picker': {
-      //   const userValue = value || [];
-      //   const selectedUserIds = Array.isArray(userValue) ? userValue : (userValue ? [userValue] : []);
+      case 'user-picker': {
+        const userValue = value || [];
+        const selectedUserIds = Array.isArray(userValue) ? userValue : (userValue ? [userValue] : []);
         
-      //   return (
-      //     <Wrapper>
-      //       <Select
-      //         value=""
-      //         onValueChange={(userId) => {
-      //           const newValue = field.customConfig?.allowMultiple 
-      //             ? [...selectedUserIds, userId].filter((v, i, arr) => arr.indexOf(v) === i)
-      //             : userId;
-      //           handleFieldValueChange(submissionId, field.id, newValue);
-      //         }}
-      //       >
-      //         <SelectTrigger className="text-sm">
-      //           <SelectValue placeholder="Select users" />
-      //         </SelectTrigger>
-      //         <SelectContent>
-      //           {users.map(user => (
-      //             <SelectItem key={user.id} value={user.id}>
-      //               {getUserDisplayName(user.id)}
-      //             </SelectItem>
-      //           ))}
-      //         </SelectContent>
-      //       </Select>
-      //       {selectedUserIds.length > 0 && (
-      //         <ScrollArea className="max-h-full w-full mt-1">
-      //           <div className="flex flex-col gap-1 pr-2">
-      //             {selectedUserIds.map((userId, i) => (
-      //               <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 text-xs justify-start">
-      //                 {getUserDisplayName(userId)}
-      //               </Badge>
-      //             ))}
-      //           </div>
-      //         </ScrollArea>
-      //       )}
-      //     </Wrapper>
-      //   );
-      // }
+        return (
+          <Wrapper>
+            <Select
+              value=""
+              onValueChange={(userId) => {
+                const newValue = field.customConfig?.allowMultiple 
+                  ? [...selectedUserIds, userId].filter((v, i, arr) => arr.indexOf(v) === i)
+                  : userId;
+                handleFieldValueChange(submissionId, field.id, newValue);
+              }}
+            >
+              <SelectTrigger className="text-sm">
+                <SelectValue placeholder="Select users" />
+              </SelectTrigger>
+              <SelectContent>
+                {users.map(user => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {getUserDisplayName(user.id)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedUserIds.length > 0 && (
+              <ScrollArea className="max-h-full w-full mt-1">
+                <div className="flex flex-col gap-1 pr-2">
+                  {selectedUserIds.map((userId, i) => (
+                    <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 text-xs justify-start">
+                      {getUserDisplayName(userId)}
+                    </Badge>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+          </Wrapper>
+        );
+      }
 
       case 'submission-access': {
         const accessValue = value || { users: [], groups: [] };

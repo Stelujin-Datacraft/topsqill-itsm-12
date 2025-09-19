@@ -150,16 +150,16 @@ export function FormFieldsRenderer({
       case 'tags':
         return <TagsField {...commonProps} />;
 
-      // case 'user-picker':
-      //   return (
-      //     <UserPickerField
-      //       field={field}
-      //       value={formData[field.id] || (field.customConfig?.allowMultiple ? [] : '')}
-      //       onChange={(value) => onFieldChange(field.id, value)}
-      //       error={errors[field.id]}
-      //       disabled={!fieldState.isEnabled}
-      //     />
-      //   );
+      case 'user-picker':
+        return (
+          <UserPickerField
+            field={field}
+            value={formData[field.id] || (field.customConfig?.allowMultiple ? [] : '')}
+            onChange={(value) => onFieldChange(field.id, value)}
+            error={errors[field.id]}
+            disabled={!fieldState.isEnabled}
+          />
+        );
 
       // Enhanced Media Fields
       case 'color':

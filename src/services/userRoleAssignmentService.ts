@@ -157,31 +157,31 @@ export class UserRoleAssignmentService {
       if (!fields) return;
 
       // Process each user-picker field
-      // for (const field of fields) {
-      //   if (field.field_type === 'user-picker' && formData[field.id]) {
-      //     const config = field.custom_config as any || {};
-      //     const selectedUserIds = Array.isArray(formData[field.id]) 
-      //       ? formData[field.id] 
-      //       : [formData[field.id]];
+      for (const field of fields) {
+        if (field.field_type === 'user-picker' && formData[field.id]) {
+          const config = field.custom_config as any || {};
+          const selectedUserIds = Array.isArray(formData[field.id]) 
+            ? formData[field.id] 
+            : [formData[field.id]];
 
-      //     // Skip if no role assignment configured
-      //     if (!config.assignRole) continue;
+          // Skip if no role assignment configured
+          if (!config.assignRole) continue;
 
-      //     // Assign roles to all selected users using the new simplified method
-      //     for (const userId of selectedUserIds) {
-      //       if (!userId) continue;
+          // Assign roles to all selected users using the new simplified method
+          for (const userId of selectedUserIds) {
+            if (!userId) continue;
 
-      //       await this.assignUserRole({
-      //         userId,
-      //         roleId: config.assignRole as string, // Now expects role ID
-      //         assignedBy: submittedBy,
-      //         notificationMessage: config.notificationMessage as string,
-      //         enableNotifications: config.enableNotifications as boolean,
-      //         logAssignments: config.logAssignments as boolean,
-      //       });
-      //     }
-      //   }
-      // }
+            await this.assignUserRole({
+              userId,
+              roleId: config.assignRole as string, // Now expects role ID
+              assignedBy: submittedBy,
+              notificationMessage: config.notificationMessage as string,
+              enableNotifications: config.enableNotifications as boolean,
+              logAssignments: config.logAssignments as boolean,
+            });
+          }
+        }
+      }
     } catch (error) {
       console.error('Error processing form submission role assignments:', error);
     }

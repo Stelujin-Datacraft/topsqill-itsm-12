@@ -618,41 +618,41 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         );
       }
 
-      // case 'user-picker': {
-      //   const userValue = value || [];
-      //   const selectedUserIds = Array.isArray(userValue) ? userValue : (userValue ? [userValue] : []);
+      case 'user-picker': {
+        const userValue = value || [];
+        const selectedUserIds = Array.isArray(userValue) ? userValue : (userValue ? [userValue] : []);
 
-      //   // Show editable multi-select for master record OR single record editing
-      //   if (submissionId === 'master' || submissions.length === 1) {
-      //     return (
-      //       <MultiSelectUsers
-      //         value={selectedUserIds}
-      //         onChange={(newUsers) => {
-      //           const newValue = field.customConfig?.allowMultiple ? newUsers : (newUsers[0] || '');
-      //           handleFieldChange(submissionId, field.id, newValue);
-      //         }}
-      //         disabled={isDisabled}
-      //       />
-      //     );
-      //   }
+        // Show editable multi-select for master record OR single record editing
+        if (submissionId === 'master' || submissions.length === 1) {
+          return (
+            <MultiSelectUsers
+              value={selectedUserIds}
+              onChange={(newUsers) => {
+                const newValue = field.customConfig?.allowMultiple ? newUsers : (newUsers[0] || '');
+                handleFieldChange(submissionId, field.id, newValue);
+              }}
+              disabled={isDisabled}
+            />
+          );
+        }
 
-      //   // Child records in bulk edit: show selected users as badges with proper scrolling
-      //   if (selectedUserIds.length === 0) {
-      //     return <span className="italic text-muted-foreground">No users selected</span>;
-      //   }
+        // Child records in bulk edit: show selected users as badges with proper scrolling
+        if (selectedUserIds.length === 0) {
+          return <span className="italic text-muted-foreground">No users selected</span>;
+        }
 
-      //   return (
-      //     <ScrollArea className="max-h-full w-full">
-      //       <div className="flex flex-col gap-1 pr-2">
-      //         {selectedUserIds.map((userId, i) => (
-      //           <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 justify-start text-xs max-w-[270px] truncate">
-      //             {getUserDisplayName(userId)}
-      //           </Badge>
-      //         ))}
-      //       </div>
-      //     </ScrollArea>
-      //   );
-      // }
+        return (
+          <ScrollArea className="max-h-full w-full">
+            <div className="flex flex-col gap-1 pr-2">
+              {selectedUserIds.map((userId, i) => (
+                <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 justify-start text-xs max-w-[270px] truncate">
+                  {getUserDisplayName(userId)}
+                </Badge>
+              ))}
+            </div>
+          </ScrollArea>
+        );
+      }
 
       case 'submission-access': {
         const accessValue = value || { users: [], groups: [] };
