@@ -36,7 +36,6 @@ interface FormDataTableConfig {
   enableSearch?: boolean;
   pageSize?: number;
   isParentReference?: boolean;
-  isChildField?: boolean;
 }
 interface OptimizedFormDataTableProps {
   config: FormDataTableConfig;
@@ -73,7 +72,6 @@ export function OptimizedFormDataTable({
   const pageSize = config.pageSize || 10;
   const displayColumns = config.displayColumns || [];
   const isCrossReference = fieldType === 'cross-reference';
-  const isChildCrossReference = config.isChildField === true;
 
   // Convert config filters to the format expected by the hook
   const configFilters = (config.filters || []).map(filter => ({
@@ -282,26 +280,7 @@ export function OptimizedFormDataTable({
   };
 
   // Filter data to show only selected records in the main table for cross-reference
-  // For child cross-reference fields, show auto-selected records from parent form
-  const displayData = (() => {
-    if (isCrossReference && isChildCrossReference) {
-      // For child cross-reference, display auto-selected records (parent form data)
-      console.log('🔍 Child cross-reference displaying auto-selected records:', autoSelectedRecords);
-      return autoSelectedRecords.map(record => ({
-        id: record.id,
-        submission_ref_id: record.submission_ref_id,
-        ...record.displayData,
-        submitted_at: new Date().toISOString(), // Default timestamp
-        approval_status: 'approved' // Default status for parent records
-      }));
-    } else if (isCrossReference && !isChildCrossReference) {
-      // For regular cross-reference, filter to show only selected records
-      return data.filter(record => selectedRecords.some(selected => selected.id === record.id));
-    } else {
-      // For regular tables, show all data
-      return data;
-    }
-  })();
+  const displayData = isCrossReference ? data.filter(record => selectedRecords.some(selected => selected.id === record.id)) : data;
   if (!config.targetFormId) {
     return <Card className="w-full">
         <CardContent className="p-8 text-center">
@@ -327,7 +306,7 @@ export function OptimizedFormDataTable({
             <Badge variant="outline">
               {isCrossReference ? selectedRecords.length : totalRecords} record{(isCrossReference ? selectedRecords.length : totalRecords) !== 1 ? 's' : ''}
             </Badge>
-            {isCrossReference && !isChildCrossReference && <Dialog open={isSelectionModalOpen} onOpenChange={setIsSelectionModalOpen}>
+            {isCrossReference && <Dialog open={isSelectionModalOpen} onOpenChange={setIsSelectionModalOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm" onClick={handleModalOpen}>
                     <Plus className="h-4 w-4 mr-2" />
@@ -552,7 +531,7 @@ export function OptimizedFormDataTable({
                   </TableCell>
                 </TableRow> : displayData.length === 0 ? <TableRow>
                   <TableCell colSpan={displayColumns.length + 4} className="text-center py-8 text-gray-500">
-                    {error ? 'Error loading data' : isCrossReference && isChildCrossReference ? 'No parent records reference this submission' : isCrossReference ? 'No records selected' : 'No submissions have been made yet!'}
+                    {error ? 'Error loading data' : isCrossReference ? 'No records selected' : 'No submissions have been made yet!'}
                     {config.isParentReference && !error && !isCrossReference && <div className="text-sm mt-1">
                         Parent form records will appear here when available
                       </div>}
