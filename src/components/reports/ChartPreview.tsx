@@ -852,7 +852,7 @@ export function ChartPreview({
   return <div className="space-y-4 relative group h-full">
       {/* Chart Header with Controls */}
       <div className="flex items-center justify-between">
-        {config.title && <div className="flex-1">
+       {config.title && <div className="flex-1">
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-semibold">{config.title}</h3>
               {canDrillUp && <Button variant="outline" size="sm" onClick={() => {
@@ -864,7 +864,9 @@ export function ChartPreview({
               const lastValue = newValues[newValues.length - 1] || '';
               onDrilldown(lastLevel, lastValue);
             }
-          }}>
+          }}></div>
+      <div className="flex items-center justify-between">
+       
                   <ArrowLeft className="h-4 w-4 mr-1" />
                   Back
                 </Button>}
