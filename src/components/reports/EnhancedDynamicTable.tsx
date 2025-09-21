@@ -185,10 +185,9 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
     if (onDrilldown) {
       console.log('Using external drilldown handler');
       onDrilldown(fieldId, value);
-      //return;
     }
     
-    // Otherwise use internal state management
+    // Always update internal state management
     console.log('Using internal drilldown state management');
     setDrilldownState(prev => {
       // Check if this filter already exists
