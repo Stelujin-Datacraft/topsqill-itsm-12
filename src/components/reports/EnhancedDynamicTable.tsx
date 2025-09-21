@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChevronRight, ChevronDown, Search, ArrowUp, ArrowDown, Eye, Database } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useReports } from '@/hooks/useReports';
+import { useTableData } from '@/hooks/useTableData';
 
 interface EnhancedTableConfig {
   title: string;
@@ -29,9 +30,7 @@ interface EnhancedDynamicTableProps {
 }
 
 export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownState: externalDrilldownState }: EnhancedDynamicTableProps) {
-  const [data, setData] = useState<any[]>([]);
   const [formFields, setFormFields] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ field: string; direction: 'asc' | 'desc' } | null>(null);
   const [drilldownState, setDrilldownState] = useState({
@@ -41,55 +40,36 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
 
   const { forms } = useReports();
 
-  const loadData = useCallback(async () => {
-    if (!config.formId) return;
-
-    try {
-      setLoading(true);
-      
-      // Load primary form data
-      let query = supabase
-        .from('form_submissions')
-        .select('*')
-        .eq('form_id', config.formId);
-
-      // Apply drilldown filters if active
-      if (drilldownState.activeColumnFilters.length > 0) {
-        drilldownState.activeColumnFilters.forEach(filter => {
-          query = query.eq(`submission_data->>${filter.fieldId}`, filter.value);
-        });
-      }
-
-      const { data: submissions, error } = await query.order('submitted_at', { ascending: false });
-
-      if (error) throw error;
-
-      let processedData = submissions || [];
-
-      // If joins are enabled, process joined data
-      if (config.joinConfig?.enabled && config.joinConfig.secondaryFormId) {
-        const { data: secondarySubmissions, error: secondaryError } = await supabase
-          .from('form_submissions')
-          .select('*')
-          .eq('form_id', config.joinConfig.secondaryFormId);
-
-        if (!secondaryError && secondarySubmissions) {
-          // Perform the join based on join type and field mapping
-          processedData = performJoin(
-            processedData,
-            secondarySubmissions,
-            config.joinConfig
-          );
+  // Convert drilldown filters for useTableData hook
+  const drilldownFiltersForQuery = useMemo(() => {
+    const filters: Array<{field: string, operator: string, value: string}> = [];
+    
+    // Add external drilldown filters
+    if (externalDrilldownState?.values?.length > 0 && config.drilldownConfig?.drilldownLevels) {
+      externalDrilldownState.values.forEach((value, index) => {
+        const fieldId = config.drilldownConfig.drilldownLevels[index];
+        if (fieldId && value) {
+          filters.push({ field: fieldId, operator: 'eq', value });
         }
-      }
-
-      setData(processedData);
-    } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
+      });
     }
-  }, [config.formId, config.joinConfig, drilldownState.activeColumnFilters]);
+    
+    // Add internal drilldown filters
+    drilldownState.activeColumnFilters.forEach(filter => {
+      filters.push({ field: filter.fieldId, operator: 'eq', value: filter.value });
+    });
+    
+    return filters;
+  }, [externalDrilldownState?.values, config.drilldownConfig?.drilldownLevels, drilldownState.activeColumnFilters]);
+
+  // Use the updated useTableData hook with drilldown filters
+  const { data, loading, totalCount, currentPage, setCurrentPage, refetch } = useTableData(
+    config.formId, 
+    [], 
+    50,
+    drilldownFiltersForQuery
+  );
+
 
   const loadFormFields = useCallback(async () => {
     if (!config.formId) return;
@@ -330,9 +310,6 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
     loadFormFields();
   }, [loadFormFields]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
 
   if (loading) {
     return (
