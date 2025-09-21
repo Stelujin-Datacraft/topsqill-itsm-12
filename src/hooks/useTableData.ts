@@ -119,20 +119,15 @@ export function useTableData(formId: string, filters: FilterGroup[], pageSize: n
     } finally {
       setLoading(false);
     }
-  }, [formId, currentPage, pageSize]);
+  }, [formId, currentPage, pageSize, drilldownFilters]);
 
   // Force reload when drilldown filters change
   useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  // Separate effect to trigger reload when drilldown filters change
-  useEffect(() => {
-    if (formId && drilldownFilters) {
+    if (formId) {
       console.log('Drilldown filters changed, reloading data:', drilldownFilters);
       loadData();
     }
-  }, [drilldownFilters]);
+  }, [drilldownFilters, formId, loadData]);
 
   return {
     data,

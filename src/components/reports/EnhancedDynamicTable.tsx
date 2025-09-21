@@ -183,11 +183,13 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
     
     // Use external drilldown handler if available (for report editor)
     if (onDrilldown) {
+      console.log('Using external drilldown handler');
       onDrilldown(fieldId, value);
       return;
     }
     
     // Otherwise use internal state management
+    console.log('Using internal drilldown state management');
     setDrilldownState(prev => {
       // Check if this filter already exists
       const existingFilterIndex = prev.activeColumnFilters.findIndex(f => f.fieldId === fieldId);
@@ -203,6 +205,13 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
       }
 
       console.log('Updated drilldown filters:', newFilters);
+      
+      // Trigger data refresh by calling refetch after state update
+      setTimeout(() => {
+        console.log('Triggering data refetch after drilldown');
+        refetch();
+      }, 0);
+      
       return {
         ...prev,
         activeColumnFilters: newFilters
