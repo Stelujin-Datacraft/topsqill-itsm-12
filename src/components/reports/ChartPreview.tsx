@@ -1,39 +1,12 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Edit, ArrowLeft, ChevronRight, Filter, RotateCcw } from 'lucide-react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  PieChart as RechartsPieChart, 
-  Pie, 
-  Cell, 
-  LineChart as RechartsLineChart, 
-  Line, 
-  AreaChart as RechartsAreaChart,
-  Area,
-  ScatterChart as RechartsScatterChart,
-  Scatter,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  FunnelChart,
-  Funnel,
-  Treemap,
-  ResponsiveContainer,
-  Tooltip,
-  Legend
-} from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, PieChart as RechartsPieChart, Pie, Cell, LineChart as RechartsLineChart, Line, AreaChart as RechartsAreaChart, Area, ScatterChart as RechartsScatterChart, Scatter, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, FunnelChart, Funnel, Treemap, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { useReports } from '@/hooks/useReports';
 import { useFormsData } from '@/hooks/useFormsData';
 import { ChartConfig } from '@/types/reports';
 import { colorSchemes } from './ChartColorThemes';
-
 interface ChartPreviewProps {
   config: ChartConfig;
   onEdit?: () => void;
@@ -44,12 +17,10 @@ interface ChartPreviewProps {
     values: string[];
   };
 }
-
-
-export function ChartPreview({ 
-  config, 
-  onEdit, 
-  hideControls = false, 
+export function ChartPreview({
+  config,
+  onEdit,
+  hideControls = false,
   onDrilldown,
   drilldownState
 }: ChartPreviewProps) {
@@ -58,14 +29,19 @@ export function ChartPreview({
   const [showFormFields, setShowFormFields] = useState(false);
   const [showLegend, setShowLegend] = useState(true);
   const [showDrilldownPanel, setShowDrilldownPanel] = useState(false);
-  const { getFormSubmissionData, getChartData, getFormFields } = useReports();
-  const { forms } = useFormsData();
+  const {
+    getFormSubmissionData,
+    getChartData,
+    getFormFields
+  } = useReports();
+  const {
+    forms
+  } = useFormsData();
 
   // Get current form and its fields from useFormsData for better reliability
   const currentForm = useMemo(() => {
     return forms.find(f => f.id === config.formId);
   }, [forms, config.formId]);
-
   const formFields = useMemo(() => {
     return currentForm?.fields || [];
   }, [currentForm]);
@@ -77,11 +53,10 @@ export function ChartPreview({
     console.log(`Getting form name for ${formId}: ${formName}`);
     return formName;
   };
-
   const getFormFieldName = (fieldId: string): string => {
     // First try to find field in current form fields
     let field = formFields.find(f => f.id === fieldId);
-    
+
     // If not found and we have forms data, search across all forms
     if (!field && forms.length > 0) {
       for (const form of forms) {
@@ -89,16 +64,13 @@ export function ChartPreview({
         if (field) break;
       }
     }
-    
     const fieldName = field?.label || fieldId;
     console.log(`Getting field name for ${fieldId}: ${fieldName} (field found: ${!!field})`);
     return fieldName;
   };
-
   const getFieldName = (fieldId: string): string => {
     return getFormFieldName(fieldId);
   };
-
   useEffect(() => {
     const loadChartData = async () => {
       // Use sample data if provided, otherwise fetch from form
@@ -116,22 +88,19 @@ export function ChartPreview({
         setLoading(false);
         return;
       }
-
       try {
         console.log('Fetching chart data for form:', config.formId);
-        
+
         // Use server-side RPC function for drilldown-enabled charts
         if (config.drilldownConfig?.enabled && config.drilldownConfig?.drilldownLevels?.length > 0) {
           console.log('Using drilldown-enabled chart data fetch');
-          
+
           // Determine the current dimension based on drilldown state
           const currentDrilldownLevel = drilldownState?.values?.length || 0;
-          const currentDimension = config.drilldownConfig.drilldownLevels[currentDrilldownLevel] || 
-                                   config.drilldownConfig.drilldownLevels[0];
-          
+          const currentDimension = config.drilldownConfig.drilldownLevels[currentDrilldownLevel] || config.drilldownConfig.drilldownLevels[0];
+
           // Use the current dimension for the chart - show the NEXT level after current drilldown
           const chartDimensions = [currentDimension];
-          
           console.log('Drilldown chart config:', {
             currentLevel: currentDrilldownLevel,
             currentDimension,
@@ -139,28 +108,17 @@ export function ChartPreview({
             allLevels: config.drilldownConfig.drilldownLevels,
             dimensionForChart: chartDimensions
           });
-          
-          const serverData = await getChartData(
-            config.formId,
-            chartDimensions,
-            config.metrics || [],
-            config.aggregation || 'count',
-            config.filters || [],
-            config.drilldownConfig?.drilldownLevels || [],
-            drilldownState?.values || [],
-            config.metricAggregations || [],
-            config.groupByField
-          );
-          
+          const serverData = await getChartData(config.formId, chartDimensions, config.metrics || [], config.aggregation || 'count', config.filters || [], config.drilldownConfig?.drilldownLevels || [], drilldownState?.values || [], config.metricAggregations || [], config.groupByField);
+
           // Transform server data to chart format
           const chartData = serverData.map((item: any) => ({
             name: item.name,
             value: Number(item.value),
-            count: Number(item.value), // Always include count
+            count: Number(item.value),
+            // Always include count
             [config.metrics?.[0] || 'count']: Number(item.value),
             _drilldownData: item.additional_data
           }));
-          
           console.log('✅ Processed drilldown chart data:', {
             totalItems: chartData.length,
             sampleData: chartData[0],
@@ -173,14 +131,12 @@ export function ChartPreview({
           // Fallback to client-side processing for non-drilldown charts
           const submissions = await getFormSubmissionData(config.formId);
           console.log('Received submissions:', submissions?.length || 0);
-          
           if (!submissions || submissions.length === 0) {
             console.log('No submissions found');
             setChartData([]);
             setLoading(false);
             return;
           }
-
           const processedData = processSubmissionData(submissions);
           console.log('Processed chart data:', processedData);
           setChartData(processedData);
@@ -192,62 +148,30 @@ export function ChartPreview({
         setLoading(false);
       }
     };
-
     loadChartData();
-  }, [
-    config.formId, 
-    config.dimensions, 
-    config.metrics, 
-    config.filters, 
-    config.xAxis, 
-    config.yAxis, 
-    config.aggregation, 
-    config.aggregationType, 
-    config.drilldownConfig?.enabled,
-    config.drilldownConfig?.drilldownLevels,
-    drilldownState?.values,
-    (config as any).data, 
-    getFormSubmissionData,
-    getChartData
-  ]);
-
+  }, [config.formId, config.dimensions, config.metrics, config.filters, config.xAxis, config.yAxis, config.aggregation, config.aggregationType, config.drilldownConfig?.enabled, config.drilldownConfig?.drilldownLevels, drilldownState?.values, (config as any).data, getFormSubmissionData, getChartData]);
   const processSubmissionData = (submissions: any[]) => {
     if (!submissions.length) {
       console.log('No submissions to process');
       return [];
     }
-
     console.log('Processing submissions:', submissions.length);
-    
+
     // Get dimension fields
     let dimensionFields: string[] = [];
-    
     if (config.drilldownConfig?.enabled && config.drilldownConfig?.drilldownLevels?.length > 0) {
       const currentDrilldownLevel = drilldownState?.values?.length || 0;
-      const currentDimension = config.drilldownConfig.drilldownLevels[currentDrilldownLevel] || 
-                               config.drilldownConfig.drilldownLevels[0];
+      const currentDimension = config.drilldownConfig.drilldownLevels[currentDrilldownLevel] || config.drilldownConfig.drilldownLevels[0];
       dimensionFields = [currentDimension];
     } else {
-      dimensionFields = config.dimensions && config.dimensions.length > 0 
-        ? config.dimensions 
-        : config.xAxis 
-          ? [config.xAxis] 
-          : [];
+      dimensionFields = config.dimensions && config.dimensions.length > 0 ? config.dimensions : config.xAxis ? [config.xAxis] : [];
     }
-
     if (dimensionFields.length === 0) {
       dimensionFields = ['_default'];
     }
 
     // Get metric fields
-    const metricFields = config.metrics && config.metrics.length > 0 
-      ? config.metrics 
-      : config.aggregation === 'count' || config.aggregationType === 'count'
-        ? ['count'] 
-        : config.yAxis 
-          ? [config.yAxis] 
-          : ['count'];
-
+    const metricFields = config.metrics && config.metrics.length > 0 ? config.metrics : config.aggregation === 'count' || config.aggregationType === 'count' ? ['count'] : config.yAxis ? [config.yAxis] : ['count'];
     console.log('Processing with dimensions:', dimensionFields, 'metrics:', metricFields);
 
     // For multiple dimensions, we need to create a cross-product structure
@@ -257,20 +181,21 @@ export function ChartPreview({
       return processSingleDimensionalData(submissions, dimensionFields, metricFields);
     }
   };
-
   const processSingleDimensionalData = (submissions: any[], dimensionFields: string[], metricFields: string[]) => {
-    const processedData: { [key: string]: any } = {};
-
-    submissions.forEach((submission) => {
+    const processedData: {
+      [key: string]: any;
+    } = {};
+    submissions.forEach(submission => {
       const submissionData = submission.submission_data;
-      
+
       // Apply filters
       if (!passesFilters(submissionData)) return;
-
       const dimensionKey = getDimensionKey(submissionData, dimensionFields);
-
       if (!processedData[dimensionKey]) {
-        processedData[dimensionKey] = { name: dimensionKey, value: 0 };
+        processedData[dimensionKey] = {
+          name: dimensionKey,
+          value: 0
+        };
         metricFields.forEach(metric => {
           processedData[dimensionKey][metric] = 0;
         });
@@ -283,17 +208,19 @@ export function ChartPreview({
         processedData[dimensionKey]['value'] += metricValue;
       });
     });
-
     return Object.values(processedData);
   };
-
   const processMultiDimensionalData = (submissions: any[], dimensionFields: string[], metricFields: string[]) => {
     // For multiple dimensions, create a matrix where each row represents unique combinations
-    const groupedData: { [key: string]: { [seriesKey: string]: number } } = {};
+    const groupedData: {
+      [key: string]: {
+        [seriesKey: string]: number;
+      };
+    } = {};
     const allSeries = new Set<string>();
 
     // Process each submission
-    submissions.forEach((submission) => {
+    submissions.forEach(submission => {
       const submissionData = submission.submission_data;
       if (!passesFilters(submissionData)) return;
 
@@ -302,20 +229,16 @@ export function ChartPreview({
         const value = getDimensionValue(submissionData, dim);
         const fieldName = getFormFieldName(dim);
         const seriesKey = `${fieldName}: ${value}`;
-        
         allSeries.add(seriesKey);
 
         // Group by dimension field for proper separation
         const groupKey = fieldName;
-        
         if (!groupedData[groupKey]) {
           groupedData[groupKey] = {};
         }
-        
         if (!groupedData[groupKey][seriesKey]) {
           groupedData[groupKey][seriesKey] = 0;
         }
-
         metricFields.forEach(metric => {
           const metricValue = getMetricValue(submissionData, metric);
           groupedData[groupKey][seriesKey] += metricValue;
@@ -325,41 +248,40 @@ export function ChartPreview({
 
     // Convert to chart-friendly format - create separate data points for each dimension group
     const result: any[] = [];
-    
     Object.entries(groupedData).forEach(([groupName, series]) => {
-      const dataPoint: any = { name: groupName };
-      
+      const dataPoint: any = {
+        name: groupName
+      };
+
       // Add all series as separate properties
       Object.entries(series).forEach(([seriesKey, value]) => {
         dataPoint[seriesKey] = value;
       });
-      
+
       // Fill missing series with 0
       allSeries.forEach(seriesKey => {
         if (!(seriesKey in dataPoint)) {
           dataPoint[seriesKey] = 0;
         }
       });
-      
       result.push(dataPoint);
     });
 
     // If no groups were created, create a single "All Data" group
     if (result.length === 0) {
-      const dataPoint: any = { name: "All Data" };
+      const dataPoint: any = {
+        name: "All Data"
+      };
       allSeries.forEach(seriesKey => {
         dataPoint[seriesKey] = 0;
       });
       result.push(dataPoint);
     }
-
     console.log('Multi-dimensional processed data:', result);
     console.log('All series keys:', Array.from(allSeries));
     console.log('Form fields loaded:', formFields.length, 'Current form:', currentForm?.name);
-    
     return result;
   };
-
   const passesFilters = (submissionData: any): boolean => {
     const drilldownFilters: any[] = [];
     if (config.drilldownConfig?.enabled && drilldownState?.values?.length > 0) {
@@ -374,7 +296,6 @@ export function ChartPreview({
         }
       });
     }
-    
     const allFilters = [...(config.filters || []), ...drilldownFilters];
     return allFilters?.every(filter => {
       const value = submissionData[filter.field];
@@ -402,16 +323,11 @@ export function ChartPreview({
       }
     }) ?? true;
   };
-
   const getDimensionKey = (submissionData: any, dimensionFields: string[]): string => {
-    return dimensionFields
-      .map(dim => getDimensionValue(submissionData, dim))
-      .join(' - ') || 'Not Specified';
+    return dimensionFields.map(dim => getDimensionValue(submissionData, dim)).join(' - ') || 'Not Specified';
   };
-
   const getDimensionValue = (submissionData: any, dim: string): string => {
     if (dim === '_default') return 'Total';
-    
     const val = submissionData[dim];
     if (typeof val === 'object' && val !== null) {
       if (val.status) return val.status;
@@ -423,14 +339,11 @@ export function ChartPreview({
     }
     return String(val);
   };
-
   const getMetricValue = (submissionData: any, metric: string): number => {
     if (metric === 'count' || config.aggregation === 'count' || config.aggregationType === 'count') {
       return 1;
     }
-    
     const value = submissionData[metric] || submissionData[config.yAxis];
-    
     if (typeof value === 'object' && value !== null) {
       if (value.status) {
         return value.status === 'approved' ? 1 : 0;
@@ -443,53 +356,36 @@ export function ChartPreview({
     }
     return 0;
   };
-
   const colors = colorSchemes[config.colorTheme || 'default'];
 
   // Get available values for the current drilldown level
   const getAvailableValuesForLevel = (levelIndex: number) => {
-    if (!config.drilldownConfig?.enabled || 
-        !config.drilldownConfig?.drilldownLevels || 
-        !Array.isArray(config.drilldownConfig.drilldownLevels) ||
-        !chartData.length) {
+    if (!config.drilldownConfig?.enabled || !config.drilldownConfig?.drilldownLevels || !Array.isArray(config.drilldownConfig.drilldownLevels) || !chartData.length) {
       return [];
     }
-    
     const currentDimension = config.drilldownConfig.drilldownLevels[levelIndex];
     if (!currentDimension) return [];
-    
+
     // Extract unique values from chart data
-    const values = chartData
-      .map(item => item?.name)
-      .filter(name => name && name !== 'Not Specified')
-      .filter((value, index, array) => array.indexOf(value) === index)
-      .sort();
-    
+    const values = chartData.map(item => item?.name).filter(name => name && name !== 'Not Specified').filter((value, index, array) => array.indexOf(value) === index).sort();
     return values;
   };
-
   const handleDrilldownSelect = (value: string) => {
-    if (!config.drilldownConfig?.enabled || 
-        !config.drilldownConfig?.drilldownLevels || 
-        !Array.isArray(config.drilldownConfig.drilldownLevels) ||
-        !onDrilldown) {
+    if (!config.drilldownConfig?.enabled || !config.drilldownConfig?.drilldownLevels || !Array.isArray(config.drilldownConfig.drilldownLevels) || !onDrilldown) {
       return;
     }
-    
     const currentLevel = drilldownState?.values?.length || 0;
     const nextLevel = config.drilldownConfig.drilldownLevels[currentLevel];
-    
     if (nextLevel && value) {
-      console.log('🔍 Drilldown select:', { 
-        nextLevel, 
-        selectedValue: value, 
-        currentLevel, 
-        fieldName: getFormFieldName(nextLevel) 
+      console.log('🔍 Drilldown select:', {
+        nextLevel,
+        selectedValue: value,
+        currentLevel,
+        fieldName: getFormFieldName(nextLevel)
       });
       onDrilldown(nextLevel, value);
     }
   };
-
   const resetDrilldown = () => {
     if (onDrilldown) {
       // Reset to initial state by calling drilldown with empty values
@@ -499,17 +395,12 @@ export function ChartPreview({
 
   // Get the current level info for the drilldown selector
   const getCurrentLevelInfo = () => {
-    if (!config.drilldownConfig?.enabled || 
-        !config.drilldownConfig?.drilldownLevels || 
-        !Array.isArray(config.drilldownConfig.drilldownLevels)) {
+    if (!config.drilldownConfig?.enabled || !config.drilldownConfig?.drilldownLevels || !Array.isArray(config.drilldownConfig.drilldownLevels)) {
       return null;
     }
-    
     const currentLevel = drilldownState?.values?.length || 0;
     const nextDimension = config.drilldownConfig.drilldownLevels[currentLevel];
-    
     if (!nextDimension) return null;
-    
     return {
       levelIndex: currentLevel,
       fieldId: nextDimension,
@@ -518,67 +409,53 @@ export function ChartPreview({
       canDrillFurther: currentLevel < (config.drilldownConfig.drilldownLevels?.length || 0)
     };
   };
-
   const currentLevelInfo = getCurrentLevelInfo();
-
   const handlePieClick = (data: any, index?: number, event?: any) => {
     if (!config.drilldownConfig?.enabled || !onDrilldown || !config.drilldownConfig?.drilldownLevels?.length) return;
-    
     if (event) {
       event.stopPropagation();
     }
-    
     const currentLevel = drilldownState?.values?.length || 0;
     if (currentLevel >= config.drilldownConfig.drilldownLevels.length) return;
-    
     const nextLevel = config.drilldownConfig.drilldownLevels[currentLevel];
     const clickedValue = data?.name || data;
-    
     if (nextLevel && clickedValue && clickedValue !== 'Not Specified') {
-      console.log('🥧 Pie click drilldown:', { 
-        nextLevel, 
-        clickedValue, 
+      console.log('🥧 Pie click drilldown:', {
+        nextLevel,
+        clickedValue,
         currentLevel,
         fieldName: getFormFieldName(nextLevel),
-        totalLevels: config.drilldownConfig.drilldownLevels.length 
+        totalLevels: config.drilldownConfig.drilldownLevels.length
       });
       onDrilldown(nextLevel, clickedValue);
     }
   };
-
   const handleBarClick = (data: any, event?: any) => {
     // This will be handled by the drilldown controls instead of direct click
     console.log('Bar clicked, use drilldown controls instead');
   };
-
   const handleChartClick = (data: any, event?: any) => {
     // This will be handled by the drilldown controls instead of direct click
     console.log('Chart clicked, use drilldown controls instead');
   };
-
   const renderChart = () => {
     if (loading) {
-      return (
-        <div className="flex items-center justify-center h-64">
+      return <div className="flex items-center justify-center h-64">
           <div className="text-muted-foreground">Loading chart data...</div>
-        </div>
-      );
+        </div>;
     }
-
     if (!chartData.length) {
-      return (
-        <div className="flex items-center justify-center h-64">
+      return <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="text-muted-foreground mb-2">No data available</div>
             <div className="text-sm text-muted-foreground">Configure the chart settings to display data</div>
           </div>
-        </div>
-      );
+        </div>;
     }
 
     // Determine the primary metric to display
     let primaryMetric = 'value'; // Default fallback
-    
+
     if (config.metrics && config.metrics.length > 0) {
       primaryMetric = config.metrics[0];
     } else if (config.yAxis) {
@@ -586,7 +463,7 @@ export function ChartPreview({
     } else if (config.aggregationType === 'count' || config.aggregation === 'count') {
       primaryMetric = 'count';
     }
-    
+
     // Ensure the primary metric exists in the data
     if (chartData.length > 0 && !chartData[0].hasOwnProperty(primaryMetric)) {
       // Fallback to available keys
@@ -595,9 +472,7 @@ export function ChartPreview({
         primaryMetric = availableKeys[0];
       }
     }
-    
     const chartType = config.type || config.chartType || 'bar';
-    
     console.log('Chart rendering config:', {
       chartType,
       primaryMetric,
@@ -607,12 +482,9 @@ export function ChartPreview({
     });
 
     // Get all dimension-based data keys (for multi-dimensional charts)
-    let dimensionKeys = chartData.length > 0 
-      ? Object.keys(chartData[0]).filter(key => key !== 'name' && typeof chartData[0][key] === 'number')
-      : [];
-    
+    let dimensionKeys = chartData.length > 0 ? Object.keys(chartData[0]).filter(key => key !== 'name' && typeof chartData[0][key] === 'number') : [];
     const isMultiDimensional = config.dimensions && config.dimensions.length > 1;
-    
+
     // For multi-dimensional charts, limit the number of series to avoid cluttered display
     if (isMultiDimensional && dimensionKeys.length > 8) {
       // Sort by total value and take top 8 series
@@ -623,412 +495,278 @@ export function ChartPreview({
       seriesValues.sort((a, b) => b.total - a.total);
       dimensionKeys = seriesValues.slice(0, 8).map(s => s.key);
     }
-
     switch (chartType) {
       case 'bar':
-        return (
-          <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
-            <div className="absolute inset-0" style={{ bottom: '40px' }}>
+        return <div className="relative w-full" style={{
+          height: '400px',
+          paddingBottom: '40px'
+        }}>
+            <div className="absolute inset-0" style={{
+            bottom: '40px'
+          }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart 
-                  data={chartData} 
-                  margin={{ top: 20, right: 30, left: 40, bottom: 80 }}
-                >
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fontSize: 11 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                    interval={0}
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 11 }}
-                    label={{ value: getFormFieldName(primaryMetric), angle: -90, position: 'insideLeft' }}
-                    domain={[0, 'dataMax']}
-                  />
-                   <Tooltip 
-                     formatter={(value, name, props) => {
-                       // For multi-dimensional charts, name is already "Field Name: Value"
-                       // For single-dimensional charts, name is the field ID, so get field name
-                       const displayName = isMultiDimensional ? name : getFormFieldName(name.toString());
-                       return [
-                         `${displayName}: ${value}`,
-                         `Category: ${props.payload?.name || 'N/A'}`
-                       ];
-                     }}
-                     labelFormatter={(label) => `Category: ${label}`}
-                     contentStyle={{
-                       backgroundColor: 'hsl(var(--popover))',
-                       border: '1px solid hsl(var(--border))',
-                       borderRadius: 'var(--radius)',
-                       fontSize: '12px'
-                     }}
-                   />
-                   {showLegend && (
-                     <Legend 
-                       formatter={(value) => isMultiDimensional ? value : getFormFieldName(value.toString())}
-                       iconType="rect"
-                     />
-                   )}
-                   {isMultiDimensional ? (
-                     // Render separate bars for each dimension value
-                     dimensionKeys.map((key, index) => (
-                        <Bar 
-                          key={key} 
-                          dataKey={key} 
-                          fill={colors[index % colors.length]} 
-                          name={key}
-                          style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                        />
-                     ))
-                   ) : (
-                     // Single dimension - render primary metric and additional metrics if any
-                     <>
-                         <Bar 
-                           dataKey={primaryMetric} 
-                           fill={colors[0]} 
-                           name={getFormFieldName(primaryMetric)}
-                           style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                         />
-                         {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
-                           <Bar 
-                             key={metric} 
-                             dataKey={metric} 
-                             fill={colors[(index + 1) % colors.length]} 
-                             name={getFormFieldName(metric)}
-                             style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                           />
-                         ))}
-                     </>
-                   )}
+                <BarChart data={chartData} margin={{
+                top: 20,
+                right: 30,
+                left: 40,
+                bottom: 80
+              }}>
+                  <XAxis dataKey="name" tick={{
+                  fontSize: 11
+                }} angle={-45} textAnchor="end" height={80} interval={0} />
+                  <YAxis tick={{
+                  fontSize: 11
+                }} label={{
+                  value: getFormFieldName(primaryMetric),
+                  angle: -90,
+                  position: 'insideLeft'
+                }} domain={[0, 'dataMax']} />
+                   <Tooltip formatter={(value, name, props) => {
+                  // For multi-dimensional charts, name is already "Field Name: Value"
+                  // For single-dimensional charts, name is the field ID, so get field name
+                  const displayName = isMultiDimensional ? name : getFormFieldName(name.toString());
+                  return [`${displayName}: ${value}`, `Category: ${props.payload?.name || 'N/A'}`];
+                }} labelFormatter={label => `Category: ${label}`} contentStyle={{
+                  backgroundColor: 'hsl(var(--popover))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: 'var(--radius)',
+                  fontSize: '12px'
+                }} />
+                   {showLegend && <Legend formatter={value => isMultiDimensional ? value : getFormFieldName(value.toString())} iconType="rect" />}
+                   {isMultiDimensional ?
+                // Render separate bars for each dimension value
+                dimensionKeys.map((key, index) => <Bar key={key} dataKey={key} fill={colors[index % colors.length]} name={key} style={{
+                  cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default'
+                }} />) :
+                // Single dimension - render primary metric and additional metrics if any
+                <>
+                         <Bar dataKey={primaryMetric} fill={colors[0]} name={getFormFieldName(primaryMetric)} style={{
+                    cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default'
+                  }} />
+                         {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => <Bar key={metric} dataKey={metric} fill={colors[(index + 1) % colors.length]} name={getFormFieldName(metric)} style={{
+                    cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default'
+                  }} />)}
+                     </>}
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </div>
-        );
-
+          </div>;
       case 'column':
-        return (
-          <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
-            <div className="absolute inset-0" style={{ bottom: '40px' }}>
+        return <div className="relative w-full" style={{
+          height: '400px',
+          paddingBottom: '40px'
+        }}>
+            <div className="absolute inset-0" style={{
+            bottom: '40px'
+          }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart 
-                  data={chartData} 
-                  layout="horizontal" 
-                  margin={{ top: 20, right: 30, left: 120, bottom: 20 }}
-                >
-                  <XAxis 
-                    type="number" 
-                    tick={{ fontSize: 11 }}
-                    label={{ value: getFormFieldName(primaryMetric), position: 'insideBottom', offset: -5 }}
-                    domain={[0, 'dataMax']}
-                  />
-                  <YAxis 
-                    dataKey="name" 
-                    type="category" 
-                    width={120}
-                    tick={{ fontSize: 11 }}
-                  />
-                  <Tooltip 
-                    formatter={(value, name, props) => [
-                      `${getFormFieldName(name.toString())}: ${value}`,
-                      `Category: ${props.payload?.name || 'N/A'}`,
-                      `Total Records: ${chartData.length}`
-                    ]}
-                    labelFormatter={(label) => `Category: ${label}`}
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: 'var(--radius)',
-                      fontSize: '12px'
-                    }}
-                  />
-                   {showLegend && (
-                     <Legend 
-                       formatter={(value) => getFormFieldName(value.toString())}
-                       iconType="rect"
-                     />
-                   )}
-                   <Bar 
-                     dataKey={primaryMetric} 
-                     fill={colors[0]} 
-                     name={getFormFieldName(primaryMetric)}
-                   />
-                   {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
-                     <Bar 
-                       key={metric} 
-                       dataKey={metric} 
-                       fill={colors[(index + 1) % colors.length]} 
-                       name={getFormFieldName(metric)}
-                     />
-                   ))}
+                <BarChart data={chartData} layout="horizontal" margin={{
+                top: 20,
+                right: 30,
+                left: 120,
+                bottom: 20
+              }}>
+                  <XAxis type="number" tick={{
+                  fontSize: 11
+                }} label={{
+                  value: getFormFieldName(primaryMetric),
+                  position: 'insideBottom',
+                  offset: -5
+                }} domain={[0, 'dataMax']} />
+                  <YAxis dataKey="name" type="category" width={120} tick={{
+                  fontSize: 11
+                }} />
+                  <Tooltip formatter={(value, name, props) => [`${getFormFieldName(name.toString())}: ${value}`, `Category: ${props.payload?.name || 'N/A'}`, `Total Records: ${chartData.length}`]} labelFormatter={label => `Category: ${label}`} contentStyle={{
+                  backgroundColor: 'hsl(var(--popover))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: 'var(--radius)',
+                  fontSize: '12px'
+                }} />
+                   {showLegend && <Legend formatter={value => getFormFieldName(value.toString())} iconType="rect" />}
+                   <Bar dataKey={primaryMetric} fill={colors[0]} name={getFormFieldName(primaryMetric)} />
+                   {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => <Bar key={metric} dataKey={metric} fill={colors[(index + 1) % colors.length]} name={getFormFieldName(metric)} />)}
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </div>
-        );
-      
+          </div>;
       case 'pie':
-        return (
-          <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
-            <div className="absolute inset-0" style={{ bottom: '40px' }}>
+        return <div className="relative w-full" style={{
+          height: '400px',
+          paddingBottom: '40px'
+        }}>
+            <div className="absolute inset-0" style={{
+            bottom: '40px'
+          }}>
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={120}
-                    fill="#8884d8"
-                    dataKey={primaryMetric}
-                    label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
-                    style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                    onClick={config.drilldownConfig?.enabled ? handlePieClick : undefined}
-                  >
-                    {chartData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={colors[index % colors.length]}
-                        style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                      />
-                    ))}
+                  <Pie data={chartData} cx="50%" cy="50%" outerRadius={120} fill="#8884d8" dataKey={primaryMetric} label={({
+                  name,
+                  value,
+                  percent
+                }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`} style={{
+                  cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default'
+                }} onClick={config.drilldownConfig?.enabled ? handlePieClick : undefined}>
+                    {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={colors[index % colors.length]} style={{
+                    cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default'
+                  }} />)}
                   </Pie>
-                  <Tooltip 
-                     formatter={(value, name, props) => {
-                       const numValue = Number(value) || 0;
-                       const total = chartData.reduce((sum, item) => sum + (Number(item[primaryMetric]) || 0), 0);
-                       return [
-                         `${props.payload?.name || 'Unknown'}: ${numValue}`,
-                         `Percentage: ${total > 0 ? ((numValue / total) * 100).toFixed(1) : 0}%`
-                       ];
-                     }}
-                     contentStyle={{
-                       backgroundColor: 'hsl(var(--popover))',
-                       border: '1px solid hsl(var(--border))',
-                       borderRadius: 'var(--radius)',
-                       fontSize: '12px'
-                     }}
-                   />
-                   {showLegend && (
-                     <Legend 
-                       formatter={(value) => value}
-                     />
-                   )}
+                  <Tooltip formatter={(value, name, props) => {
+                  const numValue = Number(value) || 0;
+                  const total = chartData.reduce((sum, item) => sum + (Number(item[primaryMetric]) || 0), 0);
+                  return [`${props.payload?.name || 'Unknown'}: ${numValue}`, `Percentage: ${total > 0 ? (numValue / total * 100).toFixed(1) : 0}%`];
+                }} contentStyle={{
+                  backgroundColor: 'hsl(var(--popover))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: 'var(--radius)',
+                  fontSize: '12px'
+                }} />
+                   {showLegend && <Legend formatter={value => value} />}
                 </RechartsPieChart>
               </ResponsiveContainer>
             </div>
-          </div>
-        );
-
+          </div>;
       case 'donut':
-        return (
-          <ResponsiveContainer width="100%" height={400}>
+        return <ResponsiveContainer width="100%" height={400}>
             <RechartsPieChart>
-              <Pie
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                innerRadius={config.innerRadius || 60}
-                outerRadius={120}
-                fill="#8884d8"
-                dataKey={primaryMetric}
-                label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
-              >
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                ))}
+              <Pie data={chartData} cx="50%" cy="50%" innerRadius={config.innerRadius || 60} outerRadius={120} fill="#8884d8" dataKey={primaryMetric} label={({
+              name,
+              value,
+              percent
+            }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}>
+                {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />)}
               </Pie>
                <Tooltip formatter={(value, name) => [value, name]} />
                {showLegend && <Legend />}
             </RechartsPieChart>
-          </ResponsiveContainer>
-        );
-      
+          </ResponsiveContainer>;
       case 'line':
-        return (
-          <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
-            <div className="absolute inset-0" style={{ bottom: '40px' }}>
+        return <div className="relative w-full" style={{
+          height: '400px',
+          paddingBottom: '40px'
+        }}>
+            <div className="absolute inset-0" style={{
+            bottom: '40px'
+          }}>
               <ResponsiveContainer width="100%" height="100%">
-                <RechartsLineChart 
-                  data={chartData} 
-                  margin={{ top: 20, right: 30, left: 40, bottom: 80 }}
-                >
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fontSize: 11 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                    interval={0}
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 11 }}
-                    label={{ value: getFormFieldName(primaryMetric), angle: -90, position: 'insideLeft' }}
-                    domain={[0, 'dataMax']}
-                  />
-                  <Tooltip 
-                     formatter={(value, name, props) => {
-                       const displayName = isMultiDimensional ? name : getFormFieldName(name.toString());
-                       return [
-                         `${displayName}: ${value}`,
-                         `Category: ${props.payload?.name || 'N/A'}`
-                       ];
-                     }}
-                     labelFormatter={(label) => `Category: ${label}`}
-                     contentStyle={{
-                       backgroundColor: 'hsl(var(--popover))',
-                       border: '1px solid hsl(var(--border))',
-                       borderRadius: 'var(--radius)',
-                       fontSize: '12px'
-                     }}
-                   />
-                   {showLegend && (
-                     <Legend 
-                       formatter={(value) => isMultiDimensional ? value : getFormFieldName(value.toString())}
-                       iconType="line"
-                     />
-                   )}
-                   {isMultiDimensional ? (
-                     // Render separate lines for each dimension value
-                     dimensionKeys.map((key, index) => (
-                       <Line 
-                         key={key} 
-                         type="monotone" 
-                         dataKey={key} 
-                         stroke={colors[index % colors.length]} 
-                         strokeWidth={3}
-                         name={key}
-                         dot={{ fill: colors[index % colors.length], strokeWidth: 2, r: 4 }}
-                         style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                       />
-                     ))
-                   ) : (
-                     // Single dimension - render primary metric and additional metrics if any
-                     <>
-                        <Line 
-                          type="monotone" 
-                          dataKey={primaryMetric} 
-                          stroke={colors[0]} 
-                          strokeWidth={3}
-                          name={getFormFieldName(primaryMetric)}
-                          dot={{ fill: colors[0], strokeWidth: 2, r: 4 }}
-                          style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                        />
-                        {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
-                          <Line 
-                            key={metric}
-                            type="monotone" 
-                            dataKey={metric} 
-                            stroke={colors[(index + 1) % colors.length]} 
-                            strokeWidth={3}
-                            name={getFormFieldName(metric)}
-                            dot={{ fill: colors[(index + 1) % colors.length], strokeWidth: 2, r: 4 }}
-                            style={{ cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default' }}
-                          />
-                        ))}
-                     </>
-                   )}
+                <RechartsLineChart data={chartData} margin={{
+                top: 20,
+                right: 30,
+                left: 40,
+                bottom: 80
+              }}>
+                  <XAxis dataKey="name" tick={{
+                  fontSize: 11
+                }} angle={-45} textAnchor="end" height={80} interval={0} />
+                  <YAxis tick={{
+                  fontSize: 11
+                }} label={{
+                  value: getFormFieldName(primaryMetric),
+                  angle: -90,
+                  position: 'insideLeft'
+                }} domain={[0, 'dataMax']} />
+                  <Tooltip formatter={(value, name, props) => {
+                  const displayName = isMultiDimensional ? name : getFormFieldName(name.toString());
+                  return [`${displayName}: ${value}`, `Category: ${props.payload?.name || 'N/A'}`];
+                }} labelFormatter={label => `Category: ${label}`} contentStyle={{
+                  backgroundColor: 'hsl(var(--popover))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: 'var(--radius)',
+                  fontSize: '12px'
+                }} />
+                   {showLegend && <Legend formatter={value => isMultiDimensional ? value : getFormFieldName(value.toString())} iconType="line" />}
+                   {isMultiDimensional ?
+                // Render separate lines for each dimension value
+                dimensionKeys.map((key, index) => <Line key={key} type="monotone" dataKey={key} stroke={colors[index % colors.length]} strokeWidth={3} name={key} dot={{
+                  fill: colors[index % colors.length],
+                  strokeWidth: 2,
+                  r: 4
+                }} style={{
+                  cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default'
+                }} />) :
+                // Single dimension - render primary metric and additional metrics if any
+                <>
+                        <Line type="monotone" dataKey={primaryMetric} stroke={colors[0]} strokeWidth={3} name={getFormFieldName(primaryMetric)} dot={{
+                    fill: colors[0],
+                    strokeWidth: 2,
+                    r: 4
+                  }} style={{
+                    cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default'
+                  }} />
+                        {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => <Line key={metric} type="monotone" dataKey={metric} stroke={colors[(index + 1) % colors.length]} strokeWidth={3} name={getFormFieldName(metric)} dot={{
+                    fill: colors[(index + 1) % colors.length],
+                    strokeWidth: 2,
+                    r: 4
+                  }} style={{
+                    cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default'
+                  }} />)}
+                     </>}
                 </RechartsLineChart>
               </ResponsiveContainer>
             </div>
-          </div>
-        );
-      
+          </div>;
       case 'area':
-        return (
-          <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
-            <div className="absolute inset-0" style={{ bottom: '40px' }}>
+        return <div className="relative w-full" style={{
+          height: '400px',
+          paddingBottom: '40px'
+        }}>
+            <div className="absolute inset-0" style={{
+            bottom: '40px'
+          }}>
               <ResponsiveContainer width="100%" height="100%">
-                <RechartsAreaChart 
-                  data={chartData} 
-                  margin={{ top: 20, right: 30, left: 40, bottom: 80 }}
-                >
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fontSize: 11 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                    interval={0}
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 11 }}
-                    label={{ value: getFormFieldName(primaryMetric), angle: -90, position: 'insideLeft' }}
-                    domain={[0, 'dataMax']}
-                  />
-                  <Tooltip 
-                     formatter={(value, name, props) => {
-                       const displayName = getFormFieldName(name.toString());
-                       return [
-                         `${displayName}: ${value}`,
-                         `Category: ${props.payload?.name || 'N/A'}`
-                       ];
-                     }}
-                     labelFormatter={(label) => `Category: ${label}`}
-                     contentStyle={{
-                       backgroundColor: 'hsl(var(--popover))',
-                       border: '1px solid hsl(var(--border))',
-                       borderRadius: 'var(--radius)',
-                       fontSize: '12px'
-                     }}
-                   />
-                   {showLegend && (
-                     <Legend 
-                       formatter={(value) => getFormFieldName(value.toString())}
-                       iconType="rect"
-                     />
-                   )}
-                   <Area 
-                     type="monotone" 
-                     dataKey={primaryMetric} 
-                     stroke={colors[0]} 
-                     fill={colors[0]} 
-                     fillOpacity={0.6}
-                     name={getFormFieldName(primaryMetric)}
-                   />
-                   {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => (
-                     <Area 
-                       key={metric}
-                       type="monotone" 
-                       dataKey={metric} 
-                       stroke={colors[(index + 1) % colors.length]} 
-                       fill={colors[(index + 1) % colors.length]} 
-                       fillOpacity={0.6}
-                       name={getFormFieldName(metric)}
-                     />
-                   ))}
+                <RechartsAreaChart data={chartData} margin={{
+                top: 20,
+                right: 30,
+                left: 40,
+                bottom: 80
+              }}>
+                  <XAxis dataKey="name" tick={{
+                  fontSize: 11
+                }} angle={-45} textAnchor="end" height={80} interval={0} />
+                  <YAxis tick={{
+                  fontSize: 11
+                }} label={{
+                  value: getFormFieldName(primaryMetric),
+                  angle: -90,
+                  position: 'insideLeft'
+                }} domain={[0, 'dataMax']} />
+                  <Tooltip formatter={(value, name, props) => {
+                  const displayName = getFormFieldName(name.toString());
+                  return [`${displayName}: ${value}`, `Category: ${props.payload?.name || 'N/A'}`];
+                }} labelFormatter={label => `Category: ${label}`} contentStyle={{
+                  backgroundColor: 'hsl(var(--popover))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: 'var(--radius)',
+                  fontSize: '12px'
+                }} />
+                   {showLegend && <Legend formatter={value => getFormFieldName(value.toString())} iconType="rect" />}
+                   <Area type="monotone" dataKey={primaryMetric} stroke={colors[0]} fill={colors[0]} fillOpacity={0.6} name={getFormFieldName(primaryMetric)} />
+                   {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => <Area key={metric} type="monotone" dataKey={metric} stroke={colors[(index + 1) % colors.length]} fill={colors[(index + 1) % colors.length]} fillOpacity={0.6} name={getFormFieldName(metric)} />)}
                 </RechartsAreaChart>
               </ResponsiveContainer>
             </div>
-          </div>
-        );
-      
+          </div>;
       case 'scatter':
-        return (
-          <ResponsiveContainer width="100%" height={400}>
-            <RechartsScatterChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <XAxis 
-                dataKey="name" 
-                tick={{ fontSize: 12 }}
-                angle={-45}
-                textAnchor="end"
-                height={80}
-              />
-              <YAxis 
-                dataKey={primaryMetric} 
-                tick={{ fontSize: 12 }}
-                label={{ value: primaryMetric, angle: -90, position: 'insideLeft' }}
-              />
-              <Tooltip 
-                formatter={(value, name) => [value, name]}
-                labelFormatter={(label) => `Category: ${label}`}
-              />
+        return <ResponsiveContainer width="100%" height={400}>
+            <RechartsScatterChart data={chartData} margin={{
+            top: 20,
+            right: 30,
+            left: 20,
+            bottom: 5
+          }}>
+              <XAxis dataKey="name" tick={{
+              fontSize: 12
+            }} angle={-45} textAnchor="end" height={80} />
+              <YAxis dataKey={primaryMetric} tick={{
+              fontSize: 12
+            }} label={{
+              value: primaryMetric,
+              angle: -90,
+              position: 'insideLeft'
+            }} />
+              <Tooltip formatter={(value, name) => [value, name]} labelFormatter={label => `Category: ${label}`} />
               <Scatter dataKey={primaryMetric} fill={colors[0]} />
             </RechartsScatterChart>
-          </ResponsiveContainer>
-        );
-
+          </ResponsiveContainer>;
       case 'bubble':
         // For bubble chart, use multiple scatter components with different sizes
         const sizeField = config.sizeField || primaryMetric;
@@ -1036,28 +774,12 @@ export function ChartPreview({
           ...item,
           size: item[sizeField] || 10
         }));
-        
-        return (
-          <RechartsScatterChart data={bubbleData}>
+        return <RechartsScatterChart data={bubbleData}>
             <XAxis dataKey="name" />
             <YAxis dataKey={primaryMetric} />
-            <Tooltip 
-              formatter={(value, name, props) => [
-                `${name}: ${value}`,
-                `Size: ${props.payload.size}`
-              ]}
-            />
-            {bubbleData.map((entry, index) => (
-              <Scatter
-                key={index}
-                data={[entry]}
-                fill={colors[index % colors.length]}
-                r={Math.max(5, Math.min(20, entry.size / 2))}
-              />
-            ))}
-          </RechartsScatterChart>
-        );
-
+            <Tooltip formatter={(value, name, props) => [`${name}: ${value}`, `Size: ${props.payload.size}`]} />
+            {bubbleData.map((entry, index) => <Scatter key={index} data={[entry]} fill={colors[index % colors.length]} r={Math.max(5, Math.min(20, entry.size / 2))} />)}
+          </RechartsScatterChart>;
       case 'heatmap':
         // Generate heatmap data grid
         const heatmapData = chartData.map((item, index) => ({
@@ -1066,189 +788,114 @@ export function ChartPreview({
           y: Math.floor(index / (config.gridColumns || 5)),
           value: item[config.heatmapIntensityField || primaryMetric]
         }));
-        
-        return (
-          <div className="relative">
-            <div className="grid gap-1" style={{ 
-              gridTemplateColumns: `repeat(${config.gridColumns || 5}, 1fr)`,
-              maxWidth: '100%'
-            }}>
-              {heatmapData.map((cell, index) => (
-                <div
-                  key={index}
-                  className="aspect-square rounded-sm flex items-center justify-center text-xs font-medium"
-                  style={{
-                    backgroundColor: colors[Math.floor((cell.value / Math.max(...heatmapData.map(d => d.value))) * (colors.length - 1))],
-                    color: cell.value > (Math.max(...heatmapData.map(d => d.value)) / 2) ? 'white' : 'black'
-                  }}
-                  title={`${cell.name}: ${cell.value}`}
-                >
+        return <div className="relative">
+            <div className="grid gap-1" style={{
+            gridTemplateColumns: `repeat(${config.gridColumns || 5}, 1fr)`,
+            maxWidth: '100%'
+          }}>
+              {heatmapData.map((cell, index) => <div key={index} className="aspect-square rounded-sm flex items-center justify-center text-xs font-medium" style={{
+              backgroundColor: colors[Math.floor(cell.value / Math.max(...heatmapData.map(d => d.value)) * (colors.length - 1))],
+              color: cell.value > Math.max(...heatmapData.map(d => d.value)) / 2 ? 'white' : 'black'
+            }} title={`${cell.name}: ${cell.value}`}>
                   {cell.value}
-                </div>
-              ))}
+                </div>)}
             </div>
-          </div>
-        );
-
+          </div>;
       case 'table':
-        return (
-          <div className="overflow-auto">
+        return <div className="overflow-auto">
             <table className="min-w-full divide-y divide-border">
               <thead className="bg-muted">
                 <tr>
                   <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Category
                   </th>
-                     {(config.metrics || [primaryMetric]).map((metric) => (
-                       <th key={metric} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                     {(config.metrics || [primaryMetric]).map(metric => <th key={metric} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                          {getFieldName(metric)}
-                       </th>
-                     ))}
+                       </th>)}
                 </tr>
               </thead>
               <tbody className="bg-background divide-y divide-border">
-                {chartData.map((row, index) => (
-                  <tr key={index} className="hover:bg-muted/50">
+                {chartData.map((row, index) => <tr key={index} className="hover:bg-muted/50">
                     <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">
                       {row.name}
                     </td>
-                    {(config.metrics || [primaryMetric]).map((metric) => (
-                      <td key={metric} className="px-4 py-2 whitespace-nowrap text-sm">
+                    {(config.metrics || [primaryMetric]).map(metric => <td key={metric} className="px-4 py-2 whitespace-nowrap text-sm">
                         {row[metric]}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
+                      </td>)}
+                  </tr>)}
               </tbody>
             </table>
-          </div>
-        );
-      
+          </div>;
       default:
-        return (
-          <div className="flex items-center justify-center h-64 text-muted-foreground">
+        return <div className="flex items-center justify-center h-64 text-muted-foreground">
             Chart type "{chartType}" not implemented yet
-          </div>
-        );
+          </div>;
     }
   };
-
   const canDrillUp = drilldownState?.values && drilldownState.values.length > 0;
-
-  return (
-    <div className="space-y-4 relative group h-full">
+  return <div className="space-y-4 relative group h-full">
       {/* Chart Header with Controls */}
       <div className="flex items-center justify-between">
-        {config.title && (
-          <div className="flex-1">
+        {config.title && <div className="flex-1">
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-semibold">{config.title}</h3>
-              {canDrillUp && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (onDrilldown && drilldownState?.values) {
-                      const newValues = [...drilldownState.values];
-                      newValues.pop(); // Remove last value to go up one level
-                      // Trigger drilldown with reduced values
-                      const lastLevel = config.drilldownConfig?.drilldownLevels?.[newValues.length - 1] || '';
-                      const lastValue = newValues[newValues.length - 1] || '';
-                      onDrilldown(lastLevel, lastValue);
-                    }
-                  }}
-                >
+              {canDrillUp && <Button variant="outline" size="sm" onClick={() => {
+            if (onDrilldown && drilldownState?.values) {
+              const newValues = [...drilldownState.values];
+              newValues.pop(); // Remove last value to go up one level
+              // Trigger drilldown with reduced values
+              const lastLevel = config.drilldownConfig?.drilldownLevels?.[newValues.length - 1] || '';
+              const lastValue = newValues[newValues.length - 1] || '';
+              onDrilldown(lastLevel, lastValue);
+            }
+          }}>
                   <ArrowLeft className="h-4 w-4 mr-1" />
                   Back
-                </Button>
-              )}
+                </Button>}
             </div>
-            {config.description && (
-              <p className="text-sm text-muted-foreground">{config.description}</p>
-            )}
-            {drilldownState?.values && drilldownState.values.length > 0 && (
-              <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700 mt-2">
+            {config.description && <p className="text-sm text-muted-foreground">{config.description}</p>}
+            {drilldownState?.values && drilldownState.values.length > 0 && <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700 mt-2">
                 <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Filtered by:</span>
                 <div className="flex items-center gap-1 flex-wrap">
                   {drilldownState.values.map((value, index) => {
-                    const fieldName = getFormFieldName(config.drilldownConfig?.drilldownLevels?.[index] || '');
-                    return (
-                      <React.Fragment key={index}>
+              const fieldName = getFormFieldName(config.drilldownConfig?.drilldownLevels?.[index] || '');
+              return <React.Fragment key={index}>
                         {index > 0 && <ChevronRight className="h-4 w-4 text-blue-500" />}
                         <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-2 py-1 rounded border">
                           <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{fieldName}:</span>
                           <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">{value}</span>
                         </div>
-                      </React.Fragment>
-                    );
-                  })}
+                      </React.Fragment>;
+            })}
                 </div>
-              </div>
-            )}
-            {config.drilldownConfig?.enabled && (!drilldownState?.values || drilldownState.values.length === 0) && (
-              <div className="text-xs text-muted-foreground italic mt-1">
-                📊 Click on chart elements to drill down through: {config.drilldownConfig?.drilldownLevels?.map(level => getFormFieldName(level)).join(' → ')}
-              </div>
-            )}
-          </div>
-        )}
+              </div>}
+            {config.drilldownConfig?.enabled && (!drilldownState?.values || drilldownState.values.length === 0)}
+          </div>}
         
         {/* Chart Controls */}
          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 px-2"
-            onClick={() => setShowLegend(!showLegend)}
-          >
+          <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setShowLegend(!showLegend)}>
             {showLegend ? 'Hide' : 'Show'} Legend
           </Button>
           
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 px-2"
-            onClick={() => setShowFormFields(!showFormFields)}
-          >
+          <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setShowFormFields(!showFormFields)}>
             {showFormFields ? 'Hide' : 'Show'} Form Details ({getFormName(config.formId)})
           </Button>
           
-          {config.drilldownConfig?.enabled && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 px-2"
-              onClick={() => setShowDrilldownPanel(!showDrilldownPanel)}
-            >
+          {config.drilldownConfig?.enabled && <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setShowDrilldownPanel(!showDrilldownPanel)}>
               {showDrilldownPanel ? 'Hide' : 'Show'} Drilldown
-            </Button>
-          )}
+            </Button>}
           
-          {onEdit && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 px-2"
-              onClick={onEdit}
-            >
+          {onEdit && <Button size="sm" variant="outline" className="h-8 px-2" onClick={onEdit}>
               <Edit className="h-3 w-3 mr-1" />
               Edit
-            </Button>
-          )}
+            </Button>}
           
-          {config.filters && config.filters.length > 0 && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 px-2"
-              onClick={() => {/* TODO: Open filter panel */}}
-            >
+          {config.filters && config.filters.length > 0 && <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => {/* TODO: Open filter panel */}}>
               Filter ({config.filters.length})
-            </Button>
-          )}
+            </Button>}
           
-          {config.drilldownConfig?.enabled && showDrilldownPanel && (
-            <div className="mb-4 p-3 bg-muted/30 rounded-lg border">
+          {config.drilldownConfig?.enabled && showDrilldownPanel && <div className="mb-4 p-3 bg-muted/30 rounded-lg border">
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-2">
                   <Filter className="h-4 w-4 text-muted-foreground" />
@@ -1266,125 +913,86 @@ export function ChartPreview({
                 {/* Drilldown Path Breadcrumb */}
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
                   <span className="font-medium">Path: All Records</span>
-                  {drilldownState?.path?.map((level, index) => (
-                    <React.Fragment key={index}>
+                  {drilldownState?.path?.map((level, index) => <React.Fragment key={index}>
                       <ChevronRight className="h-3 w-3" />
                       <span className="font-medium">
                         {getFormFieldName(level)}: {drilldownState.values?.[index] || ''}
                       </span>
-                    </React.Fragment>
-                  ))}
+                    </React.Fragment>)}
                 </div>
                 
                 {/* Drilldown Level Selector */}
-                {currentLevelInfo && (
-                  <div className="flex items-center gap-2">
+                {currentLevelInfo && <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Drill down by {currentLevelInfo.fieldName}:</span>
-                    {currentLevelInfo.availableValues.length > 0 ? (
-                      <Select onValueChange={handleDrilldownSelect}>
+                    {currentLevelInfo.availableValues.length > 0 ? <Select onValueChange={handleDrilldownSelect}>
                         <SelectTrigger className="w-48 h-8">
                           <SelectValue placeholder={`Select ${currentLevelInfo.fieldName}`} />
                         </SelectTrigger>
                         <SelectContent className="bg-popover border shadow-md z-50">
-                          {currentLevelInfo.availableValues.map((value) => (
-                            <SelectItem key={value} value={value} className="hover:bg-accent hover:text-accent-foreground">
+                          {currentLevelInfo.availableValues.map(value => <SelectItem key={value} value={value} className="hover:bg-accent hover:text-accent-foreground">
                               {value}
-                            </SelectItem>
-                          ))}
+                            </SelectItem>)}
                         </SelectContent>
-                      </Select>
-                    ) : (
-                      <span className="text-sm text-muted-foreground italic">No values available</span>
-                    )}
-                  </div>
-                )}
+                      </Select> : <span className="text-sm text-muted-foreground italic">No values available</span>}
+                  </div>}
                 
                 {/* Reset Drilldown Button */}
-                {drilldownState?.values?.length > 0 && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={resetDrilldown}
-                  >
+                {drilldownState?.values?.length > 0 && <Button size="sm" variant="outline" onClick={resetDrilldown}>
                     Reset to All Records
-                  </Button>
-                )}
+                  </Button>}
               </div>
-            </div>
-          )}
+            </div>}
           
-          {config.drilldownConfig?.enabled && !showDrilldownPanel && (
-            <div className="flex items-center gap-2">
+          {config.drilldownConfig?.enabled && !showDrilldownPanel && <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
               
               {/* Debug info */}
-              <div className="text-xs text-muted-foreground bg-red-100 p-1 rounded">
-                Debug: enabled={config.drilldownConfig?.enabled?.toString()}, 
-                levels={config.drilldownConfig?.drilldownLevels?.length || 0}, 
-                currentLevel={currentLevelInfo?.levelIndex || 'null'},
-                availableValues={currentLevelInfo?.availableValues?.length || 0}
-              </div>
+              
               
               {/* Drilldown Path Breadcrumb */}
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
                 <span className="font-medium">All Records</span>
-                {drilldownState?.path?.map((level, index) => (
-                  <React.Fragment key={index}>
+                {drilldownState?.path?.map((level, index) => <React.Fragment key={index}>
                     <ChevronRight className="h-3 w-3" />
                     <span className="font-medium">
                       {getFormFieldName(level)}: {drilldownState.values?.[index] || ''}
                     </span>
-                  </React.Fragment>
-                ))}
+                  </React.Fragment>)}
               </div>
-            </div>
-          )}
+            </div>}
         </div>
       </div>
 
       {/* Form Fields Display */}
-      {showFormFields && (
-        <div className="p-4 bg-muted/30 rounded-lg border">
+      {showFormFields && <div className="p-4 bg-muted/30 rounded-lg border">
           <h4 className="font-semibold mb-2">Form Details: {getFormName(config.formId)}</h4>
           <div className="space-y-2">
-            {formFields.map((field) => (
-              <div key={field.id} className="text-sm">
+            {formFields.map(field => <div key={field.id} className="text-sm">
                 <span className="font-medium">{getFormFieldName(field.id)}:</span>
                 <span className="ml-2 text-muted-foreground">
                   {field.type} field
-                  {config.dimensions?.includes(field.id) && (
-                    <span className="ml-2 text-xs bg-primary/10 text-primary px-1 rounded">
+                  {config.dimensions?.includes(field.id) && <span className="ml-2 text-xs bg-primary/10 text-primary px-1 rounded">
                       Selected as dimension
-                    </span>
-                  )}
-                  {config.metrics?.includes(field.id) && (
-                    <span className="ml-2 text-xs bg-secondary/10 text-secondary px-1 rounded">
+                    </span>}
+                  {config.metrics?.includes(field.id) && <span className="ml-2 text-xs bg-secondary/10 text-secondary px-1 rounded">
                       Selected as metric
-                    </span>
-                  )}
+                    </span>}
                 </span>
-              </div>
-            ))}
-            {chartData.length > 0 && (
-              <div className="mt-4 pt-2 border-t">
+              </div>)}
+            {chartData.length > 0 && <div className="mt-4 pt-2 border-t">
                 <div className="text-xs text-muted-foreground">
-                  <strong>Chart Data Series:</strong> {Object.keys(chartData[0]).filter(k => k !== 'name').map(k => 
-                    k.includes(':') ? k : getFormFieldName(k)
-                  ).join(', ')}
+                  <strong>Chart Data Series:</strong> {Object.keys(chartData[0]).filter(k => k !== 'name').map(k => k.includes(':') ? k : getFormFieldName(k)).join(', ')}
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
                   <strong>Total Records:</strong> {chartData.length}
                 </div>
-              </div>
-            )}
+              </div>}
           </div>
-        </div>
-      )}
+        </div>}
 
       {/* Chart Container */}
       <div className="flex-1 min-h-0">
         {renderChart()}
       </div>
-    </div>
-  );
+    </div>;
 }
