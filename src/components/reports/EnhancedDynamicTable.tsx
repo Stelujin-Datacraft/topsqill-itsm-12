@@ -185,7 +185,7 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
     if (onDrilldown) {
       console.log('Using external drilldown handler');
       onDrilldown(fieldId, value);
-      return;
+      //return;
     }
     
     // Otherwise use internal state management
