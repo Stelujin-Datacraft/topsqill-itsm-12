@@ -128,11 +128,11 @@ export function useTableData(formId: string, filters: FilterGroup[], pageSize: n
 
   // Separate effect to trigger reload when drilldown filters change
   useEffect(() => {
-    if (formId) {
+    if (formId && drilldownFilters) {
       console.log('Drilldown filters changed, reloading data:', drilldownFilters);
       loadData();
     }
-  }, [drilldownFilters, formId, loadData]);
+  }, [drilldownFilters]);
 
   return {
     data,

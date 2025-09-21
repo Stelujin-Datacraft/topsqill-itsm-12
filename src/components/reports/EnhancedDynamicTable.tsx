@@ -581,8 +581,8 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
                               }
                             </span>
                              
-                              {/* Show drilldown button only when drilldown is enabled for this field and not already filtered */}
-                              {isDrilldownField && !isFilteredValue && !isExternalFiltered && (
+                              {/* Show drilldown button only when column drilldown is active and not already filtered */}
+                              {isColumnDrilldownActive && !isFilteredValue && !isExternalFiltered && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
