@@ -35,6 +35,8 @@ export interface ChartConfig {
   description?: string;
   xAxis?: string;
   yAxis?: string;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
   dimensions?: string[];
   metrics?: string[];
   aggregationType?: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'median' | 'stddev';
@@ -60,6 +62,9 @@ export interface ChartConfig {
     field: string;
     aggregation: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'median' | 'stddev';
   }>;
+  
+  // Display options
+  showAsTable?: boolean;
   
   // Drilldown configuration
   drilldownConfig?: {

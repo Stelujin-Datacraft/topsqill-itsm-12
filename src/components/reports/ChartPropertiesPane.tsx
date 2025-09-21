@@ -164,12 +164,73 @@ export function ChartPropertiesPane({
 
             {/* Chart-specific configurations */}
             {component.type === 'chart' && (
-              <Tabs defaultValue="filters" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+              <Tabs defaultValue="display" className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="display">Display</TabsTrigger>
                   <TabsTrigger value="filters">Filters</TabsTrigger>
                   <TabsTrigger value="drilldown">Drilldown</TabsTrigger>
                   <TabsTrigger value="themes">Themes</TabsTrigger>
                 </TabsList>
+                
+                <TabsContent value="display">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <Settings className="h-4 w-4" />
+                        Display Options
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {/* Axis Labels */}
+                      <div className="space-y-2">
+                        <Label htmlFor="x-axis-label" className="text-sm font-medium">X-Axis Label</Label>
+                        <Input
+                          id="x-axis-label"
+                          value={(component.config as any).xAxisLabel || ''}
+                          onChange={(e) => {
+                            onUpdateComponent(component.id, {
+                              config: { ...component.config, xAxisLabel: e.target.value }
+                            });
+                          }}
+                          placeholder="Enter X-axis label"
+                          className="text-sm"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="y-axis-label" className="text-sm font-medium">Y-Axis Label</Label>
+                        <Input
+                          id="y-axis-label"
+                          value={(component.config as any).yAxisLabel || ''}
+                          onChange={(e) => {
+                            onUpdateComponent(component.id, {
+                              config: { ...component.config, yAxisLabel: e.target.value }
+                            });
+                          }}
+                          placeholder="Enter Y-axis label"
+                          className="text-sm"
+                        />
+                      </div>
+                      
+                      {/* Show as Table Toggle */}
+                      <div className="flex items-center justify-between py-2">
+                        <Label htmlFor="show-as-table" className="text-sm font-medium">Show as Table</Label>
+                        <Button
+                          id="show-as-table"
+                          variant={(component.config as any).showAsTable ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            onUpdateComponent(component.id, {
+                              config: { ...component.config, showAsTable: !(component.config as any).showAsTable }
+                            });
+                          }}
+                        >
+                          {(component.config as any).showAsTable ? 'Table View' : 'Chart View'}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
                 
                 <TabsContent value="filters">
                   <Card>

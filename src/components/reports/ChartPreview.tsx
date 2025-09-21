@@ -513,11 +513,15 @@ export function ChartPreview({
               }}>
                   <XAxis dataKey="name" tick={{
                   fontSize: 11
-                }} angle={-45} textAnchor="end" height={80} interval={0} />
+                }} angle={-45} textAnchor="end" height={80} interval={0} label={{
+                  value: config.xAxisLabel || 'Category',
+                  position: 'insideBottom',
+                  offset: -5
+                }} />
                   <YAxis tick={{
                   fontSize: 11
                 }} label={{
-                  value: getFormFieldName(primaryMetric),
+                  value: config.yAxisLabel || getFormFieldName(primaryMetric),
                   angle: -90,
                   position: 'insideLeft'
                 }} domain={[0, 'dataMax']} />
@@ -656,11 +660,15 @@ export function ChartPreview({
               }}>
                   <XAxis dataKey="name" tick={{
                   fontSize: 11
-                }} angle={-45} textAnchor="end" height={80} interval={0} />
+                }} angle={-45} textAnchor="end" height={80} interval={0} label={{
+                  value: config.xAxisLabel || 'Category',
+                  position: 'insideBottom',
+                  offset: -5
+                }} />
                   <YAxis tick={{
                   fontSize: 11
                 }} label={{
-                  value: getFormFieldName(primaryMetric),
+                  value: config.yAxisLabel || getFormFieldName(primaryMetric),
                   angle: -90,
                   position: 'insideLeft'
                 }} domain={[0, 'dataMax']} />
@@ -721,11 +729,15 @@ export function ChartPreview({
               }}>
                   <XAxis dataKey="name" tick={{
                   fontSize: 11
-                }} angle={-45} textAnchor="end" height={80} interval={0} />
+                }} angle={-45} textAnchor="end" height={80} interval={0} label={{
+                  value: config.xAxisLabel || 'Category',
+                  position: 'insideBottom',
+                  offset: -5
+                }} />
                   <YAxis tick={{
                   fontSize: 11
                 }} label={{
-                  value: getFormFieldName(primaryMetric),
+                  value: config.yAxisLabel || getFormFieldName(primaryMetric),
                   angle: -90,
                   position: 'insideLeft'
                 }} domain={[0, 'dataMax']} />
@@ -755,11 +767,15 @@ export function ChartPreview({
           }}>
               <XAxis dataKey="name" tick={{
               fontSize: 12
-            }} angle={-45} textAnchor="end" height={80} />
+            }} angle={-45} textAnchor="end" height={80} label={{
+              value: config.xAxisLabel || 'Category',
+              position: 'insideBottom',
+              offset: -5
+            }} />
               <YAxis dataKey={primaryMetric} tick={{
               fontSize: 12
             }} label={{
-              value: primaryMetric,
+              value: config.yAxisLabel || getFormFieldName(primaryMetric),
               angle: -90,
               position: 'insideLeft'
             }} />
@@ -990,9 +1006,32 @@ export function ChartPreview({
           </div>
         </div>}
 
-      {/* Chart Container */}
-      <div className="flex-1 min-h-0">
-        {renderChart()}
+      {/* Chart Container - Always positioned at bottom */}
+      <div className="flex-1 min-h-0 flex flex-col justify-end">
+        <div className="h-full min-h-[300px]">
+          {config.showAsTable ? (
+            <div className="h-full overflow-auto">
+              <table className="w-full border-collapse border border-border">
+                <thead>
+                  <tr>
+                    <th className="border border-border p-2 bg-muted text-left">Category</th>
+                    <th className="border border-border p-2 bg-muted text-left">Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {chartData.map((item, index) => (
+                    <tr key={index}>
+                      <td className="border border-border p-2">{item.name}</td>
+                      <td className="border border-border p-2">{item.value || item.count || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            renderChart()
+          )}
+        </div>
       </div>
     </div>;
 }
