@@ -179,6 +179,8 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
   };
 
   const handleCellDrilldown = (fieldId: string, value: string, label: string) => {
+    console.log('Cell clicked for drilldown:', { fieldId, value, label });
+    
     // Use external drilldown handler if available (for report editor)
     if (onDrilldown) {
       onDrilldown(fieldId, value);
@@ -200,6 +202,7 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
         newFilters = [...prev.activeColumnFilters, { fieldId, value, label }];
       }
 
+      console.log('Updated drilldown filters:', newFilters);
       return {
         ...prev,
         activeColumnFilters: newFilters
@@ -578,18 +581,18 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
                               }
                             </span>
                              
-                             {/* Show drilldown button for drilldown fields when column is active or when it's a configured drilldown field */}
-                             {((isColumnDrilldownActive && !isFilteredValue) || (isDrilldownField && !isExternalFiltered)) && (
-                               <Button
-                                 variant="ghost"
-                                 size="sm"
-                                 className="h-5 w-5 p-0 text-xs"
-                                 onClick={() => handleCellDrilldown(field.id, fieldValue.toString(), field.label)}
-                                 title="Filter by this value"
-                               >
-                                 ⬇
-                               </Button>
-                             )}
+                              {/* Show drilldown button only when drilldown is enabled for this field and not already filtered */}
+                              {isDrilldownField && !isFilteredValue && !isExternalFiltered && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-5 w-5 p-0 text-xs"
+                                  onClick={() => handleCellDrilldown(field.id, fieldValue.toString(), field.label)}
+                                  title="Filter by this value"
+                                >
+                                  ⬇
+                                </Button>
+                              )}
                              
                              {(isFilteredValue || isExternalFiltered) && (
                                <Badge variant="default" className="text-xs">Active</Badge>
