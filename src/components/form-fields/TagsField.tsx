@@ -1,3 +1,4 @@
+
 import React, { useState, KeyboardEvent } from 'react';
 import { FormField } from '@/types/form';
 import { Label } from '@/components/ui/label';
@@ -19,20 +20,33 @@ export function TagsField({ field, value = [], onChange, error, disabled = false
   const readOnly = field.customConfig?.readOnly || false;
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' || e.key === ',') {
+    if (e.key === 'Enter') {
       e.preventDefault();
       addTag();
+    } else if (e.key === ',' || e.key === ' ') {
+      // Allow comma and space to add tags, but don't prevent the comma from being typed
+      if (e.key === ',') {
+        e.preventDefault();
+      }
+      // For space, only add tag if there's content and it doesn't end with a space already
+      if (e.key === ' ' && inputValue.trim() && !inputValue.endsWith(' ')) {
+        e.preventDefault();
+        addTag();
+      } else if (e.key === ',') {
+        addTag();
+      }
     } else if (e.key === 'Backspace' && inputValue === '' && value.length > 0) {
+      // Remove last tag if input is empty
       onChange(value.slice(0, -1));
     }
   };
 
   const addTag = () => {
-    const tags = inputValue
-      .split(',')
-      .map(tag => tag.trim())
-      .filter(tag => tag !== '');
-
+    const trimmedValue = inputValue.trim();
+    
+    // Handle comma-separated tags
+    const tags = trimmedValue.split(',').map(tag => tag.trim()).filter(tag => tag !== '');
+    
     const newTags = tags.filter(tag => !value.includes(tag));
     if (newTags.length > 0) {
       const totalNewTags = value.length + newTags.length;
@@ -40,6 +54,7 @@ export function TagsField({ field, value = [], onChange, error, disabled = false
         onChange([...value, ...newTags]);
         setInputValue('');
       } else if (maxTags && value.length < maxTags) {
+        // Add as many as possible within the limit
         const availableSlots = maxTags - value.length;
         const tagsToAdd = newTags.slice(0, availableSlots);
         onChange([...value, ...tagsToAdd]);
@@ -64,11 +79,7 @@ export function TagsField({ field, value = [], onChange, error, disabled = false
         {maxTags && <span className="text-xs text-gray-500 ml-2">({value.length}/{maxTags})</span>}
       </Label>
       
-      <div
-        className={`min-h-[42px] border rounded-md p-2 flex flex-wrap gap-2 ${
-          error ? 'border-red-500' : 'border-gray-300'
-        } ${disabled || readOnly ? 'bg-gray-50' : 'bg-white'}`}
-      >
+      <div className={`min-h-[42px] border rounded-md p-2 flex flex-wrap gap-2 ${error ? 'border-red-500' : 'border-gray-300'} ${disabled || readOnly ? 'bg-gray-50' : 'bg-white'}`}>
         {value.map((tag, index) => (
           <Badge key={index} variant="secondary" className="flex items-center gap-1">
             {tag}
