@@ -38,6 +38,17 @@ export function CurrencyField({ field, value, onChange, error, disabled }: Curre
   const [currency, setCurrency] = useState(parsedValue.currency);
   const [baseAmount, setBaseAmount] = useState(parsedValue.amount); // Amount in base currency (USD)
 
+  // Update state when value prop changes (from rules or external sources)
+  useEffect(() => {
+    const newParsedValue = typeof value === 'string' 
+      ? { amount: parseFloat(value) || 0, currency: defaultCurrency }
+      : value || { amount: 0, currency: defaultCurrency };
+    
+    setAmount(newParsedValue.amount);
+    setCurrency(newParsedValue.currency);
+    setBaseAmount(newParsedValue.amount);
+  }, [value, defaultCurrency]);
+
   // Get available currencies
   const availableCurrencies = config.currencyList && config.currencyList.length > 0
     ? CURRENCIES.filter(c => config.currencyList.includes(c.code))

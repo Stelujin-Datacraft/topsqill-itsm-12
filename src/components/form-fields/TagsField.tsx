@@ -20,9 +20,21 @@ export function TagsField({ field, value = [], onChange, error, disabled = false
   const readOnly = field.customConfig?.readOnly || false;
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' || e.key === ',') {
+    if (e.key === 'Enter') {
       e.preventDefault();
       addTag();
+    } else if (e.key === ',' || e.key === ' ') {
+      // Allow comma and space to add tags, but don't prevent the comma from being typed
+      if (e.key === ',') {
+        e.preventDefault();
+      }
+      // For space, only add tag if there's content and it doesn't end with a space already
+      if (e.key === ' ' && inputValue.trim() && !inputValue.endsWith(' ')) {
+        e.preventDefault();
+        addTag();
+      } else if (e.key === ',') {
+        addTag();
+      }
     } else if (e.key === 'Backspace' && inputValue === '' && value.length > 0) {
       // Remove last tag if input is empty
       onChange(value.slice(0, -1));
@@ -31,11 +43,25 @@ export function TagsField({ field, value = [], onChange, error, disabled = false
 
   const addTag = () => {
     const trimmedValue = inputValue.trim();
-    if (trimmedValue && !value.includes(trimmedValue)) {
-      if (!maxTags || value.length < maxTags) {
-        onChange([...value, trimmedValue]);
+    
+    // Handle comma-separated tags
+    const tags = trimmedValue.split(',').map(tag => tag.trim()).filter(tag => tag !== '');
+    
+    const newTags = tags.filter(tag => !value.includes(tag));
+    if (newTags.length > 0) {
+      const totalNewTags = value.length + newTags.length;
+      if (!maxTags || totalNewTags <= maxTags) {
+        onChange([...value, ...newTags]);
+        setInputValue('');
+      } else if (maxTags && value.length < maxTags) {
+        // Add as many as possible within the limit
+        const availableSlots = maxTags - value.length;
+        const tagsToAdd = newTags.slice(0, availableSlots);
+        onChange([...value, ...tagsToAdd]);
         setInputValue('');
       }
+    } else {
+      setInputValue('');
     }
   };
 

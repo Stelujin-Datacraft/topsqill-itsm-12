@@ -29,6 +29,32 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
 
   const config = field.customConfig || {};
   const allowMultiple = config.allowMultiple || false;
+
+  // Handle default values from rules - ensure they're within allowed users/groups
+  useEffect(() => {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const { users: userIds = [], groups: groupIds = [] } = value;
+      const allowedUsers = (config as any)?.allowedUsers || [];
+      const allowedGroups = (config as any)?.allowedGroups || [];
+      
+      // Filter default values to only include allowed ones
+      let filteredUsers = userIds;
+      let filteredGroups = groupIds;
+      
+      if (allowedUsers.length > 0) {
+        filteredUsers = userIds.filter(userId => allowedUsers.includes(userId));
+      }
+      
+      if (allowedGroups.length > 0) {
+        filteredGroups = groupIds.filter(groupId => allowedGroups.includes(groupId));
+      }
+      
+      // Update value if filtering occurred
+      if (filteredUsers.length !== userIds.length || filteredGroups.length !== groupIds.length) {
+        onChange({ users: filteredUsers, groups: filteredGroups });
+      }
+    }
+  }, [value, config, onChange]);
   
   // Normalize value to handle both old format (array of user IDs) and new format (object with users/groups)
   const normalizedValue = React.useMemo(() => {
