@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 interface PhoneFieldProps {
   field: FormField;
-  value: string;
+  value: string | { number: string; countryCode: string } | any;
   onChange: (value: string) => void;
   error?: string;
   disabled?: boolean;
@@ -33,14 +33,32 @@ export function PhoneField({ field, value, onChange, error, disabled }: PhoneFie
 
   // Parse existing value
   useEffect(() => {
-    if (value && value.includes(' ')) {
-      const [code, number] = value.split(' ');
-      setCountryCode(code);
-      setPhoneNumber(number);
-    } else if (value) {
-      setPhoneNumber(value);
+    if (!value) {
+      setCountryCode(config.defaultCountry || '+1');
+      setPhoneNumber('');
+      return;
     }
-  }, [value]);
+
+    // Handle object format from rules
+    if (typeof value === 'object' && value !== null) {
+      if (value.countryCode && value.number !== undefined) {
+        setCountryCode(value.countryCode);
+        setPhoneNumber(value.number);
+      }
+      return;
+    }
+
+    // Handle string format
+    if (typeof value === 'string') {
+      if (value.includes(' ')) {
+        const [code, number] = value.split(' ');
+        setCountryCode(code);
+        setPhoneNumber(number);
+      } else {
+        setPhoneNumber(value);
+      }
+    }
+  }, [value, config.defaultCountry]);
 
   const handleCountryChange = (newCountryCode: string) => {
     setCountryCode(newCountryCode);
