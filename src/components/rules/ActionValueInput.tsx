@@ -7,10 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Check, ChevronDown, X, Users, Loader2 } from 'lucide-react';
+import { Check, ChevronDown, X, Users, Loader2, Upload, Phone } from 'lucide-react';
 import { useProject } from '@/contexts/ProjectContext';
 import { useProjectMembership } from '@/hooks/useProjectMembership';
 import { cn } from '@/lib/utils';
@@ -290,8 +292,8 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
       );
     }
 
-    // Select/Radio/Dropdown fields
-    if (['select', 'radio', 'multi-select'].includes(targetField.type) && targetField.options) {
+    // Select/Radio fields (single selection)
+    if (['select', 'radio'].includes(targetField.type) && targetField.options) {
       return (
         <Select value={value || ''} onValueChange={onChange}>
           <SelectTrigger>
@@ -305,6 +307,41 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
             ))}
           </SelectContent>
         </Select>
+      );
+    }
+
+    // Multi-select field (multiple selection with checkboxes)
+    if (targetField.type === 'multi-select' && targetField.options) {
+      const currentValues = Array.isArray(value) ? value : [];
+      const handleOptionToggle = (optionValue: string) => {
+        const newValues = currentValues.includes(optionValue)
+          ? currentValues.filter(v => v !== optionValue)
+          : [...currentValues, optionValue];
+        onChange(newValues);
+      };
+
+      return (
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Select multiple values:</Label>
+          <div className="max-h-48 overflow-y-auto border rounded-md p-2 space-y-2">
+            {targetField.options.filter((option: any) => option.value && option.value.trim() !== '').map((option: any) => (
+              <div key={option.id || option.value} className="flex items-center space-x-2">
+                <Checkbox
+                  checked={currentValues.includes(option.value)}
+                  onCheckedChange={() => handleOptionToggle(option.value)}
+                />
+                <Label className="text-sm cursor-pointer flex-1">
+                  {option.label || option.value}
+                </Label>
+              </div>
+            ))}
+          </div>
+          {currentValues.length > 0 && (
+            <div className="text-xs text-muted-foreground">
+              Selected: {currentValues.join(', ')}
+            </div>
+          )}
+        </div>
       );
     }
 
@@ -365,18 +402,31 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
       );
     }
 
-    // Checkbox/Toggle field
-    if (targetField.type === 'checkbox' || targetField.type === 'toggle-switch') {
+    // Checkbox field
+    if (targetField.type === 'checkbox') {
       return (
         <div className="flex items-center space-x-2">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={value === true || value === 'true'}
-            onChange={(e) => onChange(e.target.checked)}
-            className="rounded"
+            onCheckedChange={(checked) => onChange(checked)}
           />
           <Label className="text-sm">
             {value === true || value === 'true' ? 'Checked' : 'Unchecked'}
+          </Label>
+        </div>
+      );
+    }
+
+    // Toggle Switch field
+    if (targetField.type === 'toggle-switch') {
+      return (
+        <div className="flex items-center space-x-2">
+          <Switch
+            checked={value === true || value === 'true'}
+            onCheckedChange={(checked) => onChange(checked)}
+          />
+          <Label className="text-sm">
+            {value === true || value === 'true' ? 'On' : 'Off'}
           </Label>
         </div>
       );
@@ -470,13 +520,43 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
 
     // Phone field
     if (targetField.type === 'phone') {
+      const phoneValue = typeof value === 'object' ? value : { number: value || '', countryCode: '+1' };
       return (
-        <Input
-          type="tel"
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Enter phone number"
-        />
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Phone Number:</Label>
+          <div className="flex space-x-2">
+            <Select
+              value={phoneValue.countryCode || '+1'}
+              onValueChange={(countryCode) => onChange({ ...phoneValue, countryCode })}
+            >
+              <SelectTrigger className="w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="+1">🇺🇸 +1</SelectItem>
+                <SelectItem value="+44">🇬🇧 +44</SelectItem>
+                <SelectItem value="+33">🇫🇷 +33</SelectItem>
+                <SelectItem value="+49">🇩🇪 +49</SelectItem>
+                <SelectItem value="+81">🇯🇵 +81</SelectItem>
+                <SelectItem value="+86">🇨🇳 +86</SelectItem>
+                <SelectItem value="+91">🇮🇳 +91</SelectItem>
+                <SelectItem value="+61">🇦🇺 +61</SelectItem>
+                <SelectItem value="+55">🇧🇷 +55</SelectItem>
+                <SelectItem value="+7">🇷🇺 +7</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input
+              type="tel"
+              value={phoneValue.number || ''}
+              onChange={(e) => onChange({ ...phoneValue, number: e.target.value })}
+              placeholder="Phone number"
+              className="flex-1"
+            />
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Full number: {phoneValue.countryCode}{phoneValue.number}
+          </div>
+        </div>
       );
     }
 
@@ -542,6 +622,27 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
           onChange={(e) => onChange(e.target.value)}
           placeholder="Enter barcode value"
         />
+      );
+    }
+
+    // File field
+    if (targetField.type === 'file') {
+      return (
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Default File Message:</Label>
+          <Input
+            type="text"
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Enter message about default file (e.g., 'Default template.pdf')"
+          />
+          <div className="flex items-center space-x-2 p-3 border-2 border-dashed border-muted-foreground/25 rounded-md">
+            <Upload className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">
+              File upload defaults cannot be set through rules. Users must upload files during form submission.
+            </span>
+          </div>
+        </div>
       );
     }
 

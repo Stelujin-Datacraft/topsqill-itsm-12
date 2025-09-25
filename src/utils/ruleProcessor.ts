@@ -200,9 +200,9 @@ export class RuleProcessor {
               emptyValue = { street: '', city: '', state: '', postal: '', country: '' };
               break;
             case 'phone':
-              emptyValue = '';
+              emptyValue = { number: '', countryCode: '+1' };
               break;
-            case 'signature':
+            case 'file':
               emptyValue = null;
               break;
             case 'number':
