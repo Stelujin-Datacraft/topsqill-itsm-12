@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -339,6 +340,224 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
           value={value || ''}
           onChange={(e) => onChange(e.target.value)}
         />
+      );
+    }
+
+    // Time field
+    if (targetField.type === 'time') {
+      return (
+        <Input
+          type="time"
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      );
+    }
+
+    // DateTime field
+    if (targetField.type === 'datetime') {
+      return (
+        <Input
+          type="datetime-local"
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      );
+    }
+
+    // Checkbox/Toggle field
+    if (targetField.type === 'checkbox' || targetField.type === 'toggle-switch') {
+      return (
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            checked={value === true || value === 'true'}
+            onChange={(e) => onChange(e.target.checked)}
+            className="rounded"
+          />
+          <Label className="text-sm">
+            {value === true || value === 'true' ? 'Checked' : 'Unchecked'}
+          </Label>
+        </div>
+      );
+    }
+
+    // Slider field
+    if (targetField.type === 'slider') {
+      const min = targetField.validation?.min || 0;
+      const max = targetField.validation?.max || 100;
+      return (
+        <div className="space-y-2">
+          <input
+            type="range"
+            min={min}
+            max={max}
+            value={value || min}
+            onChange={(e) => onChange(Number(e.target.value))}
+            className="w-full"
+          />
+          <div className="text-sm text-center">Value: {value || min}</div>
+        </div>
+      );
+    }
+
+    // Rating field
+    if (targetField.type === 'rating') {
+      const config = targetField.customConfig as any || {};
+      const maxRating = config.maxRating || 5;
+      return (
+        <div className="space-y-2">
+          <Input
+            type="number"
+            min={1}
+            max={maxRating}
+            value={value || ''}
+            onChange={(e) => onChange(Number(e.target.value))}
+            placeholder={`Rating (1-${maxRating})`}
+          />
+        </div>
+      );
+    }
+
+    // Tags field
+    if (targetField.type === 'tags') {
+      const tagsArray = Array.isArray(value) ? value : [];
+      return (
+        <div className="space-y-2">
+          <textarea
+            className="w-full p-2 border rounded min-h-[60px] text-sm"
+            value={tagsArray.join(', ')}
+            onChange={(e) => {
+              const tags = e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag);
+              onChange(tags);
+            }}
+            placeholder="Enter tags separated by commas"
+          />
+          <p className="text-xs text-muted-foreground">Separate tags with commas</p>
+        </div>
+      );
+    }
+
+    // Currency field
+    if (targetField.type === 'currency') {
+      const currencyValue = typeof value === 'object' ? value : { amount: 0, currency: 'USD' };
+      return (
+        <div className="space-y-2">
+          <Input
+            type="number"
+            step="0.01"
+            value={currencyValue.amount || ''}
+            onChange={(e) => onChange({ ...currencyValue, amount: Number(e.target.value) })}
+            placeholder="Amount"
+          />
+          <Select
+            value={currencyValue.currency || 'USD'}
+            onValueChange={(currency) => onChange({ ...currencyValue, currency })}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="USD">USD ($)</SelectItem>
+              <SelectItem value="EUR">EUR (€)</SelectItem>
+              <SelectItem value="GBP">GBP (£)</SelectItem>
+              <SelectItem value="JPY">JPY (¥)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+
+    // Phone field
+    if (targetField.type === 'phone') {
+      return (
+        <Input
+          type="tel"
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Enter phone number"
+        />
+      );
+    }
+
+    // Address field
+    if (targetField.type === 'address') {
+      const addressValue = typeof value === 'object' ? value : {};
+      return (
+        <div className="space-y-2">
+          <Input
+            value={addressValue.street || ''}
+            onChange={(e) => onChange({ ...addressValue, street: e.target.value })}
+            placeholder="Street Address"
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <Input
+              value={addressValue.city || ''}
+              onChange={(e) => onChange({ ...addressValue, city: e.target.value })}
+              placeholder="City"
+            />
+            <Input
+              value={addressValue.state || ''}
+              onChange={(e) => onChange({ ...addressValue, state: e.target.value })}
+              placeholder="State"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Input
+              value={addressValue.postal || ''}
+              onChange={(e) => onChange({ ...addressValue, postal: e.target.value })}
+              placeholder="Postal Code"
+            />
+            <Input
+              value={addressValue.country || ''}
+              onChange={(e) => onChange({ ...addressValue, country: e.target.value })}
+              placeholder="Country"
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // Signature field
+    if (targetField.type === 'signature') {
+      return (
+        <div className="space-y-2">
+          <div className="p-4 border-2 border-dashed border-muted-foreground/25 rounded-md text-center">
+            <p className="text-sm text-muted-foreground">
+              Signature fields cannot have default values in rules.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Signatures must be created by users during form submission.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // Barcode field
+    if (targetField.type === 'barcode') {
+      return (
+        <Input
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Enter barcode value"
+        />
+      );
+    }
+
+    // Submission access field
+    if (targetField.type === 'submission-access') {
+      return (
+        <Select value={value || ''} onValueChange={onChange}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select access level" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="public">Public</SelectItem>
+            <SelectItem value="private">Private</SelectItem>
+            <SelectItem value="restricted">Restricted</SelectItem>
+          </SelectContent>
+        </Select>
       );
     }
   }

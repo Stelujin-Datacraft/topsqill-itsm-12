@@ -180,9 +180,52 @@ export class RuleProcessor {
         break;
       
       case 'clearValue':
+        // Get the target field to determine appropriate empty value
+        const targetField = context.formFields.find(f => f.id === targetId);
+        let emptyValue: any = '';
+        
+        if (targetField) {
+          switch (targetField.type) {
+            case 'tags':
+              emptyValue = [];
+              break;
+            case 'multi-select':
+            case 'checkbox':
+              emptyValue = [];
+              break;
+            case 'currency':
+              emptyValue = { amount: 0, currency: 'USD' };
+              break;
+            case 'address':
+              emptyValue = { street: '', city: '', state: '', postal: '', country: '' };
+              break;
+            case 'phone':
+              emptyValue = '';
+              break;
+            case 'signature':
+              emptyValue = null;
+              break;
+            case 'number':
+            case 'rating':
+            case 'slider':
+              emptyValue = 0;
+              break;
+            case 'toggle-switch':
+              emptyValue = false;
+              break;
+            case 'date':
+            case 'time':
+            case 'datetime':
+              emptyValue = null;
+              break;
+            default:
+              emptyValue = '';
+          }
+        }
+        
         setFormData(prev => ({
           ...prev,
-          [targetId]: ''
+          [targetId]: emptyValue
         }));
         break;
       
