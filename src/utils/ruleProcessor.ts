@@ -34,6 +34,38 @@ export interface ProcessedFieldState {
 }
 
 export class RuleProcessor {
+  // Helper method to safely convert values to searchable strings
+  private static valueToSearchableString(value: any): string {
+    if (value === null || value === undefined) return '';
+    
+    // Handle complex field types
+    if (typeof value === 'object') {
+      if (Array.isArray(value)) {
+        return value.join(' ').toLowerCase();
+      }
+      
+      // Handle phone object
+      if (value.number !== undefined && value.countryCode !== undefined) {
+        return `${value.countryCode} ${value.number}`.toLowerCase();
+      }
+      
+      // Handle currency object
+      if (value.amount !== undefined && value.currency !== undefined) {
+        return `${value.amount} ${value.currency}`.toLowerCase();
+      }
+      
+      // Handle address object
+      if (value.street !== undefined || value.city !== undefined) {
+        return `${value.street || ''} ${value.city || ''} ${value.state || ''} ${value.postal || ''} ${value.country || ''}`.toLowerCase().trim();
+      }
+      
+      // Handle other objects by converting to JSON string
+      return JSON.stringify(value).toLowerCase();
+    }
+    
+    return value.toString().toLowerCase();
+  }
+
   static evaluateCondition(
     operator: FieldOperator,
     currentValue: any,
@@ -53,13 +85,21 @@ export class RuleProcessor {
       case '>=':
         return Number(currentValue) >= Number(conditionValue);
       case 'contains':
-        return currentValue.toString().toLowerCase().includes(conditionValue.toString().toLowerCase());
+        const currentStr = this.valueToSearchableString(currentValue);
+        const conditionStr = this.valueToSearchableString(conditionValue);
+        return currentStr.includes(conditionStr);
       case 'not contains':
-        return !currentValue.toString().toLowerCase().includes(conditionValue.toString().toLowerCase());
+        const currentStr2 = this.valueToSearchableString(currentValue);
+        const conditionStr2 = this.valueToSearchableString(conditionValue);
+        return !currentStr2.includes(conditionStr2);
       case 'startsWith':
-        return currentValue.toString().toLowerCase().startsWith(conditionValue.toString().toLowerCase());
+        const currentStr3 = this.valueToSearchableString(currentValue);
+        const conditionStr3 = this.valueToSearchableString(conditionValue);
+        return currentStr3.startsWith(conditionStr3);
       case 'endsWith':
-        return currentValue.toString().toLowerCase().endsWith(conditionValue.toString().toLowerCase());
+        const currentStr4 = this.valueToSearchableString(currentValue);
+        const conditionStr4 = this.valueToSearchableString(conditionValue);
+        return currentStr4.endsWith(conditionStr4);
       case 'in':
         const values = Array.isArray(conditionValue) ? conditionValue : [conditionValue];
         return values.includes(currentValue);
