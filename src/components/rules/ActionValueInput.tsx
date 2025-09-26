@@ -12,7 +12,8 @@ import { Switch } from '@/components/ui/switch';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Check, ChevronDown, X, Users, Loader2, Upload, Phone } from 'lucide-react';
+import { Check, ChevronDown, X, Users, Loader2, Upload, Phone, ChevronsUpDown } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useProject } from '@/contexts/ProjectContext';
 import { useProjectMembership } from '@/hooks/useProjectMembership';
 import { cn } from '@/lib/utils';
@@ -35,6 +36,7 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
   const [searchTerm, setSearchTerm] = useState('');
   const [countries, setCountries] = useState<Country[]>([]);
   const [countriesLoading, setCountriesLoading] = useState(false);
+  const [isCountryOpen, setIsCountryOpen] = useState(false);
   const { currentProject } = useProject();
   const { projectMembers, loading } = useProjectMembership(currentProject?.id || '');
 
@@ -588,11 +590,49 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
               onChange={(e) => onChange({ ...addressValue, postal: e.target.value })}
               placeholder="Postal Code"
             />
-            <Input
-              value={addressValue.country || ''}
-              onChange={(e) => onChange({ ...addressValue, country: e.target.value })}
-              placeholder="Country"
-            />
+            <Popover open={isCountryOpen} onOpenChange={setIsCountryOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={isCountryOpen}
+                  className="justify-between"
+                >
+                  {addressValue.country 
+                    ? countries.find(country => country.code === addressValue.country)?.name || addressValue.country
+                    : "Select country..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[200px] p-0">
+                <Command>
+                  <CommandInput placeholder="Search country..." />
+                  <CommandEmpty>No country found.</CommandEmpty>
+                  <CommandGroup>
+                    <ScrollArea className="h-[200px]">
+                      {countries.map((country) => (
+                        <CommandItem
+                          key={country.code}
+                          value={country.name}
+                          onSelect={() => {
+                            onChange({ ...addressValue, country: country.code });
+                            setIsCountryOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              addressValue.country === country.code ? "opacity-100" : "opacity-0"
+                            }`}
+                          />
+                          <span className="mr-2">{country.flag}</span>
+                          {country.name}
+                        </CommandItem>
+                      ))}
+                    </ScrollArea>
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       );

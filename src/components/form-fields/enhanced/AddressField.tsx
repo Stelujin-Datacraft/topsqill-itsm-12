@@ -274,6 +274,25 @@ export function AddressField({ field, value = {}, onChange, error, disabled }: A
 
   const [countryOpen, setCountryOpen] = useState(false);
 
+  // Update addressData when value prop changes (for rule-based updates)
+  useEffect(() => {
+    if (value && typeof value === 'object') {
+      setAddressData(prev => ({
+        ...prev,
+        ...value
+      }));
+    } else if (!value || (typeof value === 'object' && Object.keys(value).length === 0)) {
+      // Clear values when rule clears the field
+      setAddressData({
+        street: '',
+        city: '',
+        state: '',
+        postal: '',
+        country: ''
+      });
+    }
+  }, [value]);
+
   const handleFieldChange = (fieldName: string, fieldValue: string) => {
     const newData = { ...addressData, [fieldName]: fieldValue };
     setAddressData(newData);
