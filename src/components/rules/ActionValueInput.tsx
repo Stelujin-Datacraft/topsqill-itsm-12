@@ -868,32 +868,36 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[200px] p-0">
-                <Command>
-                  <CommandInput placeholder="Search country..." />
-                  <CommandEmpty>No country found.</CommandEmpty>
-                  <CommandGroup>
-                    <ScrollArea className="h-[200px]">
-                      {countries.map((country) => (
-                        <CommandItem
-                          key={country.code}
-                          value={country.name}
-                          onSelect={() => {
-                            onChange({ ...addressValue, country: country.code });
-                            setIsCountryOpen(false);
-                          }}
-                        >
-                          <Check
-                            className={`mr-2 h-4 w-4 ${
-                              addressValue.country === country.code ? "opacity-100" : "opacity-0"
-                            }`}
-                          />
-                          <span className="mr-2">{country.flag}</span>
-                          {country.name}
-                        </CommandItem>
-                      ))}
-                    </ScrollArea>
-                  </CommandGroup>
-                </Command>
+                  <Command>
+                    <CommandInput placeholder="Search country..." />
+                    <CommandEmpty>No country found.</CommandEmpty>
+                    <CommandGroup>
+                      <ScrollArea className="h-[200px]">
+                        {Array.isArray(countries) && countries.length > 0 ? countries.map((country) => (
+                          <CommandItem
+                            key={country.code}
+                            value={country.name}
+                            onSelect={() => {
+                              onChange({ ...addressValue, country: country.code });
+                              setIsCountryOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={`mr-2 h-4 w-4 ${
+                                addressValue.country === country.code ? "opacity-100" : "opacity-0"
+                              }`}
+                            />
+                            <span className="mr-2">{country.flag}</span>
+                            {country.name}
+                          </CommandItem>
+                        )) : (
+                          <div className="p-2 text-sm text-muted-foreground">
+                            {countriesLoading ? 'Loading countries...' : 'No countries available'}
+                          </div>
+                        )}
+                      </ScrollArea>
+                    </CommandGroup>
+                  </Command>
               </PopoverContent>
             </Popover>
           </div>
