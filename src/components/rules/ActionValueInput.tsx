@@ -805,92 +805,82 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
     }
 
     // Address field
-    if (targetField.type === 'address') {
-      const addressValue = typeof value === 'object' ? value : {};
-      return (
-        <div className="space-y-2">
-          <Input
-            value={addressValue.street || ''}
-            onChange={(e) => onChange({ ...addressValue, street: e.target.value })}
-            placeholder="Street Address"
-          />
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              value={addressValue.city || ''}
-              onChange={(e) => onChange({ ...addressValue, city: e.target.value })}
-              placeholder="City"
-            />
-            <Input
-              value={addressValue.state || ''}
-              onChange={(e) => onChange({ ...addressValue, state: e.target.value })}
-              placeholder="State"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              value={addressValue.postal || ''}
-              onChange={(e) => onChange({ ...addressValue, postal: e.target.value })}
-              placeholder="Postal Code"
-            />
-            <Popover open={isCountryOpen} onOpenChange={setIsCountryOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={isCountryOpen}
-                  className="justify-between"
-                >
-                  {addressValue.country ? (
-                    (() => {
-                      const selectedCountry = countries.find(country => country.code === addressValue.country);
-                      return selectedCountry ? (
-                        <div className="flex items-center gap-2">
-                          <span className="text-base">{selectedCountry.flag}</span>
-                          <span>{selectedCountry.name}</span>
-                        </div>
-                      ) : addressValue.country;
-                    })()
-                  ) : "Select country..."}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[200px] p-0">
-                  <Command>
-                    <CommandInput placeholder="Search country..." />
-                    <CommandEmpty>No country found.</CommandEmpty>
-                    <CommandGroup>
-                      <ScrollArea className="h-[200px]">
-                        {Array.isArray(countries) && countries.length > 0 ? countries.map((country) => (
-                          <CommandItem
-                            key={country.code}
-                            value={country.name}
-                            onSelect={() => {
-                              onChange({ ...addressValue, country: country.code });
-                              setIsCountryOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={`mr-2 h-4 w-4 ${
-                                addressValue.country === country.code ? "opacity-100" : "opacity-0"
-                              }`}
-                            />
-                            <span className="mr-2">{country.flag}</span>
-                            {country.name}
-                          </CommandItem>
-                        )) : (
-                          <div className="p-2 text-sm text-muted-foreground">
-                            {countriesLoading ? 'Loading countries...' : 'No countries available'}
-                          </div>
-                        )}
-                      </ScrollArea>
-                    </CommandGroup>
-                  </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
-        </div>
-      );
-    }
+if (targetField.type === 'address') {
+  const addressValue = typeof value === 'object' ? value : {};
+  const safeCountries = Array.isArray(countries) ? countries : [];
+  const selectedCountry = safeCountries.find(
+    (country) => country.code === addressValue.country
+  );
+
+  return (
+    <div className="space-y-2">
+      <Input
+        value={addressValue.street || ''}
+        onChange={(e) => onChange({ ...addressValue, street: e.target.value })}
+        placeholder="Street Address"
+      />
+      <div className="grid grid-cols-2 gap-2">
+        <Input
+          value={addressValue.city || ''}
+          onChange={(e) => onChange({ ...addressValue, city: e.target.value })}
+          placeholder="City"
+        />
+        <Input
+          value={addressValue.state || ''}
+          onChange={(e) => onChange({ ...addressValue, state: e.target.value })}
+          placeholder="State"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Input
+          value={addressValue.postal || ''}
+          onChange={(e) => onChange({ ...addressValue, postal: e.target.value })}
+          placeholder="Postal Code"
+        />
+        <Popover open={isCountryOpen} onOpenChange={setIsCountryOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={isCountryOpen}
+              className="justify-between"
+            >
+              {selectedCountry ? selectedCountry.name : "Select country..."}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+
+          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+            <div className="max-h-60 overflow-auto">
+              {safeCountries.length > 0 ? (
+                safeCountries.map((country) => (
+                  <button
+                    key={country.code}
+                    type="button"
+                    className={`w-full px-3 py-2 text-left hover:bg-accent/40 ${
+                      selectedCountry?.code === country.code ? "bg-accent/20" : ""
+                    }`}
+                    onClick={() => {
+                      onChange({ ...addressValue, country: country.code });
+                      setIsCountryOpen(false);
+                    }}
+                  >
+                    <span className="text-sm">{country.name}</span>
+                  </button>
+                ))
+              ) : (
+                <div className="p-2 text-sm text-muted-foreground">
+                  {countriesLoading ? "Loading countries..." : "No countries available"}
+                </div>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+    </div>
+  );
+}
+
 
     // Signature field
     if (targetField.type === 'signature') {
