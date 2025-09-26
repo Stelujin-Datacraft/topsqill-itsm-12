@@ -38,12 +38,12 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
   const [countriesLoading, setCountriesLoading] = useState(false);
   const [isCountryOpen, setIsCountryOpen] = useState(false);
 
-  // Load countries when component mounts
+  // Load countries when component mounts for address and country fields
   useEffect(() => {
     const loadCountries = async () => {
       setCountriesLoading(true);
       try {
-        // Using a comprehensive list of countries
+        // Using a comprehensive list of countries with flags
         const countryList = [
           { code: 'AF', name: 'Afghanistan', flag: '🇦🇫' },
           { code: 'AL', name: 'Albania', flag: '🇦🇱' },
@@ -303,31 +303,6 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
   const { currentProject } = useProject();
   const { projectMembers, loading } = useProjectMembership(currentProject?.id || '');
 
-  // Fetch countries for country field types
-  useEffect(() => {
-    if (targetField?.type === 'country' && action === 'setDefault') {
-      const fetchCountries = async () => {
-        try {
-          setCountriesLoading(true);
-          const response = await axios.get('https://restcountries.com/v3.1/all?fields=name,flags,cca2');
-          const data = response.data.map((country: any) => ({
-            name: country.name?.common || '',
-            flag: country.flags?.svg || country.flags?.png || '',
-            code: country.cca2 || '',
-          }));
-          const sortedData = data.sort((a: Country, b: Country) => a.name.localeCompare(b.name));
-          setCountries(sortedData);
-        } catch (err) {
-          console.error('Error fetching countries:', err);
-        } finally {
-          setCountriesLoading(false);
-        }
-      };
-
-      fetchCountries();
-    }
-  }, [targetField?.type, action]);
-
   // Don't show input for actions that don't need values
   if (!['setDefault', 'changeLabel', 'showTooltip', 'showError', 'changeOptions'].includes(action)) {
     return null;
@@ -507,7 +482,7 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
             >
               {selectedCountry ? (
                 <div className="flex items-center gap-2">
-                  <img src={selectedCountry.flag} alt="" className="h-4 w-6 object-cover rounded-sm" />
+                  <span className="text-base">{selectedCountry.flag}</span>
                   <span>{selectedCountry.name}</span>
                 </div>
               ) : countriesLoading ? (
@@ -545,7 +520,7 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
                           value === country.code || value === country.name ? "opacity-100" : "opacity-0"
                         )}
                       />
-                      <img src={country.flag} alt="" className="h-4 w-6 object-cover rounded-sm" />
+                      <span className="text-base">{country.flag}</span>
                       <span>{country.name}</span>
                     </CommandItem>
                   )) : (
@@ -865,9 +840,17 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
                   aria-expanded={isCountryOpen}
                   className="justify-between"
                 >
-                  {addressValue.country 
-                    ? countries.find(country => country.code === addressValue.country)?.name || addressValue.country
-                    : "Select country..."}
+                  {addressValue.country ? (
+                    (() => {
+                      const selectedCountry = countries.find(country => country.code === addressValue.country);
+                      return selectedCountry ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">{selectedCountry.flag}</span>
+                          <span>{selectedCountry.name}</span>
+                        </div>
+                      ) : addressValue.country;
+                    })()
+                  ) : "Select country..."}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
