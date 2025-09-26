@@ -529,7 +529,7 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
                   {countriesLoading ? "Loading countries..." : "No countries found."}
                 </CommandEmpty>
                 <CommandGroup>
-                  {countries.map((country) => (
+                  {Array.isArray(countries) && countries.length > 0 ? countries.map((country) => (
                     <CommandItem
                       key={country.code}
                       value={country.name}
@@ -548,7 +548,11 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
                       <img src={country.flag} alt="" className="h-4 w-6 object-cover rounded-sm" />
                       <span>{country.name}</span>
                     </CommandItem>
-                  ))}
+                  )) : (
+                    <div className="p-2 text-sm text-muted-foreground">
+                      {countriesLoading ? 'Loading countries...' : 'No countries available'}
+                    </div>
+                  )}
                 </CommandGroup>
               </CommandList>
             </Command>
@@ -565,11 +569,11 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
             <SelectValue placeholder="Select value" />
           </SelectTrigger>
           <SelectContent>
-            {targetField.options.filter((option: any) => option.value && option.value.trim() !== '').map((option: any) => (
+            {Array.isArray(targetField.options) ? targetField.options.filter((option: any) => option.value && option.value.trim() !== '').map((option: any) => (
               <SelectItem key={option.id || option.value} value={option.value}>
                 {option.label || option.value}
               </SelectItem>
-            ))}
+            )) : null}
           </SelectContent>
         </Select>
       );
@@ -589,7 +593,7 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
         <div className="space-y-2">
           <Label className="text-sm font-medium">Select multiple values:</Label>
           <div className="max-h-48 overflow-y-auto border rounded-md p-2 space-y-2">
-            {targetField.options.filter((option: any) => option.value && option.value.trim() !== '').map((option: any) => (
+            {Array.isArray(targetField.options) ? targetField.options.filter((option: any) => option.value && option.value.trim() !== '').map((option: any) => (
               <div key={option.id || option.value} className="flex items-center space-x-2">
                 <Checkbox
                   checked={currentValues.includes(option.value)}
@@ -599,7 +603,7 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
                   {option.label || option.value}
                 </Label>
               </div>
-            ))}
+            )) : null}
           </div>
           {currentValues.length > 0 && (
             <div className="text-xs text-muted-foreground">
