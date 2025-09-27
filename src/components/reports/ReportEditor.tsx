@@ -50,7 +50,8 @@ export function ReportEditor({
     saveReportComponent,
     updateReportComponent,
     deleteReportComponent,
-    getFormFields
+    getFormFields,
+    updateReport
   } = useReports();
   const {
     toast
@@ -99,11 +100,23 @@ export function ReportEditor({
     setTempReportName(reportName);
   };
 
-  const handleSaveReportName = () => {
-    // This would typically save to the backend
-    // For now, we'll just update the local name and call onSave
-    setIsEditingName(false);
-    onSave();
+  const handleSaveReportName = async () => {
+    try {
+      // Update the report name in the database
+      await updateReport(reportId, { name: tempReportName });
+      setIsEditingName(false);
+      toast({
+        title: "Success",
+        description: "Report name updated successfully"
+      });
+    } catch (error) {
+      console.error('Error updating report name:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update report name",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleCancelEditingName = () => {
