@@ -107,24 +107,23 @@ export function ChartPropertiesPane({
                 <CardTitle className="text-sm font-medium">Basic Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="component-name">Component Name</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="component-name"
-                      value={componentName}
-                      onChange={(e) => setComponentName(e.target.value)}
-                      placeholder="Enter component name"
-                    />
-                    <Button
-                      size="sm"
-                      onClick={handleRename}
-                      disabled={componentName.trim() === component.config?.name}
-                    >
-                      Save
-                    </Button>
+                  <div className="space-y-2">
+                    <Label htmlFor="component-name">Component Name</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="component-name"
+                        key={component.id} // Force re-render when component changes
+                        defaultValue={component.config?.name || `${component.type} Component`}
+                        onBlur={(e) => {
+                          const newName = e.target.value.trim();
+                          if (newName && newName !== component.config?.name) {
+                            onRename(component.id, newName);
+                          }
+                        }}
+                        placeholder="Enter component name"
+                      />
+                    </div>
                   </div>
-                </div>
                 <div className="flex items-center gap-2">
                   <Label className="text-sm text-muted-foreground">Type:</Label>
                   <Badge variant="secondary" className="capitalize">
@@ -186,11 +185,13 @@ export function ChartPropertiesPane({
                         <Label htmlFor="x-axis-label" className="text-sm font-medium">X-Axis Label</Label>
                         <Input
                           id="x-axis-label"
-                          value={(component.config as any).xAxisLabel || ''}
-                          onChange={(e) => {
-                            onUpdateComponent(component.id, {
-                              config: { ...component.config, xAxisLabel: e.target.value }
-                            });
+                          defaultValue={(component.config as any).xAxisLabel || ''}
+                          onBlur={(e) => {
+                            if (e.target.value !== (component.config as any).xAxisLabel) {
+                              onUpdateComponent(component.id, {
+                                config: { ...component.config, xAxisLabel: e.target.value }
+                              });
+                            }
                           }}
                           placeholder="Enter X-axis label"
                           className="text-sm"
@@ -201,11 +202,13 @@ export function ChartPropertiesPane({
                         <Label htmlFor="y-axis-label" className="text-sm font-medium">Y-Axis Label</Label>
                         <Input
                           id="y-axis-label"
-                          value={(component.config as any).yAxisLabel || ''}
-                          onChange={(e) => {
-                            onUpdateComponent(component.id, {
-                              config: { ...component.config, yAxisLabel: e.target.value }
-                            });
+                          defaultValue={(component.config as any).yAxisLabel || ''}
+                          onBlur={(e) => {
+                            if (e.target.value !== (component.config as any).yAxisLabel) {
+                              onUpdateComponent(component.id, {
+                                config: { ...component.config, yAxisLabel: e.target.value }
+                              });
+                            }
                           }}
                           placeholder="Enter Y-axis label"
                           className="text-sm"
@@ -214,19 +217,33 @@ export function ChartPropertiesPane({
                       
                       {/* Show as Table Toggle */}
                       <div className="flex items-center justify-between py-2">
-                        <Label htmlFor="show-as-table" className="text-sm font-medium">Show as Table</Label>
-                        <Button
-                          id="show-as-table"
-                          variant={(component.config as any).showAsTable ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => {
-                            onUpdateComponent(component.id, {
-                              config: { ...component.config, showAsTable: !(component.config as any).showAsTable }
-                            });
-                          }}
-                        >
-                          {(component.config as any).showAsTable ? 'Table View' : 'Chart View'}
-                        </Button>
+                        <Label htmlFor="show-as-table" className="text-sm font-medium">View Mode</Label>
+                        <div className="flex items-center bg-muted rounded-lg p-1">
+                          <Button
+                            variant={(component.config as any).showAsTable ? "outline" : "default"}
+                            size="sm"
+                            onClick={() => {
+                              onUpdateComponent(component.id, {
+                                config: { ...component.config, showAsTable: false }
+                              });
+                            }}
+                            className="h-8 px-3 text-xs"
+                          >
+                            Chart
+                          </Button>
+                          <Button
+                            variant={(component.config as any).showAsTable ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => {
+                              onUpdateComponent(component.id, {
+                                config: { ...component.config, showAsTable: true }
+                              });
+                            }}
+                            className="h-8 px-3 text-xs"
+                          >
+                            Table
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

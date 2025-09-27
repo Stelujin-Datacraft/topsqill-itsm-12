@@ -551,10 +551,40 @@ export function ReportEditor({
       </div>
 
       {/* Properties Pane */}
-      <ChartPropertiesPane component={selectedComponent} isOpen={isPropertiesPaneOpen} onClose={handlePropertiesPaneClose} onEdit={handleEditComponent} onDelete={handleDeleteComponent} onRename={handleComponentRename} onApplyFilter={handleApplyFilter} onApplyDrilldown={handleApplyDrilldown} onChangeTheme={handleChangeTheme} onUpdateComponent={async (componentId, updates) => {
-      await updateReportComponent(componentId, updates);
-      loadComponents();
-    }} formFields={selectedComponent?.config?.formId ? getFormFields(selectedComponent.config.formId) : []} />
+      <ChartPropertiesPane 
+        component={selectedComponent} 
+        isOpen={isPropertiesPaneOpen} 
+        onClose={handlePropertiesPaneClose} 
+        onEdit={handleEditComponent} 
+        onDelete={handleDeleteComponent} 
+        onRename={handleComponentRename} 
+        onApplyFilter={handleApplyFilter} 
+        onApplyDrilldown={handleApplyDrilldown} 
+        onChangeTheme={handleChangeTheme} 
+        onUpdateComponent={async (componentId, updates) => {
+          try {
+            const component = components.find(c => c.id === componentId);
+            if (!component) return;
+            
+            const updatedConfig = { ...component.config, ...updates.config };
+            await updateReportComponent(componentId, { config: updatedConfig });
+            
+            setComponents(prev => prev.map(comp => 
+              comp.id === componentId 
+                ? { ...comp, config: updatedConfig }
+                : comp
+            ));
+            
+            // Update selected component to reflect changes immediately
+            if (selectedComponent?.id === componentId) {
+              setSelectedComponent({ ...component, config: updatedConfig });
+            }
+          } catch (error) {
+            console.error('Error updating component:', error);
+          }
+        }} 
+        formFields={selectedComponent?.config?.formId ? getFormFields(selectedComponent.config.formId) : []} 
+      />
 
       {/* Component Configuration Dialog */}
       <ComponentConfigDialog open={isConfigDialogOpen} onOpenChange={setIsConfigDialogOpen} componentType={newComponentType || editingComponent?.type || ''} initialConfig={editingComponent?.config} onSave={handleSaveComponent} />
