@@ -39,8 +39,8 @@ export function ChartPreview({
     // Reset drilldown functionality
   };
 
-  const getChartData = async () => {
-    if (!config.formId || !config.dimensions || !config.metrics) return [];
+  const getChartData = async (formId: string, dimensions: string[], metrics: string[], aggregation: string, filters: any[], drilldownLevels: string[], drilldownValues: string[], metricAggregations: any[], groupByField: any) => {
+    if (!formId || !dimensions || !metrics) return [];
     // Simplified data fetching
     return [];
   };
@@ -453,11 +453,11 @@ export function ChartPreview({
                       strokeWidth={3}
                       name={getFormFieldName(metric)}
                       dot={{ fill: colors[index % colors.length], strokeWidth: 2, r: 4 }}
-                      onClick={(data) => {
+                      onClick={(data: any) => {
                         if (config.drilldownConfig?.enabled && onDrilldown) {
                           const drilldownLevel = config.drilldownConfig.drilldownLevels?.[0];
                           if (drilldownLevel) {
-                            onDrilldown(drilldownLevel, data.name);
+                            onDrilldown(drilldownLevel, data.payload?.name || data.name);
                           }
                         }
                       }}
