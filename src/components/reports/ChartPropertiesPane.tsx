@@ -54,7 +54,7 @@ export function ChartPropertiesPane({
 
   React.useEffect(() => {
     if (component) {
-      setComponentName(component.config?.name || `${component.type} Component`);
+      setComponentName(component.config?.title || component.config?.name || `${component.type} Component`);
     }
   }, [component]);
 
@@ -63,8 +63,10 @@ export function ChartPropertiesPane({
   }
 
   const handleRename = () => {
-    if (componentName.trim() && componentName !== component.config?.name) {
-      onRename(component.id, componentName.trim());
+    if (componentName.trim() && componentName !== (component.config?.title || component.config?.name)) {
+      onUpdateComponent(component.id, {
+        config: { ...component.config, title: componentName.trim(), name: componentName.trim() }
+      });
     }
   };
 
@@ -113,11 +115,13 @@ export function ChartPropertiesPane({
                       <Input
                         id="component-name"
                         key={component.id} // Force re-render when component changes
-                        defaultValue={component.config?.name || `${component.type} Component`}
+                        defaultValue={component.config?.title || component.config?.name || `${component.type} Component`}
                         onBlur={(e) => {
                           const newName = e.target.value.trim();
-                          if (newName && newName !== component.config?.name) {
-                            onRename(component.id, newName);
+                          if (newName && newName !== (component.config?.title || component.config?.name)) {
+                            onUpdateComponent(component.id, {
+                              config: { ...component.config, title: newName, name: newName }
+                            });
                           }
                         }}
                         placeholder="Enter component name"
