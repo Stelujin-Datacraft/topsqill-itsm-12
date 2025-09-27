@@ -70,6 +70,7 @@ export function FormViewLayoutRenderer({
         initialStates[field.id] = {
           isVisible: field.isVisible ?? true,
           isEnabled: field.isEnabled ?? true,
+          
           label: field.label,
           options: field.options,
           tooltip: field.tooltip,

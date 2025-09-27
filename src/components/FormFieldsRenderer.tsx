@@ -168,72 +168,133 @@ export function FormFieldsRenderer({
       case 'file':
         return <FileField {...commonProps} />;
 
-      // New Field Types
-      case 'multi-select':
-        return (
-          <MultiSelectField
-            field={field}
-            value={formData[field.id] || []}
-            onChange={(value) => onFieldChange(field.id, value)}
-            error={errors[field.id]}
-            disabled={!fieldState.isEnabled}
-          />
-        );
+case 'multi-select':
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={field.id}>
+        {fieldState.label}
+        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+      </Label>
+      <MultiSelectField
+        field={field}
+        value={formData[field.id] || []}
+        onChange={(value) => onFieldChange(field.id, value)}
+        error={errors[field.id]}
+        disabled={!fieldState.isEnabled}
+      />
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
 
-      case 'signature':
-        return (
-          <SignatureField
-            field={field}
-            value={formData[field.id] || ''}
-            onChange={(value) => onFieldChange(field.id, value)}
-            error={errors[field.id]}
-            disabled={!fieldState.isEnabled}
-          />
-        );
+case 'signature':
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={field.id}>
+        {fieldState.label}
+        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+      </Label>
+      <SignatureField
+        field={field}
+        value={formData[field.id] || ''}
+        onChange={(value) => onFieldChange(field.id, value)}
+        error={errors[field.id]}
+        disabled={!fieldState.isEnabled}
+      />
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
 
-      case 'currency':
-        return (
-          <CurrencyField
-            field={field}
-            value={formData[field.id] || { amount: 0, currency: field.customConfig?.defaultCurrency || 'USD' }}
-            onChange={(value) => onFieldChange(field.id, value)}
-            error={errors[field.id]}
-            disabled={!fieldState.isEnabled}
-          />
-        );
+case 'currency':
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={field.id}>
+        {fieldState.label}
+        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+      </Label>
+      <CurrencyField
+        field={field}
+        value={
+          formData[field.id] || {
+            amount: 0,
+            currency: field.customConfig?.defaultCurrency || 'USD',
+          }
+        }
+        onChange={(value) => onFieldChange(field.id, value)}
+        error={errors[field.id]}
+        disabled={!fieldState.isEnabled}
+      />
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
 
-      case 'country':
-        return (
-          <CountryField
-            field={field}
-            value={formData[field.id] || ''}
-            onChange={(value) => onFieldChange(field.id, value)}
-            error={errors[field.id]}
-            disabled={!fieldState.isEnabled}
-          />
-        );
+case 'country':
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={field.id}>
+        {fieldState.label}
+        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+      </Label>
+      <CountryField
+        field={field}
+        value={formData[field.id] || ''}
+        onChange={(value) => onFieldChange(field.id, value)}
+        error={errors[field.id]}
+        disabled={!fieldState.isEnabled}
+      />
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
 
-       case 'phone':
-         return (
-           <PhoneField
-             field={field}
-             value={formData[field.id] || ''}
-             onChange={(value) => onFieldChange(field.id, value)}
-             error={errors[field.id]}
-             disabled={!fieldState.isEnabled}
-           />
-         );
+case 'phone':
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={field.id}>
+        {fieldState.label}
+        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+      </Label>
+      <PhoneField
+        field={field}
+        value={formData[field.id] || ''}
+        onChange={(value) => onFieldChange(field.id, value)}
+        error={errors[field.id]}
+        disabled={!fieldState.isEnabled}
+      />
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
 
-       case 'submission-access':
-         return (
-           <SubmissionAccessField
-             field={field}
-             value={formData[field.id] || (field.customConfig?.allowMultiple ? [] : '')}
-             onChange={(value) => onFieldChange(field.id, value)}
-             error={errors[field.id]}
-             disabled={!fieldState.isEnabled}
-           />
-         );
+case 'submission-access':
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={field.id}>
+        {fieldState.label}
+        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+      </Label>
+      <SubmissionAccessField
+        field={field}
+        value={
+          formData[field.id] ||
+          (field.customConfig?.allowMultiple ? [] : '')
+        }
+        onChange={(value) => onFieldChange(field.id, value)}
+        error={errors[field.id]}
+        disabled={!fieldState.isEnabled}
+      />
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
 
       // Enhanced Email with validation
       case 'email':
@@ -324,8 +385,10 @@ export function FormFieldsRenderer({
         return (
           <div className="space-y-2">
             <div className="flex items-center">
-              <Label htmlFor={field.id}>{field.label}</Label>
-              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+ <Label htmlFor={field.id}>
+                {fieldState.label}
+                {isRequired && <span className="text-red-500 ml-1">*</span>}
+              </Label>              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
             <Input
               id={field.id}
@@ -420,8 +483,10 @@ export function FormFieldsRenderer({
         return (
           <div className="space-y-2">
             <div className="flex items-center">
-              <Label htmlFor={field.id}>{field.label}</Label>
-              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+ <Label htmlFor={field.id}>
+                {fieldState.label}
+                {isRequired && <span className="text-red-500 ml-1">*</span>}
+              </Label>              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
             <Input
               id={field.id}
@@ -684,8 +749,10 @@ case 'textarea':
         return (
           <div className="space-y-2">
             <div className="flex items-center">
-              <Label>{field.label}</Label>
-              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+ <Label htmlFor={field.id}>
+                {fieldState.label}
+                {isRequired && <span className="text-red-500 ml-1">*</span>}
+              </Label>              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
             <div className={hasScrollbar ? 'max-h-64 overflow-y-auto border rounded-lg p-3 bg-background' : ''}>
               <RadioGroup
@@ -725,8 +792,10 @@ case 'textarea':
                 onCheckedChange={(checked) => onFieldChange(field.id, checked)}
                 disabled={!fieldState.isEnabled}
               />
-              <Label htmlFor={field.id}>{field.label}</Label>
-              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+ <Label htmlFor={field.id}>
+                {fieldState.label}
+                {isRequired && <span className="text-red-500 ml-1">*</span>}
+              </Label>              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
             {errors[field.id] && (
               <p className="text-sm text-red-500">{errors[field.id]}</p>
@@ -737,8 +806,10 @@ case 'textarea':
         return (
           <div className="space-y-3">
             <div className="flex items-center">
-              <Label htmlFor={field.id}>{field.label}</Label>
-              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+ <Label htmlFor={field.id}>
+                {fieldState.label}
+                {isRequired && <span className="text-red-500 ml-1">*</span>}
+              </Label>              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
             <Switch
               id={field.id}
@@ -755,8 +826,10 @@ case 'textarea':
         return (
           <div className="space-y-2">
             <div className="flex items-center">
-              <Label htmlFor={field.id}>{field.label}</Label>
-              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+ <Label htmlFor={field.id}>
+                {fieldState.label}
+                {isRequired && <span className="text-red-500 ml-1">*</span>}
+              </Label>              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
             <Slider
               value={[formData[field.id] || 0]}
@@ -771,50 +844,191 @@ case 'textarea':
             )}
           </div>
         );
-      case 'rating':
-        return <RatingField {...commonProps} />;
-      case 'record-table':
-        return <RecordTableField {...commonProps} />;
-      case 'matrix-grid':
-        return <MatrixGridField {...commonProps} />;
-      case 'cross-reference':
-        return <CrossReferenceField {...commonProps} />;
-      
-      // New Field Types
-      case 'barcode':
-        return <BarcodeField {...commonProps} />;
-      case 'approval':
-        return (
-          <ApprovalField 
-            {...commonProps} 
-            formData={formData} 
-            allFields={fields} 
-          />
-        );
-      case 'dynamic-dropdown':
-        return <DynamicDropdownField {...commonProps} formData={formData} />;
-      case 'calculated':
-        return <CalculatedField {...commonProps} formData={formData} allFormFields={allFormFields} />;
-      case 'conditional-section':
-        return <ConditionalSectionField {...commonProps} formData={formData} />;
-      case 'geo-location':
-        return <GeoLocationField {...commonProps} />;
-      case 'child-cross-reference':
-        return <ChildCrossReferenceField {...commonProps} currentFormId={formId} currentSubmissionId={currentSubmissionId} />;
-      
-      case 'query-field':
-        return (
-          <QueryField
-            field={field}
-            value={formData[field.id]}
-            onChange={(value) => onFieldChange(field.id, value)}
-            error={errors[field.id]}
-            disabled={!fieldState.isEnabled}
-            formData={formData}
-            onFieldChange={onFieldChange}
-          />
-        );
-      
+case 'rating':
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={field.id}>
+        {fieldState.label}
+        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+      </Label>
+      <RatingField {...commonProps} />
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
+
+case 'record-table':
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={field.id}>
+        {fieldState.label}
+        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+      </Label>
+      <RecordTableField {...commonProps} />
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
+
+case 'matrix-grid':
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={field.id}>
+        {fieldState.label}
+        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+      </Label>
+      <MatrixGridField {...commonProps} />
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
+
+case 'cross-reference':
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={field.id}>
+        {fieldState.label}
+        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+      </Label>
+      <CrossReferenceField {...commonProps} />
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
+
+// New Field Types
+case 'barcode':
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={field.id}>
+        {fieldState.label}
+        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+      </Label>
+      <BarcodeField {...commonProps} />
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
+
+case 'approval':
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={field.id}>
+        {fieldState.label}
+        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+      </Label>
+      <ApprovalField 
+        {...commonProps} 
+        formData={formData} 
+        allFields={fields} 
+      />
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
+
+case 'dynamic-dropdown':
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={field.id}>
+        {fieldState.label}
+        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+      </Label>
+      <DynamicDropdownField {...commonProps} formData={formData} />
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
+
+case 'calculated':
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={field.id}>
+        {fieldState.label}
+        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+      </Label>
+      <CalculatedField {...commonProps} formData={formData} allFormFields={allFormFields} />
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
+
+case 'conditional-section':
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={field.id}>
+        {fieldState.label}
+        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+      </Label>
+      <ConditionalSectionField {...commonProps} formData={formData} />
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
+
+case 'geo-location':
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={field.id}>
+        {fieldState.label}
+        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+      </Label>
+      <GeoLocationField {...commonProps} />
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
+
+case 'child-cross-reference':
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={field.id}>
+        {fieldState.label}
+        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+      </Label>
+      <ChildCrossReferenceField
+        {...commonProps}
+        currentFormId={formId}
+        currentSubmissionId={currentSubmissionId}
+      />
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
+
+case 'query-field':
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={field.id}>
+        {fieldState.label}
+        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+      </Label>
+      <QueryField
+        field={field}
+        value={formData[field.id]}
+        onChange={(value) => onFieldChange(field.id, value)}
+        error={errors[field.id]}
+        disabled={!fieldState.isEnabled}
+        formData={formData}
+        onFieldChange={onFieldChange}
+      />
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
+
       default:
         return (
           <div className="p-4 border border-dashed border-gray-300 rounded-lg">

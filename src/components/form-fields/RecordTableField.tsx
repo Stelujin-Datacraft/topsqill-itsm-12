@@ -278,7 +278,7 @@ export function RecordTableField({ field, value = [], onChange, disabled = false
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <div>
-            <span>{field.label}</span>
+            {/* <span>{field.label}</span> */}
             {targetFormName && (
               <Badge variant="outline" className="ml-2">
                 {targetFormName}

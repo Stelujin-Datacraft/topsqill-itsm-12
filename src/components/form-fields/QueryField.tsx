@@ -266,10 +266,10 @@ export function QueryField({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <Label htmlFor={field.id} className="text-sm font-medium">
+        {/* <Label htmlFor={field.id} className="text-sm font-medium">
           {field.label}
           {field.required && <span className="text-destructive ml-1">*</span>}
-        </Label>
+        </Label> */}
         <div className="flex items-center gap-2">
           {executeOn && (
             <Badge variant="outline" className="text-xs">

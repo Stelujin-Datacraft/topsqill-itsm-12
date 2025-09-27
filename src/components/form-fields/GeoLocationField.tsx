@@ -180,7 +180,7 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
 
   return (
     <div className="space-y-4">
-      <Label>{field.label}</Label>
+      {/* <Label>{field.label}</Label> */}
       
       {currentLocation && (
         <div className="p-4 bg-green-50 border border-green-200 rounded-lg">

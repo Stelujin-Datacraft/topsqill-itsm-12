@@ -319,12 +319,12 @@ export function CalculatedField({
 
   return (
     <div className="space-y-2">
-      <Label htmlFor={field.id}>
+      {/* <Label htmlFor={field.id}>
         <div className="flex items-center space-x-2">
           <Calculator className="h-4 w-4" />
           <span>{field.label}</span>
         </div>
-      </Label>
+      </Label> */}
       
       <div className="relative">
         <Input

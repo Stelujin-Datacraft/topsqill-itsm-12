@@ -159,7 +159,7 @@ export function SignatureField({ field, value, onChange, error, disabled }: Sign
 
   return (
     <div className="space-y-3">
-      <Label htmlFor={field.id}>{field.label}</Label>
+      {/* <Label htmlFor={field.id}>{field.label}</Label> */}
       
       <div className="border rounded-lg p-4 bg-background">
         <canvas

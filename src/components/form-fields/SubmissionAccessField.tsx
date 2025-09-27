@@ -239,7 +239,7 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <Label htmlFor={field.id}>{field.label}</Label>
+        {/* <Label htmlFor={field.id}>{field.label}</Label> */}
         {/* {getAccessLevelBadge()} */}
       </div>
       

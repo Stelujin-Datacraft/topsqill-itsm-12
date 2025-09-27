@@ -60,10 +60,10 @@ export function RatingField({ field, value, onChange, error, disabled = false }:
 
   return (
     <div className="space-y-2">
-      <Label className="block text-sm font-medium">
+      {/* <Label className="block text-sm font-medium">
         {field.label}
         {field.required && <span className="text-red-500 ml-1">*</span>}
-      </Label>
+      </Label> */}
       <div className="flex items-center gap-1">
         {renderStars()}
         {value > 0 && (

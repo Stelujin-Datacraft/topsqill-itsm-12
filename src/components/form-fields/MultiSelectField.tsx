@@ -58,7 +58,7 @@ export function MultiSelectField({ field, value = [], onChange, error, disabled 
 
   return (
     <div className="space-y-3">
-      <Label htmlFor={field.id}>{field.label}</Label>
+      {/* <Label htmlFor={field.id}>{field.label}</Label> */}
       
       {/* Selected items display */}
       {value.length > 0 && (

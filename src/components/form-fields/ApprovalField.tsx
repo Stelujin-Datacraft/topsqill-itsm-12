@@ -168,7 +168,7 @@ export function ApprovalField({ field, value, onChange, error, disabled, formDat
   if (approvalStatus !== 'pending') {
     return (
       <div className="space-y-2">
-        <Label>{field.label}</Label>
+        {/* <Label>{field.label}</Label> */}
         <div className={`p-4 border rounded-lg ${getStatusColor()}`}>
           <div className="flex items-center space-x-2 mb-2">
             {getStatusIcon()}

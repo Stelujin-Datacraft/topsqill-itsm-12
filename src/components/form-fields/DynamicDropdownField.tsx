@@ -137,7 +137,7 @@ export function DynamicDropdownField({
 
   return (
     <div className="space-y-2">
-      <Label htmlFor={field.id}>{field.label}</Label>
+      {/* <Label htmlFor={field.id}>{field.label}</Label> */}
       
       <Select
         value={value === '' ? '__empty__' : value || '__empty__'}

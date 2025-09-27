@@ -100,7 +100,7 @@ export function CountryField({ field, value, onChange, error, disabled = false }
   if (loading) {
     return (
       <div className="space-y-2">
-        <Label>{field.label}</Label>
+        {/* <Label>{field.label}</Label> */}
         <Button
           variant="outline"
           disabled
@@ -160,7 +160,7 @@ export function CountryField({ field, value, onChange, error, disabled = false }
 
   return (
     <div className="space-y-2">
-      <Label>{field.label}</Label>
+      {/* <Label>{field.label}</Label> */}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button

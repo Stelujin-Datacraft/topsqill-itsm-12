@@ -98,7 +98,7 @@ export function CurrencyField({ field, value, onChange, error, disabled }: Curre
 
   return (
     <div className="space-y-3">
-      <Label htmlFor={field.id}>{field.label}</Label>
+      {/* <Label htmlFor={field.id}>{field.label}</Label> */}
       
       <div className="flex gap-2">
         {/* Currency selector */}

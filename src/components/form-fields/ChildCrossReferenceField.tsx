@@ -143,10 +143,10 @@ export function ChildCrossReferenceField({
       </div>
 
       <div className="flex items-center justify-between">
-        <label className="block text-sm font-medium">
+        {/* <label className="block text-sm font-medium">
           {field.label}
           {field.required && <span className="text-red-500 ml-1">*</span>}
-        </label>
+        </label> */}
         <div className="flex items-center gap-2">
           {!isPreview}
         </div>

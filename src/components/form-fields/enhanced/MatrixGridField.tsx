@@ -62,10 +62,10 @@ export function MatrixGridField({ field, value = {}, onChange, error, disabled }
 
   return (
     <div className="space-y-4">
-      <Label className="text-sm font-medium">
+      {/* <Label className="text-sm font-medium">
         {field.label}
         {field.required && <span className="text-red-500 ml-1">*</span>}
-      </Label>
+      </Label> */}
 
       <div className="space-y-4">
         {rows.map((row, rowIndex) => (

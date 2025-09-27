@@ -98,10 +98,10 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
     return (
       <div className="w-full space-y-2">
         <div className="flex items-center justify-between">
-          <label className="block text-sm font-medium">
+          {/* <label className="block text-sm font-medium">
             {field.label}
             {field.required && <span className="text-red-500 ml-1">*</span>}
-          </label>
+          </label> */}
           {/* {!isPreview && (
             <Button
               variant="outline"

@@ -94,10 +94,9 @@ export function PhoneField({ field, value, onChange, error, disabled }: PhoneFie
 
   return (
     <div className="space-y-2">
-      <Label htmlFor={field.id}>
+      {/* <Label htmlFor={field.id}>
         {field.label}
-        {field.required && <span className="text-red-500 ml-1">*</span>}
-      </Label>
+      </Label> */}
       
       <div className="flex gap-2">
         {config.showCountrySelector !== false && (
