@@ -533,6 +533,7 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
                 {editingRule.action === 'sendEmail' && currentProject?.id ? (
                   <EmailTemplateSelector
                     projectId={currentProject.id}
+                    formFields={fields.map(f => ({ id: f.id, label: f.label, type: f.type }))}
                     value={editingRule.actionValue}
                     onChange={(value) => setEditingRule({ ...editingRule, actionValue: value })}
                   />
