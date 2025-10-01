@@ -260,12 +260,6 @@ export function ComplexFilter({ filters, onFiltersChange, availableFields, class
                       <div className="space-y-3">
                         {group.conditions.map((condition, conditionIndex) => (
                           <div key={condition.id} className="flex items-center gap-2">
-                            {conditionIndex > 0 && (
-                              <Badge variant="outline" className="px-2 py-0.5 text-xs">
-                                {group.logic}
-                              </Badge>
-                            )}
-                            
                             <Select
                               value={condition.field}
                               onValueChange={(value) =>
