@@ -176,7 +176,7 @@ export class RuleProcessor {
   /**
    * Evaluates a field rule with logical expression support
    */
-  private static evaluateFieldRuleExpression(
+  public static evaluateFieldRuleExpression(
     rule: FieldRule,
     formData: Record<string, any>,
     formFields: FormField[]

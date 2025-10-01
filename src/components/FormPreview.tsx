@@ -84,55 +84,21 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
     form.fieldRules.forEach((rule) => {
       if (!rule.isActive) return;
 
-      const conditionField = Array.isArray(form.fields) ? form.fields.find(f => f.id === rule.condition.fieldId) : null;
       const targetField = Array.isArray(form.fields) ? form.fields.find(f => f.id === rule.targetFieldId) : null;
-      
-      if (!conditionField || !targetField) return;
+      if (!targetField) return;
 
-      const currentValue = formData[rule.condition.fieldId] || '';
-      const conditionValue = rule.condition.value;
-      
-      let conditionMet = false;
-      
-      // Evaluate condition based on operator
-      switch (rule.condition.operator) {
-        case '==':
-          conditionMet = currentValue === conditionValue;
-          break;
-        case '!=':
-          conditionMet = currentValue !== conditionValue;
-          break;
-        case 'contains':
-          conditionMet = currentValue.toString().toLowerCase().includes(conditionValue.toString().toLowerCase());
-          break;
-        case 'not contains':
-          conditionMet = !currentValue.toString().toLowerCase().includes(conditionValue.toString().toLowerCase());
-          break;
-        case 'startsWith':
-          conditionMet = currentValue.toString().toLowerCase().startsWith(conditionValue.toString().toLowerCase());
-          break;
-        case 'endsWith':
-          conditionMet = currentValue.toString().toLowerCase().endsWith(conditionValue.toString().toLowerCase());
-          break;
-        case '<':
-          conditionMet = Number(currentValue) < Number(conditionValue);
-          break;
-        case '>':
-          conditionMet = Number(currentValue) > Number(conditionValue);
-          break;
-        case '<=':
-          conditionMet = Number(currentValue) <= Number(conditionValue);
-          break;
-        case '>=':
-          conditionMet = Number(currentValue) >= Number(conditionValue);
-          break;
-        case 'in':
-          const values = Array.isArray(conditionValue) ? conditionValue : [conditionValue];
-          conditionMet = values.includes(currentValue);
-          break;
-        default:
-          conditionMet = false;
-      }
+      // Evaluate the rule using the new expression system
+      const conditionMet = RuleProcessor.evaluateFieldRuleExpression(
+        rule, 
+        formData, 
+        form.fields.map(f => ({ 
+          id: f.id, 
+          label: f.label, 
+          type: f.type,
+          isVisible: f.isVisible,
+          isEnabled: f.isEnabled
+        }))
+      );
 
       // Apply action if condition is met
       if (conditionMet) {
