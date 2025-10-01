@@ -68,7 +68,9 @@ export interface FieldRule {
   id: string;
   name: string;
   targetFieldId: string;
-  condition: FieldRuleCondition;
+  conditions?: FieldRuleCondition[]; // Multiple conditions for new system
+  condition?: FieldRuleCondition; // Legacy single condition (backward compatibility)
+  logicExpression?: string; // New: logical expression (e.g., "1 AND (2 OR 3) AND NOT 4")
   action: FieldAction;
   actionValue?: string | string[] | number | boolean;
   isActive: boolean;
@@ -89,7 +91,8 @@ export interface FormRule {
   id: string;
   name: string;
   conditions: FormRuleCondition[];
-  rootLogic: 'AND' | 'OR';
+  rootLogic?: 'AND' | 'OR'; // Legacy logic (backward compatibility)
+  logicExpression?: string; // New: logical expression (e.g., "1 AND (2 OR 3) AND NOT 4")
   action: FormAction;
   actionValue?: string | any;
   isActive: boolean;

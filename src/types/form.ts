@@ -17,7 +17,9 @@ export interface FieldRule {
   id: string;
   name: string;
   targetFieldId: string;
-  condition: FieldRuleCondition;
+  conditions?: FieldRuleCondition[]; // Multiple conditions for new system
+  condition?: FieldRuleCondition; // Legacy single condition (backward compatibility)
+  logicExpression?: string; // New: logical expression (e.g., "1 AND (2 OR 3) AND NOT 4")
   action: 'show' | 'hide' | 'enable' | 'disable' | 'require' | 'optional' | 'setRequired' | 'setOptional' | 'changeLabel' | 'changeOptions' | 'setDefault' | 'clearValue' | 'showTooltip' | 'showError';
   actionValue?: string | number | boolean | any[];
   isActive: boolean;
@@ -38,7 +40,8 @@ export interface FormRule {
   id: string;
   name: string;
   conditions: FormRuleCondition[];
-  rootLogic: 'AND' | 'OR';
+  rootLogic?: 'AND' | 'OR'; // Legacy logic (backward compatibility)
+  logicExpression?: string; // New: logical expression (e.g., "1 AND (2 OR 3) AND NOT 4")
   action: 'approve' | 'disapprove' | 'notify' | 'sendEmail' | 'triggerWebhook' | 'startWorkflow' | 'assignForm' | 'redirect' | 'lockForm' | 'unlockForm' | 'autoFillFields' | 'changeFormHeader' | 'saveDraft' | 'allowSubmit' | 'preventSubmit' | 'showMessage' | 'redirectTo' | 'updateField' | 'reject' | 'showSuccessModal';
   actionValue?: string | any;
   isActive: boolean;

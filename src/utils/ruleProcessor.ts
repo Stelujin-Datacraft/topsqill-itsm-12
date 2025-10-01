@@ -1,5 +1,6 @@
-import { FieldRule, FormRule, FieldOperator } from '@/types/rules';
+import { FieldRule, FormRule, FieldOperator, FieldRuleCondition } from '@/types/rules';
 import { toast } from '@/hooks/use-toast';
+import { ExpressionEvaluator, EvaluationContext } from './expressionEvaluator';
 
 export interface FormField {
   id: string;
@@ -137,27 +138,76 @@ export class RuleProcessor {
     fieldRules.forEach(rule => {
       if (!rule.isActive) return;
 
-      const conditionField = formFields.find(f => f.id === rule.condition.fieldId);
-      const targetField = formFields.find(f => f.id === rule.targetFieldId);
-      
-      if (!conditionField || !targetField) return;
+      let conditionMet = false;
 
-      const currentValue = formData[rule.condition.fieldId] || '';
-      const conditionMet = this.evaluateCondition(
-        rule.condition.operator,
-        currentValue,
-        rule.condition.value
-      );
+      // Check if using new expression-based system
+      if (rule.logicExpression && rule.conditions && rule.conditions.length > 0) {
+        conditionMet = this.evaluateFieldRuleExpression(rule, formData, formFields);
+      } 
+      // Legacy single condition support (backward compatibility)
+      else if (rule.condition) {
+        const conditionField = formFields.find(f => f.id === rule.condition!.fieldId);
+        const targetField = formFields.find(f => f.id === rule.targetFieldId);
+        
+        if (!conditionField || !targetField) return;
+
+        const currentValue = formData[rule.condition.fieldId] || '';
+        conditionMet = this.evaluateCondition(
+          rule.condition.operator,
+          currentValue,
+          rule.condition.value
+        );
+
+        if (conditionMet) {
+          console.log(`Rule "${rule.name}" condition met, applying action "${rule.action}" to field "${rule.targetFieldId}"`);
+        } else {
+          console.log(`Rule "${rule.name}" condition NOT met for field "${rule.condition.fieldId}" with value:`, currentValue, 'expected:', rule.condition.value);
+        }
+      }
 
       if (conditionMet) {
-        console.log(`Rule "${rule.name}" condition met, applying action "${rule.action}" to field "${rule.targetFieldId}"`);
         this.applyFieldAction(rule, fieldStates, context);
-      } else {
-        console.log(`Rule "${rule.name}" condition NOT met for field "${rule.condition.fieldId}" with value:`, currentValue, 'expected:', rule.condition.value);
       }
     });
 
     return fieldStates;
+  }
+
+  /**
+   * Evaluates a field rule with logical expression support
+   */
+  private static evaluateFieldRuleExpression(
+    rule: FieldRule,
+    formData: Record<string, any>,
+    formFields: FormField[]
+  ): boolean {
+    if (!rule.conditions || !rule.logicExpression) return false;
+
+    try {
+      // Build evaluation context by evaluating each condition
+      const evalContext: EvaluationContext = {};
+      
+      rule.conditions.forEach((condition, index) => {
+        const conditionId = (index + 1).toString(); // Use 1-based indexing
+        const currentValue = formData[condition.fieldId] || '';
+        
+        evalContext[conditionId] = this.evaluateCondition(
+          condition.operator,
+          currentValue,
+          condition.value
+        );
+      });
+
+      // Evaluate the logical expression
+      const result = ExpressionEvaluator.evaluate(rule.logicExpression, evalContext);
+      
+      console.log(`Field Rule "${rule.name}" expression "${rule.logicExpression}" evaluated to:`, result);
+      
+      return result;
+    } catch (error) {
+      console.error(`Error evaluating field rule expression for "${rule.name}":`, error);
+      return false;
+    }
   }
 
   private static applyFieldAction(
@@ -307,6 +357,12 @@ export class RuleProcessor {
   ): boolean {
     if (!rule.conditions || rule.conditions.length === 0) return false;
 
+    // Check if using new expression-based system
+    if (rule.logicExpression) {
+      return this.evaluateFormRuleExpression(rule, formData, formFields);
+    }
+
+    // Legacy logic support (backward compatibility)
     const results = rule.conditions.map(condition => {
       if (condition.type === 'single' && condition.fieldId && condition.operator) {
         const currentValue = formData[condition.fieldId] || '';
@@ -319,11 +375,54 @@ export class RuleProcessor {
       return false;
     });
 
-    // Apply root logic
-    if (rule.rootLogic === 'AND') {
+    // Apply root logic (default to AND if not specified)
+    const logic = rule.rootLogic || 'AND';
+    if (logic === 'AND') {
       return results.every(result => result);
     } else {
       return results.some(result => result);
+    }
+  }
+
+  /**
+   * Evaluates a form rule with logical expression support
+   */
+  private static evaluateFormRuleExpression(
+    rule: FormRule,
+    formData: Record<string, any>,
+    formFields: FormField[]
+  ): boolean {
+    if (!rule.conditions || !rule.logicExpression) return false;
+
+    try {
+      // Build evaluation context by evaluating each condition
+      const evalContext: EvaluationContext = {};
+      
+      rule.conditions.forEach((condition, index) => {
+        const conditionId = (index + 1).toString(); // Use 1-based indexing
+        
+        if (condition.type === 'single' && condition.fieldId && condition.operator) {
+          const currentValue = formData[condition.fieldId] || '';
+          
+          evalContext[conditionId] = this.evaluateCondition(
+            condition.operator,
+            currentValue,
+            condition.value
+          );
+        } else {
+          evalContext[conditionId] = false;
+        }
+      });
+
+      // Evaluate the logical expression
+      const result = ExpressionEvaluator.evaluate(rule.logicExpression, evalContext);
+      
+      console.log(`Form Rule "${rule.name}" expression "${rule.logicExpression}" evaluated to:`, result);
+      
+      return result;
+    } catch (error) {
+      console.error(`Error evaluating form rule expression for "${rule.name}":`, error);
+      return false;
     }
   }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,12 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, HelpCircle } from 'lucide-react';
 import { FormField } from '@/types/form';
 import { FormRule, FormRuleAction, FormRuleCondition, FieldOperator } from '@/types/rules';
 import { RuleDynamicValueInput } from './RuleDynamicValueInput';
 import { EmailTemplateSelector } from './EmailTemplateSelector';
-
+import { ExpressionEvaluator } from '@/utils/expressionEvaluator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useProject } from '@/contexts/ProjectContext';
 
 interface EnhancedFormRuleBuilderProps {
@@ -96,6 +97,7 @@ const formActions: { value: FormRuleAction; label: string }[] = [
 export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: EnhancedFormRuleBuilderProps) {
   const [editingRule, setEditingRule] = useState<FormRule | null>(null);
   const [conditionFieldComparisons, setConditionFieldComparisons] = useState<Record<string, boolean>>({});
+  const [expressionError, setExpressionError] = useState<string>('');
   const { currentProject } = useProject();
 
   // Filter fields that can be used for conditions
@@ -113,7 +115,7 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
       operator: '==',
       value: '',
     }],
-    rootLogic: 'AND',
+    logicExpression: '1',
     action: 'approve',
     isActive: true,
   });
@@ -122,10 +124,18 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
     const newRule = createNewRule();
     setEditingRule(newRule);
     setConditionFieldComparisons({});
+    setExpressionError('');
   };
 
   const saveRule = () => {
-    if (!editingRule) return;
+    if (!editingRule || !editingRule.logicExpression) return;
+    
+    // Validate expression
+    const validation = ExpressionEvaluator.validate(editingRule.logicExpression);
+    if (!validation.valid) {
+      setExpressionError(validation.error || 'Invalid expression');
+      return;
+    }
     
     const existingIndex = rules.findIndex(r => r.id === editingRule.id);
     let updatedRules;
@@ -140,6 +150,7 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
     onRulesChange(updatedRules);
     setEditingRule(null);
     setConditionFieldComparisons({});
+    setExpressionError('');
   };
 
   const deleteRule = (ruleId: string) => {
@@ -157,10 +168,13 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
       value: '',
     };
     
+    const newConditions = [...editingRule.conditions, newCondition];
     setEditingRule({
       ...editingRule,
-      conditions: [...editingRule.conditions, newCondition]
+      conditions: newConditions,
+      logicExpression: ExpressionEvaluator.generateDefaultExpression(newConditions.length, 'AND')
     });
+    setExpressionError('');
   };
 
   const updateCondition = (conditionId: string, updates: Partial<FormRuleCondition>) => {
@@ -175,17 +189,20 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
   };
 
   const removeCondition = (conditionId: string) => {
-    if (!editingRule) return;
+    if (!editingRule || editingRule.conditions.length === 1) return;
     
+    const newConditions = editingRule.conditions.filter(c => c.id !== conditionId);
     setEditingRule({
       ...editingRule,
-      conditions: editingRule.conditions.filter(c => c.id !== conditionId)
+      conditions: newConditions,
+      logicExpression: ExpressionEvaluator.generateDefaultExpression(newConditions.length, 'AND')
     });
 
     // Clean up field comparison state
     const updatedComparisons = { ...conditionFieldComparisons };
     delete updatedComparisons[conditionId];
     setConditionFieldComparisons(updatedComparisons);
+    setExpressionError('');
   };
 
   const getCompatibleFields = (sourceFieldId: string) => {
@@ -225,7 +242,7 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
         <div>
           <h3 className="text-lg font-semibold">Form Rules</h3>
           <p className="text-sm text-muted-foreground">
-            Define actions that trigger when form conditions are met
+            Define actions that trigger when logical conditions are met
           </p>
         </div>
         <Button onClick={addRule} size="sm">
@@ -244,8 +261,13 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
                   {rule.isActive ? 'Active' : 'Inactive'}
                 </Badge>
                 <span className="font-medium">{rule.name || 'Unnamed Rule'}</span>
-                <Badge variant="outline">{rule.conditions.length} conditions</Badge>
+                <Badge variant="outline">{rule.conditions.length} condition{rule.conditions.length !== 1 ? 's' : ''}</Badge>
                 <Badge variant="outline">{rule.action}</Badge>
+                {rule.logicExpression && (
+                  <Badge variant="outline" className="font-mono text-xs">
+                    {rule.logicExpression}
+                  </Badge>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button
@@ -261,6 +283,7 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
                       }
                     });
                     setConditionFieldComparisons(comparisons);
+                    setExpressionError('');
                   }}
                 >
                   Edit
@@ -294,23 +317,7 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label>Logic Operator</Label>
-                <Select
-                  value={editingRule.rootLogic}
-                  onValueChange={(value: 'AND' | 'OR') => setEditingRule({ ...editingRule, rootLogic: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="AND">AND (All conditions must be true)</SelectItem>
-                    <SelectItem value="OR">OR (Any condition can be true)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Action</Label>
                 <Select
@@ -353,16 +360,28 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
 
               <div className="space-y-3">
                 {editingRule.conditions.map((condition, index) => (
-                  <Card key={condition.id} className="p-3">
+                  <Card key={condition.id} className="p-3 bg-muted/30">
                     <div className="space-y-3">
-                      <div className="grid grid-cols-4 gap-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge variant="secondary">Condition {index + 1}</Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeCondition(condition.id)}
+                          disabled={editingRule.conditions.length === 1}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-3">
                         <div>
                           <Label>Field</Label>
                           <Select
                             value={condition.fieldId || ''}
                             onValueChange={(value) => updateCondition(condition.id, { 
                               fieldId: value,
-                              operator: '==', // Reset operator when field changes
+                              operator: '==',
                               value: '',
                               compareToField: undefined
                             })}
@@ -395,8 +414,8 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
                                 <SelectItem key={op.value} value={op.value}>
                                   {op.label}
                                 </SelectItem>
-                               ))}
-                             </SelectContent>
+                              ))}
+                            </SelectContent>
                           </Select>
                         </div>
 
@@ -424,8 +443,8 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
                                     <SelectItem key={field.id} value={field.id}>
                                       {field.label}
                                     </SelectItem>
-                                   ))}
-                                 </SelectContent>
+                                  ))}
+                                </SelectContent>
                               </Select>
                             ) : (
                               <RuleDynamicValueInput
@@ -438,100 +457,94 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
                             )}
                           </div>
                         </div>
-
-                        <div className="flex items-end">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeCondition(condition.id)}
-                            disabled={editingRule.conditions.length === 1}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
                       </div>
                     </div>
-                    
-                    {index < editingRule.conditions.length - 1 && (
-                      <div className="text-center mt-2">
-                        <Badge variant="outline">{editingRule.rootLogic}</Badge>
-                      </div>
-                    )}
                   </Card>
                 ))}
               </div>
             </div>
 
-            {/* Action Configuration */}
-            {([
-              'preventSubmit', 'showMessage', 'notify', 'sendEmail', 'triggerWebhook', 
-              'startWorkflow', 'assignForm', 'redirect', 'changeFormHeader', 
-              'showSuccessModal', 'autoFillFields', 'updateField'
-            ].includes(editingRule.action)) && (
+            {/* Logic Expression */}
+            {editingRule.conditions.length > 1 && (
+              <div className="border-t pt-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Label>Logical Expression</Label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-sm">
+                        <p className="text-sm">Define how conditions are evaluated using numbers (1, 2, 3...) and operators:</p>
+                        <ul className="text-xs mt-2 space-y-1">
+                          <li>• <strong>AND</strong>: Both conditions must be true</li>
+                          <li>• <strong>OR</strong>: Either condition can be true</li>
+                          <li>• <strong>NOT</strong>: Inverts the condition</li>
+                          <li>• Use parentheses () for grouping (highest priority)</li>
+                        </ul>
+                        <p className="text-xs mt-2"><strong>Examples:</strong></p>
+                        <ul className="text-xs space-y-1">
+                          <li>• 1 AND 2</li>
+                          <li>• 1 OR (2 AND 3)</li>
+                          <li>• NOT 1 AND (2 OR 3)</li>
+                          <li>• (1 AND 2) OR (3 AND NOT 4)</li>
+                        </ul>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <Textarea
+                  value={editingRule.logicExpression || ''}
+                  onChange={(e) => {
+                    setEditingRule({ ...editingRule, logicExpression: e.target.value });
+                    setExpressionError('');
+                  }}
+                  placeholder="e.g., 1 AND (2 OR 3)"
+                  className="font-mono"
+                  rows={2}
+                />
+                {expressionError && (
+                  <p className="text-sm text-destructive mt-1">{expressionError}</p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Available conditions: {editingRule.conditions.map((_, i) => i + 1).join(', ')}
+                </p>
+              </div>
+            )}
+
+            {/* Action Value Input */}
+            {(editingRule.action === 'sendEmail' || 
+              editingRule.action === 'notify' || 
+              editingRule.action === 'showMessage' ||
+              editingRule.action === 'redirect' ||
+              editingRule.action === 'triggerWebhook' ||
+              editingRule.action === 'assignForm' ||
+              editingRule.action === 'changeFormHeader' ||
+              editingRule.action === 'preventSubmit' ||
+              editingRule.action === 'showSuccessModal') && (
               <div>
-                <Label>Action Configuration</Label>
-                {editingRule.action === 'sendEmail' ? (
+                <Label>
+                  {editingRule.action === 'sendEmail' ? 'Email Template' :
+                   editingRule.action === 'redirect' ? 'Redirect URL' :
+                   editingRule.action === 'triggerWebhook' ? 'Webhook URL' :
+                   editingRule.action === 'assignForm' ? 'Assign To (User ID)' :
+                   'Message'}
+                </Label>
+                {editingRule.action === 'sendEmail' && currentProject?.id ? (
                   <EmailTemplateSelector
-                    value={typeof editingRule.actionValue === 'object' ? editingRule.actionValue : undefined}
-                    onChange={(config) => setEditingRule({ ...editingRule, actionValue: config })}
-                    formFields={fields}
-                    projectId={currentProject?.id}
+                    projectId={currentProject.id}
+                    value={editingRule.actionValue}
+                    onChange={(value) => setEditingRule({ ...editingRule, actionValue: value })}
                   />
-                ) : editingRule.action === 'autoFillFields' ? (
-                  <div className="space-y-2">
-                    <Textarea
-                      value={typeof editingRule.actionValue === 'object' 
-                        ? JSON.stringify(editingRule.actionValue, null, 2)
-                        : editingRule.actionValue?.toString() || ''
-                      }
-                      onChange={(e) => {
-                        try {
-                          const parsed = JSON.parse(e.target.value);
-                          setEditingRule({ ...editingRule, actionValue: parsed });
-                        } catch {
-                          setEditingRule({ ...editingRule, actionValue: e.target.value });
-                        }
-                      }}
-                      placeholder='{"fieldId1": "value1", "fieldId2": "value2"}'
-                      rows={4}
-                    />
-                    <p className="text-xs text-muted-foreground">Enter JSON object with field IDs and values</p>
-                  </div>
-                ) : editingRule.action === 'updateField' ? (
-                  <div className="space-y-2">
-                    <Textarea
-                      value={typeof editingRule.actionValue === 'object' 
-                        ? JSON.stringify(editingRule.actionValue, null, 2)
-                        : editingRule.actionValue?.toString() || ''
-                      }
-                      onChange={(e) => {
-                        try {
-                          const parsed = JSON.parse(e.target.value);
-                          setEditingRule({ ...editingRule, actionValue: parsed });
-                        } catch {
-                          setEditingRule({ ...editingRule, actionValue: e.target.value });
-                        }
-                      }}
-                      placeholder='{"fieldId": "target-field-id", "value": "new-value"}'
-                      rows={2}
-                    />
-                    <p className="text-xs text-muted-foreground">Enter JSON with fieldId and value</p>
-                  </div>
                 ) : (
                   <Textarea
-                    value={typeof editingRule.actionValue === 'string' ? editingRule.actionValue : ''}
+                    value={editingRule.actionValue?.toString() || ''}
                     onChange={(e) => setEditingRule({ ...editingRule, actionValue: e.target.value })}
                     placeholder={
-                      editingRule.action === 'preventSubmit' ? 'Error message to show users' :
-                      editingRule.action === 'showMessage' ? 'Message to display to users' :
-                      editingRule.action === 'notify' ? 'Notification message' :
-                      editingRule.action === 'triggerWebhook' ? 'Webhook URL or configuration JSON' :
-                      editingRule.action === 'startWorkflow' ? 'Workflow ID or name to start' :
-                      editingRule.action === 'assignForm' ? 'Assignee user ID or email address' :
-                      editingRule.action === 'redirect' ? 'Full URL to redirect to (e.g., https://example.com)' :
-                      editingRule.action === 'changeFormHeader' ? 'New header text to display' :
-                      editingRule.action === 'showSuccessModal' ? 'Success message to show in modal' :
-                      'Enter configuration details...'
+                      editingRule.action === 'redirect' ? 'Enter redirect URL' :
+                      editingRule.action === 'triggerWebhook' ? 'Enter webhook URL' :
+                      editingRule.action === 'assignForm' ? 'Enter user ID' :
+                      'Enter message'
                     }
                     rows={3}
                   />
@@ -543,6 +556,7 @@ export function EnhancedFormRuleBuilder({ fields, rules, onRulesChange }: Enhanc
               <Button variant="outline" onClick={() => {
                 setEditingRule(null);
                 setConditionFieldComparisons({});
+                setExpressionError('');
               }}>
                 Cancel
               </Button>
