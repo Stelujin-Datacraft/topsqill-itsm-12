@@ -230,14 +230,18 @@ export function DynamicTable({
               const context: EvaluationContext = {};
               group.conditions.forEach((condition, index) => {
                 const conditionNumber = (index + 1).toString();
-                context[conditionNumber] = evaluateCondition(row, condition);
+                const conditionResult = evaluateCondition(row, condition);
+                context[conditionNumber] = conditionResult;
+                console.log(`Condition ${conditionNumber} (${condition.field} ${condition.operator} ${condition.value}):`, conditionResult);
               });
               
-              console.log('🔍 Evaluating expression:', group.logicExpression, 'with context:', context);
+              console.log('Expression:', group.logicExpression);
+              console.log('Context:', context);
               
               // Evaluate the expression
               const result = ExpressionEvaluator.evaluate(group.logicExpression, context);
-              console.log('🔍 Expression result:', result);
+              console.log('Result:', result);
+              console.log('---');
               return result;
             } catch (error) {
               console.error('Filter expression evaluation error:', error);

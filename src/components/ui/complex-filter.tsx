@@ -389,6 +389,7 @@ export function ComplexFilter({ filters, onFiltersChange, availableFields, class
                   size="sm"
                   onClick={addFilterGroup}
                   className="gap-2"
+                  disabled={filters.length > 0}
                 >
                   <Plus className="h-4 w-4" />
                   Add Filter Group
