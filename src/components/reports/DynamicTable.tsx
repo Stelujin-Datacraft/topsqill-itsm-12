@@ -224,7 +224,7 @@ export function DynamicTable({
           if (group.conditions.length === 0) return true;
           
           // Use new expression system if logicExpression is defined
-          if (group.logicExpression && group.conditions.length > 1) {
+          if (group.logicExpression?.trim()) {
             try {
               // Build evaluation context with condition results
               const context: EvaluationContext = {};
@@ -233,8 +233,12 @@ export function DynamicTable({
                 context[conditionNumber] = evaluateCondition(row, condition);
               });
               
+              console.log('🔍 Evaluating expression:', group.logicExpression, 'with context:', context);
+              
               // Evaluate the expression
-              return ExpressionEvaluator.evaluate(group.logicExpression, context);
+              const result = ExpressionEvaluator.evaluate(group.logicExpression, context);
+              console.log('🔍 Expression result:', result);
+              return result;
             } catch (error) {
               console.error('Filter expression evaluation error:', error);
               // Fallback to legacy behavior

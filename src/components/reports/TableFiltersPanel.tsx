@@ -174,7 +174,12 @@ export function TableFiltersPanel({
             )}
           </CardTitle>
           <div className="flex gap-2">
-            <Button onClick={addFilterGroup} size="sm" variant="outline">
+            <Button 
+              onClick={addFilterGroup} 
+              size="sm" 
+              variant="outline"
+              disabled={filters.length > 0}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Add Filter Group
             </Button>
