@@ -21,8 +21,9 @@ import { UserEmailCell } from './UserEmailCell';
 import { DeleteSubmissionButton } from './DeleteSubmissionButton';
 import { ExportDropdown } from './ExportDropdown';
 import { SortingControls, SortConfig } from './SortingControls';
-import { ComplexFilter, FilterGroup } from '@/components/ui/complex-filter';
+import { ComplexFilter, FilterGroup, FilterCondition } from '@/components/ui/complex-filter';
 import { SavedFiltersManager } from './SavedFiltersManager';
+import { ExpressionEvaluator, EvaluationContext } from '@/utils/expressionEvaluator';
 import { InlineEditDialog } from './InlineEditDialog';
 import { MultiLineEditDialog } from './MultiLineEditDialog';
 import { BulkActionsBar } from './BulkActionsBar';
@@ -221,6 +222,29 @@ export function DynamicTable({
       filtered = filtered.filter(row => {
         return appliedFilters.some(group => {
           if (group.conditions.length === 0) return true;
+          
+          // Use new expression system if logicExpression is defined
+          if (group.logicExpression && group.conditions.length > 1) {
+            try {
+              // Build evaluation context with condition results
+              const context: EvaluationContext = {};
+              group.conditions.forEach((condition, index) => {
+                const conditionNumber = (index + 1).toString();
+                context[conditionNumber] = evaluateCondition(row, condition);
+              });
+              
+              // Evaluate the expression
+              return ExpressionEvaluator.evaluate(group.logicExpression, context);
+            } catch (error) {
+              console.error('Filter expression evaluation error:', error);
+              // Fallback to legacy behavior
+              return group.logic === 'AND'
+                ? group.conditions.every(condition => evaluateCondition(row, condition))
+                : group.conditions.some(condition => evaluateCondition(row, condition));
+            }
+          }
+          
+          // Legacy behavior: simple AND/OR logic
           if (group.logic === 'AND') {
             return group.conditions.every(condition => evaluateCondition(row, condition));
           } else {

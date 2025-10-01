@@ -7,11 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Filter, Plus, X, Trash2, Save } from 'lucide-react';
+import { Filter, Plus, X, Trash2, Save, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SaveFilterDialog } from '@/components/reports/SaveFilterDialog';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
 import { useToast } from '@/hooks/use-toast';
+import { ExpressionEvaluator } from '@/utils/expressionEvaluator';
 
 export interface FilterCondition {
   id: string;
@@ -26,6 +27,7 @@ export interface FilterGroup {
   name: string;
   conditions: FilterCondition[];
   logic: 'AND' | 'OR';
+  logicExpression?: string; // New field for custom logical expressions
 }
 
 interface ComplexFilterProps {
@@ -56,6 +58,7 @@ const OPERATORS = [
 export function ComplexFilter({ filters, onFiltersChange, availableFields, className, formId, onApplyFilters, onClearFilters }: ComplexFilterProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [expressionErrors, setExpressionErrors] = useState<Record<string, string>>({});
   const { saveFilter } = useSavedFilters(formId || '');
   const { toast } = useToast();
 
@@ -83,6 +86,29 @@ export function ComplexFilter({ filters, onFiltersChange, availableFields, class
     onFiltersChange(filters.map(group => 
       group.id === groupId ? { ...group, ...updates } : group
     ));
+
+    // Validate expression if it was updated
+    if (updates.logicExpression !== undefined) {
+      validateExpression(groupId, updates.logicExpression);
+    }
+  };
+
+  const validateExpression = (groupId: string, expression: string) => {
+    if (!expression.trim()) {
+      setExpressionErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[groupId];
+        return newErrors;
+      });
+      return;
+    }
+
+    const validation = ExpressionEvaluator.validate(expression);
+    
+    setExpressionErrors(prev => ({
+      ...prev,
+      [groupId]: validation.valid ? '' : (validation.error || 'Invalid expression')
+    }));
   };
 
   const addCondition = (groupId: string) => {
@@ -220,20 +246,6 @@ export function ComplexFilter({ filters, onFiltersChange, availableFields, class
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
                           <Label className="font-medium">{group.name}</Label>
-                          <Select
-                            value={group.logic}
-                            onValueChange={(value: 'AND' | 'OR') =>
-                              updateFilterGroup(group.id, { logic: value })
-                            }
-                          >
-                            <SelectTrigger className="w-20 h-7">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="AND">AND</SelectItem>
-                              <SelectItem value="OR">OR</SelectItem>
-                            </SelectContent>
-                          </Select>
                         </div>
                         <Button
                           variant="ghost"
@@ -322,6 +334,48 @@ export function ComplexFilter({ filters, onFiltersChange, availableFields, class
                           Add Condition
                         </Button>
                       </div>
+
+                      {/* Logical Expression Input */}
+                      {group.conditions.length > 1 && (
+                        <div className="mt-4 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Label className="text-sm font-medium">Logical Expression</Label>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  <p className="text-xs">
+                                    Use condition numbers with AND, OR, NOT operators and parentheses.
+                                    <br />
+                                    Examples: "1 AND 2", "1 OR (2 AND 3)", "NOT 1 AND 2"
+                                    <br />
+                                    Condition numbers: {group.conditions.map((_, i) => i + 1).join(', ')}
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                          <Input
+                            value={group.logicExpression || ''}
+                            onChange={(e) => updateFilterGroup(group.id, { logicExpression: e.target.value })}
+                            placeholder={`e.g., 1 AND (2 OR 3) - Conditions: ${group.conditions.length}`}
+                            className={cn(
+                              "font-mono text-sm",
+                              expressionErrors[group.id] && "border-destructive"
+                            )}
+                          />
+                          {expressionErrors[group.id] && (
+                            <p className="text-xs text-destructive">{expressionErrors[group.id]}</p>
+                          )}
+                          {!expressionErrors[group.id] && group.logicExpression && (
+                            <p className="text-xs text-muted-foreground">
+                              ✓ Expression is valid
+                            </p>
+                          )}
+                        </div>
+                      )}
 
                       {groupIndex < filters.length - 1 && (
                         <div className="flex items-center justify-center mt-4 mb-2">
