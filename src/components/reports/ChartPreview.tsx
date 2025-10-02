@@ -108,17 +108,74 @@ export function ChartPreview({
             allLevels: config.drilldownConfig.drilldownLevels,
             dimensionForChart: chartDimensions
           });
-          const serverData = await getChartData(config.formId, chartDimensions, config.metrics || [], config.aggregation || 'count', config.filters || [], config.drilldownConfig?.drilldownLevels || [], drilldownState?.values || [], config.metricAggregations || [], config.groupByField);
+          const serverData: any[] = await getChartData(config.formId, chartDimensions, config.metrics || [], config.aggregation || 'count', config.filters || [], config.drilldownConfig?.drilldownLevels || [], drilldownState?.values || [], config.metricAggregations || [], config.groupByField);
+
+          console.log('📊 Raw server data for grouped chart:', serverData);
+          console.log('📊 Group by field:', config.groupByField);
+          console.log('📊 Server data structure check:', serverData.length > 0 ? Object.keys(serverData[0]) : 'no data');
 
           // Transform server data to chart format
-          const chartData = serverData.map((item: any) => ({
-            name: item.name,
-            value: Number(item.value),
-            count: Number(item.value),
-            // Always include count
-            [config.metrics?.[0] || 'count']: Number(item.value),
-            _drilldownData: item.additional_data
-          }));
+          let chartData: any[];
+          
+          // Check if server returned grouped structure or if we need to do client-side grouping
+          if (config.groupByField && serverData.length > 0) {
+            // Check if server returned pre-grouped data with 'groups' or 'group_*' fields
+            const firstItem: any = serverData[0];
+            const hasGroupsField = 'groups' in firstItem;
+            const hasGroupKeys = Object.keys(firstItem).some(key => key !== 'name' && key !== 'value' && key !== 'additional_data' && typeof firstItem[key] === 'number');
+            
+            if (hasGroupsField) {
+              // Server returned data with nested groups: { name: "dim", groups: { "g1": v1, "g2": v2 } }
+              console.log('📊 Using server-provided groups structure');
+              chartData = serverData.map((item: any) => {
+                const dataPoint: any = { name: item.name };
+                
+                if (item.groups) {
+                  Object.entries(item.groups).forEach(([groupKey, groupValue]) => {
+                    dataPoint[groupKey] = Number(groupValue);
+                  });
+                }
+                
+                return dataPoint;
+              });
+            } else if (hasGroupKeys) {
+              // Server already returned flattened grouped data: { name: "dim", "group1": v1, "group2": v2 }
+              console.log('📊 Using server-provided flattened groups');
+              chartData = serverData.map((item: any) => {
+                const dataPoint: any = {};
+                Object.entries(item).forEach(([key, value]) => {
+                  if (key === 'name') {
+                    dataPoint.name = value;
+                  } else if (key !== 'additional_data' && typeof value === 'number') {
+                    dataPoint[key] = Number(value);
+                  }
+                });
+                return dataPoint;
+              });
+            } else {
+              // Server returned simple structure, needs client-side grouping via RPC with groupBy
+              // This means the server-side RPC should have handled it but didn't
+              console.log('📊 Server did not group data, falling back to simple structure');
+              chartData = serverData.map((item: any) => ({
+                name: item.name,
+                value: Number(item.value),
+                count: Number(item.value),
+                [config.metrics?.[0] || 'count']: Number(item.value),
+                _drilldownData: item.additional_data
+              }));
+            }
+            
+            console.log('📊 Transformed grouped chart data:', chartData);
+          } else {
+            // Non-grouped data structure: { name: "dimension_value", value: number }
+            chartData = serverData.map((item: any) => ({
+              name: item.name,
+              value: Number(item.value),
+              count: Number(item.value),
+              [config.metrics?.[0] || 'count']: Number(item.value),
+              _drilldownData: item.additional_data
+            }));
+          }
           console.log('✅ Processed drilldown chart data:', {
             totalItems: chartData.length,
             sampleData: chartData[0],
@@ -149,13 +206,14 @@ export function ChartPreview({
       }
     };
     loadChartData();
-  }, [config.formId, config.dimensions, config.metrics, config.filters, config.xAxis, config.yAxis, config.aggregation, config.aggregationType, config.drilldownConfig?.enabled, config.drilldownConfig?.drilldownLevels, drilldownState?.values, (config as any).data, getFormSubmissionData, getChartData]);
+  }, [config.formId, config.dimensions, config.metrics, config.filters, config.xAxis, config.yAxis, config.aggregation, config.aggregationType, config.groupByField, config.drilldownConfig?.enabled, config.drilldownConfig?.drilldownLevels, drilldownState?.values, (config as any).data, getFormSubmissionData, getChartData]);
   const processSubmissionData = (submissions: any[]) => {
     if (!submissions.length) {
       console.log('No submissions to process');
       return [];
     }
     console.log('Processing submissions:', submissions.length);
+    console.log('🔍 Group by field:', config.groupByField);
 
     // Get dimension fields
     let dimensionFields: string[] = [];
@@ -172,14 +230,72 @@ export function ChartPreview({
 
     // Get metric fields
     const metricFields = config.metrics && config.metrics.length > 0 ? config.metrics : config.aggregation === 'count' || config.aggregationType === 'count' ? ['count'] : config.yAxis ? [config.yAxis] : ['count'];
-    console.log('Processing with dimensions:', dimensionFields, 'metrics:', metricFields);
+    console.log('Processing with dimensions:', dimensionFields, 'metrics:', metricFields, 'groupBy:', config.groupByField);
 
+    // If groupByField is specified, use grouped processing
+    if (config.groupByField) {
+      return processGroupedData(submissions, dimensionFields, metricFields, config.groupByField);
+    }
+    
     // For multiple dimensions, we need to create a cross-product structure
     if (dimensionFields.length > 1) {
       return processMultiDimensionalData(submissions, dimensionFields, metricFields);
     } else {
       return processSingleDimensionalData(submissions, dimensionFields, metricFields);
     }
+  };
+  
+  const processGroupedData = (submissions: any[], dimensionFields: string[], metricFields: string[], groupByField: string) => {
+    console.log('🔍 Processing grouped data with groupBy:', groupByField);
+    
+    // Structure: { dimensionValue: { groupValue1: metricSum, groupValue2: metricSum } }
+    const groupedData: { [dimensionKey: string]: { [groupKey: string]: number } } = {};
+    const allGroupValues = new Set<string>();
+    
+    submissions.forEach(submission => {
+      const submissionData = submission.submission_data;
+      
+      // Apply filters
+      if (!passesFilters(submissionData)) return;
+      
+      // Get dimension and group values
+      const dimensionKey = getDimensionKey(submissionData, dimensionFields);
+      const groupValue = getDimensionValue(submissionData, groupByField);
+      
+      allGroupValues.add(groupValue);
+      
+      // Initialize structures
+      if (!groupedData[dimensionKey]) {
+        groupedData[dimensionKey] = {};
+      }
+      if (!groupedData[dimensionKey][groupValue]) {
+        groupedData[dimensionKey][groupValue] = 0;
+      }
+      
+      // Aggregate metrics
+      metricFields.forEach(metric => {
+        const metricValue = getMetricValue(submissionData, metric);
+        groupedData[dimensionKey][groupValue] += metricValue;
+      });
+    });
+    
+    // Convert to chart-friendly format
+    const result: any[] = [];
+    Object.entries(groupedData).forEach(([dimensionValue, groups]) => {
+      const dataPoint: any = { name: dimensionValue };
+      
+      // Add each group value as a separate property
+      allGroupValues.forEach(groupValue => {
+        dataPoint[groupValue] = groups[groupValue] || 0;
+      });
+      
+      result.push(dataPoint);
+    });
+    
+    console.log('🔍 Grouped data result:', result);
+    console.log('🔍 All group values:', Array.from(allGroupValues));
+    
+    return result;
   };
   const processSingleDimensionalData = (submissions: any[], dimensionFields: string[], metricFields: string[]) => {
     const processedData: {
@@ -481,9 +597,13 @@ export function ChartPreview({
       totalRecords: chartData.length
     });
 
-    // Get all dimension-based data keys (for multi-dimensional charts)
-    let dimensionKeys = chartData.length > 0 ? Object.keys(chartData[0]).filter(key => key !== 'name' && typeof chartData[0][key] === 'number') : [];
-    const isMultiDimensional = config.dimensions && config.dimensions.length > 1;
+    // Get all dimension-based data keys (for multi-dimensional charts OR grouped charts)
+    let dimensionKeys = chartData.length > 0 ? Object.keys(chartData[0]).filter(key => key !== 'name' && key !== '_drilldownData' && typeof chartData[0][key] === 'number') : [];
+    const isMultiDimensional = (config.dimensions && config.dimensions.length > 1) || (config.groupByField && dimensionKeys.length > 1);
+    
+    console.log('📊 Chart rendering - dimensionKeys:', dimensionKeys);
+    console.log('📊 Chart rendering - isMultiDimensional:', isMultiDimensional);
+    console.log('📊 Chart rendering - groupByField:', config.groupByField);
 
     // For multi-dimensional charts, limit the number of series to avoid cluttered display
     if (isMultiDimensional && dimensionKeys.length > 8) {
