@@ -105,8 +105,6 @@ export function ReportEditor({
       // Update the report name in the database
       await updateReport(reportId, { name: tempReportName });
       setIsEditingName(false);
-      // Trigger the parent onSave to refresh the report data
-      onSave();
       toast({
         title: "Success",
         description: "Report name updated successfully"
