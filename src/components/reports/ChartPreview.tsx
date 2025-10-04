@@ -750,19 +750,28 @@ export function ChartPreview({
             </div>
           </div>;
       case 'donut':
-        return <ResponsiveContainer width="100%" height={400}>
-            <RechartsPieChart>
-              <Pie data={chartData} cx="50%" cy="50%" innerRadius={config.innerRadius || 60} outerRadius={120} fill="#8884d8" dataKey={primaryMetric} label={({
-              name,
-              value,
-              percent
-            }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}>
-                {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />)}
-              </Pie>
-               <Tooltip formatter={(value, name) => [value, name]} />
-               {showLegend && <Legend />}
-            </RechartsPieChart>
-          </ResponsiveContainer>;
+        return <div className="relative w-full" style={{
+          height: '400px',
+          paddingBottom: '40px'
+        }}>
+            <div className="absolute inset-0" style={{
+            bottom: '40px'
+          }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsPieChart>
+                  <Pie data={chartData} cx="50%" cy="50%" innerRadius={config.innerRadius || 60} outerRadius={120} fill="#8884d8" dataKey={primaryMetric} label={({
+                  name,
+                  value,
+                  percent
+                }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}>
+                    {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />)}
+                  </Pie>
+                   <Tooltip formatter={(value, name) => [value, name]} />
+                   {showLegend && <Legend />}
+                </RechartsPieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>;
       case 'line':
         return <div className="relative w-full" style={{
           height: '400px',
@@ -878,31 +887,45 @@ export function ChartPreview({
             </div>
           </div>;
       case 'scatter':
-        return <ResponsiveContainer width="100%" height={400}>
-            <RechartsScatterChart data={chartData} margin={{
-            top: 20,
-            right: 30,
-            left: 20,
-            bottom: 5
+        return <div className="relative w-full" style={{
+          height: '400px',
+          paddingBottom: '40px'
+        }}>
+            <div className="absolute inset-0" style={{
+            bottom: '40px'
           }}>
-              <XAxis dataKey="name" tick={{
-              fontSize: 12
-            }} angle={-45} textAnchor="end" height={80} label={{
-              value: config.xAxisLabel || 'Category',
-              position: 'insideBottom',
-              offset: -5
-            }} />
-              <YAxis dataKey={primaryMetric} tick={{
-              fontSize: 12
-            }} label={{
-              value: config.yAxisLabel || getFormFieldName(primaryMetric),
-              angle: -90,
-              position: 'insideLeft'
-            }} />
-              <Tooltip formatter={(value, name) => [value, name]} labelFormatter={label => `Category: ${label}`} />
-              <Scatter dataKey={primaryMetric} fill={colors[0]} />
-            </RechartsScatterChart>
-          </ResponsiveContainer>;
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsScatterChart data={chartData} margin={{
+                top: 20,
+                right: 30,
+                left: 20,
+                bottom: 80
+              }}>
+                  <XAxis dataKey="name" tick={{
+                  fontSize: 11
+                }} angle={-45} textAnchor="end" height={80} label={{
+                  value: config.xAxisLabel || 'Category',
+                  position: 'insideBottom',
+                  offset: -5
+                }} />
+                  <YAxis dataKey={primaryMetric} tick={{
+                  fontSize: 11
+                }} label={{
+                  value: config.yAxisLabel || getFormFieldName(primaryMetric),
+                  angle: -90,
+                  position: 'insideLeft'
+                }} />
+                  <Tooltip formatter={(value, name) => [value, name]} labelFormatter={label => `Category: ${label}`} contentStyle={{
+                  backgroundColor: 'hsl(var(--popover))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: 'var(--radius)',
+                  fontSize: '12px'
+                }} />
+                  <Scatter dataKey={primaryMetric} fill={colors[0]} />
+                </RechartsScatterChart>
+              </ResponsiveContainer>
+            </div>
+          </div>;
       case 'bubble':
         // For bubble chart, use multiple scatter components with different sizes
         const sizeField = config.sizeField || primaryMetric;
@@ -910,12 +933,23 @@ export function ChartPreview({
           ...item,
           size: item[sizeField] || 10
         }));
-        return <RechartsScatterChart data={bubbleData}>
-            <XAxis dataKey="name" />
-            <YAxis dataKey={primaryMetric} />
-            <Tooltip formatter={(value, name, props) => [`${name}: ${value}`, `Size: ${props.payload.size}`]} />
-            {bubbleData.map((entry, index) => <Scatter key={index} data={[entry]} fill={colors[index % colors.length]} r={Math.max(5, Math.min(20, entry.size / 2))} />)}
-          </RechartsScatterChart>;
+        return <div className="relative w-full" style={{
+          height: '400px',
+          paddingBottom: '40px'
+        }}>
+            <div className="absolute inset-0" style={{
+            bottom: '40px'
+          }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsScatterChart data={bubbleData}>
+                    <XAxis dataKey="name" />
+                    <YAxis dataKey={primaryMetric} />
+                    <Tooltip formatter={(value, name, props) => [`${name}: ${value}`, `Size: ${props.payload.size}`]} />
+                    {bubbleData.map((entry, index) => <Scatter key={index} data={[entry]} fill={colors[index % colors.length]} r={Math.max(5, Math.min(20, entry.size / 2))} />)}
+                </RechartsScatterChart>
+              </ResponsiveContainer>
+            </div>
+          </div>;
       case 'heatmap':
         // Generate heatmap data grid
         const heatmapData = chartData.map((item, index) => ({
