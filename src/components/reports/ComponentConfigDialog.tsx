@@ -478,14 +478,30 @@ export function ComponentConfigDialog({
           {config.formId ? (
             <ChartExamples
               onSelectExample={(example) => {
-                setConfig({
+                // Create the chart configuration with example data
+                const exampleConfig = {
                   ...config,
                   chartType: example.chartType,
                   metrics: example.metrics,
                   dimensions: example.dimensions,
                   metricAggregations: example.metricAggregations,
-                  aggregationEnabled: example.aggregationEnabled
+                  aggregationEnabled: example.aggregationEnabled,
+                  title: example.title || config.title
+                };
+                
+                // Immediately save the chart to the report
+                onSave({
+                  config: exampleConfig,
+                  layout: {
+                    x: 0,
+                    y: 0,
+                    w: 6,
+                    h: 4
+                  }
                 });
+                
+                // Close the dialog
+                onOpenChange(false);
               }}
               formId={config.formId}
             />
