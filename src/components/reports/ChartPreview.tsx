@@ -1003,9 +1003,9 @@ export function ChartPreview({
     }
   };
   const canDrillUp = drilldownState?.values && drilldownState.values.length > 0;
-  return <div className="space-y-4 relative group h-full">
+  return <div className="h-full flex flex-col overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
       {/* Chart Header with Controls */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-shrink-0">
         {config.title && <div className="flex-1">
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-semibold">{config.title}</h3>
@@ -1134,7 +1134,7 @@ export function ChartPreview({
       </div>
 
       {/* Form Fields Display */}
-      {showFormFields && <div className="p-4 bg-muted/30 rounded-lg border">
+      {showFormFields && <div className="p-4 bg-muted/30 rounded-lg border flex-shrink-0">
           <h4 className="font-semibold mb-2">Form Details: {getFormName(config.formId)}</h4>
           <div className="space-y-2">
             {formFields.map(field => <div key={field.id} className="text-sm">
@@ -1160,34 +1160,35 @@ export function ChartPreview({
           </div>
         </div>}
 
+      {/* Flexible Spacer - pushes chart to bottom */}
+      <div className="flex-grow min-h-4"></div>
+
       {/* Chart Container - Always positioned at bottom */}
-      <div className="flex-1 min-h-0 flex flex-col justify-end">
-        <div className="h-full min-h-[300px] flex flex-col justify-end">
-          {config.showAsTable ? (
-            <div className="h-full overflow-auto">
-              <table className="w-full border-collapse border border-border">
-                <thead>
-                  <tr>
-                    <th className="border border-border p-2 bg-muted text-left">Category</th>
-                    <th className="border border-border p-2 bg-muted text-left">Value</th>
+      <div className="flex-shrink-0 min-h-[300px]">
+        {config.showAsTable ? (
+          <div className="h-full overflow-auto">
+            <table className="w-full border-collapse border border-border">
+              <thead>
+                <tr>
+                  <th className="border border-border p-2 bg-muted text-left">Category</th>
+                  <th className="border border-border p-2 bg-muted text-left">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {chartData.map((item, index) => (
+                  <tr key={index}>
+                    <td className="border border-border p-2">{item.name}</td>
+                    <td className="border border-border p-2">{item.value || item.count || 0}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {chartData.map((item, index) => (
-                    <tr key={index}>
-                      <td className="border border-border p-2">{item.name}</td>
-                      <td className="border border-border p-2">{item.value || item.count || 0}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="h-full flex items-end">
-              {renderChart()}
-            </div>
-          )}
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="w-full">
+            {renderChart()}
+          </div>
+        )}
       </div>
     </div>;
 }
