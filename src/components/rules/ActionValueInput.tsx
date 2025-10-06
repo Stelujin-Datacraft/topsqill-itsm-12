@@ -39,6 +39,12 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
   const [countries, setCountries] = useState<Country[]>([]);
   const [countriesLoading, setCountriesLoading] = useState(false);
   const [isCountryOpen, setIsCountryOpen] = useState(false);
+  
+  // Hooks must be called unconditionally at the top level
+  const { currentProject } = useProject();
+  const { projectMembers, loading } = useProjectMembership(currentProject?.id || '');
+  const { users, loading: usersLoading } = useOrganizationUsers();
+  const { groups, loading: groupsLoading } = useGroups();
 
   // Load countries when component mounts for address and country fields
   useEffect(() => {
@@ -302,8 +308,6 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
 
     loadCountries();
   }, []);
-  const { currentProject } = useProject();
-  const { projectMembers, loading } = useProjectMembership(currentProject?.id || '');
 
   // Don't show input for actions that don't need values
   if (!['setDefault', 'changeLabel', 'showTooltip', 'showError', 'changeOptions'].includes(action)) {
@@ -934,9 +938,6 @@ if (targetField.type === 'address') {
 
     // Submission access field
     if (targetField.type === 'submission-access') {
-      const { users, loading: usersLoading } = useOrganizationUsers();
-      const { groups, loading: groupsLoading } = useGroups();
-
       const customConfig = targetField.customConfig as any || {};
       const allowedUsers = customConfig.allowedUsers || [];
       const allowedGroups = customConfig.allowedGroups || [];
