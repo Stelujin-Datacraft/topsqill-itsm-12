@@ -932,17 +932,242 @@ if (targetField.type === 'address') {
 
     // Submission access field
     if (targetField.type === 'submission-access') {
+      const { useOrganizationUsers } = require('@/hooks/useOrganizationUsers');
+      const { useGroups } = require('@/hooks/useGroups');
+      const { users, loading: usersLoading } = useOrganizationUsers();
+      const { groups, loading: groupsLoading } = useGroups();
+
+      const customConfig = targetField.customConfig as any || {};
+      const allowedUsers = customConfig.allowedUsers || [];
+      const allowedGroups = customConfig.allowedGroups || [];
+      const allowMultiple = customConfig.allowMultiple !== false;
+
+      // Filter users and groups to only those allowed by the field configuration
+      const filteredUsers = users.filter(user => 
+        allowedUsers.length === 0 || allowedUsers.includes(user.id)
+      );
+      const filteredGroups = groups.filter(group => 
+        allowedGroups.length === 0 || allowedGroups.includes(group.id)
+      );
+
+      // Parse current value
+      const normalizedValue = React.useMemo(() => {
+        if (!value) return { users: [], groups: [] };
+        if (typeof value === 'string') {
+          try {
+            return JSON.parse(value);
+          } catch {
+            return { users: [], groups: [] };
+          }
+        }
+        return value;
+      }, [value]);
+
+      const selectedUsers = normalizedValue.users || [];
+      const selectedGroups = normalizedValue.groups || [];
+
+      const handleUserToggle = (userId: string) => {
+        const newUsers = selectedUsers.includes(userId)
+          ? selectedUsers.filter((id: string) => id !== userId)
+          : allowMultiple 
+            ? [...selectedUsers, userId]
+            : [userId];
+        
+        onChange({
+          users: newUsers,
+          groups: allowMultiple ? selectedGroups : []
+        });
+        if (!allowMultiple) setOpen(false);
+      };
+
+      const handleGroupToggle = (groupId: string) => {
+        const newGroups = selectedGroups.includes(groupId)
+          ? selectedGroups.filter((id: string) => id !== groupId)
+          : allowMultiple 
+            ? [...selectedGroups, groupId]
+            : [groupId];
+        
+        onChange({
+          users: allowMultiple ? selectedUsers : [],
+          groups: newGroups
+        });
+        if (!allowMultiple) setOpen(false);
+      };
+
+      const handleRemoveUser = (userId: string) => {
+        onChange({
+          users: selectedUsers.filter((id: string) => id !== userId),
+          groups: selectedGroups
+        });
+      };
+
+      const handleRemoveGroup = (groupId: string) => {
+        onChange({
+          users: selectedUsers,
+          groups: selectedGroups.filter((id: string) => id !== groupId)
+        });
+      };
+
       return (
-        <Select value={value || ''} onValueChange={onChange}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select access level" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="public">Public</SelectItem>
-            <SelectItem value="private">Private</SelectItem>
-            <SelectItem value="restricted">Restricted</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">
+            Default {allowMultiple ? 'Users/Groups' : 'User/Group'}:
+          </Label>
+
+          {/* Display selected users and groups */}
+          {(selectedUsers.length > 0 || selectedGroups.length > 0) && (
+            <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-muted/20">
+              {selectedUsers.map((userId: string) => {
+                const user = filteredUsers.find(u => u.id === userId);
+                if (!user) return null;
+                return (
+                  <Badge key={userId} variant="secondary" className="flex items-center gap-1">
+                    <Users className="h-3 w-3" />
+                    {user.email}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveUser(userId)}
+                      className="ml-1 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                );
+              })}
+              {selectedGroups.map((groupId: string) => {
+                const group = filteredGroups.find(g => g.id === groupId);
+                if (!group) return null;
+                return (
+                  <Badge key={groupId} variant="outline" className="flex items-center gap-1">
+                    <Users className="h-3 w-3" />
+                    {group.name}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveGroup(groupId)}
+                      className="ml-1 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Selector */}
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                className="w-full justify-between"
+                disabled={usersLoading || groupsLoading}
+              >
+                {usersLoading || groupsLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <span className="truncate">
+                      {selectedUsers.length + selectedGroups.length > 0
+                        ? `${selectedUsers.length + selectedGroups.length} selected`
+                        : 'Select users or groups'}
+                    </span>
+                    <ChevronDown className="h-4 w-4 ml-2 shrink-0 opacity-50" />
+                  </>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Search users or groups..." />
+                <CommandEmpty>No users or groups found.</CommandEmpty>
+                <ScrollArea className="h-72">
+                  <CommandList>
+                    {filteredUsers.length > 0 && (
+                      <CommandGroup heading="Users">
+                        {filteredUsers.map((user) => (
+                          <CommandItem
+                            key={user.id}
+                            onSelect={() => handleUserToggle(user.id)}
+                            className="flex items-center gap-2"
+                          >
+                            <div
+                              className={cn(
+                                'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
+                                selectedUsers.includes(user.id)
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'opacity-50 [&_svg]:invisible'
+                              )}
+                            >
+                              <Check className="h-4 w-4" />
+                            </div>
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback className="text-xs">
+                                {user.email?.charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col">
+                              <span className="text-sm">{user.email}</span>
+                              {user.first_name && (
+                                <span className="text-xs text-muted-foreground">
+                                  {user.first_name} {user.last_name}
+                                </span>
+                              )}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    )}
+
+                    {filteredGroups.length > 0 && (
+                      <CommandGroup heading="Groups">
+                        {filteredGroups.map((group) => (
+                          <CommandItem
+                            key={group.id}
+                            onSelect={() => handleGroupToggle(group.id)}
+                            className="flex items-center gap-2"
+                          >
+                            <div
+                              className={cn(
+                                'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
+                                selectedGroups.includes(group.id)
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'opacity-50 [&_svg]:invisible'
+                              )}
+                            >
+                              <Check className="h-4 w-4" />
+                            </div>
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm">{group.name}</span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    )}
+
+                    {filteredUsers.length === 0 && filteredGroups.length === 0 && (
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        No users or groups are configured for this field.
+                        <br />
+                        <span className="text-xs">
+                          Configure allowed users/groups in field settings.
+                        </span>
+                      </div>
+                    )}
+                  </CommandList>
+                </ScrollArea>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          <p className="text-xs text-muted-foreground">
+            {allowMultiple 
+              ? 'Select multiple users and/or groups as default'
+              : 'Select one user or group as default'}
+          </p>
+        </div>
       );
     }
   }
