@@ -29,12 +29,12 @@ export function SubmissionAccessInput({ targetField, value, onChange }: Submissi
 
   // Filter users and groups to only those allowed by the field configuration
   const filteredUsers = useMemo(() => 
-    users.filter(user => allowedUsers.length === 0 || allowedUsers.includes(user.id)),
+    users.filter(user => allowedUsers.includes(user.id)),
     [users, allowedUsers]
   );
   
   const filteredGroups = useMemo(() =>
-    groups.filter(group => allowedGroups.length === 0 || allowedGroups.includes(group.id)),
+    groups.filter(group => allowedGroups.includes(group.id)),
     [groups, allowedGroups]
   );
 
