@@ -23,6 +23,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useForm } from '@/contexts/FormContext';
 import { useProject } from '@/contexts/ProjectContext';
+import { useSubmissionAccessFilter } from '@/hooks/useSubmissionAccessFilter';
+import { Form } from '@/types/form';
 import { 
   Search, 
   Eye, 
@@ -50,11 +52,17 @@ export function MySubmissions() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFormId, setSelectedFormId] = useState<string>('all');
+  const [currentForm, setCurrentForm] = useState<Form | null>(null);
   
   const { userProfile } = useAuth();
   const { forms } = useForm();
   const { currentProject } = useProject();
   const navigate = useNavigate();
+  
+  const { filterSubmissions: applyAccessFilter, loading: accessFilterLoading } = useSubmissionAccessFilter(
+    currentForm,
+    userProfile?.id
+  );
 
   // Load user's submissions
   const loadSubmissions = async () => {
@@ -123,8 +131,80 @@ export function MySubmissions() {
     loadSubmissions();
   }, [userProfile?.id, currentProject?.id]);
 
+  // Load current form structure for access filtering
+  useEffect(() => {
+    const loadCurrentForm = async () => {
+      if (selectedFormId === 'all' || !selectedFormId) {
+        setCurrentForm(null);
+        return;
+      }
+
+      try {
+        const { data: formData, error } = await supabase
+          .from('forms')
+          .select(`
+            *,
+            form_fields(*)
+          `)
+          .eq('id', selectedFormId)
+          .single();
+
+        if (error) throw error;
+
+        const safeParseJson = (jsonString: any, fallback: any = null) => {
+          if (!jsonString) return fallback;
+          if (typeof jsonString === 'object') return jsonString;
+          try {
+            return JSON.parse(jsonString);
+          } catch (error) {
+            return fallback;
+          }
+        };
+
+        const transformedForm: Form = {
+          id: formData.id,
+          name: formData.name,
+          description: formData.description || '',
+          organizationId: formData.organization_id,
+          projectId: formData.project_id,
+          status: formData.status as Form['status'],
+          fields: (formData.form_fields || []).map((field: any) => ({
+            id: field.id,
+            type: field.field_type as any,
+            label: field.label,
+            placeholder: field.placeholder || undefined,
+            required: field.required || false,
+            customConfig: field.custom_config ? safeParseJson(field.custom_config, {}) : undefined,
+          })),
+          permissions: safeParseJson(formData.permissions, { view: [], submit: [], edit: [] }),
+          createdAt: formData.created_at,
+          updatedAt: formData.updated_at,
+          createdBy: formData.created_by,
+          isPublic: formData.is_public,
+          shareSettings: safeParseJson(formData.share_settings, { allowPublicAccess: false, sharedUsers: [] }),
+          fieldRules: safeParseJson(formData.field_rules, []),
+          formRules: safeParseJson(formData.form_rules, []),
+          layout: safeParseJson(formData.layout, { columns: 1 }),
+          pages: safeParseJson(formData.pages, []),
+        };
+
+        setCurrentForm(transformedForm);
+      } catch (error) {
+        console.error('Error loading form:', error);
+        setCurrentForm(null);
+      }
+    };
+
+    loadCurrentForm();
+  }, [selectedFormId]);
+
+  // Apply access control filter first, then other filters
+  const accessFilteredSubmissions = React.useMemo(() => {
+    return applyAccessFilter(submissions);
+  }, [submissions, applyAccessFilter]);
+
   // Filter submissions
-  const filteredSubmissions = submissions.filter(submission => {
+  const filteredSubmissions = accessFilteredSubmissions.filter(submission => {
     const matchesSearch = submission.form_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          submission.submission_ref_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          Object.values(submission.submission_data).some(value => 
@@ -156,7 +236,7 @@ export function MySubmissions() {
     navigate(`/submission/${submission.id}?edit=true`);
   };
 
-  if (loading) {
+  if (loading || accessFilterLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-muted-foreground">Loading your submissions...</div>

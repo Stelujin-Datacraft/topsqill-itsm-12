@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,8 @@ import { Form } from '@/types/form';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, Filter, Download, Eye, Trash2, Calendar, User, FileText, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSubmissionAccessFilter } from '@/hooks/useSubmissionAccessFilter';
 interface FormSubmission {
   id: string;
   formId: string;
@@ -32,6 +34,8 @@ export function FormSubmissions({
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [approvalFilter, setApprovalFilter] = useState<string>('all');
+  const { userProfile } = useAuth();
+  const { filterSubmissions: applyAccessFilter, loading: accessFilterLoading } = useSubmissionAccessFilter(form, userProfile?.id);
 
   // Get all fields from all pages
   const getAllFields = () => {
@@ -90,7 +94,19 @@ export function FormSubmissions({
   useEffect(() => {
     loadSubmissions();
   }, [form.id]);
-  const filteredSubmissions = submissions.filter(submission => {
+
+  // Apply access control filter first, then other filters
+  const accessFilteredSubmissions = useMemo(() => {
+    return applyAccessFilter(submissions.map(s => ({ 
+      ...s, 
+      submission_data: s.submissionData 
+    }))).map(s => ({
+      ...s,
+      submissionData: s.submission_data
+    }));
+  }, [submissions, applyAccessFilter]);
+
+  const filteredSubmissions = accessFilteredSubmissions.filter(submission => {
     const matchesSearch = submission.submittedBy.toLowerCase().includes(searchTerm.toLowerCase()) || Object.values(submission.submissionData).some(value => String(value).toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesApprovalFilter = approvalFilter === 'all' || submission.approvalStatus === approvalFilter;
     return matchesSearch && matchesApprovalFilter;
@@ -158,7 +174,7 @@ export function FormSubmissions({
           </Badge>;
     }
   };
-  if (loading) {
+  if (loading || accessFilterLoading) {
     return <div className="flex items-center justify-center py-12">
         <div className="text-muted-foreground">Loading submissions...</div>
       </div>;

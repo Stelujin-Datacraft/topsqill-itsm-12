@@ -13,6 +13,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useReports } from '@/hooks/useReports';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSubmissionAccessFilter } from '@/hooks/useSubmissionAccessFilter';
+import { Form } from '@/types/form';
 import { DynamicTableColumnSelector } from './DynamicTableColumnSelector';
 import { SubmissionAnalytics } from './SubmissionAnalytics';
 import { FormDataCell } from './FormDataCell';
@@ -53,6 +56,7 @@ export function DynamicTable({
   // All state hooks first
   const [data, setData] = useState<any[]>([]);
   const [formFields, setFormFields] = useState<any[]>([]);
+  const [currentForm, setCurrentForm] = useState<Form | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfigs, setSortConfigs] = useState<SortConfig[]>([]);
@@ -87,6 +91,11 @@ export function DynamicTable({
     forms
   } = useReports();
   const navigate = useNavigate();
+  const { userProfile } = useAuth();
+  const { filterSubmissions: applyAccessFilter, loading: accessFilterLoading } = useSubmissionAccessFilter(
+    currentForm,
+    userProfile?.id
+  );
 
   // Helper function to evaluate filter conditions
   const evaluateCondition = useCallback((row: any, condition: any) => {
@@ -174,7 +183,9 @@ export function DynamicTable({
     console.log('🔍 Column filters:', columnFilters);
     console.log('🔍 Applied filters:', appliedFilters);
     
-    let filtered = data;
+    // Apply access control filter first
+    let filtered = applyAccessFilter(data);
+    console.log('🔒 After access control filter:', filtered.length);
 
     // Apply search
     if (searchTerm && config.enableSearch) {
@@ -278,7 +289,7 @@ export function DynamicTable({
 
     console.log('✅ Final filtered count:', filtered.length);
     return filtered;
-  }, [data, searchTerm, columnFilters, appliedFilters, sortConfigs, displayFields, config, evaluateCondition]);
+  }, [data, searchTerm, columnFilters, appliedFilters, sortConfigs, displayFields, config, evaluateCondition, applyAccessFilter]);
   const paginatedData = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
@@ -576,6 +587,55 @@ export function DynamicTable({
       if (selectedColumns.length === 0 && fields && fields.length > 0) {
         setSelectedColumns(fields.map(f => f.id));
       }
+
+      // Load the full form structure for access control
+      const { data: formData, error: formError } = await supabase
+        .from('forms')
+        .select('*')
+        .eq('id', config.formId)
+        .single();
+
+      if (formError) {
+        console.error('Error loading form:', formError);
+        return;
+      }
+
+      const safeParseJson = (jsonString: any, fallback: any = null) => {
+        if (!jsonString) return fallback;
+        if (typeof jsonString === 'object') return jsonString;
+        try {
+          return JSON.parse(jsonString);
+        } catch (error) {
+          return fallback;
+        }
+      };
+
+      const transformedForm: Form = {
+        id: formData.id,
+        name: formData.name,
+        description: formData.description || '',
+        organizationId: formData.organization_id,
+        projectId: formData.project_id,
+        status: formData.status as Form['status'],
+        fields: (fields || []).map((field: any) => ({
+          id: field.id,
+          type: field.field_type as any,
+          label: field.label,
+          customConfig: field.custom_config ? safeParseJson(field.custom_config, {}) : undefined,
+        })),
+        permissions: safeParseJson(formData.permissions, { view: [], submit: [], edit: [] }),
+        createdAt: formData.created_at,
+        updatedAt: formData.updated_at,
+        createdBy: formData.created_by,
+        isPublic: formData.is_public,
+        shareSettings: safeParseJson(formData.share_settings, { allowPublicAccess: false, sharedUsers: [] }),
+        fieldRules: safeParseJson(formData.field_rules, []),
+        formRules: safeParseJson(formData.form_rules, []),
+        layout: safeParseJson(formData.layout, { columns: 1 }),
+        pages: safeParseJson(formData.pages, []),
+      };
+
+      setCurrentForm(transformedForm);
     } catch (error) {
       console.error('Error loading form fields:', error);
     }
