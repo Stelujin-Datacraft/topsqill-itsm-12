@@ -16,6 +16,8 @@ import { Check, ChevronDown, X, Users, Loader2, Upload, Phone, ChevronsUpDown } 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useProject } from '@/contexts/ProjectContext';
 import { useProjectMembership } from '@/hooks/useProjectMembership';
+import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
+import { useGroups } from '@/hooks/useGroups';
 import { cn } from '@/lib/utils';
 
 interface Country {
@@ -932,8 +934,6 @@ if (targetField.type === 'address') {
 
     // Submission access field
     if (targetField.type === 'submission-access') {
-      const { useOrganizationUsers } = require('@/hooks/useOrganizationUsers');
-      const { useGroups } = require('@/hooks/useGroups');
       const { users, loading: usersLoading } = useOrganizationUsers();
       const { groups, loading: groupsLoading } = useGroups();
 
