@@ -226,28 +226,33 @@ export function FieldConfigurationDialog({ field, open, onClose, onSave }: Field
                 </div>
               </div>
 
-              {/* Display Fields in Data Table */}
-              <div className="space-y-2">
-                <Label>Display Fields in Data Table</Label>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Select which fields from the linked form to show when viewing cross-references in data tables
+              {/* Display Field in Table View - IMPORTANT CONFIGURATION */}
+              <div className="space-y-2 p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
+                <Label className="text-base font-semibold">📊 Table Display Field</Label>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Choose which field from the linked form to display in the table view. This makes it easier to identify records without opening them.
                 </p>
                 <Select
                   value={config.tableDisplayField || '__default__'}
                   onValueChange={(value) => setConfig({ ...config, tableDisplayField: value === '__default__' ? '' : value })}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a field to display" />
+                  <SelectTrigger className="border-2">
+                    <SelectValue placeholder="Select a field to display in table" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__default__">Submission ID only</SelectItem>
+                    <SelectItem value="__default__">Submission ID only (default)</SelectItem>
                     {targetFormFields.map((field) => (
                       <SelectItem key={field.id} value={field.id}>
-                        {field.label}
+                        {field.label} ({field.type})
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {config.tableDisplayField && config.tableDisplayField !== '__default__' && (
+                  <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                    ✓ Will display: {targetFormFields.find(f => f.id === config.tableDisplayField)?.label}
+                  </p>
+                )}
               </div>
 
               {/* Filters */}
