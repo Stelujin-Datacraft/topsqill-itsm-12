@@ -204,7 +204,7 @@ export function FieldConfigurationDialog({ field, open, onClose, onSave }: Field
             <>
               {/* Display Columns */}
               <div className="space-y-2">
-                <Label>Display Columns</Label>
+                <Label>Display Columns (in form table)</Label>
                 <div className="grid grid-cols-2 gap-2">
                   {targetFormFields.map((field) => (
                     <div key={field.id} className="flex items-center space-x-2">
@@ -224,6 +224,30 @@ export function FieldConfigurationDialog({ field, open, onClose, onSave }: Field
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Display Fields in Data Table */}
+              <div className="space-y-2">
+                <Label>Display Fields in Data Table</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Select which fields from the linked form to show when viewing cross-references in data tables
+                </p>
+                <Select
+                  value={config.tableDisplayField || '__default__'}
+                  onValueChange={(value) => setConfig({ ...config, tableDisplayField: value === '__default__' ? '' : value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a field to display" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__default__">Submission ID only</SelectItem>
+                    {targetFormFields.map((field) => (
+                      <SelectItem key={field.id} value={field.id}>
+                        {field.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Filters */}

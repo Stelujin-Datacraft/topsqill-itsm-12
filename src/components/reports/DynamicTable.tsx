@@ -84,6 +84,8 @@ export function DynamicTable({
   const [showCopyRecords, setShowCopyRecords] = useState(false);
   const [crossReferenceData, setCrossReferenceData] = useState<string[]>([]);
   const [crossReferenceFieldName, setCrossReferenceFieldName] = useState<string>('Cross Reference');
+  const [crossReferenceTargetFormId, setCrossReferenceTargetFormId] = useState<string>();
+  const [crossReferenceDisplayFields, setCrossReferenceDisplayFields] = useState<string[]>([]);
   const [highlightedSubmissionRef, setHighlightedSubmissionRef] = useState<string | null>(null);
 
   // Custom hooks
@@ -342,10 +344,14 @@ export function DynamicTable({
       console.log('Cross-reference event received:', event.detail);
       const {
         submissionIds,
-        fieldName
+        fieldName,
+        targetFormId,
+        displayFieldIds
       } = event.detail;
       setCrossReferenceData(submissionIds);
       setCrossReferenceFieldName(fieldName || 'Cross Reference');
+      setCrossReferenceTargetFormId(targetFormId);
+      setCrossReferenceDisplayFields(displayFieldIds || []);
       setShowCrossReferenceDialog(true);
     };
     
@@ -1101,6 +1107,8 @@ export function DynamicTable({
         submissionIds={crossReferenceData || []} 
         parentFormId={config.formId}
         fieldName={crossReferenceFieldName}
+        targetFormId={crossReferenceTargetFormId}
+        displayFieldIds={crossReferenceDisplayFields}
       />
     </div>;
 }

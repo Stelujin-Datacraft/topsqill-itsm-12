@@ -15,6 +15,7 @@ export interface FormDataTableConfig {
   pageSize?: number;
   isParentReference?: boolean;
   parentFormId?: string;
+  tableDisplayField?: string;
 }
 
 export interface FormDataTableProps {
