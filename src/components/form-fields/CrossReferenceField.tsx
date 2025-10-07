@@ -98,20 +98,22 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
     return (
       <div className="w-full space-y-2">
         <div className="flex items-center justify-between">
-          {/* <label className="block text-sm font-medium">
+          <label className="block text-sm font-medium">
             {field.label}
             {field.required && <span className="text-red-500 ml-1">*</span>}
-          </label> */}
-          {/* {!isPreview && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setConfigOpen(true)}
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Configure
-            </Button>
-          )} */}
+          </label>
+        {!isPreview && (
+  <Button
+    type="button"   // <-- Add this line
+    variant="outline"
+    size="sm"
+    onClick={() => setConfigOpen(true)}
+  >
+    <Settings className="h-4 w-4 mr-2" />
+    Configure
+  </Button>
+)}
+
         </div>
         
         <div className="w-full p-4 border-2 border-dashed border-muted-foreground/30 rounded-lg text-center">
@@ -143,16 +145,18 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
           {field.label}
           {field.required && <span className="text-red-500 ml-1">*</span>}
         </label>
-        {/* {!isPreview && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setConfigOpen(true)}
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            Configure
-          </Button>
-        )} */}
+       {!isPreview && (
+  <Button
+    type="button"   // <-- Add this line
+    variant="outline"
+    size="sm"
+    onClick={() => setConfigOpen(true)}
+  >
+    <Settings className="h-4 w-4 mr-2" />
+    Configure
+  </Button>
+)}
+
       </div>
       
       <OptimizedFormDataTable

@@ -342,6 +342,57 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
         </Card>
       )}
 
+
+{/* Table Display Field - choose a single field to show */}
+{config.customConfig?.targetFormId && selectedFormFields.length > 0 && (
+  <Card>
+    <CardHeader>
+      <CardTitle className="text-base flex items-center gap-2">
+        Table Display Field
+      </CardTitle>
+    </CardHeader>
+    <CardContent className="space-y-2">
+      <Label className="text-sm font-medium">
+        Select which field from the target form should be displayed in the table view.
+      </Label>
+
+      <Select
+        value={config.customConfig?.tableDisplayField || "__default__"}
+        onValueChange={(value) => {
+          updateCustomConfig(
+            "tableDisplayField",
+            value === "__default__" ? "" : value
+          );
+        }}
+      >
+        <SelectTrigger className="border-2">
+          <SelectValue placeholder="Select a field to display in table" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__default__">Submission ID only (default)</SelectItem>
+          {selectedFormFields.map((field) => (
+            <SelectItem key={field.id} value={field.id}>
+              {field.label} ({field.field_type})
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {config.customConfig?.tableDisplayField &&
+        config.customConfig?.tableDisplayField !== "__default__" && (
+          <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+            ✓ Will display:{" "}
+            {
+              selectedFormFields.find(
+                (f) => f.id === config.customConfig.tableDisplayField
+              )?.label
+            }
+          </p>
+        )}
+    </CardContent>
+  </Card>
+)}
+
       {/* Filters Section */}
       <Card>
         <CardHeader>
