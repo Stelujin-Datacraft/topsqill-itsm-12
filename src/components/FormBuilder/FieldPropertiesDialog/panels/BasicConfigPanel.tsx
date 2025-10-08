@@ -65,17 +65,25 @@ export function BasicConfigPanel({ config, onUpdate, fieldType, errors }: BasicC
             <Label htmlFor="field-required">Required field</Label>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 p-3 border rounded-md bg-blue-50 dark:bg-blue-950/20">
             <Checkbox
               id="field-unique"
               checked={config.validation?.unique || false}
-              onCheckedChange={(checked) => onUpdate({ 
-                validation: { ...config.validation, unique: Boolean(checked) }
-              })}
+              onCheckedChange={(checked) => {
+                console.log('Unique checkbox changed:', checked);
+                onUpdate({ 
+                  validation: { ...config.validation, unique: Boolean(checked) }
+                });
+              }}
             />
-            <Label htmlFor="field-unique" className="text-sm">
-              Unique field (prevent duplicate values)
-            </Label>
+            <div className="flex flex-col">
+              <Label htmlFor="field-unique" className="text-sm font-medium cursor-pointer">
+                ✨ Unique field (prevent duplicate values)
+              </Label>
+              <span className="text-xs text-muted-foreground">
+                Ensures each value entered in this field is unique across all submissions
+              </span>
+            </div>
           </div>
         </>
       )}

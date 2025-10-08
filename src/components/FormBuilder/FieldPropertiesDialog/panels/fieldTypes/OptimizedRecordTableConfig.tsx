@@ -345,20 +345,25 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
 
 {/* Table Display Fields - choose multiple fields to show */}
 {config.customConfig?.targetFormId && selectedFormFields.length > 0 && (
-  <Card>
+  <Card className="border-2 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20">
     <CardHeader>
       <CardTitle className="text-base flex items-center gap-2">
-        📊 Table Display Fields
+        📊 Table Display Fields (Multiple Selection)
       </CardTitle>
     </CardHeader>
     <CardContent className="space-y-3">
-      <Label className="text-sm font-medium">
-        Select fields from the target form to display in the table view (alongside submission ID)
-      </Label>
+      <div className="p-2 bg-white dark:bg-gray-900 rounded border">
+        <Label className="text-sm font-medium">
+          ✨ Select fields from the target form to display in the table view (alongside submission ID)
+        </Label>
+        <p className="text-xs text-muted-foreground mt-1">
+          Check multiple fields to show their values in cross-reference cells
+        </p>
+      </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2 max-h-60 overflow-y-auto p-2">
         {selectedFormFields.map((field) => (
-          <div key={field.id} className="flex items-center space-x-2">
+          <div key={field.id} className="flex items-center space-x-2 p-2 hover:bg-white dark:hover:bg-gray-900 rounded">
             <Checkbox
               id={`display-field-${field.id}`}
               checked={
@@ -375,11 +380,12 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
                   ? [...currentFields, field.id]
                   : currentFields.filter((id) => id !== field.id);
                 
+                console.log('Table display fields updated:', newFields);
                 updateCustomConfig("tableDisplayFields", newFields);
               }}
             />
-            <Label htmlFor={`display-field-${field.id}`} className="text-sm cursor-pointer">
-              {field.label} ({field.field_type})
+            <Label htmlFor={`display-field-${field.id}`} className="text-sm cursor-pointer font-medium">
+              {field.label} <span className="text-xs text-muted-foreground">({field.field_type})</span>
             </Label>
           </div>
         ))}
@@ -387,14 +393,38 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
 
       {Array.isArray(config.customConfig?.tableDisplayFields) &&
         config.customConfig.tableDisplayFields.length > 0 && (
-          <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1 mt-2">
-            ✓ Will display: {config.customConfig.tableDisplayFields.length} field(s) -{" "}
-            {config.customConfig.tableDisplayFields
-              .map((id) => selectedFormFields.find((f) => f.id === id)?.label)
-              .filter(Boolean)
-              .join(", ")}
-          </p>
+          <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded border border-green-200 dark:border-green-800">
+            <p className="text-xs text-green-700 dark:text-green-400 flex items-center gap-1 font-medium">
+              ✓ Selected {config.customConfig.tableDisplayFields.length} field(s):
+            </p>
+            <p className="text-xs text-green-600 dark:text-green-300 mt-1">
+              {config.customConfig.tableDisplayFields
+                .map((id) => selectedFormFields.find((f) => f.id === id)?.label)
+                .filter(Boolean)
+                .join(", ")}
+            </p>
+          </div>
         )}
+    </CardContent>
+  </Card>
+)}
+
+{!config.customConfig?.targetFormId && (
+  <Card className="border-2 border-yellow-200 dark:border-yellow-800">
+    <CardContent className="py-4">
+      <p className="text-sm text-yellow-700 dark:text-yellow-400">
+        ⚠️ Please select a <strong>Target Form</strong> first to configure table display fields
+      </p>
+    </CardContent>
+  </Card>
+)}
+
+{config.customConfig?.targetFormId && selectedFormFields.length === 0 && (
+  <Card className="border-2 border-yellow-200 dark:border-yellow-800">
+    <CardContent className="py-4">
+      <p className="text-sm text-yellow-700 dark:text-yellow-400">
+        ⚠️ Target form has no fields available for display
+      </p>
     </CardContent>
   </Card>
 )}
