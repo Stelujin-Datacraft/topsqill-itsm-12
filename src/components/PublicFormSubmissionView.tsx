@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { UserRoleAssignmentService } from '@/services/userRoleAssignmentService';
+import { useUniqueFieldValidation } from '@/hooks/useUniqueFieldValidation';
 
 interface PublicFormSubmissionViewProps {
   form: Form;
@@ -114,10 +115,36 @@ export function PublicFormSubmissionView({ form, onSubmit, initialData = {}, isE
     return Object.keys(newErrors).length === 0;
   };
 
+  const { validateUniqueFields, isValidating } = useUniqueFieldValidation();
+
   const handleFormSubmit = async (submissionData: Record<string, any>) => {
-    if (isSubmitting) return;
+    if (isSubmitting || isValidating) return;
 
     if (!validateForm()) {
+      return;
+    }
+
+    // Validate unique fields
+    const uniqueValidationResults = await validateUniqueFields(
+      form.id,
+      form.fields,
+      submissionData,
+      undefined
+    );
+
+    const uniqueFieldErrors: Record<string, string> = {};
+    let hasUniqueFieldErrors = false;
+
+    Object.entries(uniqueValidationResults).forEach(([fieldId, result]) => {
+      if (!result.isValid && result.error) {
+        uniqueFieldErrors[fieldId] = result.error;
+        hasUniqueFieldErrors = true;
+      }
+    });
+
+    if (hasUniqueFieldErrors) {
+      setErrors(prev => ({ ...prev, ...uniqueFieldErrors }));
+      toast.error('Please fix the duplicate value errors before submitting.');
       return;
     }
 
@@ -125,17 +152,15 @@ export function PublicFormSubmissionView({ form, onSubmit, initialData = {}, isE
     try {
       await onSubmit(submissionData);
       
-      // Process user role assignments from user-picker fields
       await UserRoleAssignmentService.processFormSubmissionRoleAssignments(
         form.id, 
         submissionData, 
-        'current-user-id' // This should be the actual user ID
+        'current-user-id'
       );
       
       setIsSubmitted(true);
     } catch (error) {
       console.error('Error submitting form:', error);
-      // Handle submission error
     } finally {
       setIsSubmitting(false);
     }

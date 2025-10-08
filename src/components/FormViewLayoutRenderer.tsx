@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { PublicHeader } from './PublicHeader';
 import { RuleProcessor, RuleProcessingContext } from '@/utils/ruleProcessor';
 import { parseFormFields } from '@/utils/fieldReferenceParser';
+import { useUniqueFieldValidation } from '@/hooks/useUniqueFieldValidation';
 
 interface FormViewLayoutRendererProps {
   form: Form;
@@ -198,8 +199,10 @@ export function FormViewLayoutRenderer({
     return Object.keys(newErrors).length === 0;
   };
 
+  const { validateUniqueFields, isValidating } = useUniqueFieldValidation();
+
   const handleFormSubmit = async (submissionData: Record<string, any>) => {
-    if (isSubmitting) return;
+    if (isSubmitting || isValidating) return;
 
     if (formLocked) {
       toast.error('This form is currently locked and cannot be submitted.');
@@ -212,6 +215,31 @@ export function FormViewLayoutRenderer({
     }
 
     if (!validateForm()) {
+      return;
+    }
+
+    // Validate unique fields
+    const uniqueValidationResults = await validateUniqueFields(
+      form.id,
+      Array.isArray(form.fields) ? form.fields : [],
+      submissionData,
+      undefined // No submissionId when creating new submission
+    );
+
+    // Check if any unique field validation failed
+    const uniqueFieldErrors: Record<string, string> = {};
+    let hasUniqueFieldErrors = false;
+
+    Object.entries(uniqueValidationResults).forEach(([fieldId, result]) => {
+      if (!result.isValid && result.error) {
+        uniqueFieldErrors[fieldId] = result.error;
+        hasUniqueFieldErrors = true;
+      }
+    });
+
+    if (hasUniqueFieldErrors) {
+      setErrors(prev => ({ ...prev, ...uniqueFieldErrors }));
+      toast.error('Please fix the duplicate value errors before submitting.');
       return;
     }
 

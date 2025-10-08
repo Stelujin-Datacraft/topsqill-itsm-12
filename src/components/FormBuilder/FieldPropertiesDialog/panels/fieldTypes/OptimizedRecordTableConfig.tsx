@@ -343,50 +343,56 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
       )}
 
 
-{/* Table Display Field - choose a single field to show */}
+{/* Table Display Fields - choose multiple fields to show */}
 {config.customConfig?.targetFormId && selectedFormFields.length > 0 && (
   <Card>
     <CardHeader>
       <CardTitle className="text-base flex items-center gap-2">
-        Table Display Field
+        📊 Table Display Fields
       </CardTitle>
     </CardHeader>
-    <CardContent className="space-y-2">
+    <CardContent className="space-y-3">
       <Label className="text-sm font-medium">
-        Select which field from the target form should be displayed in the table view.
+        Select fields from the target form to display in the table view (alongside submission ID)
       </Label>
 
-      <Select
-        value={config.customConfig?.tableDisplayField || "__default__"}
-        onValueChange={(value) => {
-          updateCustomConfig(
-            "tableDisplayField",
-            value === "__default__" ? "" : value
-          );
-        }}
-      >
-        <SelectTrigger className="border-2">
-          <SelectValue placeholder="Select a field to display in table" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__default__">Submission ID only (default)</SelectItem>
-          {selectedFormFields.map((field) => (
-            <SelectItem key={field.id} value={field.id}>
+      <div className="space-y-2">
+        {selectedFormFields.map((field) => (
+          <div key={field.id} className="flex items-center space-x-2">
+            <Checkbox
+              id={`display-field-${field.id}`}
+              checked={
+                Array.isArray(config.customConfig?.tableDisplayFields)
+                  ? config.customConfig.tableDisplayFields.includes(field.id)
+                  : false
+              }
+              onCheckedChange={(checked) => {
+                const currentFields = Array.isArray(config.customConfig?.tableDisplayFields)
+                  ? config.customConfig.tableDisplayFields
+                  : [];
+                
+                const newFields = checked
+                  ? [...currentFields, field.id]
+                  : currentFields.filter((id) => id !== field.id);
+                
+                updateCustomConfig("tableDisplayFields", newFields);
+              }}
+            />
+            <Label htmlFor={`display-field-${field.id}`} className="text-sm cursor-pointer">
               {field.label} ({field.field_type})
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+            </Label>
+          </div>
+        ))}
+      </div>
 
-      {config.customConfig?.tableDisplayField &&
-        config.customConfig?.tableDisplayField !== "__default__" && (
-          <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
-            ✓ Will display:{" "}
-            {
-              selectedFormFields.find(
-                (f) => f.id === config.customConfig.tableDisplayField
-              )?.label
-            }
+      {Array.isArray(config.customConfig?.tableDisplayFields) &&
+        config.customConfig.tableDisplayFields.length > 0 && (
+          <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1 mt-2">
+            ✓ Will display: {config.customConfig.tableDisplayFields.length} field(s) -{" "}
+            {config.customConfig.tableDisplayFields
+              .map((id) => selectedFormFields.find((f) => f.id === id)?.label)
+              .filter(Boolean)
+              .join(", ")}
           </p>
         )}
     </CardContent>

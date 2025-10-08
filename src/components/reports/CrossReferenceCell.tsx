@@ -11,11 +11,11 @@ interface CrossReferenceCellProps {
 
 export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCellProps) {
   const targetFormId = field?.customConfig?.targetFormId;
-  const tableDisplayField = field?.customConfig?.tableDisplayField;
+  const tableDisplayFields = field?.customConfig?.tableDisplayFields || [];
   
-  // Only fetch if we have a display field configured
-  const shouldFetch = targetFormId && tableDisplayField;
-  const displayFieldIds = tableDisplayField ? [tableDisplayField] : [];
+  // Only fetch if we have display fields configured
+  const shouldFetch = targetFormId && tableDisplayFields.length > 0;
+  const displayFieldIds = tableDisplayFields;
   
   const { records, loading } = useCrossReferenceData(
     shouldFetch ? targetFormId : undefined,

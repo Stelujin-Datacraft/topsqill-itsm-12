@@ -12,8 +12,14 @@ interface CrossReferenceRecord {
 export function useCrossReferenceData(
   targetFormId?: string,
   submissionRefIds?: string[],
-  displayFieldIds?: string[]
+  displayFieldIds?: string | string[]
 ) {
+  // Normalize displayFieldIds to always be an array
+  const normalizedDisplayFieldIds = displayFieldIds
+    ? Array.isArray(displayFieldIds)
+      ? displayFieldIds
+      : [displayFieldIds]
+    : [];
   const [records, setRecords] = useState<CrossReferenceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,8 +62,8 @@ export function useCrossReferenceData(
           // Build display data from selected fields
           let displayParts: string[] = [];
           
-          if (displayFieldIds && displayFieldIds.length > 0) {
-            displayParts = displayFieldIds
+          if (normalizedDisplayFieldIds && normalizedDisplayFieldIds.length > 0) {
+            displayParts = normalizedDisplayFieldIds
               .map(fieldId => {
                 const fieldInfo = fieldMap.get(fieldId);
                 const value = sub.submission_data?.[fieldId];
@@ -94,7 +100,7 @@ export function useCrossReferenceData(
     };
 
     fetchCrossReferenceData();
-  }, [targetFormId, JSON.stringify(submissionRefIds), JSON.stringify(displayFieldIds)]);
+  }, [targetFormId, JSON.stringify(submissionRefIds), JSON.stringify(normalizedDisplayFieldIds)]);
 
   return {
     records,

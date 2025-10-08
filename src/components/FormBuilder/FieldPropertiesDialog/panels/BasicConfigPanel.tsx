@@ -55,14 +55,29 @@ export function BasicConfigPanel({ config, onUpdate, fieldType, errors }: BasicC
       </div>
 
       {showRequiredField && (
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="field-required"
-            checked={config.required}
-            onCheckedChange={(checked) => onUpdate({ required: Boolean(checked) })}
-          />
-          <Label htmlFor="field-required">Required field</Label>
-        </div>
+        <>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="field-required"
+              checked={config.required}
+              onCheckedChange={(checked) => onUpdate({ required: Boolean(checked) })}
+            />
+            <Label htmlFor="field-required">Required field</Label>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="field-unique"
+              checked={config.validation?.unique || false}
+              onCheckedChange={(checked) => onUpdate({ 
+                validation: { ...config.validation, unique: Boolean(checked) }
+              })}
+            />
+            <Label htmlFor="field-unique" className="text-sm">
+              Unique field (prevent duplicate values)
+            </Label>
+          </div>
+        </>
       )}
 
       <div>

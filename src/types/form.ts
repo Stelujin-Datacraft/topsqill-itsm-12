@@ -85,6 +85,7 @@ export interface FormField {
     maxLength?: number;
     pattern?: string;
     message?: string;
+    unique?: boolean;
   };
   validationRules?: ValidationRule[];
   permissions?: {
@@ -257,6 +258,7 @@ export interface FormField {
     columnFilters?: string[];
     joinField?: string;
     displayColumns?: string[];
+    tableDisplayFields?: string[]; // Multiple fields to display in cross-reference tables
     enableSorting?: boolean;
     enableSearch?: boolean;
     pageSize?: number;
