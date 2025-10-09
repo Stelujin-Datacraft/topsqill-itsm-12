@@ -16,14 +16,13 @@ import { useFormAccess } from './FieldPropertiesDialog/hooks/useFormAccess';
 import { useFieldData } from './FieldPropertiesDialog/hooks/useFieldData';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-
 // Import field-specific configuration panels
 import { HeaderFieldConfig, DescriptionFieldConfig, SectionBreakFieldConfig, HorizontalLineFieldConfig, RichTextFieldConfig, FullWidthContainerFieldConfig, DateFieldConfig, TimeFieldConfig, DateTimeFieldConfig, AddressFieldConfig, EmailFieldConfig, UrlFieldConfig, IpAddressFieldConfig, UserPickerFieldConfig, BarcodeFieldConfig, ApprovalFieldConfig, DynamicDropdownFieldConfig, CalculatedFieldConfig, ConditionalSectionFieldConfig, GeoLocationFieldConfig, MatrixGridFieldConfig, PhoneFieldConfig, ColorFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes';
 import { TextFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/TextFieldConfig';
 import { NumberFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/NumberFieldConfig';
 import { SelectFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/SelectFieldConfig';
 import { OptimizedRecordTableConfig } from './FieldPropertiesDialog/panels/fieldTypes/OptimizedRecordTableConfig';
-import { FieldConfiguration } from './FieldPropertiesDialog/hooks/useFieldConfiguration';
+import { FieldConfiguration, useFieldConfiguration } from './FieldPropertiesDialog/hooks/useFieldConfiguration';
 
 // Import new field configurations
 import { MultiSelectFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/selection/MultiSelectFieldConfig';
@@ -74,6 +73,8 @@ export function FieldPropertiesDialog({
   const [isSaving, setIsSaving] = React.useState(false);
   const [selectedFormFields, setSelectedFormFields] = React.useState<FormFieldOption[]>([]);
   const [loadingFields, setLoadingFields] = React.useState(false);
+
+  console.log(selectedField, 'selected Fields in new')
   const {
     getFormOptions,
     loading
@@ -160,6 +161,9 @@ export function FieldPropertiesDialog({
     };
     loadFieldConfiguration();
   }, [selectedField?.id, open, fetchFieldData, transformToFormField]);
+
+
+const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selectedField);
 
   // Initialize local config from field data
   const initializeLocalConfig = (field: FormField) => {
@@ -531,6 +535,7 @@ export function FieldPropertiesDialog({
   };
   const availableFilterFields = getAvailableFilterFields();
 
+
   // Check if field has advanced configuration
   const hasAdvancedConfig = [
   // Static/Layout
@@ -579,6 +584,28 @@ export function FieldPropertiesDialog({
             </div>
           </DialogTitle>
         </DialogHeader>
+        
+        {fieldConfig && (
+          <div className="flex items-center space-x-2 p-3 border rounded-md bg-blue-50 dark:bg-blue-950/20">
+            <Checkbox
+              id="field-unique"
+              checked={fieldConfig.validation?.unique || false}
+              onCheckedChange={(checked) =>
+                updateConfig({
+                  validation: { ...fieldConfig.validation, unique: Boolean(checked) }
+                })
+              }
+            />
+            <div className="flex flex-col">
+              <Label htmlFor="field-unique" className="text-sm font-medium cursor-pointer">
+                ✨ Unique field (prevent duplicate values)
+              </Label>
+              <span className="text-xs text-muted-foreground">
+                Ensures each value entered in this field is unique across all submissions
+              </span>
+            </div>
+          </div>
+        )}
 
         {loadingFieldData ? <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin mr-2" />
