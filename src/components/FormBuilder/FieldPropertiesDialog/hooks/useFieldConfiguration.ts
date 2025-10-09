@@ -101,8 +101,10 @@ useEffect(() => {
       defaultValue: field.defaultValue || '',
       customConfig: mergedCustomConfig,
       options: field.options || [],
-      validation: field.validation || {},
+      validation: field.validation || {}, // Preserve validation including unique flag
     };
+    
+    console.log('useFieldConfiguration: Initialized config with validation:', config.validation);
 
     // 🆕 Store the field id inside config for future checks
     return { ...config, id: field.id } as FieldConfiguration & { id: string };

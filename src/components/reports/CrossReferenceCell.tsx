@@ -13,9 +13,16 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
   const targetFormId = field?.customConfig?.targetFormId;
   const tableDisplayFields = field?.customConfig?.tableDisplayFields || [];
   
+  console.log('CrossReferenceCell: field customConfig:', field?.customConfig);
+  console.log('CrossReferenceCell: tableDisplayFields:', tableDisplayFields);
+  console.log('CrossReferenceCell: submissionRefIds:', submissionRefIds);
+  
   // Only fetch if we have display fields configured
   const shouldFetch = targetFormId && tableDisplayFields.length > 0;
   const displayFieldIds = tableDisplayFields;
+  
+  console.log('CrossReferenceCell: shouldFetch:', shouldFetch);
+  console.log('CrossReferenceCell: displayFieldIds being passed:', displayFieldIds);
   
   const { records, loading } = useCrossReferenceData(
     shouldFetch ? targetFormId : undefined,

@@ -169,6 +169,7 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
   const initializeLocalConfig = (field: FormField) => {
     console.log('🔧 FieldPropertiesDialog: Initializing local config for field:', field.label);
     console.log('📊 FieldPropertiesDialog: Field customConfig:', field.customConfig);
+    console.log('📊 FieldPropertiesDialog: Field validation:', field.validation);
     console.log('📊 FieldPropertiesDialog: Field options raw:', field.options);
     console.log('📊 FieldPropertiesDialog: Field options type:', typeof field.options);
 
@@ -176,6 +177,11 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
     const parsedOptions = ensureOptionsArray(field.options);
     console.log('📋 FieldPropertiesDialog: Parsed options:', parsedOptions);
     console.log('📋 FieldPropertiesDialog: Parsed options length:', parsedOptions.length);
+    
+    // Ensure validation object exists with unique property preserved
+    const validationConfig = field.validation || {};
+    console.log('📋 FieldPropertiesDialog: Validation config:', validationConfig);
+    
     const newLocalConfig = {
       label: field.label,
       placeholder: field.placeholder || '',
@@ -184,9 +190,10 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
       defaultValue: field.defaultValue || '',
       customConfig: field.customConfig || {},
       options: parsedOptions,
-      validation: field.validation || {}
+      validation: validationConfig
     };
-    console.log('📋 FieldPropertiesDialog: Setting localConfig with options:', newLocalConfig.options);
+    console.log('📋 FieldPropertiesDialog: Setting localConfig with validation:', newLocalConfig.validation);
+    console.log('📋 FieldPropertiesDialog: Setting localConfig with customConfig:', newLocalConfig.customConfig);
     setLocalConfig(newLocalConfig);
     console.log('✅ FieldPropertiesDialog: Local config initialized');
   };

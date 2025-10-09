@@ -589,9 +589,26 @@ export function DynamicTable({
         return;
       }
 
-      setFormFields(fields || []);
-      if (selectedColumns.length === 0 && fields && fields.length > 0) {
-        setSelectedColumns(fields.map(f => f.id));
+      // Transform fields to use camelCase and parse custom_config
+      const parseCustomConfig = (jsonString: any, fallback: any = null) => {
+        if (!jsonString) return fallback;
+        if (typeof jsonString === 'object') return jsonString;
+        try {
+          return JSON.parse(jsonString);
+        } catch (error) {
+          return fallback;
+        }
+      };
+
+      const transformedFields = (fields || []).map((field: any) => ({
+        ...field,
+        customConfig: field.custom_config ? parseCustomConfig(field.custom_config, {}) : {}
+      }));
+
+      console.log('DynamicTable: Transformed fields with customConfig:', transformedFields);
+      setFormFields(transformedFields);
+      if (selectedColumns.length === 0 && transformedFields && transformedFields.length > 0) {
+        setSelectedColumns(transformedFields.map(f => f.id));
       }
 
       // Load the full form structure for access control
