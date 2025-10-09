@@ -102,7 +102,7 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
             {field.label}
             {field.required && <span className="text-red-500 ml-1">*</span>}
           </label>
-        {!isPreview && (
+        {/* {!isPreview && (
   <Button
     type="button"   // <-- Add this line
     variant="outline"
@@ -112,7 +112,8 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
     <Settings className="h-4 w-4 mr-2" />
     Configure
   </Button>
-)}
+)} */}
+
 
         </div>
         
@@ -145,7 +146,7 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
           {field.label}
           {field.required && <span className="text-red-500 ml-1">*</span>}
         </label>
-       {!isPreview && (
+       {/* {!isPreview && (
   <Button
     type="button"   // <-- Add this line
     variant="outline"
@@ -155,7 +156,7 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
     <Settings className="h-4 w-4 mr-2" />
     Configure
   </Button>
-)}
+)} */}
 
       </div>
       

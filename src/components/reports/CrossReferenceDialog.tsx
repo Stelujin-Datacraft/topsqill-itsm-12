@@ -42,13 +42,13 @@ export function CrossReferenceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[80vh]">
+      <DialogContent className="max-w-5xl max-h-[100vh]">
         <DialogHeader>
           <DialogTitle>{fieldName} - Referenced Submissions ({submissionIds.length})</DialogTitle>
         </DialogHeader>
         <ScrollArea className="max-h-96">
           {loading ? (
-            <div className="flex items-center justify-center py-8">
+            <div className="flex items-center justify-center py-6">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               <span className="ml-2 text-muted-foreground">Loading records...</span>
             </div>
@@ -61,23 +61,25 @@ export function CrossReferenceDialog({
                 form_id: '',
                 submission_data: {}
               }))).map((record, index) => (
-                <Button
-                  key={`${record.submission_ref_id}-${index}`}
-                  variant="outline"
-                  className="w-full justify-start text-left hover:bg-accent p-4 h-auto"
-                  onClick={() => handleSubmissionClick(record.submission_ref_id)}
-                >
-                  <div className="flex items-start gap-2 w-full">
-                    <Badge variant="secondary" className="font-mono shrink-0">
-                      #{record.submission_ref_id}
-                    </Badge>
-                    {record.displayData && record.displayData !== record.submission_ref_id && (
-                      <span className="text-sm text-muted-foreground truncate">
+               <Button
+                key={`${record.submission_ref_id}-${index}`}
+                variant="outline"
+                className="w-full justify-start text-left p-4 h-auto hover:bg-transparent"
+                onClick={() => handleSubmissionClick(record.submission_ref_id)}
+              >
+                <div className="flex flex-col items-start w-full">
+                  <Badge variant="secondary" className="font-mono mb-1">
+                    #{record.submission_ref_id}
+                  </Badge>
+                  {record.displayData && record.displayData !== record.submission_ref_id && (
+                    <div className="w-full overflow-auto">
+                      <span className="text-sm text-muted-foreground break-words break-all">
                         {record.displayData}
                       </span>
-                    )}
-                  </div>
-                </Button>
+                    </div>
+                  )}
+                </div>
+              </Button>
               ))}
               {submissionIds.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
