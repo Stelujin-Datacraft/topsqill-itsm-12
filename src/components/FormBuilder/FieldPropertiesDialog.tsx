@@ -584,28 +584,6 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
             </div>
           </DialogTitle>
         </DialogHeader>
-        
-        {fieldConfig && (
-          <div className="flex items-center space-x-2 p-3 border rounded-md bg-blue-50 dark:bg-blue-950/20">
-            <Checkbox
-              id="field-unique"
-              checked={fieldConfig.validation?.unique || false}
-              onCheckedChange={(checked) =>
-                updateConfig({
-                  validation: { ...fieldConfig.validation, unique: Boolean(checked) }
-                })
-              }
-            />
-            <div className="flex flex-col">
-              <Label htmlFor="field-unique" className="text-sm font-medium cursor-pointer">
-                ✨ Unique field (prevent duplicate values)
-              </Label>
-              <span className="text-xs text-muted-foreground">
-                Ensures each value entered in this field is unique across all submissions
-              </span>
-            </div>
-          </div>
-        )}
 
         {loadingFieldData ? <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin mr-2" />
@@ -643,6 +621,27 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                     This field is required
                   </Label>
                 </div>
+
+                {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text'].includes(fieldForConfig?.type || '') && (
+                  <div className="flex items-center space-x-2 p-3 border rounded-md bg-blue-50 dark:bg-blue-950/20">
+                    <Checkbox
+                      id="field-unique"
+                      checked={localConfig.validation?.unique || false}
+                      onCheckedChange={(checked) => {
+                        console.log('Unique checkbox changed:', checked);
+                        updateValidation('unique', Boolean(checked));
+                      }}
+                    />
+                    <div className="flex flex-col">
+                      <Label htmlFor="field-unique" className="text-sm font-medium cursor-pointer">
+                        ✨ Unique field (prevent duplicate values)
+                      </Label>
+                      <span className="text-xs text-muted-foreground">
+                        Ensures each value entered in this field is unique across all submissions
+                      </span>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

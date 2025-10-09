@@ -47,5 +47,13 @@ export function validateConfiguration(fieldType: FieldType, config: FieldConfigu
       break;
   }
 
+  // Validate unique field setting (applicable to most field types)
+  if (config.validation?.unique) {
+    const unsupportedTypes = ['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'full-width-container'];
+    if (unsupportedTypes.includes(fieldType)) {
+      errors.unique = 'Unique validation is not supported for this field type';
+    }
+  }
+
   return errors;
 }
