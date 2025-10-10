@@ -12,6 +12,7 @@ interface Option {
   value: string;
   label: string;
   color?: string;
+  image?: string;
 }
 
 interface EnhancedOptionConfigProps {
@@ -135,22 +136,33 @@ export function EnhancedOptionConfig({ options, onChange, fieldType }: EnhancedO
                       <Label className="text-xs text-muted-foreground">Color</Label>
                     </div>
                     
-                    <div className="flex-1 grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Value</Label>
-                        <Input
-                          placeholder="Option value"
-                          value={option.value}
-                          onChange={(e) => handleOptionChange(index, 'value', e.target.value)}
-                          className="h-8"
-                        />
+                    <div className="flex-1 space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Value</Label>
+                          <Input
+                            placeholder="Option value"
+                            value={option.value}
+                            onChange={(e) => handleOptionChange(index, 'value', e.target.value)}
+                            className="h-8"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Label</Label>
+                          <Input
+                            placeholder="Display label"
+                            value={option.label}
+                            onChange={(e) => handleOptionChange(index, 'label', e.target.value)}
+                            className="h-8"
+                          />
+                        </div>
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Label</Label>
+                        <Label className="text-xs text-muted-foreground">Image URL (Optional)</Label>
                         <Input
-                          placeholder="Display label"
-                          value={option.label}
-                          onChange={(e) => handleOptionChange(index, 'label', e.target.value)}
+                          placeholder="https://example.com/image.jpg"
+                          value={option.image || ''}
+                          onChange={(e) => handleOptionChange(index, 'image', e.target.value)}
                           className="h-8"
                         />
                       </div>
@@ -184,6 +196,16 @@ export function EnhancedOptionConfig({ options, onChange, fieldType }: EnhancedO
                       className="w-3 h-3 rounded-full border" 
                       style={{ backgroundColor: option.color || '#3B82F6' }}
                     />
+                    {option.image && (
+                      <img 
+                        src={option.image} 
+                        alt={option.label || 'Option'} 
+                        className="w-8 h-8 object-cover rounded border"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    )}
                     <span>Preview: {option.label || option.value || 'Empty option'}</span>
                   </div>
                 </CardContent>

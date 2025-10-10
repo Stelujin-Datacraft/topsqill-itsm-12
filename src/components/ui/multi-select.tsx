@@ -61,12 +61,22 @@ export function MultiSelect({
                   <Badge
                     variant="secondary"
                     key={item}
-                    className="mr-1 mb-1"
+                    className="mr-1 mb-1 flex items-center gap-1"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleUnselect(item);
                     }}
                   >
+                    {(option as any)?.image && (
+                      <img 
+                        src={(option as any).image} 
+                        alt={option?.label || 'Option'} 
+                        className="w-4 h-4 object-cover rounded"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    )}
                     {option?.label}
                     <button
                       className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
@@ -121,7 +131,19 @@ export function MultiSelect({
                       selected.includes(option.value) ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  {option.label}
+                  <div className="flex items-center gap-2">
+                    {(option as any).image && (
+                      <img 
+                        src={(option as any).image} 
+                        alt={option.label} 
+                        className="w-6 h-6 object-cover rounded border border-border flex-shrink-0"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    )}
+                    <span>{option.label}</span>
+                  </div>
                 </CommandItem>
               ))}
             </CommandGroup>

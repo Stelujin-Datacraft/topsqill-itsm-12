@@ -66,7 +66,17 @@ export function SelectFieldWithSearch({
           >
             {selectedOption ? (
               <div className="flex items-center gap-2">
-                {selectedOption.color && (
+                {selectedOption.image && (
+                  <img 
+                    src={selectedOption.image} 
+                    alt={selectedOption.label} 
+                    className="w-6 h-6 object-cover rounded"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                )}
+                {selectedOption.color && !selectedOption.image && (
                   <div 
                     className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
                     style={{ backgroundColor: selectedOption.color }}
@@ -103,7 +113,17 @@ export function SelectFieldWithSearch({
                       )}
                     />
                     <div className="flex items-center gap-2">
-                      {option.color && (
+                      {option.image && (
+                        <img 
+                          src={option.image} 
+                          alt={option.label} 
+                          className="w-8 h-8 object-cover rounded border border-border flex-shrink-0"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      )}
+                      {option.color && !option.image && (
                         <div 
                           className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
                           style={{ backgroundColor: option.color }}
