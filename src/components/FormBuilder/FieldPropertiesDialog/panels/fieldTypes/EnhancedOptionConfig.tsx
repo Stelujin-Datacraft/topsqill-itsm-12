@@ -4,8 +4,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { Trash2, Plus, GripVertical, List, FileText } from 'lucide-react';
+import { Trash2, Plus, GripVertical, List, FileText, Upload, X } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from 'sonner';
 
 interface Option {
   id: string;
@@ -90,6 +91,34 @@ export function EnhancedOptionConfig({ options, onChange, fieldType }: EnhancedO
     onChange(newOptions);
   };
 
+  const handleImageUpload = (index: number, file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    const maxSize = 2 * 1024 * 1024; // 2MB
+    if (file.size > maxSize) {
+      toast.error('Image size should be less than 2MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64Image = e.target?.result as string;
+      handleOptionChange(index, 'image', base64Image);
+      toast.success('Image uploaded successfully');
+    };
+    reader.onerror = () => {
+      toast.error('Failed to upload image');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeImage = (index: number) => {
+    handleOptionChange(index, 'image', '');
+  };
+
   // Convert options to bulk format for display
   const optionsToBulkText = () => {
     return options.map(option => option.value || option.label).join('\n');
@@ -158,13 +187,49 @@ export function EnhancedOptionConfig({ options, onChange, fieldType }: EnhancedO
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Image URL (Optional)</Label>
-                        <Input
-                          placeholder="https://example.com/image.jpg"
-                          value={option.image || ''}
-                          onChange={(e) => handleOptionChange(index, 'image', e.target.value)}
-                          className="h-8"
-                        />
+                        <Label className="text-xs text-muted-foreground">Image</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Image URL or upload from device"
+                            value={option.image && !option.image.startsWith('data:') ? option.image : ''}
+                            onChange={(e) => handleOptionChange(index, 'image', e.target.value)}
+                            className="h-8 flex-1"
+                          />
+                          <div className="relative">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleImageUpload(index, file);
+                                e.target.value = '';
+                              }}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              id={`image-upload-${option.id}`}
+                            />
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-8 px-3"
+                              title="Upload from device"
+                            >
+                              <Upload className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          {option.image && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => removeImage(index)}
+                              className="h-8 px-2 text-destructive"
+                              title="Remove image"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                     
@@ -192,21 +257,22 @@ export function EnhancedOptionConfig({ options, onChange, fieldType }: EnhancedO
                   
                   {/* Preview */}
                   <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-                    <div 
-                      className="w-3 h-3 rounded-full border" 
-                      style={{ backgroundColor: option.color || '#3B82F6' }}
-                    />
-                    {option.image && (
+                    {option.image ? (
                       <img 
                         src={option.image} 
                         alt={option.label || 'Option'} 
-                        className="w-8 h-8 object-cover rounded border"
+                        className="w-10 h-10 object-cover rounded border border-border"
                         onError={(e) => {
                           e.currentTarget.style.display = 'none';
                         }}
                       />
+                    ) : (
+                      <div 
+                        className="w-3 h-3 rounded-full border" 
+                        style={{ backgroundColor: option.color || '#3B82F6' }}
+                      />
                     )}
-                    <span>Preview: {option.label || option.value || 'Empty option'}</span>
+                    <span className="truncate">Preview: {option.label || option.value || 'Empty option'}</span>
                   </div>
                 </CardContent>
               </Card>
