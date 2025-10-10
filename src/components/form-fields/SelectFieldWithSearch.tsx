@@ -66,23 +66,29 @@ export function SelectFieldWithSearch({
           >
             {selectedOption ? (
               <div className="flex items-center gap-2">
-                {selectedOption.image && (
-                  <img 
-                    src={selectedOption.image} 
-                    alt={selectedOption.label} 
-                    className="w-6 h-6 object-cover rounded"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
+                {selectedOption.image ? (
+                  <>
+                    <img 
+                      src={selectedOption.image} 
+                      alt={selectedOption.label} 
+                      className="w-10 h-10 object-cover rounded"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                    <span className="text-sm">{selectedOption.label}</span>
+                  </>
+                ) : (
+                  <>
+                    {selectedOption.color && (
+                      <div 
+                        className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" 
+                        style={{ backgroundColor: selectedOption.color }}
+                      />
+                    )}
+                    <span>{selectedOption.label}</span>
+                  </>
                 )}
-                {selectedOption.color && !selectedOption.image && (
-                  <div 
-                    className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
-                    style={{ backgroundColor: selectedOption.color }}
-                  />
-                )}
-                <span>{selectedOption.label}</span>
               </div>
             ) : (
               <span className="text-muted-foreground">{field.placeholder || "Select an option..."}</span>
@@ -112,24 +118,30 @@ export function SelectFieldWithSearch({
                         value === option.value ? "opacity-100" : "opacity-0"
                       )}
                     />
-                    <div className="flex items-center gap-2">
-                      {option.image && (
-                        <img 
-                          src={option.image} 
-                          alt={option.label} 
-                          className="w-8 h-8 object-cover rounded border border-border flex-shrink-0"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
+                    <div className="flex items-center gap-3">
+                      {option.image ? (
+                        <>
+                          <img 
+                            src={option.image} 
+                            alt={option.label} 
+                            className="w-16 h-16 object-cover rounded border border-border flex-shrink-0"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                          <span className="text-sm">{option.label}</span>
+                        </>
+                      ) : (
+                        <>
+                          {option.color && (
+                            <div 
+                              className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" 
+                              style={{ backgroundColor: option.color }}
+                            />
+                          )}
+                          <span>{option.label}</span>
+                        </>
                       )}
-                      {option.color && !option.image && (
-                        <div 
-                          className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
-                          style={{ backgroundColor: option.color }}
-                        />
-                      )}
-                      <span>{option.label}</span>
                     </div>
                   </CommandItem>
                 ))}

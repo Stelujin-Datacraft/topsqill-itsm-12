@@ -69,24 +69,30 @@ export function MultiSelectField({ field, value = [], onChange, error, disabled 
               selectedValue.startsWith('other:') ? selectedValue.replace('other:', '') : selectedValue;
             
             return (
-              <Badge key={selectedValue} variant="secondary" className="flex items-center gap-1">
-                {option?.image && (
-                  <img 
-                    src={option.image} 
-                    alt={displayLabel} 
-                    className="w-5 h-5 object-cover rounded"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
+              <Badge key={selectedValue} variant="secondary" className="flex items-center gap-2 px-2 py-1">
+                {option?.image ? (
+                  <>
+                    <img 
+                      src={option.image} 
+                      alt={displayLabel} 
+                      className="w-8 h-8 object-cover rounded"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                    <span className="text-xs">{displayLabel}</span>
+                  </>
+                ) : (
+                  <>
+                    {option?.color && (
+                      <div 
+                        className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
+                        style={{ backgroundColor: option.color }}
+                      />
+                    )}
+                    <span>{displayLabel}</span>
+                  </>
                 )}
-                {option?.color && !option?.image && (
-                  <div 
-                    className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
-                    style={{ backgroundColor: option.color }}
-                  />
-                )}
-                {displayLabel}
                 {!disabled && (
                   <X 
                     className="h-3 w-3 cursor-pointer" 
@@ -123,24 +129,30 @@ export function MultiSelectField({ field, value = [], onChange, error, disabled 
               onCheckedChange={(checked) => handleOptionChange(option.value, Boolean(checked))}
               disabled={disabled || (config.maxSelections && value.length >= config.maxSelections && !value.includes(option.value))}
             />
-            <Label htmlFor={`${field.id}-${option.id}`} className="flex-1 cursor-pointer flex items-center gap-2">
-              {option.image && (
-                <img 
-                  src={option.image} 
-                  alt={option.label} 
-                  className="w-10 h-10 object-cover rounded border border-border flex-shrink-0"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
+            <Label htmlFor={`${field.id}-${option.id}`} className="flex-1 cursor-pointer flex items-center gap-3">
+              {option.image ? (
+                <div className="flex items-center gap-2">
+                  <img 
+                    src={option.image} 
+                    alt={option.label} 
+                    className="w-16 h-16 object-cover rounded border border-border flex-shrink-0"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                  <span className="text-sm">{option.label}</span>
+                </div>
+              ) : (
+                <>
+                  {option.color && (
+                    <div 
+                      className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" 
+                      style={{ backgroundColor: option.color }}
+                    />
+                  )}
+                  <span>{option.label}</span>
+                </>
               )}
-              {option.color && !option.image && (
-                <div 
-                  className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
-                  style={{ backgroundColor: option.color }}
-                />
-              )}
-              <span>{option.label}</span>
             </Label>
           </div>
         ))}
