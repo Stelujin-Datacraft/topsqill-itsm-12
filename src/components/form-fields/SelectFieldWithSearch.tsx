@@ -66,29 +66,23 @@ export function SelectFieldWithSearch({
           >
             {selectedOption ? (
               <div className="flex items-center gap-2">
-                {selectedOption.image ? (
-                  <>
-                    <img 
-                      src={selectedOption.image} 
-                      alt={selectedOption.label} 
-                      className="w-10 h-10 object-cover rounded"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                    <span className="text-sm">{selectedOption.label}</span>
-                  </>
-                ) : (
-                  <>
-                    {selectedOption.color && (
-                      <div 
-                        className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" 
-                        style={{ backgroundColor: selectedOption.color }}
-                      />
-                    )}
-                    <span>{selectedOption.label}</span>
-                  </>
+                {selectedOption.image && (
+                  <img 
+                    src={selectedOption.image} 
+                    alt={selectedOption.label || 'Selected option'} 
+                    className="w-10 h-10 object-cover rounded"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
                 )}
+                {!selectedOption.image && selectedOption.color && (
+                  <div 
+                    className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" 
+                    style={{ backgroundColor: selectedOption.color }}
+                  />
+                )}
+                {selectedOption.label && <span className="text-sm">{selectedOption.label}</span>}
               </div>
             ) : (
               <span className="text-muted-foreground">{field.placeholder || "Select an option..."}</span>
@@ -119,29 +113,23 @@ export function SelectFieldWithSearch({
                       )}
                     />
                     <div className="flex items-center gap-3">
-                      {option.image ? (
-                        <>
-                          <img 
-                            src={option.image} 
-                            alt={option.label} 
-                            className="w-16 h-16 object-cover rounded border border-border flex-shrink-0"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                            }}
-                          />
-                          <span className="text-sm">{option.label}</span>
-                        </>
-                      ) : (
-                        <>
-                          {option.color && (
-                            <div 
-                              className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" 
-                              style={{ backgroundColor: option.color }}
-                            />
-                          )}
-                          <span>{option.label}</span>
-                        </>
+                      {option.image && (
+                        <img 
+                          src={option.image} 
+                          alt={option.label || 'Option image'} 
+                          className="w-16 h-16 object-cover rounded border border-border flex-shrink-0"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
                       )}
+                      {!option.image && option.color && (
+                        <div 
+                          className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" 
+                          style={{ backgroundColor: option.color }}
+                        />
+                      )}
+                      {option.label && <span className="text-sm">{option.label}</span>}
                     </div>
                   </CommandItem>
                 ))}

@@ -72,29 +72,25 @@ export function RadioFieldWithSearch({
             <div key={option.id} className="flex items-center space-x-2">
               <RadioGroupItem value={option.value} id={option.id} />
               <Label htmlFor={option.id} className="flex items-center gap-3 cursor-pointer">
-                {option.image ? (
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  {option.image && (
                     <img 
                       src={option.image} 
-                      alt={option.label} 
+                      alt={option.label || 'Option image'} 
                       className="w-16 h-16 object-cover rounded border border-border flex-shrink-0"
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';
                       }}
                     />
-                    <span className="text-sm">{option.label}</span>
-                  </div>
-                ) : (
-                  <>
-                    {option.color && (
-                      <div 
-                        className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" 
-                        style={{ backgroundColor: option.color }}
-                      />
-                    )}
-                    <span>{option.label}</span>
-                  </>
-                )}
+                  )}
+                  {!option.image && option.color && (
+                    <div 
+                      className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" 
+                      style={{ backgroundColor: option.color }}
+                    />
+                  )}
+                  {option.label && <span className="text-sm">{option.label}</span>}
+                </div>
               </Label>
             </div>
           ))}

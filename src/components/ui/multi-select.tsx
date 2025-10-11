@@ -67,21 +67,17 @@ export function MultiSelect({
                       handleUnselect(item);
                     }}
                   >
-                    {(option as any)?.image ? (
-                      <>
-                        <img 
-                          src={(option as any).image} 
-                          alt={option?.label || 'Option'} 
-                          className="w-6 h-6 object-cover rounded"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                        <span className="text-xs">{option?.label}</span>
-                      </>
-                    ) : (
-                      <span>{option?.label}</span>
+                    {(option as any)?.image && (
+                      <img 
+                        src={(option as any).image} 
+                        alt={option?.label || 'Option'} 
+                        className="w-6 h-6 object-cover rounded"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
                     )}
+                    {option?.label && <span className="text-xs">{option?.label}</span>}
                     <button
                       className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                       onKeyDown={(e) => {
@@ -136,21 +132,17 @@ export function MultiSelect({
                     )}
                   />
                   <div className="flex items-center gap-3">
-                    {(option as any).image ? (
-                      <>
-                        <img 
-                          src={(option as any).image} 
-                          alt={option.label} 
-                          className="w-16 h-16 object-cover rounded border border-border flex-shrink-0"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                        <span className="text-sm">{option.label}</span>
-                      </>
-                    ) : (
-                      <span>{option.label}</span>
+                    {(option as any).image && (
+                      <img 
+                        src={(option as any).image} 
+                        alt={option.label || 'Option image'} 
+                        className="w-16 h-16 object-cover rounded border border-border flex-shrink-0"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
                     )}
+                    {option.label && <span className="text-sm">{option.label}</span>}
                   </div>
                 </CommandItem>
               ))}

@@ -70,29 +70,23 @@ export function MultiSelectField({ field, value = [], onChange, error, disabled 
             
             return (
               <Badge key={selectedValue} variant="secondary" className="flex items-center gap-2 px-2 py-1">
-                {option?.image ? (
-                  <>
-                    <img 
-                      src={option.image} 
-                      alt={displayLabel} 
-                      className="w-8 h-8 object-cover rounded"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                    <span className="text-xs">{displayLabel}</span>
-                  </>
-                ) : (
-                  <>
-                    {option?.color && (
-                      <div 
-                        className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
-                        style={{ backgroundColor: option.color }}
-                      />
-                    )}
-                    <span>{displayLabel}</span>
-                  </>
+                {option?.image && (
+                  <img 
+                    src={option.image} 
+                    alt={displayLabel || 'Option image'} 
+                    className="w-8 h-8 object-cover rounded"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
                 )}
+                {!option?.image && option?.color && (
+                  <div 
+                    className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
+                    style={{ backgroundColor: option.color }}
+                  />
+                )}
+                {displayLabel && <span className="text-xs">{displayLabel}</span>}
                 {!disabled && (
                   <X 
                     className="h-3 w-3 cursor-pointer" 
@@ -130,29 +124,23 @@ export function MultiSelectField({ field, value = [], onChange, error, disabled 
               disabled={disabled || (config.maxSelections && value.length >= config.maxSelections && !value.includes(option.value))}
             />
             <Label htmlFor={`${field.id}-${option.id}`} className="flex-1 cursor-pointer flex items-center gap-3">
-              {option.image ? (
-                <div className="flex items-center gap-2">
-                  <img 
-                    src={option.image} 
-                    alt={option.label} 
-                    className="w-16 h-16 object-cover rounded border border-border flex-shrink-0"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                  <span className="text-sm">{option.label}</span>
-                </div>
-              ) : (
-                <>
-                  {option.color && (
-                    <div 
-                      className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" 
-                      style={{ backgroundColor: option.color }}
-                    />
-                  )}
-                  <span>{option.label}</span>
-                </>
+              {option.image && (
+                <img 
+                  src={option.image} 
+                  alt={option.label || 'Option image'} 
+                  className="w-16 h-16 object-cover rounded border border-border flex-shrink-0"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
               )}
+              {!option.image && option.color && (
+                <div 
+                  className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" 
+                  style={{ backgroundColor: option.color }}
+                />
+              )}
+              {option.label && <span className="text-sm">{option.label}</span>}
             </Label>
           </div>
         ))}
