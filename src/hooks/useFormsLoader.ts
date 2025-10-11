@@ -404,7 +404,6 @@ export function useFormsLoader() {
                   tooltip: field.tooltip || '',
                   errorMessage: field.error_message || '',
                   pageId: assignedPageId,
-                  customConfig: safeParseJson(field.custom_config, {}),
                 };
               }),
               permissions: safeParseJson(form.permissions, { view: ['*'], submit: ['*'], edit: ['admin'] }),
