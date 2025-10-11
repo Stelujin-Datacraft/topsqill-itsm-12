@@ -225,6 +225,14 @@ function FormBuilderContent({
           }
         }
         markAsSaved();
+        
+        // Reload form data from database to ensure consistency
+        await loadForms();
+        const reloadedForm = forms.find(f => f.id === currentForm.id);
+        if (reloadedForm) {
+          initializeSnapshot(reloadedForm);
+        }
+        
         toast({
           title: shouldPublish ? "Form published" : "Form saved",
           description: shouldPublish ? "Your form has been published successfully and is now live." : "All changes have been saved to the database."
