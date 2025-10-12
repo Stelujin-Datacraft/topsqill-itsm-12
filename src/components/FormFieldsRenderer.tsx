@@ -181,6 +181,7 @@ case 'multi-select':
         onChange={(value) => onFieldChange(field.id, value)}
         error={errors[field.id]}
         disabled={!fieldState.isEnabled}
+        fieldState={fieldState}
       />
       {errors[field.id] && (
         <p className="text-sm text-red-500">{errors[field.id]}</p>

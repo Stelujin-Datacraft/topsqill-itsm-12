@@ -317,10 +317,16 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
       <div className="space-y-2">
         <textarea
           className="w-full p-2 border rounded min-h-[80px] text-sm"
-          value={Array.isArray(value) ? value.join('\n') : value?.toString() || ''}
+          value={Array.isArray(value) ? value.map((opt: any) => typeof opt === 'string' ? opt : opt.label).join('\n') : value?.toString() || ''}
           onChange={(e) => {
             const lines = e.target.value.split('\n').filter(line => line.trim());
-            onChange(lines);
+            // Convert lines to proper option objects
+            const options = lines.map((line, index) => ({
+              id: `option-${index}`,
+              value: line.toLowerCase().replace(/\s+/g, '-'),
+              label: line
+            }));
+            onChange(options);
           }}
           placeholder="Option 1&#10;Option 2&#10;Option 3"
         />

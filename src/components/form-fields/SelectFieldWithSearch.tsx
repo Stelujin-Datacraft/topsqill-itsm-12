@@ -31,7 +31,8 @@ export function SelectFieldWithSearch({
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
 
-  const options = field.options || [];
+  // Use fieldState.options if available (from rules), otherwise use field.options
+  const options = fieldState?.options || field.options || [];
   const selectedOption = options.find(opt => opt.value === value);
   
   const filteredOptions = options.filter(option =>

@@ -27,7 +27,8 @@ export function RadioFieldWithSearch({
 }: RadioFieldWithSearchProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const options = field.options || [];
+  // Use fieldState.options if available (from rules), otherwise use field.options
+  const options = fieldState?.options || field.options || [];
   const config = field.customConfig || {};
   const orientation = config.orientation || 'vertical';
   

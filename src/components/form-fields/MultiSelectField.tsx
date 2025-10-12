@@ -13,15 +13,17 @@ interface MultiSelectFieldProps {
   onChange: (value: string[]) => void;
   error?: string;
   disabled?: boolean;
+  fieldState?: any;
 }
 
-export function MultiSelectField({ field, value = [], onChange, error, disabled }: MultiSelectFieldProps) {
+export function MultiSelectField({ field, value = [], onChange, error, disabled, fieldState }: MultiSelectFieldProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [showOtherInput, setShowOtherInput] = useState(false);
   const [otherValue, setOtherValue] = useState('');
 
   const config = field.customConfig || {};
-  const options = field.options || [];
+  // Use fieldState.options if available (from rules), otherwise use field.options
+  const options = fieldState?.options || field.options || [];
   const filteredOptions = options.filter(option => 
     option.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
