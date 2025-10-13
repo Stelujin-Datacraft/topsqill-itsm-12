@@ -659,74 +659,107 @@ case 'textarea':
         );
         
       case 'select':
-        const selectedOption = field.options?.find(opt => opt.value === formData[field.id]);
-        const selectConfig = field.customConfig || {};
-        const isSearchable = selectConfig.searchable;
-        
-        if (isSearchable) {
-          return (
-            <SelectFieldWithSearch
-              field={field}
-              value={formData[field.id] || ''}
-              onChange={(value) => onFieldChange(field.id, value)}
-              error={errors[field.id]}
-              disabled={!fieldState.isEnabled}
-              required={isRequired}
-              fieldState={fieldState}
-            />
-          );
-        }
-        
-        return (
-          <div className="space-y-2">
-            <div className="flex items-center">
-              <Label htmlFor={field.id}>
-                {fieldState.label}
-                {isRequired && <span className="text-red-500 ml-1">*</span>}
-              </Label>
-              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
-            </div>
-            <Select
-              value={formData[field.id] || ''}
-              onValueChange={(value) => onFieldChange(field.id, value)}
-              disabled={!fieldState.isEnabled}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={field.placeholder}>
-                  {selectedOption && (
-                    <div className="flex items-center gap-2">
-                      {selectedOption.color && (
-                        <div 
-                          className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
-                          style={{ backgroundColor: selectedOption.color }}
-                        />
-                      )}
-                      <span>{selectedOption.label}</span>
-                    </div>
-                  )}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {field.options?.filter(option => option.value && option.value.trim() !== '').map((option) => (
-                  <SelectItem key={option.id} value={option.value}>
-                    <div className="flex items-center gap-2">
-                      {option.color && (
-                        <div 
-                          className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
-                          style={{ backgroundColor: option.color }}
-                        />
-                      )}
-                      <span>{option.label}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors[field.id] && (
-              <p className="text-sm text-red-500">{errors[field.id]}</p>
+  const selectedOption = field.options?.find(opt => opt.value === formData[field.id]);
+  const selectConfig = field.customConfig || {};
+  const isSearchable = selectConfig.searchable;
+  
+  if (isSearchable) {
+    return (
+      <SelectFieldWithSearch
+        field={field}
+        value={formData[field.id] || ''}
+        onChange={(value) => onFieldChange(field.id, value)}
+        error={errors[field.id]}
+        disabled={!fieldState.isEnabled}
+        required={isRequired}
+        fieldState={fieldState}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {/* Field Label */}
+      <div className="flex items-center">
+        <Label htmlFor={field.id}>
+          {fieldState.label}
+          {isRequired && <span className="text-red-500 ml-1">*</span>}
+        </Label>
+        <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+      </div>
+
+      {/* Select Input */}
+      <Select
+        value={formData[field.id] || ''}
+        onValueChange={(value) => onFieldChange(field.id, value)}
+        disabled={!fieldState.isEnabled}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder={field.placeholder}>
+            {selectedOption && (
+              <div className="flex items-center gap-2">
+                {/* Image if present */}
+                {selectedOption.image && (
+                  <img
+                    src={selectedOption.image}
+                    alt={selectedOption.label || 'Option image'}
+                    className="w-6 h-6 object-cover rounded border border-border flex-shrink-0"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                )}
+
+                {/* Label if present */}
+                {selectedOption.label && <span>{selectedOption.label}</span>}
+
+                {/* Color fallback */}
+                {!selectedOption.image && !selectedOption.label && selectedOption.color && (
+                  <div
+                    className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
+                    style={{ backgroundColor: selectedOption.color }}
+                  />
+                )}
+              </div>
             )}
-          </div>
-        );
+          </SelectValue>
+        </SelectTrigger>
+
+        <SelectContent>
+          {field.options?.filter(option => option.value && option.value.trim() !== '').map((option) => (
+            <SelectItem key={option.id} value={option.value}>
+              <div className="flex items-center gap-2">
+                {/* Image if present */}
+                {option.image && (
+                  <img
+                    src={option.image}
+                    alt={option.label || 'Option image'}
+                    className="w-6 h-6 object-cover rounded border border-border flex-shrink-0"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                )}
+
+                {/* Label if present */}
+                {option.label && <span>{option.label}</span>}
+
+                {/* Color fallback */}
+                {!option.image && !option.label && option.color && (
+                  <div
+                    className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
+                    style={{ backgroundColor: option.color }}
+                  />
+                )}
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {/* Error Message */}
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
+
 case 'radio':
   const radioConfig = field.customConfig || {};
   const radioOrientation = radioConfig.orientation || 'vertical';
