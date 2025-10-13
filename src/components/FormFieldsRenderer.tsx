@@ -727,63 +727,88 @@ case 'textarea':
             )}
           </div>
         );
-      case 'radio':
-        const radioConfig = field.customConfig || {};
-        const radioOrientation = radioConfig.orientation || 'vertical';
-        const isRadioSearchable = radioConfig.searchable;
-        
-        if (isRadioSearchable) {
-          return (
-            <RadioFieldWithSearch
-              field={field}
-              value={formData[field.id] || ''}
-              onChange={(value) => onFieldChange(field.id, value)}
-              error={errors[field.id]}
-              disabled={!fieldState.isEnabled}
-              required={isRequired}
-              fieldState={fieldState}
-            />
-          );
-        }
-        
-        const hasScrollbar = field.options && field.options.length > 7;
-        return (
-          <div className="space-y-2">
-            <div className="flex items-center">
- <Label htmlFor={field.id}>
-                {fieldState.label}
-                {isRequired && <span className="text-red-500 ml-1">*</span>}
-              </Label>              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+case 'radio':
+  const radioConfig = field.customConfig || {};
+  const radioOrientation = radioConfig.orientation || 'vertical';
+  const isRadioSearchable = radioConfig.searchable;
+  
+  if (isRadioSearchable) {
+    return (
+      <RadioFieldWithSearch
+        field={field}
+        value={formData[field.id] || ''}
+        onChange={(value) => onFieldChange(field.id, value)}
+        error={errors[field.id]}
+        disabled={!fieldState.isEnabled}
+        required={isRequired}
+        fieldState={fieldState}
+      />
+    );
+  }
+  
+  const hasScrollbar = field.options && field.options.length > 7;
+
+  return (
+    <div className="space-y-2">
+      {/* Field Label */}
+      <div className="flex items-center">
+        <Label htmlFor={field.id}>
+          {fieldState.label}
+          {isRequired && <span className="text-red-500 ml-1">*</span>}
+        </Label>
+        <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+      </div>
+
+      {/* Radio Options */}
+      <div className={hasScrollbar ? 'max-h-64 overflow-y-auto border rounded-lg p-3 bg-background' : ''}>
+        <RadioGroup
+          value={formData[field.id] || ''}
+          onValueChange={(value) => onFieldChange(field.id, value)}
+          disabled={!fieldState.isEnabled}
+          className={radioOrientation === 'horizontal' ? 'flex flex-wrap gap-4' : 'space-y-3'}
+        >
+          {field.options?.map((option) => (
+            <div key={option.id} className="flex items-center space-x-2">
+              {/* Radio Button */}
+              <RadioGroupItem value={option.value} id={option.id} />
+
+              {/* Label + Image + Color */}
+              <Label htmlFor={option.id} className="flex items-center gap-2 cursor-pointer">
+                
+                {/* Image if present */}
+                {option.image && (
+                  <img
+                    src={option.image}
+                    alt={option.label || 'Option image'}
+                    className="w-8 h-8 object-cover rounded border border-border flex-shrink-0"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                )}
+
+                {/* Label if present */}
+                {option.label && <span>{option.label}</span>}
+
+                {/* Color fallback when no image and no label */}
+                {!option.image && !option.label && option.color && (
+                  <div
+                    className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
+                    style={{ backgroundColor: option.color }}
+                  />
+                )}
+              </Label>
             </div>
-            <div className={hasScrollbar ? 'max-h-64 overflow-y-auto border rounded-lg p-3 bg-background' : ''}>
-              <RadioGroup
-                value={formData[field.id] || ''}
-                onValueChange={(value) => onFieldChange(field.id, value)}
-                disabled={!fieldState.isEnabled}
-                className={radioOrientation === 'horizontal' ? 'flex flex-wrap gap-4' : 'space-y-3'}
-              >
-                {field.options?.map((option) => (
-                  <div key={option.id} className="flex items-center space-x-2">
-                    <RadioGroupItem value={option.value} id={option.id} />
-                    <Label htmlFor={option.id} className="flex items-center gap-2 cursor-pointer">
-                      {option.color && (
-                        <div 
-                          className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
-                          style={{ backgroundColor: option.color }}
-                        />
-                      )}
-                      <span>{option.label}</span>
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
-            {errors[field.id] && (
-              <p className="text-sm text-red-500">{errors[field.id]}</p>
-            )}
-          </div>
-        );
-      case 'checkbox':
+          ))}
+        </RadioGroup>
+      </div>
+
+      {/* Error Message */}
+      {errors[field.id] && (
+        <p className="text-sm text-red-500">{errors[field.id]}</p>
+      )}
+    </div>
+  );
+
+        case 'checkbox':
         return (
           <div className="space-y-2">
             <div className="flex items-center space-x-2">

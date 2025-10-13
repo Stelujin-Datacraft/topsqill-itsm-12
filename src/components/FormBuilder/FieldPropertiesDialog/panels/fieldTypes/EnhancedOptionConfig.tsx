@@ -25,6 +25,8 @@ interface EnhancedOptionConfigProps {
 export function EnhancedOptionConfig({ options, onChange, fieldType }: EnhancedOptionConfigProps) {
   const [activeTab, setActiveTab] = useState<'individual' | 'bulk'>('individual');
   const [bulkInput, setBulkInput] = useState('');
+  console.log("oooooooooooo",options)
+
 
   // Generate a random color for new options
   const generateRandomColor = () => {
@@ -123,6 +125,7 @@ export function EnhancedOptionConfig({ options, onChange, fieldType }: EnhancedO
   const optionsToBulkText = () => {
     return options.map(option => option.value || option.label).join('\n');
   };
+
 
   return (
     <div className="space-y-4">
@@ -256,7 +259,7 @@ export function EnhancedOptionConfig({ options, onChange, fieldType }: EnhancedO
                   </div>
                   
                   {/* Preview */}
-                  <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                  {/* <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
                     {option.image ? (
                       <img 
                         src={option.image} 
@@ -273,7 +276,38 @@ export function EnhancedOptionConfig({ options, onChange, fieldType }: EnhancedO
                       />
                     )}
                     <span className="truncate">Preview: {option.label || option.value || 'Empty option'}</span>
-                  </div>
+                  </div> */}
+                  {/* Preview */}
+                <div className="mt-2 flex items-center items-start gap-2 text-sm text-muted-foreground">
+                  {/* Image (if present) */}
+                  {option.image && (
+                    <img
+                      src={option.image}
+                      alt={option.label || 'Option image'}
+                      className="w-12 h-12 object-cover rounded border border-border flex-shrink-0"
+                      style={{ minWidth: '48px', minHeight: '48px' }}
+                      onError={(e) => {
+                        console.error('Image failed to load:', option.image.slice(0, 50));
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  )}
+
+                  {/* Label or value fallback */}
+                  {(option.label || !option.image) && (
+                    <span className="truncate mt-1">{option.label || option.value || 'Empty option'}</span>
+                  )}
+
+                  {/* Color fallback when both missing */}
+                  {!option.image && !option.label && (
+                    <div
+                      className="w-3 h-3 rounded-full border"
+                      style={{ backgroundColor: option.color || '#3B82F6' }}
+                    />
+                  )}
+                </div>
+
+
                 </CardContent>
               </Card>
             ))}
