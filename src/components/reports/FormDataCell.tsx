@@ -15,6 +15,7 @@ interface FormDataCellProps {
 }
 
 export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
+  console.log('newwwwwwww',field)
   const { getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
 
   function countryCodeToEmoji(code: string) {
@@ -539,18 +540,78 @@ if (fieldType === 'phone' && value) {
   );
 }
 
+// Safely parse options
+const ensureOptionsArray = (opts: any): any[] => {
+  if (Array.isArray(opts)) return opts;
+  if (typeof opts === 'string') {
+    try {
+      const parsed = JSON.parse(opts);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+
 
   // Handle select/dropdown fields
-  if (['select', 'radio'].includes(fieldType) && field?.options && Array.isArray(field.options)) {
-    const selectedOption = field.options.find((opt: any) => opt.value === value);
-    const displayValue = selectedOption?.label || value;
+  // if (['select', 'radio'].includes(fieldType) && field?.options && Array.isArray(field.options)) {
+  //   console.log('optionssss',field)
+  //   const selectedOption = field.options.find((opt: any) => opt.value === value);
+  //   const displayValue = selectedOption?.label || value;
     
+  //   return (
+  //     <Badge variant="secondary" className="text-xs bg-secondary/80 text-secondary-foreground font-medium">
+  //       {displayValue}
+  //     </Badge>
+  //   );
+  // }
+
+  // Handle select / radio fields
+if (['select', 'radio'].includes(fieldType)) {
+  const options = ensureOptionsArray(field.options);
+  const selectedOption = options.find((opt: any) => opt.value === value);
+
+  if (selectedOption) {
     return (
-      <Badge variant="secondary" className="text-xs bg-secondary/80 text-secondary-foreground font-medium">
-        {displayValue}
+      <Badge
+        variant="secondary"
+        className="text-xs bg-secondary/80 text-secondary-foreground font-medium flex items-center gap-2 px-2 py-1"
+      >
+        {/* Image */}
+        {selectedOption.image && (
+          <img
+            src={selectedOption.image}
+            alt={selectedOption.label || 'Option image'}
+            className="w-5 h-5 object-cover rounded border border-border"
+            onError={(e) => (e.currentTarget.style.display = 'none')}
+          />
+        )}
+
+        {/* Label or Value */}
+        <span>{selectedOption.label || selectedOption.value}</span>
+
+        {/* Color fallback */}
+        {!selectedOption.image && !selectedOption.label && selectedOption.color && (
+          <div
+            className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
+            style={{ backgroundColor: selectedOption.color }}
+          />
+        )}
       </Badge>
     );
   }
+
+  // Fallback if no match
+  return (
+    <Badge variant="secondary" className="text-xs bg-secondary/80 text-secondary-foreground font-medium">
+      {value || 'N/A'}
+    </Badge>
+  );
+}
+
+  
 
   // Handle single or bulk checkbox
 if (fieldType === 'checkbox') {
@@ -883,5 +944,5 @@ if (fieldType === "user-picker") {
   }
 
   // Default case - display as string
-  return <span className="text-sm">{value.toString()}</span>;
+  return <span className="text-sm">{value.toString()} </span>;
 }
