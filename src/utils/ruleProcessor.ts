@@ -218,7 +218,12 @@ export class RuleProcessor {
     const { setFormData } = context;
     const targetId = rule.targetFieldId;
 
-    if (!fieldStates[targetId]) return;
+    console.log(`[APPLY ACTION] Rule "${rule.name}" - Action: ${rule.action}, Target: ${targetId}, ActionValue:`, rule.actionValue);
+
+    if (!fieldStates[targetId]) {
+      console.log(`[APPLY ACTION] Target field "${targetId}" not found in fieldStates`);
+      return;
+    }
 
     switch (rule.action) {
       case 'show':
@@ -260,14 +265,28 @@ export class RuleProcessor {
         break;
       
       case 'filterOptions':
+        console.log(`[FILTER OPTIONS] Starting filterOptions for rule "${rule.name}"`);
+        console.log(`[FILTER OPTIONS] ActionValue:`, rule.actionValue);
+        console.log(`[FILTER OPTIONS] Is array?`, Array.isArray(rule.actionValue));
+        
         if (rule.actionValue && Array.isArray(rule.actionValue)) {
           const originalOptions = fieldStates[targetId].options || [];
           const selectedValues = rule.actionValue as string[];
+          
+          console.log(`[FILTER OPTIONS] Original options count: ${originalOptions.length}`, originalOptions);
+          console.log(`[FILTER OPTIONS] Selected values to filter:`, selectedValues);
+          
           // Filter to only show the selected option values
-          fieldStates[targetId].options = originalOptions.filter(
+          const filteredOptions = originalOptions.filter(
             (option: any) => selectedValues.includes(option.value)
           );
-          console.log(`Rule "${rule.name}" filtering options from ${originalOptions.length} to ${fieldStates[targetId].options?.length}`);
+          
+          console.log(`[FILTER OPTIONS] Filtered options count: ${filteredOptions.length}`, filteredOptions);
+          
+          fieldStates[targetId].options = filteredOptions;
+          console.log(`[FILTER OPTIONS] Rule "${rule.name}" applied - filtered from ${originalOptions.length} to ${filteredOptions.length} options`);
+        } else {
+          console.log(`[FILTER OPTIONS] Skipped - actionValue is not a valid array`);
         }
         break;
       
