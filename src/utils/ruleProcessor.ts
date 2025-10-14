@@ -134,6 +134,27 @@ export class RuleProcessor {
       };
     });
 
+    // Also initialize states for any target fields referenced in rules but not in formFields
+    fieldRules.forEach(rule => {
+      if (rule.isActive && rule.targetFieldId && !fieldStates[rule.targetFieldId]) {
+        const targetField = formFields.find(f => f.id === rule.targetFieldId);
+        if (targetField) {
+          fieldStates[rule.targetFieldId] = {
+            isVisible: targetField.isVisible ?? true,
+            isEnabled: targetField.isEnabled ?? true,
+            isRequired: targetField.required ?? false,
+            label: targetField.label,
+            options: targetField.options,
+            tooltip: targetField.tooltip,
+            errorMessage: targetField.errorMessage,
+            defaultValue: targetField.defaultValue,
+          };
+        } else {
+          console.warn(`Target field "${rule.targetFieldId}" for rule "${rule.name}" not found in formFields`);
+        }
+      }
+    });
+
     // Process active rules
     fieldRules.forEach(rule => {
       if (!rule.isActive) return;
