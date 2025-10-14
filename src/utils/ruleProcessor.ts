@@ -259,6 +259,16 @@ export class RuleProcessor {
         }
         break;
       
+      case 'filterOptions':
+        if (rule.actionValue && Array.isArray(rule.actionValue) && fieldStates[targetId].options) {
+          // Filter options to only show the selected ones
+          const selectedValues = rule.actionValue as string[];
+          fieldStates[targetId].options = fieldStates[targetId].options?.filter(
+            (option: any) => selectedValues.includes(option.value)
+          );
+        }
+        break;
+      
       case 'setDefault':
         if (rule.actionValue !== undefined) {
           fieldStates[targetId].defaultValue = rule.actionValue;

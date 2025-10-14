@@ -307,8 +307,43 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
   }, []);
 
   // Don't show input for actions that don't need values
-  if (!['setDefault', 'changeLabel', 'showTooltip', 'showError', 'changeOptions'].includes(action)) {
+  if (!['setDefault', 'changeLabel', 'showTooltip', 'showError', 'changeOptions', 'filterOptions'].includes(action)) {
     return null;
+  }
+
+  // Handle filterOptions action for select, multi-select, and radio fields
+  if (action === 'filterOptions' && targetField && ['select', 'multi-select', 'radio'].includes(targetField.type)) {
+    const currentValues = Array.isArray(value) ? value : [];
+    const handleOptionToggle = (optionValue: string) => {
+      const newValues = currentValues.includes(optionValue)
+        ? currentValues.filter(v => v !== optionValue)
+        : [...currentValues, optionValue];
+      onChange(newValues);
+    };
+
+    return (
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Select options to show when rule is active:</Label>
+        <div className="max-h-48 overflow-y-auto border rounded-md p-2 space-y-2">
+          {Array.isArray(targetField.options) ? targetField.options.filter((option: any) => option.value && option.value.trim() !== '').map((option: any) => (
+            <div key={option.id || option.value} className="flex items-center space-x-2">
+              <Checkbox
+                checked={currentValues.includes(option.value)}
+                onCheckedChange={() => handleOptionToggle(option.value)}
+              />
+              <Label className="text-sm cursor-pointer flex-1">
+                {option.label || option.value}
+              </Label>
+            </div>
+          )) : null}
+        </div>
+        {currentValues.length > 0 && (
+          <div className="text-xs text-muted-foreground">
+            {currentValues.length} option(s) will be visible when rule is active
+          </div>
+        )}
+      </div>
+    );
   }
 
   // Handle changeOptions action with textarea

@@ -28,7 +28,8 @@ export type FieldAction =
   | 'showTooltip' 
   | 'showError'
   | 'require'
-  | 'optional';
+  | 'optional'
+  | 'filterOptions';
 
 export type FormAction = 
   | 'allowSubmit' 
