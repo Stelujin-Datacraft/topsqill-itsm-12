@@ -1170,15 +1170,71 @@ export function ChartPreview({
             <table className="w-full border-collapse border border-border">
               <thead>
                 <tr>
-                  <th className="border border-border p-2 bg-muted text-left">Category</th>
-                  <th className="border border-border p-2 bg-muted text-left">Value</th>
+                  <th className="border border-border p-2 bg-muted text-left font-semibold">
+                    {config.xAxisLabel || (config.dimensions && config.dimensions.length > 0 
+                      ? getFormFieldName(config.dimensions[0]) 
+                      : config.xAxis 
+                      ? getFormFieldName(config.xAxis)
+                      : 'Category')}
+                  </th>
+                  {(() => {
+                    // For grouped data, show all group value columns
+                    if (config.groupByField && chartData.length > 0) {
+                      const groupKeys = Object.keys(chartData[0]).filter(
+                        key => key !== 'name' && key !== '_drilldownData' && typeof chartData[0][key] === 'number'
+                      );
+                      return groupKeys.map(key => (
+                        <th key={key} className="border border-border p-2 bg-muted text-left font-semibold">
+                          {key}
+                        </th>
+                      ));
+                    }
+                    
+                    // For non-grouped data, show metric columns
+                    const metrics = config.metrics && config.metrics.length > 0 
+                      ? config.metrics 
+                      : config.yAxis 
+                      ? [config.yAxis]
+                      : ['count'];
+                    
+                    return metrics.map(metric => (
+                      <th key={metric} className="border border-border p-2 bg-muted text-left font-semibold">
+                        {config.yAxisLabel || getFormFieldName(metric)}
+                      </th>
+                    ));
+                  })()}
                 </tr>
               </thead>
               <tbody>
                 {chartData.map((item, index) => (
-                  <tr key={index}>
-                    <td className="border border-border p-2">{item.name}</td>
-                    <td className="border border-border p-2">{item.value || item.count || 0}</td>
+                  <tr key={index} className="hover:bg-muted/30">
+                    <td className="border border-border p-2 font-medium">{item.name}</td>
+                    {(() => {
+                      // For grouped data, show all group values
+                      if (config.groupByField && chartData.length > 0) {
+                        const groupKeys = Object.keys(item).filter(
+                          key => key !== 'name' && key !== '_drilldownData' && typeof item[key] === 'number'
+                        );
+                        return groupKeys.map(key => (
+                          <td key={key} className="border border-border p-2">
+                            {item[key]?.toLocaleString() || 0}
+                          </td>
+                        ));
+                      }
+                      
+                      // For non-grouped data, show metric values
+                      const metrics = config.metrics && config.metrics.length > 0 
+                        ? config.metrics 
+                        : config.yAxis 
+                        ? [config.yAxis]
+                        : ['count'];
+                      
+                      return metrics.map(metric => (
+                        <td key={metric} className="border border-border p-2">
+                          {(item[metric] || item.value || item.count || 0).toLocaleString()}
+                        </td>
+                      ));
+                    })()}
                   </tr>
                 ))}
               </tbody>
