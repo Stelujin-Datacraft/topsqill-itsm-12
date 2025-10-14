@@ -7,6 +7,7 @@ import { useReports } from '@/hooks/useReports';
 import { useFormsData } from '@/hooks/useFormsData';
 import { ChartConfig } from '@/types/reports';
 import { colorSchemes } from './ChartColorThemes';
+import { TableCellSubmissionsDialog } from './TableCellSubmissionsDialog';
 interface ChartPreviewProps {
   config: ChartConfig;
   onEdit?: () => void;
@@ -29,6 +30,20 @@ export function ChartPreview({
   const [showFormFields, setShowFormFields] = useState(false);
   const [showLegend, setShowLegend] = useState(true);
   const [showDrilldownPanel, setShowDrilldownPanel] = useState(false);
+  
+  const [cellSubmissionsDialog, setCellSubmissionsDialog] = useState<{
+    open: boolean;
+    dimensionField: string;
+    dimensionValue: string;
+    groupField?: string;
+    groupValue?: string;
+    dimensionLabel?: string;
+    groupLabel?: string;
+  }>({
+    open: false,
+    dimensionField: '',
+    dimensionValue: '',
+  });
   const {
     getFormSubmissionData,
     getChartData,
@@ -1206,37 +1221,69 @@ export function ChartPreview({
                 </tr>
               </thead>
               <tbody>
-                {chartData.map((item, index) => (
-                  <tr key={index} className="hover:bg-muted/30">
-                    <td className="border border-border p-2 font-medium">{item.name}</td>
-                    {(() => {
-                      // For grouped data, show all group values
-                      if (config.groupByField && chartData.length > 0) {
-                        const groupKeys = Object.keys(item).filter(
-                          key => key !== 'name' && key !== '_drilldownData' && typeof item[key] === 'number'
-                        );
-                        return groupKeys.map(key => (
-                          <td key={key} className="border border-border p-2">
-                            {item[key]?.toLocaleString() || 0}
+                {chartData.map((item, index) => {
+                  const dimensionField = config.dimensions && config.dimensions.length > 0 
+                    ? config.dimensions[0] 
+                    : config.xAxis || '';
+                  const dimensionLabel = config.xAxisLabel || getFormFieldName(dimensionField);
+                  
+                  return (
+                    <tr key={index} className="hover:bg-muted/30">
+                      <td className="border border-border p-2 font-medium">{item.name}</td>
+                      {(() => {
+                        // For grouped data, show all group values
+                        if (config.groupByField && chartData.length > 0) {
+                          const groupKeys = Object.keys(item).filter(
+                            key => key !== 'name' && key !== '_drilldownData' && typeof item[key] === 'number'
+                          );
+                          return groupKeys.map(key => (
+                            <td 
+                              key={key} 
+                              className="border border-border p-2 cursor-pointer hover:bg-primary/10"
+                              onClick={() => {
+                                setCellSubmissionsDialog({
+                                  open: true,
+                                  dimensionField,
+                                  dimensionValue: item.name,
+                                  groupField: config.groupByField,
+                                  groupValue: key,
+                                  dimensionLabel,
+                                  groupLabel: getFormFieldName(config.groupByField || ''),
+                                });
+                              }}
+                            >
+                              {item[key]?.toLocaleString() || 0}
+                            </td>
+                          ));
+                        }
+                        
+                        // For non-grouped data, show metric values
+                        const metrics = config.metrics && config.metrics.length > 0 
+                          ? config.metrics 
+                          : config.yAxis 
+                          ? [config.yAxis]
+                          : ['count'];
+                        
+                        return metrics.map(metric => (
+                          <td 
+                            key={metric} 
+                            className="border border-border p-2 cursor-pointer hover:bg-primary/10"
+                            onClick={() => {
+                              setCellSubmissionsDialog({
+                                open: true,
+                                dimensionField,
+                                dimensionValue: item.name,
+                                dimensionLabel,
+                              });
+                            }}
+                          >
+                            {(item[metric] || item.value || item.count || 0).toLocaleString()}
                           </td>
                         ));
-                      }
-                      
-                      // For non-grouped data, show metric values
-                      const metrics = config.metrics && config.metrics.length > 0 
-                        ? config.metrics 
-                        : config.yAxis 
-                        ? [config.yAxis]
-                        : ['count'];
-                      
-                      return metrics.map(metric => (
-                        <td key={metric} className="border border-border p-2">
-                          {(item[metric] || item.value || item.count || 0).toLocaleString()}
-                        </td>
-                      ));
-                    })()}
-                  </tr>
-                ))}
+                      })()}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1246,5 +1293,17 @@ export function ChartPreview({
           </div>
         )}
       </div>
+      
+      <TableCellSubmissionsDialog
+        open={cellSubmissionsDialog.open}
+        onOpenChange={(open) => setCellSubmissionsDialog({ ...cellSubmissionsDialog, open })}
+        formId={config.formId || ''}
+        dimensionField={cellSubmissionsDialog.dimensionField}
+        dimensionValue={cellSubmissionsDialog.dimensionValue}
+        groupField={cellSubmissionsDialog.groupField}
+        groupValue={cellSubmissionsDialog.groupValue}
+        dimensionLabel={cellSubmissionsDialog.dimensionLabel}
+        groupLabel={cellSubmissionsDialog.groupLabel}
+      />
     </div>;
 }
