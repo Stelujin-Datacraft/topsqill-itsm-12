@@ -260,12 +260,14 @@ export class RuleProcessor {
         break;
       
       case 'filterOptions':
-        if (rule.actionValue && Array.isArray(rule.actionValue) && fieldStates[targetId].options) {
-          // Filter options to only show the selected ones
+        if (rule.actionValue && Array.isArray(rule.actionValue)) {
+          const originalOptions = fieldStates[targetId].options || [];
           const selectedValues = rule.actionValue as string[];
-          fieldStates[targetId].options = fieldStates[targetId].options?.filter(
+          // Filter to only show the selected option values
+          fieldStates[targetId].options = originalOptions.filter(
             (option: any) => selectedValues.includes(option.value)
           );
+          console.log(`Rule "${rule.name}" filtering options from ${originalOptions.length} to ${fieldStates[targetId].options?.length}`);
         }
         break;
       
