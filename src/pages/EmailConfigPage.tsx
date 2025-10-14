@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import DashboardLayout from '@/components/DashboardLayout';
+import { TestEmailDialog } from '@/components/email/TestEmailDialog';
 
 interface SMTPConfig {
   id: string;
@@ -33,6 +34,8 @@ export default function EmailConfigPage() {
   const [editingConfig, setEditingConfig] = useState<SMTPConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [testingConfig, setTestingConfig] = useState<string | null>(null);
+  const [testDialogOpen, setTestDialogOpen] = useState(false);
+  const [configToTest, setConfigToTest] = useState<SMTPConfig | null>(null);
 
   const loadConfigs = async () => {
     if (!userProfile?.organization_id) return;
@@ -146,32 +149,44 @@ export default function EmailConfigPage() {
     }
   };
 
-  const testConfig = async (config: SMTPConfig) => {
-    setTestingConfig(config.id);
+  const openTestDialog = (config: SMTPConfig) => {
+    setConfigToTest(config);
+    setTestDialogOpen(true);
+  };
+
+  const testConfig = async (testEmail: string) => {
+    if (!configToTest) return;
+    
+    setTestingConfig(configToTest.id);
     
     try {
-      const { data, error } = await supabase.functions.invoke('test-smtp-config', {
+      const { data, error } = await supabase.functions.invoke('test-smtp-connection', {
         body: { 
-          configId: config.id,
-          testEmail: userProfile?.email 
+          configId: configToTest.id,
+          testEmail: testEmail
         }
       });
 
       if (error) throw error;
 
-      toast({
-        title: "Test Email Sent",
-        description: "Check your inbox for the test email",
-      });
+      if (data?.success) {
+        toast({
+          title: "Test Email Sent",
+          description: `Test email sent successfully to ${testEmail}`,
+        });
+      } else {
+        throw new Error(data?.message || 'Test failed');
+      }
     } catch (error: any) {
       console.error('Error testing SMTP config:', error);
       toast({
         title: "Test Failed",
-        description: `Failed to send test email: ${error.message}`,
+        description: error.message || 'Failed to send test email',
         variant: "destructive",
       });
     } finally {
       setTestingConfig(null);
+      setConfigToTest(null);
     }
   };
 
@@ -225,7 +240,7 @@ export default function EmailConfigPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => testConfig(config)}
+                      onClick={() => openTestDialog(config)}
                       disabled={testingConfig === config.id}
                     >
                       <TestTube className="h-4 w-4 mr-1" />
@@ -273,6 +288,15 @@ export default function EmailConfigPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Test Email Dialog */}
+        <TestEmailDialog
+          open={testDialogOpen}
+          onOpenChange={setTestDialogOpen}
+          onConfirm={testConfig}
+          configName={configToTest?.name || ''}
+          defaultEmail={userProfile?.email || ''}
+        />
       </div>
     </DashboardLayout>
   );

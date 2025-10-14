@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,6 +9,7 @@ const corsHeaders = {
 
 interface TestRequest {
   configId: string;
+  testEmail: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -22,9 +24,13 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { configId }: TestRequest = await req.json();
+    const { configId, testEmail }: TestRequest = await req.json();
 
-    console.log('🧪 Testing SMTP connection for config:', configId);
+    if (!testEmail || !testEmail.includes('@')) {
+      throw new Error('Valid test email address is required');
+    }
+
+    console.log('🧪 Testing SMTP connection for config:', configId, 'to:', testEmail);
 
     // Get SMTP configuration
     const { data: smtpConfig, error: configError } = await supabaseClient
@@ -37,69 +43,108 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('SMTP configuration not found');
     }
 
-    // Test email content
-    const testEmailData = {
-      From: smtpConfig.from_name 
-        ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` 
-        : smtpConfig.from_email,
-      To: smtpConfig.from_email, // Send test email to the same address
-      Subject: 'SMTP Configuration Test',
-      HtmlBody: `
-        <h2>SMTP Test Email</h2>
-        <p>This is a test email to verify your SMTP configuration is working correctly.</p>
-        <p><strong>Configuration:</strong> ${smtpConfig.name}</p>
-        <p><strong>Host:</strong> ${smtpConfig.host}:${smtpConfig.port}</p>
-        <p><strong>TLS:</strong> ${smtpConfig.use_tls ? 'Enabled' : 'Disabled'}</p>
-        <p><strong>Time:</strong> ${new Date().toISOString()}</p>
-      `,
-      TextBody: `
-SMTP Test Email
+    console.log('📧 Using SMTP config:', {
+      name: smtpConfig.name,
+      host: smtpConfig.host,
+      port: smtpConfig.port,
+      use_tls: smtpConfig.use_tls,
+    });
+
+    // Initialize SMTP client with actual configuration
+    const client = new SMTPClient({
+      connection: {
+        hostname: smtpConfig.host,
+        port: smtpConfig.port,
+        tls: smtpConfig.use_tls,
+        auth: {
+          username: smtpConfig.username,
+          password: smtpConfig.password,
+        },
+      },
+    });
+
+    try {
+      // Send test email using actual SMTP
+      await client.send({
+        from: smtpConfig.from_name 
+          ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` 
+          : smtpConfig.from_email,
+        to: testEmail,
+        subject: `SMTP Test - ${smtpConfig.name}`,
+        content: `
+SMTP Configuration Test
 
 This is a test email to verify your SMTP configuration is working correctly.
 
-Configuration: ${smtpConfig.name}
-Host: ${smtpConfig.host}:${smtpConfig.port}
-TLS: ${smtpConfig.use_tls ? 'Enabled' : 'Disabled'}
-Time: ${new Date().toISOString()}
-      `,
-    };
+Configuration Details:
+- Name: ${smtpConfig.name}
+- Host: ${smtpConfig.host}
+- Port: ${smtpConfig.port}
+- TLS: ${smtpConfig.use_tls ? 'Enabled' : 'Disabled'}
+- Test Time: ${new Date().toISOString()}
 
-    // For demo purposes, we'll simulate a successful test
-    // In a real implementation, you'd use the actual SMTP settings to send the test email
-    try {
-      // Simulate SMTP connection test
-      const testResponse = await fetch('https://api.postmarkapp.com/email', {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'X-Postmark-Server-Token': Deno.env.get('POSTMARK_API_KEY') || 'test-token',
-        },
-        body: JSON.stringify(testEmailData),
+If you received this email, your SMTP configuration is working properly!
+        `,
+        html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #4F46E5; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+    .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
+    .detail-row { margin: 10px 0; }
+    .label { font-weight: bold; color: #4F46E5; }
+    .success { background: #10b981; color: white; padding: 10px; border-radius: 4px; text-align: center; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>SMTP Configuration Test</h2>
+    </div>
+    <div class="content">
+      <p>This is a test email to verify your SMTP configuration is working correctly.</p>
+      
+      <h3>Configuration Details:</h3>
+      <div class="detail-row"><span class="label">Name:</span> ${smtpConfig.name}</div>
+      <div class="detail-row"><span class="label">Host:</span> ${smtpConfig.host}</div>
+      <div class="detail-row"><span class="label">Port:</span> ${smtpConfig.port}</div>
+      <div class="detail-row"><span class="label">TLS:</span> ${smtpConfig.use_tls ? 'Enabled' : 'Disabled'}</div>
+      <div class="detail-row"><span class="label">Test Time:</span> ${new Date().toISOString()}</div>
+      
+      <div class="success">
+        ✅ Your SMTP configuration is working properly!
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+        `,
       });
 
-      if (testResponse.ok) {
-        const result = await testResponse.json();
-        console.log('✅ SMTP test successful:', result);
+      await client.close();
 
-        return new Response(JSON.stringify({
-          success: true,
-          message: `Test email sent successfully to ${smtpConfig.from_email}`,
-          details: {
-            host: smtpConfig.host,
-            port: smtpConfig.port,
-            tls: smtpConfig.use_tls,
-            messageId: result.MessageID,
-          },
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      } else {
-        const error = await testResponse.json();
-        throw new Error(error.Message || 'SMTP test failed');
-      }
+      console.log('✅ SMTP test successful - email sent to:', testEmail);
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: `Test email sent successfully to ${testEmail}`,
+        details: {
+          host: smtpConfig.host,
+          port: smtpConfig.port,
+          tls: smtpConfig.use_tls,
+          recipient: testEmail,
+        },
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+
     } catch (error: any) {
       console.error('❌ SMTP test failed:', error);
+      
+      await client.close().catch(() => {});
       
       return new Response(JSON.stringify({
         success: false,
@@ -111,6 +156,7 @@ Time: ${new Date().toISOString()}
           error: error.message,
         },
       }), {
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
