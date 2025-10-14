@@ -7,6 +7,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Trash2, Plus, GripVertical, List, FileText, Upload, X } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import Picker from "@emoji-mart/react";
+import data from "@emoji-mart/data";
+import { Smile } from "lucide-react";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
 interface Option {
   id: string;
@@ -179,7 +183,7 @@ export function EnhancedOptionConfig({ options, onChange, fieldType }: EnhancedO
                             className="h-8"
                           />
                         </div>
-                        <div className="space-y-1">
+                        {/* <div className="space-y-1">
                           <Label className="text-xs text-muted-foreground">Label</Label>
                           <Input
                             placeholder="Display label"
@@ -187,7 +191,41 @@ export function EnhancedOptionConfig({ options, onChange, fieldType }: EnhancedO
                             onChange={(e) => handleOptionChange(index, 'label', e.target.value)}
                             className="h-8"
                           />
-                        </div>
+                        </div> */}
+                        <div className="space-y-1">
+  <Label className="text-xs text-muted-foreground">Label</Label>
+  <div className="flex items-center gap-1">
+    <Input
+      placeholder="Display label"
+      value={option.label}
+      onChange={(e) => handleOptionChange(index, "label", e.target.value)}
+      className="h-8 flex-1"
+    />
+
+    {/* Emoji picker button */}
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8"
+          title="Add emoji"
+        >
+          <Smile className="h-4 w-4" />
+        </Button>
+      </PopoverTrigger>
+
+      <PopoverContent className="p-0 w-fit">
+        <Picker
+          data={data}
+          onEmojiSelect={(emoji) => {
+            handleOptionChange(index, "label", (option.label || "") + emoji.native);
+          }}
+        />
+      </PopoverContent>
+    </Popover>
+  </div>
+</div>
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs text-muted-foreground">Image</Label>
