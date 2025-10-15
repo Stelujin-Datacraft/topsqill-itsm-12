@@ -17,7 +17,6 @@ export interface UserCreateData {
   firstName: string;
   lastName: string;
   role: string;
-  password: string;
   nationality?: string;
   mobile?: string;
   gender?: string;
@@ -199,7 +198,6 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
     firstName: '',
     lastName: '',
     role: 'user',
-    password: '',
     nationality: '',
     mobile: '',
     gender: '',
@@ -218,7 +216,6 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
         firstName: '',
         lastName: '',
         role: 'user',
-        password: '',
         nationality: '',
         mobile: '',
         gender: '',
@@ -295,18 +292,6 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                 placeholder="Doe"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password *</Label>
-              <Input
-                id="password"
-                type="password"
-                required
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder="Enter secure password"
               />
             </div>
 
