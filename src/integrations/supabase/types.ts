@@ -1302,33 +1302,45 @@ export type Database = {
           created_at: string
           email: string
           first_name: string | null
+          gender: string | null
           id: string
           last_name: string | null
+          mobile: string | null
+          nationality: string | null
           organization_id: string | null
           role: string
           status: string
+          timezone: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           email: string
           first_name?: string | null
+          gender?: string | null
           id: string
           last_name?: string | null
+          mobile?: string | null
+          nationality?: string | null
           organization_id?: string | null
           role?: string
           status?: string
+          timezone?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           email?: string
           first_name?: string | null
+          gender?: string | null
           id?: string
           last_name?: string | null
+          mobile?: string | null
+          nationality?: string | null
           organization_id?: string | null
           role?: string
           status?: string
+          timezone?: string | null
           updated_at?: string
         }
         Relationships: [

@@ -10,6 +10,7 @@ import UserCard from '@/components/users/UserCard';
 import UserTableRow from '@/components/users/UserTableRow';
 import UserInviteDialog from '@/components/users/UserInviteDialog';
 import UserRequestsDialog from '@/components/users/UserRequestsDialog';
+import UserCreateDialog from '@/components/users/UserCreateDialog';
 import { useUserManagement } from '@/hooks/useUserManagement';
 import { useOrganization } from '@/contexts/OrganizationContext';
 
@@ -22,11 +23,13 @@ const Users = () => {
     handleInviteUser,
     handleApproveRequest,
     handleRejectRequest,
-    handleRoleChange
+    handleRoleChange,
+    handleCreateUser
   } = useUserManagement();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isRequestsOpen, setIsRequestsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [selectedRequests, setSelectedRequests] = useState<Set<string>>(new Set());
@@ -96,6 +99,12 @@ const Users = () => {
         onRejectRequest={handleRejectRequest}
         onApproveSelected={handleApproveSelected}
         onApproveAll={handleApproveAll}
+      />
+      
+      <UserCreateDialog
+        isOpen={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+        onCreate={handleCreateUser}
       />
       
       <UserInviteDialog

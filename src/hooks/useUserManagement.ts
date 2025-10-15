@@ -12,6 +12,10 @@ interface User {
   role: string;
   status: string;
   created_at: string;
+  nationality?: string;
+  mobile?: string;
+  gender?: string;
+  timezone?: string;
 }
 
 interface OrganizationRequest {
@@ -322,6 +326,81 @@ export const useUserManagement = () => {
     }
   };
 
+  const handleCreateUser = async (userData: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+    nationality?: string;
+    mobile?: string;
+    gender?: string;
+    timezone?: string;
+  }) => {
+    if (!currentOrganization?.id) {
+      toast({
+        title: "Error",
+        description: "No organization selected.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      console.log('Creating user with data:', userData);
+
+      // Call edge function to create user and send welcome email
+      const { data, error } = await supabase.functions.invoke('send-welcome-email', {
+        body: {
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          organizationName: currentOrganization?.name || 'Organization',
+          organizationId: currentOrganization?.id,
+          role: userData.role,
+          nationality: userData.nationality,
+          mobile: userData.mobile,
+          gender: userData.gender,
+          timezone: userData.timezone,
+        }
+      });
+
+      if (error) {
+        console.error('Error creating user:', error);
+        toast({
+          title: "Error",
+          description: "Failed to create user account.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('User created successfully:', data);
+
+      if (data.emailSent) {
+        toast({
+          title: "User created successfully",
+          description: `${userData.firstName} ${userData.lastName} has been created and will receive a welcome email with login credentials.`,
+        });
+      } else {
+        toast({
+          title: "User created with email issue",
+          description: `${userData.firstName} ${userData.lastName} has been created, but there was an issue sending the welcome email.`,
+          variant: "destructive",
+        });
+      }
+
+      // Reload users list
+      await loadUsers();
+    } catch (error) {
+      console.error('Error creating user:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create user.",
+        variant: "destructive",
+      });
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -342,6 +421,7 @@ export const useUserManagement = () => {
     handleApproveRequest,
     handleRejectRequest,
     handleRoleChange,
+    handleCreateUser,
     loadUsers,
     loadRequests
   };
