@@ -331,6 +331,7 @@ export const useUserManagement = () => {
     firstName: string;
     lastName: string;
     role: string;
+    password: string;
     nationality?: string;
     mobile?: string;
     gender?: string;
@@ -357,6 +358,7 @@ export const useUserManagement = () => {
           organizationName: currentOrganization?.name || 'Organization',
           organizationId: currentOrganization?.id,
           role: userData.role,
+          password: userData.password,
           nationality: userData.nationality,
           mobile: userData.mobile,
           gender: userData.gender,

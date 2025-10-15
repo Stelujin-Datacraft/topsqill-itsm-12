@@ -21,16 +21,17 @@ serve(async (req) => {
     const requestBody = await req.json()
     console.log('📋 Request data received:', JSON.stringify(requestBody, null, 2))
     
-    const { email, firstName, lastName, organizationName, organizationId, role } = requestBody
+    const { email, firstName, lastName, organizationName, organizationId, role, nationality, mobile, gender, timezone, password } = requestBody
 
     // Validate required fields
     console.log('🔍 Validating required fields...')
-    if (!email || !firstName || !lastName || !organizationId) {
+    if (!email || !firstName || !lastName || !organizationId || !password) {
       const missingFields = []
       if (!email) missingFields.push('email')
       if (!firstName) missingFields.push('firstName')
       if (!lastName) missingFields.push('lastName')
       if (!organizationId) missingFields.push('organizationId')
+      if (!password) missingFields.push('password')
       
       console.error('❌ Missing required fields:', missingFields)
       throw new Error(`Missing required fields: ${missingFields.join(', ')}`)
@@ -90,7 +91,12 @@ serve(async (req) => {
           last_name: lastName,
           organization_id: organizationId,
           role: role || 'user',
-          status: 'active'
+          status: 'active',
+          nationality: nationality || null,
+          mobile: mobile || null,
+          gender: gender || null,
+          timezone: timezone || null,
+          password: password
         })
         .eq('id', userExists.id)
 
@@ -115,31 +121,24 @@ serve(async (req) => {
       )
     }
 
-    // Generate a secure random password
-    console.log('🔐 Generating temporary password...')
-    const generatePassword = () => {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-      let password = '';
-      for (let i = 0; i < 16; i++) {
-        password += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      return password;
-    }
-
-    const tempPassword = generatePassword()
-    console.log('✅ Temporary password generated (length:', tempPassword.length, ')')
+    // Use the provided password
+    console.log('🔐 Using provided password...')
 
     // Create the user in Supabase Auth
     console.log('👤 Creating new user in Supabase Auth...')
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
-      password: tempPassword,
+      password: password,
       email_confirm: true,
       user_metadata: {
         first_name: firstName,
         last_name: lastName,
         organization_id: organizationId,
-        role: role || 'user'
+        role: role || 'user',
+        nationality: nationality,
+        mobile: mobile,
+        gender: gender,
+        timezone: timezone
       }
     })
 
@@ -161,7 +160,12 @@ serve(async (req) => {
         last_name: lastName,
         organization_id: organizationId,
         role: role || 'user',
-        status: 'active'
+        status: 'active',
+        nationality: nationality || null,
+        mobile: mobile || null,
+        gender: gender || null,
+        timezone: timezone || null,
+        password: password
       })
 
     if (profileError) {
@@ -190,17 +194,39 @@ serve(async (req) => {
           to: [email],
           subject: `Welcome to ${organizationName || 'DataCraft Pro'}`,
           html: `
-            <h2>Welcome to ${organizationName || 'DataCraft Pro'}!</h2>
-            <p>Hi ${firstName},</p>
-            <p>Your account has been created successfully. Here are your login credentials:</p>
-            <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <p><strong>Email:</strong> ${email}</p>
-              <p><strong>Temporary Password:</strong> <code style="background-color: #e0e0e0; padding: 2px 4px; border-radius: 3px;">${tempPassword}</code></p>
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #333;">Welcome to ${organizationName || 'DataCraft Pro'}!</h2>
+              <p>Hi ${firstName} ${lastName},</p>
+              <p>Your account has been created successfully. Below are your account details:</p>
+              
+              <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="margin-top: 0; color: #555;">Account Information</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px 0;"><strong>Email:</strong></td>
+                    <td style="padding: 8px 0;">${email}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0;"><strong>Password:</strong></td>
+                    <td style="padding: 8px 0;"><code style="background-color: #e0e0e0; padding: 2px 8px; border-radius: 3px;">${password}</code></td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0;"><strong>Role:</strong></td>
+                    <td style="padding: 8px 0;">${role || 'user'}</td>
+                  </tr>
+                  ${nationality ? `<tr><td style="padding: 8px 0;"><strong>Nationality:</strong></td><td style="padding: 8px 0;">${nationality}</td></tr>` : ''}
+                  ${mobile ? `<tr><td style="padding: 8px 0;"><strong>Mobile:</strong></td><td style="padding: 8px 0;">${mobile}</td></tr>` : ''}
+                  ${gender ? `<tr><td style="padding: 8px 0;"><strong>Gender:</strong></td><td style="padding: 8px 0;">${gender}</td></tr>` : ''}
+                  ${timezone ? `<tr><td style="padding: 8px 0;"><strong>Timezone:</strong></td><td style="padding: 8px 0;">${timezone}</td></tr>` : ''}
+                </table>
+              </div>
+              
+              <p style="color: #e74c3c; font-weight: bold;">⚠️ Important: Please keep your password secure and consider changing it after your first login.</p>
+              <p>Welcome to the team!</p>
+              
+              <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+              <p style="color: #666; font-size: 12px;">This email was sent by DataCraft Pro. If you believe you received this email in error, please contact your administrator.</p>
             </div>
-            <p>Please log in and change your password as soon as possible for security reasons.</p>
-            <p>Welcome to the team!</p>
-            <hr style="margin: 30px 0;">
-            <p style="color: #666; font-size: 12px;">This email was sent by DataCraft Pro. If you believe you received this email in error, please contact your administrator.</p>
           `
         }
 
@@ -243,8 +269,7 @@ serve(async (req) => {
         : `User created successfully, but email failed: ${emailError}`,
       userId: authUser.user.id,
       emailSent: emailSent,
-      emailError: emailError,
-      tempPassword: tempPassword // Include for debugging - remove in production
+      emailError: emailError
     }
 
     console.log('🎉 Function completed successfully')
