@@ -126,7 +126,7 @@ export const useUserManagement = () => {
         });
       } else {
         toast({
-          title: "User created without email",
+          title: "User created with email issue",
           description: `${firstName} ${lastName} has been created, but there was an issue sending the welcome email.`,
           variant: "destructive",
         });
@@ -385,8 +385,8 @@ export const useUserManagement = () => {
         });
       } else {
         toast({
-          title: "User created with email issue",
-          description: `${userData.firstName} ${userData.lastName} has been created, but there was an issue sending the welcome email.`,
+          title: "User created without email",
+          description: `${userData.firstName} ${userData.lastName} has been created.`,
           variant: "destructive",
         });
       }
