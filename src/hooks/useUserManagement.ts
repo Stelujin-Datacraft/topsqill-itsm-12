@@ -118,19 +118,10 @@ export const useUserManagement = () => {
 
       console.log('User account created successfully:', data);
       
-      // Show appropriate toast based on email status
-      if (data.emailSent) {
-        toast({
-          title: "User created successfully",
-          description: `${firstName} ${lastName} has been created and will receive a welcome email with login credentials.`,
-        });
-      } else {
-        toast({
-          title: "User created with email issue",
-          description: `${firstName} ${lastName} has been created, but there was an issue sending the welcome email. Please contact them directly with their login credentials.`,
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "User created successfully",
+        description: `${firstName} ${lastName} has been created successfully.`,
+      });
       
       return true;
     } catch (error) {
@@ -378,18 +369,10 @@ export const useUserManagement = () => {
 
       console.log('User created successfully:', data);
 
-      if (data.emailSent) {
-        toast({
-          title: "User created successfully",
-          description: `${userData.firstName} ${userData.lastName} has been created and will receive a welcome email with login credentials.`,
-        });
-      } else {
-        toast({
-          title: "User created with email issue",
-          description: `${userData.firstName} ${userData.lastName} has been created, but there was an issue sending the welcome email.`,
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "User created successfully",
+        description: `${userData.firstName} ${userData.lastName} has been created successfully.`,
+      });
 
       // Reload users list
       await loadUsers();
