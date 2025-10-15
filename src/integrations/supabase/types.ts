@@ -1307,6 +1307,7 @@ export type Database = {
           last_name: string | null
           mobile: string | null
           nationality: string | null
+          password: string | null
           organization_id: string | null
           role: string
           status: string
@@ -1322,6 +1323,7 @@ export type Database = {
           last_name?: string | null
           mobile?: string | null
           nationality?: string | null
+          password?: string | null
           organization_id?: string | null
           role?: string
           status?: string
@@ -1337,6 +1339,7 @@ export type Database = {
           last_name?: string | null
           mobile?: string | null
           nationality?: string | null
+          password?: string | null
           organization_id?: string | null
           role?: string
           status?: string

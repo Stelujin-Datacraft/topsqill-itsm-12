@@ -126,8 +126,8 @@ export const useUserManagement = () => {
         });
       } else {
         toast({
-          title: "User created with email issue",
-          description: `${firstName} ${lastName} has been created, but there was an issue sending the welcome email. Please contact them directly with their login credentials.`,
+          title: "User created without email",
+          description: `${firstName} ${lastName} has been created, but there was an issue sending the welcome email.`,
           variant: "destructive",
         });
       }
@@ -332,6 +332,7 @@ export const useUserManagement = () => {
     lastName: string;
     role: string;
     nationality?: string;
+    password?: string;
     mobile?: string;
     gender?: string;
     timezone?: string;
@@ -358,6 +359,7 @@ export const useUserManagement = () => {
           organizationId: currentOrganization?.id,
           role: userData.role,
           nationality: userData.nationality,
+          password: userData.password,
           mobile: userData.mobile,
           gender: userData.gender,
           timezone: userData.timezone,

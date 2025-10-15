@@ -18,6 +18,7 @@ export interface UserCreateData {
   lastName: string;
   role: string;
   nationality?: string;
+  password?:string;
   mobile?: string;
   gender?: string;
   timezone?: string;
@@ -199,6 +200,7 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
     lastName: '',
     role: 'user',
     nationality: '',
+    password: '',
     mobile: '',
     gender: '',
     timezone: 'UTC',
@@ -217,6 +219,7 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
         lastName: '',
         role: 'user',
         nationality: '',
+        password: '',
         mobile: '',
         gender: '',
         timezone: 'UTC',
@@ -292,6 +295,17 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                 placeholder="Doe"
+              />
+            </div>
+
+             <div className="space-y-2">
+              <Label htmlFor="password">Password *</Label>
+              <Input
+                id="password"
+                required
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder="Enter Password"
               />
             </div>
 
