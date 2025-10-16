@@ -76,7 +76,7 @@ serve(async (req) => {
 
     console.log('👤 Checking if user already exists:', email)
 
-    // Check if user already exists
+    // Check if user already exists in auth
     const { data: existingUser, error: checkError } = await supabaseAdmin.auth.admin.listUsers()
     console.log('📊 User list response:', { 
       userCount: existingUser?.users?.length || 0, 
@@ -89,12 +89,23 @@ serve(async (req) => {
     }
 
     const userExists = existingUser?.users?.find(user => user.email === email)
-    console.log('🔍 User exists check:', userExists ? '✅ Found' : '❌ Not found')
+    console.log('🔍 User exists check:', userExists ? '✅ Found in auth' : '❌ Not found')
     
     if (userExists) {
-      console.log('👤 User already exists, updating profile instead')
+      console.log('👤 User exists in auth, checking profile...')
       
-      // Update existing user profile
+      // Check if profile exists
+      const { data: profileData, error: profileCheckError } = await supabaseAdmin
+        .from('user_profiles')
+        .select('id')
+        .eq('id', userExists.id)
+        .maybeSingle()
+      
+      if (profileCheckError) {
+        console.error('❌ Error checking profile:', profileCheckError)
+        throw new Error(`Failed to check user profile: ${profileCheckError.message}`)
+      }
+      
       const updateData: any = {
         first_name: firstName,
         last_name: lastName,
@@ -110,10 +121,35 @@ serve(async (req) => {
       if (timezone) updateData.timezone = timezone
       if (password) updateData.password = password
       
-      const { error: updateError } = await supabaseAdmin
-        .from('user_profiles')
-        .update(updateData)
-        .eq('id', userExists.id)
+      if (profileData) {
+        // Profile exists, update it
+        console.log('📝 Updating existing profile...')
+        const { error: updateError } = await supabaseAdmin
+          .from('user_profiles')
+          .update(updateData)
+          .eq('id', userExists.id)
+        
+        if (updateError) {
+          console.error('❌ Error updating user profile:', updateError)
+          throw new Error(`Failed to update user profile: ${updateError.message}`)
+        }
+        console.log('✅ User profile updated successfully')
+      } else {
+        // Profile doesn't exist, create it
+        console.log('📝 Creating missing profile for existing auth user...')
+        updateData.id = userExists.id
+        updateData.email = email
+        
+        const { error: insertError } = await supabaseAdmin
+          .from('user_profiles')
+          .insert(updateData)
+        
+        if (insertError) {
+          console.error('❌ Error creating user profile:', insertError)
+          throw new Error(`Failed to create user profile: ${insertError.message}`)
+        }
+        console.log('✅ User profile created successfully')
+      }
 
       if (updateError) {
         console.error('❌ Error updating user profile:', updateError)

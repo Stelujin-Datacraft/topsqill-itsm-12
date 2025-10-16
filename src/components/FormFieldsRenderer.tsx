@@ -109,7 +109,7 @@ export function FormFieldsRenderer({
       field: {
         ...field,
         label: fieldState.label || field.label,
-        options: fieldState.options || field.options,
+        options: fieldState.options !== undefined ? fieldState.options : field.options,
         tooltip: fieldState.tooltip || field.tooltip,
         errorMessage: fieldState.errorMessage || field.errorMessage,
       },
