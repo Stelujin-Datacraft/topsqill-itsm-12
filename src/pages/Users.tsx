@@ -24,7 +24,8 @@ const Users = () => {
     handleApproveRequest,
     handleRejectRequest,
     handleRoleChange,
-    handleCreateUser
+    handleCreateUser,
+    handleDeleteUser
   } = useUserManagement();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -148,6 +149,7 @@ const Users = () => {
                 key={user.id}
                 user={user}
                 onRoleChange={handleRoleChange}
+                onDelete={handleDeleteUser}
               />
             ))}
           </div>
@@ -169,6 +171,7 @@ const Users = () => {
                     key={user.id}
                     user={user}
                     onRoleChange={handleRoleChange}
+                    onDelete={handleDeleteUser}
                   />
                 ))}
               </TableBody>

@@ -76,20 +76,20 @@ serve(async (req) => {
 
     console.log('👤 Checking if user already exists:', email)
 
-    // Check if user already exists in auth
-    const { data: existingUser, error: checkError } = await supabaseAdmin.auth.admin.listUsers()
-    console.log('📊 User list response:', { 
-      userCount: existingUser?.users?.length || 0, 
-      error: checkError 
-    })
+    // Check if user already exists in auth by searching for the specific email
+    const { data: existingUsers, error: checkError } = await supabaseAdmin.auth.admin.listUsers()
     
     if (checkError) {
       console.error('❌ Error checking existing users:', checkError)
       throw new Error(`Failed to check existing users: ${checkError.message}`)
     }
 
-    const userExists = existingUser?.users?.find(user => user.email === email)
+    // Case-insensitive email comparison
+    const userExists = existingUsers?.users?.find(user => 
+      user.email?.toLowerCase() === email.toLowerCase()
+    )
     console.log('🔍 User exists check:', userExists ? '✅ Found in auth' : '❌ Not found')
+    console.log('📊 Total users in system:', existingUsers?.users?.length || 0)
     
     if (userExists) {
       console.log('👤 User exists in auth, checking profile...')
@@ -150,13 +150,6 @@ serve(async (req) => {
         }
         console.log('✅ User profile created successfully')
       }
-
-      if (updateError) {
-        console.error('❌ Error updating user profile:', updateError)
-        throw new Error(`Failed to update user profile: ${updateError.message}`)
-      }
-
-      console.log('✅ User profile updated successfully')
       
       return new Response(
         JSON.stringify({ 

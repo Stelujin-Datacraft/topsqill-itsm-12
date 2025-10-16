@@ -349,7 +349,7 @@ export const useUserManagement = () => {
     try {
       console.log('Creating user with data:', userData);
 
-      // Call edge function to create user and send welcome email
+      // Call edge function to create user
       const { data, error } = await supabase.functions.invoke('send-welcome-email', {
         body: {
           email: userData.email,
@@ -370,7 +370,7 @@ export const useUserManagement = () => {
         console.error('Error creating user:', error);
         toast({
           title: "Error",
-          description: "Failed to create user account.",
+          description: error.message || "Failed to create user account.",
           variant: "destructive",
         });
         return;
@@ -378,18 +378,10 @@ export const useUserManagement = () => {
 
       console.log('User created successfully:', data);
 
-      if (data.emailSent) {
-        toast({
-          title: "User created successfully",
-          description: `${userData.firstName} ${userData.lastName} has been created and will receive a welcome email with login credentials.`,
-        });
-      } else {
-        toast({
-          title: "User created without email",
-          description: `${userData.firstName} ${userData.lastName} has been created.`,
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "User created successfully",
+        description: `${userData.firstName} ${userData.lastName} has been added to the organization.`,
+      });
 
       // Reload users list
       await loadUsers();
@@ -398,6 +390,43 @@ export const useUserManagement = () => {
       toast({
         title: "Error",
         description: "Failed to create user.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    try {
+      console.log('Deleting user:', userId);
+
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { userId }
+      });
+
+      if (error) {
+        console.error('Error deleting user:', error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to delete user.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('User deleted successfully:', data);
+
+      toast({
+        title: "User deleted",
+        description: `${userName} has been removed from the organization.`,
+      });
+
+      // Reload users list
+      await loadUsers();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete user.",
         variant: "destructive",
       });
     }
@@ -424,6 +453,7 @@ export const useUserManagement = () => {
     handleRejectRequest,
     handleRoleChange,
     handleCreateUser,
+    handleDeleteUser,
     loadUsers,
     loadRequests
   };
