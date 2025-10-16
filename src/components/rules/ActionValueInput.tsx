@@ -313,12 +313,20 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
 
   // Handle filterOptions action for select, multi-select, and radio fields
   if (action === 'filterOptions' && targetField && ['select', 'multi-select', 'radio'].includes(targetField.type)) {
-    const currentValues = Array.isArray(value) ? value : [];
-    const handleOptionToggle = (optionValue: string) => {
-      const newValues = currentValues.includes(optionValue)
-        ? currentValues.filter(v => v !== optionValue)
-        : [...currentValues, optionValue];
-      onChange(newValues);
+    const currentOptions = Array.isArray(value) ? value : [];
+    
+    const handleOptionToggle = (option: any) => {
+      const isSelected = currentOptions.some((opt: any) => 
+        (typeof opt === 'string' ? opt === option.value : opt.value === option.value)
+      );
+      
+      const newOptions = isSelected
+        ? currentOptions.filter((opt: any) => 
+            (typeof opt === 'string' ? opt !== option.value : opt.value !== option.value)
+          )
+        : [...currentOptions, option];
+      
+      onChange(newOptions);
     };
     
 return (
@@ -330,32 +338,43 @@ return (
       {Array.isArray(targetField.options)
         ? targetField.options
             .filter((option: any) => option.value && option.value.trim() !== '')
-            .map((option: any) => (
-              <div key={option.id || option.value} className="flex items-center space-x-2">
-                <Checkbox
-                  checked={currentValues.includes(option.value)}
-                  onCheckedChange={() => handleOptionToggle(option.value)}
-                />
-                <Label className="text-sm cursor-pointer flex-1 flex items-center gap-2">
-                  {option.label && option.label.trim() !== '' ? (
-                    option.label
-                  ) : option.image ? (
-                    <img
-                      src={option.image}
-                      alt={option.value}
-                      className="h-6 w-6 object-contain rounded"
-                    />
-                  ) : (
-                    option.value
-                  )}
-                </Label>
-              </div>
-            ))
+            .map((option: any) => {
+              const isChecked = currentOptions.some((opt: any) => 
+                (typeof opt === 'string' ? opt === option.value : opt.value === option.value)
+              );
+              
+              return (
+                <div key={option.id || option.value} className="flex items-center space-x-2">
+                  <Checkbox
+                    checked={isChecked}
+                    onCheckedChange={() => handleOptionToggle(option)}
+                  />
+                  <Label className="text-sm cursor-pointer flex-1 flex items-center gap-2">
+                    {option.color && (
+                      <div 
+                        className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
+                        style={{ backgroundColor: option.color }}
+                      />
+                    )}
+                    {option.image && (
+                      <img
+                        src={option.image}
+                        alt={option.label || option.value}
+                        className="h-6 w-6 object-contain rounded"
+                      />
+                    )}
+                    <span>
+                      {option.label && option.label.trim() !== '' ? option.label : option.value}
+                    </span>
+                  </Label>
+                </div>
+              );
+            })
         : null}
     </div>
-    {currentValues.length > 0 && (
+    {currentOptions.length > 0 && (
       <div className="text-xs text-muted-foreground">
-        {currentValues.length} option(s) will be visible when rule is active
+        {currentOptions.length} option(s) will be visible when rule is active
       </div>
     )}
   </div>

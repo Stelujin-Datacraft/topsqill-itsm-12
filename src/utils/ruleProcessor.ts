@@ -290,24 +290,36 @@ export class RuleProcessor {
         console.log(`[FILTER OPTIONS] ActionValue:`, rule.actionValue);
         console.log(`[FILTER OPTIONS] Is array?`, Array.isArray(rule.actionValue));
         
-        if (rule.actionValue && Array.isArray(rule.actionValue)) {
-          const originalOptions = fieldStates[targetId].options || [];
-          const selectedValues = rule.actionValue as string[];
+        if (rule.actionValue && Array.isArray(rule.actionValue) && rule.actionValue.length > 0) {
+          // actionValue now contains complete option objects with id, label, color, etc.
+          const selectedOptions = rule.actionValue;
           
-          console.log(`[FILTER OPTIONS] Original options count: ${originalOptions.length}`, originalOptions);
-          console.log(`[FILTER OPTIONS] Selected values to filter:`, selectedValues);
+          console.log(`[FILTER OPTIONS] Selected options count: ${selectedOptions.length}`, selectedOptions);
           
-          // Filter to only show the selected option values
-          const filteredOptions = originalOptions.filter(
-            (option: any) => selectedValues.includes(option.value)
-          );
+          // Check if actionValue contains option objects or just values (backward compatibility)
+          const firstItem = selectedOptions[0];
+          let isOptionObjects = false;
           
-          console.log(`[FILTER OPTIONS] Filtered options count: ${filteredOptions.length}`, filteredOptions);
+          if (firstItem != null && typeof firstItem === 'object') {
+            isOptionObjects = 'value' in (firstItem as Record<string, any>);
+          }
           
-          fieldStates[targetId].options = filteredOptions;
-          console.log(`[FILTER OPTIONS] Rule "${rule.name}" applied - filtered from ${originalOptions.length} to ${filteredOptions.length} options`);
+          if (isOptionObjects) {
+            // Use the stored option objects directly - they already have all properties
+            fieldStates[targetId].options = selectedOptions;
+            console.log(`[FILTER OPTIONS] Rule "${rule.name}" applied - using ${selectedOptions.length} stored option objects`);
+          } else {
+            // Backward compatibility: if only values are stored, filter original options
+            const originalOptions = fieldStates[targetId].options || [];
+            const selectedValues = selectedOptions as string[];
+            const filteredOptions = originalOptions.filter(
+              (option: any) => selectedValues.includes(option.value)
+            );
+            fieldStates[targetId].options = filteredOptions;
+            console.log(`[FILTER OPTIONS] Rule "${rule.name}" applied - filtered from ${originalOptions.length} to ${filteredOptions.length} options (legacy mode)`);
+          }
         } else {
-          console.log(`[FILTER OPTIONS] Skipped - actionValue is not a valid array`);
+          console.log(`[FILTER OPTIONS] Skipped - actionValue is not a valid array or is empty`);
         }
         break;
       
