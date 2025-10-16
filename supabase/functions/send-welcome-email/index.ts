@@ -21,7 +21,19 @@ serve(async (req) => {
     const requestBody = await req.json()
     console.log('📋 Request data received:', JSON.stringify(requestBody, null, 2))
     
-    const { email, firstName, lastName, organizationName, organizationId, role } = requestBody
+    const { 
+      email, 
+      firstName, 
+      lastName, 
+      organizationName, 
+      organizationId, 
+      role,
+      nationality,
+      password,
+      mobile,
+      gender,
+      timezone
+    } = requestBody
 
     // Validate required fields
     console.log('🔍 Validating required fields...')
@@ -83,15 +95,24 @@ serve(async (req) => {
       console.log('👤 User already exists, updating profile instead')
       
       // Update existing user profile
+      const updateData: any = {
+        first_name: firstName,
+        last_name: lastName,
+        organization_id: organizationId,
+        role: role || 'user',
+        status: 'active'
+      }
+      
+      // Add optional fields if provided
+      if (nationality) updateData.nationality = nationality
+      if (mobile) updateData.mobile = mobile
+      if (gender) updateData.gender = gender
+      if (timezone) updateData.timezone = timezone
+      if (password) updateData.password = password
+      
       const { error: updateError } = await supabaseAdmin
         .from('user_profiles')
-        .update({
-          first_name: firstName,
-          last_name: lastName,
-          organization_id: organizationId,
-          role: role || 'user',
-          status: 'active'
-        })
+        .update(updateData)
         .eq('id', userExists.id)
 
       if (updateError) {
@@ -115,19 +136,24 @@ serve(async (req) => {
       )
     }
 
-    // Generate a secure random password
-    console.log('🔐 Generating temporary password...')
-    const generatePassword = () => {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-      let password = '';
-      for (let i = 0; i < 16; i++) {
-        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    // Use provided password or generate a secure random password
+    let tempPassword = password
+    
+    if (!tempPassword) {
+      console.log('🔐 Generating temporary password...')
+      const generatePassword = () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+        let password = '';
+        for (let i = 0; i < 16; i++) {
+          password += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return password;
       }
-      return password;
+      tempPassword = generatePassword()
+      console.log('✅ Temporary password generated (length:', tempPassword.length, ')')
+    } else {
+      console.log('✅ Using provided password')
     }
-
-    const tempPassword = generatePassword()
-    console.log('✅ Temporary password generated (length:', tempPassword.length, ')')
 
     // Create the user in Supabase Auth
     console.log('👤 Creating new user in Supabase Auth...')
@@ -152,17 +178,26 @@ serve(async (req) => {
 
     // Create user profile
     console.log('📝 Creating user profile...')
+    const profileData: any = {
+      id: authUser.user.id,
+      email: email,
+      first_name: firstName,
+      last_name: lastName,
+      organization_id: organizationId,
+      role: role || 'user',
+      status: 'active'
+    }
+    
+    // Add optional fields if provided
+    if (nationality) profileData.nationality = nationality
+    if (mobile) profileData.mobile = mobile
+    if (gender) profileData.gender = gender
+    if (timezone) profileData.timezone = timezone
+    if (password) profileData.password = password
+    
     const { error: profileError } = await supabaseAdmin
       .from('user_profiles')
-      .insert({
-        id: authUser.user.id,
-        email: email,
-        first_name: firstName,
-        last_name: lastName,
-        organization_id: organizationId,
-        role: role || 'user',
-        status: 'active'
-      })
+      .insert(profileData)
 
     if (profileError) {
       console.error('❌ Error creating user profile:', profileError)

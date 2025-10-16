@@ -320,7 +320,7 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
         : [...currentValues, optionValue];
       onChange(newValues);
     };
-    console.log('TargetField',targetField)
+    
 return (
   <div className="space-y-2">
     <Label className="text-sm font-medium">

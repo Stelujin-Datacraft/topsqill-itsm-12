@@ -659,7 +659,9 @@ case 'textarea':
         );
         
       case 'select':
-  const selectedOption = field.options?.find(opt => opt.value === formData[field.id]);
+  // Use fieldState.options if available (from rules), otherwise use field.options
+  const selectOptions = fieldState.options !== undefined ? fieldState.options : field.options;
+  const selectedOption = selectOptions?.find(opt => opt.value === formData[field.id]);
   const selectConfig = field.customConfig || {};
   const isSearchable = selectConfig.searchable;
   
@@ -724,7 +726,7 @@ case 'textarea':
         </SelectTrigger>
 
         <SelectContent>
-          {field.options?.filter(option => option.value && option.value.trim() !== '').map((option) => (
+          {selectOptions?.filter(option => option.value && option.value.trim() !== '').map((option) => (
             <SelectItem key={option.id} value={option.value}>
               <div className="flex items-center gap-2">
                 {/* Image if present */}
@@ -779,7 +781,9 @@ case 'radio':
     );
   }
   
-  const hasScrollbar = field.options && field.options.length > 7;
+  // Use fieldState.options if available (from rules), otherwise use field.options
+  const radioOptions = fieldState.options !== undefined ? fieldState.options : field.options;
+  const hasScrollbar = radioOptions && radioOptions.length > 7;
 
   return (
     <div className="space-y-2">
@@ -800,7 +804,7 @@ case 'radio':
           disabled={!fieldState.isEnabled}
           className={radioOrientation === 'horizontal' ? 'flex flex-wrap gap-4' : 'space-y-3'}
         >
-          {field.options?.map((option) => (
+          {radioOptions?.map((option) => (
             <div key={option.id} className="flex items-center space-x-2">
               {/* Radio Button */}
               <RadioGroupItem value={option.value} id={option.id} />
