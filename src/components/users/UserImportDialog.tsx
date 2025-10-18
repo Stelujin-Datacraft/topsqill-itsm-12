@@ -13,7 +13,17 @@ import * as XLSX from 'xlsx';
 interface UserImportDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onImportComplete: (users: Array<{ email: string; firstName: string; lastName: string; role: string }>) => void;
+  onImportComplete: (users: Array<{ 
+    email: string; 
+    firstName: string; 
+    lastName: string; 
+    role: string;
+    password?: string;
+    nationality?: string;
+    mobile?: string;
+    gender?: string;
+    timezone?: string;
+  }>) => void;
 }
 
 interface CSVData {
@@ -141,11 +151,18 @@ export function UserImportDialog({ isOpen, onOpenChange, onImportComplete }: Use
 
     setIsProcessing(true);
     try {
+      // Find column indices for all fields
       const emailIndex = csvData.headers.findIndex(h => h.toLowerCase().includes('email'));
       const firstNameIndex = csvData.headers.findIndex(h => h.toLowerCase().includes('first') && h.toLowerCase().includes('name'));
       const lastNameIndex = csvData.headers.findIndex(h => h.toLowerCase().includes('last') && h.toLowerCase().includes('name'));
       const roleIndex = csvData.headers.findIndex(h => h.toLowerCase().includes('role'));
+      const passwordIndex = csvData.headers.findIndex(h => h.toLowerCase().includes('password'));
+      const nationalityIndex = csvData.headers.findIndex(h => h.toLowerCase().includes('nationality'));
+      const mobileIndex = csvData.headers.findIndex(h => h.toLowerCase().includes('mobile') || h.toLowerCase().includes('phone'));
+      const genderIndex = csvData.headers.findIndex(h => h.toLowerCase().includes('gender'));
+      const timezoneIndex = csvData.headers.findIndex(h => h.toLowerCase().includes('timezone') || h.toLowerCase().includes('time') && h.toLowerCase().includes('zone'));
 
+      // Validate required fields
       if (emailIndex === -1) {
         throw new Error('Email column is required');
       }
@@ -162,7 +179,12 @@ export function UserImportDialog({ isOpen, onOpenChange, onImportComplete }: Use
           email: row[emailIndex].trim(),
           firstName: row[firstNameIndex]?.trim() || '',
           lastName: row[lastNameIndex]?.trim() || '',
-          role: row[roleIndex]?.trim().toLowerCase() || 'user'
+          role: row[roleIndex]?.trim().toLowerCase() || 'user',
+          ...(passwordIndex !== -1 && row[passwordIndex]?.trim() && { password: row[passwordIndex].trim() }),
+          ...(nationalityIndex !== -1 && row[nationalityIndex]?.trim() && { nationality: row[nationalityIndex].trim() }),
+          ...(mobileIndex !== -1 && row[mobileIndex]?.trim() && { mobile: row[mobileIndex].trim() }),
+          ...(genderIndex !== -1 && row[genderIndex]?.trim() && { gender: row[genderIndex].trim() }),
+          ...(timezoneIndex !== -1 && row[timezoneIndex]?.trim() && { timezone: row[timezoneIndex].trim() }),
         }));
 
       if (users.length === 0) {
@@ -210,7 +232,8 @@ export function UserImportDialog({ isOpen, onOpenChange, onImportComplete }: Use
                 <CardHeader>
                   <CardTitle>Upload CSV or Excel File</CardTitle>
                   <CardDescription>
-                    File must contain: Email, First Name, Last Name columns. Role column is optional (defaults to 'user').
+                    Required: Email, First Name, Last Name<br/>
+                    Optional: Role, Password, Nationality, Mobile, Gender, Time Zone
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

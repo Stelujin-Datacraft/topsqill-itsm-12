@@ -4,7 +4,17 @@ import { UserImportDialog } from './UserImportDialog';
 import { Upload } from 'lucide-react';
 
 interface UserImportButtonProps {
-  onImportComplete: (users: Array<{ email: string; firstName: string; lastName: string; role: string }>) => void;
+  onImportComplete: (users: Array<{ 
+    email: string; 
+    firstName: string; 
+    lastName: string; 
+    role: string;
+    password?: string;
+    nationality?: string;
+    mobile?: string;
+    gender?: string;
+    timezone?: string;
+  }>) => void;
 }
 
 export function UserImportButton({ onImportComplete }: UserImportButtonProps) {

@@ -444,7 +444,17 @@ export const useUserManagement = () => {
     }
   }, [currentOrganization?.id]);
 
-  const handleBulkImportUsers = async (users: Array<{ email: string; firstName: string; lastName: string; role: string }>) => {
+  const handleBulkImportUsers = async (users: Array<{ 
+    email: string; 
+    firstName: string; 
+    lastName: string; 
+    role: string;
+    password?: string;
+    nationality?: string;
+    mobile?: string;
+    gender?: string;
+    timezone?: string;
+  }>) => {
     const results = {
       successful: 0,
       failed: 0,

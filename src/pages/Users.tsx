@@ -75,7 +75,17 @@ const Users = () => {
     });
   };
 
-  const handleImportUsers = async (importedUsers: Array<{ email: string; firstName: string; lastName: string; role: string }>) => {
+  const handleImportUsers = async (importedUsers: Array<{ 
+    email: string; 
+    firstName: string; 
+    lastName: string; 
+    role: string;
+    password?: string;
+    nationality?: string;
+    mobile?: string;
+    gender?: string;
+    timezone?: string;
+  }>) => {
     const results = await handleBulkImportUsers(importedUsers);
     
     toast({
