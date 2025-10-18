@@ -11,11 +11,14 @@ import UserTableRow from '@/components/users/UserTableRow';
 import UserInviteDialog from '@/components/users/UserInviteDialog';
 import UserRequestsDialog from '@/components/users/UserRequestsDialog';
 import UserCreateDialog from '@/components/users/UserCreateDialog';
+import { UserImportButton } from '@/components/users/UserImportButton';
 import { useUserManagement } from '@/hooks/useUserManagement';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useToast } from '@/hooks/use-toast';
 
 const Users = () => {
   const { currentOrganization } = useOrganization();
+  const { toast } = useToast();
   const {
     users,
     requests,
@@ -25,7 +28,8 @@ const Users = () => {
     handleRejectRequest,
     handleRoleChange,
     handleCreateUser,
-    handleDeleteUser
+    handleDeleteUser,
+    handleBulkImportUsers
   } = useUserManagement();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -71,6 +75,20 @@ const Users = () => {
     });
   };
 
+  const handleImportUsers = async (importedUsers: Array<{ email: string; firstName: string; lastName: string; role: string }>) => {
+    const results = await handleBulkImportUsers(importedUsers);
+    
+    toast({
+      title: results.failed === 0 ? 'Success' : 'Partial Success',
+      description: `${results.successful} user(s) imported successfully${results.failed > 0 ? `, ${results.failed} failed` : ''}`,
+      variant: results.failed === 0 ? 'default' : 'destructive'
+    });
+
+    if (results.errors.length > 0) {
+      console.error('Import errors:', results.errors);
+    }
+  };
+
   const actions = (
     <div className="flex gap-2">
       <div className="flex border rounded-lg">
@@ -101,6 +119,8 @@ const Users = () => {
         onApproveSelected={handleApproveSelected}
         onApproveAll={handleApproveAll}
       />
+      
+      <UserImportButton onImportComplete={handleImportUsers} />
       
       <UserCreateDialog
         isOpen={isCreateOpen}

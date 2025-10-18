@@ -444,6 +444,26 @@ export const useUserManagement = () => {
     }
   }, [currentOrganization?.id]);
 
+  const handleBulkImportUsers = async (users: Array<{ email: string; firstName: string; lastName: string; role: string }>) => {
+    const results = {
+      successful: 0,
+      failed: 0,
+      errors: [] as string[]
+    };
+
+    for (const user of users) {
+      try {
+        await handleCreateUser(user);
+        results.successful++;
+      } catch (error) {
+        results.failed++;
+        results.errors.push(`${user.email}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    return results;
+  };
+
   return {
     users,
     requests,
@@ -454,6 +474,7 @@ export const useUserManagement = () => {
     handleRoleChange,
     handleCreateUser,
     handleDeleteUser,
+    handleBulkImportUsers,
     loadUsers,
     loadRequests
   };
