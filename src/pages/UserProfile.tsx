@@ -270,113 +270,114 @@ const UserProfile = () => {
   const initials = `${formData.first_name?.[0] || ''}${formData.last_name?.[0] || ''}`.toUpperCase() || 'U';
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-4xl">
+    <div className="container mx-auto py-8 px-4 max-w-5xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Profile Settings</h1>
         <p className="text-muted-foreground">Manage your personal information and preferences</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-4">
-            <Avatar className="h-20 w-20">
-              <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
-            </Avatar>
-            <div>
-              <CardTitle>Personal Information</CardTitle>
-              <CardDescription>Update your profile details</CardDescription>
+      <Card className="shadow-lg">
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Avatar className="h-24 w-24 border-4 border-primary/10">
+                <AvatarFallback className="text-3xl bg-gradient-to-br from-primary/20 to-primary/5">{initials}</AvatarFallback>
+              </Avatar>
+              <div>
+                <CardTitle className="text-2xl">{formData.first_name} {formData.last_name}</CardTitle>
+                <CardDescription className="text-base mt-1">{formData.email}</CardDescription>
+              </div>
             </div>
+            {!isEditMode && (
+              <Button onClick={() => setIsEditMode(true)} size="lg">
+                <Edit className="mr-2 h-4 w-4" />
+                Update Profile
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
           {!isEditMode ? (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">
-                    <User className="inline h-4 w-4 mr-2" />
-                    First Name
-                  </Label>
-                  <p className="text-base font-medium">{formData.first_name || 'Not set'}</p>
-                </div>
+            <div className="space-y-8">
+              <div>
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <User className="h-5 w-5 text-primary" />
+                  Personal Details
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/30 p-6 rounded-lg">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">First Name</Label>
+                    <p className="text-lg font-medium">{formData.first_name || 'Not set'}</p>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">
-                    <User className="inline h-4 w-4 mr-2" />
-                    Last Name
-                  </Label>
-                  <p className="text-base font-medium">{formData.last_name || 'Not set'}</p>
-                </div>
-              </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Last Name</Label>
+                    <p className="text-lg font-medium">{formData.last_name || 'Not set'}</p>
+                  </div>
 
-              <div className="space-y-2">
-                <Label className="text-muted-foreground">
-                  <Mail className="inline h-4 w-4 mr-2" />
-                  Email
-                </Label>
-                <p className="text-base font-medium">{formData.email}</p>
-              </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Gender</Label>
+                    <p className="text-lg font-medium capitalize">{formData.gender?.replace('_', ' ') || 'Not set'}</p>
+                  </div>
 
-              <div className="space-y-2">
-                <Label className="text-muted-foreground">
-                  <Phone className="inline h-4 w-4 mr-2" />
-                  Mobile
-                </Label>
-                <p className="text-base font-medium">{formData.mobile || 'Not set'}</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label className="text-muted-foreground">
-                  <Globe className="inline h-4 w-4 mr-2" />
-                  Nationality
-                </Label>
-                <p className="text-base font-medium">
-                  {NATIONALITY_OPTIONS.find(n => n.value === formData.nationality)?.label || 'Not set'}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-muted-foreground">
-                  <User className="inline h-4 w-4 mr-2" />
-                  Gender
-                </Label>
-                <p className="text-base font-medium capitalize">{formData.gender?.replace('_', ' ') || 'Not set'}</p>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-muted-foreground">
-                <Calendar className="inline h-4 w-4 mr-2" />
-                Timezone
-              </Label>
-              <p className="text-base font-medium">
-                {TIMEZONE_OPTIONS.find(tz => tz.value === formData.timezone)?.label || 'Not set'}
-              </p>
-            </div>
-
-              <div className="pt-4 border-t">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Account Information</p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
-                    <div>
-                      <span className="font-medium">Role:</span> {userProfile.role}
-                    </div>
-                    <div>
-                      <span className="font-medium">Status:</span> {userProfile.status}
-                    </div>
-                    <div>
-                      <span className="font-medium">Member since:</span> {new Date(userProfile.created_at).toLocaleDateString()}
-                    </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Nationality</Label>
+                    <p className="text-lg font-medium">
+                      {NATIONALITY_OPTIONS.find(n => n.value === formData.nationality)?.label || 'Not set'}
+                    </p>
                   </div>
                 </div>
               </div>
 
-              <div className="flex justify-end">
-                <Button onClick={() => setIsEditMode(true)}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Update Profile
-                </Button>
+              <div>
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Mail className="h-5 w-5 text-primary" />
+                  Contact Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/30 p-6 rounded-lg">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Email Address</Label>
+                    <p className="text-lg font-medium">{formData.email}</p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Mobile Number</Label>
+                    <p className="text-lg font-medium">{formData.mobile || 'Not set'}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Globe className="h-5 w-5 text-primary" />
+                  Preferences
+                </h3>
+                <div className="bg-muted/30 p-6 rounded-lg">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Timezone</Label>
+                    <p className="text-lg font-medium">
+                      {TIMEZONE_OPTIONS.find(tz => tz.value === formData.timezone)?.label || 'Not set'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t">
+                <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Account Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Role</Label>
+                    <p className="text-sm font-medium capitalize">{userProfile.role}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Status</Label>
+                    <p className="text-sm font-medium capitalize">{userProfile.status}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Member Since</Label>
+                    <p className="text-sm font-medium">{new Date(userProfile.created_at).toLocaleDateString()}</p>
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
