@@ -7,13 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, User, Mail, Phone, Globe, Calendar } from 'lucide-react';
+import { Loader2, User, Mail, Phone, Globe, Calendar, Edit } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const UserProfile = () => {
   const { userProfile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -73,6 +74,8 @@ const UserProfile = () => {
         title: 'Success',
         description: 'Profile updated successfully.',
       });
+      
+      setIsEditMode(false);
     } catch (error) {
       console.error('Error:', error);
       toast({
@@ -83,6 +86,21 @@ const UserProfile = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCancel = () => {
+    if (userProfile) {
+      setFormData({
+        first_name: userProfile.first_name || '',
+        last_name: userProfile.last_name || '',
+        email: userProfile.email || '',
+        mobile: userProfile.mobile || '',
+        nationality: userProfile.nationality || '',
+        gender: userProfile.gender || '',
+        timezone: userProfile.timezone || '',
+      });
+    }
+    setIsEditMode(false);
   };
 
   if (!userProfile) {
@@ -115,8 +133,95 @@ const UserProfile = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {!isEditMode ? (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">
+                    <User className="inline h-4 w-4 mr-2" />
+                    First Name
+                  </Label>
+                  <p className="text-base font-medium">{formData.first_name || 'Not set'}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">
+                    <User className="inline h-4 w-4 mr-2" />
+                    Last Name
+                  </Label>
+                  <p className="text-base font-medium">{formData.last_name || 'Not set'}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">
+                  <Mail className="inline h-4 w-4 mr-2" />
+                  Email
+                </Label>
+                <p className="text-base font-medium">{formData.email}</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">
+                  <Phone className="inline h-4 w-4 mr-2" />
+                  Mobile
+                </Label>
+                <p className="text-base font-medium">{formData.mobile || 'Not set'}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">
+                    <Globe className="inline h-4 w-4 mr-2" />
+                    Nationality
+                  </Label>
+                  <p className="text-base font-medium">{formData.nationality || 'Not set'}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">
+                    <User className="inline h-4 w-4 mr-2" />
+                    Gender
+                  </Label>
+                  <p className="text-base font-medium capitalize">{formData.gender?.replace('_', ' ') || 'Not set'}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">
+                  <Calendar className="inline h-4 w-4 mr-2" />
+                  Timezone
+                </Label>
+                <p className="text-base font-medium">{formData.timezone || 'Not set'}</p>
+              </div>
+
+              <div className="pt-4 border-t">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Account Information</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
+                    <div>
+                      <span className="font-medium">Role:</span> {userProfile.role}
+                    </div>
+                    <div>
+                      <span className="font-medium">Status:</span> {userProfile.status}
+                    </div>
+                    <div>
+                      <span className="font-medium">Member since:</span> {new Date(userProfile.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button onClick={() => setIsEditMode(true)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Update Profile
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="first_name">
                   <User className="inline h-4 w-4 mr-2" />
@@ -251,38 +356,27 @@ const UserProfile = () => {
               </div>
             </div>
 
-            <div className="flex justify-end gap-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  if (userProfile) {
-                    setFormData({
-                      first_name: userProfile.first_name || '',
-                      last_name: userProfile.last_name || '',
-                      email: userProfile.email || '',
-                      mobile: userProfile.mobile || '',
-                      nationality: userProfile.nationality || '',
-                      gender: userProfile.gender || '',
-                      timezone: userProfile.timezone || '',
-                    });
-                  }
-                }}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save Changes'
-                )}
-              </Button>
-            </div>
-          </form>
+              <div className="flex justify-end gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCancel}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Changes'
+                  )}
+                </Button>
+              </div>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>
