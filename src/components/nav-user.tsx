@@ -1,5 +1,5 @@
 
-import { ChevronsUpDown, LogOut } from "lucide-react"
+import { ChevronsUpDown, LogOut, User } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"
@@ -72,6 +72,10 @@ export function NavUser({
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate('/profile')}>
+              <User />
+              Profile
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={handleSignOut}>
               <LogOut />
               Log out

@@ -11,6 +11,11 @@ interface UserProfile {
   organization_id?: string;
   role: 'admin' | 'user';
   status: 'active' | 'pending' | 'suspended';
+  mobile?: string;
+  nationality?: string;
+  gender?: string;
+  timezone?: string;
+  created_at: string;
 }
 
 interface Organization {

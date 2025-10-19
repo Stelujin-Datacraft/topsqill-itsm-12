@@ -47,6 +47,7 @@ import DataTableBuilder from "./pages/DataTableBuilder";
 import EmailConfigPage from "./pages/EmailConfigPage";
 import EmailTemplatesPage from "./pages/EmailTemplatesPage";
 import SettingsPage from "./pages/SettingsPage";
+import UserProfile from "./pages/UserProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -102,6 +103,7 @@ const App = () => (
                      <Route path="/email-config/:projectId" element={<ProtectedRoute><EmailConfigPage /></ProtectedRoute>} />
                      <Route path="/email-templates" element={<ProtectedRoute><EmailTemplatesPage /></ProtectedRoute>} />
                      <Route path="/email-templates/:templateId" element={<ProtectedRoute><EmailTemplatesPage /></ProtectedRoute>} />
+                     <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
                      <Route path="*" element={<NotFound />} />
                   </Routes>
                 </BrowserRouter>
