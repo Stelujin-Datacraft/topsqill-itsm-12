@@ -474,6 +474,79 @@ export const useUserManagement = () => {
     return results;
   };
 
+  const handleBulkUpdateUsers = async (
+    updates: Array<{
+      email: string;
+      firstName?: string;
+      lastName?: string;
+      role?: string;
+      nationality?: string;
+      mobile?: string;
+      gender?: string;
+      timezone?: string;
+    }>
+  ) => {
+    const results = {
+      successful: 0,
+      failed: 0,
+      errors: [] as string[],
+    };
+
+    for (const update of updates) {
+      try {
+        // Find user by email
+        const { data: existingUser, error: findError } = await supabase
+          .from('user_profiles')
+          .select('id')
+          .eq('email', update.email)
+          .eq('organization_id', currentOrganization.id)
+          .maybeSingle();
+
+        if (findError) throw findError;
+        
+        if (!existingUser) {
+          results.failed++;
+          results.errors.push(`User not found: ${update.email}`);
+          continue;
+        }
+
+        // Build update object with only provided fields
+        const updateData: any = {};
+        if (update.firstName !== undefined) updateData.first_name = update.firstName;
+        if (update.lastName !== undefined) updateData.last_name = update.lastName;
+        if (update.role !== undefined) updateData.role = update.role;
+        if (update.nationality !== undefined) updateData.nationality = update.nationality;
+        if (update.mobile !== undefined) updateData.mobile = update.mobile;
+        if (update.gender !== undefined) updateData.gender = update.gender;
+        if (update.timezone !== undefined) updateData.timezone = update.timezone;
+
+        // Only update if there are fields to update
+        if (Object.keys(updateData).length === 0) {
+          results.failed++;
+          results.errors.push(`No fields to update for: ${update.email}`);
+          continue;
+        }
+
+        const { error: updateError } = await supabase
+          .from('user_profiles')
+          .update(updateData)
+          .eq('id', existingUser.id);
+
+        if (updateError) throw updateError;
+
+        results.successful++;
+      } catch (error) {
+        console.error('Error updating user:', error);
+        results.failed++;
+        results.errors.push(
+          `Failed to update ${update.email}: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+    }
+
+    return results;
+  };
+
   return {
     users,
     requests,
@@ -485,6 +558,7 @@ export const useUserManagement = () => {
     handleCreateUser,
     handleDeleteUser,
     handleBulkImportUsers,
+    handleBulkUpdateUsers,
     loadUsers,
     loadRequests
   };

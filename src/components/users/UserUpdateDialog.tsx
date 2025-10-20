@@ -1,0 +1,347 @@
+import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Upload, Link, AlertCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
+
+interface UserUpdateDialogProps {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onUpdateComplete: (updates: Array<{ 
+    email: string; 
+    firstName?: string; 
+    lastName?: string; 
+    role?: string;
+    nationality?: string;
+    mobile?: string;
+    gender?: string;
+    timezone?: string;
+  }>) => void;
+}
+
+interface CSVData {
+  headers: string[];
+  rows: string[][];
+  preview: string[][];
+}
+
+export function UserUpdateDialog({ isOpen, onOpenChange, onUpdateComplete }: UserUpdateDialogProps) {
+  const [step, setStep] = useState<'upload' | 'preview'>('upload');
+  const [csvData, setCsvData] = useState<CSVData | null>(null);
+  const [fileUrl, setFileUrl] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const { toast } = useToast();
+
+  const resetDialog = () => {
+    setStep('upload');
+    setCsvData(null);
+    setFileUrl('');
+    setIsProcessing(false);
+  };
+
+  const parseCSV = (text: string): CSVData => {
+    const result = Papa.parse(text, { skipEmptyLines: true });
+    const rows = result.data as string[][];
+    
+    if (rows.length === 0) {
+      throw new Error('CSV file is empty');
+    }
+
+    const headers = rows[0];
+    const dataRows = rows.slice(1);
+    
+    return {
+      headers,
+      rows: dataRows,
+      preview: dataRows.slice(0, 5)
+    };
+  };
+
+  const parseExcel = (arrayBuffer: ArrayBuffer): CSVData => {
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as string[][];
+    
+    if (jsonData.length === 0) {
+      throw new Error('Excel file is empty');
+    }
+
+    const headers = jsonData[0];
+    const dataRows = jsonData.slice(1);
+    
+    return {
+      headers,
+      rows: dataRows,
+      preview: dataRows.slice(0, 5)
+    };
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessing(true);
+    try {
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
+      
+      if (fileExtension === 'csv') {
+        const text = await file.text();
+        const data = parseCSV(text);
+        setCsvData(data);
+        setStep('preview');
+      } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+        const arrayBuffer = await file.arrayBuffer();
+        const data = parseExcel(arrayBuffer);
+        setCsvData(data);
+        setStep('preview');
+      } else {
+        throw new Error('Unsupported file format. Please upload CSV or Excel file.');
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to parse file',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleUrlImport = async () => {
+    if (!fileUrl) {
+      toast({
+        title: 'Error',
+        description: 'Please enter a URL',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const response = await fetch(fileUrl);
+      if (!response.ok) throw new Error('Failed to fetch file from URL');
+      
+      const text = await response.text();
+      const data = parseCSV(text);
+      setCsvData(data);
+      setStep('preview');
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to import from URL',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!csvData) return;
+
+    setIsProcessing(true);
+    try {
+      // Find column indices for all fields
+      const emailIndex = csvData.headers.findIndex(h => h.toLowerCase().includes('email'));
+      const firstNameIndex = csvData.headers.findIndex(h => h.toLowerCase().includes('first') && h.toLowerCase().includes('name'));
+      const lastNameIndex = csvData.headers.findIndex(h => h.toLowerCase().includes('last') && h.toLowerCase().includes('name'));
+      const roleIndex = csvData.headers.findIndex(h => h.toLowerCase().includes('role'));
+      const nationalityIndex = csvData.headers.findIndex(h => h.toLowerCase().includes('nationality'));
+      const mobileIndex = csvData.headers.findIndex(h => h.toLowerCase().includes('mobile') || h.toLowerCase().includes('phone'));
+      const genderIndex = csvData.headers.findIndex(h => h.toLowerCase().includes('gender'));
+      const timezoneIndex = csvData.headers.findIndex(h => h.toLowerCase().includes('timezone') || h.toLowerCase().includes('time') && h.toLowerCase().includes('zone'));
+
+      // Validate required field
+      if (emailIndex === -1) {
+        throw new Error('Email column is required to identify users');
+      }
+
+      const updates = csvData.rows
+        .filter(row => row[emailIndex]?.trim())
+        .map(row => {
+          const update: any = {
+            email: row[emailIndex].trim(),
+          };
+          
+          // Only include fields that have values
+          if (firstNameIndex !== -1 && row[firstNameIndex]?.trim()) {
+            update.firstName = row[firstNameIndex].trim();
+          }
+          if (lastNameIndex !== -1 && row[lastNameIndex]?.trim()) {
+            update.lastName = row[lastNameIndex].trim();
+          }
+          if (roleIndex !== -1 && row[roleIndex]?.trim()) {
+            update.role = row[roleIndex].trim().toLowerCase();
+          }
+          if (nationalityIndex !== -1 && row[nationalityIndex]?.trim()) {
+            update.nationality = row[nationalityIndex].trim();
+          }
+          if (mobileIndex !== -1 && row[mobileIndex]?.trim()) {
+            update.mobile = row[mobileIndex].trim();
+          }
+          if (genderIndex !== -1 && row[genderIndex]?.trim()) {
+            update.gender = row[genderIndex].trim();
+          }
+          if (timezoneIndex !== -1 && row[timezoneIndex]?.trim()) {
+            update.timezone = row[timezoneIndex].trim();
+          }
+          
+          return update;
+        });
+
+      if (updates.length === 0) {
+        throw new Error('No valid user updates found in file');
+      }
+
+      onUpdateComplete(updates);
+      resetDialog();
+      onOpenChange(false);
+      
+      toast({
+        title: 'Success',
+        description: `Successfully queued ${updates.length} user(s) for update`
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to process updates',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) resetDialog();
+      onOpenChange(open);
+    }}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Update Users</DialogTitle>
+        </DialogHeader>
+
+        {step === 'upload' && (
+          <Tabs defaultValue="file" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="file">Upload File</TabsTrigger>
+              <TabsTrigger value="url">From URL</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="file" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Upload CSV or Excel File</CardTitle>
+                  <CardDescription>
+                    Required: Email (to identify users)<br/>
+                    Optional: First Name, Last Name, Role, Nationality, Mobile, Gender, Time Zone<br/>
+                    <strong>Note:</strong> Only provided fields will be updated. Email will not be changed.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-4">
+                    <Input
+                      type="file"
+                      accept=".csv,.xlsx,.xls"
+                      onChange={handleFileUpload}
+                      disabled={isProcessing}
+                    />
+                    <Upload className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="url" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Import from URL</CardTitle>
+                  <CardDescription>
+                    Provide a URL to a CSV file
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Input
+                      type="url"
+                      placeholder="https://example.com/users.csv"
+                      value={fileUrl}
+                      onChange={(e) => setFileUrl(e.target.value)}
+                      disabled={isProcessing}
+                    />
+                    <Link className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <Button onClick={handleUrlImport} disabled={isProcessing}>
+                    Import from URL
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        )}
+
+        {step === 'preview' && csvData && (
+          <div className="space-y-4">
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Found {csvData.rows.length} user(s) to update. Preview shows first 5 rows.
+              </AlertDescription>
+            </Alert>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Preview</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        {csvData.headers.map((header, idx) => (
+                          <th key={idx} className="p-2 text-left font-medium">
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {csvData.preview.map((row, rowIdx) => (
+                        <tr key={rowIdx} className="border-b">
+                          {row.map((cell, cellIdx) => (
+                            <td key={cellIdx} className="p-2">
+                              {cell}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setStep('upload')}>
+                Back
+              </Button>
+              <Button onClick={handleUpdate} disabled={isProcessing}>
+                {isProcessing ? 'Processing...' : `Update ${csvData.rows.length} User(s)`}
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}

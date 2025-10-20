@@ -12,6 +12,7 @@ import UserInviteDialog from '@/components/users/UserInviteDialog';
 import UserRequestsDialog from '@/components/users/UserRequestsDialog';
 import UserCreateDialog from '@/components/users/UserCreateDialog';
 import { UserImportButton } from '@/components/users/UserImportButton';
+import { UserUpdateButton } from '@/components/users/UserUpdateButton';
 import { useUserManagement } from '@/hooks/useUserManagement';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useToast } from '@/hooks/use-toast';
@@ -29,7 +30,8 @@ const Users = () => {
     handleRoleChange,
     handleCreateUser,
     handleDeleteUser,
-    handleBulkImportUsers
+    handleBulkImportUsers,
+    handleBulkUpdateUsers
   } = useUserManagement();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -99,6 +101,29 @@ const Users = () => {
     }
   };
 
+  const handleUpdateUsers = async (updates: Array<{
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    role?: string;
+    nationality?: string;
+    mobile?: string;
+    gender?: string;
+    timezone?: string;
+  }>) => {
+    const results = await handleBulkUpdateUsers(updates);
+    
+    toast({
+      title: results.failed === 0 ? 'Success' : 'Partial Success',
+      description: `${results.successful} user(s) updated successfully${results.failed > 0 ? `, ${results.failed} failed` : ''}`,
+      variant: results.failed === 0 ? 'default' : 'destructive'
+    });
+
+    if (results.errors.length > 0) {
+      console.error('Update errors:', results.errors);
+    }
+  };
+
   const actions = (
     <div className="flex gap-2">
       <div className="flex border rounded-lg">
@@ -130,7 +155,8 @@ const Users = () => {
         onApproveAll={handleApproveAll}
       />
       
-      <UserImportButton onImportComplete={handleImportUsers} />
+        <UserImportButton onImportComplete={handleImportUsers} />
+        <UserUpdateButton onUpdateComplete={handleUpdateUsers} />
       
       <UserCreateDialog
         isOpen={isCreateOpen}
