@@ -11,6 +11,7 @@ import { Search, Filter, Download, Eye, Trash2, Calendar, User, FileText, CheckC
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubmissionAccessFilter } from '@/hooks/useSubmissionAccessFilter';
+import { SubmissionUpdateButton } from './submissions/SubmissionUpdateButton';
 interface FormSubmission {
   id: string;
   formId: string;
@@ -137,9 +138,9 @@ export function FormSubmissions({
   };
   const handleExportData = () => {
     const allFields = getAllFields();
-    // Create CSV data with approval status
-    const headers = ['Submitted By', 'Submitted At', 'Approval Status', 'Approved By', 'Approval Date', 'Approval Notes', ...allFields.map(field => field.label)];
-    const csvData = [headers.join(','), ...filteredSubmissions.map(submission => [submission.submittedBy, new Date(submission.submittedAt).toLocaleString(), submission.approvalStatus || 'pending', submission.approvedBy || '', submission.approvalTimestamp ? new Date(submission.approvalTimestamp).toLocaleString() : '', submission.approvalNotes || '', ...allFields.map(field => submission.submissionData[field.id] || '')].join(','))].join('\n');
+    // Create CSV data with Submission ID and approval status
+    const headers = ['Submission ID', 'Submitted By', 'Submitted At', 'Approval Status', 'Approved By', 'Approval Date', 'Approval Notes', ...allFields.map(field => field.label)];
+    const csvData = [headers.join(','), ...filteredSubmissions.map(submission => [submission.id, submission.submittedBy, new Date(submission.submittedAt).toLocaleString(), submission.approvalStatus || 'pending', submission.approvedBy || '', submission.approvalTimestamp ? new Date(submission.approvalTimestamp).toLocaleString() : '', submission.approvalNotes || '', ...allFields.map(field => submission.submissionData[field.id] || '')].join(','))].join('\n');
 
     // Download CSV
     const blob = new Blob([csvData], {
@@ -189,10 +190,16 @@ export function FormSubmissions({
             Manage and review submissions for "{form.name}"
           </p>
         </div>
-        <Button onClick={handleExportData} disabled={submissions.length === 0}>
-          <Download className="h-4 w-4 mr-2" />
-          Export Data
-        </Button>
+        <div className="flex gap-2">
+          <SubmissionUpdateButton 
+            formId={form.id}
+            onUpdateComplete={loadSubmissions}
+          />
+          <Button onClick={handleExportData} disabled={submissions.length === 0}>
+            <Download className="h-4 w-4 mr-2" />
+            Export Data
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
