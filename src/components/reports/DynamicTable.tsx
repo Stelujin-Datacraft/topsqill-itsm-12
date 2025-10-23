@@ -35,6 +35,7 @@ import { CrossReferenceDialog } from './CrossReferenceDialog';
 import { ColumnOrderManager } from './ColumnOrderManager';
 import { CopyRecordsDialog } from './CopyRecordsDialog';
 import { ImportButton } from '@/components/ImportButton';
+import { SubmissionUpdateButton } from '@/components/submissions/SubmissionUpdateButton';
 interface TableConfig {
   title: string;
   formId: string;
@@ -298,17 +299,19 @@ export function DynamicTable({
     return filteredAndSortedData.slice(startIndex, endIndex);
   }, [filteredAndSortedData, currentPage, pageSize]);
   const exportData = useMemo(() => {
-    const headers = displayFields.map(field => field.label);
+    // Include Submission ID as the first column
+    const headers = ['Submission ID', ...displayFields.map(field => field.label)];
     if (config.showMetadata) {
       headers.push('Submitted At', 'Submitted By');
     }
     const rows = filteredAndSortedData.map(row => {
-      const values = displayFields.map(field => {
+      // Add Submission ID as first value
+      const values = [row.id, ...displayFields.map(field => {
         const value = row.submission_data?.[field.id];
         if (value === null || value === undefined) return 'N/A';
         if (typeof value === 'object') return JSON.stringify(value);
         return value.toString();
-      });
+      })];
       if (config.showMetadata) {
         values.push(new Date(row.submitted_at).toLocaleDateString(), row.submitted_by || 'Anonymous');
       }
@@ -890,6 +893,8 @@ export function DynamicTable({
             }))} sortConfigs={sortConfigs} onAddSort={handleAddSort} onRemoveSort={handleRemoveSort} onToggleDirection={handleToggleDirection} />}
 
                <ExportDropdown data={exportData} />
+              
+              <SubmissionUpdateButton formId={config.formId} onUpdateComplete={loadData} />
               
               <ImportButton formId={config.formId} formFields={formFields} onImportComplete={loadData} />
             </div>
