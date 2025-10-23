@@ -98,7 +98,11 @@ export function SubmissionUpdateDialog({
     const processed = data
       .filter((row: any) => row['Submission ID'] || row['submission_id'] || row['submissionId'])
       .map((row: any) => {
-        const submissionId = row['Submission ID'] || row['submission_id'] || row['submissionId'];
+        let submissionId = row['Submission ID'] || row['submission_id'] || row['submissionId'];
+        // Strip the '#' prefix if present to match database format
+        if (typeof submissionId === 'string' && submissionId.startsWith('#')) {
+          submissionId = submissionId.substring(1);
+        }
         const { 'Submission ID': _, submission_id: __, submissionId: ___, ...restData } = row;
         return {
           submissionId,
@@ -130,7 +134,9 @@ export function SubmissionUpdateDialog({
 
       for (const submission of parsedData) {
         try {
-          // Fetch current submission by submission_ref_id (display ID like #URF251023002)
+          console.log('Processing submission:', submission.submissionId, 'with data:', submission);
+          
+          // Fetch current submission by submission_ref_id (without # prefix)
           const { data: existingSubmission, error: fetchError } = await supabase
             .from('form_submissions')
             .select('id, submission_data')
@@ -138,9 +144,12 @@ export function SubmissionUpdateDialog({
             .eq('form_id', formId)
             .maybeSingle();
 
+          console.log('Existing submission found:', existingSubmission);
+
           if (fetchError || !existingSubmission) {
             errorCount++;
-            errors.push(`Submission ${submission.submissionId} not found`);
+            errors.push(`Submission #${submission.submissionId} not found`);
+            console.error('Fetch error:', fetchError);
             continue;
           }
 
@@ -154,6 +163,8 @@ export function SubmissionUpdateDialog({
             ...newData,
           };
 
+          console.log('Updating submission with data:', updatedSubmissionData);
+
           // Update submission using the actual database ID
           const { error: updateError } = await supabase
             .from('form_submissions')
@@ -164,13 +175,16 @@ export function SubmissionUpdateDialog({
 
           if (updateError) {
             errorCount++;
-            errors.push(`Failed to update ${submission.submissionId}: ${updateError.message}`);
+            errors.push(`Failed to update #${submission.submissionId}: ${updateError.message}`);
+            console.error('Update error:', updateError);
           } else {
             successCount++;
+            console.log('Successfully updated submission:', submission.submissionId);
           }
         } catch (err) {
           errorCount++;
-          errors.push(`Error updating ${submission.submissionId}`);
+          errors.push(`Error updating #${submission.submissionId}`);
+          console.error('Unexpected error:', err);
         }
       }
 
