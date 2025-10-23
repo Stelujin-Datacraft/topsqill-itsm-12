@@ -65,47 +65,36 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
     );
   }
 
-  // Display submission_ref_ids even if we don't have full record data
-  // If we have fetched records, show them; otherwise show the ref IDs we have
-  const displayRecords = records.length > 0 
-    ? records 
-    : submissionRefIds.map(refId => ({
-        id: refId,
-        submission_ref_id: refId,
-        form_id: '',
-        submission_data: {},
-        displayData: refId
-      }));
+  // If we have records with field values, display them
+  // if (records && records.length > 0 && shouldFetch) {
+  //   return (
+  //     <Button
+  //       variant="outline"
+  //       size="sm"
+  //       className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1 px-2 max-w-md"
+  //       onClick={handleClick}
+  //     >
+  //       <div className="flex items-start gap-1 flex-col">
+  //         {records.slice(0, 2).map((record, index) => (
+  //           <div key={record.id} className="text-xs truncate max-w-full">
+  //             <span className="font-mono text-primary">#{record.submission_ref_id}</span>
+  //             {/* {record.displayData && record.displayData !== record.submission_ref_id && (
+  //               <span className="ml-1 text-muted-foreground">- {record.displayData}</span>
+  //             )} */}
+  //           </div>
+  //         ))}
+  //         {records.length > 2 && (
+  //           <Badge variant="secondary" className="text-xs">
+  //             +{records.length - 2} more
+  //           </Badge>
+  //         )}
+  //       </div>
+  //       <ExternalLink className="h-3 w-3 ml-2 flex-shrink-0 opacity-50" />
+  //     </Button>
+  //   );
+  // }
 
-  if (displayRecords.length > 0) {
-    return (
-      <Button
-        variant="outline"
-        size="sm"
-        className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1 px-2 max-w-md"
-        onClick={handleClick}
-      >
-        <div className="flex items-start gap-1 flex-col">
-          {displayRecords.slice(0, 2).map((record, index) => (
-            <div key={record.id} className="text-xs truncate max-w-full">
-              <span className="font-mono text-primary">#{record.submission_ref_id}</span>
-              {record.displayData && record.displayData !== record.submission_ref_id && (
-                <span className="ml-1 text-muted-foreground">- {record.displayData}</span>
-              )}
-            </div>
-          ))}
-          {displayRecords.length > 2 && (
-            <Badge variant="secondary" className="text-xs">
-              +{displayRecords.length - 2} more
-            </Badge>
-          )}
-        </div>
-        <ExternalLink className="h-3 w-3 ml-2 flex-shrink-0 opacity-50" />
-      </Button>
-    );
-  }
-
-  // Final fallback: just show count button
+  // Fallback: just show count button
   return (
     <Button
       variant="outline"
