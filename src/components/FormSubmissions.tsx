@@ -138,9 +138,58 @@ export function FormSubmissions({
   };
   const handleExportData = () => {
     const allFields = getAllFields();
+    
+    // Helper to format field value for export
+    const formatFieldValueForExport = (field: any, value: any) => {
+      // Handle cross-reference fields specially
+      if (field.field_type === 'cross-reference' || field.type === 'cross-reference') {
+        if (!value) return '';
+        
+        // If value is an array of objects with submission_ref_id
+        if (Array.isArray(value)) {
+          return value
+            .map(item => item.submission_ref_id || item)
+            .filter(Boolean)
+            .join('; ');
+        }
+        
+        // If value is a single object with submission_ref_id
+        if (typeof value === 'object' && value.submission_ref_id) {
+          return value.submission_ref_id;
+        }
+        
+        // If value is already a string (submission_ref_id)
+        return String(value);
+      }
+      
+      // Handle arrays
+      if (Array.isArray(value)) {
+        return value.join('; ');
+      }
+      
+      // Handle objects
+      if (typeof value === 'object' && value !== null) {
+        return JSON.stringify(value);
+      }
+      
+      return value || '';
+    };
+    
     // Create CSV data with Submission ID and approval status
     const headers = ['Submission ID', 'Submitted By', 'Submitted At', 'Approval Status', 'Approved By', 'Approval Date', 'Approval Notes', ...allFields.map(field => field.label)];
-    const csvData = [headers.join(','), ...filteredSubmissions.map(submission => [submission.id, submission.submittedBy, new Date(submission.submittedAt).toLocaleString(), submission.approvalStatus || 'pending', submission.approvedBy || '', submission.approvalTimestamp ? new Date(submission.approvalTimestamp).toLocaleString() : '', submission.approvalNotes || '', ...allFields.map(field => submission.submissionData[field.id] || '')].join(','))].join('\n');
+    const csvData = [
+      headers.join(','), 
+      ...filteredSubmissions.map(submission => [
+        submission.id, 
+        submission.submittedBy, 
+        new Date(submission.submittedAt).toLocaleString(), 
+        submission.approvalStatus || 'pending', 
+        submission.approvedBy || '', 
+        submission.approvalTimestamp ? new Date(submission.approvalTimestamp).toLocaleString() : '', 
+        submission.approvalNotes || '', 
+        ...allFields.map(field => formatFieldValueForExport(field, submission.submissionData[field.id]))
+      ].join(','))
+    ].join('\n');
 
     // Download CSV
     const blob = new Blob([csvData], {
