@@ -128,6 +128,26 @@ export function SubmissionUpdateDialog({
     setError('');
 
     try {
+      // First, fetch form fields to map labels to field IDs
+      const { data: formFields, error: fieldsError } = await supabase
+        .from('form_fields')
+        .select('id, label')
+        .eq('form_id', formId);
+
+      if (fieldsError) {
+        setError('Failed to load form fields');
+        setIsProcessing(false);
+        return;
+      }
+
+      // Create label to field ID mapping
+      const labelToFieldId = new Map<string, string>();
+      formFields?.forEach(field => {
+        labelToFieldId.set(field.label, field.id);
+      });
+
+      console.log('Label to Field ID mapping:', Object.fromEntries(labelToFieldId));
+
       let successCount = 0;
       let errorCount = 0;
       const errors: string[] = [];
@@ -153,8 +173,21 @@ export function SubmissionUpdateDialog({
             continue;
           }
 
-          // Merge existing data with new data
-          const { submissionId, ...newData } = submission as { submissionId: string; [key: string]: any };
+          // Transform new data: map field labels to field IDs
+          const { submissionId, ...newDataWithLabels } = submission as { submissionId: string; [key: string]: any };
+          const newData: Record<string, any> = {};
+          
+          Object.entries(newDataWithLabels).forEach(([label, value]) => {
+            const fieldId = labelToFieldId.get(label);
+            if (fieldId) {
+              newData[fieldId] = value;
+              console.log(`Mapped "${label}" -> "${fieldId}" = "${value}"`);
+            } else {
+              console.warn(`No field ID found for label: "${label}"`);
+            }
+          });
+
+          // Merge existing data with new data (using field IDs)
           const currentData = typeof existingSubmission.submission_data === 'object' && existingSubmission.submission_data !== null 
             ? existingSubmission.submission_data 
             : {};
@@ -163,7 +196,9 @@ export function SubmissionUpdateDialog({
             ...newData,
           };
 
-          console.log('Updating submission with data:', updatedSubmissionData);
+          console.log('Current data:', currentData);
+          console.log('New data (mapped):', newData);
+          console.log('Merged data:', updatedSubmissionData);
 
           // Update submission using the actual database ID
           const { error: updateError } = await supabase
