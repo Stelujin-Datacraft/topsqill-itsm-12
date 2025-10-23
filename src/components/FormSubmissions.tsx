@@ -138,9 +138,37 @@ export function FormSubmissions({
   };
   const handleExportData = () => {
     const allFields = getAllFields();
+    
+    // Helper function to format field value for export
+    const formatFieldForExport = (field: any, value: any) => {
+      // Handle cross-reference fields
+      if (field.fieldType === 'crossReference') {
+        if (Array.isArray(value)) {
+          // Extract submission_ref_ids and join with commas
+          return value
+            .map(item => item?.submission_ref_id)
+            .filter(Boolean)
+            .join(', ');
+        }
+      }
+      return value || '';
+    };
+    
     // Create CSV data with Submission ID and approval status
     const headers = ['Submission ID', 'Submitted By', 'Submitted At', 'Approval Status', 'Approved By', 'Approval Date', 'Approval Notes', ...allFields.map(field => field.label)];
-    const csvData = [headers.join(','), ...filteredSubmissions.map(submission => [submission.id, submission.submittedBy, new Date(submission.submittedAt).toLocaleString(), submission.approvalStatus || 'pending', submission.approvedBy || '', submission.approvalTimestamp ? new Date(submission.approvalTimestamp).toLocaleString() : '', submission.approvalNotes || '', ...allFields.map(field => submission.submissionData[field.id] || '')].join(','))].join('\n');
+    const csvData = [
+      headers.join(','), 
+      ...filteredSubmissions.map(submission => [
+        submission.id, 
+        submission.submittedBy, 
+        new Date(submission.submittedAt).toLocaleString(), 
+        submission.approvalStatus || 'pending', 
+        submission.approvedBy || '', 
+        submission.approvalTimestamp ? new Date(submission.approvalTimestamp).toLocaleString() : '', 
+        submission.approvalNotes || '', 
+        ...allFields.map(field => formatFieldForExport(field, submission.submissionData[field.id]))
+      ].join(','))
+    ].join('\n');
 
     // Download CSV
     const blob = new Blob([csvData], {
