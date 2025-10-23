@@ -130,13 +130,13 @@ export function SubmissionUpdateDialog({
 
       for (const submission of parsedData) {
         try {
-          // Fetch current submission
+          // Fetch current submission by submission_ref_id (display ID like #URF251023002)
           const { data: existingSubmission, error: fetchError } = await supabase
             .from('form_submissions')
-            .select('submission_data')
-            .eq('id', submission.submissionId)
+            .select('id, submission_data')
+            .eq('submission_ref_id', submission.submissionId)
             .eq('form_id', formId)
-            .single();
+            .maybeSingle();
 
           if (fetchError || !existingSubmission) {
             errorCount++;
@@ -154,13 +154,13 @@ export function SubmissionUpdateDialog({
             ...newData,
           };
 
-          // Update submission
+          // Update submission using the actual database ID
           const { error: updateError } = await supabase
             .from('form_submissions')
             .update({
               submission_data: updatedSubmissionData,
             })
-            .eq('id', submission.submissionId);
+            .eq('id', existingSubmission.id);
 
           if (updateError) {
             errorCount++;

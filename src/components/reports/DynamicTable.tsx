@@ -305,8 +305,9 @@ export function DynamicTable({
       headers.push('Submitted At', 'Submitted By');
     }
     const rows = filteredAndSortedData.map(row => {
-      // Add Submission ID as first value
-      const values = [row.id, ...displayFields.map(field => {
+      // Add display Submission ID (e.g., #URF251023002) as first value
+      const displaySubmissionId = row.submission_ref_id || row.id.slice(0, 8);
+      const values = [displaySubmissionId, ...displayFields.map(field => {
         const value = row.submission_data?.[field.id];
         if (value === null || value === undefined) return 'N/A';
         if (typeof value === 'object') return JSON.stringify(value);
