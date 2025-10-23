@@ -130,15 +130,11 @@ export function SubmissionUpdateDialog({
 
       for (const submission of parsedData) {
         try {
-          // Fetch current submission by submission_ref_id (strip # prefix if present)
-          const cleanSubmissionId = submission.submissionId.startsWith('#') 
-            ? submission.submissionId.slice(1) 
-            : submission.submissionId;
-          
+          // Fetch current submission by submission_ref_id (display ID like #URF251023002)
           const { data: existingSubmission, error: fetchError } = await supabase
             .from('form_submissions')
             .select('id, submission_data')
-            .eq('submission_ref_id', cleanSubmissionId)
+            .eq('submission_ref_id', submission.submissionId)
             .eq('form_id', formId)
             .maybeSingle();
 

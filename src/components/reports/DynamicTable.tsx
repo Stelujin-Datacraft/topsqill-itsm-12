@@ -305,9 +305,8 @@ export function DynamicTable({
       headers.push('Submitted At', 'Submitted By');
     }
     const rows = filteredAndSortedData.map(row => {
-      // Add display Submission ID (e.g., #URF251023002) as first value with '#' prefix
-      const refId = row.submission_ref_id || row.id.slice(0, 8);
-      const displaySubmissionId = refId.startsWith('#') ? refId : `#${refId}`;
+      // Add display Submission ID (e.g., #URF251023002) as first value
+      const displaySubmissionId = row.submission_ref_id || row.id.slice(0, 8);
       const values = [displaySubmissionId, ...displayFields.map(field => {
         const value = row.submission_data?.[field.id];
         if (value === null || value === undefined) return 'N/A';
