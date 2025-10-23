@@ -131,7 +131,7 @@ export function SubmissionUpdateDialog({
       // First, fetch form fields to map labels to field IDs
       const { data: formFields, error: fieldsError } = await supabase
         .from('form_fields')
-        .select('id, label, field_type, custom_config')
+        .select('id, label')
         .eq('form_id', formId);
 
       if (fieldsError) {
@@ -140,17 +140,10 @@ export function SubmissionUpdateDialog({
         return;
       }
 
-      // Create label to field ID mapping and track field types
+      // Create label to field ID mapping
       const labelToFieldId = new Map<string, string>();
-      const fieldTypeMap = new Map<string, string>();
-      const fieldConfigMap = new Map<string, any>();
-      
       formFields?.forEach(field => {
         labelToFieldId.set(field.label, field.id);
-        fieldTypeMap.set(field.id, field.field_type);
-        if (field.custom_config) {
-          fieldConfigMap.set(field.id, field.custom_config);
-        }
       });
 
       console.log('Label to Field ID mapping:', Object.fromEntries(labelToFieldId));
@@ -187,28 +180,8 @@ export function SubmissionUpdateDialog({
           Object.entries(newDataWithLabels).forEach(([label, value]) => {
             const fieldId = labelToFieldId.get(label);
             if (fieldId) {
-              const fieldType = fieldTypeMap.get(fieldId);
-              
-              // Handle cross-reference fields specially
-              if (fieldType === 'cross-reference') {
-                // Parse comma/semicolon separated submission_ref_ids
-                if (value && typeof value === 'string') {
-                  const refIds = value.split(/[;,]/).map(id => id.trim()).filter(Boolean);
-                  
-                  // Convert to array of objects with submission_ref_id
-                  newData[fieldId] = refIds.map(refId => ({
-                    submission_ref_id: refId,
-                    // Display data will be populated by the form when it loads
-                  }));
-                  
-                  console.log(`Mapped cross-reference "${label}" -> "${fieldId}" = [${refIds.join(', ')}]`);
-                } else {
-                  newData[fieldId] = value;
-                }
-              } else {
-                newData[fieldId] = value;
-                console.log(`Mapped "${label}" -> "${fieldId}" = "${value}"`);
-              }
+              newData[fieldId] = value;
+              console.log(`Mapped "${label}" -> "${fieldId}" = "${value}"`);
             } else {
               console.warn(`No field ID found for label: "${label}"`);
             }
