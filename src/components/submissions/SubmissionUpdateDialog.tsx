@@ -220,20 +220,21 @@ export function SubmissionUpdateDialog({
                     continue;
                   }
                   
-                  // Get existing cross-reference values
+                  // Get existing cross-reference values from submission_data
                   const currentData = typeof existingSubmission.submission_data === 'object' && existingSubmission.submission_data !== null 
                     ? existingSubmission.submission_data 
                     : {};
                   const existingCrossRefs = Array.isArray(currentData[field.id]) ? currentData[field.id] : [];
                   
-                  // Create a map of existing submission_ref_ids to avoid duplicates
+                  // Create a set of existing submission_ref_ids to avoid duplicates
                   const existingRefIdSet = new Set(
                     existingCrossRefs.map((ref: any) => ref?.submission_ref_id).filter(Boolean)
                   );
                   
-                  console.log('Existing ref_ids in submission:', Array.from(existingRefIdSet));
+                  console.log('Existing cross-refs in submission:', existingCrossRefs);
+                  console.log('Existing ref_ids:', Array.from(existingRefIdSet));
                   
-                  // Build cross-reference objects for new entries only (loop through each ref_id)
+                  // Build cross-reference objects for new entries only
                   const newCrossRefs: any[] = [];
                   
                   for (const refId of submissionRefIds) {
@@ -243,7 +244,7 @@ export function SubmissionUpdateDialog({
                       continue;
                     }
                     
-                    // Fetch the linked record to get its ID and data
+                    // Fetch the linked record to get its ID and submission_data
                     const { data: record, error: recordError } = await supabase
                       .from('form_submissions')
                       .select('id, submission_ref_id, submission_data')
@@ -252,11 +253,11 @@ export function SubmissionUpdateDialog({
                       .maybeSingle();
                     
                     if (recordError || !record) {
-                      console.warn(`Record not found for ref_id: ${refId}`);
+                      console.warn(`Record not found for ref_id: ${refId}`, recordError);
                       continue;
                     }
                     
-                    // Build displayData with configured display columns
+                    // Build displayData object with configured display columns from the connected record
                     const displayData: Record<string, any> = {};
                     if (displayColumns.length > 0 && record.submission_data) {
                       for (const columnId of displayColumns) {
@@ -266,22 +267,21 @@ export function SubmissionUpdateDialog({
                       }
                     }
                     
-                    // Add new cross-reference connection
-                    newCrossRefs.push({
+                    // Create the cross-reference object with proper structure
+                    const crossRefObject = {
                       id: record.id,
-                      submission_ref_id: record.submission_ref_id,
-                      displayData
-                    });
-                    console.log(`Added new connection for ref_id: ${refId}`);
+                      displayData: displayData,
+                      submission_ref_id: record.submission_ref_id
+                    };
+                    
+                    newCrossRefs.push(crossRefObject);
+                    console.log(`Added new cross-reference connection:`, crossRefObject);
                   }
-                  
-                  console.log('Existing cross-refs:', existingCrossRefs);
-                  console.log('New cross-refs to add:', newCrossRefs);
                   
                   // Merge existing and new cross-references
                   newData[field.id] = [...existingCrossRefs, ...newCrossRefs];
                   
-                  console.log(`Mapped cross-reference "${label}" -> "${field.id}" with ${newData[field.id].length} total links`);
+                  console.log(`Final cross-reference data for "${label}":`, newData[field.id]);
                 } else {
                   console.warn(`No valid submission_ref_ids found for cross-reference field: ${label}`);
                 }
