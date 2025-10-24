@@ -138,9 +138,42 @@ export function FormSubmissions({
   };
   const handleExportData = () => {
     const allFields = getAllFields();
+    
+    // Helper to format field value for export
+    const formatFieldValueForExport = (field: any, value: any) => {
+      // Handle cross-reference fields
+      if (field.fieldType === 'cross_reference' && Array.isArray(value)) {
+        // Extract submission_ref_ids from cross-reference objects
+        const refIds = value
+          .map(item => item?.submission_ref_id)
+          .filter(Boolean);
+        // Return as JSON array string for CSV compatibility
+        return JSON.stringify(refIds);
+      }
+      
+      // Handle other field types
+      if (typeof value === 'object' && value !== null) {
+        return JSON.stringify(value);
+      }
+      
+      return value || '';
+    };
+    
     // Create CSV data with Submission ID and approval status
     const headers = ['Submission ID', 'Submitted By', 'Submitted At', 'Approval Status', 'Approved By', 'Approval Date', 'Approval Notes', ...allFields.map(field => field.label)];
-    const csvData = [headers.join(','), ...filteredSubmissions.map(submission => [submission.id, submission.submittedBy, new Date(submission.submittedAt).toLocaleString(), submission.approvalStatus || 'pending', submission.approvedBy || '', submission.approvalTimestamp ? new Date(submission.approvalTimestamp).toLocaleString() : '', submission.approvalNotes || '', ...allFields.map(field => submission.submissionData[field.id] || '')].join(','))].join('\n');
+    const csvData = [
+      headers.join(','), 
+      ...filteredSubmissions.map(submission => [
+        submission.id, 
+        submission.submittedBy, 
+        new Date(submission.submittedAt).toLocaleString(), 
+        submission.approvalStatus || 'pending', 
+        submission.approvedBy || '', 
+        submission.approvalTimestamp ? new Date(submission.approvalTimestamp).toLocaleString() : '', 
+        submission.approvalNotes || '', 
+        ...allFields.map(field => formatFieldValueForExport(field, submission.submissionData[field.id]))
+      ].join(','))
+    ].join('\n');
 
     // Download CSV
     const blob = new Blob([csvData], {

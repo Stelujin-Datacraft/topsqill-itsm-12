@@ -128,10 +128,10 @@ export function SubmissionUpdateDialog({
     setError('');
 
     try {
-      // First, fetch form fields to map labels to field IDs
+      // First, fetch form fields to map labels to field IDs and get field types
       const { data: formFields, error: fieldsError } = await supabase
         .from('form_fields')
-        .select('id, label')
+        .select('id, label, field_type, custom_config')
         .eq('form_id', formId);
 
       if (fieldsError) {
@@ -140,13 +140,13 @@ export function SubmissionUpdateDialog({
         return;
       }
 
-      // Create label to field ID mapping
-      const labelToFieldId = new Map<string, string>();
+      // Create label to field mapping
+      const labelToField = new Map<string, any>();
       formFields?.forEach(field => {
-        labelToFieldId.set(field.label, field.id);
+        labelToField.set(field.label, field);
       });
 
-      console.log('Label to Field ID mapping:', Object.fromEntries(labelToFieldId));
+      console.log('Label to Field mapping:', Array.from(labelToField.entries()).map(([label, field]) => ({ label, id: field.id, type: field.field_type })));
 
       let successCount = 0;
       let errorCount = 0;
@@ -173,19 +173,99 @@ export function SubmissionUpdateDialog({
             continue;
           }
 
-          // Transform new data: map field labels to field IDs
+          // Transform new data: map field labels to field IDs and handle cross-references
           const { submissionId, ...newDataWithLabels } = submission as { submissionId: string; [key: string]: any };
           const newData: Record<string, any> = {};
           
-          Object.entries(newDataWithLabels).forEach(([label, value]) => {
-            const fieldId = labelToFieldId.get(label);
-            if (fieldId) {
-              newData[fieldId] = value;
-              console.log(`Mapped "${label}" -> "${fieldId}" = "${value}"`);
+          for (const [label, value] of Object.entries(newDataWithLabels)) {
+            const field = labelToField.get(label);
+            if (field) {
+              // Handle cross-reference fields
+              if (field.field_type === 'cross_reference') {
+                console.log(`Processing cross-reference field "${label}":`, value);
+                
+                // Parse the value - could be JSON array string or comma-separated
+                let submissionRefIds: string[] = [];
+                if (typeof value === 'string') {
+                  try {
+                    // Try parsing as JSON array
+                    const parsed = JSON.parse(value);
+                    if (Array.isArray(parsed)) {
+                      submissionRefIds = parsed.filter(Boolean);
+                    } else {
+                      submissionRefIds = [parsed].filter(Boolean);
+                    }
+                  } catch {
+                    // If not JSON, treat as comma-separated
+                    submissionRefIds = value.split(',').map(id => id.trim()).filter(Boolean);
+                  }
+                } else if (Array.isArray(value)) {
+                  submissionRefIds = value.filter(Boolean);
+                }
+                
+                console.log('Parsed submission_ref_ids:', submissionRefIds);
+                
+                if (submissionRefIds.length > 0) {
+                  // Get the target form ID from custom_config
+                  const targetFormId = field.custom_config?.targetFormId;
+                  if (!targetFormId) {
+                    console.warn(`No target form ID configured for cross-reference field: ${label}`);
+                    continue;
+                  }
+                  
+                  // Fetch the linked records to get their internal IDs
+                  const { data: linkedRecords, error: linkedError } = await supabase
+                    .from('form_submissions')
+                    .select('id, submission_ref_id, submission_data')
+                    .eq('form_id', targetFormId)
+                    .in('submission_ref_id', submissionRefIds);
+                  
+                  if (linkedError) {
+                    console.error('Error fetching linked records:', linkedError);
+                    continue;
+                  }
+                  
+                  console.log('Found linked records:', linkedRecords);
+                  
+                  // Get existing cross-reference values
+                  const currentData = typeof existingSubmission.submission_data === 'object' && existingSubmission.submission_data !== null 
+                    ? existingSubmission.submission_data 
+                    : {};
+                  const existingCrossRefs = Array.isArray(currentData[field.id]) ? currentData[field.id] : [];
+                  
+                  // Create a map of existing submission_ref_ids to avoid duplicates
+                  const existingRefIdSet = new Set(
+                    existingCrossRefs.map((ref: any) => ref?.submission_ref_id).filter(Boolean)
+                  );
+                  
+                  // Build cross-reference objects for new entries only
+                  const newCrossRefs = linkedRecords
+                    ?.filter(record => !existingRefIdSet.has(record.submission_ref_id))
+                    .map(record => ({
+                      id: record.id,
+                      submission_ref_id: record.submission_ref_id,
+                      displayData: record.submission_data || {}
+                    })) || [];
+                  
+                  console.log('Existing cross-refs:', existingCrossRefs);
+                  console.log('New cross-refs to add:', newCrossRefs);
+                  
+                  // Merge existing and new cross-references
+                  newData[field.id] = [...existingCrossRefs, ...newCrossRefs];
+                  
+                  console.log(`Mapped cross-reference "${label}" -> "${field.id}" with ${newData[field.id].length} total links`);
+                } else {
+                  console.warn(`No valid submission_ref_ids found for cross-reference field: ${label}`);
+                }
+              } else {
+                // Handle non-cross-reference fields normally
+                newData[field.id] = value;
+                console.log(`Mapped "${label}" -> "${field.id}" = "${value}"`);
+              }
             } else {
-              console.warn(`No field ID found for label: "${label}"`);
+              console.warn(`No field found for label: "${label}"`);
             }
-          });
+          }
 
           // Merge existing data with new data (using field IDs)
           const currentData = typeof existingSubmission.submission_data === 'object' && existingSubmission.submission_data !== null 
