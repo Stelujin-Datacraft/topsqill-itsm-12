@@ -11,15 +11,15 @@ interface CrossReferenceCellProps {
 
 export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCellProps) {
   const targetFormId = field?.customConfig?.targetFormId;
-  const tableDisplayFields = field?.customConfig?.tableDisplayFields || [];
+  const displayColumns = field?.customConfig?.displayColumns || [];
   
   console.log('CrossReferenceCell: field customConfig:', field?.customConfig);
-  console.log('CrossReferenceCell: tableDisplayFields:', tableDisplayFields);
+  console.log('CrossReferenceCell: displayColumns:', displayColumns);
   console.log('CrossReferenceCell: submissionRefIds:', submissionRefIds);
   
-  // Only fetch if we have display fields configured
-  const shouldFetch = targetFormId && tableDisplayFields.length > 0;
-  const displayFieldIds = tableDisplayFields;
+  // Fetch if we have targetFormId (displayColumns can be empty, we'll still show ref_ids)
+  const shouldFetch = targetFormId && submissionRefIds && submissionRefIds.length > 0;
+  const displayFieldIds = displayColumns;
   
   console.log('CrossReferenceCell: shouldFetch:', shouldFetch);
   console.log('CrossReferenceCell: displayFieldIds being passed:', displayFieldIds);
