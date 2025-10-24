@@ -15,25 +15,10 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
   
   console.log('CrossReferenceCell: field customConfig:', field?.customConfig);
   console.log('CrossReferenceCell: displayColumns:', displayColumns);
-  console.log('CrossReferenceCell: submissionRefIds (raw):', submissionRefIds);
+  console.log('CrossReferenceCell: submissionRefIds:', submissionRefIds);
   
-  // Parse and extract ref_ids from the data
-  let refIds: string[] = [];
-  if (Array.isArray(submissionRefIds)) {
-    refIds = submissionRefIds.map((item: any) => {
-      if (typeof item === 'string') {
-        return item;
-      } else if (typeof item === 'object' && item !== null && 'submission_ref_id' in item) {
-        return item.submission_ref_id;
-      }
-      return null;
-    }).filter((id): id is string => id !== null && id !== '');
-  }
-  
-  console.log('CrossReferenceCell: extracted refIds:', refIds);
-  
-  // Fetch if we have targetFormId and valid ref_ids
-  const shouldFetch = targetFormId && refIds && refIds.length > 0;
+  // Fetch if we have targetFormId (displayColumns can be empty, we'll still show ref_ids)
+  const shouldFetch = targetFormId && submissionRefIds && submissionRefIds.length > 0;
   const displayFieldIds = displayColumns;
   
   console.log('CrossReferenceCell: shouldFetch:', shouldFetch);
@@ -41,18 +26,18 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
   
   const { records, loading } = useCrossReferenceData(
     shouldFetch ? targetFormId : undefined,
-    shouldFetch ? refIds : undefined,
+    shouldFetch ? submissionRefIds : undefined,
     displayFieldIds
   );
 
   const handleClick = () => {
-    console.log('Cross-reference button clicked', { refIds, field });
+    console.log('Cross-reference button clicked', { submissionRefIds, field });
     const dynamicTable = document.querySelector('[data-dynamic-table="main"]');
     console.log('Dynamic table element found:', dynamicTable);
     if (dynamicTable) {
       const event = new CustomEvent('showCrossReference', { 
         detail: { 
-          submissionIds: refIds,
+          submissionIds: submissionRefIds,
           fieldName: field?.label || 'Cross Reference',
           targetFormId: targetFormId,
           displayFieldIds: displayFieldIds
@@ -80,23 +65,18 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
     );
   }
 
-  // Display each submission_ref_id as a separate badge
-  if (!refIds || refIds.length === 0) {
-    return <span className="text-muted-foreground text-sm">No references</span>;
-  }
-
+  // Display all submission_ref_ids (from fetched records or from the raw data)
   return (
-    <div className="flex flex-wrap gap-1">
-      {refIds.map((refId, index) => (
-        <Badge
-          key={`${refId}-${index}`}
-          variant="outline"
-          className="cursor-pointer hover:bg-accent text-xs px-2 py-0.5"
-          onClick={handleClick}
-        >
-          #{refId}
-        </Badge>
-      ))}
-    </div>
+    <Button
+      variant="outline"
+      size="sm"
+      className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1 px-2"
+      onClick={handleClick}
+    >
+      <div className="text-sm">
+        <span className="text-primary font-medium">View ({submissionRefIds.length})</span>
+      </div>
+      <ExternalLink className="h-3 w-3 ml-2 opacity-50" />
+    </Button>
   );
 }
