@@ -1,48 +1,66 @@
-import React from 'react';
+// import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { ExternalLink, Loader2 } from 'lucide-react';
 import { useCrossReferenceData } from '@/hooks/useCrossReferenceData';
 
 interface CrossReferenceCellProps {
-  submissionRefIds: string[];
+  submissionRefIds: string[] | string; // can be string (comma-separated) or array
   field: any;
 }
 
 export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCellProps) {
   const targetFormId = field?.customConfig?.targetFormId;
   const displayColumns = field?.customConfig?.displayColumns || [];
-  
-  console.log('CrossReferenceCell: field customConfig:', field?.customConfig);
+
+  // ✅ Normalize submissionRefIds: handle both array and comma-separated string
+  let normalizedSubmissionRefIds: string[] = [];
+  if (typeof submissionRefIds === 'string') {
+    normalizedSubmissionRefIds = submissionRefIds
+      .split(',')
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0);
+  } else if (Array.isArray(submissionRefIds)) {
+    // In case you accidentally have a single item array like ['id1,id2']
+    if (submissionRefIds.length === 1 && submissionRefIds[0].includes(',')) {
+      normalizedSubmissionRefIds = submissionRefIds[0]
+        .split(',')
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0);
+    } else {
+      normalizedSubmissionRefIds = submissionRefIds.filter((id) => id && id.length > 0);
+    }
+  }
+
+  console.log('CrossReferenceCell: field.customConfig:', field?.customConfig);
   console.log('CrossReferenceCell: displayColumns:', displayColumns);
-  console.log('CrossReferenceCell: submissionRefIds:', submissionRefIds);
-  
-  // Fetch if we have targetFormId (displayColumns can be empty, we'll still show ref_ids)
-  const shouldFetch = targetFormId && submissionRefIds && submissionRefIds.length > 0;
+  console.log('CrossReferenceCell: normalizedSubmissionRefIds:', normalizedSubmissionRefIds);
+
+  // Fetch only if valid targetFormId and submissionRefIds exist
+  const shouldFetch = targetFormId && normalizedSubmissionRefIds.length > 0;
   const displayFieldIds = displayColumns;
-  
-  console.log('CrossReferenceCell: shouldFetch:', shouldFetch);
-  console.log('CrossReferenceCell: displayFieldIds being passed:', displayFieldIds);
-  
+
   const { records, loading } = useCrossReferenceData(
     shouldFetch ? targetFormId : undefined,
-    shouldFetch ? submissionRefIds : undefined,
+    shouldFetch ? normalizedSubmissionRefIds : undefined,
     displayFieldIds
   );
 
   const handleClick = () => {
-    console.log('Cross-reference button clicked', { submissionRefIds, field });
+    console.log('Cross-reference button clicked', { normalizedSubmissionRefIds, field });
+
     const dynamicTable = document.querySelector('[data-dynamic-table="main"]');
     console.log('Dynamic table element found:', dynamicTable);
+
     if (dynamicTable) {
-      const event = new CustomEvent('showCrossReference', { 
-        detail: { 
-          submissionIds: submissionRefIds,
+      const event = new CustomEvent('showCrossReference', {
+        detail: {
+          submissionIds: normalizedSubmissionRefIds,
           fieldName: field?.label || 'Cross Reference',
-          targetFormId: targetFormId,
-          displayFieldIds: displayFieldIds
-        } 
+          targetFormId,
+          displayFieldIds,
+        },
       });
+
       console.log('Dispatching event with data:', event.detail);
       dynamicTable.dispatchEvent(event);
     } else {
@@ -65,7 +83,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
     );
   }
 
-  // Display all submission_ref_ids (from fetched records or from the raw data)
+  // Display button with count
   return (
     <Button
       variant="outline"
@@ -74,7 +92,9 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
       onClick={handleClick}
     >
       <div className="text-sm">
-        <span className="text-primary font-medium">View ({submissionRefIds.length})</span>
+        <span className="text-primary font-medium">
+          View ({normalizedSubmissionRefIds.length})
+        </span>
       </div>
       <ExternalLink className="h-3 w-3 ml-2 opacity-50" />
     </Button>
