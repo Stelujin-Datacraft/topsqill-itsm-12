@@ -188,24 +188,24 @@ export function SubmissionUpdateDialog({
                 let submissionRefIds: string[] = [];
                 if (typeof value === 'string') {
                   try {
-                    // Try parsing as JSON array
+                    // Try parsing as JSON array first: "[TF1251024002, TF1251024001]"
                     const parsed = JSON.parse(value);
                     if (Array.isArray(parsed)) {
-                      submissionRefIds = parsed.filter(Boolean);
+                      submissionRefIds = parsed.map(v => String(v).trim()).filter(Boolean);
                     } else {
-                      submissionRefIds = [parsed].filter(Boolean);
+                      submissionRefIds = [String(parsed).trim()].filter(Boolean);
                     }
                   } catch {
-                    // If not JSON, treat as comma-separated
+                    // If not JSON, treat as comma-separated: "TF1251024002, TF1251024001"
                     submissionRefIds = value.split(',').map(id => id.trim()).filter(Boolean);
                   }
                 } else if (Array.isArray(value)) {
-                  submissionRefIds = value.filter(Boolean);
+                  submissionRefIds = value.map(v => String(v).trim()).filter(Boolean);
                 }
                 
                 // Strip '#' prefix from all ref_ids to match database format
                 submissionRefIds = submissionRefIds.map(id => 
-                  typeof id === 'string' && id.startsWith('#') ? id.substring(1) : id
+                  id.startsWith('#') ? id.substring(1) : id
                 ).filter(Boolean);
                 
                 console.log('Parsed submission_ref_ids:', submissionRefIds);
@@ -267,21 +267,23 @@ export function SubmissionUpdateDialog({
                       }
                     }
                     
-                    // Create the cross-reference object with proper structure
+                    // Create the cross-reference object with EXACT structure required by the database:
+                    // { id: uuid, displayData: { fieldId: value }, submission_ref_id: string }
                     const crossRefObject = {
-                      id: record.id,
-                      displayData: displayData,
-                      submission_ref_id: record.submission_ref_id
+                      id: record.id,                              // UUID from form_submissions.id
+                      displayData: displayData,                   // Object with fieldId->value mapping
+                      submission_ref_id: record.submission_ref_id // String from form_submissions.submission_ref_id
                     };
                     
                     newCrossRefs.push(crossRefObject);
-                    console.log(`Added new cross-reference connection:`, crossRefObject);
+                    console.log(`Added new cross-reference:`, JSON.stringify(crossRefObject, null, 2));
                   }
                   
                   // Merge existing and new cross-references
                   newData[field.id] = [...existingCrossRefs, ...newCrossRefs];
                   
-                  console.log(`Final cross-reference data for "${label}":`, newData[field.id]);
+                  console.log(`Final merged cross-reference array for "${label}":`, JSON.stringify(newData[field.id], null, 2));
+                  console.log(`Total count: ${newData[field.id].length} (${existingCrossRefs.length} existing + ${newCrossRefs.length} new)`);
                 } else {
                   console.warn(`No valid submission_ref_ids found for cross-reference field: ${label}`);
                 }
@@ -307,6 +309,7 @@ export function SubmissionUpdateDialog({
           console.log('Current data:', currentData);
           console.log('New data (mapped):', newData);
           console.log('Merged data:', updatedSubmissionData);
+          console.log('Updated submission_data (stringified):', JSON.stringify(updatedSubmissionData, null, 2));
 
           // Update submission using the actual database ID
           const { error: updateError } = await supabase
