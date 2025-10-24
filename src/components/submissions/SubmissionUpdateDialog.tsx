@@ -183,24 +183,38 @@ export function SubmissionUpdateDialog({
               // Handle cross-reference fields
               if (field.field_type === 'cross_reference') {
                 console.log(`Processing cross-reference field "${label}":`, value);
+                console.log(`Raw value type:`, typeof value);
                 
                 // Parse the value - could be JSON array string or comma-separated
                 let submissionRefIds: string[] = [];
+                
                 if (typeof value === 'string') {
-                  try {
-                    // Try parsing as JSON array first: "[TF1251024002, TF1251024001]"
-                    const parsed = JSON.parse(value);
-                    if (Array.isArray(parsed)) {
-                      submissionRefIds = parsed.map(v => String(v).trim()).filter(Boolean);
-                    } else {
-                      submissionRefIds = [String(parsed).trim()].filter(Boolean);
+                  // Remove any leading/trailing whitespace
+                  const trimmedValue = value.trim();
+                  
+                  // Check if it looks like a JSON array: starts with [ and ends with ]
+                  if (trimmedValue.startsWith('[') && trimmedValue.endsWith(']')) {
+                    try {
+                      // Try parsing as JSON array: "[TF1251024002, TF1251024001]"
+                      const parsed = JSON.parse(trimmedValue);
+                      if (Array.isArray(parsed)) {
+                        submissionRefIds = parsed.map(v => String(v).trim()).filter(Boolean);
+                      }
+                    } catch (e) {
+                      console.error('Failed to parse JSON array:', e);
+                      // Fall back to removing brackets and splitting by comma
+                      const withoutBrackets = trimmedValue.slice(1, -1);
+                      submissionRefIds = withoutBrackets.split(',').map(id => id.trim()).filter(Boolean);
                     }
-                  } catch {
-                    // If not JSON, treat as comma-separated: "TF1251024002, TF1251024001"
-                    submissionRefIds = value.split(',').map(id => id.trim()).filter(Boolean);
+                  } else {
+                    // Treat as comma-separated: "TF1251024002, TF1251024001" or "TF1251024002,TF1251024001"
+                    submissionRefIds = trimmedValue.split(',').map(id => id.trim()).filter(Boolean);
                   }
                 } else if (Array.isArray(value)) {
                   submissionRefIds = value.map(v => String(v).trim()).filter(Boolean);
+                } else {
+                  // Handle single value
+                  submissionRefIds = [String(value).trim()].filter(Boolean);
                 }
                 
                 // Strip '#' prefix from all ref_ids to match database format
@@ -208,7 +222,8 @@ export function SubmissionUpdateDialog({
                   id.startsWith('#') ? id.substring(1) : id
                 ).filter(Boolean);
                 
-                console.log('Parsed submission_ref_ids:', submissionRefIds);
+                console.log('Parsed submission_ref_ids (should be separate):', submissionRefIds);
+                console.log('Number of ref_ids:', submissionRefIds.length);
                 
                 if (submissionRefIds.length > 0) {
                   // Get the target form ID and display columns from custom_config
