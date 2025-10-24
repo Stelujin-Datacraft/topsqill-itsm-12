@@ -65,18 +65,23 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
     );
   }
 
-  // Display all submission_ref_ids (from fetched records or from the raw data)
+  // Display each submission_ref_id as a separate badge
+  if (!submissionRefIds || submissionRefIds.length === 0) {
+    return <span className="text-muted-foreground text-sm">No references</span>;
+  }
+
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1 px-2"
-      onClick={handleClick}
-    >
-      <div className="text-sm">
-        <span className="text-primary font-medium">View ({submissionRefIds.length})</span>
-      </div>
-      <ExternalLink className="h-3 w-3 ml-2 opacity-50" />
-    </Button>
+    <div className="flex flex-wrap gap-1">
+      {submissionRefIds.map((refId, index) => (
+        <Badge
+          key={`${refId}-${index}`}
+          variant="outline"
+          className="cursor-pointer hover:bg-accent text-xs px-2 py-0.5"
+          onClick={handleClick}
+        >
+          #{refId}
+        </Badge>
+      ))}
+    </div>
   );
 }
