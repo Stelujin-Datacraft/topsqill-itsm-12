@@ -310,6 +310,16 @@ export function DynamicTable({
       const values = [displaySubmissionId, ...displayFields.map(field => {
         const value = row.submission_data?.[field.id];
         if (value === null || value === undefined) return 'N/A';
+        
+        // Handle cross-reference fields - extract only submission_ref_id values
+        if (field.field_type === 'cross_reference' && Array.isArray(value)) {
+          const refIds = value
+            .map(item => item?.submission_ref_id)
+            .filter(Boolean)
+            .join(',');
+          return refIds || 'N/A';
+        }
+        
         if (typeof value === 'object') return JSON.stringify(value);
         return value.toString();
       })];
