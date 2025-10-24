@@ -203,6 +203,11 @@ export function SubmissionUpdateDialog({
                   submissionRefIds = value.filter(Boolean);
                 }
                 
+                // Strip '#' prefix from all ref_ids to match database format
+                submissionRefIds = submissionRefIds.map(id => 
+                  typeof id === 'string' && id.startsWith('#') ? id.substring(1) : id
+                ).filter(Boolean);
+                
                 console.log('Parsed submission_ref_ids:', submissionRefIds);
                 
                 if (submissionRefIds.length > 0) {
@@ -213,19 +218,31 @@ export function SubmissionUpdateDialog({
                     continue;
                   }
                   
-                  // Fetch the linked records to get their internal IDs
-                  const { data: linkedRecords, error: linkedError } = await supabase
-                    .from('form_submissions')
-                    .select('id, submission_ref_id, submission_data')
-                    .eq('form_id', targetFormId)
-                    .in('submission_ref_id', submissionRefIds);
+                  // Fetch the linked records to get their internal IDs (one by one to verify each)
+                  const linkedRecordsMap = new Map<string, any>();
+                  const notFoundRefIds: string[] = [];
                   
-                  if (linkedError) {
-                    console.error('Error fetching linked records:', linkedError);
-                    continue;
+                  for (const refId of submissionRefIds) {
+                    const { data: record, error: recordError } = await supabase
+                      .from('form_submissions')
+                      .select('id, submission_ref_id, submission_data')
+                      .eq('form_id', targetFormId)
+                      .eq('submission_ref_id', refId)
+                      .maybeSingle();
+                    
+                    if (recordError || !record) {
+                      console.warn(`Record not found for ref_id: ${refId}`);
+                      notFoundRefIds.push(refId);
+                    } else {
+                      linkedRecordsMap.set(refId, record);
+                    }
                   }
                   
-                  console.log('Found linked records:', linkedRecords);
+                  if (notFoundRefIds.length > 0) {
+                    console.warn(`These ref_ids were not found in target form: ${notFoundRefIds.join(', ')}`);
+                  }
+                  
+                  console.log('Found linked records:', Array.from(linkedRecordsMap.values()));
                   
                   // Get existing cross-reference values
                   const currentData = typeof existingSubmission.submission_data === 'object' && existingSubmission.submission_data !== null 
@@ -238,14 +255,32 @@ export function SubmissionUpdateDialog({
                     existingCrossRefs.map((ref: any) => ref?.submission_ref_id).filter(Boolean)
                   );
                   
-                  // Build cross-reference objects for new entries only
-                  const newCrossRefs = linkedRecords
-                    ?.filter(record => !existingRefIdSet.has(record.submission_ref_id))
-                    .map(record => ({
+                  console.log('Existing ref_ids:', Array.from(existingRefIdSet));
+                  
+                  // Build cross-reference objects for new entries only (loop through each ref_id)
+                  const newCrossRefs: any[] = [];
+                  for (const refId of submissionRefIds) {
+                    // Skip if already exists
+                    if (existingRefIdSet.has(refId)) {
+                      console.log(`Skipping duplicate ref_id: ${refId}`);
+                      continue;
+                    }
+                    
+                    // Skip if record not found
+                    const record = linkedRecordsMap.get(refId);
+                    if (!record) {
+                      console.log(`Skipping not-found ref_id: ${refId}`);
+                      continue;
+                    }
+                    
+                    // Add as new cross-reference
+                    newCrossRefs.push({
                       id: record.id,
                       submission_ref_id: record.submission_ref_id,
                       displayData: record.submission_data || {}
-                    })) || [];
+                    });
+                    console.log(`Adding new ref_id: ${refId}`);
+                  }
                   
                   console.log('Existing cross-refs:', existingCrossRefs);
                   console.log('New cross-refs to add:', newCrossRefs);
