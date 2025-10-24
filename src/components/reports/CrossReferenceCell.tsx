@@ -1,6 +1,7 @@
 import React from 'react';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2 } from 'lucide-react';
+import { ExternalLink, Loader2 } from 'lucide-react';
 import { useCrossReferenceData } from '@/hooks/useCrossReferenceData';
 
 interface CrossReferenceCellProps {
@@ -29,54 +30,53 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
     displayFieldIds
   );
 
+  const handleClick = () => {
+    console.log('Cross-reference button clicked', { submissionRefIds, field });
+    const dynamicTable = document.querySelector('[data-dynamic-table="main"]');
+    console.log('Dynamic table element found:', dynamicTable);
+    if (dynamicTable) {
+      const event = new CustomEvent('showCrossReference', { 
+        detail: { 
+          submissionIds: submissionRefIds,
+          fieldName: field?.label || 'Cross Reference',
+          targetFormId: targetFormId,
+          displayFieldIds: displayFieldIds
+        } 
+      });
+      console.log('Dispatching event with data:', event.detail);
+      dynamicTable.dispatchEvent(event);
+    } else {
+      console.error('Dynamic table element not found');
+    }
+  };
+
   // If loading, show a loading indicator
   if (loading && shouldFetch) {
     return (
-      <div className="flex items-center gap-1.5 py-1">
-        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-        <span className="text-xs text-muted-foreground">Loading...</span>
-      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled
+        className="cursor-pointer text-left justify-start h-auto py-1 px-2 min-w-[100px]"
+      >
+        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+        <span className="text-xs">Loading...</span>
+      </Button>
     );
   }
 
-  // Display each ref_id separately
-  const displayRecords = records.length > 0 
-    ? records 
-    : submissionRefIds.map(refId => ({
-        id: refId,
-        submission_ref_id: refId,
-        displayData: '',
-        form_id: targetFormId || '',
-        submission_data: {}
-      }));
-
+  // Display all submission_ref_ids (from fetched records or from the raw data)
   return (
-    <div className="flex flex-wrap gap-1.5 py-1">
-      {displayRecords.map((record, index) => (
-        <Badge
-          key={`${record.submission_ref_id}-${index}`}
-          variant="outline"
-          className="cursor-pointer hover:bg-accent text-xs font-mono px-2 py-1"
-          onClick={(e) => {
-            e.stopPropagation();
-            // Navigate to the specific submission
-            const event = new CustomEvent('navigateToSubmission', { 
-              detail: { 
-                submissionRefId: record.submission_ref_id,
-                targetFormId: targetFormId
-              } 
-            });
-            document.dispatchEvent(event);
-          }}
-        >
-          #{record.submission_ref_id}
-          {record.displayData && record.displayData !== record.submission_ref_id && (
-            <span className="ml-1.5 text-muted-foreground font-normal">
-              • {record.displayData.substring(0, 30)}{record.displayData.length > 30 ? '...' : ''}
-            </span>
-          )}
-        </Badge>
-      ))}
-    </div>
+    <Button
+      variant="outline"
+      size="sm"
+      className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1 px-2"
+      onClick={handleClick}
+    >
+      <div className="text-sm">
+        <span className="text-primary font-medium">View ({submissionRefIds.length})</span>
+      </div>
+      <ExternalLink className="h-3 w-3 ml-2 opacity-50" />
+    </Button>
   );
 }

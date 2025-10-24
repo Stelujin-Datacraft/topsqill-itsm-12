@@ -358,13 +358,6 @@ export function DynamicTable({
       setCrossReferenceDisplayFields(displayFieldIds || []);
       setShowCrossReferenceDialog(true);
     };
-
-    const handleNavigateToSubmission = (event: any) => {
-      console.log('Navigate to submission event received:', event.detail);
-      const { submissionRefId, targetFormId } = event.detail;
-      // Navigate to form submissions page with the ref_id
-      navigate(`/form-submissions?submissionRef=${submissionRefId}`);
-    };
     
     // Use a slight delay to ensure DOM is ready
     const setupListener = () => {
@@ -372,10 +365,8 @@ export function DynamicTable({
       console.log('Setting up event listener on:', tableElement);
       if (tableElement) {
         tableElement.addEventListener('showCrossReference', handleCrossReference);
-        document.addEventListener('navigateToSubmission', handleNavigateToSubmission);
         return () => {
           tableElement.removeEventListener('showCrossReference', handleCrossReference);
-          document.removeEventListener('navigateToSubmission', handleNavigateToSubmission);
         };
       } else {
         console.warn('Table element not found for event listener setup');
@@ -390,7 +381,7 @@ export function DynamicTable({
       clearTimeout(timer);
       if (cleanup) cleanup();
     };
-  }, [data, navigate]); // Re-run when data changes to ensure listener is active
+  }, [data]); // Re-run when data changes to ensure listener is active
 
   // Handle highlighting submission reference
   useEffect(() => {
