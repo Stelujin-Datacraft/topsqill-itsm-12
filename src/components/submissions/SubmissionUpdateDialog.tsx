@@ -623,12 +623,12 @@ export function SubmissionUpdateDialog({
   value === undefined ||
   (Array.isArray(value) && value.length === 0);
 
-// ✅ Force overwrite the field with empty array when empty
-if (isEmptyValue) {
-  console.log(`⚙️ Clearing cross-reference field for ${label}`);
-  newData[field.id] = []; // not null, to make sure it overwrites
-  continue;
-}
+    // ✅ Mark cross-reference field for deletion when empty
+    if (isEmptyValue) {
+      console.log(`⚙️ Removing cross-reference field for ${label}`);
+      newData[field.id] = null; // Mark for deletion
+      continue;
+    }
 
 
     // --- STEP 1: Normalize submission_ref_ids ---
@@ -725,17 +725,23 @@ if (isEmptyValue) {
         // ✅ Merge new data with current data
         // For cross-reference fields, REPLACE instead of merge
         // For other fields, update with new values
-const mergedData = structuredClone(currentData);
+        const mergedData = structuredClone(currentData);
 
-for (const [key, value] of Object.entries(newData)) {
-  const field = fields.find((f) => f.id === key);
-  if (field?.field_type === "cross-reference") {
-    console.log(`🧹 Forcing overwrite of cross-reference field: ${key}`);
-    mergedData[key] = value; // even if []
-  } else {
-    mergedData[key] = value;
-  }
-}
+        for (const [key, value] of Object.entries(newData)) {
+          const field = fields.find((f) => f.id === key);
+          if (field?.field_type === "cross-reference") {
+            // If value is null or empty array, remove the field entirely
+            if (value === null || (Array.isArray(value) && value.length === 0)) {
+              console.log(`🗑️ Removing cross-reference field from database: ${key}`);
+              delete mergedData[key];
+            } else {
+              console.log(`🧹 Overwriting cross-reference field: ${key}`);
+              mergedData[key] = value;
+            }
+          } else {
+            mergedData[key] = value;
+          }
+        }
         const { error: updateErr } = await supabase
           .from("form_submissions")
           .update({ submission_data: mergedData })
