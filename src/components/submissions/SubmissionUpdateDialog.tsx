@@ -621,7 +621,7 @@ export function SubmissionUpdateDialog({
     
     if (isEmptyValue) {
       console.log(`Empty value provided for ${label}, clearing cross-reference data`);
-      newData[field.id] = []; // Clear cross-reference field with empty array
+      newData[field.id] = null; // Clear cross-reference field
       continue;
     }
 
