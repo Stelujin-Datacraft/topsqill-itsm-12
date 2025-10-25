@@ -454,7 +454,7 @@
 //   );
 // }
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -470,8 +470,25 @@ import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, MapPin, CheckCircle2, FileText } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getFieldType } from '@/data/fieldTypeMapping';
+
+interface CSVData {
+  headers: string[];
+  rows: any[][];
+  preview: any[];
+}
+
+interface FieldMapping {
+  csvColumn: string;
+  formField: string;
+  isValid: boolean;
+  errorMessage?: string;
+}
 
 export function SubmissionUpdateDialog({
   open,
@@ -484,14 +501,18 @@ export function SubmissionUpdateDialog({
   formId: string;
   onUpdateComplete: () => void;
 }) {
+  const [step, setStep] = useState(1);
   const [file, setFile] = useState<File | null>(null);
+  const [csvData, setCsvData] = useState<CSVData | null>(null);
   const [parsedData, setParsedData] = useState<any[]>([]);
+  const [mappings, setMappings] = useState<FieldMapping[]>([]);
+  const [formFields, setFormFields] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string>("");
   const { toast } = useToast();
 
   // ------------------ FILE HANDLING ------------------
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
     setFile(selectedFile);
@@ -502,9 +523,16 @@ export function SubmissionUpdateDialog({
 
     if (ext === "csv") {
       Papa.parse(selectedFile, {
-        header: true,
-        complete: (results) => processData(results.data),
+        header: false,
+        complete: (results) => {
+          const headers = results.data[0] as string[];
+          const rows = results.data.slice(1) as any[][];
+          const preview = rows.slice(0, 5);
+          setCsvData({ headers, rows, preview });
+          setStep(2);
+        },
         error: (err) => setError(`Error parsing CSV: ${err.message}`),
+        skipEmptyLines: true,
       });
     } else if (ext === "xlsx" || ext === "xls") {
       const reader = new FileReader();
@@ -513,8 +541,12 @@ export function SubmissionUpdateDialog({
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
           const workbook = XLSX.read(data, { type: "array" });
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          const json = XLSX.utils.sheet_to_json(sheet);
-          processData(json);
+          const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+          const headers = json[0] as string[];
+          const rows = json.slice(1) as any[][];
+          const preview = rows.slice(0, 5);
+          setCsvData({ headers, rows, preview });
+          setStep(2);
         } catch {
           setError("Error parsing Excel file");
         }
@@ -523,46 +555,127 @@ export function SubmissionUpdateDialog({
     } else {
       setError("Please upload a CSV or Excel file");
     }
-  };
+  }, []);
 
-  const processData = (data: any[]) => {
-    if (!data || data.length === 0) {
-      setError("No data found in file");
-      return;
-    }
+  // ------------------ FIELD MAPPING ------------------
+  const getMappableFields = useCallback(() => {
+    const nonMappableTypes = [
+      'cross-reference',
+      'child-cross-reference', 
+      'header',
+      'description',
+      'section-break',
+      'horizontal-line',
+      'record-table',
+      'matrix-grid'
+    ];
+    
+    return formFields.filter(field => !nonMappableTypes.includes(field.field_type));
+  }, [formFields]);
 
-    const first = data[0];
-    const hasId =
-      "Submission ID" in first ||
-      "submission_id" in first ||
-      "submissionId" in first;
+  const initializeMappings = useCallback(async () => {
+    if (!csvData) return;
 
-    if (!hasId) {
-      setError('File must contain a "Submission ID" column');
-      return;
-    }
+    try {
+      setIsProcessing(true);
+      const { data: fields, error: fieldsErr } = await supabase
+        .from("form_fields")
+        .select("id, label, field_type, custom_config, required")
+        .eq("form_id", formId);
 
-    const processed = data
-      .filter(
-        (row) =>
-          row["Submission ID"] || row["submission_id"] || row["submissionId"]
-      )
-      .map((row) => {
-        let id =
-          row["Submission ID"] || row["submission_id"] || row["submissionId"];
-        if (typeof id === "string" && id.startsWith("#")) id = id.substring(1);
-        const { "Submission ID": _, submission_id: __, submissionId: ___, ...rest } =
-          row;
-        return { submissionId: id, ...rest };
+      if (fieldsErr) throw new Error("Failed to load form fields");
+
+      setFormFields(fields);
+
+      const mappableFields = fields.filter(field => {
+        const nonMappableTypes = [
+          'cross-reference',
+          'child-cross-reference', 
+          'header',
+          'description',
+          'section-break',
+          'horizontal-line',
+          'record-table',
+          'matrix-grid'
+        ];
+        return !nonMappableTypes.includes(field.field_type);
       });
 
-    setParsedData(processed);
-  };
+      if (mappableFields.length === 0) {
+        toast({
+          title: "No Fields to Map",
+          description: "This form has no fields that can be mapped with CSV data.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Auto-match fields
+      const newMappings = mappableFields.map(field => {
+        const matchingHeader = csvData.headers.find(header => 
+          header.toLowerCase().includes(field.label.toLowerCase()) ||
+          header.toLowerCase().includes(field.id.toLowerCase())
+        );
+
+        return {
+          csvColumn: matchingHeader || '',
+          formField: field.id,
+          isValid: !field.required || !!matchingHeader,
+          errorMessage: field.required && !matchingHeader ? 'Required field must be mapped' : '',
+        };
+      });
+
+      setMappings(newMappings);
+      setStep(3);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load form fields");
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [csvData, formId, toast]);
+
+  const handleMappingChange = useCallback((index: number, csvColumn: string, formFieldId: string) => {
+    const formField = formFields.find(f => f.id === formFieldId);
+    
+    setMappings(prev => {
+      const newMappings = [...prev];
+      newMappings[index] = {
+        csvColumn,
+        formField: formFieldId,
+        isValid: !formField?.required || !!csvColumn,
+        errorMessage: formField?.required && !csvColumn ? 'Required field must be mapped' : '',
+      };
+      return newMappings;
+    });
+  }, [formFields]);
 
   // ------------------ MAIN UPDATE ------------------
   const handleUpdate = async () => {
-    if (parsedData.length === 0) {
-      setError("No data to update");
+    if (!csvData || !mappings.length) return;
+
+    const mappableFields = getMappableFields();
+    const requiredMappableFields = mappableFields.filter(f => f.required);
+    const mappedRequiredFields = requiredMappableFields.filter(rf => 
+      mappings.some(m => m.formField === rf.id && m.isValid && m.csvColumn)
+    );
+
+    if (mappedRequiredFields.length !== requiredMappableFields.length) {
+      toast({
+        title: "Missing Required Fields",
+        description: "All required fields must be mapped to CSV columns.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const mappedFieldsWithErrors = mappings.filter(m => m.csvColumn && !m.isValid);
+    if (mappedFieldsWithErrors.length > 0) {
+      toast({
+        title: "Invalid Mappings",
+        description: "Please fix all mapping errors before updating.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -570,20 +683,33 @@ export function SubmissionUpdateDialog({
     setError("");
 
     try {
-      const { data: fields, error: fieldsErr } = await supabase
-        .from("form_fields")
-        .select("id, label, field_type, custom_config")
-        .eq("form_id", formId);
+      const labelToField = new Map(formFields.map((f) => [f.label, f]));
+      
+      // Find Submission ID column
+      const submissionIdColumn = csvData.headers.find(h => 
+        h === "Submission ID" || h === "submission_id" || h === "submissionId"
+      );
 
-      if (fieldsErr) throw new Error("Failed to load form fields");
+      if (!submissionIdColumn) {
+        setError('File must contain a "Submission ID" column');
+        return;
+      }
 
-      const labelToField = new Map(fields.map((f) => [f.label, f]));
+      const submissionIdIndex = csvData.headers.indexOf(submissionIdColumn);
 
       let success = 0;
       let failed = 0;
 
-      for (const submission of parsedData) {
-        const { submissionId, ...fieldsData } = submission;
+      for (const row of csvData.rows) {
+        let submissionId = row[submissionIdIndex];
+        if (!submissionId) {
+          failed++;
+          continue;
+        }
+
+        if (typeof submissionId === "string" && submissionId.startsWith("#")) {
+          submissionId = submissionId.substring(1);
+        }
 
         const { data: existing, error: fetchErr } = await supabase
           .from("form_submissions")
@@ -605,133 +731,120 @@ export function SubmissionUpdateDialog({
 
         const newData: Record<string, any> = {};
 
- for (const [label, value] of Object.entries(fieldsData)) {
-  const field = labelToField.get(label);
-  if (!field) {
-    console.warn(`No field found for label: "${label}"`);
-    continue;
-  }
+        // Use mappings to extract data from CSV row
+        for (const mapping of mappings) {
+          if (!mapping.csvColumn || !mapping.formField) continue;
 
-  if (field.field_type === "cross-reference") {
-    console.log(`🧩 Processing cross-reference field: ${label}`);
-    console.log("Raw value:", value);
+          const columnIndex = csvData.headers.indexOf(mapping.csvColumn);
+          if (columnIndex === -1) continue;
 
-    // Check if value is explicitly empty or not provided
-    const isEmptyValue =
-  value === "" ||
-  value === null ||
-  value === undefined ||
-  (Array.isArray(value) && value.length === 0);
+          const value = row[columnIndex];
+          const field = formFields.find(f => f.id === mapping.formField);
+          if (!field) continue;
 
-    // ✅ Mark cross-reference field for deletion when empty
-    if (isEmptyValue) {
-      console.log(`⚙️ Removing cross-reference field for ${label}`);
-      newData[field.id] = null; // Mark for deletion
-      continue;
-    }
+          if (field.field_type === "cross-reference") {
+            console.log(`🧩 Processing cross-reference field: ${field.label}`);
+            console.log("Raw value:", value);
 
+            const isEmptyValue =
+              value === "" ||
+              value === null ||
+              value === undefined ||
+              (Array.isArray(value) && value.length === 0);
 
-    // --- STEP 1: Normalize submission_ref_ids ---
-    let refIds: string[] = [];
-    if (typeof value === "string") {
-      refIds = value
-        .replace(/[\[\]#\s]/g, "") // remove [ ], #, spaces
-        .split(",")
-        .map((v) => v.trim())
-        .filter(Boolean);
-    } else if (Array.isArray(value)) {
-      refIds = value.map((v) =>
-        String(v).replace(/^#/, "").trim()
-      );
-    } else if (value) {
-      refIds = [String(value).replace(/^#/, "").trim()];
-    }
+            if (isEmptyValue) {
+              console.log(`⚙️ Removing cross-reference field for ${field.label}`);
+              newData[field.id] = null;
+              continue;
+            }
 
-    console.log(`Normalized refIds for ${label}:`, refIds);
+            let refIds: string[] = [];
+            if (typeof value === "string") {
+              refIds = value
+                .replace(/[\[\]#\s]/g, "")
+                .split(",")
+                .map((v) => v.trim())
+                .filter(Boolean);
+            } else if (Array.isArray(value)) {
+              refIds = value.map((v) => String(v).replace(/^#/, "").trim());
+            } else if (value) {
+              refIds = [String(value).replace(/^#/, "").trim()];
+            }
 
-    // If after normalization we have no valid IDs, mark for deletion
-    if (refIds.length === 0) {
-      console.log(`No valid refIds found for ${label}, marking for deletion`);
-      newData[field.id] = null;
-      continue;
-    }
+            console.log(`Normalized refIds for ${field.label}:`, refIds);
 
-    // --- STEP 2: Parse custom_config safely ---
-    let customConfig: any = {};
-    try {
-      customConfig =
-        typeof field.custom_config === "string"
-          ? JSON.parse(field.custom_config)
-          : field.custom_config || {};
-    } catch (e) {
-      console.warn(`Failed to parse custom_config for ${label}:`, e);
-      customConfig = {};
-    }
+            if (refIds.length === 0) {
+              console.log(`No valid refIds found for ${field.label}, marking for deletion`);
+              newData[field.id] = null;
+              continue;
+            }
 
-    const targetFormId = customConfig?.targetFormId;
-    const displayColumns = customConfig?.displayColumns || [];
+            let customConfig: any = {};
+            try {
+              customConfig =
+                typeof field.custom_config === "string"
+                  ? JSON.parse(field.custom_config)
+                  : field.custom_config || {};
+            } catch (e) {
+              console.warn(`Failed to parse custom_config for ${field.label}:`, e);
+              customConfig = {};
+            }
 
-    if (!targetFormId) {
-      console.error(
-        `❌ Missing targetFormId for cross-reference field "${label}"`
-      );
-      continue;
-    }
+            const targetFormId = customConfig?.targetFormId;
+            const displayColumns = customConfig?.displayColumns || [];
 
-    // --- STEP 3: Fetch referenced submissions ---
-    const { data: targetRecords, error: refErr } = await supabase
-      .from("form_submissions")
-      .select("id, submission_ref_id, submission_data")
-      .eq("form_id", targetFormId)
-      .in("submission_ref_id", refIds);
+            if (!targetFormId) {
+              console.error(
+                `❌ Missing targetFormId for cross-reference field "${field.label}"`
+              );
+              continue;
+            }
 
-    if (refErr) {
-      console.error(`Error fetching linked records for ${label}:`, refErr);
-      continue;
-    }
+            const { data: targetRecords, error: refErr } = await supabase
+              .from("form_submissions")
+              .select("id, submission_ref_id, submission_data")
+              .eq("form_id", targetFormId)
+              .in("submission_ref_id", refIds);
 
-    if (!targetRecords || targetRecords.length === 0) {
-      console.warn(`No matching records found for ${label} with refIds:`, refIds);
-      newData[field.id] = null; // Mark for deletion if no records found
-      continue;
-    }
+            if (refErr) {
+              console.error(`Error fetching linked records for ${field.label}:`, refErr);
+              continue;
+            }
 
-    console.log(`Fetched ${targetRecords.length} linked records for ${label}`);
+            if (!targetRecords || targetRecords.length === 0) {
+              console.warn(`No matching records found for ${field.label} with refIds:`, refIds);
+              newData[field.id] = null;
+              continue;
+            }
 
-    // --- STEP 4: Build structured objects ---
-    const structuredRefs = targetRecords.map((rec) => {
-      const displayData: Record<string, any> = {};
-      for (const col of displayColumns) {
-        if (rec.submission_data?.[col] !== undefined) {
-          displayData[col] = rec.submission_data[col];
+            console.log(`Fetched ${targetRecords.length} linked records for ${field.label}`);
+
+            const structuredRefs = targetRecords.map((rec) => {
+              const displayData: Record<string, any> = {};
+              for (const col of displayColumns) {
+                if (rec.submission_data?.[col] !== undefined) {
+                  displayData[col] = rec.submission_data[col];
+                }
+              }
+              return {
+                id: rec.id,
+                displayData,
+                submission_ref_id: rec.submission_ref_id,
+              };
+            });
+
+            console.log(`✅ Final structuredRefs for ${field.label}:`, structuredRefs);
+            newData[field.id] = structuredRefs;
+          } else {
+            newData[field.id] = value;
+          }
         }
-      }
-      return {
-        id: rec.id,
-        displayData,
-        submission_ref_id: rec.submission_ref_id,
-      };
-    });
 
-    console.log(`✅ Final structuredRefs for ${label}:`, structuredRefs);
-
-    // Replace existing data with new data (not merge)
-    newData[field.id] = structuredRefs;
-  } else {
-    // Normal field
-    newData[field.id] = value;
-  }
-}
-
-        // ✅ Merge new data with current data
-        // For cross-reference fields, REPLACE instead of merge
-        // For other fields, update with new values
         const mergedData = structuredClone(currentData);
 
         for (const [key, value] of Object.entries(newData)) {
-          const field = fields.find((f) => f.id === key);
+          const field = formFields.find((f) => f.id === key);
           if (field?.field_type === "cross-reference") {
-            // If value is null or empty array, remove the field entirely
             if (value === null || (Array.isArray(value) && value.length === 0)) {
               console.log(`🗑️ Removing cross-reference field from database: ${key}`);
               delete mergedData[key];
@@ -743,6 +856,7 @@ export function SubmissionUpdateDialog({
             mergedData[key] = value;
           }
         }
+
         const { error: updateErr } = await supabase
           .from("form_submissions")
           .update({ submission_data: mergedData })
@@ -769,8 +883,12 @@ export function SubmissionUpdateDialog({
   };
 
   const resetDialog = () => {
+    setStep(1);
     setFile(null);
+    setCsvData(null);
     setParsedData([]);
+    setMappings([]);
+    setFormFields([]);
     setError("");
   };
 
@@ -783,77 +901,180 @@ export function SubmissionUpdateDialog({
         if (!newOpen) resetDialog();
       }}
     >
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="max-w-7xl h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Update Form Submissions</DialogTitle>
-          <DialogDescription>
-            Upload a CSV or Excel file to update submission data. The file must
-            include a "Submission ID" column.
-          </DialogDescription>
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Update Form Submissions
+            <Badge variant="outline">Step {step} of 3</Badge>
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="file">Select File</Label>
-            <Input
-              id="file"
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              onChange={handleFileChange}
-              disabled={isProcessing}
-            />
-          </div>
+        <div className="flex-1 overflow-auto">
+          {/* Step 1: Upload File */}
+          {step === 1 && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Upload File</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="file">Select CSV or Excel File</Label>
+                      <Input
+                        id="file"
+                        type="file"
+                        accept=".csv,.xlsx,.xls"
+                        onChange={handleFileChange}
+                        disabled={isProcessing}
+                      />
+                      <p className="text-sm text-muted-foreground mt-2">
+                        File must include a "Submission ID" column to identify records.
+                      </p>
+                    </div>
 
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
+                    {error && (
+                      <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>{error}</AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
-          {parsedData.length > 0 && (
-            <div className="space-y-2">
-              <Label>Preview</Label>
-              <div className="border rounded-md p-4 bg-muted/50 max-h-[200px] overflow-y-auto">
-                <p className="text-sm text-muted-foreground mb-2">
-                  Found {parsedData.length} submission(s) to update
-                </p>
-                <div className="space-y-1">
-                  {parsedData.slice(0, 5).map((s, i) => (
-                    <div key={i} className="text-xs font-mono">
-                      ID: {s.submissionId} - {Object.keys(s).length - 1} field(s)
-                    </div>
-                  ))}
-                  {parsedData.length > 5 && (
-                    <p className="text-xs text-muted-foreground">
-                      ... and {parsedData.length - 5} more
-                    </p>
-                  )}
-                </div>
+          {/* Step 2: Preview Data */}
+          {step === 2 && csvData && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Preview Data</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Found {csvData.rows.length} rows. Showing first 5 rows for preview.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-auto max-h-96 border rounded">
+                    <table className="w-full">
+                      <thead className="bg-muted">
+                        <tr>
+                          {csvData.headers.map((header, index) => (
+                            <th key={index} className="p-2 text-left font-medium border-r">
+                              {header}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {csvData.preview.map((row, rowIndex) => (
+                          <tr key={rowIndex} className="border-t">
+                            {row.map((cell: any, cellIndex: number) => (
+                              <td key={cellIndex} className="p-2 border-r text-sm">
+                                {cell?.toString() || ''}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={() => setStep(1)}>
+                  Back
+                </Button>
+                <Button onClick={initializeMappings} disabled={isProcessing}>
+                  {isProcessing ? 'Loading...' : 'Continue to Mapping'}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Map Fields */}
+          {step === 3 && csvData && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    Map CSV Columns to Form Fields
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Map form fields to CSV columns. Only required fields (*) must be mapped, others are optional.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {getMappableFields().map((field, index) => {
+                    const mapping = mappings[index];
+                    return (
+                      <div key={field.id} className="flex items-center gap-4 p-4 border rounded">
+                        <div className="flex-1">
+                          <Label className="flex items-center gap-1">
+                            {field.label}
+                            {field.required && <span className="text-destructive">*</span>}
+                            <Badge variant="outline" className="ml-2">
+                              {getFieldType(field.field_type)}
+                            </Badge>
+                          </Label>
+                        </div>
+                        
+                        <div className="flex-1">
+                          <Select
+                            value={mapping?.csvColumn || ''}
+                            onValueChange={(value) => handleMappingChange(index, value, field.id)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select CSV column" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {csvData.headers.map((header) => (
+                                <SelectItem key={header} value={header}>
+                                  {header}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="w-8 flex justify-center">
+                          {mapping?.isValid ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                          ) : mapping?.csvColumn ? (
+                            <AlertCircle className="h-5 w-5 text-destructive" />
+                          ) : null}
+                        </div>
+
+                        {mapping?.errorMessage && (
+                          <div className="flex-1 text-sm text-destructive">
+                            {mapping.errorMessage}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={() => setStep(2)}>
+                  Back to Preview
+                </Button>
+                <Button 
+                  onClick={handleUpdate} 
+                  disabled={isProcessing || mappings.some(m => m.csvColumn && !m.isValid)}
+                >
+                  {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isProcessing ? 'Updating...' : `Update ${csvData.rows.length} Records`}
+                </Button>
               </div>
             </div>
           )}
         </div>
-
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => {
-              onOpenChange(false);
-              resetDialog();
-            }}
-            disabled={isProcessing}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleUpdate}
-            disabled={parsedData.length === 0 || isProcessing}
-          >
-            {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Update {parsedData.length} Submission(s)
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
