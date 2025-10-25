@@ -620,8 +620,8 @@ export function SubmissionUpdateDialog({
     const isEmptyValue = value === "" || value === null || value === undefined;
     
     if (isEmptyValue) {
-      console.log(`No value provided for ${label}, skipping update (keeping existing data)`);
-      // Don't add to newData - this will preserve existing data
+      console.log(`Empty value provided for ${label}, clearing cross-reference data`);
+      newData[field.id] = []; // Clear cross-reference field with empty array
       continue;
     }
 
