@@ -612,18 +612,24 @@ export function SubmissionUpdateDialog({
     continue;
   }
 
-  if (field.field_type === "cross_reference") {
+  if (field.field_type === "cross-reference") {
     console.log(`🧩 Processing cross-reference field: ${label}`);
     console.log("Raw value:", value);
 
     // Check if value is explicitly empty or not provided
-    const isEmptyValue = value === "" || value === null || value === undefined;
-    
-    if (isEmptyValue) {
-      console.log(`Empty value provided for ${label}, clearing cross-reference data`);
-      newData[field.id] = null; // Clear cross-reference field
-      continue;
-    }
+    const isEmptyValue =
+  value === "" ||
+  value === null ||
+  value === undefined ||
+  (Array.isArray(value) && value.length === 0);
+
+// ✅ Force overwrite the field with empty array when empty
+if (isEmptyValue) {
+  console.log(`⚙️ Clearing cross-reference field for ${label}`);
+  newData[field.id] = []; // not null, to make sure it overwrites
+  continue;
+}
+
 
     // --- STEP 1: Normalize submission_ref_ids ---
     let refIds: string[] = [];
@@ -719,8 +725,17 @@ export function SubmissionUpdateDialog({
         // ✅ Merge new data with current data
         // For cross-reference fields, REPLACE instead of merge
         // For other fields, update with new values
-        const mergedData = { ...currentData, ...newData };
+const mergedData = structuredClone(currentData);
 
+for (const [key, value] of Object.entries(newData)) {
+  const field = fields.find((f) => f.id === key);
+  if (field?.field_type === "cross-reference") {
+    console.log(`🧹 Forcing overwrite of cross-reference field: ${key}`);
+    mergedData[key] = value; // even if []
+  } else {
+    mergedData[key] = value;
+  }
+}
         const { error: updateErr } = await supabase
           .from("form_submissions")
           .update({ submission_data: mergedData })
