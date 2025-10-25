@@ -649,9 +649,10 @@ export function SubmissionUpdateDialog({
 
     console.log(`Normalized refIds for ${label}:`, refIds);
 
-    // If after normalization we have no valid IDs, skip
+    // If after normalization we have no valid IDs, mark for deletion
     if (refIds.length === 0) {
-      console.log(`No valid refIds found for ${label}, skipping update`);
+      console.log(`No valid refIds found for ${label}, marking for deletion`);
+      newData[field.id] = null;
       continue;
     }
 
@@ -691,7 +692,7 @@ export function SubmissionUpdateDialog({
 
     if (!targetRecords || targetRecords.length === 0) {
       console.warn(`No matching records found for ${label} with refIds:`, refIds);
-      newData[field.id] = []; // Set empty array if no records found
+      newData[field.id] = null; // Mark for deletion if no records found
       continue;
     }
 
