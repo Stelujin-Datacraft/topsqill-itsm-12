@@ -616,6 +616,15 @@ export function SubmissionUpdateDialog({
     console.log(`🧩 Processing cross-reference field: ${label}`);
     console.log("Raw value:", value);
 
+    // Check if value is explicitly empty or not provided
+    const isEmptyValue = value === "" || value === null || value === undefined;
+    
+    if (isEmptyValue) {
+      console.log(`No value provided for ${label}, skipping update (keeping existing data)`);
+      // Don't add to newData - this will preserve existing data
+      continue;
+    }
+
     // --- STEP 1: Normalize submission_ref_ids ---
     let refIds: string[] = [];
     if (typeof value === "string") {
@@ -633,6 +642,12 @@ export function SubmissionUpdateDialog({
     }
 
     console.log(`Normalized refIds for ${label}:`, refIds);
+
+    // If after normalization we have no valid IDs, skip
+    if (refIds.length === 0) {
+      console.log(`No valid refIds found for ${label}, skipping update`);
+      continue;
+    }
 
     // --- STEP 2: Parse custom_config safely ---
     let customConfig: any = {};
@@ -653,7 +668,6 @@ export function SubmissionUpdateDialog({
       console.error(
         `❌ Missing targetFormId for cross-reference field "${label}"`
       );
-      newData[field.id] = []; // set as empty array
       continue;
     }
 
@@ -666,14 +680,19 @@ export function SubmissionUpdateDialog({
 
     if (refErr) {
       console.error(`Error fetching linked records for ${label}:`, refErr);
-      newData[field.id] = [];
       continue;
     }
 
-    console.log(`Fetched ${targetRecords?.length || 0} linked records for ${label}`);
+    if (!targetRecords || targetRecords.length === 0) {
+      console.warn(`No matching records found for ${label} with refIds:`, refIds);
+      newData[field.id] = []; // Set empty array if no records found
+      continue;
+    }
+
+    console.log(`Fetched ${targetRecords.length} linked records for ${label}`);
 
     // --- STEP 4: Build structured objects ---
-    const structuredRefs = (targetRecords || []).map((rec) => {
+    const structuredRefs = targetRecords.map((rec) => {
       const displayData: Record<string, any> = {};
       for (const col of displayColumns) {
         if (rec.submission_data?.[col] !== undefined) {
@@ -689,6 +708,7 @@ export function SubmissionUpdateDialog({
 
     console.log(`✅ Final structuredRefs for ${label}:`, structuredRefs);
 
+    // Replace existing data with new data (not merge)
     newData[field.id] = structuredRefs;
   } else {
     // Normal field
@@ -696,24 +716,10 @@ export function SubmissionUpdateDialog({
   }
 }
 
-        // ✅ Merge safely
-        const mergedData = { ...currentData };
-        for (const key of Object.keys(newData)) {
-          if (Array.isArray(newData[key]) && Array.isArray(currentData[key])) {
-            const existingIds = new Set(
-              currentData[key].map((r: any) => r.submission_ref_id)
-            );
-            const merged = [
-              ...currentData[key],
-              ...newData[key].filter(
-                (r: any) => !existingIds.has(r.submission_ref_id)
-              ),
-            ];
-            mergedData[key] = merged;
-          } else {
-            mergedData[key] = newData[key];
-          }
-        }
+        // ✅ Merge new data with current data
+        // For cross-reference fields, REPLACE instead of merge
+        // For other fields, update with new values
+        const mergedData = { ...currentData, ...newData };
 
         const { error: updateErr } = await supabase
           .from("form_submissions")
