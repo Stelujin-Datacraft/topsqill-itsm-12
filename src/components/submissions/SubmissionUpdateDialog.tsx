@@ -749,6 +749,7 @@ export function SubmissionUpdateDialog({
               value === "" ||
               value === null ||
               value === undefined ||
+              value === 'N/A' ||
               (Array.isArray(value) && value.length === 0);
 
             if (isEmptyValue) {
