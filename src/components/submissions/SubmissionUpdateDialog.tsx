@@ -560,7 +560,6 @@ export function SubmissionUpdateDialog({
   // ------------------ FIELD MAPPING ------------------
   const getMappableFields = useCallback(() => {
     const nonMappableTypes = [
-      'cross-reference',
       'child-cross-reference', 
       'header',
       'description',
