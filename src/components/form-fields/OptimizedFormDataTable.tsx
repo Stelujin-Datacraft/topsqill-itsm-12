@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,6 +60,7 @@ export function OptimizedFormDataTable({
   autoSelectedRecords = [],
   isAutoSelectionLoading = false
 }: OptimizedFormDataTableProps) {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeFilters, setActiveFilters] = useState<FilterCondition[]>([]);
@@ -218,8 +220,7 @@ export function OptimizedFormDataTable({
     setCurrentPage(1);
   };
   const handleViewSubmission = (submissionId: string) => {
-    const url = `/submission/${submissionId}`;
-    window.open(url, '_blank');
+    navigate(`/submission/${submissionId}`);
   };
   const formatCellValue = (value: any, fieldType?: string) => {
     if (value === null || value === undefined || value === '' || value === '-') {
