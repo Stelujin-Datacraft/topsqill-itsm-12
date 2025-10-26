@@ -55,8 +55,8 @@ export function ChildCrossReferenceField({
   const parentForm = forms.find(f => f.id === field.customConfig?.parentFormId);
   const targetForm = forms.find(f => f.id === field.customConfig?.targetFormId);
 
-  // Check if field has proper auto-generated configuration
-  const hasAutoConfig = field.customConfig?.targetFormId && field.customConfig?.displayColumns && field.customConfig?.displayColumns.length > 0;
+  // Check if field has proper configuration - allow empty displayColumns
+  const hasAutoConfig = field.customConfig?.targetFormId && field.customConfig?.parentFormId && field.customConfig?.parentFieldId;
 
   // Get auto-selected records for child cross-reference
   const {
@@ -67,16 +67,17 @@ export function ChildCrossReferenceField({
     currentSubmissionId,
     parentFormId: field.customConfig?.parentFormId,
     crossReferenceFieldId: field.customConfig?.parentFieldId,
-    displayColumns: field.customConfig?.displayColumns,
+    displayColumns: field.customConfig?.displayColumns || [],
     enabled: hasAutoConfig && !!currentSubmissionId && !isPreview
   });
 
   // Create properly typed config object with better defaults
+  // If no display columns configured, the table will show submission_ref_id by default
   const tableConfig = hasAutoConfig ? {
     targetFormId: field.customConfig.targetFormId,
     targetFormName: field.customConfig.targetFormName || targetForm?.name || 'Unknown Form',
     filters: field.customConfig.filters || [],
-    displayColumns: field.customConfig.displayColumns || [],
+    displayColumns: field.customConfig.displayColumns || [], // Empty array is fine, table handles it
     enableSorting: field.customConfig.enableSorting ?? true,
     enableSearch: field.customConfig.enableSearch ?? true,
     pageSize: field.customConfig.pageSize || 10,
