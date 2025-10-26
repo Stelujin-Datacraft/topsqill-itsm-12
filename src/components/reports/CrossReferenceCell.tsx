@@ -83,25 +83,20 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
     );
   }
 
-  // Display clickable links for each submission ref ID
+  // Display button with count
   return (
-    <div className="flex flex-wrap gap-1">
-      {records.map((record) => (
-        <a
-          key={record.id}
-          href={`/submission/${record.id}`}
-          className="text-primary hover:underline text-sm font-medium"
-          onClick={(e) => {
-            e.preventDefault();
-            window.location.href = `/submission/${record.id}`;
-          }}
-        >
-          {record.submission_ref_id}
-        </a>
-      ))}
-      {records.length === 0 && normalizedSubmissionRefIds.length > 0 && (
-        <span className="text-xs text-muted-foreground">No records found</span>
-      )}
-    </div>
+    <Button
+      variant="outline"
+      size="sm"
+      className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1 px-2"
+      onClick={handleClick}
+    >
+      <div className="text-sm">
+        <span className="text-primary font-medium">
+          View ({normalizedSubmissionRefIds.length})
+        </span>
+      </div>
+      <ExternalLink className="h-3 w-3 ml-2 opacity-50" />
+    </Button>
   );
 }

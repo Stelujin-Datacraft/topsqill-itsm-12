@@ -34,9 +34,9 @@ export function CrossReferenceDialog({
     displayFieldIds
   );
 
-  const handleSubmissionClick = (submissionId: string) => {
-    // Navigate to the submission by finding it using submission_ref_id
-    navigate(`/form-submissions?submissionRef=${submissionId}`);
+  const handleSubmissionClick = (recordId: string) => {
+    // Navigate directly to the submission detail page
+    navigate(`/submission/${recordId}`);
     onOpenChange(false);
   };
 
@@ -54,18 +54,12 @@ export function CrossReferenceDialog({
             </div>
           ) : (
             <div className="space-y-2 p-1">
-              {(records.length > 0 ? records : submissionIds.map(id => ({ 
-                submission_ref_id: id, 
-                displayData: id,
-                id: id,
-                form_id: '',
-                submission_data: {}
-              }))).map((record, index) => (
+              {records.map((record, index) => (
                <Button
                 key={`${record.submission_ref_id}-${index}`}
                 variant="outline"
-                className="w-full justify-start text-left p-4 h-auto hover:bg-transparent"
-                onClick={() => handleSubmissionClick(record.submission_ref_id)}
+                className="w-full justify-start text-left p-4 h-auto hover:bg-accent"
+                onClick={() => handleSubmissionClick(record.id)}
               >
                 <div className="flex flex-col items-start w-full">
                   <Badge variant="secondary" className="font-mono mb-1">
