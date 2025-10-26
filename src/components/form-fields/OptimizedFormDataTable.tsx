@@ -12,6 +12,7 @@ import { FormReferenceTag } from '@/components/FormReferenceTag';
 import { OptimizedFilterControls } from './components/OptimizedFilterControls';
 import { SortControls, getSortIcon } from './components/SortControls';
 import { useOptimizedFormSubmissionData } from '@/hooks/useOptimizedFormSubmissionData';
+import { supabase } from '@/integrations/supabase/client';
 interface FilterCondition {
   id: string;
   field: string;
@@ -104,22 +105,62 @@ export function OptimizedFormDataTable({
       value,
       autoSelectedRecords
     });
-    const manuallySelectedRecords = value && Array.isArray(value) && value.length > 0 ? value.map(item => ({
-      id: item.id || item.recordId,
-      submission_ref_id: item.submission_ref_id || item.refId,
-      displayData: item.displayData || item
-    })) : [];
-
-    // Combine manually selected and auto-selected records, avoiding duplicates
-    const allRecords = [...manuallySelectedRecords];
-    autoSelectedRecords.forEach(autoRecord => {
-      const alreadyExists = allRecords.some(record => record.id === autoRecord.id);
-      if (!alreadyExists) {
-        allRecords.push(autoRecord);
+    
+    // Fetch full record data if value contains only submission_ref_ids
+    const initializeRecords = async () => {
+      let manuallySelectedRecords: SelectedRecord[] = [];
+      
+      if (value && Array.isArray(value) && value.length > 0) {
+        // Check if value contains full objects or just ref IDs
+        const firstItem = value[0];
+        const hasFullData = typeof firstItem === 'object' && firstItem !== null && 
+                            ('id' in firstItem || 'recordId' in firstItem);
+        
+        if (hasFullData) {
+          // Value already contains full record objects
+          manuallySelectedRecords = value.map(item => ({
+            id: item.id || item.recordId,
+            submission_ref_id: item.submission_ref_id || item.refId,
+            displayData: item.displayData || item
+          }));
+        } else {
+          // Value contains only submission_ref_ids (strings) - fetch full data
+          const refIds = value.filter(id => typeof id === 'string' && id.trim());
+          if (refIds.length > 0 && config.targetFormId) {
+            try {
+              const { data: submissions, error } = await supabase
+                .from('form_submissions')
+                .select('id, submission_ref_id, submission_data')
+                .eq('form_id', config.targetFormId)
+                .in('submission_ref_id', refIds);
+              
+              if (error) throw error;
+              
+              manuallySelectedRecords = (submissions || []).map(sub => ({
+                id: sub.id,
+                submission_ref_id: sub.submission_ref_id || '',
+                displayData: (sub.submission_data as Record<string, any>) || {}
+              }));
+            } catch (error) {
+              console.error('Error fetching cross-reference records:', error);
+            }
+          }
+        }
       }
-    });
-    console.log('✅ Setting initial selected records:', allRecords);
-    setSelectedRecords(allRecords);
+
+      // Combine manually selected and auto-selected records, avoiding duplicates
+      const allRecords = [...manuallySelectedRecords];
+      autoSelectedRecords.forEach(autoRecord => {
+        const alreadyExists = allRecords.some(record => record.id === autoRecord.id);
+        if (!alreadyExists) {
+          allRecords.push(autoRecord);
+        }
+      });
+      console.log('✅ Setting initial selected records:', allRecords);
+      setSelectedRecords(allRecords);
+    };
+    
+    initializeRecords();
   }, []); // Only run once on mount
 
   // Update selected records when autoSelectedRecords changes (but don't reset manually selected ones)
