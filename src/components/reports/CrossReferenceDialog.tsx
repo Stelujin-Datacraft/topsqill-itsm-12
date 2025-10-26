@@ -54,7 +54,13 @@ export function CrossReferenceDialog({
             </div>
           ) : (
             <div className="space-y-2 p-1">
-              {records.map((record, index) => (
+              {(records.length > 0 ? records : submissionIds.map(id => ({ 
+                submission_ref_id: id, 
+                displayData: '',
+                id: id,
+                form_id: '',
+                submission_data: {}
+              }))).map((record, index) => (
                <Button
                 key={`${record.submission_ref_id}-${index}`}
                 variant="outline"
