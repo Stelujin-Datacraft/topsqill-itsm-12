@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { FormField } from '@/types/form';
 import { Button } from '@/components/ui/button';
-import { Settings, ArrowUp, Link } from 'lucide-react';
+import { Settings, ArrowUp, Link, Plus } from 'lucide-react';
 import { FieldConfigurationDialog } from './FieldConfigurationDialog';
 import { OptimizedFormDataTable } from './OptimizedFormDataTable';
+import { CreateRecordDialog } from './CreateRecordDialog';
 import { useForm } from '@/contexts/FormContext';
 import { Badge } from '@/components/ui/badge';
 import { useChildCrossReferenceAutoSelection } from '@/hooks/useChildCrossReferenceAutoSelection';
+import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
+import { useProject } from '@/contexts/ProjectContext';
 interface ChildCrossReferenceFieldProps {
   field: FormField;
   value?: any;
@@ -32,7 +35,11 @@ export function ChildCrossReferenceField({
   const {
     forms
   } = useForm();
+  const { currentProject } = useProject();
+  const { hasPermission } = useUnifiedAccessControl(currentProject?.id);
   const [configOpen, setConfigOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const handleConfigSave = (config: any) => {
     console.log('Saving child cross reference configuration:', config);
 
@@ -54,6 +61,14 @@ export function ChildCrossReferenceField({
   };
   const parentForm = forms.find(f => f.id === field.customConfig?.parentFormId);
   const targetForm = forms.find(f => f.id === field.customConfig?.targetFormId);
+  
+  // Check if user has permission to create records in the target form
+  const canCreateRecord = !isPreview && targetForm && hasPermission('forms', 'create', targetForm.id);
+
+  const handleRecordCreated = () => {
+    // Trigger refresh of the data table
+    setRefreshTrigger(prev => prev + 1);
+  };
 
   // Check if field has proper configuration - allow empty displayColumns
   const hasAutoConfig = field.customConfig?.targetFormId && field.customConfig?.parentFormId && field.customConfig?.parentFieldId;
@@ -143,20 +158,34 @@ export function ChildCrossReferenceField({
         </Badge>
       </div>
 
-      <div className="flex items-center justify-between">
-        {/* <label className="block text-sm font-medium">
-          {field.label}
-          {field.required && <span className="text-red-500 ml-1">*</span>}
-        </label> */}
-        <div className="flex items-center gap-2">
-          {!isPreview}
-        </div>
+      <div className="flex items-center justify-end">
+        {canCreateRecord && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setCreateDialogOpen(true)}
+            disabled={disabled}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Record
+          </Button>
+        )}
       </div>
       
-      <OptimizedFormDataTable config={tableConfig} fieldType="cross-reference" value={value} onChange={handleSelectionChange} autoSelectedRecords={autoSelectedRecords} isAutoSelectionLoading={autoSelectionLoading} />
+      <OptimizedFormDataTable config={tableConfig} fieldType="cross-reference" value={value} onChange={handleSelectionChange} autoSelectedRecords={autoSelectedRecords} isAutoSelectionLoading={autoSelectionLoading} key={refreshTrigger} />
       
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       {!isPreview && <FieldConfigurationDialog field={field} open={configOpen} onClose={() => setConfigOpen(false)} onSave={handleConfigSave} />}
+
+      {canCreateRecord && targetForm && (
+        <CreateRecordDialog
+          open={createDialogOpen}
+          onClose={() => setCreateDialogOpen(false)}
+          targetForm={targetForm}
+          onRecordCreated={handleRecordCreated}
+        />
+      )}
     </div>;
 }

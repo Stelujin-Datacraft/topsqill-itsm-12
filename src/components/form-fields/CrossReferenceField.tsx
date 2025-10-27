@@ -2,11 +2,14 @@
 import React, { useState } from 'react';
 import { FormField } from '@/types/form';
 import { Button } from '@/components/ui/button';
-import { Settings } from 'lucide-react';
+import { Settings, Plus } from 'lucide-react';
 import { FieldConfigurationDialog } from './FieldConfigurationDialog';
 import { OptimizedFormDataTable } from './OptimizedFormDataTable';
+import { CreateRecordDialog } from './CreateRecordDialog';
 import { useForm } from '@/contexts/FormContext';
 import { useCrossReferenceSync } from '@/hooks/useCrossReferenceSync';
+import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
+import { useProject } from '@/contexts/ProjectContext';
 
 interface CrossReferenceFieldProps {
   field: FormField;
@@ -23,7 +26,11 @@ interface CrossReferenceFieldProps {
 export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isPreview, error, disabled, currentFormId, onCrossReferenceSync }: CrossReferenceFieldProps) {
   const { forms } = useForm();
   const { syncCrossReferenceField } = useCrossReferenceSync();
+  const { currentProject } = useProject();
+  const { hasPermission } = useUnifiedAccessControl(currentProject?.id);
   const [configOpen, setConfigOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleConfigSave = async (config: any) => {
     console.log('Saving cross reference configuration:', config);
@@ -80,6 +87,14 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
   };
 
   const targetForm = forms.find(f => f.id === field.customConfig?.targetFormId);
+  
+  // Check if user has permission to create records in the target form
+  const canCreateRecord = !isPreview && targetForm && hasPermission('forms', 'create', targetForm.id);
+
+  const handleRecordCreated = () => {
+    // Trigger refresh of the data table
+    setRefreshTrigger(prev => prev + 1);
+  };
 
   // Create properly typed config object with better defaults
   const tableConfig = field.customConfig?.targetFormId ? {
@@ -146,6 +161,18 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
           {field.label}
           {field.required && <span className="text-red-500 ml-1">*</span>}
         </label>
+        {canCreateRecord && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setCreateDialogOpen(true)}
+            disabled={disabled}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Record
+          </Button>
+        )}
        {/* {!isPreview && (
   <Button
     type="button"   // <-- Add this line
@@ -165,6 +192,7 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
         fieldType="cross-reference"
         value={value}
         onChange={handleSelectionChange}
+        key={refreshTrigger}
       />
       
       {error && <p className="text-sm text-red-500">{error}</p>}
@@ -175,6 +203,15 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
           open={configOpen}
           onClose={() => setConfigOpen(false)}
           onSave={handleConfigSave}
+        />
+      )}
+
+      {canCreateRecord && targetForm && (
+        <CreateRecordDialog
+          open={createDialogOpen}
+          onClose={() => setCreateDialogOpen(false)}
+          targetForm={targetForm}
+          onRecordCreated={handleRecordCreated}
         />
       )}
     </div>
