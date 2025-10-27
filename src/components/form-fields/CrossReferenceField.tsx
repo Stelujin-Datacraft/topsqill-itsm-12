@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FormField } from '@/types/form';
 import { Button } from '@/components/ui/button';
 import { Settings, Plus } from 'lucide-react';
 import { FieldConfigurationDialog } from './FieldConfigurationDialog';
 import { OptimizedFormDataTable } from './OptimizedFormDataTable';
-import { CreateRecordDialog } from './CreateRecordDialog';
 import { useForm } from '@/contexts/FormContext';
 import { useCrossReferenceSync } from '@/hooks/useCrossReferenceSync';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
@@ -24,12 +24,12 @@ interface CrossReferenceFieldProps {
 }
 
 export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isPreview, error, disabled, currentFormId, onCrossReferenceSync }: CrossReferenceFieldProps) {
+  const navigate = useNavigate();
   const { forms } = useForm();
   const { syncCrossReferenceField } = useCrossReferenceSync();
   const { currentProject } = useProject();
   const { hasPermission } = useUnifiedAccessControl(currentProject?.id);
   const [configOpen, setConfigOpen] = useState(false);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleConfigSave = async (config: any) => {
@@ -91,9 +91,10 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
   // Check if user has permission to create records in the target form
   const canCreateRecord = !isPreview && targetForm && hasPermission('forms', 'create', targetForm.id);
 
-  const handleRecordCreated = () => {
-    // Trigger refresh of the data table
-    setRefreshTrigger(prev => prev + 1);
+  const handleCreateRecord = () => {
+    if (targetForm) {
+      navigate(`/form/${targetForm.id}`);
+    }
   };
 
   // Create properly typed config object with better defaults
@@ -166,7 +167,7 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => setCreateDialogOpen(true)}
+            onClick={handleCreateRecord}
             disabled={disabled}
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -203,15 +204,6 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
           open={configOpen}
           onClose={() => setConfigOpen(false)}
           onSave={handleConfigSave}
-        />
-      )}
-
-      {canCreateRecord && targetForm && (
-        <CreateRecordDialog
-          open={createDialogOpen}
-          onClose={() => setCreateDialogOpen(false)}
-          targetForm={targetForm}
-          onRecordCreated={handleRecordCreated}
         />
       )}
     </div>

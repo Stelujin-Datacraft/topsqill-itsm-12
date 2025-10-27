@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FormField } from '@/types/form';
 import { Button } from '@/components/ui/button';
 import { Settings, ArrowUp, Link, Plus } from 'lucide-react';
 import { FieldConfigurationDialog } from './FieldConfigurationDialog';
 import { OptimizedFormDataTable } from './OptimizedFormDataTable';
-import { CreateRecordDialog } from './CreateRecordDialog';
 import { useForm } from '@/contexts/FormContext';
 import { Badge } from '@/components/ui/badge';
 import { useChildCrossReferenceAutoSelection } from '@/hooks/useChildCrossReferenceAutoSelection';
@@ -32,13 +32,13 @@ export function ChildCrossReferenceField({
   currentFormId,
   currentSubmissionId
 }: ChildCrossReferenceFieldProps) {
+  const navigate = useNavigate();
   const {
     forms
   } = useForm();
   const { currentProject } = useProject();
   const { hasPermission } = useUnifiedAccessControl(currentProject?.id);
   const [configOpen, setConfigOpen] = useState(false);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const handleConfigSave = (config: any) => {
     console.log('Saving child cross reference configuration:', config);
@@ -65,9 +65,10 @@ export function ChildCrossReferenceField({
   // Check if user has permission to create records in the target form
   const canCreateRecord = !isPreview && targetForm && hasPermission('forms', 'create', targetForm.id);
 
-  const handleRecordCreated = () => {
-    // Trigger refresh of the data table
-    setRefreshTrigger(prev => prev + 1);
+  const handleCreateRecord = () => {
+    if (targetForm) {
+      navigate(`/form/${targetForm.id}`);
+    }
   };
 
   // Check if field has proper configuration - allow empty displayColumns
@@ -164,7 +165,7 @@ export function ChildCrossReferenceField({
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => setCreateDialogOpen(true)}
+            onClick={handleCreateRecord}
             disabled={disabled}
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -178,14 +179,5 @@ export function ChildCrossReferenceField({
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       {!isPreview && <FieldConfigurationDialog field={field} open={configOpen} onClose={() => setConfigOpen(false)} onSave={handleConfigSave} />}
-
-      {canCreateRecord && targetForm && (
-        <CreateRecordDialog
-          open={createDialogOpen}
-          onClose={() => setCreateDialogOpen(false)}
-          targetForm={targetForm}
-          onRecordCreated={handleRecordCreated}
-        />
-      )}
     </div>;
 }
