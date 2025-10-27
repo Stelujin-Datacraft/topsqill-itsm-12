@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FormViewLayoutRenderer } from '@/components/FormViewLayoutRenderer';
 import { Form } from '@/types/form';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+import { useFormLoader } from '@/hooks/useFormLoader';
 
 interface CreateRecordDialogProps {
   open: boolean;
@@ -20,6 +21,9 @@ export function CreateRecordDialog({
   onRecordCreated 
 }: CreateRecordDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Load the full form with all fields when dialog opens
+  const { form: loadedForm, loading: formLoading } = useFormLoader(open ? targetForm.id : undefined);
 
   const handleSubmit = async (formData: Record<string, any>) => {
     if (isSubmitting) return;
@@ -66,14 +70,39 @@ export function CreateRecordDialog({
     }
   };
 
+  // Use the loaded form with fields if available, otherwise fall back to targetForm
+  const formToRender = loadedForm || targetForm;
+  const hasValidForm = formToRender && formToRender.fields && Array.isArray(formToRender.fields) && formToRender.fields.length > 0;
+
+  console.log('CreateRecordDialog - Rendering:', { 
+    open, 
+    formName: targetForm?.name, 
+    formLoading,
+    hasValidForm,
+    fieldsCount: formToRender?.fields?.length 
+  });
+
   return (
-    <Dialog open={open} onOpenChange={(newOpen) => !newOpen && !isSubmitting && onClose()}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      if (!newOpen && !isSubmitting) {
+        onClose();
+      }
+    }}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New {targetForm.name} Record</DialogTitle>
         </DialogHeader>
         
-        {isSubmitting ? (
+        {formLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-3 text-muted-foreground">Loading form...</span>
+          </div>
+        ) : !hasValidForm ? (
+          <div className="py-8 text-center text-muted-foreground">
+            Unable to load form fields. Please try again.
+          </div>
+        ) : isSubmitting ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <span className="ml-3 text-muted-foreground">Creating record...</span>
@@ -81,7 +110,7 @@ export function CreateRecordDialog({
         ) : (
           <div className="py-4">
             <FormViewLayoutRenderer 
-              form={targetForm}
+              form={formToRender}
               onSubmit={handleSubmit}
               showNavigation={false}
               showPublicHeader={false}
