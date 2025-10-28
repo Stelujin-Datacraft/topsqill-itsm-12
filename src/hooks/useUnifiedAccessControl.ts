@@ -356,34 +356,37 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     
     // Step 2: Check role permissions for specific resource
     if (resourceId) {
-      // For specific resource access - MUST have explicit role permission
+      // For specific resource access - check if there's an explicit role permission
       const rolePerms = state.rolePermissions[entityType][resourceId];
       
-      // IMPORTANT: If no role permission exists for this resource, DENY access
-      if (!rolePerms) {
-        console.log(`❌ Access denied: No role permission found for ${entityType} ${action} on ${resourceId}`);
-        return false;
+      // If explicit role permission exists, use it
+      if (rolePerms) {
+        let roleAllows = false;
+        switch (action) {
+          case 'create':
+            roleAllows = rolePerms.can_create;
+            break;
+          case 'read':
+            roleAllows = rolePerms.can_read;
+            break;
+          case 'update':
+            roleAllows = rolePerms.can_update;
+            break;
+          case 'delete':
+            roleAllows = rolePerms.can_delete;
+            break;
+        }
+        
+        console.log(`🎭 Explicit role permission for ${entityType} ${action} on ${resourceId}:`, roleAllows);
+        console.log(`✅ Final decision: ${roleAllows ? 'GRANTED' : 'DENIED'}`);
+        return roleAllows;
       }
       
-      let roleAllows = false;
-      switch (action) {
-        case 'create':
-          roleAllows = rolePerms.can_create;
-          break;
-        case 'read':
-          roleAllows = rolePerms.can_read;
-          break;
-        case 'update':
-          roleAllows = rolePerms.can_update;
-          break;
-        case 'delete':
-          roleAllows = rolePerms.can_delete;
-          break;
-      }
-      
-      console.log(`🎭 Role permission for ${entityType} ${action} on ${resourceId}:`, roleAllows);
-      console.log(`✅ Final decision: ${roleAllows ? 'GRANTED' : 'DENIED'}`);
-      return roleAllows;
+      // If no explicit role permission, fall back to top-level permission
+      // This allows users with top-level access to access all resources unless explicitly restricted
+      console.log(`📊 No explicit role permission for ${entityType} ${action} on ${resourceId} - using top-level permission: ${topLevelAllows}`);
+      console.log(`✅ Final decision: ${topLevelAllows ? 'GRANTED' : 'DENIED'}`);
+      return topLevelAllows;
     } else {
       // For general actions (like create), if user has top-level permission, grant access
       // The role is only used for specific resource access, not general actions
