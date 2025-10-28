@@ -89,6 +89,8 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
   const targetForm = forms.find(f => f.id === field.customConfig?.targetFormId);
   
   // Check if user has permission to create records in the target form (based on read access)
+  // For users with roles, check both top-level AND specific form permission
+  // This ensures role-based users can only create records in forms they have explicit access to
   const canCreateRecord = !isPreview && targetForm && hasPermission('forms', 'read', targetForm.id);
 
   const handleCreateRecord = () => {
