@@ -62,8 +62,8 @@ export function ChildCrossReferenceField({
   const parentForm = forms.find(f => f.id === field.customConfig?.parentFormId);
   const targetForm = forms.find(f => f.id === field.customConfig?.targetFormId);
   
-  // Check if user has permission to create records in the target form
-  const canCreateRecord = !isPreview && targetForm && hasPermission('forms', 'create', targetForm.id);
+  // Check if user has permission to create records in the target form (based on read access)
+  const canCreateRecord = !isPreview && targetForm && hasPermission('forms', 'read', targetForm.id);
 
   const handleCreateRecord = () => {
     if (targetForm) {
