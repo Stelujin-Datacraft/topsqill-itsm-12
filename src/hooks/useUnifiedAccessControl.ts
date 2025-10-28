@@ -362,8 +362,6 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       // IMPORTANT: If no role permission exists for this resource, DENY access
       if (!rolePerms) {
         console.log(`❌ Access denied: No role permission found for ${entityType} ${action} on ${resourceId}`);
-        console.log(`   Available role permissions for ${entityType}:`, Object.keys(state.rolePermissions[entityType]));
-        console.log(`   Looking for resource: ${resourceId}`);
         return false;
       }
       
