@@ -479,11 +479,18 @@ export function ChartPreview({
       if (value.status) {
         return value.status === 'approved' ? 1 : 0;
       }
+      // Handle currency objects
+      if (value.amount !== undefined) {
+        const numValue = Number(value.amount);
+        return isNaN(numValue) ? 0 : numValue;
+      }
       return 1;
     } else if (typeof value === 'number') {
-      return value;
+      return isNaN(value) ? 0 : value;
     } else if (value) {
-      return 1;
+      // Try to parse as number for string values
+      const numValue = Number(value);
+      return isNaN(numValue) ? 1 : numValue;
     }
     return 0;
   };
