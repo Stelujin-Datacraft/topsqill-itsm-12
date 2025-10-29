@@ -10,6 +10,7 @@ import { useForm } from '@/contexts/FormContext';
 import { useCrossReferenceSync } from '@/hooks/useCrossReferenceSync';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useProject } from '@/contexts/ProjectContext';
+import { useFormAccess } from '@/components/FormBuilder/FieldPropertiesDialog/hooks/useFormAccess';
 
 interface CrossReferenceFieldProps {
   field: FormField;
@@ -26,11 +27,15 @@ interface CrossReferenceFieldProps {
 export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isPreview, error, disabled, currentFormId, onCrossReferenceSync }: CrossReferenceFieldProps) {
   const navigate = useNavigate();
   const { forms } = useForm();
+  const { accessibleForms } = useFormAccess();
   const { syncCrossReferenceField } = useCrossReferenceSync();
   const { currentProject } = useProject();
   const { hasPermission } = useUnifiedAccessControl(currentProject?.id);
   const [configOpen, setConfigOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  // Use accessible forms for finding target form
+  const formsToUse = accessibleForms.length > 0 ? accessibleForms : forms;
 
   const handleConfigSave = async (config: any) => {
     console.log('Saving cross reference configuration:', config);
@@ -86,7 +91,7 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
     }
   };
 
-  const targetForm = forms.find(f => f.id === field.customConfig?.targetFormId);
+  const targetForm = formsToUse.find(f => f.id === field.customConfig?.targetFormId);
   
   // Check if user has permission to create records in the target form (based on read access)
   // For users with roles, check both top-level AND specific form permission

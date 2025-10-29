@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { useChildCrossReferenceAutoSelection } from '@/hooks/useChildCrossReferenceAutoSelection';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useProject } from '@/contexts/ProjectContext';
+import { useFormAccess } from '@/components/FormBuilder/FieldPropertiesDialog/hooks/useFormAccess';
 interface ChildCrossReferenceFieldProps {
   field: FormField;
   value?: any;
@@ -33,13 +34,15 @@ export function ChildCrossReferenceField({
   currentSubmissionId
 }: ChildCrossReferenceFieldProps) {
   const navigate = useNavigate();
-  const {
-    forms
-  } = useForm();
+  const { forms } = useForm();
+  const { accessibleForms } = useFormAccess();
   const { currentProject } = useProject();
   const { hasPermission } = useUnifiedAccessControl(currentProject?.id);
   const [configOpen, setConfigOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  // Use accessible forms for finding target form
+  const formsToUse = accessibleForms.length > 0 ? accessibleForms : forms;
   const handleConfigSave = (config: any) => {
     console.log('Saving child cross reference configuration:', config);
 
@@ -59,8 +62,8 @@ export function ChildCrossReferenceField({
       onChange(selectedRecords);
     }
   };
-  const parentForm = forms.find(f => f.id === field.customConfig?.parentFormId);
-  const targetForm = forms.find(f => f.id === field.customConfig?.targetFormId);
+  const parentForm = formsToUse.find(f => f.id === field.customConfig?.parentFormId);
+  const targetForm = formsToUse.find(f => f.id === field.customConfig?.targetFormId);
   
   // Check if user has permission to create records in the target form (based on read access)
   // For users with roles, check both top-level AND specific form permission
