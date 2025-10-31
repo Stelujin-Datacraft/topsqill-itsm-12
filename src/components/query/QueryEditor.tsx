@@ -131,7 +131,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
 
       {/* Help Text */}
       <div className="p-3 border-t border-border bg-muted/10 text-xs text-muted-foreground">
-        Press <kbd>Ctrl+Enter</kbd> (or <kbd>Cmd+Enter</kbd> on Mac) to execute • Only SELECT statements allowed
+        Press <kbd>Ctrl+Enter</kbd> (or <kbd>Cmd+Enter</kbd> on Mac) to execute • SELECT and UPDATE FORM statements allowed
       </div>
 
       {/* Errors */}
@@ -155,11 +155,17 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
       <div className="p-3 border-t border-border bg-muted/10">
         <h4 className="text-sm font-medium text-muted-foreground mb-2">Example Queries:</h4>
         <div className="space-y-1 text-xs text-muted-foreground font-mono">
+          <div className="font-semibold mt-2">SELECT queries:</div>
           <div>SELECT FIELD("field-uuid") FROM "form-uuid"</div>
-          <div>SELECT COUNT(*) FROM "form-uuid"</div>
+          <div>SELECT COUNT(FIELD("field-uuid")) FROM "form-uuid"</div>
           <div>SELECT SUM(FIELD("amount-field-uuid")) FROM "form-uuid"</div>
+          <div>SELECT AVG(FIELD("rating-field-uuid")) FROM "form-uuid"</div>
+          <div>SELECT MIN(FIELD("price-field-uuid")), MAX(FIELD("price-field-uuid")) FROM "form-uuid"</div>
           <div>SELECT FIELD("name-field") FROM "form-uuid" WHERE FIELD("status-field") = 'approved'</div>
-          <div>SELECT submission_id, submitted_by FROM "form-uuid"</div>
+          <div>SELECT submission_id, submitted_by, submitted_at FROM "form-uuid"</div>
+          <div className="font-semibold mt-2">UPDATE queries:</div>
+          <div>UPDATE FORM "form-uuid" SET FIELD("field-uuid") = 'new-value' WHERE submission_id = "submission-uuid"</div>
+          <div>UPDATE FORM "form-uuid" SET FIELD("target-field") = FIELD("source-field") WHERE submission_id = "submission-uuid"</div>
         </div>
       </div>
     </div>;

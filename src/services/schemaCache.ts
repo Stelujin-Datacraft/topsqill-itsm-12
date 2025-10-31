@@ -101,13 +101,14 @@ class SchemaCacheService {
     try {
       console.log('Refreshing schema cache...');
       
-      // Fetch all forms with their fields
+      // Fetch all forms with their fields (exclude deleted forms)
       const { data: forms, error: formsError } = await supabase
         .from('forms')
         .select(`
           id, 
           name, 
           description,
+          status,
           form_fields (
             id,
             label,
@@ -115,7 +116,8 @@ class SchemaCacheService {
             required,
             options
           )
-        `);
+        `)
+        .neq('status', 'deleted');
       
       if (formsError) {
         console.error('Error fetching forms:', formsError);

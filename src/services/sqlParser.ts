@@ -84,6 +84,16 @@ export function parseUserQuery(input: string): ParseResult {
     (_all, uuid) => `AVG( (submission_data ->> '${uuid}')::numeric )`
   )
 
+  selectExpr = selectExpr.replace(
+    /MIN\(\s*FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*\)/gi,
+    (_all, uuid) => `MIN( (submission_data ->> '${uuid}')::numeric )`
+  )
+
+  selectExpr = selectExpr.replace(
+    /MAX\(\s*FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*\)/gi,
+    (_all, uuid) => `MAX( (submission_data ->> '${uuid}')::numeric )`
+  )
+
   // 5. Transform remaining field access patterns
   selectExpr = transformFieldAccess(selectExpr)
   
@@ -213,6 +223,69 @@ export async function executeUserQuery(
       const columnExtractors: ((submission: any) => any)[] = [];
       
       columnExpressions.forEach(expr => {
+        // Handle aggregate functions - SUM, AVG, MIN, MAX, COUNT
+        const sumMatch = expr.match(/SUM\(\s*\(\s*submission_data\s*->>\s*'([^']+)'\s*\)::numeric\s*\)(?:\s+as\s+(\w+))?/i);
+        if (sumMatch) {
+          const fieldId = sumMatch[1];
+          const alias = sumMatch[2] || `sum_${fieldId}`;
+          columns.push(alias);
+          columnExtractors.push(() => {
+            const sum = submissions.reduce((acc, sub) => {
+              const val = parseFloat(sub.submission_data[fieldId]) || 0;
+              return acc + val;
+            }, 0);
+            return sum;
+          });
+          return;
+        }
+
+        const avgMatch = expr.match(/AVG\(\s*\(\s*submission_data\s*->>\s*'([^']+)'\s*\)::numeric\s*\)(?:\s+as\s+(\w+))?/i);
+        if (avgMatch) {
+          const fieldId = avgMatch[1];
+          const alias = avgMatch[2] || `avg_${fieldId}`;
+          columns.push(alias);
+          columnExtractors.push(() => {
+            const values = submissions.map(sub => parseFloat(sub.submission_data[fieldId]) || 0).filter(v => !isNaN(v));
+            return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+          });
+          return;
+        }
+
+        const minMatch = expr.match(/MIN\(\s*\(\s*submission_data\s*->>\s*'([^']+)'\s*\)::numeric\s*\)(?:\s+as\s+(\w+))?/i);
+        if (minMatch) {
+          const fieldId = minMatch[1];
+          const alias = minMatch[2] || `min_${fieldId}`;
+          columns.push(alias);
+          columnExtractors.push(() => {
+            const values = submissions.map(sub => parseFloat(sub.submission_data[fieldId]) || 0).filter(v => !isNaN(v));
+            return values.length > 0 ? Math.min(...values) : 0;
+          });
+          return;
+        }
+
+        const maxMatch = expr.match(/MAX\(\s*\(\s*submission_data\s*->>\s*'([^']+)'\s*\)::numeric\s*\)(?:\s+as\s+(\w+))?/i);
+        if (maxMatch) {
+          const fieldId = maxMatch[1];
+          const alias = maxMatch[2] || `max_${fieldId}`;
+          columns.push(alias);
+          columnExtractors.push(() => {
+            const values = submissions.map(sub => parseFloat(sub.submission_data[fieldId]) || 0).filter(v => !isNaN(v));
+            return values.length > 0 ? Math.max(...values) : 0;
+          });
+          return;
+        }
+
+        const countMatch = expr.match(/COUNT\(\s*submission_data\s*->>\s*'([^']+)'\s*\)(?:\s+as\s+(\w+))?/i);
+        if (countMatch) {
+          const fieldId = countMatch[1];
+          const alias = countMatch[2] || `count_${fieldId}`;
+          columns.push(alias);
+          columnExtractors.push(() => {
+            return submissions.filter(sub => sub.submission_data[fieldId] != null).length;
+          });
+          return;
+        }
+        
         // Handle submission_data field access
         const fieldMatch = expr.match(/submission_data ->> '([^']+)'(?:\s+as\s+(\w+))?/i);
         if (fieldMatch) {
@@ -247,9 +320,16 @@ export async function executeUserQuery(
       });
       
       if (columns.length > 0) {
-        const rows = submissions.map(submission => 
-          columnExtractors.map(extractor => extractor(submission))
+        // Check if this is an aggregate query (returns single row)
+        const isAggregateQuery = columnExpressions.some(expr => 
+          /^(SUM|AVG|MIN|MAX|COUNT)\(/i.test(expr.trim())
         );
+        
+        const rows = isAggregateQuery 
+          ? [columnExtractors.map(extractor => extractor(null))]
+          : submissions.map(submission => 
+              columnExtractors.map(extractor => extractor(submission))
+            );
         
         return { columns, rows, errors: [] };
       }

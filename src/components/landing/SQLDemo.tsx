@@ -6,7 +6,15 @@ import { Button } from "@/components/ui/button";
 const CodeMirror = React.lazy(() => import("@uiw/react-codemirror"));
 import { sql as sqlLang } from "@codemirror/lang-sql";
 
-const SAMPLE_QUERY = `-- Query your form submissions like a database\nSELECT department, COUNT(*) as total, AVG(satisfaction) as avg_score\nFROM submissions\nGROUP BY department\nORDER BY total DESC;`;
+const SAMPLE_QUERY = `-- Query your form submissions like a database
+SELECT department, 
+       COUNT(FIELD("satisfaction-field")) as total,
+       AVG(FIELD("satisfaction-field")) as avg_score,
+       MIN(FIELD("satisfaction-field")) as min_score,
+       MAX(FIELD("satisfaction-field")) as max_score
+FROM "form-uuid"
+GROUP BY department
+ORDER BY total DESC;`;
 
 const rows = [
   { id: 1, department: "Sales", satisfaction: 4.7 },
@@ -17,16 +25,22 @@ const rows = [
 ];
 
 function computeAggregate() {
-  const grouped: Record<string, { total: number; sum: number }> = {};
+  const grouped: Record<string, { total: number; sum: number; min: number; max: number }> = {};
   for (const r of rows) {
-    if (!grouped[r.department]) grouped[r.department] = { total: 0, sum: 0 };
+    if (!grouped[r.department]) {
+      grouped[r.department] = { total: 0, sum: 0, min: Infinity, max: -Infinity };
+    }
     grouped[r.department].total += 1;
     grouped[r.department].sum += r.satisfaction;
+    grouped[r.department].min = Math.min(grouped[r.department].min, r.satisfaction);
+    grouped[r.department].max = Math.max(grouped[r.department].max, r.satisfaction);
   }
   return Object.entries(grouped).map(([department, v]) => ({
     department,
     total: v.total,
     avg_score: Number((v.sum / v.total).toFixed(2)),
+    min_score: v.min,
+    max_score: v.max,
   }));
 }
 
