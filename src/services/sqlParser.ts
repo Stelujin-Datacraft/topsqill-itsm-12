@@ -128,17 +128,18 @@ export function parseUserQuery(input: string): ParseResult {
 export function parseUpdateFormQuery(input: string): ParseResult {
   const errors: string[] = []
 
-  // Parse the UPDATE FORM syntax
+  // Parse the UPDATE FORM syntax with flexible WHERE clause
+  // Supports both: WHERE submission_id = 'id' and WHERE FIELD('field_id') operator 'value'
   const updateMatch = input.match(
-    /^UPDATE\s+FORM\s+['""]([0-9a-fA-F\-]{36})['"\"]\s+SET\s+FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*=\s*(.+?)\s+WHERE\s+submission_id\s*=\s*['""]([0-9a-fA-F\-]{36})['"\"]/i
+    /^UPDATE\s+FORM\s+['""]([0-9a-fA-F\-]{36})['"\"]\s+SET\s+FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*=\s*(.+?)\s+WHERE\s+(.+)$/i
   )
 
   if (!updateMatch) {
-    errors.push('Invalid UPDATE FORM syntax. Expected: UPDATE FORM \'form_id\' SET FIELD(\'field_id\') = value WHERE submission_id = \'submission_id\'')
+    errors.push('Invalid UPDATE FORM syntax. Expected: UPDATE FORM \'form_id\' SET FIELD(\'field_id\') = value WHERE condition')
     return { errors }
   }
 
-  const [, formId, fieldId, valueExpression, submissionId] = updateMatch
+  const [, formId, fieldId, valueExpression, whereClause] = updateMatch
 
   // Transform value expression to handle FIELD() syntax and functions
   let transformedValue = valueExpression.trim()
@@ -155,16 +156,42 @@ export function parseUpdateFormQuery(input: string): ParseResult {
     (_match, uuid, length) => `LEFT((submission_data ->> '${uuid}'), ${length})`
   )
 
-  // Build the final SQL
-  const sql = `UPDATE form_submissions
-SET submission_data = jsonb_set(
-  submission_data,
-  '{${fieldId}}',
-  to_jsonb(${transformedValue}::text),
-  true
-)
-WHERE id = '${submissionId}'
-AND form_id = '${formId}';`
+  // Parse WHERE clause
+  let sqlWhereClause = ''
+  
+  // Check if it's a submission_id condition (backward compatibility)
+  const submissionIdMatch = whereClause.match(/submission_id\s*(=|!=)\s*['""]([0-9a-fA-F\-]{36})['"\"]/i)
+  if (submissionIdMatch) {
+    const operator = submissionIdMatch[1]
+    const submissionId = submissionIdMatch[2]
+    sqlWhereClause = `id ${operator} '${submissionId}'`
+  } else {
+    // Parse FIELD() condition
+    const fieldConditionMatch = whereClause.match(
+      /FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*(=|!=|>|<|>=|<=|LIKE|ILIKE)\s*['""]?([^'"]+?)['""]?$/i
+    )
+    
+    if (fieldConditionMatch) {
+      const conditionFieldId = fieldConditionMatch[1]
+      const operator = fieldConditionMatch[2].toUpperCase()
+      const conditionValue = fieldConditionMatch[3].trim()
+      
+      // Build SQL condition based on operator
+      if (operator === 'LIKE' || operator === 'ILIKE') {
+        sqlWhereClause = `submission_data ->> '${conditionFieldId}' ${operator} '${conditionValue}'`
+      } else if (operator === '>' || operator === '<' || operator === '>=' || operator === '<=') {
+        sqlWhereClause = `(submission_data ->> '${conditionFieldId}')::numeric ${operator} ${conditionValue}`
+      } else {
+        sqlWhereClause = `submission_data ->> '${conditionFieldId}' ${operator} '${conditionValue}'`
+      }
+    } else {
+      errors.push('Invalid WHERE clause. Use: WHERE submission_id = \'id\' OR WHERE FIELD(\'field_id\') operator \'value\'')
+      return { errors }
+    }
+  }
+
+  // Build the final SQL - store metadata for batch update
+  const sql = `UPDATE::BATCH::${formId}::${fieldId}::${transformedValue}::${sqlWhereClause}`
 
   return { sql, errors }
 }
@@ -358,83 +385,166 @@ export async function executeUserQuery(
  */
 async function executeUpdateQuery(sql: string): Promise<QueryResult> {
   try {
-    // Extract parameters from the SQL for manual execution
-    const formIdMatch = sql.match(/AND form_id = '([^']+)'/);
-    const submissionIdMatch = sql.match(/WHERE id = '([^']+)'/);
-    const fieldIdMatch = sql.match(/'{([^}]+)}'/);
-    const valueMatch = sql.match(/to_jsonb\((.+?)::text\)/);
+    // Parse the batch update metadata
+    if (!sql.startsWith('UPDATE::BATCH::')) {
+      return { columns: [], rows: [], errors: ['Invalid UPDATE query format'] };
+    }
 
-    if (!formIdMatch || !submissionIdMatch || !fieldIdMatch || !valueMatch) {
+    const parts = sql.split('::');
+    if (parts.length !== 6) {
       return { columns: [], rows: [], errors: ['Failed to parse UPDATE query parameters'] };
     }
 
-    const formId = formIdMatch[1];
-    const submissionId = submissionIdMatch[1];
-    const fieldId = fieldIdMatch[1];
-    const valueExpression = valueMatch[1];
+    const formId = parts[2];
+    const fieldId = parts[3];
+    const valueExpression = parts[4];
+    const whereClause = parts[5];
 
-    // First, get the current submission to evaluate the value expression
-    const { data: currentSubmission, error: fetchError } = await supabase
+    // Fetch all matching submissions based on WHERE clause
+    let query = supabase
       .from('form_submissions')
-      .select('submission_data')
-      .eq('id', submissionId)
-      .eq('form_id', formId)
-      .maybeSingle();
+      .select('id, submission_data')
+      .eq('form_id', formId);
 
-    if (fetchError || !currentSubmission) {
-      return { columns: [], rows: [], errors: ['Submission not found or access denied'] };
+    // Apply WHERE filter
+    if (whereClause.startsWith('id ')) {
+      // submission_id condition
+      const idMatch = whereClause.match(/id (=|!=) '([^']+)'/);
+      if (idMatch) {
+        const operator = idMatch[1];
+        const submissionId = idMatch[2];
+        if (operator === '=') {
+          query = query.eq('id', submissionId);
+        } else {
+          query = query.neq('id', submissionId);
+        }
+      }
+    }
+    // For FIELD() conditions, we need to fetch all records and filter in memory
+    // because Supabase doesn't support direct JSONB field comparison in the query builder
+
+    const { data: submissions, error: fetchError } = await query;
+
+    if (fetchError) {
+      return { columns: [], rows: [], errors: [fetchError.message] };
     }
 
-    // Evaluate the value expression
-    let newValue: string;
-    try {
-      // Handle LEFT function with field reference
-      const leftMatch = valueExpression.match(/LEFT\(\(submission_data\s*->>\s*'([^']+)'\),\s*(\d+)\)/);
-      if (leftMatch) {
-        const sourceFieldId = leftMatch[1];
-        const length = parseInt(leftMatch[2]);
-        const sourceValue = currentSubmission.submission_data[sourceFieldId] || '';
-        newValue = sourceValue.toString().substring(0, length);
-      } else if (valueExpression.startsWith('(submission_data ->>')) {
-        // Handle direct field reference
-        const fieldRefMatch = valueExpression.match(/\(submission_data\s*->>\s*'([^']+)'\)/);
-        if (fieldRefMatch) {
-          const sourceFieldId = fieldRefMatch[1];
-          newValue = currentSubmission.submission_data[sourceFieldId] || '';
+    if (!submissions || submissions.length === 0) {
+      return { columns: [], rows: [], errors: ['No submissions found matching the WHERE clause'] };
+    }
+
+    // Filter submissions based on FIELD() conditions
+    let filteredSubmissions = submissions;
+    
+    if (!whereClause.startsWith('id ')) {
+      // Parse FIELD condition for filtering
+      const fieldConditionMatch = whereClause.match(
+        /submission_data ->> '([^']+)' (=|!=|>|<|>=|<=|LIKE|ILIKE) '?([^']+)'?$/i
+      );
+      
+      if (fieldConditionMatch) {
+        const conditionFieldId = fieldConditionMatch[1];
+        const operator = fieldConditionMatch[2];
+        const conditionValue = fieldConditionMatch[3];
+
+        filteredSubmissions = submissions.filter(sub => {
+          const fieldValue = sub.submission_data[conditionFieldId];
+          
+          switch (operator) {
+            case '=':
+              return fieldValue == conditionValue;
+            case '!=':
+              return fieldValue != conditionValue;
+            case '>':
+              return parseFloat(fieldValue) > parseFloat(conditionValue);
+            case '<':
+              return parseFloat(fieldValue) < parseFloat(conditionValue);
+            case '>=':
+              return parseFloat(fieldValue) >= parseFloat(conditionValue);
+            case '<=':
+              return parseFloat(fieldValue) <= parseFloat(conditionValue);
+            case 'LIKE':
+            case 'ILIKE':
+              const pattern = conditionValue.replace(/%/g, '.*');
+              const regex = new RegExp(pattern, operator === 'ILIKE' ? 'i' : '');
+              return regex.test(String(fieldValue || ''));
+            default:
+              return false;
+          }
+        });
+      }
+    }
+
+    if (filteredSubmissions.length === 0) {
+      return { columns: [], rows: [], errors: ['No submissions matched the filter criteria'] };
+    }
+
+    // Update each matching submission
+    const updatePromises = filteredSubmissions.map(async (submission) => {
+      // Evaluate the value expression for this submission
+      let newValue: string;
+      
+      try {
+        // Handle LEFT function with field reference
+        const leftMatch = valueExpression.match(/LEFT\(\(submission_data ->> '([^']+)'\), (\d+)\)/);
+        if (leftMatch) {
+          const sourceFieldId = leftMatch[1];
+          const length = parseInt(leftMatch[2]);
+          const sourceValue = submission.submission_data[sourceFieldId] || '';
+          newValue = sourceValue.toString().substring(0, length);
+        } else if (valueExpression.startsWith('(submission_data ->>')) {
+          // Handle direct field reference
+          const fieldRefMatch = valueExpression.match(/\(submission_data ->> '([^']+)'\)/);
+          if (fieldRefMatch) {
+            const sourceFieldId = fieldRefMatch[1];
+            newValue = submission.submission_data[sourceFieldId] || '';
+          } else {
+            newValue = valueExpression.replace(/['"]/g, '');
+          }
         } else {
+          // Handle literal values
           newValue = valueExpression.replace(/['"]/g, '');
         }
-      } else {
-        // Handle literal values
-        newValue = valueExpression.replace(/['"]/g, '');
+
+        // Update the submission
+        const updatedSubmissionData = {
+          ...(submission.submission_data as Record<string, any>),
+          [fieldId]: newValue
+        };
+
+        const { error: updateError } = await supabase
+          .from('form_submissions')
+          .update({ submission_data: updatedSubmissionData })
+          .eq('id', submission.id)
+          .eq('form_id', formId);
+
+        if (updateError) {
+          throw updateError;
+        }
+
+        return true;
+      } catch (error) {
+        console.error(`Failed to update submission ${submission.id}:`, error);
+        return false;
       }
-    } catch (error) {
-      return { columns: [], rows: [], errors: ['Failed to evaluate value expression'] };
+    });
+
+    const results = await Promise.all(updatePromises);
+    const successCount = results.filter(r => r).length;
+    const failureCount = results.filter(r => !r).length;
+
+    if (failureCount > 0) {
+      return {
+        columns: ['message', 'updated_rows', 'failed_rows'],
+        rows: [[`${successCount} record(s) updated successfully, ${failureCount} failed`, successCount, failureCount]],
+        errors: []
+      };
     }
 
-    // Update the submission
-    const currentData = currentSubmission.submission_data as Record<string, any> || {};
-    const updatedSubmissionData = {
-      ...currentData,
-      [fieldId]: newValue
-    };
-
-    const { data: updatedData, error: updateError } = await supabase
-      .from('form_submissions')
-      .update({ submission_data: updatedSubmissionData })
-      .eq('id', submissionId)
-      .eq('form_id', formId)
-      .select();
-
-    if (updateError) {
-      return { columns: [], rows: [], errors: [updateError.message] };
-    }
-
-    // Return success result
-    return { 
-      columns: ['message', 'updated_rows'], 
-      rows: [['Field updated successfully', updatedData?.length || 1]], 
-      errors: [] 
+    return {
+      columns: ['message', 'updated_rows'],
+      rows: [[`${successCount} record(s) updated successfully`, successCount]],
+      errors: []
     };
 
   } catch (error) {

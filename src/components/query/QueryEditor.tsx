@@ -147,7 +147,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
       {parseResult.sql && parseResult.errors.length === 0 && <div className="p-3 border-t border-border bg-muted/10">
           <h4 className="text-sm font-medium text-muted-foreground mb-2">Generated SQL:</h4>
           <pre className="text-xs text-muted-foreground font-mono bg-muted/20 p-2 rounded border overflow-x-auto whitespace-pre-wrap">
-            {parseResult.sql}
+            {parseResult.sql.startsWith('UPDATE::BATCH::') ? 'UPDATE query validated (bulk update ready)' : parseResult.sql}
           </pre>
         </div>}
 
@@ -163,9 +163,12 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
           <div>SELECT MIN(FIELD("price-field-uuid")), MAX(FIELD("price-field-uuid")) FROM "form-uuid"</div>
           <div>SELECT FIELD("name-field") FROM "form-uuid" WHERE FIELD("status-field") = 'approved'</div>
           <div>SELECT submission_id, submitted_by, submitted_at FROM "form-uuid"</div>
-          <div className="font-semibold mt-2">UPDATE queries:</div>
+          <div className="font-semibold mt-2">UPDATE queries (single record):</div>
           <div>UPDATE FORM "form-uuid" SET FIELD("field-uuid") = 'new-value' WHERE submission_id = "submission-uuid"</div>
-          <div>UPDATE FORM "form-uuid" SET FIELD("target-field") = FIELD("source-field") WHERE submission_id = "submission-uuid"</div>
+          <div className="font-semibold mt-2">UPDATE queries (multiple records):</div>
+          <div>UPDATE FORM "form-uuid" SET FIELD("status-field") = 'approved' WHERE FIELD("status-field") = 'pending'</div>
+          <div>UPDATE FORM "form-uuid" SET FIELD("target-field") = FIELD("source-field") WHERE FIELD("category") = 'active'</div>
+          <div>UPDATE FORM "form-uuid" SET FIELD("discount-field") = '10%' WHERE FIELD("price-field") &gt; "100"</div>
         </div>
       </div>
     </div>;
