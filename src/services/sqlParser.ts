@@ -159,12 +159,12 @@ export function parseUpdateFormQuery(input: string): ParseResult {
   // Parse WHERE clause
   let sqlWhereClause = ''
   
-  // Check if it's a submission_id condition (backward compatibility)
+  // Check if it's a submission_id condition (maps to submission_ref_id in backend)
   const submissionIdMatch = whereClause.match(/submission_id\s*(=|!=)\s*['""]([0-9a-fA-F\-]{36})['"\"]/i)
   if (submissionIdMatch) {
     const operator = submissionIdMatch[1]
     const submissionId = submissionIdMatch[2]
-    sqlWhereClause = `id ${operator} '${submissionId}'`
+    sqlWhereClause = `submission_ref_id ${operator} '${submissionId}'`
   } else {
     // Parse FIELD() condition
     const fieldConditionMatch = whereClause.match(
@@ -407,16 +407,16 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
       .eq('form_id', formId);
 
     // Apply WHERE filter
-    if (whereClause.startsWith('id ')) {
-      // submission_id condition
-      const idMatch = whereClause.match(/id (=|!=) '([^']+)'/);
+    if (whereClause.startsWith('submission_ref_id ')) {
+      // submission_id condition (maps to submission_ref_id in backend)
+      const idMatch = whereClause.match(/submission_ref_id (=|!=) '([^']+)'/);
       if (idMatch) {
         const operator = idMatch[1];
         const submissionId = idMatch[2];
         if (operator === '=') {
-          query = query.eq('id', submissionId);
+          query = query.eq('submission_ref_id', submissionId);
         } else {
-          query = query.neq('id', submissionId);
+          query = query.neq('submission_ref_id', submissionId);
         }
       }
     }
@@ -436,7 +436,7 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
     // Filter submissions based on FIELD() conditions
     let filteredSubmissions = submissions;
     
-    if (!whereClause.startsWith('id ')) {
+    if (!whereClause.startsWith('submission_ref_id ')) {
       // Parse FIELD condition for filtering
       const fieldConditionMatch = whereClause.match(
         /submission_data ->> '([^']+)' (=|!=|>|<|>=|<=|LIKE|ILIKE) '?([^']+)'?$/i
