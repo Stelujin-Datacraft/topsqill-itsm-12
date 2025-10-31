@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Form } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
+import { schemaCache } from '@/services/schemaCache';
 
 export function useFormMutations() {
   const createForm = async (formData: Omit<Form, 'id' | 'createdAt' | 'updatedAt' | 'fields'>, userProfile: any) => {
@@ -99,6 +100,10 @@ export function useFormMutations() {
       };
 
       console.log('useFormMutations: Form created successfully:', newForm);
+      
+      // Invalidate schema cache to refresh query explorer
+      schemaCache.invalidateCache();
+      
       return newForm;
     } catch (error) {
       console.error('useFormMutations: Unexpected error creating form:', error);
@@ -139,6 +144,9 @@ export function useFormMutations() {
       }
 
       console.log('useFormMutations: Form updated successfully');
+      
+      // Invalidate schema cache to refresh query explorer
+      schemaCache.invalidateCache();
     } catch (error) {
       console.error('useFormMutations: Error updating form:', error);
       toast({
@@ -164,6 +172,9 @@ export function useFormMutations() {
       }
 
       console.log('useFormMutations: Form deleted successfully');
+      
+      // Invalidate schema cache to refresh query explorer
+      schemaCache.invalidateCache();
     } catch (error) {
       console.error('useFormMutations: Error deleting form:', error);
       toast({

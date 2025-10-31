@@ -167,6 +167,8 @@ export const FormsSidebar: React.FC<FormsSidebarProps> = ({
   useEffect(() => {
     const loadForms = async () => {
       try {
+        // Force refresh cache to get latest forms (including status changes)
+        await schemaCache.refreshCache();
         const cache = await schemaCache.getCache();
         setForms(cache.forms);
       } catch (error) {

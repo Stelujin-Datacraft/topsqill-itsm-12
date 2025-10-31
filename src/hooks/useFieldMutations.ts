@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { FormField } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
+import { schemaCache } from '@/services/schemaCache';
 
 export function useFieldMutations() {
   const addField = async (formId: string, fieldData: Omit<FormField, 'id'>, userProfile: any) => {
@@ -136,6 +137,10 @@ export function useFieldMutations() {
       };
 
       console.log('useFieldMutations: Field added successfully:', newField);
+      
+      // Invalidate schema cache to refresh query explorer
+      schemaCache.invalidateCache();
+      
       return newField;
     } catch (error) {
       console.error('useFieldMutations: Unexpected error adding field:', error);
@@ -226,6 +231,9 @@ export function useFieldMutations() {
       } else {
         console.log('useFieldMutations: Verification - field data after update:', verificationData);
       }
+      
+      // Invalidate schema cache to refresh query explorer
+      schemaCache.invalidateCache();
     } catch (error) {
       console.error('useFieldMutations: Error updating field:', error);
       toast({
@@ -252,6 +260,9 @@ export function useFieldMutations() {
       }
 
       console.log('useFieldMutations: Field deleted successfully');
+      
+      // Invalidate schema cache to refresh query explorer
+      schemaCache.invalidateCache();
     } catch (error) {
       console.error('useFieldMutations: Error deleting field:', error);
       toast({
