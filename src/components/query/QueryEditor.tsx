@@ -102,31 +102,27 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
       </div>
 
       {/* Editor */}
-      <div className="flex-1 overflow-hidden bg-white border border-border rounded-md m-4">
-        <div className="h-full min-h-[300px] max-w-full overflow-auto">
-          <CodeMirror 
-            value={value} 
-            height="auto" 
-            extensions={[sql()]} 
-            onChange={val => onChange(val)} 
-            basicSetup={{
-              lineNumbers: true,
-              highlightActiveLine: true,
-              searchKeymap: true,
-              autocompletion: true,
-              bracketMatching: true,
-              closeBrackets: true,
-              highlightSelectionMatches: true
-            }}
-            theme="light"
-            style={{
-              fontSize: '14px',
-              fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
-              width: '100%',
-              minWidth: '600px'
-            }}
-          />
-        </div>
+      <div className="flex-1 overflow-hidden border border-border rounded-md m-4">
+        <CodeMirror 
+          value={value} 
+          height="400px" 
+          extensions={[sql()]} 
+          onChange={val => onChange(val)} 
+          basicSetup={{
+            lineNumbers: true,
+            highlightActiveLine: true,
+            searchKeymap: true,
+            autocompletion: true,
+            bracketMatching: true,
+            closeBrackets: true,
+            highlightSelectionMatches: true
+          }}
+          theme="light"
+          style={{
+            fontSize: '14px',
+            fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace'
+          }}
+        />
       </div>
 
       {/* Help Text */}
