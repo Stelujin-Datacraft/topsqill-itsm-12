@@ -21,7 +21,7 @@ export interface QueryResult {
 /**
  * Parse custom UPDATE FORM syntax or SELECT queries
  * 1. Handle UPDATE FORM syntax for form field updates
- * 2. Handle SELECT queries with FIELD() syntax
+ * 2. Handle SELECT queries with FIELD() syntax and SQL functions
  */
 export function parseUserQuery(input: string): ParseResult {
   const errors: string[] = []
@@ -38,85 +38,77 @@ export function parseUserQuery(input: string): ParseResult {
     return { errors }
   }
 
-  // 2. Extract main parts: SELECT … FROM "formUuid" [WHERE …]
+  // 2. Extract main parts: SELECT … FROM "formUuid" [WHERE …] [GROUP BY …] [HAVING …] [ORDER BY …] [LIMIT …] [OFFSET …]
   // Normalize whitespace and newlines for multi-line queries
   const normalized = cleaned.replace(/\s+/g, ' ');
-  const m = normalized.match(
-    /^SELECT\s+(.+?)\s+FROM\s+['""]([0-9a-fA-F\-]{36})['""](?:\s+WHERE\s+(.+))?$/i
-  )
-  if (!m) {
-    errors.push('Invalid syntax. Expected: SELECT … FROM "form_uuid" [WHERE …]')
+  
+  // More flexible regex to capture all clauses
+  const selectMatch = normalized.match(/^SELECT\s+(.+?)\s+FROM\s+['""]([0-9a-fA-F\-]{36})['""](.*)$/i)
+  if (!selectMatch) {
+    errors.push('Invalid syntax. Expected: SELECT … FROM "form_uuid" [WHERE …] [GROUP BY …] [ORDER BY …] [LIMIT …]')
     return { errors }
   }
-  let [, selectExpr, formUuid, whereExpr] = m
-
-  // 3. Transform FIELD() wrapper syntax
-  const transformFieldAccess = (expr: string) => {
-    // Handle FIELD('uuid') or FIELD("uuid") syntax
-    expr = expr.replace(
-      /FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)/gi,
-      (_all, uuid) => `submission_data ->> '${uuid}'`
-    )
-    
-    // Handle legacy "field_uuid" → submission_data ->> 'field_uuid'
-    // But avoid double transformation by excluding already transformed expressions
-    expr = expr.replace(
-      /(?<!submission_data\s*->>\s*)['""]([0-9a-fA-F\-]{36})['"\"]/g,
-      (_all, uuid) => `submission_data ->> '${uuid}'`
-    )
-    
-    return expr
-  }
-
-  // 4. Handle aggregates with FIELD() syntax
-  selectExpr = selectExpr.replace(
-    /SUM\(\s*FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*\)/gi,
-    (_all, uuid) => `SUM( (submission_data ->> '${uuid}')::numeric )`
-  )
-
-  selectExpr = selectExpr.replace(
-    /COUNT\(\s*FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*\)/gi,
-    (_all, uuid) => `COUNT(submission_data ->> '${uuid}')`
-  )
-
-  selectExpr = selectExpr.replace(
-    /AVG\(\s*FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*\)/gi,
-    (_all, uuid) => `AVG( (submission_data ->> '${uuid}')::numeric )`
-  )
-
-  selectExpr = selectExpr.replace(
-    /MIN\(\s*FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*\)/gi,
-    (_all, uuid) => `MIN( (submission_data ->> '${uuid}')::numeric )`
-  )
-
-  selectExpr = selectExpr.replace(
-    /MAX\(\s*FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*\)/gi,
-    (_all, uuid) => `MAX( (submission_data ->> '${uuid}')::numeric )`
-  )
-
-  // 5. Transform remaining field access patterns
-  selectExpr = transformFieldAccess(selectExpr)
   
-  // 6. Handle system columns mapping
-  selectExpr = selectExpr.replace(/\bsubmission_id\b/gi, 'id as submission_id')
-  selectExpr = selectExpr.replace(/\bsubmitted_by\b/gi, 'submitted_by')
-  selectExpr = selectExpr.replace(/\bsubmitted_at\b/gi, 'created_at as submitted_at')
-
-  let whereClause = ''
-  if (whereExpr) {
-    // Also rewrite field access in WHERE
-    whereExpr = transformFieldAccess(whereExpr)
-    whereClause = `\nWHERE form_id = '${formUuid}'\n  AND ${whereExpr}`
-  } else {
-    whereClause = `\nWHERE form_id = '${formUuid}'`
+  let [, selectExpr, formUuid, restOfQuery] = selectMatch
+  
+  // Parse optional clauses
+  let whereExpr = ''
+  let groupByExpr = ''
+  let havingExpr = ''
+  let orderByExpr = ''
+  let limitExpr = ''
+  let offsetExpr = ''
+  
+  // Extract WHERE clause
+  const whereMatch = restOfQuery.match(/\s+WHERE\s+(.+?)(?=\s+(?:GROUP BY|ORDER BY|LIMIT|OFFSET|$))/i)
+  if (whereMatch) {
+    whereExpr = whereMatch[1].trim()
+  }
+  
+  // Extract GROUP BY clause
+  const groupByMatch = restOfQuery.match(/\s+GROUP BY\s+(.+?)(?=\s+(?:HAVING|ORDER BY|LIMIT|OFFSET|$))/i)
+  if (groupByMatch) {
+    groupByExpr = groupByMatch[1].trim()
+  }
+  
+  // Extract HAVING clause
+  const havingMatch = restOfQuery.match(/\s+HAVING\s+(.+?)(?=\s+(?:ORDER BY|LIMIT|OFFSET|$))/i)
+  if (havingMatch) {
+    havingExpr = havingMatch[1].trim()
+  }
+  
+  // Extract ORDER BY clause
+  const orderByMatch = restOfQuery.match(/\s+ORDER BY\s+(.+?)(?=\s+(?:LIMIT|OFFSET|$))/i)
+  if (orderByMatch) {
+    orderByExpr = orderByMatch[1].trim()
+  }
+  
+  // Extract LIMIT clause
+  const limitMatch = restOfQuery.match(/\s+LIMIT\s+(\d+)/i)
+  if (limitMatch) {
+    limitExpr = limitMatch[1]
+  }
+  
+  // Extract OFFSET clause
+  const offsetMatch = restOfQuery.match(/\s+OFFSET\s+(\d+)/i)
+  if (offsetMatch) {
+    offsetExpr = offsetMatch[1]
   }
 
-  // 7. Assemble full SQL
-  const sql =
-    `SELECT ${selectExpr}\n` +
-    `FROM form_submissions` +
-    whereClause +
-    `;`
+  // Store all parsed clauses for client-side execution
+  const queryMetadata = {
+    formUuid,
+    selectExpr,
+    whereExpr,
+    groupByExpr,
+    havingExpr,
+    orderByExpr,
+    limitExpr,
+    offsetExpr
+  };
+
+  // Encode metadata in SQL comment for client-side execution
+  const sql = `-- QUERY_METADATA: ${JSON.stringify(queryMetadata)}\nSELECT ${selectExpr} FROM form_submissions WHERE form_id = '${formUuid}';`;
 
   return { sql, errors }
 }
@@ -141,20 +133,23 @@ export function parseUpdateFormQuery(input: string): ParseResult {
 
   const [, formId, fieldId, valueExpression, whereClause] = updateMatch
 
-  // Transform value expression to handle FIELD() syntax and functions
+  // Transform value expression to handle FIELD() syntax and all allowed UPDATE functions
   let transformedValue = valueExpression.trim()
   
-  // Handle FIELD() references in the value expression
-  transformedValue = transformedValue.replace(
-    /FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)/gi,
-    (_match, uuid) => `(submission_data ->> '${uuid}')`
-  )
-
-  // Handle string functions that work with FIELD values
-  transformedValue = transformedValue.replace(
-    /LEFT\(\s*\(submission_data\s*->>\s*'([^']+)'\)\s*,\s*(\d+)\s*\)/gi,
-    (_match, uuid, length) => `LEFT((submission_data ->> '${uuid}'), ${length})`
-  )
+  // Store function metadata for UPDATE query execution
+  const functionPattern = /^(UPPER|LOWER|CONCAT|REPLACE|TRIM|LTRIM|RTRIM|ROUND|CEIL|FLOOR|ABS|COALESCE|NOW|CURRENT_TIMESTAMP|IF|LEFT|RIGHT|SUBSTRING)\s*\(/i;
+  const hasFunction = functionPattern.test(transformedValue);
+  
+  if (hasFunction) {
+    // Store the original expression with FIELD() references for later evaluation
+    transformedValue = `FUNC::${transformedValue}`;
+  } else {
+    // Handle FIELD() references for simple assignments
+    transformedValue = transformedValue.replace(
+      /FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)/gi,
+      (_match, uuid) => `FIELD_REF::${uuid}`
+    );
+  }
 
   // Parse WHERE clause
   let sqlWhereClause = ''
@@ -196,8 +191,10 @@ export function parseUpdateFormQuery(input: string): ParseResult {
   return { sql, errors }
 }
 
+import { evaluateExpression, evaluateFunction, aggregateFunctions } from './sqlFunctions';
+
 /**
- * Execute the user query using Supabase RPC or direct query execution
+ * Execute the user query using Supabase and client-side processing
  */
 export async function executeUserQuery(
   userInput: string
@@ -215,22 +212,20 @@ export async function executeUserQuery(
       return await executeUpdateQuery(sql)
     }
     
-    // Since we're working with form_submissions, we can parse the query and execute it manually
-    // This is a temporary solution until proper SQL execution RPC is available
-    
-    // Extract the form_id from the WHERE clause
-    const formIdMatch = sql.match(/WHERE form_id = '([^']+)'/);
-    if (!formIdMatch) {
-      return { columns: [], rows: [], errors: ['Unable to extract form_id from query'] };
+    // Extract query metadata from SQL comment
+    const metadataMatch = sql.match(/-- QUERY_METADATA: (.+)\n/);
+    if (!metadataMatch) {
+      return { columns: [], rows: [], errors: ['Failed to parse query metadata'] };
     }
     
-    const formId = formIdMatch[1];
+    const metadata = JSON.parse(metadataMatch[1]);
+    const { formUuid, selectExpr, whereExpr, groupByExpr, havingExpr, orderByExpr, limitExpr, offsetExpr } = metadata;
     
-    // Query form_submissions for this form
+    // Fetch all submissions for this form
     const { data: submissions, error: submissionsError } = await supabase
       .from('form_submissions')
       .select('*')
-      .eq('form_id', formId);
+      .eq('form_id', formUuid);
     
     if (submissionsError) {
       return { columns: [], rows: [], errors: [submissionsError.message] };
@@ -240,138 +235,144 @@ export async function executeUserQuery(
       return { columns: [], rows: [], errors: [] };
     }
     
-    // Parse the SELECT clause to extract all columns
-    const selectMatch = sql.match(/SELECT\s+(.+?)\s+FROM/i);
-    if (selectMatch) {
-      const selectClause = selectMatch[1];
-      const columnExpressions = selectClause.split(',').map(expr => expr.trim());
-      
-      const columns: string[] = [];
-      const columnExtractors: ((submission: any) => any)[] = [];
-      
-      columnExpressions.forEach(expr => {
-        // Handle aggregate functions - SUM, AVG, MIN, MAX, COUNT
-        const sumMatch = expr.match(/SUM\(\s*\(\s*submission_data\s*->>\s*'([^']+)'\s*\)::numeric\s*\)(?:\s+as\s+(\w+))?/i);
-        if (sumMatch) {
-          const fieldId = sumMatch[1];
-          const alias = sumMatch[2] || `sum_${fieldId}`;
-          columns.push(alias);
-          columnExtractors.push(() => {
-            const sum = submissions.reduce((acc, sub) => {
-              const val = parseFloat(sub.submission_data[fieldId]) || 0;
-              return acc + val;
-            }, 0);
-            return sum;
-          });
-          return;
-        }
-
-        const avgMatch = expr.match(/AVG\(\s*\(\s*submission_data\s*->>\s*'([^']+)'\s*\)::numeric\s*\)(?:\s+as\s+(\w+))?/i);
-        if (avgMatch) {
-          const fieldId = avgMatch[1];
-          const alias = avgMatch[2] || `avg_${fieldId}`;
-          columns.push(alias);
-          columnExtractors.push(() => {
-            const values = submissions.map(sub => parseFloat(sub.submission_data[fieldId]) || 0).filter(v => !isNaN(v));
-            return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
-          });
-          return;
-        }
-
-        const minMatch = expr.match(/MIN\(\s*\(\s*submission_data\s*->>\s*'([^']+)'\s*\)::numeric\s*\)(?:\s+as\s+(\w+))?/i);
-        if (minMatch) {
-          const fieldId = minMatch[1];
-          const alias = minMatch[2] || `min_${fieldId}`;
-          columns.push(alias);
-          columnExtractors.push(() => {
-            const values = submissions.map(sub => parseFloat(sub.submission_data[fieldId]) || 0).filter(v => !isNaN(v));
-            return values.length > 0 ? Math.min(...values) : 0;
-          });
-          return;
-        }
-
-        const maxMatch = expr.match(/MAX\(\s*\(\s*submission_data\s*->>\s*'([^']+)'\s*\)::numeric\s*\)(?:\s+as\s+(\w+))?/i);
-        if (maxMatch) {
-          const fieldId = maxMatch[1];
-          const alias = maxMatch[2] || `max_${fieldId}`;
-          columns.push(alias);
-          columnExtractors.push(() => {
-            const values = submissions.map(sub => parseFloat(sub.submission_data[fieldId]) || 0).filter(v => !isNaN(v));
-            return values.length > 0 ? Math.max(...values) : 0;
-          });
-          return;
-        }
-
-        const countMatch = expr.match(/COUNT\(\s*submission_data\s*->>\s*'([^']+)'\s*\)(?:\s+as\s+(\w+))?/i);
-        if (countMatch) {
-          const fieldId = countMatch[1];
-          const alias = countMatch[2] || `count_${fieldId}`;
-          columns.push(alias);
-          columnExtractors.push(() => {
-            return submissions.filter(sub => sub.submission_data[fieldId] != null).length;
-          });
-          return;
-        }
-        
-        // Handle submission_data field access
-        const fieldMatch = expr.match(/submission_data ->> '([^']+)'(?:\s+as\s+(\w+))?/i);
-        if (fieldMatch) {
-          const fieldId = fieldMatch[1];
-          const alias = fieldMatch[2] || fieldId;
-          columns.push(alias);
-          columnExtractors.push((submission) => {
-            const submissionData = submission.submission_data as Record<string, any>;
-            return submissionData[fieldId] || null;
-          });
-          return;
-        }
-        
-        // Handle system columns
-        if (expr.match(/id\s+as\s+submission_id/i)) {
-          columns.push('submission_id');
-          columnExtractors.push((submission) => submission.id);
-          return;
-        }
-        
-        if (expr.match(/submitted_by/i)) {
-          columns.push('submitted_by');
-          columnExtractors.push((submission) => submission.submitted_by);
-          return;
-        }
-        
-        if (expr.match(/created_at\s+as\s+submitted_at/i)) {
-          columns.push('submitted_at');
-          columnExtractors.push((submission) => submission.created_at);
-          return;
+    // Transform submissions into rows with flattened field access
+    let rows = submissions.map(sub => ({
+      submission_id: sub.submission_ref_id || sub.id,
+      submitted_by: sub.submitted_by,
+      submitted_at: sub.submitted_at,
+      ...(sub.submission_data as Record<string, any>)
+    }));
+    
+    // Apply WHERE filter
+    if (whereExpr) {
+      rows = rows.filter(row => {
+        try {
+          const condition = evaluateWhereCondition(whereExpr, row);
+          return Boolean(condition);
+        } catch (e) {
+          console.error('WHERE evaluation error:', e);
+          return false;
         }
       });
-      
-      if (columns.length > 0) {
-        // Check if this is an aggregate query (returns single row)
-        const isAggregateQuery = columnExpressions.some(expr => 
-          /^(SUM|AVG|MIN|MAX|COUNT)\(/i.test(expr.trim())
-        );
-        
-        const rows = isAggregateQuery 
-          ? [columnExtractors.map(extractor => extractor(null))]
-          : submissions.map(submission => 
-              columnExtractors.map(extractor => extractor(submission))
-            );
-        
-        return { columns, rows, errors: [] };
-      }
     }
     
-    // If we can't parse the specific field access, return basic submission data
-    const columns = ['id', 'form_id', 'submitted_at', 'submission_data'];
-    const rows = submissions.map(submission => [
-      submission.id,
-      submission.form_id,
-      submission.submitted_at,
-      JSON.stringify(submission.submission_data)
-    ]);
+    // Parse SELECT expressions
+    const selectParts = parseSelectExpressions(selectExpr);
+    const isAggregateQuery = selectParts.some(p => p.isAggregate);
     
-    return { columns, rows, errors: [] };
+    // Apply GROUP BY if present
+    let groupedRows: any[] = [];
+    if (groupByExpr) {
+      const groupByFields = groupByExpr.split(',').map(f => f.trim());
+      const groups = new Map<string, any[]>();
+      
+      rows.forEach(row => {
+        const groupKey = groupByFields.map(field => {
+          const fieldValue = evaluateFieldReference(field, row);
+          return String(fieldValue ?? '');
+        }).join('|||');
+        
+        if (!groups.has(groupKey)) {
+          groups.set(groupKey, []);
+        }
+        groups.get(groupKey)!.push(row);
+      });
+      
+      // Create grouped rows
+      groups.forEach(groupRows => {
+        groupedRows.push(groupRows);
+      });
+    } else if (isAggregateQuery) {
+      // Treat entire dataset as one group for aggregates without GROUP BY
+      groupedRows = [rows];
+    } else {
+      // No grouping
+      groupedRows = rows.map(r => [r]);
+    }
+    
+    // Evaluate SELECT expressions for each group
+    const resultRows: any[][] = [];
+    const columns: string[] = selectParts.map(p => p.alias);
+    
+    groupedRows.forEach(groupRows => {
+      const row: any[] = [];
+      selectParts.forEach(part => {
+        if (part.isAggregate) {
+          // Evaluate aggregate function
+          const values = groupRows.map(r => evaluateFieldReference(part.fieldRef, r));
+          const result = (aggregateFunctions as any)[part.func.toUpperCase()](values);
+          row.push(result);
+        } else {
+          // Evaluate expression for first row in group
+          const firstRow = groupRows[0];
+          const result = evaluateSelectExpression(part.expr, firstRow);
+          row.push(result);
+        }
+      });
+      resultRows.push(row);
+    });
+    
+    // Apply HAVING filter (after GROUP BY)
+    let filteredResults = resultRows;
+    if (havingExpr && groupByExpr) {
+      filteredResults = resultRows.filter((row, idx) => {
+        try {
+          const rowObj: any = {};
+          columns.forEach((col, i) => {
+            rowObj[col] = row[i];
+          });
+          return evaluateWhereCondition(havingExpr, rowObj);
+        } catch (e) {
+          console.error('HAVING evaluation error:', e);
+          return false;
+        }
+      });
+    }
+    
+    // Apply ORDER BY
+    if (orderByExpr) {
+      const orderParts = orderByExpr.split(',').map(part => {
+        const trimmed = part.trim();
+        const descMatch = trimmed.match(/^(.+?)\s+(ASC|DESC)$/i);
+        if (descMatch) {
+          return { field: descMatch[1].trim(), direction: descMatch[2].toUpperCase() };
+        }
+        return { field: trimmed, direction: 'ASC' };
+      });
+      
+      filteredResults.sort((a, b) => {
+        for (const { field, direction } of orderParts) {
+          const colIndex = columns.indexOf(field);
+          if (colIndex === -1) continue;
+          
+          const aVal = a[colIndex];
+          const bVal = b[colIndex];
+          
+          let comparison = 0;
+          if (aVal < bVal) comparison = -1;
+          else if (aVal > bVal) comparison = 1;
+          
+          if (comparison !== 0) {
+            return direction === 'DESC' ? -comparison : comparison;
+          }
+        }
+        return 0;
+      });
+    }
+    
+    // Apply LIMIT and OFFSET
+    let finalResults = filteredResults;
+    const offset = offsetExpr ? parseInt(offsetExpr) : 0;
+    const limit = limitExpr ? parseInt(limitExpr) : undefined;
+    
+    if (offset > 0) {
+      finalResults = finalResults.slice(offset);
+    }
+    if (limit !== undefined) {
+      finalResults = finalResults.slice(0, limit);
+    }
+    
+    return { columns, rows: finalResults, errors: [] };
     
   } catch (err) {
     console.error('Unexpected error:', err);
@@ -381,7 +382,205 @@ export async function executeUserQuery(
 }
 
 /**
- * Execute UPDATE queries using Supabase client
+ * Parse SELECT expressions into structured format
+ */
+function parseSelectExpressions(selectExpr: string): Array<{
+  expr: string;
+  alias: string;
+  isAggregate: boolean;
+  func?: string;
+  fieldRef?: string;
+}> {
+  const parts: Array<any> = [];
+  const expressions = splitTopLevelCommas(selectExpr);
+  
+  expressions.forEach(expr => {
+    const trimmed = expr.trim();
+    
+    // Check for alias
+    const aliasMatch = trimmed.match(/^(.+?)\s+as\s+(\w+)$/i);
+    const actualExpr = aliasMatch ? aliasMatch[1].trim() : trimmed;
+    const alias = aliasMatch ? aliasMatch[2] : generateAlias(actualExpr);
+    
+    // Check for aggregate functions
+    const aggMatch = actualExpr.match(/^(COUNT|SUM|AVG|MIN|MAX)\s*\(\s*FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)\s*\)$/i);
+    if (aggMatch) {
+      parts.push({
+        expr: actualExpr,
+        alias,
+        isAggregate: true,
+        func: aggMatch[1],
+        fieldRef: aggMatch[2]
+      });
+      return;
+    }
+    
+    // Non-aggregate expression
+    parts.push({
+      expr: actualExpr,
+      alias,
+      isAggregate: false
+    });
+  });
+  
+  return parts;
+}
+
+/**
+ * Evaluate SELECT expression for a row
+ */
+function evaluateSelectExpression(expr: string, row: any): any {
+  // Handle FIELD() references
+  expr = expr.replace(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)/gi, (_, fieldId) => {
+    return `${fieldId}`;
+  });
+  
+  // Handle system columns
+  if (expr === 'submission_id') return row.submission_id;
+  if (expr === 'submitted_by') return row.submitted_by;
+  if (expr === 'submitted_at') return row.submitted_at;
+  
+  // Check if it's a simple field reference
+  if (/^[a-zA-Z0-9_-]+$/.test(expr)) {
+    return row[expr] ?? null;
+  }
+  
+  // Evaluate complex expressions with functions
+  try {
+    return evaluateExpression(expr, row);
+  } catch (e) {
+    console.error('Expression evaluation error:', e);
+    return null;
+  }
+}
+
+/**
+ * Evaluate WHERE/HAVING condition
+ */
+function evaluateWhereCondition(condition: string, row: any): boolean {
+  // Replace FIELD() with actual values
+  let processedCondition = condition.replace(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)/gi, (_, fieldId) => {
+    const value = row[fieldId];
+    if (value === null || value === undefined) return 'NULL';
+    if (typeof value === 'string') return `'${value.replace(/'/g, "\\'")}'`;
+    return String(value);
+  });
+  
+  // Handle system columns
+  processedCondition = processedCondition.replace(/\bsubmission_id\b/gi, () => {
+    return `'${row.submission_id}'`;
+  });
+  
+  // Simple condition evaluation (supports: =, !=, <, >, <=, >=, LIKE, AND, OR)
+  // This is a simplified evaluator - for production, use a proper SQL parser
+  try {
+    // Handle LIKE operator
+    processedCondition = processedCondition.replace(/([^\s]+)\s+LIKE\s+'([^']+)'/gi, (match, field, pattern) => {
+      const fieldValue = String(row[field] ?? '');
+      const regexPattern = pattern.replace(/%/g, '.*').replace(/_/g, '.');
+      const regex = new RegExp('^' + regexPattern + '$', 'i');
+      return regex.test(fieldValue) ? 'true' : 'false';
+    });
+    
+    // Convert SQL operators to JavaScript
+    processedCondition = processedCondition.replace(/\s+AND\s+/gi, ' && ');
+    processedCondition = processedCondition.replace(/\s+OR\s+/gi, ' || ');
+    processedCondition = processedCondition.replace(/\s*=\s*/g, ' === ');
+    processedCondition = processedCondition.replace(/\s*!=\s*/g, ' !== ');
+    
+    // Safely evaluate
+    return new Function('return ' + processedCondition)();
+  } catch (e) {
+    console.error('Condition evaluation error:', e, 'Condition:', processedCondition);
+    return false;
+  }
+}
+
+/**
+ * Evaluate field reference from FIELD() syntax
+ */
+function evaluateFieldReference(fieldRef: string, row: any): any {
+  if (!fieldRef) return null;
+  
+  // Extract field ID from FIELD('uuid') syntax
+  const fieldMatch = fieldRef.match(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)/i);
+  if (fieldMatch) {
+    return row[fieldMatch[1]] ?? null;
+  }
+  
+  // Direct field reference
+  return row[fieldRef] ?? null;
+}
+
+/**
+ * Split comma-separated expressions respecting parentheses
+ */
+function splitTopLevelCommas(expr: string): string[] {
+  const parts: string[] = [];
+  let current = '';
+  let depth = 0;
+  let inQuotes = false;
+  let quoteChar = '';
+  
+  for (let i = 0; i < expr.length; i++) {
+    const char = expr[i];
+    
+    if ((char === "'" || char === '"') && (i === 0 || expr[i - 1] !== '\\')) {
+      if (!inQuotes) {
+        inQuotes = true;
+        quoteChar = char;
+      } else if (char === quoteChar) {
+        inQuotes = false;
+      }
+    }
+    
+    if (!inQuotes) {
+      if (char === '(') depth++;
+      if (char === ')') depth--;
+      
+      if (char === ',' && depth === 0) {
+        parts.push(current.trim());
+        current = '';
+        continue;
+      }
+    }
+    
+    current += char;
+  }
+  
+  if (current.trim()) {
+    parts.push(current.trim());
+  }
+  
+  return parts;
+}
+
+/**
+ * Generate alias from expression
+ */
+function generateAlias(expr: string): string {
+  // For aggregates, use function name + field
+  const aggMatch = expr.match(/^(COUNT|SUM|AVG|MIN|MAX)/i);
+  if (aggMatch) {
+    return aggMatch[1].toLowerCase();
+  }
+  
+  // For FIELD() references, use the field ID
+  const fieldMatch = expr.match(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)/i);
+  if (fieldMatch) {
+    return fieldMatch[1];
+  }
+  
+  // For simple identifiers
+  if (/^[a-zA-Z0-9_-]+$/.test(expr)) {
+    return expr;
+  }
+  
+  return 'column';
+}
+
+/**
+ * Execute UPDATE queries using Supabase client with support for SQL functions
  */
 async function executeUpdateQuery(sql: string): Promise<QueryResult> {
   try {
@@ -403,12 +602,11 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
     // Fetch all matching submissions based on WHERE clause
     let query = supabase
       .from('form_submissions')
-      .select('id, submission_data')
+      .select('id, submission_data, submission_ref_id')
       .eq('form_id', formId);
 
-    // Apply WHERE filter
+    // Apply WHERE filter for submission_id
     if (whereClause.startsWith('submission_ref_id ')) {
-      // submission_id condition (maps to submission_ref_id in backend)
       const idMatch = whereClause.match(/submission_ref_id (=|!=) '([^']+)'/);
       if (idMatch) {
         const operator = idMatch[1];
@@ -420,8 +618,6 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
         }
       }
     }
-    // For FIELD() conditions, we need to fetch all records and filter in memory
-    // because Supabase doesn't support direct JSONB field comparison in the query builder
 
     const { data: submissions, error: fetchError } = await query;
 
@@ -437,7 +633,6 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
     let filteredSubmissions = submissions;
     
     if (!whereClause.startsWith('submission_ref_id ')) {
-      // Parse FIELD condition for filtering
       const fieldConditionMatch = whereClause.match(
         /submission_data ->> '([^']+)' (=|!=|>|<|>=|<=|LIKE|ILIKE) '?([^']+)'?$/i
       );
@@ -481,28 +676,21 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
 
     // Update each matching submission
     const updatePromises = filteredSubmissions.map(async (submission) => {
-      // Evaluate the value expression for this submission
-      let newValue: string;
+      let newValue: any;
       
       try {
-        // Handle LEFT function with field reference
-        const leftMatch = valueExpression.match(/LEFT\(\(submission_data ->> '([^']+)'\), (\d+)\)/);
-        if (leftMatch) {
-          const sourceFieldId = leftMatch[1];
-          const length = parseInt(leftMatch[2]);
-          const sourceValue = submission.submission_data[sourceFieldId] || '';
-          newValue = sourceValue.toString().substring(0, length);
-        } else if (valueExpression.startsWith('(submission_data ->>')) {
-          // Handle direct field reference
-          const fieldRefMatch = valueExpression.match(/\(submission_data ->> '([^']+)'\)/);
-          if (fieldRefMatch) {
-            const sourceFieldId = fieldRefMatch[1];
-            newValue = submission.submission_data[sourceFieldId] || '';
-          } else {
-            newValue = valueExpression.replace(/['"]/g, '');
-          }
+        // Check if value expression contains a function
+        if (valueExpression.startsWith('FUNC::')) {
+          const funcExpr = valueExpression.substring(6);
+          const row = {
+            submission_id: submission.submission_ref_id || submission.id,
+            ...(submission.submission_data as Record<string, any>)
+          };
+          newValue = evaluateExpression(funcExpr.replace(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)/gi, '$1'), row);
+        } else if (valueExpression.startsWith('FIELD_REF::')) {
+          const sourceFieldId = valueExpression.substring(11);
+          newValue = submission.submission_data[sourceFieldId] || '';
         } else {
-          // Handle literal values
           newValue = valueExpression.replace(/['"]/g, '');
         }
 
