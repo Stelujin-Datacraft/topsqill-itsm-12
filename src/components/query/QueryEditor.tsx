@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { parseUserQuery, ParseResult } from '@/services/sqlParser';
-import { Loader2, Play, Copy, Check, Save } from 'lucide-react';
+import { Loader2, Play, Copy, Check, Save, ChevronDown, ChevronUp } from 'lucide-react';
 
 // Import CodeMirror editor
 import CodeMirror from '@uiw/react-codemirror';
@@ -27,6 +28,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
   });
   const [isValidating, setIsValidating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [examplesOpen, setExamplesOpen] = useState(false);
   const validateQuery = useCallback((input: string) => {
     if (!input.trim()) {
       setParseResult({
@@ -148,63 +150,70 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
         </div>}
 
       {/* Example Queries */}
-      <div className="p-3 border-t border-border bg-muted/10">
-        <h4 className="text-sm font-medium text-muted-foreground mb-2">Example Queries:</h4>
-        <div className="space-y-1 text-xs text-muted-foreground font-mono">
-          <div className="font-semibold mt-2">SELECT queries - Basic:</div>
-          <div>SELECT FIELD("field-uuid") FROM "form-uuid"</div>
-          <div>SELECT FIELD("name-field"), FIELD("email-field") FROM "form-uuid" WHERE FIELD("status") = 'active'</div>
-          <div>SELECT FIELD("price") FROM "form-uuid" ORDER BY FIELD("price") DESC LIMIT 10</div>
-          <div>SELECT DISTINCT FIELD("category") FROM "form-uuid"</div>
-          
-          <div className="font-semibold mt-2">Aggregate Functions:</div>
-          <div>SELECT COUNT(FIELD("field-uuid")) FROM "form-uuid"</div>
-          <div>SELECT SUM(FIELD("amount")), AVG(FIELD("rating")) FROM "form-uuid"</div>
-          <div>SELECT MIN(FIELD("price")), MAX(FIELD("price")) FROM "form-uuid"</div>
-          <div>SELECT FIELD("category"), COUNT(FIELD("id")) FROM "form-uuid" GROUP BY FIELD("category")</div>
-          <div>SELECT FIELD("status"), AVG(FIELD("score")) FROM "form-uuid" GROUP BY FIELD("status") HAVING AVG(FIELD("score")) &gt; 70</div>
-          
-          <div className="font-semibold mt-2">String Functions:</div>
-          <div>SELECT UPPER(FIELD("name")) FROM "form-uuid"</div>
-          <div>SELECT CONCAT(FIELD("first-name"), ' ', FIELD("last-name")) AS full_name FROM "form-uuid"</div>
-          <div>SELECT LENGTH(FIELD("description")), TRIM(FIELD("title")) FROM "form-uuid"</div>
-          <div>SELECT SUBSTRING(FIELD("code"), 1, 5) AS short_code FROM "form-uuid"</div>
-          <div>SELECT REPLACE(FIELD("text"), 'old', 'new') FROM "form-uuid"</div>
-          <div>SELECT LEFT(FIELD("email"), 3), RIGHT(FIELD("phone"), 4) FROM "form-uuid"</div>
-          
-          <div className="font-semibold mt-2">Math Functions:</div>
-          <div>SELECT ROUND(FIELD("price"), 2), ABS(FIELD("balance")) FROM "form-uuid"</div>
-          <div>SELECT CEIL(FIELD("value")), FLOOR(FIELD("amount")) FROM "form-uuid"</div>
-          <div>SELECT MOD(FIELD("quantity"), 10) FROM "form-uuid"</div>
-          <div>SELECT SQRT(FIELD("area")), POWER(FIELD("base"), 2) FROM "form-uuid"</div>
-          
-          <div className="font-semibold mt-2">Date Functions:</div>
-          <div>SELECT NOW(), FIELD("created-date") FROM "form-uuid"</div>
-          <div>SELECT YEAR(FIELD("date")), MONTH(FIELD("date")), DAY(FIELD("date")) FROM "form-uuid"</div>
-          <div>SELECT DATEDIFF(NOW(), FIELD("start-date")) AS days_elapsed FROM "form-uuid"</div>
-          
-          <div className="font-semibold mt-2">Conditional Functions:</div>
-          <div>SELECT IF(FIELD("score") &gt; 70, 'Pass', 'Fail') AS result FROM "form-uuid"</div>
-          <div>SELECT COALESCE(FIELD("nickname"), FIELD("full-name"), 'Anonymous') AS display_name FROM "form-uuid"</div>
-          
-          <div className="font-semibold mt-2">System Columns:</div>
-          <div>SELECT submission_id, submitted_by, submitted_at, FIELD("response") FROM "form-uuid"</div>
-          
-          <div className="font-semibold mt-2">UPDATE queries - Single Record:</div>
-          <div>UPDATE FORM "form-uuid" SET FIELD("field-uuid") = 'new-value' WHERE submission_id = "submission-uuid"</div>
-          
-          <div className="font-semibold mt-2">UPDATE queries - Bulk Update:</div>
-          <div>UPDATE FORM "form-uuid" SET FIELD("status") = 'approved' WHERE FIELD("status") = 'pending'</div>
-          <div>UPDATE FORM "form-uuid" SET FIELD("target") = FIELD("source") WHERE FIELD("category") = 'active'</div>
-          <div>UPDATE FORM "form-uuid" SET FIELD("discount") = '10%' WHERE FIELD("price") &gt; "100"</div>
-          
-          <div className="font-semibold mt-2">UPDATE with Functions:</div>
-          <div>UPDATE FORM "form-uuid" SET FIELD("name") = UPPER(FIELD("name")) WHERE FIELD("type") = 'company'</div>
-          <div>UPDATE FORM "form-uuid" SET FIELD("full-name") = CONCAT(FIELD("first"), ' ', FIELD("last")) WHERE submission_id = "uuid"</div>
-          <div>UPDATE FORM "form-uuid" SET FIELD("code") = LEFT(FIELD("original-code"), 5) WHERE FIELD("status") = 'active'</div>
-          <div>UPDATE FORM "form-uuid" SET FIELD("price") = ROUND(FIELD("price"), 2) WHERE FIELD("category") = 'products'</div>
-          <div>UPDATE FORM "form-uuid" SET FIELD("updated-at") = NOW() WHERE FIELD("modified") = 'true'</div>
+      <Collapsible open={examplesOpen} onOpenChange={setExamplesOpen}>
+        <div className="border-t border-border bg-muted/10">
+          <CollapsibleTrigger className="w-full p-3 flex items-center justify-between hover:bg-muted/20 transition-colors">
+            <h4 className="text-sm font-medium text-muted-foreground">Example Queries</h4>
+            {examplesOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="p-3 pt-0 space-y-1 text-xs text-muted-foreground font-mono">
+              <div className="font-semibold mt-2">SELECT queries - Basic:</div>
+              <div>SELECT FIELD("field-uuid") FROM "form-uuid"</div>
+              <div>SELECT FIELD("name-field"), FIELD("email-field") FROM "form-uuid" WHERE FIELD("status") = 'active'</div>
+              <div>SELECT FIELD("price") FROM "form-uuid" ORDER BY FIELD("price") DESC LIMIT 10</div>
+              <div>SELECT DISTINCT FIELD("category") FROM "form-uuid"</div>
+              
+              <div className="font-semibold mt-2">Aggregate Functions:</div>
+              <div>SELECT COUNT(FIELD("field-uuid")) FROM "form-uuid"</div>
+              <div>SELECT SUM(FIELD("amount")), AVG(FIELD("rating")) FROM "form-uuid"</div>
+              <div>SELECT MIN(FIELD("price")), MAX(FIELD("price")) FROM "form-uuid"</div>
+              <div>SELECT FIELD("category"), COUNT(FIELD("id")) FROM "form-uuid" GROUP BY FIELD("category")</div>
+              <div>SELECT FIELD("status"), AVG(FIELD("score")) FROM "form-uuid" GROUP BY FIELD("status") HAVING AVG(FIELD("score")) &gt; 70</div>
+              
+              <div className="font-semibold mt-2">String Functions:</div>
+              <div>SELECT UPPER(FIELD("name")) FROM "form-uuid"</div>
+              <div>SELECT CONCAT(FIELD("first-name"), ' ', FIELD("last-name")) AS full_name FROM "form-uuid"</div>
+              <div>SELECT LENGTH(FIELD("description")), TRIM(FIELD("title")) FROM "form-uuid"</div>
+              <div>SELECT SUBSTRING(FIELD("code"), 1, 5) AS short_code FROM "form-uuid"</div>
+              <div>SELECT REPLACE(FIELD("text"), 'old', 'new') FROM "form-uuid"</div>
+              <div>SELECT LEFT(FIELD("email"), 3), RIGHT(FIELD("phone"), 4) FROM "form-uuid"</div>
+              
+              <div className="font-semibold mt-2">Math Functions:</div>
+              <div>SELECT ROUND(FIELD("price"), 2), ABS(FIELD("balance")) FROM "form-uuid"</div>
+              <div>SELECT CEIL(FIELD("value")), FLOOR(FIELD("amount")) FROM "form-uuid"</div>
+              <div>SELECT MOD(FIELD("quantity"), 10) FROM "form-uuid"</div>
+              <div>SELECT SQRT(FIELD("area")), POWER(FIELD("base"), 2) FROM "form-uuid"</div>
+              
+              <div className="font-semibold mt-2">Date Functions:</div>
+              <div>SELECT NOW(), FIELD("created-date") FROM "form-uuid"</div>
+              <div>SELECT YEAR(FIELD("date")), MONTH(FIELD("date")), DAY(FIELD("date")) FROM "form-uuid"</div>
+              <div>SELECT DATEDIFF(NOW(), FIELD("start-date")) AS days_elapsed FROM "form-uuid"</div>
+              
+              <div className="font-semibold mt-2">Conditional Functions:</div>
+              <div>SELECT IF(FIELD("score") &gt; 70, 'Pass', 'Fail') AS result FROM "form-uuid"</div>
+              <div>SELECT COALESCE(FIELD("nickname"), FIELD("full-name"), 'Anonymous') AS display_name FROM "form-uuid"</div>
+              
+              <div className="font-semibold mt-2">System Columns:</div>
+              <div>SELECT submission_id, submitted_by, submitted_at, FIELD("response") FROM "form-uuid"</div>
+              
+              <div className="font-semibold mt-2">UPDATE queries - Single Record:</div>
+              <div>UPDATE FORM "form-uuid" SET FIELD("field-uuid") = 'new-value' WHERE submission_id = "submission-uuid"</div>
+              
+              <div className="font-semibold mt-2">UPDATE queries - Bulk Update:</div>
+              <div>UPDATE FORM "form-uuid" SET FIELD("status") = 'approved' WHERE FIELD("status") = 'pending'</div>
+              <div>UPDATE FORM "form-uuid" SET FIELD("target") = FIELD("source") WHERE FIELD("category") = 'active'</div>
+              <div>UPDATE FORM "form-uuid" SET FIELD("discount") = '10%' WHERE FIELD("price") &gt; "100"</div>
+              
+              <div className="font-semibold mt-2">UPDATE with Functions:</div>
+              <div>UPDATE FORM "form-uuid" SET FIELD("name") = UPPER(FIELD("name")) WHERE FIELD("type") = 'company'</div>
+              <div>UPDATE FORM "form-uuid" SET FIELD("full-name") = CONCAT(FIELD("first"), ' ', FIELD("last")) WHERE submission_id = "uuid"</div>
+              <div>UPDATE FORM "form-uuid" SET FIELD("code") = LEFT(FIELD("original-code"), 5) WHERE FIELD("status") = 'active'</div>
+              <div>UPDATE FORM "form-uuid" SET FIELD("price") = ROUND(FIELD("price"), 2) WHERE FIELD("category") = 'products'</div>
+              <div>UPDATE FORM "form-uuid" SET FIELD("updated-at") = NOW() WHERE FIELD("modified") = 'true'</div>
+            </div>
+          </CollapsibleContent>
         </div>
-      </div>
+      </Collapsible>
     </div>;
 };
