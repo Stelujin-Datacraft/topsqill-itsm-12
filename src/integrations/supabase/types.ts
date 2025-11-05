@@ -362,7 +362,7 @@ export type Database = {
           approved_by: string | null
           form_id: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           submission_data: Json
           submission_ref_id: string | null
           submitted_at: string
@@ -376,7 +376,7 @@ export type Database = {
           approved_by?: string | null
           form_id?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           submission_data: Json
           submission_ref_id?: string | null
           submitted_at?: string
@@ -390,7 +390,7 @@ export type Database = {
           approved_by?: string | null
           form_id?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           submission_data?: Json
           submission_ref_id?: string | null
           submitted_at?: string
@@ -1307,8 +1307,8 @@ export type Database = {
           last_name: string | null
           mobile: string | null
           nationality: string | null
-          password: string | null
           organization_id: string | null
+          password: string | null
           role: string
           status: string
           timezone: string | null
@@ -1323,8 +1323,8 @@ export type Database = {
           last_name?: string | null
           mobile?: string | null
           nationality?: string | null
-          password?: string | null
           organization_id?: string | null
+          password?: string | null
           role?: string
           status?: string
           timezone?: string | null
@@ -1339,8 +1339,8 @@ export type Database = {
           last_name?: string | null
           mobile?: string | null
           nationality?: string | null
-          password?: string | null
           organization_id?: string | null
+          password?: string | null
           role?: string
           status?: string
           timezone?: string | null
@@ -1829,10 +1829,7 @@ export type Database = {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
       }
-      can_user_create_project: {
-        Args: { org_id: string }
-        Returns: boolean
-      }
+      can_user_create_project: { Args: { org_id: string }; Returns: boolean }
       can_view_project: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
@@ -1845,9 +1842,9 @@ export type Database = {
         Args: { form_ref_id: string }
         Returns: string
       }
-      get_chart_data: {
-        Args:
-          | {
+      get_chart_data:
+        | {
+            Args: {
               p_aggregation?: string
               p_dimensions?: string[]
               p_drilldown_path?: string[]
@@ -1858,7 +1855,14 @@ export type Database = {
               p_metric_aggregations?: Json
               p_metrics?: string[]
             }
-          | {
+            Returns: {
+              additional_data: Json
+              name: string
+              value: number
+            }[]
+          }
+        | {
+            Args: {
               p_aggregation?: string
               p_dimensions?: string[]
               p_drilldown_path?: string[]
@@ -1867,20 +1871,14 @@ export type Database = {
               p_form_id: string
               p_metrics?: string[]
             }
-        Returns: {
-          additional_data: Json
-          name: string
-          value: number
-        }[]
-      }
-      get_current_user_org_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      get_current_user_organization_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+            Returns: {
+              additional_data: Json
+              name: string
+              value: number
+            }[]
+          }
+      get_current_user_org_id: { Args: never; Returns: string }
+      get_current_user_organization_id: { Args: never; Returns: string }
       get_group_members: {
         Args: { _group_id: string }
         Returns: {
@@ -1890,10 +1888,7 @@ export type Database = {
           member_type: string
         }[]
       }
-      get_next_execution_order: {
-        Args: { exec_id: string }
-        Returns: number
-      }
+      get_next_execution_order: { Args: { exec_id: string }; Returns: number }
       get_organization_users: {
         Args: { org_id: string }
         Returns: {
@@ -1950,7 +1945,7 @@ export type Database = {
         }[]
       }
       get_user_project_invitations: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           expires_at: string
           id: string
@@ -2005,18 +2000,12 @@ export type Database = {
         }
         Returns: string
       }
-      is_current_user_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      is_current_user_admin: { Args: never; Returns: boolean }
       is_current_user_admin_of_org: {
         Args: { org_id: string }
         Returns: boolean
       }
-      is_form_public: {
-        Args: { _form_id: string }
-        Returns: boolean
-      }
+      is_form_public: { Args: { _form_id: string }; Returns: boolean }
       reject_project_invitation: {
         Args: { invitation_id_param: string }
         Returns: Json
