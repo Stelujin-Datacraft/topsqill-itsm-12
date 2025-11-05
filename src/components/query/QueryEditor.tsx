@@ -211,6 +211,52 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
               <div>UPDATE FORM "form-uuid" SET FIELD("code") = LEFT(FIELD("original-code"), 5) WHERE FIELD("status") = 'active'</div>
               <div>UPDATE FORM "form-uuid" SET FIELD("price") = ROUND(FIELD("price"), 2) WHERE FIELD("category") = 'products'</div>
               <div>UPDATE FORM "form-uuid" SET FIELD("updated-at") = NOW() WHERE FIELD("modified") = 'true'</div>
+              
+              <div className="font-semibold mt-2">Internal Database Queries - Users:</div>
+              <div>SELECT * FROM user_profiles WHERE organization_id = 'org-uuid'</div>
+              <div>SELECT COUNT(*) FROM user_profiles WHERE organization_id = 'org-uuid'</div>
+              <div>SELECT id, email, first_name, last_name, role FROM user_profiles WHERE id = 'user-uuid'</div>
+              <div>SELECT * FROM user_profiles WHERE role = 'admin' AND organization_id = 'org-uuid'</div>
+              
+              <div className="font-semibold mt-2">Internal Database Queries - Projects:</div>
+              <div>SELECT * FROM projects WHERE organization_id = 'org-uuid'</div>
+              <div>SELECT COUNT(*) FROM projects WHERE organization_id = 'org-uuid'</div>
+              <div>SELECT name, description, status, created_at FROM projects WHERE id = 'project-uuid'</div>
+              <div>SELECT * FROM projects WHERE created_by = 'user-uuid'</div>
+              
+              <div className="font-semibold mt-2">Internal Database Queries - Forms:</div>
+              <div>SELECT * FROM forms WHERE organization_id = 'org-uuid'</div>
+              <div>SELECT COUNT(*) FROM forms WHERE organization_id = 'org-uuid'</div>
+              <div>SELECT * FROM forms WHERE project_id = 'project-uuid'</div>
+              <div>SELECT name, status, reference_id FROM forms WHERE id = 'form-uuid'</div>
+              <div>SELECT COUNT(*) FROM forms WHERE project_id = 'project-uuid' AND status = 'published'</div>
+              
+              <div className="font-semibold mt-2">Internal Database Queries - Form Fields:</div>
+              <div>SELECT * FROM form_fields WHERE form_id = 'form-uuid'</div>
+              <div>SELECT COUNT(*) FROM form_fields WHERE form_id = 'form-uuid'</div>
+              <div>SELECT label, field_type, required FROM form_fields WHERE form_id = 'form-uuid' ORDER BY field_order</div>
+              <div>SELECT * FROM form_fields WHERE form_id = 'form-uuid' AND is_enabled = true</div>
+              
+              <div className="font-semibold mt-2">Internal Database Queries - Submissions:</div>
+              <div>SELECT * FROM form_submissions WHERE form_id = 'form-uuid'</div>
+              <div>SELECT COUNT(*) FROM form_submissions WHERE form_id = 'form-uuid'</div>
+              <div>SELECT submission_ref_id, submitted_at, submitted_by, submission_data FROM form_submissions WHERE form_id = 'form-uuid'</div>
+              <div>SELECT * FROM form_submissions WHERE approval_status = 'pending'</div>
+              
+              <div className="font-semibold mt-2">Internal Database Queries - Workflows:</div>
+              <div>SELECT * FROM workflows WHERE organization_id = 'org-uuid'</div>
+              <div>SELECT COUNT(*) FROM workflows WHERE organization_id = 'org-uuid'</div>
+              <div>SELECT name, status, trigger_type FROM workflows WHERE project_id = 'project-uuid'</div>
+              
+              <div className="font-semibold mt-2">Internal Database Queries - Reports:</div>
+              <div>SELECT * FROM reports WHERE organization_id = 'org-uuid'</div>
+              <div>SELECT COUNT(*) FROM reports WHERE organization_id = 'org-uuid'</div>
+              <div>SELECT name, description, created_at FROM reports WHERE project_id = 'project-uuid'</div>
+              
+              <div className="font-semibold mt-2">Internal Database Queries - Combined:</div>
+              <div>SELECT f.name, COUNT(fs.id) as submission_count FROM forms f LEFT JOIN form_submissions fs ON f.id = fs.form_id WHERE f.project_id = 'project-uuid' GROUP BY f.id, f.name</div>
+              <div>SELECT p.name as project_name, COUNT(f.id) as form_count FROM projects p LEFT JOIN forms f ON p.id = f.project_id WHERE p.organization_id = 'org-uuid' GROUP BY p.id, p.name</div>
+              <div>SELECT u.email, COUNT(p.id) as project_count FROM user_profiles u LEFT JOIN projects p ON u.id = p.created_by WHERE u.organization_id = 'org-uuid' GROUP BY u.id, u.email</div>
             </div>
           </CollapsibleContent>
         </div>
