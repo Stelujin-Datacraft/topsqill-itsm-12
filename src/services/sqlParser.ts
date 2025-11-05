@@ -18,10 +18,26 @@ export interface QueryResult {
   errors: string[]
 }
 
+// List of allowed system tables
+const ALLOWED_SYSTEM_TABLES = [
+  'user_profiles',
+  'organizations', 
+  'projects',
+  'forms',
+  'form_fields',
+  'form_submissions',
+  'workflows',
+  'reports',
+  'project_users',
+  'asset_permissions',
+  'project_permissions'
+];
+
 /**
  * Parse custom UPDATE FORM syntax or SELECT queries
  * 1. Handle UPDATE FORM syntax for form field updates
  * 2. Handle SELECT queries with FIELD() syntax and SQL functions
+ * 3. Handle SELECT queries against system tables
  */
 export function parseUserQuery(input: string): ParseResult {
   const errors: string[] = []
@@ -36,6 +52,17 @@ export function parseUserQuery(input: string): ParseResult {
   if (!/^SELECT\s+/i.test(cleaned)) {
     errors.push('Only SELECT queries and UPDATE FORM queries are allowed.')
     return { errors }
+  }
+
+  // Check if this is a system table query (not a form UUID)
+  const systemTableMatch = cleaned.match(/FROM\s+(\w+)/i);
+  if (systemTableMatch) {
+    const tableName = systemTableMatch[1];
+    if (ALLOWED_SYSTEM_TABLES.includes(tableName)) {
+      // This is a system table query - pass through with metadata
+      const sql = `-- SYSTEM_TABLE_QUERY\n${cleaned}`;
+      return { sql, errors: [] };
+    }
   }
 
   // 2. Extract main parts: SELECT … FROM "formUuid" [WHERE …] [GROUP BY …] [HAVING …] [ORDER BY …] [LIMIT …] [OFFSET …]
@@ -194,6 +221,95 @@ export function parseUpdateFormQuery(input: string): ParseResult {
 import { evaluateExpression, evaluateFunction, aggregateFunctions } from './sqlFunctions';
 
 /**
+ * Execute a query against a system table
+ */
+async function executeSystemTableQuery(query: string): Promise<QueryResult> {
+  try {
+    // Parse the query to extract table name and clauses
+    const tableMatch = query.match(/FROM\s+(\w+)/i);
+    if (!tableMatch) {
+      return { columns: [], rows: [], errors: ['Invalid query: could not identify table'] };
+    }
+    
+    const tableName = tableMatch[1];
+    
+    // Security check: only allow whitelisted tables
+    if (!ALLOWED_SYSTEM_TABLES.includes(tableName)) {
+      return { columns: [], rows: [], errors: [`Table '${tableName}' is not accessible`] };
+    }
+
+    // Extract SELECT clause
+    const selectMatch = query.match(/SELECT\s+(.+?)\s+FROM/i);
+    const selectClause = selectMatch ? selectMatch[1].trim() : '*';
+    
+    // Extract WHERE clause if present
+    const whereMatch = query.match(/WHERE\s+(.+?)(?:\s+ORDER BY|\s+LIMIT|\s+OFFSET|$)/i);
+    const whereClause = whereMatch ? whereMatch[1].trim() : null;
+    
+    // Extract ORDER BY clause if present
+    const orderMatch = query.match(/ORDER BY\s+(.+?)(?:\s+LIMIT|\s+OFFSET|$)/i);
+    const orderClause = orderMatch ? orderMatch[1].trim() : null;
+    
+    // Extract LIMIT clause if present
+    const limitMatch = query.match(/LIMIT\s+(\d+)/i);
+    const limitValue = limitMatch ? parseInt(limitMatch[1]) : 100; // Default limit for safety
+    
+    // Extract OFFSET clause if present
+    const offsetMatch = query.match(/OFFSET\s+(\d+)/i);
+    const offsetValue = offsetMatch ? parseInt(offsetMatch[1]) : 0;
+
+    // Build the Supabase query - use any to bypass type checking for dynamic table names
+    let supabaseQuery = (supabase as any).from(tableName).select(selectClause);
+    
+    // Add WHERE conditions (basic support for simple conditions)
+    if (whereClause) {
+      // Parse simple conditions like "status = 'active'" or "id = '123'"
+      const eqMatch = whereClause.match(/(\w+)\s*=\s*'([^']+)'/);
+      if (eqMatch) {
+        supabaseQuery = supabaseQuery.eq(eqMatch[1], eqMatch[2]);
+      }
+    }
+    
+    // Add ORDER BY
+    if (orderClause) {
+      const [column, direction] = orderClause.split(/\s+/);
+      supabaseQuery = supabaseQuery.order(column, { 
+        ascending: !direction || direction.toUpperCase() === 'ASC' 
+      });
+    }
+    
+    // Add pagination
+    supabaseQuery = supabaseQuery.range(offsetValue, offsetValue + limitValue - 1);
+
+    const { data, error } = await supabaseQuery;
+    
+    if (error) {
+      return { columns: [], rows: [], errors: [error.message] };
+    }
+    
+    if (!data || data.length === 0) {
+      return { columns: [], rows: [], errors: [] };
+    }
+
+    // Extract columns from first row
+    const columns = Object.keys(data[0]);
+    
+    // Convert data to rows format
+    const rows = data.map(row => columns.map(col => row[col]));
+    
+    return { columns, rows, errors: [] };
+    
+  } catch (error) {
+    console.error('System table query error:', error);
+    return { 
+      columns: [], 
+      rows: [], 
+      errors: [error instanceof Error ? error.message : 'Unknown error executing system table query'] 
+    };
+  }
+}
+
+/**
  * Execute the user query using Supabase and client-side processing
  */
 export async function executeUserQuery(
@@ -210,6 +326,11 @@ export async function executeUserQuery(
     // Handle UPDATE queries differently
     if (sql?.startsWith('UPDATE')) {
       return await executeUpdateQuery(sql)
+    }
+
+    // Check if this is a system table query
+    if (sql?.includes('-- SYSTEM_TABLE_QUERY')) {
+      return await executeSystemTableQuery(sql.replace('-- SYSTEM_TABLE_QUERY\n', ''));
     }
     
     // Extract query metadata from SQL comment

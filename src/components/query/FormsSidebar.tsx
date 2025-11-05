@@ -158,7 +158,21 @@ export const FormsSidebar: React.FC<FormsSidebarProps> = ({
   const [openForms, setOpenForms] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [isFormsExpanded, setIsFormsExpanded] = useState(true);
+  const [isSystemTablesExpanded, setIsSystemTablesExpanded] = useState(false);
   const { savedQueries, isLoading, deleteQuery } = useSavedQueries();
+
+  // Define system tables
+  const systemTables = [
+    { name: 'user_profiles', icon: '👤', description: 'User information and profiles' },
+    { name: 'organizations', icon: '🏢', description: 'Organization details' },
+    { name: 'projects', icon: '📁', description: 'Projects in organization' },
+    { name: 'forms', icon: '📋', description: 'Forms metadata' },
+    { name: 'form_fields', icon: '📝', description: 'Form field definitions' },
+    { name: 'form_submissions', icon: '📤', description: 'Form submission data' },
+    { name: 'workflows', icon: '🔄', description: 'Workflow definitions' },
+    { name: 'reports', icon: '📊', description: 'Report configurations' },
+    { name: 'form_rules', icon: '⚙️', description: 'Form rule configurations' },
+  ];
 
   const handleSelectQuery = (query: SavedQuery) => {
     onSelectQuery(query.query);
@@ -240,6 +254,43 @@ export const FormsSidebar: React.FC<FormsSidebarProps> = ({
             onSelectQuery={handleSelectQuery}
             onDeleteQuery={deleteQuery}
           />
+
+          {/* System Tables Section */}
+          <Collapsible open={isSystemTablesExpanded} onOpenChange={setIsSystemTablesExpanded}>
+            <CollapsibleTrigger className="w-full">
+              <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 border border-border">
+                {isSystemTablesExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                <Database className="h-4 w-4" />
+                <span className="font-medium text-sm">System Tables</span>
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-1 space-y-1">
+              {systemTables.map(table => (
+                <div key={table.name} className="ml-4 p-2 rounded-md hover:bg-muted/50 group">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 flex-1">
+                      <span className="text-base">{table.icon}</span>
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <span className="text-sm font-medium truncate">{table.name}</span>
+                        <span className="text-xs text-muted-foreground truncate">{table.description}</span>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+                      onClick={() => {
+                        onInsertText(`SELECT * FROM ${table.name} LIMIT 10`);
+                      }}
+                      title="Insert SELECT query"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
 
           {/* Forms & Fields Section */}
           <Collapsible open={isFormsExpanded} onOpenChange={setIsFormsExpanded}>
