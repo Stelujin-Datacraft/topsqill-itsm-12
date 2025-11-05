@@ -157,7 +157,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
             {examplesOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="p-3 pt-0 space-y-1 text-xs text-muted-foreground font-mono">
+            <div className="p-3 pt-0 space-y-1 text-xs text-muted-foreground font-mono max-h-[400px] overflow-y-auto">
               <div className="font-semibold mt-2">SELECT queries - Basic:</div>
               <div>SELECT FIELD("field-uuid") FROM "form-uuid"</div>
               <div>SELECT FIELD("name-field"), FIELD("email-field") FROM "form-uuid" WHERE FIELD("status") = 'active'</div>
