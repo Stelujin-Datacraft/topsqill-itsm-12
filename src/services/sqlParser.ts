@@ -141,7 +141,7 @@ export function parseUserQuery(input: string): ParseResult {
 }
 
 /**
- * Parse custom UPDATE FORM syntax
+ * Parse custom UPDATE FORM syntax with arithmetic and CASE WHEN support
  * Expected format: UPDATE FORM 'form_id' SET FIELD('field_id') = value WHERE submission_id = 'submission_id'
  */
 export function parseUpdateFormQuery(input: string): ParseResult {
@@ -160,14 +160,20 @@ export function parseUpdateFormQuery(input: string): ParseResult {
 
   const [, formId, fieldId, valueExpression, whereClause] = updateMatch
 
-  // Transform value expression to handle FIELD() syntax and all allowed UPDATE functions
+  // Transform value expression to handle FIELD() syntax, functions, arithmetic, and CASE WHEN
   let transformedValue = valueExpression.trim()
   
+  // Check for CASE WHEN expressions
+  const hasCaseWhen = /CASE\s+WHEN/i.test(transformedValue);
+  
+  // Check for arithmetic expressions (e.g., FIELD('id') + 1, value * 2)
+  const hasArithmetic = /[+\-*\/]/.test(transformedValue) && !/\s+AND\s+|\s+OR\s+/i.test(transformedValue);
+  
   // Store function metadata for UPDATE query execution
-  const functionPattern = /^(UPPER|LOWER|CONCAT|REPLACE|TRIM|LTRIM|RTRIM|ROUND|CEIL|FLOOR|ABS|COALESCE|NOW|CURRENT_TIMESTAMP|IF|LEFT|RIGHT|SUBSTRING)\s*\(/i;
+  const functionPattern = /^(UPPER|LOWER|CONCAT|REPLACE|TRIM|LTRIM|RTRIM|ROUND|CEIL|FLOOR|ABS|COALESCE|NOW|CURRENT_TIMESTAMP|IF|LEFT|RIGHT|SUBSTRING|IFNULL|CASE)\s*\(/i;
   const hasFunction = functionPattern.test(transformedValue);
   
-  if (hasFunction) {
+  if (hasCaseWhen || hasFunction || hasArithmetic) {
     // Store the original expression with FIELD() references for later evaluation
     transformedValue = `FUNC::${transformedValue}`;
   } else {
@@ -548,9 +554,15 @@ function parseSelectExpressions(selectExpr: string): Array<{
 }
 
 /**
- * Evaluate SELECT expression for a row
+ * Evaluate SELECT expression for a row with CASE WHEN support
  */
 function evaluateSelectExpression(expr: string, row: any): any {
+  // Handle CASE WHEN expressions
+  const caseMatch = expr.match(/CASE\s+WHEN\s+(.+?)\s+THEN\s+(.+?)(?:\s+WHEN\s+(.+?)\s+THEN\s+(.+?))*(?:\s+ELSE\s+(.+?))?\s+END/i);
+  if (caseMatch) {
+    return evaluateCaseExpression(expr, row);
+  }
+  
   // Handle FIELD() references
   expr = expr.replace(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)/gi, (_, fieldId) => {
     return `${fieldId}`;
@@ -576,7 +588,40 @@ function evaluateSelectExpression(expr: string, row: any): any {
 }
 
 /**
- * Evaluate WHERE/HAVING condition
+ * Evaluate CASE WHEN expressions
+ */
+function evaluateCaseExpression(caseExpr: string, row: any): any {
+  try {
+    // Extract all WHEN ... THEN ... clauses
+    const whenMatches = [...caseExpr.matchAll(/WHEN\s+(.+?)\s+THEN\s+(.+?)(?=\s+WHEN|\s+ELSE|\s+END)/gi)];
+    
+    for (const match of whenMatches) {
+      const condition = match[1].trim();
+      const value = match[2].trim();
+      
+      // Evaluate condition
+      if (evaluateWhereCondition(condition, row)) {
+        // Evaluate and return the value
+        return evaluateSelectExpression(value, row);
+      }
+    }
+    
+    // Check for ELSE clause
+    const elseMatch = caseExpr.match(/ELSE\s+(.+?)\s+END/i);
+    if (elseMatch) {
+      const elseValue = elseMatch[1].trim();
+      return evaluateSelectExpression(elseValue, row);
+    }
+    
+    return null;
+  } catch (e) {
+    console.error('CASE expression evaluation error:', e);
+    return null;
+  }
+}
+
+/**
+ * Evaluate WHERE/HAVING condition with enhanced operator support
  */
 function evaluateWhereCondition(condition: string, row: any): boolean {
   // Replace FIELD() with actual values
@@ -592,9 +637,51 @@ function evaluateWhereCondition(condition: string, row: any): boolean {
     return `'${row.submission_id}'`;
   });
   
-  // Simple condition evaluation (supports: =, !=, <, >, <=, >=, LIKE, AND, OR)
-  // This is a simplified evaluator - for production, use a proper SQL parser
   try {
+    // Handle IS NULL / IS NOT NULL
+    processedCondition = processedCondition.replace(/(\w+|'[^']+')\s+IS\s+NOT\s+NULL/gi, (match, field) => {
+      const cleanField = field.replace(/'/g, '');
+      const value = field.startsWith("'") ? field.slice(1, -1) : row[cleanField];
+      return value !== null && value !== undefined ? 'true' : 'false';
+    });
+    
+    processedCondition = processedCondition.replace(/(\w+|'[^']+')\s+IS\s+NULL/gi, (match, field) => {
+      const cleanField = field.replace(/'/g, '');
+      const value = field.startsWith("'") ? field.slice(1, -1) : row[cleanField];
+      return value === null || value === undefined ? 'true' : 'false';
+    });
+    
+    // Handle IN operator
+    processedCondition = processedCondition.replace(/(\w+|'[^']+')\s+IN\s*\(([^)]+)\)/gi, (match, field, list) => {
+      const cleanField = field.replace(/'/g, '');
+      const fieldValue = field.startsWith("'") ? field.slice(1, -1) : row[cleanField];
+      const values = list.split(',').map((v: string) => {
+        const trimmed = v.trim();
+        return trimmed.startsWith("'") && trimmed.endsWith("'") ? trimmed.slice(1, -1) : trimmed;
+      });
+      return values.includes(String(fieldValue)) ? 'true' : 'false';
+    });
+    
+    // Handle NOT IN operator
+    processedCondition = processedCondition.replace(/(\w+|'[^']+')\s+NOT\s+IN\s*\(([^)]+)\)/gi, (match, field, list) => {
+      const cleanField = field.replace(/'/g, '');
+      const fieldValue = field.startsWith("'") ? field.slice(1, -1) : row[cleanField];
+      const values = list.split(',').map((v: string) => {
+        const trimmed = v.trim();
+        return trimmed.startsWith("'") && trimmed.endsWith("'") ? trimmed.slice(1, -1) : trimmed;
+      });
+      return !values.includes(String(fieldValue)) ? 'true' : 'false';
+    });
+    
+    // Handle BETWEEN operator
+    processedCondition = processedCondition.replace(/(\w+|'[^']+'|\d+)\s+BETWEEN\s+([^\s]+)\s+AND\s+([^\s]+)/gi, (match, field, min, max) => {
+      const cleanField = field.replace(/'/g, '');
+      const fieldValue = parseFloat(field.startsWith("'") ? field.slice(1, -1) : (row[cleanField] ?? field));
+      const minVal = parseFloat(min.replace(/'/g, ''));
+      const maxVal = parseFloat(max.replace(/'/g, ''));
+      return (fieldValue >= minVal && fieldValue <= maxVal) ? 'true' : 'false';
+    });
+    
     // Handle LIKE operator
     processedCondition = processedCondition.replace(/([^\s]+)\s+LIKE\s+'([^']+)'/gi, (match, field, pattern) => {
       const fieldValue = String(row[field] ?? '');
@@ -603,11 +690,23 @@ function evaluateWhereCondition(condition: string, row: any): boolean {
       return regex.test(fieldValue) ? 'true' : 'false';
     });
     
+    // Handle NOT LIKE operator
+    processedCondition = processedCondition.replace(/([^\s]+)\s+NOT\s+LIKE\s+'([^']+)'/gi, (match, field, pattern) => {
+      const fieldValue = String(row[field] ?? '');
+      const regexPattern = pattern.replace(/%/g, '.*').replace(/_/g, '.');
+      const regex = new RegExp('^' + regexPattern + '$', 'i');
+      return !regex.test(fieldValue) ? 'true' : 'false';
+    });
+    
+    // Handle NOT operator (before converting other operators)
+    processedCondition = processedCondition.replace(/\bNOT\s+\(/gi, '!(');
+    
     // Convert SQL operators to JavaScript
     processedCondition = processedCondition.replace(/\s+AND\s+/gi, ' && ');
     processedCondition = processedCondition.replace(/\s+OR\s+/gi, ' || ');
-    processedCondition = processedCondition.replace(/\s*=\s*/g, ' === ');
+    processedCondition = processedCondition.replace(/\s*<>\s*/g, ' !== ');
     processedCondition = processedCondition.replace(/\s*!=\s*/g, ' !== ');
+    processedCondition = processedCondition.replace(/\s*=\s*/g, ' === ');
     
     // Safely evaluate
     return new Function('return ' + processedCondition)();
@@ -800,14 +899,32 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
       let newValue: any;
       
       try {
-        // Check if value expression contains a function
+        // Check if value expression contains a function, CASE WHEN, or arithmetic
         if (valueExpression.startsWith('FUNC::')) {
           const funcExpr = valueExpression.substring(6);
           const row = {
             submission_id: submission.submission_ref_id || submission.id,
             ...(submission.submission_data as Record<string, any>)
           };
-          newValue = evaluateExpression(funcExpr.replace(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)/gi, '$1'), row);
+          
+          // Handle CASE WHEN expressions
+          if (/CASE\s+WHEN/i.test(funcExpr)) {
+            newValue = evaluateCaseExpression(funcExpr, row);
+          } else if (/[+\-*\/]/.test(funcExpr)) {
+            // Handle arithmetic expressions
+            const arithmeticExpr = funcExpr.replace(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)/gi, (_, fieldId) => {
+              return String(row[fieldId] ?? 0);
+            });
+            try {
+              newValue = new Function('return ' + arithmeticExpr)();
+            } catch (e) {
+              console.error('Arithmetic evaluation error:', e);
+              newValue = funcExpr;
+            }
+          } else {
+            // Regular function evaluation
+            newValue = evaluateExpression(funcExpr.replace(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)/gi, '$1'), row);
+          }
         } else if (valueExpression.startsWith('FIELD_REF::')) {
           const sourceFieldId = valueExpression.substring(11);
           newValue = submission.submission_data[sourceFieldId] || '';

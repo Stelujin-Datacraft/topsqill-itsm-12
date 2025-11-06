@@ -225,6 +225,18 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                     <div className="font-semibold mt-2">Conditional Functions:</div>
                     <div>SELECT IF(FIELD("score") &gt; 70, 'Pass', 'Fail') AS result FROM "form-uuid"</div>
                     <div>SELECT COALESCE(FIELD("nickname"), FIELD("full-name"), 'Anonymous') AS display_name FROM "form-uuid"</div>
+                    <div>SELECT IFNULL(FIELD("middle-name"), 'N/A') AS middle FROM "form-uuid"</div>
+                    <div>SELECT CASE WHEN FIELD("score") &gt;= 90 THEN 'A' WHEN FIELD("score") &gt;= 80 THEN 'B' WHEN FIELD("score") &gt;= 70 THEN 'C' ELSE 'F' END AS grade FROM "form-uuid"</div>
+                    
+                    <div className="font-semibold mt-2">Advanced WHERE Operators:</div>
+                    <div>SELECT * FROM "form-uuid" WHERE FIELD("status") IN ('active', 'pending', 'approved')</div>
+                    <div>SELECT * FROM "form-uuid" WHERE FIELD("age") BETWEEN 18 AND 65</div>
+                    <div>SELECT * FROM "form-uuid" WHERE FIELD("email") IS NOT NULL</div>
+                    <div>SELECT * FROM "form-uuid" WHERE FIELD("deleted-at") IS NULL</div>
+                    <div>SELECT * FROM "form-uuid" WHERE FIELD("name") LIKE '%John%'</div>
+                    <div>SELECT * FROM "form-uuid" WHERE FIELD("category") NOT IN ('archived', 'deleted')</div>
+                    <div>SELECT * FROM "form-uuid" WHERE NOT (FIELD("status") = 'inactive')</div>
+                    <div>SELECT * FROM "form-uuid" WHERE FIELD("name") NOT LIKE '%test%'</div>
                     
                     <div className="font-semibold mt-2">System Columns:</div>
                     <div>SELECT submission_id, submitted_by, submitted_at, FIELD("response") FROM "form-uuid"</div>
@@ -243,6 +255,15 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                     <div>UPDATE FORM "form-uuid" SET FIELD("code") = LEFT(FIELD("original-code"), 5) WHERE FIELD("status") = 'active'</div>
                     <div>UPDATE FORM "form-uuid" SET FIELD("price") = ROUND(FIELD("price"), 2) WHERE FIELD("category") = 'products'</div>
                     <div>UPDATE FORM "form-uuid" SET FIELD("updated-at") = NOW() WHERE FIELD("modified") = 'true'</div>
+                    
+                    <div className="font-semibold mt-2">UPDATE with Arithmetic:</div>
+                    <div>UPDATE FORM "form-uuid" SET FIELD("price") = FIELD("price") * 1.1 WHERE FIELD("category") = 'premium'</div>
+                    <div>UPDATE FORM "form-uuid" SET FIELD("quantity") = FIELD("quantity") + 10 WHERE FIELD("stock-low") = 'true'</div>
+                    <div>UPDATE FORM "form-uuid" SET FIELD("discount") = FIELD("price") * 0.2 WHERE FIELD("member") = 'vip'</div>
+                    
+                    <div className="font-semibold mt-2">UPDATE with CASE WHEN:</div>
+                    <div>UPDATE FORM "form-uuid" SET FIELD("grade") = CASE WHEN FIELD("score") &gt;= 90 THEN 'A' WHEN FIELD("score") &gt;= 80 THEN 'B' ELSE 'C' END WHERE submission_id = "uuid"</div>
+                    <div>UPDATE FORM "form-uuid" SET FIELD("status") = CASE WHEN FIELD("paid") = 'true' THEN 'active' ELSE 'inactive' END WHERE FIELD("user-type") = 'customer'</div>
                     
                     <div className="font-semibold mt-2">Internal Database Queries - Users:</div>
                     <div>SELECT * FROM user_profiles WHERE organization_id = 'org-uuid'</div>

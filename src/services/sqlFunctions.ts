@@ -108,7 +108,16 @@ export const aggregateFunctions = {
 export const conditionalFunctions = {
   IF: (condition: any, trueValue: any, falseValue: any) => condition ? trueValue : falseValue,
   COALESCE: (...args: any[]) => args.find(v => v != null) ?? null,
-  NULLIF: (a: any, b: any) => a === b ? null : a
+  NULLIF: (a: any, b: any) => a === b ? null : a,
+  IFNULL: (value: any, defaultValue: any) => value != null ? value : defaultValue,
+  CASE: (condition: any, whenThen: any[], elseValue: any = null) => {
+    // Simple CASE implementation for use in expressions
+    // whenThen should be array of [condition, value] pairs
+    for (let i = 0; i < whenThen.length; i += 2) {
+      if (whenThen[i]) return whenThen[i + 1];
+    }
+    return elseValue;
+  }
 };
 
 /**
