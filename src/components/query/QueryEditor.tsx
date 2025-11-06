@@ -306,10 +306,6 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                     <div>SELECT COUNT(*) FROM reports WHERE organization_id = 'org-uuid'</div>
                     <div>SELECT name, description, created_at FROM reports WHERE project_id = 'project-uuid'</div>
                     
-                    <div className="font-semibold mt-2">Internal Database Queries - Combined:</div>
-                    <div>SELECT f.name, COUNT(fs.id) as submission_count FROM forms f LEFT JOIN form_submissions fs ON f.id = fs.form_id WHERE f.project_id = 'project-uuid' GROUP BY f.id, f.name</div>
-                    <div>SELECT p.name as project_name, COUNT(f.id) as form_count FROM projects p LEFT JOIN forms f ON p.id = f.project_id WHERE p.organization_id = 'org-uuid' GROUP BY p.id, p.name</div>
-                    <div>SELECT u.email, COUNT(p.id) as project_count FROM user_profiles u LEFT JOIN projects p ON u.id = p.created_by WHERE u.organization_id = 'org-uuid' GROUP BY u.id, u.email</div>
                   </div>
                 </CollapsibleContent>
               </div>
