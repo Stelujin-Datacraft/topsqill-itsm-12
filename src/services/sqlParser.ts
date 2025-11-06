@@ -69,14 +69,15 @@ export function parseUserQuery(input: string): ParseResult {
   // Normalize whitespace and newlines for multi-line queries
   const normalized = cleaned.replace(/\s+/g, ' ');
   
-  // More flexible regex to capture all clauses
-  const selectMatch = normalized.match(/^SELECT\s+(.+?)\s+FROM\s+['""]([0-9a-fA-F\-]{36})['""](.*)$/i)
-  if (!selectMatch) {
-    errors.push('Invalid syntax. Expected: SELECT … FROM "form_uuid" [WHERE …] [GROUP BY …] [ORDER BY …] [LIMIT …]')
+  // Check for DISTINCT
+  const distinctMatch = normalized.match(/^SELECT\s+(DISTINCT\s+)?(.+?)\s+FROM\s+['""]([0-9a-fA-F\-]{36})['""](.*)$/i)
+  if (!distinctMatch) {
+    errors.push('Invalid syntax. Expected: SELECT [DISTINCT] … FROM "form_uuid" [WHERE …] [GROUP BY …] [ORDER BY …] [LIMIT …]')
     return { errors }
   }
   
-  let [, selectExpr, formUuid, restOfQuery] = selectMatch
+  let [, distinctKeyword, selectExpr, formUuid, restOfQuery] = distinctMatch
+  const isDistinct = Boolean(distinctKeyword)
   
   // Parse optional clauses
   let whereExpr = ''
@@ -131,7 +132,8 @@ export function parseUserQuery(input: string): ParseResult {
     havingExpr,
     orderByExpr,
     limitExpr,
-    offsetExpr
+    offsetExpr,
+    isDistinct
   };
 
   // Encode metadata in SQL comment for client-side execution
@@ -346,7 +348,7 @@ export async function executeUserQuery(
     }
     
     const metadata = JSON.parse(metadataMatch[1]);
-    const { formUuid, selectExpr, whereExpr, groupByExpr, havingExpr, orderByExpr, limitExpr, offsetExpr } = metadata;
+    const { formUuid, selectExpr, whereExpr, groupByExpr, havingExpr, orderByExpr, limitExpr, offsetExpr, isDistinct } = metadata;
     
     // Fetch all submissions for this form
     const { data: submissions, error: submissionsError } = await supabase
@@ -487,8 +489,22 @@ export async function executeUserQuery(
       });
     }
     
+    // Apply DISTINCT
+    let distinctResults = filteredResults;
+    if (isDistinct) {
+      const seen = new Set<string>();
+      distinctResults = filteredResults.filter(row => {
+        const rowKey = JSON.stringify(row);
+        if (seen.has(rowKey)) {
+          return false;
+        }
+        seen.add(rowKey);
+        return true;
+      });
+    }
+    
     // Apply LIMIT and OFFSET
-    let finalResults = filteredResults;
+    let finalResults = distinctResults;
     const offset = offsetExpr ? parseInt(offsetExpr) : 0;
     const limit = limitExpr ? parseInt(limitExpr) : undefined;
     
