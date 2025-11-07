@@ -194,7 +194,7 @@ export function DynamicTable({
     if (searchTerm && config.enableSearch) {
       console.log('🔍 Applying search filter for term:', searchTerm);
       const beforeSearch = filtered.length;
-      filtered = data.filter(row => {
+      filtered = filtered.filter(row => {
         // Search in submission ID
         if (row.submission_ref_id && row.submission_ref_id.toLowerCase().includes(searchTerm.toLowerCase())) {
           return true;
