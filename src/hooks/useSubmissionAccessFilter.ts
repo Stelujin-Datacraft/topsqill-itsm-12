@@ -10,6 +10,7 @@ interface SubmissionAccessData {
 export function useSubmissionAccessFilter(form: Form | null, userId: string | undefined) {
   const [userGroups, setUserGroups] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Find submission-access field in the form
   const submissionAccessField = useMemo(() => {
@@ -17,40 +18,60 @@ export function useSubmissionAccessFilter(form: Form | null, userId: string | un
     return form.fields.find(field => field.type === 'submission-access') || null;
   }, [form]);
 
-  // Load user's groups
+  // Load user's groups and admin status
   useEffect(() => {
-    const loadUserGroups = async () => {
+    const loadUserData = async () => {
       if (!userId) {
         setUserGroups([]);
+        setIsAdmin(false);
         setLoading(false);
         return;
       }
 
       try {
-        const { data, error } = await supabase
+        // Load groups
+        const { data: groupData, error: groupError } = await supabase
           .from('group_memberships')
           .select('group_id')
           .eq('member_id', userId)
           .eq('member_type', 'user');
 
-        if (error) throw error;
-        setUserGroups(data?.map(gm => gm.group_id) || []);
+        if (groupError) throw groupError;
+        setUserGroups(groupData?.map(gm => gm.group_id) || []);
+
+        // Check if user is admin
+        const { data: profileData, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('id', userId)
+          .single();
+
+        if (!profileError && profileData) {
+          setIsAdmin(profileData.role === 'admin');
+        }
       } catch (error) {
-        console.error('Error loading user groups:', error);
+        console.error('Error loading user data:', error);
         setUserGroups([]);
+        setIsAdmin(false);
       } finally {
         setLoading(false);
       }
     };
 
-    loadUserGroups();
+    loadUserData();
   }, [userId]);
 
   /**
    * Filter submissions based on submission-access field
    * Returns true if user can see the submission
+   * Admins can always see all submissions
    */
   const canViewSubmission = (submissionData: Record<string, any>): boolean => {
+    // Admins can always view all submissions
+    if (isAdmin) {
+      return true;
+    }
+
     // If no submission-access field exists, all users can see all submissions
     if (!submissionAccessField) {
       return true;
