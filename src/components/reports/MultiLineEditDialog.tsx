@@ -34,6 +34,7 @@ export function MultiLineEditDialog({
   onSave
 }: MultiLineEditDialogProps) {
   const [editData, setEditData] = useState<Record<string, Record<string, any>>>({});
+  const [originalData, setOriginalData] = useState<Record<string, Record<string, any>>>({});
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
   const { users, groups, getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
@@ -88,12 +89,15 @@ export function MultiLineEditDialog({
   useEffect(() => {
     if (isOpen && Array.isArray(submissions) && submissions.length > 0) {
       const initialData: Record<string, Record<string, any>> = {};
+      const originalValues: Record<string, Record<string, any>> = {};
       
       submissions.forEach(submission => {
         initialData[submission.id] = { ...submission.submission_data };
+        originalValues[submission.id] = { ...submission.submission_data };
       });
       
       setEditData(initialData);
+      setOriginalData(originalValues);
     }
   }, [isOpen, submissions]);
 
@@ -153,6 +157,10 @@ export function MultiLineEditDialog({
 const renderFieldInput = (field: any, value: any, submissionId: string
 ) => {
   const fieldType = field.field_type || field.type;
+  
+  // Get original value for comparison
+  const originalValue = originalData[submissionId]?.[field.id];
+  const hasOriginalValue = originalValue !== null && originalValue !== undefined;
     
   // Common wrapper for consistency
   const Wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -180,6 +188,11 @@ const renderFieldInput = (field: any, value: any, submissionId: string
             placeholder={`Enter ${field.label}`}
             className="text-sm"
           />
+          {hasOriginalValue && originalValue !== value && (
+            <div className="text-xs text-muted-foreground mt-1">
+              Previous: {originalValue || '(empty)'}
+            </div>
+          )}
         </Wrapper>
       );
 
@@ -196,6 +209,11 @@ const renderFieldInput = (field: any, value: any, submissionId: string
             rows={2}
             className="text-sm resize-none"
           />
+          {hasOriginalValue && originalValue !== value && (
+            <div className="text-xs text-muted-foreground mt-1 line-clamp-1">
+              Previous: {originalValue || '(empty)'}
+            </div>
+          )}
         </Wrapper>
       );
 
@@ -211,6 +229,11 @@ const renderFieldInput = (field: any, value: any, submissionId: string
             placeholder={`Enter ${field.label}`}
             className="text-sm"
           />
+          {hasOriginalValue && originalValue !== value && (
+            <div className="text-xs text-muted-foreground mt-1">
+              Previous: {originalValue || '(empty)'}
+            </div>
+          )}
         </Wrapper>
       );
 

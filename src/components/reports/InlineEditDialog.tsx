@@ -560,7 +560,11 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
     isBulkEdit: boolean = false
   ) => {
     const fieldValue = value ?? '';
-    const isDisabled = isBulkEdit && submissionId !== 'master' && submissions.length > 1 ;
+    const isDisabled = isBulkEdit && submissionId !== 'master' && submissions.length > 1;
+    
+    // Get original value for comparison (only for non-master records)
+    const originalValue = submissionId !== 'master' ? originalData[submissionId]?.[field.id] : null;
+    const hasOriginalValue = submissionId !== 'master' && originalValue !== null && originalValue !== undefined;
 
     switch (field.field_type) {
       case 'cross-reference': {
@@ -717,27 +721,41 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
       case 'email':
       case 'number':
         return (
-          <Input
-            type={field.field_type === 'number' ? 'number' : 'text'}
-            value={fieldValue}
-            onChange={(e) =>
-              handleFieldChange(submissionId, field.id, e.target.value)
-            }
-            className="w-full"
-            disabled={isDisabled}
-          />
+          <div className="w-full space-y-1">
+            <Input
+              type={field.field_type === 'number' ? 'number' : 'text'}
+              value={fieldValue}
+              onChange={(e) =>
+                handleFieldChange(submissionId, field.id, e.target.value)
+              }
+              className="w-full"
+              disabled={isDisabled}
+            />
+            {hasOriginalValue && originalValue !== fieldValue && (
+              <div className="text-xs text-muted-foreground">
+                Previous: {originalValue || '(empty)'}
+              </div>
+            )}
+          </div>
         );
 
       case 'textarea':
         return (
-          <Textarea
-            value={fieldValue}
-            onChange={(e) =>
-              handleFieldChange(submissionId, field.id, e.target.value)
-            }
-            className="w-full min-h-[60px]"
-            disabled={isDisabled}
-          />
+          <div className="w-full space-y-1">
+            <Textarea
+              value={fieldValue}
+              onChange={(e) =>
+                handleFieldChange(submissionId, field.id, e.target.value)
+              }
+              className="w-full min-h-[60px]"
+              disabled={isDisabled}
+            />
+            {hasOriginalValue && originalValue !== fieldValue && (
+              <div className="text-xs text-muted-foreground line-clamp-2">
+                Previous: {originalValue || '(empty)'}
+              </div>
+            )}
+          </div>
         );
 
       case "select": {
@@ -745,22 +763,29 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         const normalizedValue = normalizeStoredValue(field, value);
 
         return (
-          <Select
-            value={typeof normalizedValue === "string" ? normalizedValue : ""}
-            onValueChange={(val) => handleFieldChange(submissionId, field.id, val)}
-            disabled={isDisabled}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select option" />
-            </SelectTrigger>
-            <SelectContent>
-              {selectOptions.filter((option: any) => option.value && option.value.trim() !== '').map((option: any) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="w-full space-y-1">
+            <Select
+              value={typeof normalizedValue === "string" ? normalizedValue : ""}
+              onValueChange={(val) => handleFieldChange(submissionId, field.id, val)}
+              disabled={isDisabled}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select option" />
+              </SelectTrigger>
+              <SelectContent>
+                {selectOptions.filter((option: any) => option.value && option.value.trim() !== '').map((option: any) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {hasOriginalValue && originalValue !== normalizedValue && (
+              <div className="text-xs text-muted-foreground">
+                Previous: {getLabelForValue(field, originalValue) || '(empty)'}
+              </div>
+            )}
+          </div>
         );
       }
 
