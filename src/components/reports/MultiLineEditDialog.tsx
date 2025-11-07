@@ -262,6 +262,11 @@ const renderFieldInput = (field: any, value: any, submissionId: string
                 : null}
             </SelectContent>
           </Select>
+          {hasOriginalValue && originalValue !== value && (
+            <div className="text-xs text-muted-foreground mt-1">
+              Previous: {field.options?.find((opt: any) => opt.value === originalValue)?.label || originalValue || '(empty)'}
+            </div>
+          )}
         </Wrapper>
       );
 
@@ -280,6 +285,11 @@ const renderFieldInput = (field: any, value: any, submissionId: string
             placeholder="Enter tags separated by commas"
             className="text-sm"
           />
+          {hasOriginalValue && JSON.stringify(originalValue) !== JSON.stringify(value) && (
+            <div className="text-xs text-muted-foreground mt-1">
+              Previous: {Array.isArray(originalValue) ? originalValue.join(', ') : originalValue || '(empty)'}
+            </div>
+          )}
         </Wrapper>
       );
 
@@ -413,6 +423,11 @@ const renderFieldInput = (field: any, value: any, submissionId: string
             />
             <span className="text-sm">{field.label}</span>
           </div>
+          {hasOriginalValue && originalValue !== value && (
+            <div className="text-xs text-muted-foreground mt-1">
+              Previous: {originalValue === true || originalValue === 'true' ? 'Checked' : 'Unchecked'}
+            </div>
+          )}
         </Wrapper>
       );
 
@@ -435,6 +450,11 @@ const renderFieldInput = (field: any, value: any, submissionId: string
             }
             className="text-sm"
           />
+          {hasOriginalValue && originalValue !== value && (
+            <div className="text-xs text-muted-foreground mt-1">
+              Previous: {originalValue || '(empty)'}
+            </div>
+          )}
         </Wrapper>
       );
 
@@ -450,6 +470,11 @@ const renderFieldInput = (field: any, value: any, submissionId: string
             />
             <span className="text-sm">{field.label}</span>
           </div>
+          {hasOriginalValue && originalValue !== value && (
+            <div className="text-xs text-muted-foreground mt-1">
+              Previous: {originalValue === true || originalValue === 'true' ? 'On' : 'Off'}
+            </div>
+          )}
         </Wrapper>
       );
 
@@ -480,6 +505,11 @@ const renderFieldInput = (field: any, value: any, submissionId: string
               </span>
             )}
           </div>
+          {hasOriginalValue && originalValue !== value && (
+            <div className="text-xs text-muted-foreground mt-1">
+              Previous: {originalValue || 0} stars
+            </div>
+          )}
         </Wrapper>
       );
 
@@ -500,6 +530,11 @@ const renderFieldInput = (field: any, value: any, submissionId: string
           <div className="text-xs text-muted-foreground text-center">
             {value || min} / {max}
           </div>
+          {hasOriginalValue && originalValue !== value && (
+            <div className="text-xs text-muted-foreground mt-1">
+              Previous: {originalValue || min}
+            </div>
+          )}
         </Wrapper>
       );
 

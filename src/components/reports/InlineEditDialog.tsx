@@ -957,26 +957,34 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         const selectOptions = normalizeOptions(field);
         // ensure single-value string
         const normalizedValue = normalizeStoredValue(field, value) as string;
+        const normalizedOriginal = hasOriginalValue ? normalizeStoredValue(field, originalValue) as string : '';
 
         // make a safe unique group name per record/master
         const safeSubmissionId = String(submissionId).replace(/[^a-zA-Z0-9_-]/g, "_");
         const groupName = `${field.id}_radio_${safeSubmissionId}`;
 
         return (
-          <div className="flex flex-col gap-2">
-            {selectOptions.map((opt: any) => (
-              <label key={opt.value} className="inline-flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name={groupName} // << unique per record
-                  value={opt.value}
-                  checked={String(normalizedValue) === String(opt.value)}
-                  onChange={() => handleFieldChange(submissionId, field.id, opt.value)}
-                  disabled={isDisabled}
-                />
-                <span>{opt.label}</span> {/* show only label */}
-              </label>
-            ))}
+          <div className="w-full space-y-1">
+            <div className="flex flex-col gap-2">
+              {selectOptions.map((opt: any) => (
+                <label key={opt.value} className="inline-flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name={groupName} // << unique per record
+                    value={opt.value}
+                    checked={String(normalizedValue) === String(opt.value)}
+                    onChange={() => handleFieldChange(submissionId, field.id, opt.value)}
+                    disabled={isDisabled}
+                  />
+                  <span>{opt.label}</span> {/* show only label */}
+                </label>
+              ))}
+            </div>
+            {hasOriginalValue && normalizedOriginal !== normalizedValue && (
+              <div className="text-xs text-muted-foreground">
+                Previous: {getLabelForValue(field, originalValue) || '(none)'}
+              </div>
+            )}
           </div>
         );
       }
@@ -986,6 +994,9 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         const selectedValues = Array.isArray(normalizeStoredValue(field, value))
           ? (normalizeStoredValue(field, value) as string[])
           : [];
+        const originalSelectedValues = hasOriginalValue && Array.isArray(normalizeStoredValue(field, originalValue))
+          ? (normalizeStoredValue(field, originalValue) as string[])
+          : [];
 
         const toggle = (val: string) => {
           const updated = selectedValues.includes(val)
@@ -994,115 +1005,169 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           handleFieldChange(submissionId, field.id, updated);
         };
 
+        const hasChanged = hasOriginalValue && (
+          selectedValues.length !== originalSelectedValues.length ||
+          selectedValues.some((v, i) => v !== originalSelectedValues[i])
+        );
+
         return (
-          <div className="flex flex-col gap-2">
-            {selectOptions.map((opt: any) => (
-              <label key={opt.value} className="inline-flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={selectedValues.includes(opt.value)}
-                  onChange={() => toggle(opt.value)}
-                  disabled={isDisabled}
-                />
-                <span>{opt.label}</span>
-              </label>
-            ))}
+          <div className="w-full space-y-1">
+            <div className="flex flex-col gap-2">
+              {selectOptions.map((opt: any) => (
+                <label key={opt.value} className="inline-flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={selectedValues.includes(opt.value)}
+                    onChange={() => toggle(opt.value)}
+                    disabled={isDisabled}
+                  />
+                  <span>{opt.label}</span>
+                </label>
+              ))}
+            </div>
+            {hasChanged && (
+              <div className="text-xs text-muted-foreground">
+                Previous: {getLabelForValue(field, originalValue) || '(none)'}
+              </div>
+            )}
           </div>
         );
       }
 
       case 'date':
         return (
-          <Input
-            type="date"
-            value={fieldValue}
-            onChange={(e) =>
-              handleFieldChange(submissionId, field.id, e.target.value)
-            }
-            className="w-full"
-            disabled={isDisabled}
-          />
+          <div className="w-full space-y-1">
+            <Input
+              type="date"
+              value={fieldValue}
+              onChange={(e) =>
+                handleFieldChange(submissionId, field.id, e.target.value)
+              }
+              className="w-full"
+              disabled={isDisabled}
+            />
+            {hasOriginalValue && originalValue !== fieldValue && (
+              <div className="text-xs text-muted-foreground">
+                Previous: {originalValue || '(empty)'}
+              </div>
+            )}
+          </div>
         );
 
       case 'time':
         return (
-          <Input
-            type="time"
-            value={fieldValue}
-            onChange={(e) =>
-              handleFieldChange(submissionId, field.id, e.target.value)
-            }
-            className="w-full"
-            disabled={isDisabled}
-          />
+          <div className="w-full space-y-1">
+            <Input
+              type="time"
+              value={fieldValue}
+              onChange={(e) =>
+                handleFieldChange(submissionId, field.id, e.target.value)
+              }
+              className="w-full"
+              disabled={isDisabled}
+            />
+            {hasOriginalValue && originalValue !== fieldValue && (
+              <div className="text-xs text-muted-foreground">
+                Previous: {originalValue || '(empty)'}
+              </div>
+            )}
+          </div>
         );
 
       case 'datetime':
         return (
-          <Input
-            type="datetime-local"
-            value={fieldValue}
-            onChange={(e) =>
-              handleFieldChange(submissionId, field.id, e.target.value)
-            }
-            className="w-full"
-            disabled={isDisabled}
-          />
+          <div className="w-full space-y-1">
+            <Input
+              type="datetime-local"
+              value={fieldValue}
+              onChange={(e) =>
+                handleFieldChange(submissionId, field.id, e.target.value)
+              }
+              className="w-full"
+              disabled={isDisabled}
+            />
+            {hasOriginalValue && originalValue !== fieldValue && (
+              <div className="text-xs text-muted-foreground">
+                Previous: {originalValue || '(empty)'}
+              </div>
+            )}
+          </div>
         );
 
       case 'checkbox':
         return (
-          <div className="flex items-center gap-2">
-            <Checkbox
-              checked={fieldValue === true}
-              onCheckedChange={(checked) =>
-                handleFieldChange(submissionId, field.id, checked === true)
-              }
-              disabled={isDisabled}
-            />
-            <span className="text-sm">{field.label}</span>
+          <div className="w-full space-y-1">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={fieldValue === true}
+                onCheckedChange={(checked) =>
+                  handleFieldChange(submissionId, field.id, checked === true)
+                }
+                disabled={isDisabled}
+              />
+              <span className="text-sm">{field.label}</span>
+            </div>
+            {hasOriginalValue && originalValue !== fieldValue && (
+              <div className="text-xs text-muted-foreground">
+                Previous: {originalValue === true ? 'Checked' : 'Unchecked'}
+              </div>
+            )}
           </div>
         );
 
       case 'toggle-switch':
         return (
-          <div className="flex items-center gap-2">
-            <Switch
-              checked={fieldValue === true}
-              onCheckedChange={(checked) =>
-                handleFieldChange(submissionId, field.id, checked === true)
-              }
-              disabled={isDisabled}
-            />
-            <span className="text-sm">{field.label}</span>
+          <div className="w-full space-y-1">
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={fieldValue === true}
+                onCheckedChange={(checked) =>
+                  handleFieldChange(submissionId, field.id, checked === true)
+                }
+                disabled={isDisabled}
+              />
+              <span className="text-sm">{field.label}</span>
+            </div>
+            {hasOriginalValue && originalValue !== fieldValue && (
+              <div className="text-xs text-muted-foreground">
+                Previous: {originalValue === true ? 'On' : 'Off'}
+              </div>
+            )}
           </div>
         );
 
       case 'rating': {
         const maxRating = field.customConfig?.ratingScale || 5;
         return (
-          <div className="flex items-center gap-1">
-            {[...Array(maxRating)].map((_, index) => {
-              const starValue = index + 1;
-              return (
-                <Star
-                  key={index}
-                  className={`h-4 w-4 cursor-pointer transition-colors ${
-                    starValue <= (fieldValue || 0)
-                      ? 'fill-yellow-400 text-yellow-400'
-                      : 'text-gray-300'
-                  }`}
-                  onClick={() =>
-                    !isDisabled &&
-                    handleFieldChange(submissionId, field.id, starValue)
-                  }
-                />
-              );
-            })}
-            {fieldValue > 0 && (
-              <span className="ml-2 text-xs text-muted-foreground">
-                {fieldValue}/{maxRating}
-              </span>
+          <div className="w-full space-y-1">
+            <div className="flex items-center gap-1">
+              {[...Array(maxRating)].map((_, index) => {
+                const starValue = index + 1;
+                return (
+                  <Star
+                    key={index}
+                    className={`h-4 w-4 cursor-pointer transition-colors ${
+                      starValue <= (fieldValue || 0)
+                        ? 'fill-yellow-400 text-yellow-400'
+                        : 'text-gray-300'
+                    }`}
+                    onClick={() =>
+                      !isDisabled &&
+                      handleFieldChange(submissionId, field.id, starValue)
+                    }
+                  />
+                );
+              })}
+              {fieldValue > 0 && (
+                <span className="ml-2 text-xs text-muted-foreground">
+                  {fieldValue}/{maxRating}
+                </span>
+              )}
+            </div>
+            {hasOriginalValue && originalValue !== fieldValue && (
+              <div className="text-xs text-muted-foreground">
+                Previous: {originalValue || 0} stars
+              </div>
             )}
           </div>
         );
