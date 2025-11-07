@@ -760,27 +760,95 @@ if (fieldType === 'country' && value) {
   //   return <span className="text-sm text-muted-foreground">File attached</span>;
   // }
 
-  // Handle file/image fields
+  // Handle file/image fields with comprehensive format support
 if (['file', 'image'].includes(fieldType) && value) {
+  console.log('🔍 File field detected:', { fieldType, value, valueType: typeof value });
+  
   // Normalize into array of files
   const files: { name: string; url: string }[] = [];
 
-  if (typeof value === 'string' && value.startsWith('http')) {
-    files.push({ name: value.split('/').pop() || 'file', url: value });
-  } else if (Array.isArray(value)) {
-    value.forEach((f: any) => {
-      if (typeof f === 'string' && f.startsWith('http')) {
-        files.push({ name: f.split('/').pop() || 'file', url: f });
-      } else if (f?.url) {
-        files.push({ name: f.name || f.url.split('/').pop() || 'file', url: f.url });
+  // Parse the value based on its type
+  let parsedValue = value;
+  
+  // If it's a JSON string, try to parse it
+  if (typeof value === 'string') {
+    if (value.startsWith('http')) {
+      // Direct URL string
+      files.push({ name: value.split('/').pop() || 'file', url: value });
+    } else if (value.startsWith('[') || value.startsWith('{')) {
+      // JSON string - try to parse it
+      try {
+        parsedValue = JSON.parse(value);
+      } catch (e) {
+        console.error('Failed to parse file value:', e);
+        // If parsing fails, treat as filename
+        files.push({ name: value, url: value });
       }
-    });
-  } else if (value?.url) {
-    files.push({ name: value.name || value.url.split('/').pop() || 'file', url: value.url });
+    } else {
+      // Plain filename or path
+      files.push({ name: value, url: value });
+    }
   }
 
+  // Handle parsed value if it was JSON
+  if (parsedValue !== value) {
+    if (Array.isArray(parsedValue)) {
+      parsedValue.forEach((f: any) => {
+        if (typeof f === 'string') {
+          if (f.startsWith('http')) {
+            files.push({ name: f.split('/').pop() || 'file', url: f });
+          } else {
+            files.push({ name: f, url: f });
+          }
+        } else if (f && typeof f === 'object') {
+          const url = f.url || f.path || f.file_url || '';
+          const name = f.name || f.filename || f.file_name || url.split('/').pop() || 'file';
+          if (url) {
+            files.push({ name, url });
+          }
+        }
+      });
+    } else if (parsedValue && typeof parsedValue === 'object') {
+      const url = parsedValue.url || parsedValue.path || parsedValue.file_url || '';
+      const name = parsedValue.name || parsedValue.filename || parsedValue.file_name || url.split('/').pop() || 'file';
+      if (url) {
+        files.push({ name, url });
+      }
+    }
+  }
+
+  // Handle array directly (not from JSON parse)
+  if (Array.isArray(value) && files.length === 0) {
+    value.forEach((f: any) => {
+      if (typeof f === 'string') {
+        if (f.startsWith('http')) {
+          files.push({ name: f.split('/').pop() || 'file', url: f });
+        } else {
+          files.push({ name: f, url: f });
+        }
+      } else if (f && typeof f === 'object') {
+        const url = f.url || f.path || f.file_url || '';
+        const name = f.name || f.filename || f.file_name || url.split('/').pop() || 'file';
+        if (url) {
+          files.push({ name, url });
+        }
+      }
+    });
+  }
+
+  // Handle object directly (not from JSON parse)
+  if (typeof value === 'object' && !Array.isArray(value) && value !== null && files.length === 0) {
+    const url = value.url || value.path || value.file_url || '';
+    const name = value.name || value.filename || value.file_name || url.split('/').pop() || 'file';
+    if (url) {
+      files.push({ name, url });
+    }
+  }
+
+  console.log('📁 Processed files:', files);
+
   if (files.length === 0) {
-    return <span className="italic text-muted-foreground">No file</span>;
+    return <Badge variant="outline" className="italic opacity-70 text-muted-foreground/80">No file</Badge>;
   }
 
   return (
@@ -788,10 +856,10 @@ if (['file', 'image'].includes(fieldType) && value) {
       {files.map((f, index) => (
         <div
           key={index}
-          className="flex items-center justify-between gap-2 border rounded px-2 py-1 bg-muted/40"
+          className="flex items-center justify-between gap-2 border rounded px-2 py-1 bg-muted/40 hover:bg-muted/60 transition-colors"
         >
           {/* File name */}
-          <span className="text-sm truncate flex-1">{f.name}</span>
+          <span className="text-sm truncate flex-1" title={f.name}>{f.name}</span>
 
           {/* Actions */}
           <div className="flex gap-1 shrink-0">
@@ -799,7 +867,8 @@ if (['file', 'image'].includes(fieldType) && value) {
               variant="outline"
               size="sm"
               onClick={() => window.open(f.url, '_blank')}
-              className="h-7 px-2"
+              className="h-7 px-2 text-xs"
+              title="Preview file"
             >
               <Eye className="h-3 w-3" />
             </Button>
@@ -812,7 +881,8 @@ if (['file', 'image'].includes(fieldType) && value) {
                 link.download = f.name;
                 link.click();
               }}
-              className="h-7 px-2"
+              className="h-7 px-2 text-xs"
+              title="Download file"
             >
               Download
             </Button>
