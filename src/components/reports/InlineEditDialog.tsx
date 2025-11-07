@@ -731,7 +731,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
               className="w-full"
               disabled={isDisabled}
             />
-            {hasOriginalValue && originalValue !== fieldValue && (
+            {hasOriginalValue && (
               <div className="text-xs text-muted-foreground">
                 Previous: {originalValue || '(empty)'}
               </div>
@@ -750,7 +750,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
               className="w-full min-h-[60px]"
               disabled={isDisabled}
             />
-            {hasOriginalValue && originalValue !== fieldValue && (
+            {hasOriginalValue && (
               <div className="text-xs text-muted-foreground line-clamp-2">
                 Previous: {originalValue || '(empty)'}
               </div>
@@ -780,7 +780,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                 ))}
               </SelectContent>
             </Select>
-            {hasOriginalValue && originalValue !== normalizedValue && (
+            {hasOriginalValue && (
               <div className="text-xs text-muted-foreground">
                 Previous: {getLabelForValue(field, originalValue) || '(empty)'}
               </div>
@@ -980,7 +980,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                 </label>
               ))}
             </div>
-            {hasOriginalValue && normalizedOriginal !== normalizedValue && (
+            {hasOriginalValue && (
               <div className="text-xs text-muted-foreground">
                 Previous: {getLabelForValue(field, originalValue) || '(none)'}
               </div>
@@ -1025,7 +1025,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                 </label>
               ))}
             </div>
-            {hasChanged && (
+            {hasOriginalValue && (
               <div className="text-xs text-muted-foreground">
                 Previous: {getLabelForValue(field, originalValue) || '(none)'}
               </div>
@@ -1046,7 +1046,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
               className="w-full"
               disabled={isDisabled}
             />
-            {hasOriginalValue && originalValue !== fieldValue && (
+            {hasOriginalValue && (
               <div className="text-xs text-muted-foreground">
                 Previous: {originalValue || '(empty)'}
               </div>
@@ -1066,7 +1066,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
               className="w-full"
               disabled={isDisabled}
             />
-            {hasOriginalValue && originalValue !== fieldValue && (
+            {hasOriginalValue && (
               <div className="text-xs text-muted-foreground">
                 Previous: {originalValue || '(empty)'}
               </div>
@@ -1086,7 +1086,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
               className="w-full"
               disabled={isDisabled}
             />
-            {hasOriginalValue && originalValue !== fieldValue && (
+            {hasOriginalValue && (
               <div className="text-xs text-muted-foreground">
                 Previous: {originalValue || '(empty)'}
               </div>
@@ -1107,7 +1107,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
               />
               <span className="text-sm">{field.label}</span>
             </div>
-            {hasOriginalValue && originalValue !== fieldValue && (
+            {hasOriginalValue && (
               <div className="text-xs text-muted-foreground">
                 Previous: {originalValue === true ? 'Checked' : 'Unchecked'}
               </div>
@@ -1128,7 +1128,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
               />
               <span className="text-sm">{field.label}</span>
             </div>
-            {hasOriginalValue && originalValue !== fieldValue && (
+            {hasOriginalValue && (
               <div className="text-xs text-muted-foreground">
                 Previous: {originalValue === true ? 'On' : 'Off'}
               </div>
@@ -1164,7 +1164,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                 </span>
               )}
             </div>
-            {hasOriginalValue && originalValue !== fieldValue && (
+            {hasOriginalValue && (
               <div className="text-xs text-muted-foreground">
                 Previous: {originalValue || 0} stars
               </div>
