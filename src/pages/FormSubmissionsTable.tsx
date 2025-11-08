@@ -87,12 +87,6 @@ export default function FormSubmissionsTable() {
   return <div className="min-h-screen bg-background">
       <DashboardLayout title="Form Submissions Data Table" actions={<div className="flex items-center gap-2">
           {selectedFormId && <>
-              <Button variant="default" onClick={() => {
-                navigate(`/forms/${selectedFormId}`);
-              }} disabled={!selectedFormId}>
-                <FileText className="h-4 w-4 mr-2" />
-                Create Record
-              </Button>
               <Button variant="outline" onClick={() => setShowSaveDialog(true)} disabled={!selectedFormId}>
                 <Save className="h-4 w-4 mr-2" />
                 Save as Report

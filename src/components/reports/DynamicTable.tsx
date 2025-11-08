@@ -816,6 +816,10 @@ export function DynamicTable({
       </div>
 
       <div className="flex items-center space-x-2">
+        <Button variant="default" size="sm" onClick={() => navigate(`/forms/${config.formId}`)}>
+          <FileText className="h-4 w-4 mr-1" />
+          Create Record
+        </Button>
         <Button variant="outline" size="sm" onClick={() => setIsExpanded(!isExpanded)}>
           {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
           {isExpanded ? 'Normal View' : 'Expand'}
