@@ -78,9 +78,21 @@ export function useFormSnapshot(initialForm: Form | null) {
     setSnapshot(prev => {
       if (!prev.form) return prev;
       
-      const updatedFields = prev.form.fields.map(field =>
-        field.id === fieldId ? { ...field, ...updates } : field
-      );
+      const updatedFields = prev.form.fields.map(field => {
+        if (field.id === fieldId) {
+          // Deep merge customConfig to preserve existing properties
+          const mergedCustomConfig = updates.customConfig
+            ? { ...field.customConfig, ...updates.customConfig }
+            : field.customConfig;
+          
+          return { 
+            ...field, 
+            ...updates,
+            customConfig: mergedCustomConfig
+          };
+        }
+        return field;
+      });
 
       return {
         ...prev,
