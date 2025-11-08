@@ -441,7 +441,7 @@ function evaluateToken(token: string, row: any, fieldMetadata?: Record<string, a
   
   // Function call
   if (token.includes('(')) {
-    return evaluateExpression(token, row);
+    return evaluateExpression(token, row, fieldMetadata);
   }
   
   // Field reference
