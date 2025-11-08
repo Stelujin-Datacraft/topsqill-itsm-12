@@ -1,91 +1,118 @@
+import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+// Types for export functionality
+export type ExportFormat = 'csv' | 'json' | 'excel';
+
 export interface ExportData {
-  headers: string[];
-  rows: any[][];
-  filename: string;
+  data: Record<string, any>[];
+  filename?: string;
   title?: string;
 }
 
-export const exportToCSV = (data: ExportData) => {
-  const csv = Papa.unparse({
-    fields: data.headers,
-    data: data.rows
-  });
+// Main export function for query results
+export function exportData(data: Record<string, any>[], format: ExportFormat, filename: string) {
+  switch (format) {
+    case 'csv':
+      exportCSVDirect(data, filename);
+      break;
+    case 'json':
+      exportJSONDirect(data, filename);
+      break;
+    case 'excel':
+      exportExcelDirect(data, filename);
+      break;
+  }
+}
 
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  const url = URL.createObjectURL(blob);
-  link.setAttribute('href', url);
-  link.setAttribute('download', `${data.filename}.csv`);
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-};
+// Direct export functions for query results
+function exportCSVDirect(data: Record<string, any>[], filename: string) {
+  const csv = Papa.unparse(data);
+  downloadFile(csv, `${filename}.csv`, 'text/csv');
+}
 
-export const exportToPDF = (data: ExportData) => {
+function exportJSONDirect(data: Record<string, any>[], filename: string) {
+  const json = JSON.stringify(data, null, 2);
+  downloadFile(json, `${filename}.json`, 'application/json');
+}
+
+function exportExcelDirect(data: Record<string, any>[], filename: string) {
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Query Results');
+  
+  // Auto-size columns
+  if (data.length > 0) {
+    const cols = Object.keys(data[0]);
+    worksheet['!cols'] = cols.map(col => ({ wch: Math.max(col.length, 10) }));
+  }
+  
+  XLSX.writeFile(workbook, `${filename}.xlsx`);
+}
+
+// Legacy functions for reports (maintain backward compatibility)
+export function exportToCSV(exportData: ExportData) {
+  const filename = exportData.filename || 'export';
+  const csv = Papa.unparse(exportData.data);
+  downloadFile(csv, `${filename}.csv`, 'text/csv');
+}
+
+export function exportToJSON(exportData: ExportData) {
+  const filename = exportData.filename || 'export';
+  const json = JSON.stringify(exportData.data, null, 2);
+  downloadFile(json, `${filename}.json`, 'application/json');
+}
+
+export function exportToPDF(exportData: ExportData) {
+  const filename = exportData.filename || 'export';
   const doc = new jsPDF();
   
-  if (data.title) {
+  if (exportData.title) {
     doc.setFontSize(16);
-    doc.text(data.title, 14, 20);
+    doc.text(exportData.title, 14, 15);
   }
-
-  autoTable(doc, {
-    head: [data.headers],
-    body: data.rows,
-    startY: data.title ? 30 : 20,
-    styles: {
-      fontSize: 8,
-      cellPadding: 2,
-    },
-    headStyles: {
-      fillColor: [66, 139, 202],
-      textColor: 255,
-    },
-    alternateRowStyles: {
-      fillColor: [245, 245, 245],
-    },
-  });
-
-  doc.save(`${data.filename}.pdf`);
-};
-
-export const exportToJSON = (data: ExportData) => {
-  const jsonData = data.rows.map(row => {
-    const obj: Record<string, any> = {};
-    data.headers.forEach((header, index) => {
-      obj[header] = row[index];
+  
+  if (exportData.data.length > 0) {
+    const columns = Object.keys(exportData.data[0]);
+    const rows = exportData.data.map(row => 
+      columns.map(col => String(row[col] ?? ''))
+    );
+    
+    autoTable(doc, {
+      head: [columns],
+      body: rows,
+      startY: exportData.title ? 25 : 15,
     });
-    return obj;
-  });
+  }
+  
+  doc.save(`${filename}.pdf`);
+}
 
-  const blob = new Blob([JSON.stringify(jsonData, null, 2)], {
-    type: 'application/json;charset=utf-8;'
-  });
-  const link = document.createElement('a');
+export function exportToParquet(exportData: ExportData) {
+  // Parquet export is not fully supported in browser
+  // Fall back to JSON for now
+  console.warn('Parquet export not available, falling back to JSON');
+  exportToJSON(exportData);
+}
+
+export function exportToAvro(exportData: ExportData) {
+  // Avro export is not fully supported in browser
+  // Fall back to JSON for now
+  console.warn('Avro export not available, falling back to JSON');
+  exportToJSON(exportData);
+}
+
+// Utility function to download files
+function downloadFile(content: string, filename: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
-  link.setAttribute('href', url);
-  link.setAttribute('download', `${data.filename}.json`);
-  link.style.visibility = 'hidden';
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-};
-
-export const exportToParquet = (data: ExportData) => {
-  // Note: For Parquet, we'll create a simplified format since browser support is limited
-  // In a real implementation, you'd need a proper Parquet library
-  console.warn('Parquet export not fully supported in browser. Exporting as JSON instead.');
-  exportToJSON(data);
-};
-
-export const exportToAvro = (data: ExportData) => {
-  // Note: For Avro, we'll create a simplified format since browser support is limited
-  // In a real implementation, you'd need a proper Avro library
-  console.warn('Avro export not fully supported in browser. Exporting as JSON instead.');
-  exportToJSON(data);
-};
+  URL.revokeObjectURL(url);
+}

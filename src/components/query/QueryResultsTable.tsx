@@ -27,6 +27,7 @@ import {
   ChevronsRight
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ExportMenu } from './ExportMenu';
 
 interface QueryResultsTableProps {
   data: any[] | null;
@@ -225,14 +226,11 @@ export const QueryResultsTable: React.FC<QueryResultsTableProps> = ({
             </TabsList>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              {data.length} {data.length === 1 ? 'result' : 'results'}
+            <Badge variant="secondary" className="text-xs">
+              {data.length} {data.length === 1 ? 'row' : 'rows'}
               {totalCount > data.length && ` of ${totalCount}`}
-            </span>
-            <Button onClick={handleExportCSV} size="sm" variant="outline" className="gap-2">
-              <Download className="h-4 w-4" />
-              Export CSV
-            </Button>
+            </Badge>
+            <ExportMenu data={data} />
           </div>
         </div>
 

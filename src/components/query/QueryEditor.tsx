@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { parseUserQuery, ParseResult } from '@/services/sqlParser';
-import { Loader2, Play, Copy, Check, Save, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Play, Copy, Check, Save, ChevronDown, ChevronUp, Wand2, Keyboard } from 'lucide-react';
+import { formatSQL } from '@/utils/queryFormatter';
+import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
+import { useToast } from '@/hooks/use-toast';
 
 // Import CodeMirror editor
 import CodeMirror from '@uiw/react-codemirror';
@@ -32,6 +35,8 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
   const [isValidating, setIsValidating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [examplesOpen, setExamplesOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const { toast } = useToast();
 
   const validateQuery = useCallback((input: string) => {
     if (!input.trim()) {
@@ -79,6 +84,56 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
     }
   };
 
+  const handleFormat = () => {
+    try {
+      const formatted = formatSQL(value);
+      onChange(formatted);
+      toast({
+        title: "Query formatted",
+        description: "Your SQL query has been formatted"
+      });
+    } catch (error) {
+      toast({
+        title: "Format failed",
+        description: "Could not format the query",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleKeyDown = (event: KeyboardEvent) => {
+    // Ctrl+Enter: Execute
+    if (event.ctrlKey && event.key === 'Enter') {
+      event.preventDefault();
+      handleExecute();
+    }
+    // Ctrl+S: Save
+    else if (event.ctrlKey && event.key === 's') {
+      event.preventDefault();
+      onSave();
+    }
+    // Ctrl+F: Format
+    else if (event.ctrlKey && event.key === 'f') {
+      event.preventDefault();
+      handleFormat();
+    }
+    // Ctrl+K: Clear
+    else if (event.ctrlKey && event.key === 'k') {
+      event.preventDefault();
+      onChange('');
+    }
+    // Ctrl+?: Show shortcuts
+    else if (event.ctrlKey && event.key === '?') {
+      event.preventDefault();
+      setShortcutsOpen(true);
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [value]);
+
   const isValid = parseResult.sql && parseResult.errors.length === 0;
 
   return (
@@ -96,7 +151,17 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={handleCopy} variant="outline" size="sm" className="gap-2">
+          <Button 
+            onClick={handleFormat}
+            size="sm"
+            variant="outline"
+            disabled={!value}
+            title="Format SQL (Ctrl+F)"
+          >
+            <Wand2 className="h-4 w-4" />
+          </Button>
+          
+          <Button onClick={handleCopy} variant="outline" size="sm" className="gap-2" title="Copy to clipboard">
             {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             {copied ? 'Copied!' : 'Copy'}
           </Button>
@@ -107,9 +172,19 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
             size="sm"
             className="gap-2"
             disabled={!value.trim()}
+            title="Save query (Ctrl+S)"
           >
             <Save className="h-4 w-4" />
             Save
+          </Button>
+          
+          <Button 
+            onClick={() => setShortcutsOpen(true)}
+            size="sm"
+            variant="ghost"
+            title="Keyboard shortcuts (Ctrl+?)"
+          >
+            <Keyboard className="h-4 w-4" />
           </Button>
           
           <Button onClick={handleExecute} disabled={!isValid || isExecuting} size="sm" className="gap-2">
@@ -313,6 +388,11 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
+      
+      <KeyboardShortcutsDialog 
+        open={shortcutsOpen} 
+        onOpenChange={setShortcutsOpen} 
+      />
     </div>
   );
 };

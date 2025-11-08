@@ -11,6 +11,10 @@ import { useToast } from '@/hooks/use-toast';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { useSavedQueries } from '@/hooks/useSavedQueries';
 import { QueryTab } from '@/types/queries';
+import { useQueryHistory } from '@/hooks/useQueryHistory';
+import { QueryHistory } from '@/components/query/QueryHistory';
+import { Button } from '@/components/ui/button';
+import { History } from 'lucide-react';
 
 export default function QueryPage() {
   const [queryResult, setQueryResult] = useState<QueryResult>({ columns: [], rows: [], errors: [] });
@@ -20,8 +24,11 @@ export default function QueryPage() {
   ]);
   const [activeTabId, setActiveTabId] = useState('1');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [executionTime, setExecutionTime] = useState(0);
   const { toast } = useToast();
   const { saveQuery } = useSavedQueries();
+  const { history, addToHistory, removeFromHistory, clearHistory } = useQueryHistory();
 
   const activeTab = tabs.find(tab => tab.id === activeTabId);
   const currentQuery = activeTab?.query || '';
@@ -36,12 +43,26 @@ export default function QueryPage() {
 
   const executeQuery = async (sql: string) => {
     setIsExecuting(true);
+    const startTime = performance.now();
     
     try {
       console.log('Executing query:', currentQuery);
       
       const result = await executeUserQuery(currentQuery);
+      const endTime = performance.now();
+      const execTime = Math.round(endTime - startTime);
+      
       setQueryResult(result);
+      setExecutionTime(execTime);
+      
+      // Add to history
+      addToHistory({
+        query: currentQuery,
+        executionTime: execTime,
+        rowCount: result.rows.length,
+        success: result.errors.length === 0,
+        error: result.errors[0]
+      });
       
       if (result.errors.length > 0) {
         toast({
@@ -52,14 +73,28 @@ export default function QueryPage() {
       } else {
         toast({
           title: "Query Executed",
-          description: `Found ${result.rows.length} result${result.rows.length === 1 ? '' : 's'}`,
+          description: `Found ${result.rows.length} result${result.rows.length === 1 ? '' : 's'} in ${execTime}ms`,
         });
       }
 
     } catch (err) {
       console.error('Unexpected error:', err);
+      const endTime = performance.now();
+      const execTime = Math.round(endTime - startTime);
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      
       setQueryResult({ columns: [], rows: [], errors: [errorMessage] });
+      setExecutionTime(execTime);
+      
+      // Add failed query to history
+      addToHistory({
+        query: currentQuery,
+        executionTime: execTime,
+        rowCount: 0,
+        success: false,
+        error: errorMessage
+      });
+      
       toast({
         title: "Query Failed",
         description: errorMessage,
@@ -145,23 +180,49 @@ export default function QueryPage() {
       <div className="h-[calc(100vh-8rem)] flex">
         <ResizablePanelGroup direction="horizontal" className="w-full">
           {/* Forms Sidebar */}
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={35} collapsible>
+          <ResizablePanel defaultSize={15} minSize={12} maxSize={30} collapsible>
             <FormsSidebar onInsertText={insertText} onSelectQuery={handleSelectQuery} />
           </ResizablePanel>
           
           <ResizableHandle withHandle />
           
+          {/* Query History Sidebar (conditional) */}
+          {showHistory && (
+            <>
+              <ResizablePanel defaultSize={15} minSize={12} maxSize={30}>
+                <QueryHistory
+                  history={history}
+                  onSelectQuery={handleSelectQuery}
+                  onRemove={removeFromHistory}
+                  onClear={clearHistory}
+                />
+              </ResizablePanel>
+              <ResizableHandle withHandle />
+            </>
+          )}
+          
           {/* Main Query Area */}
-          <ResizablePanel defaultSize={80}>
+          <ResizablePanel defaultSize={showHistory ? 70 : 85}>
             <div className="h-full flex flex-col">
-              {/* Query Tabs */}
-              <QueryTabs
-                tabs={tabs}
-                activeTabId={activeTabId}
-                onTabSelect={setActiveTabId}
-                onTabClose={handleTabClose}
-                onNewTab={handleNewTab}
-              />
+              {/* Query Tabs with History Toggle */}
+              <div className="flex items-center justify-between border-b border-border">
+                <QueryTabs
+                  tabs={tabs}
+                  activeTabId={activeTabId}
+                  onTabSelect={setActiveTabId}
+                  onTabClose={handleTabClose}
+                  onNewTab={handleNewTab}
+                />
+                <Button
+                  variant={showHistory ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setShowHistory(!showHistory)}
+                  className="mr-2"
+                  title="Toggle query history"
+                >
+                  <History className="h-4 w-4" />
+                </Button>
+              </div>
               
               <ResizablePanelGroup direction="vertical" className="flex-1">
                 {/* Query Editor */}
@@ -186,7 +247,7 @@ export default function QueryPage() {
                       data={resultsData}
                       error={resultsError}
                       isLoading={isExecuting}
-                      executionTime={120}
+                      executionTime={executionTime}
                       queryStats={{
                         rowsAffected: resultsData?.length || 0,
                         rowsScanned: resultsData?.length || 0,

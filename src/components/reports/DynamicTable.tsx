@@ -328,9 +328,18 @@ export function DynamicTable({
       }
       return values;
     });
+    
+    // Convert to proper format for ExportData interface
+    const dataObjects = rows.map(row => {
+      const obj: Record<string, any> = {};
+      headers.forEach((header, index) => {
+        obj[header] = row[index];
+      });
+      return obj;
+    });
+    
     return {
-      headers,
-      rows,
+      data: dataObjects,
       filename: `${config.title || 'submission-data'}-${new Date().toISOString().split('T')[0]}`,
       title: config.title || 'Submission Data'
     };
