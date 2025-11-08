@@ -660,9 +660,25 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                       max="100"
                       value={localConfig.customConfig?.weightage || 1} 
                       onChange={e => {
-                        const value = Math.min(100, Math.max(1, parseInt(e.target.value) || 1));
-                        updateCustomConfig('weightage', value);
-                      }} 
+                        const inputValue = e.target.value;
+                        // Allow empty string for editing, otherwise parse and constrain
+                        if (inputValue === '') {
+                          updateCustomConfig('weightage', '');
+                        } else {
+                          const numValue = parseInt(inputValue);
+                          if (!isNaN(numValue)) {
+                            const value = Math.min(100, Math.max(1, numValue));
+                            updateCustomConfig('weightage', value);
+                          }
+                        }
+                      }}
+                      onBlur={e => {
+                        // On blur, ensure we have a valid value between 1-100
+                        const inputValue = e.target.value;
+                        if (inputValue === '' || isNaN(parseInt(inputValue))) {
+                          updateCustomConfig('weightage', 1);
+                        }
+                      }}
                       placeholder="Enter weightage (1-100)" 
                     />
                     <span className="text-xs text-muted-foreground">
