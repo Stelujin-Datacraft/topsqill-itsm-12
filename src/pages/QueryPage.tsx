@@ -177,7 +177,7 @@ export default function QueryPage() {
 
   return (
     <DashboardLayout title="SQL Query Builder">
-      <div className="h-[calc(100vh-8rem)] flex">
+      <div className="h-[calc(100vh-8rem)] flex overflow-hidden">
         <ResizablePanelGroup direction="horizontal" className="w-full">
           {/* Forms Sidebar */}
           <ResizablePanel defaultSize={15} minSize={12} maxSize={30} collapsible>

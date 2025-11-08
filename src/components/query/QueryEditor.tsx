@@ -198,7 +198,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
       <ResizablePanelGroup direction="vertical" className="flex-1">
         {/* Editor Panel */}
         <ResizablePanel defaultSize={60} minSize={30}>
-          <div className="h-full overflow-hidden border border-border rounded-md m-4">
+          <div className="h-full overflow-x-auto overflow-y-auto border border-border rounded-md m-4">
             <CodeMirror 
               value={value} 
               height="100%" 
@@ -216,7 +216,8 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
               theme="light"
               style={{
                 fontSize: '14px',
-                fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace'
+                fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+                minWidth: '100%'
               }}
             />
           </div>
