@@ -151,10 +151,17 @@ export function evaluateFunction(funcName: string, args: any[]): any {
 }
 
 /**
- * Parse and evaluate a SQL expression with functions
- * Example: "UPPER(CONCAT(field1, ' ', field2))"
+ * Parse and evaluate a SQL expression with functions and mathematical operations
+ * Example: "UPPER(CONCAT(field1, ' ', field2))" or "price * quantity + 10"
  */
 export function evaluateExpression(expr: string, row: any): any {
+  expr = expr.trim();
+  
+  // First check if it contains mathematical operators
+  if (containsMathOperators(expr)) {
+    return evaluateMathExpression(expr, row);
+  }
+  
   // Handle function calls recursively
   const funcPattern = /(\w+)\((.*)\)/;
   const match = expr.match(funcPattern);
@@ -190,6 +197,263 @@ export function evaluateExpression(expr: string, row: any): any {
   });
   
   return evaluateFunction(funcName, args);
+}
+
+/**
+ * Check if expression contains mathematical operators
+ */
+function containsMathOperators(expr: string): boolean {
+  // Exclude operators inside quotes
+  let inQuotes = false;
+  for (let i = 0; i < expr.length; i++) {
+    const char = expr[i];
+    if (char === "'" || char === '"') {
+      inQuotes = !inQuotes;
+    }
+    if (!inQuotes && /[+\-*/%^]/.test(char)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Evaluate mathematical expression with operators: +, -, *, /, %, ^
+ * Uses Shunting-yard algorithm for proper operator precedence
+ */
+function evaluateMathExpression(expr: string, row: any): any {
+  const tokens = tokenizeMathExpression(expr);
+  const postfix = infixToPostfixMath(tokens, row);
+  return evaluatePostfixMath(postfix);
+}
+
+/**
+ * Tokenize mathematical expression
+ */
+function tokenizeMathExpression(expr: string): string[] {
+  const tokens: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  let quoteChar = '';
+  let depth = 0;
+  
+  for (let i = 0; i < expr.length; i++) {
+    const char = expr[i];
+    
+    // Handle quotes
+    if ((char === "'" || char === '"') && (i === 0 || expr[i - 1] !== '\\')) {
+      if (!inQuotes) {
+        inQuotes = true;
+        quoteChar = char;
+      } else if (char === quoteChar) {
+        inQuotes = false;
+      }
+      current += char;
+      continue;
+    }
+    
+    if (inQuotes) {
+      current += char;
+      continue;
+    }
+    
+    // Handle parentheses
+    if (char === '(') {
+      depth++;
+      if (current && !/^[+\-*/%^]$/.test(current)) {
+        // This is a function call, keep building
+        current += char;
+        continue;
+      }
+      if (current.trim()) {
+        tokens.push(current.trim());
+        current = '';
+      }
+      tokens.push(char);
+      continue;
+    }
+    
+    if (char === ')') {
+      depth--;
+      if (depth > 0) {
+        current += char;
+        continue;
+      }
+      if (current.trim()) {
+        tokens.push(current.trim());
+        current = '';
+      }
+      tokens.push(char);
+      continue;
+    }
+    
+    // Handle operators
+    if (depth === 0 && /[+\-*/%^]/.test(char)) {
+      // Check if it's a negative number (minus after operator or at start)
+      if (char === '-' && (tokens.length === 0 || /[+\-*/%^(]/.test(tokens[tokens.length - 1]))) {
+        current += char;
+        continue;
+      }
+      
+      if (current.trim()) {
+        tokens.push(current.trim());
+        current = '';
+      }
+      tokens.push(char);
+      continue;
+    }
+    
+    // Handle whitespace
+    if (/\s/.test(char) && depth === 0) {
+      if (current.trim()) {
+        tokens.push(current.trim());
+        current = '';
+      }
+      continue;
+    }
+    
+    current += char;
+  }
+  
+  if (current.trim()) {
+    tokens.push(current.trim());
+  }
+  
+  return tokens;
+}
+
+/**
+ * Convert infix notation to postfix using Shunting-yard algorithm
+ */
+function infixToPostfixMath(tokens: string[], row: any): any[] {
+  const output: any[] = [];
+  const operators: string[] = [];
+  const precedence: { [key: string]: number } = {
+    '^': 4,
+    '*': 3,
+    '/': 3,
+    '%': 3,
+    '+': 2,
+    '-': 2
+  };
+  const rightAssociative = new Set(['^']);
+  
+  for (const token of tokens) {
+    // If token is a number
+    if (!isNaN(Number(token))) {
+      output.push(Number(token));
+      continue;
+    }
+    
+    // If token is an operator
+    if (token in precedence) {
+      while (
+        operators.length > 0 &&
+        operators[operators.length - 1] !== '(' &&
+        operators[operators.length - 1] in precedence &&
+        (
+          (rightAssociative.has(token) && precedence[operators[operators.length - 1]] > precedence[token]) ||
+          (!rightAssociative.has(token) && precedence[operators[operators.length - 1]] >= precedence[token])
+        )
+      ) {
+        output.push(operators.pop()!);
+      }
+      operators.push(token);
+      continue;
+    }
+    
+    // If token is left parenthesis
+    if (token === '(') {
+      operators.push(token);
+      continue;
+    }
+    
+    // If token is right parenthesis
+    if (token === ')') {
+      while (operators.length > 0 && operators[operators.length - 1] !== '(') {
+        output.push(operators.pop()!);
+      }
+      operators.pop(); // Remove the '('
+      continue;
+    }
+    
+    // Token is a field reference, string literal, or function call
+    output.push(evaluateToken(token, row));
+  }
+  
+  while (operators.length > 0) {
+    output.push(operators.pop()!);
+  }
+  
+  return output;
+}
+
+/**
+ * Evaluate a single token (field reference, literal, or function)
+ */
+function evaluateToken(token: string, row: any): any {
+  // String literal
+  if (token.startsWith("'") && token.endsWith("'")) {
+    return token.slice(1, -1);
+  }
+  
+  // Function call
+  if (token.includes('(')) {
+    return evaluateExpression(token, row);
+  }
+  
+  // Field reference
+  return row[token] ?? token;
+}
+
+/**
+ * Evaluate postfix expression
+ */
+function evaluatePostfixMath(postfix: any[]): any {
+  const stack: number[] = [];
+  
+  for (const item of postfix) {
+    if (typeof item === 'number') {
+      stack.push(item);
+      continue;
+    }
+    
+    if (typeof item === 'string' && /[+\-*/%^]/.test(item)) {
+      if (stack.length < 2) {
+        throw new Error(`Invalid expression: insufficient operands for ${item}`);
+      }
+      const b = stack.pop()!;
+      const a = stack.pop()!;
+      
+      switch (item) {
+        case '+': stack.push(a + b); break;
+        case '-': stack.push(a - b); break;
+        case '*': stack.push(a * b); break;
+        case '/': 
+          if (b === 0) throw new Error('Division by zero');
+          stack.push(a / b); 
+          break;
+        case '%': stack.push(a % b); break;
+        case '^': stack.push(Math.pow(a, b)); break;
+      }
+      continue;
+    }
+    
+    // It's a value (from field reference or function)
+    const numValue = parseFloat(item);
+    if (!isNaN(numValue)) {
+      stack.push(numValue);
+    } else {
+      // Can't do math with non-numeric values
+      return item;
+    }
+  }
+  
+  if (stack.length !== 1) {
+    throw new Error('Invalid expression: malformed postfix notation');
+  }
+  
+  return stack[0];
 }
 
 /**
