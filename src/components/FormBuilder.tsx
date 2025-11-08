@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useFormsData } from '@/hooks/useFormsData';
+import { useFormLoader } from '@/hooks/useFormLoader';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { FormField, FormPage, Form } from '@/types/form';
@@ -34,14 +35,12 @@ function FormBuilderContent({
 }: FormBuilderProps) {
   const navigate = useNavigate();
   const {
-    forms,
     createForm,
     updateForm,
     addField,
     deleteField,
     updateField,
     reorderFields,
-    loading,
     loadForms
   } = useFormsData();
   const {
@@ -51,8 +50,8 @@ function FormBuilderContent({
     currentProject
   } = useProject();
 
-  // Find current form
-  const currentForm = formId ? forms.find(f => f.id === formId) : null;
+  // Load the full form with all fields including customConfig
+  const { form: currentForm, loading } = useFormLoader(formId);
 
   // Use snapshot context
   const {
