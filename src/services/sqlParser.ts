@@ -428,7 +428,16 @@ export async function executeUserQuery(
       selectParts.forEach(part => {
         if (part.isAggregate) {
           // Evaluate aggregate function
-          const values = groupRows.map(r => evaluateFieldReference(part.fieldRef, r));
+          let values: any[];
+          
+          if (part.fieldRef === '*') {
+            // COUNT(*) - count all rows
+            values = groupRows;
+          } else {
+            // Extract field values from each row
+            values = groupRows.map(r => evaluateFieldReference(part.fieldRef, r));
+          }
+          
           const result = (aggregateFunctions as any)[part.func.toUpperCase()](values);
           row.push(result);
         } else {
@@ -545,15 +554,41 @@ function parseSelectExpressions(selectExpr: string): Array<{
     const actualExpr = aliasMatch ? aliasMatch[1].trim() : trimmed;
     const alias = aliasMatch ? aliasMatch[2] : generateAlias(actualExpr);
     
-    // Check for aggregate functions
-    const aggMatch = actualExpr.match(/^(COUNT|SUM|AVG|MIN|MAX)\s*\(\s*FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)\s*\)$/i);
-    if (aggMatch) {
+    // Check for aggregate functions - Pattern 1: AGG(FIELD("field-id"))
+    const aggFieldMatch = actualExpr.match(/^(COUNT|SUM|AVG|MIN|MAX)\s*\(\s*FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)\s*\)$/i);
+    if (aggFieldMatch) {
       parts.push({
         expr: actualExpr,
         alias,
         isAggregate: true,
-        func: aggMatch[1],
-        fieldRef: aggMatch[2]
+        func: aggFieldMatch[1],
+        fieldRef: aggFieldMatch[2]
+      });
+      return;
+    }
+    
+    // Check for aggregate functions - Pattern 2: COUNT(*)
+    const countStarMatch = actualExpr.match(/^COUNT\s*\(\s*\*\s*\)$/i);
+    if (countStarMatch) {
+      parts.push({
+        expr: actualExpr,
+        alias,
+        isAggregate: true,
+        func: 'COUNT',
+        fieldRef: '*'
+      });
+      return;
+    }
+    
+    // Check for aggregate functions - Pattern 3: AGG(field_name) - direct field reference
+    const aggDirectMatch = actualExpr.match(/^(COUNT|SUM|AVG|MIN|MAX)\s*\(\s*([a-zA-Z0-9_-]+)\s*\)$/i);
+    if (aggDirectMatch) {
+      parts.push({
+        expr: actualExpr,
+        alias,
+        isAggregate: true,
+        func: aggDirectMatch[1],
+        fieldRef: aggDirectMatch[2]
       });
       return;
     }

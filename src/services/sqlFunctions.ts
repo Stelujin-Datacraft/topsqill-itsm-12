@@ -86,8 +86,14 @@ export const mathFunctions = {
  * Aggregate Functions
  */
 export const aggregateFunctions = {
-  COUNT: (values: any[]) => values.filter(v => v != null).length,
-  SUM: (values: any[]) => values.reduce((sum, v) => sum + (parseFloat(v) || 0), 0),
+  COUNT: (values: any[]) => {
+    // Handle COUNT(*) - count all rows, not just non-null values
+    return values.length;
+  },
+  SUM: (values: any[]) => {
+    const nums = values.filter(v => v != null && !isNaN(parseFloat(v))).map(v => parseFloat(v));
+    return nums.reduce((sum, v) => sum + v, 0);
+  },
   AVG: (values: any[]) => {
     const nums = values.filter(v => v != null && !isNaN(parseFloat(v))).map(v => parseFloat(v));
     return nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : 0;
