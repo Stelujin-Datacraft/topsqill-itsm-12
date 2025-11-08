@@ -762,7 +762,7 @@ if (fieldType === 'country' && value) {
 
   // Handle file/image fields with comprehensive format support
 if (['file', 'image'].includes(fieldType) && value) {
-  console.log('🔍 File field detected:', { fieldType, value, valueType: typeof value });
+  console.log('🔍 File field detected:', { fieldType, value, valueType: typeof value, field });
   
   // Normalize into array of files
   const files: { name: string; url: string }[] = [];
@@ -779,6 +779,7 @@ if (['file', 'image'].includes(fieldType) && value) {
       // JSON string - try to parse it
       try {
         parsedValue = JSON.parse(value);
+        console.log('📝 Parsed JSON value:', parsedValue);
       } catch (e) {
         console.error('Failed to parse file value:', e);
         // If parsing fails, treat as filename
@@ -891,6 +892,12 @@ if (['file', 'image'].includes(fieldType) && value) {
       ))}
     </div>
   );
+}
+
+// Also check if it's a file field with no value yet
+if (['file', 'image'].includes(fieldType) && !value) {
+  console.log('📁 File field with no value:', { fieldType, field });
+  return <Badge variant="outline" className="italic opacity-70 text-muted-foreground/80">No file uploaded</Badge>;
 }
 
 

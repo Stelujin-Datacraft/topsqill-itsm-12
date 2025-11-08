@@ -816,7 +816,7 @@ export function DynamicTable({
       </div>
 
       <div className="flex items-center space-x-2">
-        <Button variant="default" size="sm" onClick={() => navigate(`/forms/${config.formId}`)}>
+        <Button variant="default" size="sm" onClick={() => navigate(`/form/${config.formId}`)}>
           <FileText className="h-4 w-4 mr-1" />
           Create Record
         </Button>
