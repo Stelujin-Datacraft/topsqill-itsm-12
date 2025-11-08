@@ -7,6 +7,10 @@ export interface FieldDefinition {
   type: string;
   required?: boolean;
   options?: any[];
+  customConfig?: {
+    weightage?: number;
+    [key: string]: any;
+  };
 }
 
 export interface SystemColumnDefinition {
@@ -114,7 +118,8 @@ class SchemaCacheService {
             label,
             field_type,
             required,
-            options
+            options,
+            custom_config
           )
         `)
         .neq('status', 'deleted');
@@ -136,12 +141,27 @@ class SchemaCacheService {
         // Process form fields from the database
         if (form.form_fields && Array.isArray(form.form_fields)) {
           for (const field of form.form_fields) {
+            // Parse customConfig if it's present
+            let customConfig: any = { weightage: 1 };
+            if (field.custom_config) {
+              if (typeof field.custom_config === 'object' && !Array.isArray(field.custom_config)) {
+                customConfig = field.custom_config;
+              } else if (typeof field.custom_config === 'string') {
+                try {
+                  customConfig = JSON.parse(field.custom_config);
+                } catch {
+                  customConfig = { weightage: 1 };
+                }
+              }
+            }
+            
             fields[field.id] = {
               id: field.id,
               label: field.label || 'Untitled Field',
               type: field.field_type || 'text',
               required: field.required || false,
-              options: Array.isArray(field.options) ? field.options : []
+              options: Array.isArray(field.options) ? field.options : [],
+              customConfig: customConfig
             };
           }
         }

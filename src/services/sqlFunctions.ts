@@ -108,6 +108,37 @@ export const aggregateFunctions = {
   }
 };
 
+// ============ Field Metadata Functions ============
+export const fieldMetadataFunctions: Record<string, Function> = {
+  /**
+   * Get the weightage of a field (requires field metadata context)
+   * Usage: FIELD_WEIGHTAGE('field_name')
+   */
+  FIELD_WEIGHTAGE: (fieldName: string, fieldMetadata?: Record<string, any>) => {
+    if (!fieldMetadata || !fieldMetadata[fieldName]) {
+      return 1; // Default weightage
+    }
+    return fieldMetadata[fieldName].customConfig?.weightage || 1;
+  },
+  
+  /**
+   * Alias for FIELD_WEIGHTAGE
+   */
+  WEIGHTAGE: (fieldName: string, fieldMetadata?: Record<string, any>) => {
+    return fieldMetadataFunctions.FIELD_WEIGHTAGE(fieldName, fieldMetadata);
+  },
+  
+  /**
+   * Get weighted value: field_value * weightage
+   * Usage: WEIGHTED_VALUE(field_value, 'field_name')
+   */
+  WEIGHTED_VALUE: (fieldValue: any, fieldName: string, fieldMetadata?: Record<string, any>) => {
+    const weightage = fieldMetadataFunctions.FIELD_WEIGHTAGE(fieldName, fieldMetadata);
+    const numValue = parseFloat(fieldValue);
+    return isNaN(numValue) ? 0 : numValue * weightage;
+  }
+};
+
 /**
  * Conditional Functions
  */
@@ -128,9 +159,17 @@ export const conditionalFunctions = {
 
 /**
  * Evaluate a SQL function call with given arguments
+ * @param funcName - Name of the SQL function
+ * @param args - Arguments to pass to the function
+ * @param fieldMetadata - Optional field metadata for accessing field properties like weightage
  */
-export function evaluateFunction(funcName: string, args: any[]): any {
+export function evaluateFunction(funcName: string, args: any[], fieldMetadata?: Record<string, any>): any {
   const upperFuncName = funcName.toUpperCase();
+  
+  // Check field metadata functions first (they need metadata parameter)
+  if (upperFuncName in fieldMetadataFunctions) {
+    return (fieldMetadataFunctions as any)[upperFuncName](...args, fieldMetadata);
+  }
   
   // Check each function category
   if (upperFuncName in stringFunctions) {
@@ -153,13 +192,16 @@ export function evaluateFunction(funcName: string, args: any[]): any {
 /**
  * Parse and evaluate a SQL expression with functions and mathematical operations
  * Example: "UPPER(CONCAT(field1, ' ', field2))" or "price * quantity + 10"
+ * @param expr - The SQL expression to evaluate
+ * @param row - The data row containing field values
+ * @param fieldMetadata - Optional field metadata for accessing field properties like weightage
  */
-export function evaluateExpression(expr: string, row: any): any {
+export function evaluateExpression(expr: string, row: any, fieldMetadata?: Record<string, any>): any {
   expr = expr.trim();
   
   // First check if it contains mathematical operators
   if (containsMathOperators(expr)) {
-    return evaluateMathExpression(expr, row);
+    return evaluateMathExpression(expr, row, fieldMetadata);
   }
   
   // Handle function calls recursively
@@ -221,9 +263,9 @@ function containsMathOperators(expr: string): boolean {
  * Evaluate mathematical expression with operators: +, -, *, /, %, ^
  * Uses Shunting-yard algorithm for proper operator precedence
  */
-function evaluateMathExpression(expr: string, row: any): any {
+function evaluateMathExpression(expr: string, row: any, fieldMetadata?: Record<string, any>): any {
   const tokens = tokenizeMathExpression(expr);
-  const postfix = infixToPostfixMath(tokens, row);
+  const postfix = infixToPostfixMath(tokens, row, fieldMetadata);
   return evaluatePostfixMath(postfix);
 }
 
@@ -325,7 +367,7 @@ function tokenizeMathExpression(expr: string): string[] {
 /**
  * Convert infix notation to postfix using Shunting-yard algorithm
  */
-function infixToPostfixMath(tokens: string[], row: any): any[] {
+function infixToPostfixMath(tokens: string[], row: any, fieldMetadata?: Record<string, any>): any[] {
   const output: any[] = [];
   const operators: string[] = [];
   const precedence: { [key: string]: number } = {
@@ -378,7 +420,7 @@ function infixToPostfixMath(tokens: string[], row: any): any[] {
     }
     
     // Token is a field reference, string literal, or function call
-    output.push(evaluateToken(token, row));
+    output.push(evaluateToken(token, row, fieldMetadata));
   }
   
   while (operators.length > 0) {
@@ -391,7 +433,7 @@ function infixToPostfixMath(tokens: string[], row: any): any[] {
 /**
  * Evaluate a single token (field reference, literal, or function)
  */
-function evaluateToken(token: string, row: any): any {
+function evaluateToken(token: string, row: any, fieldMetadata?: Record<string, any>): any {
   // String literal
   if (token.startsWith("'") && token.endsWith("'")) {
     return token.slice(1, -1);

@@ -649,6 +649,27 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                     </div>
                   </div>
                 )}
+
+                {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text'].includes(fieldForConfig?.type || '') && (
+                  <div className="space-y-2">
+                    <Label htmlFor="field-weightage">Field Weightage (1-100)</Label>
+                    <Input 
+                      id="field-weightage" 
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={localConfig.customConfig?.weightage || 1} 
+                      onChange={e => {
+                        const value = Math.min(100, Math.max(1, parseInt(e.target.value) || 1));
+                        updateCustomConfig('weightage', value);
+                      }} 
+                      placeholder="Enter weightage (1-100)" 
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      Set the weight for this field (used in SQL calculations and weighted scoring)
+                    </span>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

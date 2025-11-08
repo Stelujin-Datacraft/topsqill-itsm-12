@@ -292,6 +292,7 @@ export interface FormField {
     // Common behavior
     readOnly?: boolean;
     visibleWhen?: string;
+    weightage?: number; // Field weightage (1-100) for weighted calculations
     
     // Tags specific
     maxTags?: number;
