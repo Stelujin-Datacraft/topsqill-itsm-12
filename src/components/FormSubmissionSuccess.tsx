@@ -10,13 +10,15 @@ interface FormSubmissionSuccessProps {
   submissionRefId?: string;
   submissionId?: string;
   formName: string;
+  formId?: string;
   onClose?: () => void;
 }
 
 export function FormSubmissionSuccess({ 
   submissionRefId, 
   submissionId,
-  formName, 
+  formName,
+  formId,
   onClose 
 }: FormSubmissionSuccessProps) {
   const navigate = useNavigate();
@@ -53,6 +55,15 @@ export function FormSubmissionSuccess({
               <Eye className="h-4 w-4 mr-2" />
               View This Submission
             </Button>
+          )}
+          
+          {formId && (
+            <Link to={`/form-submissions?formId=${formId}`}>
+              <Button variant="outline" className="w-full">
+                <FileText className="h-4 w-4 mr-2" />
+                View All Records
+              </Button>
+            </Link>
           )}
           
           <Link to="/my-submissions">

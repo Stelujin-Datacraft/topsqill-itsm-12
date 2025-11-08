@@ -31,6 +31,7 @@ const PublicFormView = () => {
             submissionRefId={submissionResult.submissionRefId}
             submissionId={submissionResult.submissionId}
             formName={form.name}
+            formId={form.id}
             onClose={() => setSubmissionResult(null)}
           />
         </div>
