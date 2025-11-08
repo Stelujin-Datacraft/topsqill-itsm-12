@@ -236,8 +236,8 @@ export const QueryResultsTable: React.FC<QueryResultsTableProps> = ({
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <Tabs defaultValue="results" className="h-full flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
+      <Tabs defaultValue="results" className="h-full flex flex-col overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-4">
             <h3 className="text-lg font-semibold">Query Results</h3>
@@ -257,66 +257,64 @@ export const QueryResultsTable: React.FC<QueryResultsTableProps> = ({
         </div>
 
         <div className="flex-1 overflow-hidden">
-          <TabsContent value="results" className="h-full m-0 p-4">
-            <div className="h-full flex flex-col">
+          <TabsContent value="results" className="h-full m-0 p-4 overflow-hidden">
+            <div className="h-full flex flex-col overflow-hidden">
               {/* Table Container with horizontal scroll only */}
-              <div className="flex-1 overflow-hidden rounded-lg border border-border">
-                <div className="overflow-x-auto overflow-y-auto h-full">
-                  <table className="w-full border-collapse min-w-full">
-                    {/* Table Header */}
-                    <thead className="sticky top-0 bg-muted z-10">
-                      {table.getHeaderGroups().map(headerGroup => (
-                        <tr key={headerGroup.id} className="border-b border-border">
-                          {headerGroup.headers.map(header => (
-                            <th
-                              key={header.id}
-                              className="border-r border-border bg-muted hover:bg-muted/80 transition-colors"
-                              style={{ 
-                                width: header.getSize(),
-                                maxWidth: '150px',
-                                minWidth: '100px'
-                              }}
-                            >
-                              {header.isPlaceholder
-                                ? null
-                                : flexRender(
-                                    header.column.columnDef.header,
-                                    header.getContext()
-                                  )}
-                            </th>
-                          ))}
-                        </tr>
-                      ))}
-                    </thead>
-                    
-                    {/* Table Body */}
-                    <tbody>
-                      {table.getRowModel().rows.map(row => (
-                        <tr 
-                          key={row.id} 
-                          className="border-b border-border hover:bg-muted/30 transition-colors"
-                        >
-                          {row.getVisibleCells().map(cell => (
-                            <td
-                              key={cell.id}
-                              className="border-r border-border"
-                              style={{ 
-                                width: cell.column.getSize(),
-                                maxWidth: '150px'
-                              }}
-                            >
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              <div className="flex-1 overflow-auto rounded-lg border border-border">
+                <table className="w-full border-collapse min-w-full">
+                  {/* Table Header */}
+                  <thead className="sticky top-0 bg-muted z-20">
+                    {table.getHeaderGroups().map(headerGroup => (
+                      <tr key={headerGroup.id} className="border-b border-border">
+                        {headerGroup.headers.map(header => (
+                          <th
+                            key={header.id}
+                            className="border-r border-border bg-muted hover:bg-muted/80 transition-colors"
+                            style={{ 
+                              width: header.getSize(),
+                              maxWidth: '150px',
+                              minWidth: '100px'
+                            }}
+                          >
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                          </th>
+                        ))}
+                      </tr>
+                    ))}
+                  </thead>
+                  
+                  {/* Table Body */}
+                  <tbody>
+                    {table.getRowModel().rows.map(row => (
+                      <tr 
+                        key={row.id} 
+                        className="border-b border-border hover:bg-muted/30 transition-colors"
+                      >
+                        {row.getVisibleCells().map(cell => (
+                          <td
+                            key={cell.id}
+                            className="border-r border-border"
+                            style={{ 
+                              width: cell.column.getSize(),
+                              maxWidth: '150px'
+                            }}
+                          >
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
 
               {/* Pagination Controls */}
-              <div className="flex items-center justify-between pt-4">
+              <div className="flex items-center justify-between pt-4 flex-shrink-0">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>
                     Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{' '}
@@ -371,7 +369,7 @@ export const QueryResultsTable: React.FC<QueryResultsTableProps> = ({
             </div>
           </TabsContent>
 
-          <TabsContent value="execution" className="h-full m-0 p-4">
+          <TabsContent value="execution" className="h-full m-0 p-4 overflow-auto">
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-4 border rounded-lg">
@@ -403,7 +401,7 @@ export const QueryResultsTable: React.FC<QueryResultsTableProps> = ({
             </div>
           </TabsContent>
 
-          <TabsContent value="stats" className="h-full m-0 p-4">
+          <TabsContent value="stats" className="h-full m-0 p-4 overflow-auto">
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="p-4 border rounded-lg">
