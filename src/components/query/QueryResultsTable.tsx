@@ -5,14 +5,17 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   getPaginationRowModel,
+  getFilteredRowModel,
   useReactTable,
   SortingState,
   ColumnDef,
+  ColumnFiltersState,
 } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
+import { Input } from '@/components/ui/input';
 import { 
   Download, 
   ArrowUpDown, 
@@ -24,7 +27,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  Search
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ExportMenu } from './ExportMenu';
@@ -51,6 +55,7 @@ export const QueryResultsTable: React.FC<QueryResultsTableProps> = ({
   queryStats
 }) => {
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const { toast } = useToast();
 
   const columnHelper = createColumnHelper<any>();
@@ -63,19 +68,33 @@ export const QueryResultsTable: React.FC<QueryResultsTableProps> = ({
         header: ({ column }) => {
           const displayName = key.startsWith('"') && key.endsWith('"') ? key.slice(1, -1) : key;
           return (
-            <div 
-              className="flex items-center gap-2 cursor-pointer select-none py-2 px-3 font-semibold text-sm"
-              onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            >
-              <span className="truncate">{displayName}</span>
-              <div className="flex flex-col">
-                {column.getIsSorted() === 'asc' ? (
-                  <ArrowUp className="h-3 w-3" />
-                ) : column.getIsSorted() === 'desc' ? (
-                  <ArrowDown className="h-3 w-3" />
-                ) : (
-                  <ArrowUpDown className="h-3 w-3 opacity-50" />
-                )}
+            <div className="space-y-2">
+              <div 
+                className="flex items-center gap-2 cursor-pointer select-none py-2 px-3 font-semibold text-sm"
+                onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+              >
+                <span className="truncate">{displayName}</span>
+                <div className="flex flex-col">
+                  {column.getIsSorted() === 'asc' ? (
+                    <ArrowUp className="h-3 w-3" />
+                  ) : column.getIsSorted() === 'desc' ? (
+                    <ArrowDown className="h-3 w-3" />
+                  ) : (
+                    <ArrowUpDown className="h-3 w-3 opacity-50" />
+                  )}
+                </div>
+              </div>
+              <div className="px-2 pb-2">
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                  <Input
+                    placeholder="Filter..."
+                    value={(column.getFilterValue() as string) ?? ''}
+                    onChange={(e) => column.setFilterValue(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="h-7 pl-7 text-xs"
+                  />
+                </div>
               </div>
             </div>
           );
@@ -114,10 +133,13 @@ export const QueryResultsTable: React.FC<QueryResultsTableProps> = ({
     columns,
     state: {
       sorting,
+      columnFilters,
     },
     onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     initialState: {
       pagination: {
@@ -237,10 +259,10 @@ export const QueryResultsTable: React.FC<QueryResultsTableProps> = ({
         <div className="flex-1 overflow-hidden">
           <TabsContent value="results" className="h-full m-0 p-4">
             <div className="h-full flex flex-col">
-              {/* Table Container with proper borders */}
+              {/* Table Container with horizontal scroll only */}
               <div className="flex-1 overflow-hidden rounded-lg border border-border">
-                <div className="overflow-auto h-full">
-                  <table className="w-full border-collapse">
+                <div className="overflow-x-auto overflow-y-auto h-full">
+                  <table className="w-full border-collapse min-w-full">
                     {/* Table Header */}
                     <thead className="sticky top-0 bg-muted z-10">
                       {table.getHeaderGroups().map(headerGroup => (
