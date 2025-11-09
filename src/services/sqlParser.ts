@@ -269,18 +269,79 @@ async function executeSystemTableQuery(query: string): Promise<QueryResult> {
     // Build the Supabase query - use any to bypass type checking for dynamic table names
     let supabaseQuery = (supabase as any).from(tableName).select(selectClause);
     
-    // Add WHERE conditions with support for multiple AND conditions
+    // Add WHERE conditions with support for AND/OR operators
     if (whereClause) {
-      // Split by AND to handle multiple conditions
-      const conditions = whereClause.split(/\s+AND\s+/i);
-      
-      conditions.forEach(condition => {
-        // Parse equality conditions like "status = 'active'" or "id = '123'"
-        const eqMatch = condition.trim().match(/(\w+)\s*=\s*'([^']+)'/);
-        if (eqMatch) {
-          supabaseQuery = supabaseQuery.eq(eqMatch[1], eqMatch[2]);
+      // Parse complex WHERE conditions with AND/OR logic
+      const parseCondition = (conditionStr: string) => {
+        // Handle equality with quotes: column = 'value'
+        let match = conditionStr.trim().match(/(\w+)\s*=\s*'([^']+)'/);
+        if (match) {
+          return { column: match[1], operator: 'eq', value: match[2] };
         }
-      });
+        
+        // Handle equality without quotes (for UUIDs): column = value or column = value::uuid
+        match = conditionStr.trim().match(/(\w+)\s*=\s*'?([0-9a-fA-F\-]{36})'?(?:::uuid)?/i);
+        if (match) {
+          return { column: match[1], operator: 'eq', value: match[2] };
+        }
+        
+        // Handle other operators
+        match = conditionStr.trim().match(/(\w+)\s*(!=|<>|>|<|>=|<=)\s*'?([^']+?)'?$/);
+        if (match) {
+          const operatorMap: Record<string, string> = {
+            '!=': 'neq',
+            '<>': 'neq',
+            '>': 'gt',
+            '<': 'lt',
+            '>=': 'gte',
+            '<=': 'lte'
+          };
+          return { column: match[1], operator: operatorMap[match[2]] || 'eq', value: match[3].replace(/::uuid$/i, '') };
+        }
+        
+        return null;
+      };
+      
+      // Check if we have OR conditions
+      if (/\s+OR\s+/i.test(whereClause)) {
+        // Split by OR and process each OR group
+        const orGroups = whereClause.split(/\s+OR\s+/i);
+        const orConditions = orGroups.map(group => {
+          // Each OR group might have AND conditions
+          if (/\s+AND\s+/i.test(group)) {
+            const andConditions = group.split(/\s+AND\s+/i);
+            const parsedConditions = andConditions.map(parseCondition).filter(c => c !== null);
+            return parsedConditions;
+          } else {
+            const parsed = parseCondition(group);
+            return parsed ? [parsed] : [];
+          }
+        }).filter(g => g.length > 0);
+        
+        // Apply OR filter - Supabase doesn't have direct OR support, so we need to use .or()
+        if (orConditions.length > 0) {
+          const orString = orConditions.map(andGroup => {
+            if (andGroup.length === 1) {
+              const cond = andGroup[0];
+              return `${cond.column}.${cond.operator}.${cond.value}`;
+            } else {
+              // Multiple AND conditions in this OR group
+              return `and(${andGroup.map(c => `${c.column}.${c.operator}.${c.value}`).join(',')})`;
+            }
+          }).join(',');
+          
+          supabaseQuery = supabaseQuery.or(orString);
+        }
+      } else {
+        // Only AND conditions - apply each one
+        const andConditions = whereClause.split(/\s+AND\s+/i);
+        andConditions.forEach(condition => {
+          const parsed = parseCondition(condition);
+          if (parsed) {
+            supabaseQuery = (supabaseQuery as any)[parsed.operator](parsed.column, parsed.value);
+          }
+        });
+      }
     }
     
     // Add ORDER BY
@@ -304,11 +365,58 @@ async function executeSystemTableQuery(query: string): Promise<QueryResult> {
       return { columns: [], rows: [], errors: [] };
     }
 
-    // Extract columns from first row
-    const columns = Object.keys(data[0]);
+    // Extract columns - respect the SELECT clause
+    let columns: string[];
+    if (selectClause === '*') {
+      // Select all columns
+      columns = Object.keys(data[0]);
+    } else {
+      // Parse the SELECT clause to get exact column names
+      columns = selectClause.split(',').map(col => {
+        const trimmed = col.trim();
+        // Handle aliases: "column as alias" or "column alias"
+        const aliasMatch = trimmed.match(/^(.+?)\s+(?:as\s+)?(\w+)$/i);
+        if (aliasMatch) {
+          return aliasMatch[2]; // Return the alias
+        }
+        // Handle JSONB operations: custom_config->>'weightage'
+        const jsonbMatch = trimmed.match(/(\w+)->>'(\w+)'/);
+        if (jsonbMatch) {
+          return trimmed; // Keep the full expression as column name
+        }
+        return trimmed;
+      });
+    }
     
-    // Convert data to rows format
-    const rows = data.map(row => columns.map(col => row[col]));
+    // Convert data to rows format - only include selected columns
+    const rows = data.map(row => {
+      if (selectClause === '*') {
+        return columns.map(col => row[col]);
+      } else {
+        // For specific columns, evaluate each expression
+        return columns.map((col, idx) => {
+          const selectExpr = selectClause.split(',')[idx].trim();
+          
+          // Handle JSONB operations
+          const jsonbMatch = selectExpr.match(/(\w+)->>'(\w+)'/);
+          if (jsonbMatch) {
+            const objName = jsonbMatch[1];
+            const key = jsonbMatch[2];
+            return row[objName]?.[key];
+          }
+          
+          // Handle aliases
+          const aliasMatch = selectExpr.match(/^(.+?)\s+(?:as\s+)?(\w+)$/i);
+          if (aliasMatch) {
+            const columnName = aliasMatch[1].trim();
+            return row[columnName];
+          }
+          
+          // Simple column
+          return row[col];
+        });
+      }
+    });
     
     return { columns, rows, errors: [] };
     
