@@ -269,13 +269,18 @@ async function executeSystemTableQuery(query: string): Promise<QueryResult> {
     // Build the Supabase query - use any to bypass type checking for dynamic table names
     let supabaseQuery = (supabase as any).from(tableName).select(selectClause);
     
-    // Add WHERE conditions (basic support for simple conditions)
+    // Add WHERE conditions with support for multiple AND conditions
     if (whereClause) {
-      // Parse simple conditions like "status = 'active'" or "id = '123'"
-      const eqMatch = whereClause.match(/(\w+)\s*=\s*'([^']+)'/);
-      if (eqMatch) {
-        supabaseQuery = supabaseQuery.eq(eqMatch[1], eqMatch[2]);
-      }
+      // Split by AND to handle multiple conditions
+      const conditions = whereClause.split(/\s+AND\s+/i);
+      
+      conditions.forEach(condition => {
+        // Parse equality conditions like "status = 'active'" or "id = '123'"
+        const eqMatch = condition.trim().match(/(\w+)\s*=\s*'([^']+)'/);
+        if (eqMatch) {
+          supabaseQuery = supabaseQuery.eq(eqMatch[1], eqMatch[2]);
+        }
+      });
     }
     
     // Add ORDER BY
