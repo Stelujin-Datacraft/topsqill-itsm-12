@@ -397,7 +397,15 @@ async function executeSystemTableQuery(query: string): Promise<QueryResult> {
         return columns.map((col, idx) => {
           const selectExpr = selectClause.split(',')[idx].trim();
           
-          // Handle JSONB operations
+          // Check for aliases FIRST (includes JSONB with aliases)
+          const aliasMatch = selectExpr.match(/^(.+?)\s+(?:as\s+)?(\w+)$/i);
+          if (aliasMatch) {
+            const alias = aliasMatch[2];
+            // Supabase already processed JSONB operations and returned with alias
+            return row[alias];
+          }
+          
+          // Handle JSONB operations WITHOUT aliases
           const jsonbMatch = selectExpr.match(/(\w+)->>'(\w+)'/);
           if (jsonbMatch) {
             const objName = jsonbMatch[1];
@@ -405,14 +413,7 @@ async function executeSystemTableQuery(query: string): Promise<QueryResult> {
             return row[objName]?.[key];
           }
           
-          // Handle aliases
-          const aliasMatch = selectExpr.match(/^(.+?)\s+(?:as\s+)?(\w+)$/i);
-          if (aliasMatch) {
-            const columnName = aliasMatch[1].trim();
-            return row[columnName];
-          }
-          
-          // Simple column
+          // Simple column (no alias, no JSONB operation)
           return row[col];
         });
       }
