@@ -250,6 +250,36 @@ async function executeSystemTableQuery(query: string): Promise<QueryResult> {
     const selectMatch = query.match(/SELECT\s+(.+?)\s+FROM/is);
     const selectClause = selectMatch ? selectMatch[1].replace(/\s+/g, ' ').trim() : '*';
     
+    // Check for JSONB operations in SELECT - we'll need to handle these specially
+    const hasJsonbOperations = /->>|->/.test(selectClause);
+    
+    // Build the actual Supabase select clause (without JSONB operations)
+    let supabaseSelectClause = selectClause;
+    const jsonbExtractions: Array<{expr: string, alias: string, column: string, key: string}> = [];
+    
+    if (hasJsonbOperations) {
+      // Extract JSONB operations and replace with base column names
+      const columns: string[] = [];
+      selectClause.split(',').forEach(col => {
+        const trimmed = col.trim();
+        
+        // Match: column->>'key' as alias OR column->>'key'
+        const jsonbMatch = trimmed.match(/(\w+)->>'(\w+)'(?:\s+(?:as\s+)?(\w+))?/i);
+        if (jsonbMatch) {
+          const [, columnName, key, alias] = jsonbMatch;
+          const finalAlias = alias || trimmed;
+          jsonbExtractions.push({ expr: trimmed, alias: finalAlias, column: columnName, key });
+          // Add the base column if not already included
+          if (!columns.includes(columnName)) {
+            columns.push(columnName);
+          }
+        } else {
+          columns.push(trimmed);
+        }
+      });
+      supabaseSelectClause = columns.join(', ');
+    }
+    
     // Extract WHERE clause if present - use 's' flag to handle multiline queries
     const whereMatch = query.match(/WHERE\s+(.+?)(?:\s+ORDER BY|\s+LIMIT|\s+OFFSET|$)/is);
     const whereClause = whereMatch ? whereMatch[1].replace(/\s+/g, ' ').trim() : null;
@@ -267,7 +297,7 @@ async function executeSystemTableQuery(query: string): Promise<QueryResult> {
     const offsetValue = offsetMatch ? parseInt(offsetMatch[1]) : 0;
 
     // Build the Supabase query - use any to bypass type checking for dynamic table names
-    let supabaseQuery = (supabase as any).from(tableName).select(selectClause);
+    let supabaseQuery = (supabase as any).from(tableName).select(supabaseSelectClause);
     
     // Add WHERE conditions with support for AND/OR operators
     if (whereClause) {
@@ -365,21 +395,26 @@ async function executeSystemTableQuery(query: string): Promise<QueryResult> {
       return { columns: [], rows: [], errors: [] };
     }
 
-    // Extract columns - respect the SELECT clause
+    // Extract columns - respect the SELECT clause including JSONB extractions
     let columns: string[];
     if (selectClause === '*') {
       // Select all columns
       columns = Object.keys(data[0]);
     } else {
-      // Parse the SELECT clause to get exact column names
+      // Parse the SELECT clause to get exact column names/aliases
       columns = selectClause.split(',').map(col => {
         const trimmed = col.trim();
-        // Handle aliases: "column as alias" or "column alias"
+        // Handle JSONB with alias: custom_config->>'weightage' as weight
+        const jsonbAliasMatch = trimmed.match(/\w+->>'?\w+'?\s+(?:as\s+)?(\w+)/i);
+        if (jsonbAliasMatch) {
+          return jsonbAliasMatch[1]; // Return the alias
+        }
+        // Handle regular aliases: column as alias
         const aliasMatch = trimmed.match(/^(.+?)\s+(?:as\s+)?(\w+)$/i);
         if (aliasMatch) {
           return aliasMatch[2]; // Return the alias
         }
-        // Handle JSONB operations: custom_config->>'weightage'
+        // Handle JSONB without alias: custom_config->>'weightage'
         const jsonbMatch = trimmed.match(/(\w+)->>'(\w+)'/);
         if (jsonbMatch) {
           return trimmed; // Keep the full expression as column name
@@ -388,7 +423,7 @@ async function executeSystemTableQuery(query: string): Promise<QueryResult> {
       });
     }
     
-    // Convert data to rows format - only include selected columns
+    // Convert data to rows format - handle JSONB extractions client-side
     const rows = data.map(row => {
       if (selectClause === '*') {
         return columns.map(col => row[col]);
@@ -397,20 +432,23 @@ async function executeSystemTableQuery(query: string): Promise<QueryResult> {
         return columns.map((col, idx) => {
           const selectExpr = selectClause.split(',')[idx].trim();
           
-          // Check for aliases FIRST (includes JSONB with aliases)
-          const aliasMatch = selectExpr.match(/^(.+?)\s+(?:as\s+)?(\w+)$/i);
-          if (aliasMatch) {
-            const alias = aliasMatch[2];
-            // Supabase already processed JSONB operations and returned with alias
-            return row[alias];
+          // Check for JSONB extraction with or without alias
+          const jsonbMatch = selectExpr.match(/(\w+)->>'(\w+)'(?:\s+(?:as\s+)?(\w+))?/i);
+          if (jsonbMatch) {
+            const [, columnName, key] = jsonbMatch;
+            // Extract from the JSONB object
+            const jsonbValue = row[columnName];
+            if (jsonbValue && typeof jsonbValue === 'object') {
+              return jsonbValue[key];
+            }
+            return null;
           }
           
-          // Handle JSONB operations WITHOUT aliases
-          const jsonbMatch = selectExpr.match(/(\w+)->>'(\w+)'/);
-          if (jsonbMatch) {
-            const objName = jsonbMatch[1];
-            const key = jsonbMatch[2];
-            return row[objName]?.[key];
+          // Check for regular aliases
+          const aliasMatch = selectExpr.match(/^(.+?)\s+(?:as\s+)?(\w+)$/i);
+          if (aliasMatch && !/->>/.test(selectExpr)) {
+            const columnName = aliasMatch[1].trim();
+            return row[columnName];
           }
           
           // Simple column (no alias, no JSONB operation)
