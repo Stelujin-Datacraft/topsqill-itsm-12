@@ -66,11 +66,11 @@ export function parseUserQuery(input: string): ParseResult {
   }
 
   // 2. Extract main parts: SELECT … FROM "formUuid" [WHERE …] [GROUP BY …] [HAVING …] [ORDER BY …] [LIMIT …] [OFFSET …]
-  // Normalize whitespace and newlines for multi-line queries
-  const normalized = cleaned.replace(/\s+/g, ' ');
+  // Normalize whitespace and newlines for multi-line queries - preserve structure but collapse whitespace
+  const normalized = cleaned.replace(/\s+/g, ' ').trim();
   
-  // Check for DISTINCT
-  const distinctMatch = normalized.match(/^SELECT\s+(DISTINCT\s+)?(.+?)\s+FROM\s+['""]([0-9a-fA-F\-]{36})['""](.*)$/i)
+  // Check for DISTINCT - use 's' flag to match across newlines
+  const distinctMatch = normalized.match(/^SELECT\s+(DISTINCT\s+)?(.+?)\s+FROM\s+['""]([0-9a-fA-F\-]{36})['""](.*)$/is)
   if (!distinctMatch) {
     errors.push('Invalid syntax. Expected: SELECT [DISTINCT] … FROM "form_uuid" [WHERE …] [GROUP BY …] [ORDER BY …] [LIMIT …]')
     return { errors }
@@ -87,26 +87,26 @@ export function parseUserQuery(input: string): ParseResult {
   let limitExpr = ''
   let offsetExpr = ''
   
-  // Extract WHERE clause
-  const whereMatch = restOfQuery.match(/\s+WHERE\s+(.+?)(?=\s+(?:GROUP BY|ORDER BY|LIMIT|OFFSET|$))/i)
+  // Extract WHERE clause - use 's' flag to match across newlines
+  const whereMatch = restOfQuery.match(/\s+WHERE\s+(.+?)(?=\s+(?:GROUP BY|ORDER BY|LIMIT|OFFSET|$))/is)
   if (whereMatch) {
     whereExpr = whereMatch[1].trim()
   }
   
-  // Extract GROUP BY clause
-  const groupByMatch = restOfQuery.match(/\s+GROUP BY\s+(.+?)(?=\s+(?:HAVING|ORDER BY|LIMIT|OFFSET|$))/i)
+  // Extract GROUP BY clause - use 's' flag to match across newlines
+  const groupByMatch = restOfQuery.match(/\s+GROUP BY\s+(.+?)(?=\s+(?:HAVING|ORDER BY|LIMIT|OFFSET|$))/is)
   if (groupByMatch) {
     groupByExpr = groupByMatch[1].trim()
   }
   
-  // Extract HAVING clause
-  const havingMatch = restOfQuery.match(/\s+HAVING\s+(.+?)(?=\s+(?:ORDER BY|LIMIT|OFFSET|$))/i)
+  // Extract HAVING clause - use 's' flag to match across newlines
+  const havingMatch = restOfQuery.match(/\s+HAVING\s+(.+?)(?=\s+(?:ORDER BY|LIMIT|OFFSET|$))/is)
   if (havingMatch) {
     havingExpr = havingMatch[1].trim()
   }
   
-  // Extract ORDER BY clause
-  const orderByMatch = restOfQuery.match(/\s+ORDER BY\s+(.+?)(?=\s+(?:LIMIT|OFFSET|$))/i)
+  // Extract ORDER BY clause - use 's' flag to match across newlines
+  const orderByMatch = restOfQuery.match(/\s+ORDER BY\s+(.+?)(?=\s+(?:LIMIT|OFFSET|$))/is)
   if (orderByMatch) {
     orderByExpr = orderByMatch[1].trim()
   }
@@ -246,17 +246,17 @@ async function executeSystemTableQuery(query: string): Promise<QueryResult> {
       return { columns: [], rows: [], errors: [`Table '${tableName}' is not accessible`] };
     }
 
-    // Extract SELECT clause
-    const selectMatch = query.match(/SELECT\s+(.+?)\s+FROM/i);
-    const selectClause = selectMatch ? selectMatch[1].trim() : '*';
+    // Extract SELECT clause - use 's' flag to handle multiline queries
+    const selectMatch = query.match(/SELECT\s+(.+?)\s+FROM/is);
+    const selectClause = selectMatch ? selectMatch[1].replace(/\s+/g, ' ').trim() : '*';
     
-    // Extract WHERE clause if present
-    const whereMatch = query.match(/WHERE\s+(.+?)(?:\s+ORDER BY|\s+LIMIT|\s+OFFSET|$)/i);
-    const whereClause = whereMatch ? whereMatch[1].trim() : null;
+    // Extract WHERE clause if present - use 's' flag to handle multiline queries
+    const whereMatch = query.match(/WHERE\s+(.+?)(?:\s+ORDER BY|\s+LIMIT|\s+OFFSET|$)/is);
+    const whereClause = whereMatch ? whereMatch[1].replace(/\s+/g, ' ').trim() : null;
     
-    // Extract ORDER BY clause if present
-    const orderMatch = query.match(/ORDER BY\s+(.+?)(?:\s+LIMIT|\s+OFFSET|$)/i);
-    const orderClause = orderMatch ? orderMatch[1].trim() : null;
+    // Extract ORDER BY clause if present - use 's' flag to handle multiline queries
+    const orderMatch = query.match(/ORDER BY\s+(.+?)(?:\s+LIMIT|\s+OFFSET|$)/is);
+    const orderClause = orderMatch ? orderMatch[1].replace(/\s+/g, ' ').trim() : null;
     
     // Extract LIMIT clause if present
     const limitMatch = query.match(/LIMIT\s+(\d+)/i);
