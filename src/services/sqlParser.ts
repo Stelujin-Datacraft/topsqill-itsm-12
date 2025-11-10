@@ -516,6 +516,24 @@ export async function executeUserQuery(
       return { columns: [], rows: [], errors: [] };
     }
     
+    // Fetch form fields to get weightage values for WEIGHTED_VALUE function
+    const { data: formFields } = await supabase
+      .from('form_fields')
+      .select('id, label, custom_config')
+      .eq('form_id', formUuid);
+    
+    // Build field metadata for WEIGHTED_VALUE support
+    const fieldMetadata: Record<string, any> = {};
+    if (formFields) {
+      formFields.forEach(field => {
+        const customConfig = field.custom_config as Record<string, any> | null;
+        const weightage = customConfig?.weightage || 1;
+        // Map by both field ID and label for flexible lookup
+        fieldMetadata[field.id] = { label: field.label, weightage };
+        fieldMetadata[field.label] = { id: field.id, weightage };
+      });
+    }
+    
     // Transform submissions into rows with flattened field access
     let rows = submissions.map(sub => ({
       submission_id: sub.submission_ref_id || sub.id,
@@ -595,7 +613,7 @@ export async function executeUserQuery(
         } else {
           // Evaluate expression for first row in group
           const firstRow = groupRows[0];
-          const result = evaluateSelectExpression(part.expr, firstRow);
+          const result = evaluateSelectExpression(part.expr, firstRow, fieldMetadata);
           row.push(result);
         }
       });
@@ -759,7 +777,16 @@ function parseSelectExpressions(selectExpr: string): Array<{
 /**
  * Evaluate SELECT expression for a row with CASE WHEN support
  */
-function evaluateSelectExpression(expr: string, row: any): any {
+function evaluateSelectExpression(expr: string, row: any, fieldMetadata?: Record<string, any>): any {
+  // Handle WEIGHTED_VALUE() - Simple syntax for field_value * weightage
+  const weightedMatch = expr.match(/WEIGHTED_VALUE\s*\(\s*['""]?([^'"\"()]+)['""]?\s*\)/i);
+  if (weightedMatch) {
+    const fieldName = weightedMatch[1].trim();
+    const fieldValue = row[fieldName] ?? 0;
+    const weightage = fieldMetadata?.[fieldName]?.weightage || 1;
+    return (parseFloat(fieldValue) || 0) * weightage;
+  }
+  
   // Handle CASE WHEN expressions
   const caseMatch = expr.match(/CASE\s+WHEN\s+(.+?)\s+THEN\s+(.+?)(?:\s+WHEN\s+(.+?)\s+THEN\s+(.+?))*(?:\s+ELSE\s+(.+?))?\s+END/i);
   if (caseMatch) {
@@ -781,9 +808,9 @@ function evaluateSelectExpression(expr: string, row: any): any {
     return row[expr] ?? null;
   }
   
-  // Evaluate complex expressions with functions
+  // Evaluate complex expressions with functions (pass fieldMetadata)
   try {
-    return evaluateExpression(expr, row);
+    return evaluateExpression(expr, row, fieldMetadata);
   } catch (e) {
     console.error('Expression evaluation error:', e);
     return null;
