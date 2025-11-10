@@ -130,11 +130,21 @@ export const fieldMetadataFunctions: Record<string, Function> = {
   
   /**
    * Get weighted value: field_value * weightage
-   * Usage: WEIGHTED_VALUE(field_value, 'field_name')
+   * Usage: WEIGHTED_VALUE(field_value, 'field_name') OR WEIGHTED_VALUE('field_name')
    */
-  WEIGHTED_VALUE: (fieldValue: any, fieldName: string, fieldMetadata?: Record<string, any>) => {
-    const weightage = fieldMetadataFunctions.FIELD_WEIGHTAGE(fieldName, fieldMetadata);
-    const numValue = parseFloat(fieldValue);
+  WEIGHTED_VALUE: (fieldValueOrName: any, fieldName?: string, fieldMetadata?: Record<string, any>) => {
+    // If only one argument and it's a string (field name), get value from metadata
+    if (fieldName === undefined && typeof fieldValueOrName === 'string') {
+      // Single parameter: field name
+      const actualFieldName = fieldValueOrName;
+      const weightage = fieldMetadataFunctions.FIELD_WEIGHTAGE(actualFieldName, fieldMetadata);
+      // Return the weightage - value will be multiplied at row level
+      return weightage;
+    }
+    
+    // Two parameters: field value and field name
+    const weightage = fieldMetadataFunctions.FIELD_WEIGHTAGE(fieldName || '', fieldMetadata);
+    const numValue = parseFloat(fieldValueOrName);
     return isNaN(numValue) ? 0 : numValue * weightage;
   }
 };

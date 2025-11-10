@@ -778,6 +778,15 @@ function parseSelectExpressions(selectExpr: string): Array<{
  * Evaluate SELECT expression for a row with CASE WHEN support
  */
 function evaluateSelectExpression(expr: string, row: any, fieldMetadata?: Record<string, any>): any {
+  // Handle WEIGHTED_VALUE with single field reference
+  const weightedSingleMatch = expr.match(/WEIGHTED_VALUE\s*\(\s*FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)\s*\)/i);
+  if (weightedSingleMatch) {
+    const fieldId = weightedSingleMatch[1];
+    const fieldValue = row[fieldId] ?? 0;
+    const weightage = fieldMetadata?.[fieldId]?.weightage || 1;
+    return (parseFloat(fieldValue) || 0) * weightage;
+  }
+  
   // Handle CASE WHEN expressions
   const caseMatch = expr.match(/CASE\s+WHEN\s+(.+?)\s+THEN\s+(.+?)(?:\s+WHEN\s+(.+?)\s+THEN\s+(.+?))*(?:\s+ELSE\s+(.+?))?\s+END/i);
   if (caseMatch) {
