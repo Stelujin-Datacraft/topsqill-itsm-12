@@ -184,8 +184,8 @@ function FormBuilderContent({
     try {
       shouldPublish ? state.setIsPublishing(true) : state.setIsSaving(true);
       
-      // If this is a new form, create it first
-      if (!currentForm || state.isCreating) {
+      // Only create a new form if there's no formId (truly new form)
+      if (!formId) {
         const formData = {
           name: snapshot.form.name,
           description: snapshot.form.description,
