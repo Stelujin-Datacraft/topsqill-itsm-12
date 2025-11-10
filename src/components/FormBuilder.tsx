@@ -220,6 +220,7 @@ function FormBuilderContent({
         return;
       }
       
+      // Update existing form with snapshot data
       const formUpdates = {
         name: snapshot.form.name,
         description: snapshot.form.description,
@@ -230,26 +231,26 @@ function FormBuilderContent({
         status: shouldPublish ? 'active' as const : snapshot.form.status
       };
       
-      // Update existing form with all snapshot data
-      await updateForm(currentForm.id, formUpdates);
+      await updateForm(formId!, formUpdates);
 
       // Save all field changes
+      const existingFields = currentForm?.fields || [];
       for (const field of snapshot.form.fields) {
-        if (currentForm.fields.find(f => f.id === field.id)) {
+        if (existingFields.find(f => f.id === field.id)) {
           await updateField(field.id, field);
         } else {
-          await addField(currentForm.id, field);
+          await addField(formId!, field);
         }
       }
 
       // Delete removed fields and handle cross-reference cleanup
-      for (const oldField of currentForm.fields) {
+      for (const oldField of existingFields) {
         if (!snapshot.form.fields.find(f => f.id === oldField.id)) {
           // If it's a cross-reference field, clean up child fields first
           if (oldField.type === 'cross-reference' && oldField.customConfig?.targetFormId) {
             try {
               await removeChildCrossReferenceField({
-                parentFormId: currentForm.id,
+                parentFormId: formId!,
                 parentFieldId: oldField.id,
                 targetFormId: oldField.customConfig.targetFormId
               });
