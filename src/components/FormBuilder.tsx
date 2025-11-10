@@ -183,6 +183,43 @@ function FormBuilderContent({
     }
     try {
       shouldPublish ? state.setIsPublishing(true) : state.setIsSaving(true);
+      
+      // If this is a new form, create it first
+      if (!currentForm || state.isCreating) {
+        const formData = {
+          name: snapshot.form.name,
+          description: snapshot.form.description,
+          organizationId: userProfile?.organization_id!,
+          projectId: currentProject?.id!,
+          status: shouldPublish ? 'active' as const : 'draft' as const,
+          createdBy: userProfile?.id!,
+          layout: snapshot.form.layout,
+          pages: snapshot.form.pages,
+          fieldRules: snapshot.form.fieldRules || [],
+          formRules: snapshot.form.formRules || [],
+          permissions: { view: [], submit: [], edit: [] },
+          shareSettings: { allowPublicAccess: false, sharedUsers: [] }
+        };
+        
+        const newForm = await handleCreateForm(formData);
+        if (!newForm) {
+          throw new Error('Failed to create form');
+        }
+        
+        // Add all fields to the new form
+        for (const field of snapshot.form.fields) {
+          await addField(newForm.id, field);
+        }
+        
+        state.setIsCreating(false);
+        markAsSaved();
+        toast({
+          title: shouldPublish ? "Form created and published" : "Form created",
+          description: shouldPublish ? "Your form has been created and published successfully." : "Your form has been created successfully."
+        });
+        return;
+      }
+      
       const formUpdates = {
         name: snapshot.form.name,
         description: snapshot.form.description,
@@ -192,43 +229,42 @@ function FormBuilderContent({
         formRules: snapshot.form.formRules,
         status: shouldPublish ? 'active' as const : snapshot.form.status
       };
-      if (currentForm) {
-        // Update existing form with all snapshot data
-        await updateForm(currentForm.id, formUpdates);
+      
+      // Update existing form with all snapshot data
+      await updateForm(currentForm.id, formUpdates);
 
-        // Save all field changes
-        for (const field of snapshot.form.fields) {
-          if (currentForm.fields.find(f => f.id === field.id)) {
-            await updateField(field.id, field);
-          } else {
-            await addField(currentForm.id, field);
-          }
+      // Save all field changes
+      for (const field of snapshot.form.fields) {
+        if (currentForm.fields.find(f => f.id === field.id)) {
+          await updateField(field.id, field);
+        } else {
+          await addField(currentForm.id, field);
         }
-
-        // Delete removed fields and handle cross-reference cleanup
-        for (const oldField of currentForm.fields) {
-          if (!snapshot.form.fields.find(f => f.id === oldField.id)) {
-            // If it's a cross-reference field, clean up child fields first
-            if (oldField.type === 'cross-reference' && oldField.customConfig?.targetFormId) {
-              try {
-                await removeChildCrossReferenceField({
-                  parentFormId: currentForm.id,
-                  parentFieldId: oldField.id,
-                  targetFormId: oldField.customConfig.targetFormId
-                });
-              } catch (error) {
-                console.error('Error removing child cross-reference field:', error);
-              }
-            }
-            await deleteField(oldField.id);
-          }
-        }
-        markAsSaved();
-        toast({
-          title: shouldPublish ? "Form published" : "Form saved",
-          description: shouldPublish ? "Your form has been published successfully and is now live." : "All changes have been saved to the database."
-        });
       }
+
+      // Delete removed fields and handle cross-reference cleanup
+      for (const oldField of currentForm.fields) {
+        if (!snapshot.form.fields.find(f => f.id === oldField.id)) {
+          // If it's a cross-reference field, clean up child fields first
+          if (oldField.type === 'cross-reference' && oldField.customConfig?.targetFormId) {
+            try {
+              await removeChildCrossReferenceField({
+                parentFormId: currentForm.id,
+                parentFieldId: oldField.id,
+                targetFormId: oldField.customConfig.targetFormId
+              });
+            } catch (error) {
+              console.error('Error removing child cross-reference field:', error);
+            }
+          }
+          await deleteField(oldField.id);
+        }
+      }
+      markAsSaved();
+      toast({
+        title: shouldPublish ? "Form published" : "Form saved",
+        description: shouldPublish ? "Your form has been published successfully and is now live." : "All changes have been saved to the database."
+      });
     } catch (error) {
       console.error('Error saving form:', error);
       toast({
