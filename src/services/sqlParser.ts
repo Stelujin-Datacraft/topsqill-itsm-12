@@ -779,11 +779,32 @@ function parseSelectExpressions(selectExpr: string): Array<{
  */
 function evaluateSelectExpression(expr: string, row: any, fieldMetadata?: Record<string, any>): any {
   // Handle WEIGHTED_VALUE() - Simple syntax for field_value * weightage
-  const weightedMatch = expr.match(/WEIGHTED_VALUE\s*\(\s*['""]?([^'"\"()]+)['""]?\s*\)/i);
+  const weightedMatch = expr.match(/WEIGHTED_VALUE\s*\(\s*(.+?)\s*\)/i);
   if (weightedMatch) {
-    const fieldName = weightedMatch[1].trim();
-    const fieldValue = row[fieldName] ?? 0;
-    const weightage = fieldMetadata?.[fieldName]?.weightage || 1;
+    let fieldIdentifier = weightedMatch[1].trim();
+    
+    // Check if it's using FIELD() syntax
+    const fieldMatch = fieldIdentifier.match(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)/i);
+    if (fieldMatch) {
+      fieldIdentifier = fieldMatch[1]; // Extract the field ID from FIELD()
+    }
+    
+    // Remove quotes if present
+    fieldIdentifier = fieldIdentifier.replace(/^['"]|['"]$/g, '');
+    
+    // Try to find the field ID (could be label or ID)
+    let fieldId = fieldIdentifier;
+    if (fieldMetadata?.[fieldIdentifier]?.id) {
+      // It's a label, get the actual field ID
+      fieldId = fieldMetadata[fieldIdentifier].id;
+    }
+    
+    // Get the field value from the row using the field ID
+    const fieldValue = row[fieldId] ?? 0;
+    
+    // Get weightage (try both the identifier and the resolved field ID)
+    const weightage = fieldMetadata?.[fieldIdentifier]?.weightage || fieldMetadata?.[fieldId]?.weightage || 1;
+    
     return (parseFloat(fieldValue) || 0) * weightage;
   }
   
