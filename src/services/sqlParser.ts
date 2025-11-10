@@ -534,9 +534,6 @@ export async function executeUserQuery(
       });
     }
     
-    console.log('Field Metadata:', fieldMetadata);
-    console.log('Form Fields:', formFields);
-    
     // Transform submissions into rows with flattened field access
     let rows = submissions.map(sub => ({
       submission_id: sub.submission_ref_id || sub.id,
@@ -544,8 +541,6 @@ export async function executeUserQuery(
       submitted_at: sub.submitted_at,
       ...(sub.submission_data as Record<string, any>)
     }));
-    
-    console.log('Sample Row Data:', rows[0]);
     
     // Apply WHERE filter
     if (whereExpr) {
@@ -783,43 +778,6 @@ function parseSelectExpressions(selectExpr: string): Array<{
  * Evaluate SELECT expression for a row with CASE WHEN support
  */
 function evaluateSelectExpression(expr: string, row: any, fieldMetadata?: Record<string, any>): any {
-  // Handle WEIGHTED_VALUE() - Simple syntax for field_value * weightage
-  const weightedMatch = expr.match(/WEIGHTED_VALUE\s*\(\s*(.+?)\s*\)/i);
-  if (weightedMatch) {
-    let fieldIdentifier = weightedMatch[1].trim();
-    
-    console.log('WEIGHTED_VALUE called with:', fieldIdentifier);
-    
-    // Check if it's using FIELD() syntax
-    const fieldMatch = fieldIdentifier.match(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)/i);
-    if (fieldMatch) {
-      fieldIdentifier = fieldMatch[1]; // Extract the field ID from FIELD()
-      console.log('Extracted field ID from FIELD():', fieldIdentifier);
-    }
-    
-    // Remove quotes if present
-    fieldIdentifier = fieldIdentifier.replace(/^['"]|['"]$/g, '');
-    
-    // Try to find the field ID (could be label or ID)
-    let fieldId = fieldIdentifier;
-    if (fieldMetadata?.[fieldIdentifier]?.id) {
-      // It's a label, get the actual field ID
-      fieldId = fieldMetadata[fieldIdentifier].id;
-      console.log('Resolved label to field ID:', fieldId);
-    }
-    
-    // Get the field value from the row using the field ID
-    const fieldValue = row[fieldId] ?? 0;
-    
-    // Get weightage (try both the identifier and the resolved field ID)
-    const weightage = fieldMetadata?.[fieldIdentifier]?.weightage || fieldMetadata?.[fieldId]?.weightage || 1;
-    
-    console.log('Field ID:', fieldId, 'Field Value:', fieldValue, 'Weightage:', weightage, 'Result:', (parseFloat(fieldValue) || 0) * weightage);
-    console.log('Row keys:', Object.keys(row));
-    
-    return (parseFloat(fieldValue) || 0) * weightage;
-  }
-  
   // Handle CASE WHEN expressions
   const caseMatch = expr.match(/CASE\s+WHEN\s+(.+?)\s+THEN\s+(.+?)(?:\s+WHEN\s+(.+?)\s+THEN\s+(.+?))*(?:\s+ELSE\s+(.+?))?\s+END/i);
   if (caseMatch) {
