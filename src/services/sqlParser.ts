@@ -534,6 +534,9 @@ export async function executeUserQuery(
       });
     }
     
+    console.log('Field Metadata:', fieldMetadata);
+    console.log('Form Fields:', formFields);
+    
     // Transform submissions into rows with flattened field access
     let rows = submissions.map(sub => ({
       submission_id: sub.submission_ref_id || sub.id,
@@ -541,6 +544,8 @@ export async function executeUserQuery(
       submitted_at: sub.submitted_at,
       ...(sub.submission_data as Record<string, any>)
     }));
+    
+    console.log('Sample Row Data:', rows[0]);
     
     // Apply WHERE filter
     if (whereExpr) {
@@ -783,10 +788,13 @@ function evaluateSelectExpression(expr: string, row: any, fieldMetadata?: Record
   if (weightedMatch) {
     let fieldIdentifier = weightedMatch[1].trim();
     
+    console.log('WEIGHTED_VALUE called with:', fieldIdentifier);
+    
     // Check if it's using FIELD() syntax
     const fieldMatch = fieldIdentifier.match(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)/i);
     if (fieldMatch) {
       fieldIdentifier = fieldMatch[1]; // Extract the field ID from FIELD()
+      console.log('Extracted field ID from FIELD():', fieldIdentifier);
     }
     
     // Remove quotes if present
@@ -797,6 +805,7 @@ function evaluateSelectExpression(expr: string, row: any, fieldMetadata?: Record
     if (fieldMetadata?.[fieldIdentifier]?.id) {
       // It's a label, get the actual field ID
       fieldId = fieldMetadata[fieldIdentifier].id;
+      console.log('Resolved label to field ID:', fieldId);
     }
     
     // Get the field value from the row using the field ID
@@ -804,6 +813,9 @@ function evaluateSelectExpression(expr: string, row: any, fieldMetadata?: Record
     
     // Get weightage (try both the identifier and the resolved field ID)
     const weightage = fieldMetadata?.[fieldIdentifier]?.weightage || fieldMetadata?.[fieldId]?.weightage || 1;
+    
+    console.log('Field ID:', fieldId, 'Field Value:', fieldValue, 'Weightage:', weightage, 'Result:', (parseFloat(fieldValue) || 0) * weightage);
+    console.log('Row keys:', Object.keys(row));
     
     return (parseFloat(fieldValue) || 0) * weightage;
   }
