@@ -526,7 +526,20 @@ export async function executeUserQuery(
     const fieldMetadata: Record<string, any> = {};
     if (formFields) {
       formFields.forEach(field => {
-        const customConfig = field.custom_config as Record<string, any> | null;
+        // Parse custom_config if it's a string
+        let customConfig: Record<string, any> | null = null;
+        if (field.custom_config) {
+          if (typeof field.custom_config === 'string') {
+            try {
+              customConfig = JSON.parse(field.custom_config);
+            } catch (e) {
+              console.error('Failed to parse custom_config:', field.custom_config);
+            }
+          } else {
+            customConfig = field.custom_config as Record<string, any>;
+          }
+        }
+        
         const weightage = customConfig?.weightage || 1;
         // Map by both field ID and label for flexible lookup
         fieldMetadata[field.id] = { label: field.label, weightage };
