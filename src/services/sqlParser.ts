@@ -534,6 +534,10 @@ export async function executeUserQuery(
       });
     }
     
+    console.log('=== Field Metadata Built ===');
+    console.log('Field Metadata:', fieldMetadata);
+    console.log('Form Fields:', formFields);
+    
     // Transform submissions into rows with flattened field access
     let rows = submissions.map(sub => ({
       submission_id: sub.submission_ref_id || sub.id,
@@ -784,7 +788,30 @@ function evaluateSelectExpression(expr: string, row: any, fieldMetadata?: Record
     const fieldId = weightedSingleMatch[1];
     const fieldValue = row[fieldId] ?? 0;
     const weightage = fieldMetadata?.[fieldId]?.weightage || 1;
+    
+    console.log('=== WEIGHTED_VALUE Debug ===');
+    console.log('Field ID:', fieldId);
+    console.log('Field Value from row:', fieldValue);
+    console.log('Field Metadata:', fieldMetadata?.[fieldId]);
+    console.log('Weightage:', weightage);
+    console.log('Calculation:', fieldValue, 'x', weightage, '=', (parseFloat(fieldValue) || 0) * weightage);
+    console.log('Row keys:', Object.keys(row));
+    
     return (parseFloat(fieldValue) || 0) * weightage;
+  }
+  
+  // Handle FIELD_WEIGHTAGE function
+  const weightageMatch = expr.match(/FIELD_WEIGHTAGE\s*\(\s*FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)\s*\)/i);
+  if (weightageMatch) {
+    const fieldId = weightageMatch[1];
+    const weightage = fieldMetadata?.[fieldId]?.weightage || 1;
+    
+    console.log('=== FIELD_WEIGHTAGE Debug ===');
+    console.log('Field ID:', fieldId);
+    console.log('Field Metadata:', fieldMetadata?.[fieldId]);
+    console.log('Weightage:', weightage);
+    
+    return weightage;
   }
   
   // Handle CASE WHEN expressions
