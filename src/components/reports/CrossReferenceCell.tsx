@@ -14,9 +14,14 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
   
   // Extract targetFormId - handle both plain strings and object structures
   const rawTargetFormId = customConfig?.targetFormId;
-  const targetFormId = typeof rawTargetFormId === 'object' && rawTargetFormId !== null 
+  let targetFormId = typeof rawTargetFormId === 'object' && rawTargetFormId !== null 
     ? rawTargetFormId.value 
     : rawTargetFormId;
+  
+  // Validate targetFormId - ensure it's not "undefined" string or other invalid values
+  if (!targetFormId || targetFormId === 'undefined' || targetFormId === 'null' || targetFormId.trim() === '') {
+    targetFormId = undefined;
+  }
     
   // Extract displayColumns - handle both arrays and object structures
   const rawDisplayColumns = customConfig?.displayColumns;
@@ -56,6 +61,11 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
   );
 
   const handleClick = () => {
+    if (!targetFormId) {
+      console.error('No valid target form ID configured for cross-reference field');
+      return;
+    }
+    
     const dynamicTable = document.querySelector('[data-dynamic-table="main"]');
 
     if (dynamicTable) {
@@ -73,6 +83,15 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
       console.error('Dynamic table element not found');
     }
   };
+
+  // If no valid targetFormId, show configuration needed message
+  if (!targetFormId) {
+    return (
+      <div className="text-xs text-muted-foreground italic">
+        Configuration needed
+      </div>
+    );
+  }
 
   // If loading, show a loading indicator
   if (loading && shouldFetch) {

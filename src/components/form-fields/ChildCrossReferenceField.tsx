@@ -63,7 +63,12 @@ export function ChildCrossReferenceField({
     }
   };
   const parentForm = formsToUse.find(f => f.id === field.customConfig?.parentFormId);
-  const targetForm = formsToUse.find(f => f.id === field.customConfig?.targetFormId);
+  
+  // CRITICAL FIX: For child cross-reference, the targetForm should ALWAYS be the parentForm
+  // because we want to show records FROM the parent form that reference this record
+  // The targetFormId in config should point to parentFormId, but we ensure this here
+  const actualTargetFormId = field.customConfig?.parentFormId; // Always use parentFormId as target
+  const targetForm = formsToUse.find(f => f.id === actualTargetFormId);
   
   // Check if user has permission to create records in the target form (based on read access)
   // For users with roles, check both top-level AND specific form permission
@@ -77,7 +82,8 @@ export function ChildCrossReferenceField({
   };
 
   // Check if field has proper configuration - allow empty displayColumns
-  const hasAutoConfig = field.customConfig?.targetFormId && field.customConfig?.parentFormId && field.customConfig?.parentFieldId;
+  // Only need parentFormId and parentFieldId since targetFormId should always be parentFormId
+  const hasAutoConfig = field.customConfig?.parentFormId && field.customConfig?.parentFieldId;
 
   // Get auto-selected records for child cross-reference
   const {
@@ -94,9 +100,10 @@ export function ChildCrossReferenceField({
 
   // Create properly typed config object with better defaults
   // If no display columns configured, the table will show submission_ref_id by default
+  // CRITICAL: Always use parentFormId as targetFormId for child cross-reference fields
   const tableConfig = hasAutoConfig ? {
-    targetFormId: field.customConfig.targetFormId,
-    targetFormName: field.customConfig.targetFormName || targetForm?.name || 'Unknown Form',
+    targetFormId: actualTargetFormId, // Use parentFormId as the target
+    targetFormName: parentForm?.name || 'Unknown Form',
     filters: field.customConfig.filters || [],
     displayColumns: field.customConfig.displayColumns || [], // Empty array is fine, table handles it
     enableSorting: field.customConfig.enableSorting ?? true,
