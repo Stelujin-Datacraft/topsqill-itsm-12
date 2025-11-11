@@ -123,6 +123,11 @@ export function FormViewLayoutRenderer({
             try {
               const { templateId, recipients, templateData, emailTemplate } = value;
               
+              // Debug logging
+              console.log('🔍 emailTemplate object:', emailTemplate);
+              console.log('🔍 custom_params:', emailTemplate?.custom_params);
+              console.log('🔍 smtp_config_id:', emailTemplate?.custom_params?.smtp_config_id);
+              
               // Convert recipients array to email strings
               const recipientEmails = recipients.map((r: any) => 
                 typeof r === 'string' ? r : r.value
