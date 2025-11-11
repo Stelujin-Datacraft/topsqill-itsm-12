@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -132,65 +133,54 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`📮 Processing ${recipients.length} recipient(s)`);
     const emailResults = [];
     
+    // Initialize SMTP client
+    const smtpClient = new SMTPClient({
+      connection: {
+        hostname: smtpConfig.host,
+        port: smtpConfig.port,
+        tls: smtpConfig.use_tls,
+        auth: {
+          username: smtpConfig.username,
+          password: smtpConfig.password,
+        },
+      },
+    });
+    
     for (const recipient of recipients) {
       console.log(`📧 Sending to: ${recipient}`);
       try {
-        // Create email transport
-        const emailData = {
+        // Send email using SMTP
+        await smtpClient.send({
           from: smtpConfig.from_name 
             ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` 
             : smtpConfig.from_email,
           to: recipient,
           subject: processedSubject,
+          content: processedTextContent || processedHtmlContent.replace(/<[^>]*>/g, ''),
           html: processedHtmlContent,
-          text: processedTextContent,
-        };
-
-        // Here you would integrate with your preferred email service
-        // For now, we'll use nodemailer-like structure
-        const response = await fetch('https://api.postmarkapp.com/email', {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'X-Postmark-Server-Token': Deno.env.get('POSTMARK_API_KEY') || '',
-          },
-          body: JSON.stringify({
-            From: emailData.from,
-            To: emailData.to,
-            Subject: emailData.subject,
-            HtmlBody: emailData.html,
-            TextBody: emailData.text,
-          }),
         });
 
-        const result = await response.json();
+        console.log(`✅ Email sent successfully to ${recipient}`);
         
-        if (response.ok) {
-          console.log(`✅ Email sent successfully to ${recipient}`);
-          // Log successful email
-          await supabaseClient.from('email_logs').insert({
-            organization_id: project.organization_id,
-            project_id: template.project_id,
-            template_id: templateId,
-            smtp_config_id: smtpConfig.id,
-            to_email: recipient,
-            from_email: smtpConfig.from_email,
-            subject: processedSubject,
-            content: processedHtmlContent,
-            status: 'sent',
-            sent_at: new Date().toISOString(),
-            trigger_context: triggerContext || {},
-          });
+        // Log successful email
+        await supabaseClient.from('email_logs').insert({
+          organization_id: project.organization_id,
+          project_id: template.project_id,
+          template_id: templateId,
+          smtp_config_id: smtpConfig.id,
+          to_email: recipient,
+          from_email: smtpConfig.from_email,
+          subject: processedSubject,
+          content: processedHtmlContent,
+          status: 'sent',
+          sent_at: new Date().toISOString(),
+          trigger_context: triggerContext || {},
+        });
 
-          emailResults.push({
-            recipient,
-            status: 'sent',
-            messageId: result.MessageID,
-          });
-        } else {
-          throw new Error(result.Message || 'Failed to send email');
-        }
+        emailResults.push({
+          recipient,
+          status: 'sent',
+        });
       } catch (error) {
         console.error(`❌ Failed to send email to ${recipient}:`, error);
         
@@ -216,6 +206,9 @@ const handler = async (req: Request): Promise<Response> => {
         });
       }
     }
+
+    // Close SMTP connection
+    await smtpClient.close();
 
     console.log('✅ Email sending completed:', emailResults);
 
