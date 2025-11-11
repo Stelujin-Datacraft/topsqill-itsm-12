@@ -61,6 +61,64 @@ export function executeSet(statement: string, context: LoopContext): void {
 }
 
 /**
+ * Parse and execute IF-ELSE statements
+ * Example: IF @score >= 80 BEGIN SET @result = 'Pass' END ELSE BEGIN SET @result = 'Fail' END
+ */
+export function executeIfElse(
+  statement: string,
+  context: LoopContext,
+  executeBlock: (blockStatements: string[], context: LoopContext) => any[]
+): any[] {
+  // Match IF condition with optional ELSE IF and ELSE blocks
+  const ifMatch = statement.match(/IF\s+(.+?)\s+BEGIN\s+([\s\S]+?)\s+END/i);
+  if (!ifMatch) {
+    throw new Error('Invalid IF syntax. Expected: IF condition BEGIN statements END [ELSE IF condition BEGIN statements END] [ELSE BEGIN statements END]');
+  }
+
+  const [, condition, ifBlock] = ifMatch;
+  
+  // Check if condition is true
+  if (evaluateCondition(condition.trim(), context)) {
+    // Execute IF block
+    const statements = ifBlock
+      .split(';')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+    return executeBlock(statements, context);
+  }
+  
+  // Check for ELSE IF blocks
+  const elseIfRegex = /ELSE\s+IF\s+(.+?)\s+BEGIN\s+([\s\S]+?)\s+END/gi;
+  let elseIfMatch;
+  const remainingStatement = statement.substring(ifMatch.index! + ifMatch[0].length);
+  
+  while ((elseIfMatch = elseIfRegex.exec(remainingStatement)) !== null) {
+    const [, elseIfCondition, elseIfBlock] = elseIfMatch;
+    
+    if (evaluateCondition(elseIfCondition.trim(), context)) {
+      const statements = elseIfBlock
+        .split(';')
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+      return executeBlock(statements, context);
+    }
+  }
+  
+  // Check for ELSE block
+  const elseMatch = remainingStatement.match(/ELSE\s+BEGIN\s+([\s\S]+?)\s+END/i);
+  if (elseMatch) {
+    const [, elseBlock] = elseMatch;
+    const statements = elseBlock
+      .split(';')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+    return executeBlock(statements, context);
+  }
+  
+  return [];
+}
+
+/**
  * Parse and execute WHILE loops
  * Example: WHILE @counter < 10 BEGIN ... END
  */

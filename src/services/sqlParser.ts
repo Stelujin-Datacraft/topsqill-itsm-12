@@ -4,6 +4,7 @@ import {
   createLoopContext, 
   executeDeclare, 
   executeSet, 
+  executeIfElse,
   executeWhileLoop, 
   replaceVariables,
   type LoopContext 
@@ -67,6 +68,11 @@ export function parseUserQuery(input: string): ParseResult {
   // Check if this is a SET statement
   if (/^SET\s+@/i.test(cleaned)) {
     return { sql: `-- SET\n${cleaned}`, errors: [] };
+  }
+
+  // Check if this is an IF statement
+  if (/^IF\s+/i.test(cleaned)) {
+    return { sql: `-- IF_ELSE\n${cleaned}`, errors: [] };
   }
 
   // Check if this is a WHILE loop
@@ -576,6 +582,42 @@ export async function executeUserQuery(
           columns: [],
           rows: [],
           errors: [error instanceof Error ? error.message : 'Failed to set variable']
+        };
+      }
+    }
+
+    // Handle IF-ELSE statements
+    if (sql?.startsWith('-- IF_ELSE')) {
+      try {
+        const ifStmt = sql.replace('-- IF_ELSE\n', '');
+        const results = executeIfElse(ifStmt, loopContext, (statements, ctx) => {
+          const blockResults: any[] = [];
+          for (const stmt of statements) {
+            // Handle SET in IF block
+            if (/^SET\s+@/i.test(stmt)) {
+              executeSet(stmt, ctx);
+            }
+          }
+          return blockResults;
+        });
+        
+        // Return loop context variables as result
+        const varColumns = ['Variable', 'Value'];
+        const varRows = Array.from(loopContext.variables.entries()).map(([key, value]) => [
+          `@${key}`,
+          String(value)
+        ]);
+        
+        return {
+          columns: varColumns,
+          rows: varRows,
+          errors: []
+        };
+      } catch (error) {
+        return {
+          columns: [],
+          rows: [],
+          errors: [error instanceof Error ? error.message : 'Failed to execute IF statement']
         };
       }
     }
