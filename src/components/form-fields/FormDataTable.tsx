@@ -172,7 +172,7 @@ export function FormDataTable({ config, fieldType, currentFormId, targetFormFiel
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {fieldType === 'cross-reference' ? (
+            {(fieldType === 'cross-reference' || fieldType === 'child-cross-reference') ? (
               <LinkIcon className="h-5 w-5 text-blue-500" />
             ) : (
               <Database className="h-5 w-5 text-purple-500" />

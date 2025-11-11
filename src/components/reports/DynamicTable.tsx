@@ -311,8 +311,8 @@ export function DynamicTable({
         const value = row.submission_data?.[field.id];
         if (value === null || value === undefined) return 'N/A';
         
-        // Handle cross-reference fields - extract only submission_ref_id values
-        if (field.field_type === 'cross-reference' && Array.isArray(value)) {
+        // Handle cross-reference and child-cross-reference fields - extract only submission_ref_id values
+        if ((field.field_type === 'cross-reference' || field.field_type === 'child-cross-reference') && Array.isArray(value)) {
           const refIds = value
             .map(item => item?.submission_ref_id)
             .filter(Boolean)

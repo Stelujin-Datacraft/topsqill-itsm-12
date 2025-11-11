@@ -41,7 +41,7 @@ interface FormDataTableConfig {
 }
 interface OptimizedFormDataTableProps {
   config: FormDataTableConfig;
-  fieldType: 'record-table' | 'cross-reference' | 'matrix-grid';
+  fieldType: 'record-table' | 'cross-reference' | 'child-cross-reference' | 'matrix-grid';
   value?: any[];
   onChange?: (selectedRecords: any[]) => void;
   autoSelectedRecords?: SelectedRecord[];
@@ -74,7 +74,7 @@ export function OptimizedFormDataTable({
   const [selectedRecords, setSelectedRecords] = useState<SelectedRecord[]>([]);
   const pageSize = config.pageSize || 10;
   const displayColumns = config.displayColumns || [];
-  const isCrossReference = fieldType === 'cross-reference';
+  const isCrossReference = fieldType === 'cross-reference' || fieldType === 'child-cross-reference';
 
   // Convert config filters to the format expected by the hook
   const configFilters = (config.filters || []).map(filter => ({
@@ -335,7 +335,7 @@ export function OptimizedFormDataTable({
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {fieldType === 'cross-reference' ? <LinkIcon className="h-5 w-5 text-blue-500" /> : <Database className="h-5 w-5 text-purple-500" />}
+            {(fieldType === 'cross-reference' || fieldType === 'child-cross-reference') ? <LinkIcon className="h-5 w-5 text-blue-500" /> : <Database className="h-5 w-5 text-purple-500" />}
             <div className="flex flex-col">
               <CardTitle className="text-lg">
                 {targetForm?.name || config.targetFormName || 'Form Submissions'}

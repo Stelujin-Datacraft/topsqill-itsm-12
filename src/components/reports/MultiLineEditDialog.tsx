@@ -47,9 +47,9 @@ export function MultiLineEditDialog({
     const fetchCrossRefData = async () => {
       const formIds = new Set<string>();
       
-      // Collect all target form IDs from cross-reference fields
+      // Collect all target form IDs from cross-reference and child-cross-reference fields
       formFields.forEach(field => {
-        if (field.field_type === 'cross-reference' && field.customConfig?.targetFormId) {
+        if ((field.field_type === 'cross-reference' || field.field_type === 'child-cross-reference') && field.customConfig?.targetFormId) {
           formIds.add(field.customConfig.targetFormId);
         }
       });

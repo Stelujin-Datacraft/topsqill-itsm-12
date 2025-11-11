@@ -179,7 +179,7 @@ export function ChildCrossReferenceField({
         )}
       </div>
       
-      <OptimizedFormDataTable config={tableConfig} fieldType="cross-reference" value={value} onChange={handleSelectionChange} autoSelectedRecords={autoSelectedRecords} isAutoSelectionLoading={autoSelectionLoading} key={refreshTrigger} />
+      <OptimizedFormDataTable config={tableConfig} fieldType="child-cross-reference" value={value} onChange={handleSelectionChange} autoSelectedRecords={autoSelectedRecords} isAutoSelectionLoading={autoSelectionLoading} key={refreshTrigger} />
       
       {error && <p className="text-sm text-red-500">{error}</p>}
 

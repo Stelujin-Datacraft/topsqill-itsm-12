@@ -20,7 +20,7 @@ export interface FormDataTableConfig {
 
 export interface FormDataTableProps {
   config: FormDataTableConfig;
-  fieldType: 'record-table' | 'cross-reference' | 'matrix-grid';
+  fieldType: 'record-table' | 'cross-reference' | 'child-cross-reference' | 'matrix-grid';
   currentFormId?: string;
   targetFormFields?: Array<{
     id: string;
