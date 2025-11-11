@@ -1,5 +1,14 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { 
+  createLoopContext, 
+  executeDeclare, 
+  executeSet, 
+  executeWhileLoop, 
+  replaceVariables,
+  type LoopContext 
+} from './sqlLoops';
+import { userFunctionRegistry } from './sqlUserFunctions';
 
 /** 
  * The shape of our parse result 
@@ -38,10 +47,32 @@ const ALLOWED_SYSTEM_TABLES = [
  * 1. Handle UPDATE FORM syntax for form field updates
  * 2. Handle SELECT queries with FIELD() syntax and SQL functions
  * 3. Handle SELECT queries against system tables
+ * 4. Handle CREATE FUNCTION statements
+ * 5. Handle DECLARE, SET, and WHILE loop statements
  */
 export function parseUserQuery(input: string): ParseResult {
   const errors: string[] = []
   const cleaned = input.trim().replace(/;$/, '') // drop trailing semicolon
+
+  // Check if this is a CREATE FUNCTION statement
+  if (/^CREATE\s+FUNCTION\s+/i.test(cleaned)) {
+    return { sql: `-- CREATE_FUNCTION\n${cleaned}`, errors: [] };
+  }
+
+  // Check if this is a DECLARE statement
+  if (/^DECLARE\s+@/i.test(cleaned)) {
+    return { sql: `-- DECLARE\n${cleaned}`, errors: [] };
+  }
+
+  // Check if this is a SET statement
+  if (/^SET\s+@/i.test(cleaned)) {
+    return { sql: `-- SET\n${cleaned}`, errors: [] };
+  }
+
+  // Check if this is a WHILE loop
+  if (/^WHILE\s+/i.test(cleaned)) {
+    return { sql: `-- WHILE_LOOP\n${cleaned}`, errors: [] };
+  }
 
   // Check if this is an UPDATE FORM query
   if (/^UPDATE\s+FORM\s+/i.test(cleaned)) {
@@ -473,8 +504,14 @@ async function executeSystemTableQuery(query: string): Promise<QueryResult> {
  * Execute the user query using Supabase and client-side processing
  */
 export async function executeUserQuery(
-  userInput: string
+  userInput: string,
+  loopContext?: LoopContext
 ): Promise<QueryResult> {
+  // Initialize loop context if not provided
+  if (!loopContext) {
+    loopContext = createLoopContext();
+  }
+
   const { sql, errors: parseErrors } = parseUserQuery(userInput)
   if (parseErrors.length) {
     return { columns: [], rows: [], errors: parseErrors }
@@ -482,6 +519,102 @@ export async function executeUserQuery(
 
   try {
     console.log('Executing SQL:', sql);
+
+    // Handle CREATE FUNCTION
+    if (sql?.startsWith('-- CREATE_FUNCTION')) {
+      try {
+        const functionDef = sql.replace('-- CREATE_FUNCTION\n', '');
+        userFunctionRegistry.createFunction(functionDef);
+        return {
+          columns: ['Status'],
+          rows: [['Function created successfully']],
+          errors: []
+        };
+      } catch (error) {
+        return {
+          columns: [],
+          rows: [],
+          errors: [error instanceof Error ? error.message : 'Failed to create function']
+        };
+      }
+    }
+
+    // Handle DECLARE statements
+    if (sql?.startsWith('-- DECLARE')) {
+      try {
+        const declareStmt = sql.replace('-- DECLARE\n', '');
+        executeDeclare(declareStmt, loopContext);
+        return {
+          columns: ['Status'],
+          rows: [['Variable declared']],
+          errors: []
+        };
+      } catch (error) {
+        return {
+          columns: [],
+          rows: [],
+          errors: [error instanceof Error ? error.message : 'Failed to declare variable']
+        };
+      }
+    }
+
+    // Handle SET statements
+    if (sql?.startsWith('-- SET')) {
+      try {
+        const setStmt = sql.replace('-- SET\n', '');
+        executeSet(setStmt, loopContext);
+        const varMatch = setStmt.match(/@(\w+)/);
+        const varName = varMatch ? varMatch[1] : 'variable';
+        const value = loopContext.variables.get(varName);
+        return {
+          columns: ['Variable', 'Value'],
+          rows: [[`@${varName}`, String(value)]],
+          errors: []
+        };
+      } catch (error) {
+        return {
+          columns: [],
+          rows: [],
+          errors: [error instanceof Error ? error.message : 'Failed to set variable']
+        };
+      }
+    }
+
+    // Handle WHILE loops
+    if (sql?.startsWith('-- WHILE_LOOP')) {
+      try {
+        const whileStmt = sql.replace('-- WHILE_LOOP\n', '');
+        const results = executeWhileLoop(whileStmt, loopContext, (statements, ctx) => {
+          const blockResults: any[] = [];
+          for (const stmt of statements) {
+            // Handle SET in loop body
+            if (/^SET\s+@/i.test(stmt)) {
+              executeSet(stmt, ctx);
+            }
+          }
+          return blockResults;
+        });
+        
+        // Return loop context variables as result
+        const varColumns = ['Variable', 'Final Value'];
+        const varRows = Array.from(loopContext.variables.entries()).map(([key, value]) => [
+          `@${key}`,
+          String(value)
+        ]);
+        
+        return {
+          columns: varColumns,
+          rows: varRows,
+          errors: []
+        };
+      } catch (error) {
+        return {
+          columns: [],
+          rows: [],
+          errors: [error instanceof Error ? error.message : 'Failed to execute loop']
+        };
+      }
+    }
     
     // Handle UPDATE queries differently
     if (sql?.startsWith('UPDATE')) {

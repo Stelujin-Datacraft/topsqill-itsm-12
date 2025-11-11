@@ -3,6 +3,8 @@
  * This module provides JavaScript implementations of common SQL functions
  */
 
+import { userFunctionRegistry } from './sqlUserFunctions';
+
 /**
  * String Functions
  */
@@ -175,6 +177,16 @@ export const conditionalFunctions = {
  */
 export function evaluateFunction(funcName: string, args: any[], fieldMetadata?: Record<string, any>): any {
   const upperFuncName = funcName.toUpperCase();
+  
+  // Check user-defined functions first
+  if (userFunctionRegistry.hasFunction(upperFuncName)) {
+    try {
+      return userFunctionRegistry.executeFunction(upperFuncName, args);
+    } catch (error) {
+      console.error(`Error executing user function ${funcName}:`, error);
+      throw error;
+    }
+  }
   
   // Check field metadata functions first (they need metadata parameter)
   if (upperFuncName in fieldMetadataFunctions) {
