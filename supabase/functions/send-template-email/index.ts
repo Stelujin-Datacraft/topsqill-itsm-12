@@ -21,6 +21,8 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    console.log('🚀 send-template-email function invoked');
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -28,9 +30,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { templateId, recipients, templateData, smtpConfigId, triggerContext }: EmailRequest = await req.json();
 
-    console.log('📧 Sending email with template:', templateId, 'to:', recipients);
+    console.log('📧 Email Request Details:', {
+      templateId,
+      recipients,
+      templateDataKeys: Object.keys(templateData),
+      smtpConfigId,
+      triggerContext
+    });
 
     // Get the email template
+    console.log('📝 Fetching email template:', templateId);
     const { data: template, error: templateError } = await supabaseClient
       .from('email_templates')
       .select('*')
@@ -39,10 +48,14 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     if (templateError || !template) {
+      console.error('❌ Template fetch error:', templateError);
       throw new Error('Email template not found or inactive');
     }
+    
+    console.log('✅ Template found:', template.name);
 
     // Get organization ID from template project
+    console.log('🏢 Fetching project for organization:', template.project_id);
     const { data: project, error: projectError } = await supabaseClient
       .from('projects')
       .select('organization_id')
@@ -50,12 +63,17 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     if (projectError || !project) {
+      console.error('❌ Project fetch error:', projectError);
       throw new Error('Project not found');
     }
+    
+    console.log('✅ Project found, organization:', project.organization_id);
 
     // Get SMTP configuration
+    console.log('⚙️ Fetching SMTP configuration...');
     let smtpConfig;
     if (smtpConfigId) {
+      console.log('📌 Using specific SMTP config:', smtpConfigId);
       const { data, error } = await supabaseClient
         .from('smtp_configs')
         .select('*')
@@ -65,10 +83,12 @@ const handler = async (req: Request): Promise<Response> => {
         .single();
       
       if (error || !data) {
+        console.error('❌ SMTP config fetch error:', error);
         throw new Error('SMTP configuration not found');
       }
       smtpConfig = data;
     } else {
+      console.log('📌 Using default SMTP config');
       // Get default SMTP config
       const { data, error } = await supabaseClient
         .from('smtp_configs')
@@ -79,10 +99,13 @@ const handler = async (req: Request): Promise<Response> => {
         .single();
       
       if (error || !data) {
+        console.error('❌ Default SMTP config not found:', error);
         throw new Error('No default SMTP configuration found');
       }
       smtpConfig = data;
     }
+    
+    console.log('✅ SMTP config found:', smtpConfig.from_email);
 
     // Process template variables
     const processTemplate = (text: string, data: Record<string, any>): string => {
@@ -104,9 +127,11 @@ const handler = async (req: Request): Promise<Response> => {
       : undefined;
 
     // Send emails to all recipients
+    console.log(`📮 Processing ${recipients.length} recipient(s)`);
     const emailResults = [];
     
     for (const recipient of recipients) {
+      console.log(`📧 Sending to: ${recipient}`);
       try {
         // Create email transport
         const emailData = {
@@ -140,6 +165,7 @@ const handler = async (req: Request): Promise<Response> => {
         const result = await response.json();
         
         if (response.ok) {
+          console.log(`✅ Email sent successfully to ${recipient}`);
           // Log successful email
           await supabaseClient.from('email_logs').insert({
             organization_id: project.organization_id,

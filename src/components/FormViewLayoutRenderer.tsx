@@ -12,6 +12,7 @@ import { PublicHeader } from './PublicHeader';
 import { RuleProcessor, RuleProcessingContext } from '@/utils/ruleProcessor';
 import { parseFormFields } from '@/utils/fieldReferenceParser';
 import { useUniqueFieldValidation } from '@/hooks/useUniqueFieldValidation';
+import { useEmailTemplates } from '@/hooks/useEmailTemplates';
 
 interface FormViewLayoutRendererProps {
   form: Form;
@@ -45,6 +46,7 @@ export function FormViewLayoutRenderer({
   }>>({});
   const [formLocked, setFormLocked] = useState(false);
   const [submitAllowed, setSubmitAllowed] = useState(true);
+  const { sendTemplateEmail } = useEmailTemplates();
 
   // Initialize pages with proper type checking
   const pages = Array.isArray(form.pages) && form.pages.length > 0 
@@ -94,7 +96,7 @@ export function FormViewLayoutRenderer({
       formFields,
       setFormData,
       setFieldStates,
-      onFormAction: (action: string, value?: any) => {
+      onFormAction: async (action: string, value?: any) => {
         switch (action) {
           case 'allowSubmit':
             setSubmitAllowed(true);
@@ -114,8 +116,45 @@ export function FormViewLayoutRenderer({
             }
             break;
           case 'changeFormHeader':
-            // This would need to be implemented in the parent component
             console.log('Change form header:', value);
+            break;
+          case 'sendEmail':
+            console.log('📧 Triggering email notification:', value);
+            try {
+              const { templateId, recipients, templateData } = value;
+              
+              // Convert recipients array to email strings
+              const recipientEmails = recipients.map((r: any) => 
+                typeof r === 'string' ? r : r.value
+              );
+
+              // Convert templateData array to object
+              const templateDataObj = templateData.reduce((acc: Record<string, any>, item: any) => {
+                acc[item.key] = item.value;
+                return acc;
+              }, {});
+
+              console.log('📧 Sending email with:', {
+                templateId,
+                recipientEmails,
+                templateDataObj
+              });
+
+              await sendTemplateEmail({
+                templateId,
+                recipients: recipientEmails,
+                templateData: templateDataObj,
+                triggerContext: {
+                  trigger_type: 'form_rule',
+                  form_id: form.id,
+                  form_data: formData,
+                }
+              });
+
+              console.log('✅ Email sent successfully via form rule');
+            } catch (error) {
+              console.error('❌ Failed to send email via form rule:', error);
+            }
             break;
           default:
             console.log('Form action:', action, value);
