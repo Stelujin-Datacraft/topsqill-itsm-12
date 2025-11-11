@@ -75,6 +75,8 @@ export function OptimizedFormDataTable({
   const pageSize = config.pageSize || 10;
   const displayColumns = config.displayColumns || [];
   const isCrossReference = fieldType === 'cross-reference' || fieldType === 'child-cross-reference';
+  const isChildCrossReference = fieldType === 'child-cross-reference';
+  const canSelectRecords = fieldType === 'cross-reference'; // Only parent cross-reference can select
 
   // Convert config filters to the format expected by the hook
   const configFilters = (config.filters || []).map(filter => ({
@@ -348,7 +350,7 @@ export function OptimizedFormDataTable({
             <Badge variant="outline">
               {isCrossReference ? selectedRecords.length : totalRecords} record{(isCrossReference ? selectedRecords.length : totalRecords) !== 1 ? 's' : ''}
             </Badge>
-            {isCrossReference && <Dialog open={isSelectionModalOpen} onOpenChange={setIsSelectionModalOpen}>
+            {canSelectRecords && <Dialog open={isSelectionModalOpen} onOpenChange={setIsSelectionModalOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm" onClick={handleModalOpen}>
                     <Plus className="h-4 w-4 mr-2" />
@@ -525,9 +527,10 @@ export function OptimizedFormDataTable({
             return <Badge key={record.id} variant="outline" className={`flex items-center gap-1 ${isAutoSelected ? 'bg-blue-50 border-blue-300 text-blue-700' : ''}`} title={isAutoSelected ? 'Auto-selected from parent form' : 'Manually selected'}>
                     {isAutoSelected && <span className="text-xs mr-1">🔗</span>}
                     {getDisplayValue(record)}
-                    <Button variant="ghost" size="sm" className="h-4 w-4 p-0 ml-1 hover:bg-red-100" onClick={() => handleRemoveSelectedRecord(record.id)} title={isAutoSelected ? 'Remove auto-selected record' : 'Remove selected record'}>
+                    {/* Only show remove button for parent cross-reference, not child */}
+                    {canSelectRecords && <Button variant="ghost" size="sm" className="h-4 w-4 p-0 ml-1 hover:bg-red-100" onClick={() => handleRemoveSelectedRecord(record.id)} title={isAutoSelected ? 'Remove auto-selected record' : 'Remove selected record'}>
                       <X className="h-3 w-3" />
-                    </Button>
+                    </Button>}
                   </Badge>;
           })}
             </div>
