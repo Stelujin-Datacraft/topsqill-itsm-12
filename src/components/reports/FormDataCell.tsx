@@ -15,7 +15,6 @@ interface FormDataCellProps {
 }
 
 export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
-  console.log('newwwwwwww',field)
   const { getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
 
   function countryCodeToEmoji(code: string) {
