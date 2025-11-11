@@ -355,10 +355,6 @@ const COUNTRIES = [
 
   // Handle cross-reference fields  
   if (fieldType === 'cross-reference') {
-    console.log('🔍 FormDataCell cross-reference - RAW value:', value);
-    console.log('🔍 FormDataCell cross-reference - field:', field);
-    console.log('🔍 FormDataCell cross-reference - field.customConfig:', field?.customConfig);
-    
     let submissionRefIds: string[] = [];
     
     if (typeof value === 'string') {
@@ -398,10 +394,7 @@ const COUNTRIES = [
       String(id) !== 'null'
     );
     
-    console.log('🔍 FormDataCell cross-reference - Extracted submissionRefIds:', submissionRefIds);
-    
     if (submissionRefIds.length === 0) {
-      console.warn('⚠️ FormDataCell cross-reference - No valid submission ref IDs found');
       return <Badge variant="outline" className="italic opacity-70">No references</Badge>;
     }
 
