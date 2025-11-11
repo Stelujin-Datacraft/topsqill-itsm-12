@@ -732,7 +732,8 @@ if (fieldType === 'country' && value) {
 
   // Handle rating fields
   if (fieldType === 'rating' && typeof value === 'number') {
-    const maxRating = field?.customConfig?.ratingScale || 5;
+    const customConfig = (field?.custom_config || field?.customConfig) as any;
+    const maxRating = customConfig?.ratingScale || 5;
     return (
       <div className="flex items-center space-x-1">
         <span className="text-sm font-medium">{value}</span>

@@ -9,14 +9,17 @@ interface CrossReferenceCellProps {
 }
 
 export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCellProps) {
+  // Support both snake_case (database) and camelCase (in-memory) versions
+  const customConfig = (field?.custom_config || field?.customConfig) as any;
+  
   // Extract targetFormId - handle both plain strings and object structures
-  const rawTargetFormId = field?.customConfig?.targetFormId;
+  const rawTargetFormId = customConfig?.targetFormId;
   const targetFormId = typeof rawTargetFormId === 'object' && rawTargetFormId !== null 
     ? rawTargetFormId.value 
     : rawTargetFormId;
     
   // Extract displayColumns - handle both arrays and object structures
-  const rawDisplayColumns = field?.customConfig?.displayColumns;
+  const rawDisplayColumns = customConfig?.displayColumns;
   const displayColumns = Array.isArray(rawDisplayColumns) 
     ? rawDisplayColumns 
     : (typeof rawDisplayColumns === 'object' && rawDisplayColumns !== null && Array.isArray(rawDisplayColumns.value))

@@ -306,8 +306,9 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
       
       // Collect all target form IDs from cross-reference and child-cross-reference fields
       formFields.forEach(field => {
-        if ((field.field_type === 'cross-reference' || field.field_type === 'child-cross-reference') && field.customConfig?.targetFormId) {
-          formIds.add(field.customConfig.targetFormId);
+        const customConfig = (field.custom_config || field.customConfig) as any;
+        if ((field.field_type === 'cross-reference' || field.field_type === 'child-cross-reference') && customConfig?.targetFormId) {
+          formIds.add(customConfig.targetFormId);
         }
       });
 
@@ -585,7 +586,8 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         }
 
         // Get records for this field's target form
-        const targetFormId = field.customConfig?.targetFormId;
+        const customConfig = (field.custom_config || field.customConfig) as any;
+        const targetFormId = customConfig?.targetFormId;
         const availableRecords = targetFormId ? crossRefRecordsByForm[targetFormId] || [] : [];
 
         // Show editable multi-select for master record OR single record editing
