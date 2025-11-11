@@ -9,8 +9,19 @@ interface CrossReferenceCellProps {
 }
 
 export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCellProps) {
-  const targetFormId = field?.customConfig?.targetFormId;
-  const displayColumns = field?.customConfig?.displayColumns || [];
+  // Extract targetFormId - handle both plain strings and object structures
+  const rawTargetFormId = field?.customConfig?.targetFormId;
+  const targetFormId = typeof rawTargetFormId === 'object' && rawTargetFormId !== null 
+    ? rawTargetFormId.value 
+    : rawTargetFormId;
+    
+  // Extract displayColumns - handle both arrays and object structures
+  const rawDisplayColumns = field?.customConfig?.displayColumns;
+  const displayColumns = Array.isArray(rawDisplayColumns) 
+    ? rawDisplayColumns 
+    : (typeof rawDisplayColumns === 'object' && rawDisplayColumns !== null && Array.isArray(rawDisplayColumns.value))
+      ? rawDisplayColumns.value
+      : [];
 
   // ✅ Normalize submissionRefIds: handle both array and comma-separated string
   let normalizedSubmissionRefIds: string[] = [];
@@ -31,10 +42,6 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
     }
   }
 
-  console.log('CrossReferenceCell: field.customConfig:', field?.customConfig);
-  console.log('CrossReferenceCell: displayColumns:', displayColumns);
-  console.log('CrossReferenceCell: normalizedSubmissionRefIds:', normalizedSubmissionRefIds);
-
   // Fetch only if valid targetFormId and submissionRefIds exist
   const shouldFetch = targetFormId && normalizedSubmissionRefIds.length > 0;
   const displayFieldIds = displayColumns;
@@ -46,10 +53,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
   );
 
   const handleClick = () => {
-    console.log('Cross-reference button clicked', { normalizedSubmissionRefIds, field });
-
     const dynamicTable = document.querySelector('[data-dynamic-table="main"]');
-    console.log('Dynamic table element found:', dynamicTable);
 
     if (dynamicTable) {
       const event = new CustomEvent('showCrossReference', {
@@ -61,7 +65,6 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
         },
       });
 
-      console.log('Dispatching event with data:', event.detail);
       dynamicTable.dispatchEvent(event);
     } else {
       console.error('Dynamic table element not found');
