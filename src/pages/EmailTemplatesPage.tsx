@@ -35,12 +35,24 @@ interface EmailTemplate {
   };
   is_active: boolean;
   project_id: string;
+  custom_params?: {
+    smtp_config_id?: string;
+    [key: string]: any;
+  };
 }
 
 interface RecipientConfig {
   type: 'static' | 'dynamic' | 'parameter';
   value: string;
   label?: string;
+}
+
+interface SMTPConfig {
+  id: string;
+  name: string;
+  from_email: string;
+  is_default: boolean;
+  is_active: boolean;
 }
 
 export default function EmailTemplatesPage() {
@@ -50,6 +62,7 @@ export default function EmailTemplatesPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
+  const [smtpConfigs, setSmtpConfigs] = useState<SMTPConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [contentMode, setContentMode] = useState<'html' | 'text'>('html');
   const [showPreview, setShowPreview] = useState(false);
@@ -110,9 +123,29 @@ export default function EmailTemplatesPage() {
     }
   };
 
+  const loadSMTPConfigs = async () => {
+    if (!userProfile?.organization_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('smtp_configs')
+        .select('id, name, from_email, is_default, is_active')
+        .eq('organization_id', userProfile.organization_id)
+        .eq('is_active', true)
+        .order('is_default', { ascending: false })
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setSmtpConfigs(data || []);
+    } catch (error) {
+      console.error('Error loading SMTP configs:', error);
+    }
+  };
+
   useEffect(() => {
     loadTemplates();
     loadUsers();
+    loadSMTPConfigs();
   }, [currentProject?.id, userProfile?.organization_id]);
 
   const createNewTemplate = (): EmailTemplate => ({
@@ -147,10 +180,10 @@ export default function EmailTemplatesPage() {
         text_content: template.text_content,
         template_variables: template.template_variables as any,
         recipients: template.recipients as any,
+        custom_params: template.custom_params || {},
         is_active: template.is_active,
         project_id: currentProject.id,
         created_by: userProfile.id,
-        custom_params: {},
       };
 
       if (template.id) {
@@ -280,8 +313,22 @@ export default function EmailTemplatesPage() {
                         {template.template_variables.length} variables
                       </Badge>
                     </CardTitle>
-                    <CardDescription>
-                      {template.description || template.subject}
+                    <CardDescription className="space-y-1">
+                      <div>{template.description || template.subject}</div>
+                      {template.custom_params?.smtp_config_id && (
+                        <div className="text-xs">
+                          <strong>SMTP:</strong>{' '}
+                          {smtpConfigs.find(c => c.id === template.custom_params?.smtp_config_id)?.name || 'Unknown'}{' '}
+                          <span className="text-muted-foreground">
+                            ({smtpConfigs.find(c => c.id === template.custom_params?.smtp_config_id)?.from_email})
+                          </span>
+                        </div>
+                      )}
+                      {!template.custom_params?.smtp_config_id && (
+                        <div className="text-xs">
+                          <strong>SMTP:</strong> <Badge variant="secondary" className="text-xs">Default</Badge>
+                        </div>
+                      )}
                     </CardDescription>
                   </div>
                   <div className="flex gap-2">
@@ -356,9 +403,10 @@ export default function EmailTemplatesPage() {
             
             {(isCreating || editingTemplate) && (
               <EmailTemplateForm
-                template={editingTemplate || createNewTemplate()}
-                users={users}
-                onSave={saveTemplate}
+            template={editingTemplate || createNewTemplate()}
+            users={users}
+            smtpConfigs={smtpConfigs}
+            onSave={saveTemplate}
                 onCancel={() => {
                   setEditingTemplate(null);
                   setIsCreating(false);
@@ -381,6 +429,7 @@ export default function EmailTemplatesPage() {
 interface EmailTemplateFormProps {
   template: EmailTemplate;
   users: any[];
+  smtpConfigs: SMTPConfig[];
   onSave: (template: EmailTemplate) => void;
   onCancel: () => void;
   contentMode: 'html' | 'text';
@@ -392,7 +441,8 @@ interface EmailTemplateFormProps {
 
 function EmailTemplateForm({ 
   template, 
-  users, 
+  users,
+  smtpConfigs, 
   onSave, 
   onCancel, 
   contentMode,
@@ -661,6 +711,49 @@ function EmailTemplateForm({
           </div>
         </div>
       )}
+
+      {/* SMTP Configuration */}
+      <div className="space-y-2">
+        <Label htmlFor="smtp_config">SMTP Configuration</Label>
+        <Select
+          value={formData.custom_params?.smtp_config_id || 'default'}
+          onValueChange={(value) => setFormData({
+            ...formData,
+            custom_params: {
+              ...formData.custom_params,
+              smtp_config_id: value === 'default' ? undefined : value
+            }
+          })}
+        >
+          <SelectTrigger id="smtp_config">
+            <SelectValue placeholder="Select SMTP configuration" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="text-xs">Default</Badge>
+                <span className="text-sm">Use default SMTP config</span>
+              </div>
+            </SelectItem>
+            {smtpConfigs.map(config => (
+              <SelectItem key={config.id} value={config.id}>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{config.name}</span>
+                    {config.is_default && (
+                      <Badge variant="outline" className="text-xs">Default</Badge>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground">{config.from_email}</span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          Choose which SMTP configuration to use for sending emails from this template
+        </p>
+      </div>
 
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">

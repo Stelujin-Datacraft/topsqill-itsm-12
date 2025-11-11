@@ -23,6 +23,7 @@ interface EmailTemplateConfig {
     type: 'static' | 'form_field';
     value: string;
   }[];
+  emailTemplate?: EmailTemplate; // Include full template for SMTP config
 }
 
 interface EmailTemplateSelectorProps {
@@ -36,10 +37,11 @@ export function EmailTemplateSelector({ value, onChange, formFields, projectId: 
   const { projectId: urlProjectId } = useParams();
   const projectId = propProjectId || urlProjectId;
   const navigate = useNavigate();
-  const { getTemplatesForProject } = useEmailTemplates();
+  const { getTemplatesForProject, getSMTPConfigs } = useEmailTemplates();
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
   const [showConfig, setShowConfig] = useState(false);
+  const [smtpConfigs, setSmtpConfigs] = useState<any[]>([]);
 
   const config = value || {
     recipients: [],
@@ -50,6 +52,7 @@ export function EmailTemplateSelector({ value, onChange, formFields, projectId: 
     if (projectId) {
       console.log('Loading templates for projectId:', projectId);
       loadTemplates();
+      loadSMTPConfigs();
     } else {
       console.log('No projectId available');
     }
@@ -59,17 +62,27 @@ export function EmailTemplateSelector({ value, onChange, formFields, projectId: 
     if (config.templateId) {
       const template = templates.find(t => t.id === config.templateId);
       setSelectedTemplate(template || null);
-      if (template && config.templateData.length === 0) {
-        // Initialize template data with available variables
-        const initialData = template.template_variables.map(variable => ({
-          key: variable,
-          type: 'static' as const,
-          value: ''
-        }));
-        onChange({
-          ...config,
-          templateData: initialData
-        });
+      if (template) {
+        // Update config to include full template object
+        if (!config.emailTemplate || config.emailTemplate.id !== template.id) {
+          onChange({
+            ...config,
+            emailTemplate: template
+          });
+        }
+        // Initialize template data with available variables if empty
+        if (config.templateData.length === 0) {
+          const initialData = template.template_variables.map(variable => ({
+            key: variable,
+            type: 'static' as const,
+            value: ''
+          }));
+          onChange({
+            ...config,
+            emailTemplate: template,
+            templateData: initialData
+          });
+        }
       }
     }
   }, [config.templateId, templates]);
@@ -82,6 +95,15 @@ export function EmailTemplateSelector({ value, onChange, formFields, projectId: 
       setTemplates(data);
     } catch (error) {
       console.error('Error loading templates:', error);
+    }
+  };
+
+  const loadSMTPConfigs = async () => {
+    try {
+      const data = await getSMTPConfigs();
+      setSmtpConfigs(data);
+    } catch (error) {
+      console.error('Error loading SMTP configs:', error);
     }
   };
 
@@ -179,30 +201,50 @@ export function EmailTemplateSelector({ value, onChange, formFields, projectId: 
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm">Email Configuration</CardTitle>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button size="sm" variant="outline">
-                    <Eye className="h-3 w-3 mr-1" />
-                    Preview
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-4xl">
-                  <DialogHeader>
-                    <DialogTitle>Email Preview</DialogTitle>
-                  </DialogHeader>
-                  <EmailPreview
-                    subject={selectedTemplate.subject}
-                    htmlContent={selectedTemplate.html_content}
-                    textContent={selectedTemplate.text_content}
-                    templateVariables={config.templateData.map(data => ({
-                      name: data.key,
-                      value: data.type === 'static' ? data.value : `[${data.key}]`
-                    }))}
-                    isHtmlMode={true}
-                  />
-                </DialogContent>
-              </Dialog>
+              <div className="flex items-center gap-2">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline">
+                      <Eye className="h-3 w-3 mr-1" />
+                      Preview
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl">
+                    <DialogHeader>
+                      <DialogTitle>Email Preview</DialogTitle>
+                    </DialogHeader>
+                    <EmailPreview
+                      subject={selectedTemplate.subject}
+                      htmlContent={selectedTemplate.html_content}
+                      textContent={selectedTemplate.text_content}
+                      templateVariables={config.templateData.map(data => ({
+                        name: data.key,
+                        value: data.type === 'static' ? data.value : `[${data.key}]`
+                      }))}
+                      isHtmlMode={true}
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
+            {/* SMTP Config Info */}
+            {selectedTemplate.custom_params?.smtp_config_id ? (
+              <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                <Mail className="h-3 w-3" />
+                <span>
+                  Emails will be sent from:{' '}
+                  <strong className="text-foreground">
+                    {smtpConfigs.find(c => c.id === selectedTemplate.custom_params?.smtp_config_id)?.from_email || 'Unknown'}
+                  </strong>
+                  {' '}({smtpConfigs.find(c => c.id === selectedTemplate.custom_params?.smtp_config_id)?.name})
+                </span>
+              </div>
+            ) : (
+              <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                <Mail className="h-3 w-3" />
+                <span>Using <Badge variant="secondary" className="text-xs ml-1">Default SMTP</Badge> configuration</span>
+              </div>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Recipients Configuration */}

@@ -121,7 +121,7 @@ export function FormViewLayoutRenderer({
           case 'sendEmail':
             console.log('📧 Triggering email notification:', value);
             try {
-              const { templateId, recipients, templateData } = value;
+              const { templateId, recipients, templateData, emailTemplate } = value;
               
               // Convert recipients array to email strings
               const recipientEmails = recipients.map((r: any) => 
@@ -134,16 +134,21 @@ export function FormViewLayoutRenderer({
                 return acc;
               }, {});
 
+              // Extract SMTP config ID from the email template's custom_params
+              const smtpConfigId = emailTemplate?.custom_params?.smtp_config_id;
+
               console.log('📧 Sending email with:', {
                 templateId,
                 recipientEmails,
-                templateDataObj
+                templateDataObj,
+                smtpConfigId
               });
 
               await sendTemplateEmail({
                 templateId,
                 recipients: recipientEmails,
                 templateData: templateDataObj,
+                smtpConfigId: smtpConfigId,
                 triggerContext: {
                   trigger_type: 'form_rule',
                   form_id: form.id,

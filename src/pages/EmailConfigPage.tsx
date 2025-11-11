@@ -256,8 +256,15 @@ export default function EmailConfigPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => deleteConfig(config.id)}
-                      disabled={config.is_default}
+                      onClick={() => {
+                        if (config.is_default) {
+                          const confirmDelete = window.confirm(
+                            '⚠️ This is a default SMTP configuration. Deleting it may affect email templates using it.\n\nAre you sure you want to delete this default configuration?'
+                          );
+                          if (!confirmDelete) return;
+                        }
+                        deleteConfig(config.id);
+                      }}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
