@@ -886,7 +886,10 @@ export async function executeUserQuery(
       finalResults = finalResults.slice(0, limit);
     }
     
-    return { columns, rows: finalResults, errors: [] };
+    // Post-process: Replace field IDs with labels in cross-reference data
+    const processedResults = await replaceFieldIdsWithLabels(finalResults);
+    
+    return { columns, rows: processedResults, errors: [] };
     
   } catch (err) {
     console.error('Unexpected error:', err);
@@ -1237,6 +1240,105 @@ function serializeFieldValue(value: any): any {
   
   // Return primitive values as-is
   return value;
+}
+
+/**
+ * Replace field IDs with their labels in cross-reference data
+ */
+async function replaceFieldIdsWithLabels(results: any[][]): Promise<any[][]> {
+  try {
+    // Collect all unique field IDs from cross-reference data in results
+    const fieldIds = new Set<string>();
+    
+    results.forEach(row => {
+      row.forEach(cell => {
+        if (typeof cell === 'string' && cell.startsWith('[')) {
+          try {
+            const parsed = JSON.parse(cell);
+            if (Array.isArray(parsed)) {
+              parsed.forEach(item => {
+                if (item && typeof item === 'object') {
+                  // Extract field IDs from the object (excluding submission_ref_id and other metadata)
+                  Object.keys(item).forEach(key => {
+                    // UUID pattern check (8-4-4-4-12 format)
+                    if (key.match(/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i)) {
+                      fieldIds.add(key);
+                    }
+                  });
+                }
+              });
+            }
+          } catch (e) {
+            // Not JSON or not cross-reference data, skip
+          }
+        }
+      });
+    });
+    
+    // If no field IDs found, return results as-is
+    if (fieldIds.size === 0) {
+      return results;
+    }
+    
+    // Fetch field labels from database
+    const { data: fields, error } = await supabase
+      .from('form_fields')
+      .select('id, label')
+      .in('id', Array.from(fieldIds));
+    
+    if (error) {
+      console.error('Error fetching field labels:', error);
+      return results;
+    }
+    
+    // Create field ID to label mapping
+    const fieldIdToLabel = new Map<string, string>();
+    fields?.forEach(field => {
+      fieldIdToLabel.set(field.id, field.label);
+    });
+    
+    // Replace field IDs with labels in results
+    return results.map(row => 
+      row.map(cell => {
+        if (typeof cell === 'string' && cell.startsWith('[')) {
+          try {
+            const parsed = JSON.parse(cell);
+            if (Array.isArray(parsed)) {
+              const updated = parsed.map(item => {
+                if (item && typeof item === 'object') {
+                  const newItem: any = {};
+                  
+                  // Add submission_ref_id first if exists
+                  if (item.submission_ref_id) {
+                    newItem.submission_ref_id = item.submission_ref_id;
+                  }
+                  
+                  // Replace field IDs with labels for other properties
+                  Object.keys(item).forEach(key => {
+                    if (key !== 'submission_ref_id') {
+                      const label = fieldIdToLabel.get(key) || key;
+                      newItem[label] = item[key];
+                    }
+                  });
+                  
+                  return newItem;
+                }
+                return item;
+              });
+              
+              return JSON.stringify(updated, null, 2);
+            }
+          } catch (e) {
+            // Not JSON or parsing error, return as-is
+          }
+        }
+        return cell;
+      })
+    );
+  } catch (error) {
+    console.error('Error in replaceFieldIdsWithLabels:', error);
+    return results;
+  }
 }
 
 /**
