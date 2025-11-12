@@ -1195,7 +1195,35 @@ function serializeFieldValue(value: any): any {
     if (typeof value[0] === 'string' || typeof value[0] === 'number') {
       return value.join(', ');
     }
-    // If it's an array of objects, stringify it
+    
+    // If it's an array of cross-reference objects, format them nicely
+    if (typeof value[0] === 'object' && value[0] !== null) {
+      return value.map(item => {
+        // Create a new object with submission_ref_id first, remove id, and flatten displayData
+        const formatted: any = {};
+        
+        // Add submission_ref_id first if it exists
+        if (item.submission_ref_id) {
+          formatted.submission_ref_id = item.submission_ref_id;
+        }
+        
+        // Flatten displayData into the main object (field values)
+        if (item.displayData && typeof item.displayData === 'object') {
+          Object.assign(formatted, item.displayData);
+        }
+        
+        // Add any other properties except 'id' and 'displayData'
+        Object.keys(item).forEach(key => {
+          if (key !== 'id' && key !== 'displayData' && key !== 'submission_ref_id') {
+            formatted[key] = item[key];
+          }
+        });
+        
+        return formatted;
+      });
+    }
+    
+    // Otherwise stringify the array
     return JSON.stringify(value);
   }
   
