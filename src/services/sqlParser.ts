@@ -1020,7 +1020,8 @@ function evaluateSelectExpression(expr: string, row: any, fieldMetadata?: Record
   
   // Check if it's a simple field reference
   if (/^[a-zA-Z0-9_-]+$/.test(expr)) {
-    return row[expr] ?? null;
+    const value = row[expr] ?? null;
+    return serializeFieldValue(value);
   }
   
   // Evaluate complex expressions with functions (pass fieldMetadata)
@@ -1170,11 +1171,41 @@ function evaluateFieldReference(fieldRef: string, row: any): any {
   // Extract field ID from FIELD('uuid') syntax
   const fieldMatch = fieldRef.match(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)/i);
   if (fieldMatch) {
-    return row[fieldMatch[1]] ?? null;
+    const value = row[fieldMatch[1]] ?? null;
+    return serializeFieldValue(value);
   }
   
   // Direct field reference
-  return row[fieldRef] ?? null;
+  const value = row[fieldRef] ?? null;
+  return serializeFieldValue(value);
+}
+
+/**
+ * Serialize field values properly for display in query results
+ */
+function serializeFieldValue(value: any): any {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  
+  // Handle arrays (like cross-reference field values)
+  if (Array.isArray(value)) {
+    // If it's an array of primitives, join with commas
+    if (value.length === 0) return null;
+    if (typeof value[0] === 'string' || typeof value[0] === 'number') {
+      return value.join(', ');
+    }
+    // If it's an array of objects, stringify it
+    return JSON.stringify(value);
+  }
+  
+  // Handle objects (like structured data)
+  if (typeof value === 'object') {
+    return JSON.stringify(value);
+  }
+  
+  // Return primitive values as-is
+  return value;
 }
 
 /**
