@@ -28,8 +28,29 @@ export function CrossReferenceDialog({
 }: CrossReferenceDialogProps) {
   const navigate = useNavigate();
   
+  // Helper to safely extract value from potentially nested object structures
+  const extractValue = (val: any): any => {
+    if (!val) return val;
+    if (typeof val !== 'object') return val;
+    // Handle nested object structures like {_type: "...", value: "..."}
+    if (val.value !== undefined) return extractValue(val.value);
+    return val;
+  };
+  
+  // Validate and normalize targetFormId
+  let normalizedTargetFormId = extractValue(targetFormId);
+  if (
+    !normalizedTargetFormId || 
+    typeof normalizedTargetFormId !== 'string' ||
+    normalizedTargetFormId === 'undefined' || 
+    normalizedTargetFormId === 'null' || 
+    normalizedTargetFormId.trim() === ''
+  ) {
+    normalizedTargetFormId = undefined;
+  }
+  
   const { records, loading } = useCrossReferenceData(
-    targetFormId,
+    normalizedTargetFormId,
     submissionIds,
     displayFieldIds
   );

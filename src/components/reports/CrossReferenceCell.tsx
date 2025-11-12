@@ -12,24 +12,39 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
   // Support both snake_case (database) and camelCase (in-memory) versions
   const customConfig = (field?.custom_config || field?.customConfig) as any;
   
-  // Extract targetFormId - handle both plain strings and object structures
-  const rawTargetFormId = customConfig?.targetFormId;
-  let targetFormId = typeof rawTargetFormId === 'object' && rawTargetFormId !== null 
-    ? rawTargetFormId.value 
-    : rawTargetFormId;
+  // Helper to safely extract value from potentially nested object structures
+  const extractValue = (val: any): any => {
+    if (!val) return val;
+    if (typeof val !== 'object') return val;
+    // Handle nested object structures like {_type: "...", value: "..."}
+    if (val.value !== undefined) return extractValue(val.value);
+    return val;
+  };
   
-  // Validate targetFormId - ensure it's not "undefined" string or other invalid values
-  if (!targetFormId || targetFormId === 'undefined' || targetFormId === 'null' || targetFormId.trim() === '') {
+  // Extract targetFormId - handle plain strings, nested objects, and malformed values
+  const rawTargetFormId = customConfig?.targetFormId;
+  let targetFormId = extractValue(rawTargetFormId);
+  
+  // Validate targetFormId - ensure it's a valid UUID string
+  if (
+    !targetFormId || 
+    typeof targetFormId !== 'string' ||
+    targetFormId === 'undefined' || 
+    targetFormId === 'null' || 
+    targetFormId.trim() === '' ||
+    targetFormId === '[object Object]'
+  ) {
     targetFormId = undefined;
   }
     
-  // Extract displayColumns - handle both arrays and object structures
+  // Extract displayColumns - handle arrays and nested object structures
   const rawDisplayColumns = customConfig?.displayColumns;
-  const displayColumns = Array.isArray(rawDisplayColumns) 
-    ? rawDisplayColumns 
-    : (typeof rawDisplayColumns === 'object' && rawDisplayColumns !== null && Array.isArray(rawDisplayColumns.value))
-      ? rawDisplayColumns.value
-      : [];
+  let displayColumns = extractValue(rawDisplayColumns);
+  
+  // Ensure displayColumns is always an array
+  if (!Array.isArray(displayColumns)) {
+    displayColumns = [];
+  }
 
   // ✅ Normalize submissionRefIds: handle both array and comma-separated string
   let normalizedSubmissionRefIds: string[] = [];

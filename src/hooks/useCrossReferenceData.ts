@@ -23,10 +23,6 @@ export function useCrossReferenceData(
   const [records, setRecords] = useState<CrossReferenceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  console.log('useCrossReferenceData: targetFormId:', targetFormId);
-  console.log('useCrossReferenceData: displayFieldIds (raw):', displayFieldIds);
-  console.log('useCrossReferenceData: normalizedDisplayFieldIds:', normalizedDisplayFieldIds);
 
   useEffect(() => {
     const fetchCrossReferenceData = async () => {
