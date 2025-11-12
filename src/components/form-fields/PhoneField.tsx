@@ -109,8 +109,8 @@ export function PhoneField({ field, value, onChange, error, disabled }: PhoneFie
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {COUNTRY_CODES.map((country) => (
-                <SelectItem key={`${country.code}-${country.country}`} value={country.code}>
+              {COUNTRY_CODES.map((country, index) => (
+                <SelectItem key={`${country.code}-${country.country}-${index}`} value={country.code}>
                   {country.code} {country.country}
                 </SelectItem>
               ))}

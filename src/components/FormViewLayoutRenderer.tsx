@@ -119,14 +119,8 @@ export function FormViewLayoutRenderer({
             console.log('Change form header:', value);
             break;
           case 'sendEmail':
-            console.log('📧 Triggering email notification:', value);
             try {
               const { templateId, recipients, templateData, emailTemplate } = value;
-              
-              // Debug logging
-              console.log('🔍 emailTemplate object:', emailTemplate);
-              console.log('🔍 custom_params:', emailTemplate?.custom_params);
-              console.log('🔍 smtp_config_id:', emailTemplate?.custom_params?.smtp_config_id);
               
               // Convert recipients array to email strings
               const recipientEmails = recipients.map((r: any) => 
@@ -142,13 +136,6 @@ export function FormViewLayoutRenderer({
               // Extract SMTP config ID from the email template's custom_params
               const smtpConfigId = emailTemplate?.custom_params?.smtp_config_id;
 
-              console.log('📧 Sending email with:', {
-                templateId,
-                recipientEmails,
-                templateDataObj,
-                smtpConfigId
-              });
-
               await sendTemplateEmail({
                 templateId,
                 recipients: recipientEmails,
@@ -160,10 +147,8 @@ export function FormViewLayoutRenderer({
                   form_data: formData,
                 }
               });
-
-              console.log('✅ Email sent successfully via form rule');
             } catch (error) {
-              console.error('❌ Failed to send email via form rule:', error);
+              console.error('Failed to send email via form rule:', error);
             }
             break;
           default:
