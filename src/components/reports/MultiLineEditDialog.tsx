@@ -39,6 +39,21 @@ export function MultiLineEditDialog({
   const { toast } = useToast();
   const { users, groups, getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
   
+  // Helper function to ensure options are always an array
+  const ensureOptionsArray = (opts: any): any[] => {
+    if (!opts) return [];
+    if (Array.isArray(opts)) return opts;
+    if (typeof opts === 'string') {
+      try {
+        const parsed = JSON.parse(opts);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+  
   // Get cross-reference records from all forms - we'll filter by target form in renderFieldInput
   const [crossRefRecordsByForm, setCrossRefRecordsByForm] = useState<Record<string, any[]>>({});
 
@@ -254,18 +269,18 @@ const renderFieldInput = (field: any, value: any, submissionId: string
               <SelectValue placeholder={`Select ${field.label}`} />
             </SelectTrigger>
             <SelectContent>
-              {Array.isArray(field.options)
-                ? field.options.filter((option: any) => option.value && option.value.trim() !== '').map((option: any) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))
-                : null}
+              {ensureOptionsArray(field.options)
+                .filter((option: any) => option.value && option.value.trim() !== '')
+                .map((option: any) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
           {hasOriginalValue && (
             <div className="text-xs text-muted-foreground mt-1">
-              Previous: {field.options?.find((opt: any) => opt.value === originalValue)?.label || originalValue || '(empty)'}
+              Previous: {ensureOptionsArray(field.options).find((opt: any) => opt.value === originalValue)?.label || originalValue || '(empty)'}
             </div>
           )}
         </Wrapper>
@@ -542,8 +557,8 @@ const renderFieldInput = (field: any, value: any, submissionId: string
     case 'radio':
       return (
         <Wrapper>
-          {Array.isArray(field.options) && field.options.length > 0 ? (
-            field.options.map((option: any) => (
+          {ensureOptionsArray(field.options).length > 0 ? (
+            ensureOptionsArray(field.options).map((option: any) => (
               <div
                 key={option.value || option.id}
                 className="flex items-center space-x-2"
