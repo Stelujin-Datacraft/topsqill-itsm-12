@@ -3,8 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Eye, Calendar, DollarSign, Clock, Link as LinkIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useEffect,useState } from 'react';
-import  axios  from 'axios';
 import { useUsersAndGroups } from '@/hooks/useUsersAndGroups';
 import { CrossReferenceCell } from './CrossReferenceCell';
 
@@ -25,49 +23,6 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
         String.fromCodePoint(127397 + char.charCodeAt(0))
       );
   }
-  
-  interface Country {
-    code: string;
-    name: string;
-    flag: string;
-  }
-  
-  const useCountries=()=> {
-    const [countries, setCountries] = useState<Country[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-  
-    useEffect(() => {
-      const fetchCountries = async () => {
-        try {
-          const response = await axios.get(
-            "https://restcountries.com/v3.1/all?fields=name,cca2"
-          );
-          const data = response.data.map((country: any) => ({
-            code: country.cca2,
-            name: country.name?.common || "",
-          }));
-          // sort alphabetically
-          data.sort((a: Country, b: Country) =>
-            a.name.localeCompare(b.name)
-          );
-          setCountries(data);
-          setError(null);
-        } catch (err) {
-          console.error("Error fetching countries:", err);
-          setError("Failed to fetch countries");
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchCountries();
-    }, []);
-  
-    return { countries, loading, error };
-  }
-  
-  // 👇 Top of InlineEditDialog component
-  const { countries, loading: countriesLoading, error: countriesError } = useCountries();
   
   
   const navigate = useNavigate();
@@ -707,7 +662,7 @@ if (fieldType === 'checkbox') {
   // Handle country fields
 if (fieldType === 'country' && value) {
   // Map code to full name
-  const countryObj = countries.find((c: any) => c.code === value);
+  const countryObj = COUNTRIES.find((c: any) => c.code === value);
 
   if (!countryObj) {
     return <Badge variant="outline" className="text-xs">N/A</Badge>;
