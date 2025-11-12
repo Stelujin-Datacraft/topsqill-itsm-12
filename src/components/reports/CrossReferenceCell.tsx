@@ -9,50 +9,27 @@ interface CrossReferenceCellProps {
 }
 
 export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCellProps) {
-  console.log('🔍 CrossReferenceCell - Full field object:', field);
-  console.log('🔍 CrossReferenceCell - field.custom_config:', field?.custom_config);
-  console.log('🔍 CrossReferenceCell - field.customConfig:', field?.customConfig);
-  
-  // Support both snake_case (database) and camelCase (in-memory) versions
-  const customConfig = (field?.custom_config || field?.customConfig) as any;
-  console.log('🔍 CrossReferenceCell - Resolved customConfig:', customConfig);
-  
-  // Helper to safely extract value from potentially nested object structures
-  const extractValue = (val: any): any => {
-    if (!val) return val;
-    if (typeof val !== 'object') return val;
-    // Handle nested object structures like {_type: "...", value: "..."}
-    if (val.value !== undefined) return extractValue(val.value);
-    return val;
-  };
-  
-  // Extract targetFormId - handle plain strings, nested objects, and malformed values
-  const rawTargetFormId = customConfig?.targetFormId;
-  let targetFormId = extractValue(rawTargetFormId);
-  
-  // Validate targetFormId - ensure it's a valid UUID string
-  if (
-    !targetFormId || 
-    typeof targetFormId !== 'string' ||
-    targetFormId === 'undefined' || 
-    targetFormId === 'null' || 
-    targetFormId.trim() === '' ||
-    targetFormId === '[object Object]'
-  ) {
-    targetFormId = undefined;
+  // Parse custom_config if it's a JSON string (from database)
+  let customConfig: any = field?.customConfig;
+  if (!customConfig && field?.custom_config) {
+    try {
+      customConfig = typeof field.custom_config === 'string' 
+        ? JSON.parse(field.custom_config) 
+        : field.custom_config;
+    } catch (e) {
+      console.error('Failed to parse custom_config:', e);
+      customConfig = null;
+    }
   }
-    
-  // Extract displayColumns - handle arrays and nested object structures
-  const rawDisplayColumns = customConfig?.displayColumns;
-  let displayColumns = extractValue(rawDisplayColumns);
   
-  // Ensure displayColumns is always an array
+  // Extract targetFormId - handle plain strings and ensure it's valid
+  const targetFormId = customConfig?.targetFormId;
+  
+  // Extract displayColumns - ensure it's an array
+  let displayColumns = customConfig?.displayColumns || [];
   if (!Array.isArray(displayColumns)) {
     displayColumns = [];
   }
-  
-  console.log('🔍 CrossReferenceCell - Final targetFormId:', targetFormId);
-  console.log('🔍 CrossReferenceCell - Final displayColumns:', displayColumns);
 
   // ✅ Normalize submissionRefIds: handle both array and comma-separated string
   let normalizedSubmissionRefIds: string[] = [];
