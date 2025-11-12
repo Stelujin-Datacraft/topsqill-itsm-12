@@ -9,8 +9,13 @@ interface CrossReferenceCellProps {
 }
 
 export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCellProps) {
+  console.log('🔍 CrossReferenceCell - Full field object:', field);
+  console.log('🔍 CrossReferenceCell - field.custom_config:', field?.custom_config);
+  console.log('🔍 CrossReferenceCell - field.customConfig:', field?.customConfig);
+  
   // Support both snake_case (database) and camelCase (in-memory) versions
   const customConfig = (field?.custom_config || field?.customConfig) as any;
+  console.log('🔍 CrossReferenceCell - Resolved customConfig:', customConfig);
   
   // Helper to safely extract value from potentially nested object structures
   const extractValue = (val: any): any => {
@@ -45,6 +50,9 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
   if (!Array.isArray(displayColumns)) {
     displayColumns = [];
   }
+  
+  console.log('🔍 CrossReferenceCell - Final targetFormId:', targetFormId);
+  console.log('🔍 CrossReferenceCell - Final displayColumns:', displayColumns);
 
   // ✅ Normalize submissionRefIds: handle both array and comma-separated string
   let normalizedSubmissionRefIds: string[] = [];
