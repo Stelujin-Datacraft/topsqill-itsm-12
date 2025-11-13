@@ -275,13 +275,13 @@ export function parseUpdateFormQuery(input: string): ParseResult {
  * 2. INSERT INTO form_id SELECT ...
  * 3. INSERT form_id (columns) VALUES (values) - without INTO
  * 4. INSERT INTO "form_id" (columns) VALUES (values) - with quotes
- * 5. Columns can be field names or field IDs (UUIDs)
+ * 5. Columns can be field names, field IDs (UUIDs), or FIELD("field-id") syntax
  */
 export function parseInsertQuery(input: string): ParseResult {
   const errors: string[] = []
   
   // Flexible pattern to match INSERT with or without INTO/FORM keywords
-  // Supports both field names and field IDs (UUIDs) in column list
+  // Supports field names, field IDs (UUIDs), and FIELD() syntax in column list
   const insertPattern = /^INSERT\s+(?:INTO\s+)?(?:FORM\s+)?(['""]?[0-9a-fA-F\-]{36}['""]?)\s*(?:\(([^)]+)\))?\s+(?:VALUES|SELECT)/i;
   
   const match = input.match(insertPattern);
@@ -303,6 +303,7 @@ export function parseInsertQuery(input: string): ParseResult {
   
   // Return the original query for execution
   // The executeInsertQuery function will handle the actual parsing and execution
+  // including FIELD() syntax in column names
   return { sql: input, errors };
 }
 
@@ -1610,8 +1611,14 @@ async function executeInsertQuery(sql: string, loopContext?: LoopContext): Promi
     const fieldMap = new Map(formFields.map(f => [f.label.toLowerCase(), f.id]));
     const fieldIdSet = new Set(formFields.map(f => f.id));
     
-    // Helper function to resolve field ID from name or ID
+    // Helper function to resolve field ID from name, ID, or FIELD() syntax
     const resolveFieldId = (columnName: string): string | undefined => {
+      // Check if it uses FIELD() syntax
+      const fieldMatch = columnName.match(/FIELD\s*\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)/i);
+      if (fieldMatch) {
+        return fieldMatch[1]; // Return the UUID directly
+      }
+      
       // Check if it's already a valid UUID (field ID)
       if (fieldIdSet.has(columnName)) {
         return columnName;

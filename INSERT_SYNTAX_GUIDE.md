@@ -2,10 +2,11 @@
 
 ## ✨ What's New
 
-Two major improvements to INSERT queries:
+Three major improvements to INSERT queries:
 
 1. **FORM keyword is now OPTIONAL** - Write cleaner queries!
 2. **Use Field IDs OR Field Names** - Maximum flexibility!
+3. **FIELD() syntax supported** - Easy copy-paste for field IDs!
 
 ---
 
@@ -23,12 +24,16 @@ VALUES ('value1', 'value2')
 INSERT INTO your-form-id (FieldName1, FieldName2)
 VALUES ('value1', 'value2')
 
--- Using field IDs instead of names
+-- Using field IDs with FIELD() syntax (RECOMMENDED!)
+INSERT INTO your-form-id (FIELD("field-uuid-1"), FIELD("field-uuid-2"))
+VALUES ('value1', 'value2')
+
+-- Using field IDs directly
 INSERT INTO your-form-id (field-uuid-1, field-uuid-2)
 VALUES ('value1', 'value2')
 
--- Mix field IDs and names!
-INSERT INTO your-form-id (FieldName1, field-uuid-2, FieldName3)
+-- Mix field names and FIELD() syntax!
+INSERT INTO your-form-id (FieldName1, FIELD("field-uuid-2"), FieldName3)
 VALUES ('value1', 'value2', 'value3')
 ```
 
@@ -42,7 +47,15 @@ INSERT INTO 763790c6-af5b-4a67-9125-38df5ddb4b7c (Name, Email, Phone)
 VALUES ('John Doe', 'john@example.com', '555-1234')
 ```
 
-### Example 2: INSERT with Field IDs
+### Example 2: INSERT with FIELD() Syntax (RECOMMENDED!)
+```sql
+INSERT INTO 763790c6-af5b-4a67-9125-38df5ddb4b7c 
+  (FIELD("f1e2d3c4-a5b6-7c8d-9e0f-1a2b3c4d5e6f"), 
+   FIELD("g2f3e4d5-b6c7-8d9e-0f1a-2b3c4d5e6f7g"))
+VALUES ('Alice Smith', 'alice@example.com')
+```
+
+### Example 3: INSERT with Direct Field IDs
 ```sql
 INSERT INTO 763790c6-af5b-4a67-9125-38df5ddb4b7c 
   (f1e2d3c4-a5b6-7c8d-9e0f-1a2b3c4d5e6f, 
@@ -50,12 +63,12 @@ INSERT INTO 763790c6-af5b-4a67-9125-38df5ddb4b7c
 VALUES ('Alice Smith', 'alice@example.com')
 ```
 
-### Example 3: Mixed Field IDs and Names
+### Example 4: Mixed Field Names and FIELD() Syntax
 ```sql
 INSERT INTO your-form-id 
-  (Name,                                    -- Field name
-   f1e2d3c4-a5b6-7c8d-9e0f-1a2b3c4d5e6f,  -- Field ID
-   Status)                                  -- Field name
+  (Name,                                           -- Field name
+   FIELD("f1e2d3c4-a5b6-7c8d-9e0f-1a2b3c4d5e6f"), -- Field ID with FIELD()
+   Status)                                         -- Field name
 VALUES ('Bob Johnson', 'bob@example.com', 'Active')
 ```
 
@@ -99,11 +112,29 @@ WHERE form_id = 'YOUR_FORM_ID'
 
 ## 🚀 Why Use Field IDs?
 
-### ✅ Benefits
+### ✅ Benefits of Field IDs
 - **Rename-proof**: Field IDs never change, even if you rename field labels
 - **Programmatic**: Better for automated scripts and integrations
 - **Precise**: No ambiguity if multiple fields have similar names
 - **Database-level**: Direct mapping to database structure
+
+### ✅ FIELD() Syntax vs Direct Field IDs
+
+**FIELD() Syntax (Recommended):**
+```sql
+INSERT INTO "form-id" (FIELD("field-uuid")) VALUES ('value')
+```
+- ✅ Easy to copy-paste field IDs
+- ✅ Clear intent - shows you're using a field ID
+- ✅ Consistent with SELECT queries
+- ✅ Prevents accidental typos in UUIDs
+
+**Direct Field ID:**
+```sql
+INSERT INTO "form-id" ("field-uuid") VALUES ('value')
+```
+- ✅ Slightly shorter syntax
+- ✅ Works but less explicit
 
 ### ✅ When to Use Field Names
 - **Readable**: Easier for humans to read and write queries
@@ -127,7 +158,7 @@ WHERE <conditions>
 -- Where:
 -- [FORM] = Optional keyword
 -- <form_id> = UUID of your form
--- <column> = Field name OR field UUID
+-- <column> = Field name, field UUID, or FIELD("field-uuid")
 -- <value> = Literal value, expression, or FIELD() reference
 ```
 
@@ -135,11 +166,13 @@ WHERE <conditions>
 
 ## 💡 Pro Tips
 
-1. **Mix freely**: You can use field names for some columns and field IDs for others in the same query
-2. **Case insensitive**: Field names are case-insensitive (`Name` = `name` = `NAME`)
-3. **Field IDs are exact**: Field UUIDs must match exactly (they are case-sensitive UUIDs)
-4. **FORM keyword optional everywhere**: Works in both INSERT INTO and SELECT FROM
-5. **Cleaner queries**: Omit FORM keyword for shorter, cleaner syntax
+1. **Use FIELD() for copy-paste**: When copying field IDs, wrap them in FIELD("...") for clarity
+2. **Mix freely**: You can use field names, FIELD() syntax, and direct field IDs in the same query
+3. **Case insensitive**: Field names are case-insensitive (`Name` = `name` = `NAME`)
+4. **Field IDs are exact**: Field UUIDs must match exactly (they are case-sensitive UUIDs)
+5. **FORM keyword optional everywhere**: Works in both INSERT INTO and SELECT FROM
+6. **INTO keyword optional**: `INSERT "form-id"` works just like `INSERT INTO "form-id"`
+7. **Cleaner queries**: Omit FORM keyword for shorter, cleaner syntax
 
 ---
 
