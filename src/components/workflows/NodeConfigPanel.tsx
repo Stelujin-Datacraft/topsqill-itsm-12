@@ -448,10 +448,16 @@ export function NodeConfigPanel({ node, workflowId, onConfigChange, onDelete, on
                       formId={node.data.config.targetFormId}
                       value={node.data.config?.targetFieldId || ''}
                       onValueChange={(fieldId, fieldName, fieldType, fieldOptions) => {
-                        handleConfigUpdate('targetFieldId', fieldId);
-                        handleConfigUpdate('targetFieldName', fieldName);
-                        handleConfigUpdate('targetFieldType', fieldType);
-                        handleConfigUpdate('targetFieldOptions', fieldOptions);
+                        console.log('🎯 Updating field config:', { fieldId, fieldName, fieldType, fieldOptions });
+                        const newConfig = {
+                          ...node.data.config,
+                          targetFieldId: fieldId,
+                          targetFieldName: fieldName,
+                          targetFieldType: fieldType,
+                          targetFieldOptions: fieldOptions
+                        };
+                        console.log('📝 New config:', newConfig);
+                        onConfigChange(newConfig);
                       }}
                       placeholder="Select field to change"
                     />
