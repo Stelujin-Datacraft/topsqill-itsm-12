@@ -1398,10 +1398,7 @@ async function replaceSubmissionAccessIdsWithNames(results: any[][]): Promise<an
       
       if (!userError && users) {
         users.forEach(user => {
-          const name = user.first_name && user.last_name 
-            ? `${user.first_name} ${user.last_name}` 
-            : user.email;
-          userIdToName.set(user.id, name);
+          userIdToName.set(user.id, user.email);
         });
       }
     }
