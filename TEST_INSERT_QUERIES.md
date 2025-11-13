@@ -2,19 +2,31 @@
 
 ## 🟢 SIMPLE EXAMPLES (Start Here!)
 
-### Example 1: Basic Single Record Insert
+### Example 1: Basic Single Record Insert (Without FORM keyword)
 Replace `YOUR_FORM_ID` with your actual form ID:
 
 ```sql
-INSERT INTO FORM YOUR_FORM_ID (Name, Email, Status)
+INSERT INTO YOUR_FORM_ID (Name, Email, Status)
 VALUES ('John Doe', 'john@example.com', 'Active')
 ```
 
-**What it does**: Inserts one record with 3 fields
+**What it does**: Inserts one record with 3 fields (FORM keyword not needed!)
 
 ---
 
-### Example 2: Insert with Numbers
+### Example 1b: Same Insert with Field IDs
+If you have field IDs instead of field names:
+
+```sql
+INSERT INTO YOUR_FORM_ID (abc-123-field-id, def-456-field-id, ghi-789-field-id)
+VALUES ('John Doe', 'john@example.com', 'Active')
+```
+
+**What it does**: Same as above but using field UUIDs instead of field labels
+
+---
+
+### Example 2: INSERT with Numbers
 ```sql
 INSERT INTO FORM YOUR_FORM_ID (Product, Quantity, Price)
 VALUES ('Laptop', '5', '1200')
@@ -24,9 +36,9 @@ VALUES ('Laptop', '5', '1200')
 
 ---
 
-### Example 3: Insert with Date
+### Example 3: INSERT with Date
 ```sql
-INSERT INTO FORM YOUR_FORM_ID (TaskName, DueDate, Priority, Completed)
+INSERT INTO YOUR_FORM_ID (TaskName, DueDate, Priority, Completed)
 VALUES ('Complete Report', '2025-01-15', 'High', 'No')
 ```
 
@@ -36,7 +48,7 @@ VALUES ('Complete Report', '2025-01-15', 'High', 'No')
 
 ## 🟡 INTERMEDIATE EXAMPLES
 
-### Example 4: Insert with Calculation
+### Example 4: INSERT with Calculation
 ```sql
 INSERT INTO FORM YOUR_FORM_ID (Item, Quantity, Price, Total)
 VALUES ('Monitor', '3', '350', 3*350)
@@ -48,7 +60,7 @@ VALUES ('Monitor', '3', '350', 3*350)
 
 ### Example 5: Copy All Active Records
 ```sql
-INSERT INTO FORM TARGET_FORM_ID (Name, Email, Phone)
+INSERT INTO TARGET_FORM_ID (Name, Email, Phone)
 SELECT Name, Email, Phone
 FROM FORM SOURCE_FORM_ID
 WHERE Status = 'Active'
@@ -58,7 +70,7 @@ WHERE Status = 'Active'
 
 ---
 
-### Example 6: Insert with Reference to Another Form
+### Example 6: INSERT with Reference to Another Form
 ```sql
 INSERT INTO FORM ORDER_FORM_ID (Customer, OrderDate, Status)
 VALUES (
@@ -74,9 +86,9 @@ VALUES (
 
 ## 🔴 COMPLEX EXAMPLES
 
-### Example 7: Insert Aggregated Sales Summary
+### Example 7: INSERT Aggregated Sales Summary
 ```sql
-INSERT INTO FORM SUMMARY_FORM_ID (Product, TotalSales, TotalRevenue, AvgPrice)
+INSERT INTO SUMMARY_FORM_ID (Product, TotalSales, TotalRevenue, AvgPrice)
 SELECT 
   Product,
   SUM(Quantity) as TotalSales,
@@ -91,7 +103,7 @@ GROUP BY Product
 
 ---
 
-### Example 8: Insert with Conditional Logic
+### Example 8: INSERT with Conditional Logic
 ```sql
 INSERT INTO FORM GRADES_FORM_ID (Student, Score, Grade, PassFail)
 SELECT 
@@ -115,9 +127,9 @@ FROM FORM EXAM_RESULTS_FORM_ID
 
 ---
 
-### Example 9: Insert Top Performers
+### Example 9: INSERT Top Performers
 ```sql
-INSERT INTO FORM TOP_SALES_FORM_ID (SalesPerson, TotalSales, Rank)
+INSERT INTO TOP_SALES_FORM_ID (SalesPerson, TotalSales, Rank)
 SELECT 
   SalesPerson,
   SUM(Amount) as TotalSales,
@@ -133,7 +145,7 @@ LIMIT 5
 
 ---
 
-### Example 10: Multi-Step Insert with Loop Variables
+### Example 10: Multi-Step INSERT with Loop Variables
 ```sql
 DECLARE @i INT = 1;
 DECLARE @status VARCHAR(20) = 'Active';
@@ -151,9 +163,9 @@ END
 
 ---
 
-### Example 11: Complex Multi-Form Insert
+### Example 11: Complex Multi-Form INSERT
 ```sql
-INSERT INTO FORM INVOICE_FORM_ID (
+INSERT INTO INVOICE_FORM_ID (
   CustomerName,
   CustomerEmail,
   Product,
@@ -190,17 +202,22 @@ WHERE Status = 'Approved'
 2. Open any form
 3. Copy the form ID from the URL
 
-### Step 2: Replace Placeholders
+### Step 2: Get Field IDs (Optional - if using field IDs)
+1. Open browser console (F12)
+2. Run query: `SELECT * FROM form_fields WHERE form_id = 'YOUR_FORM_ID'`
+3. Copy field IDs from the results
+
+### Step 3: Replace Placeholders
 - Replace `YOUR_FORM_ID` with your actual form ID
 - Replace `SOURCE_FORM_ID`, `TARGET_FORM_ID`, etc. with real IDs
 - Make sure field names (Name, Email, etc.) match your form fields
 
-### Step 3: Run the Query
+### Step 4: Run the Query
 1. Paste the query in the SQL Query Builder
 2. Click "Execute" or press Ctrl+Enter
 3. Check the results table
 
-### Step 4: Verify Results
+### Step 5: Verify Results
 - Check "Records Inserted" count
 - Look for any errors
 - Go to your form to see the new submissions
