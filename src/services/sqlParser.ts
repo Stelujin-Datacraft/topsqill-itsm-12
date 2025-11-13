@@ -658,6 +658,11 @@ export async function executeUserQuery(
       }
     }
     
+    // Handle INSERT queries
+    if (sql?.match(/^INSERT\s+INTO/i)) {
+      return await executeInsertQuery(sql, loopContext);
+    }
+
     // Handle UPDATE queries differently
     if (sql?.startsWith('UPDATE')) {
       return await executeUpdateQuery(sql)
@@ -1521,6 +1526,185 @@ function generateAlias(expr: string): string {
   }
   
   return 'column';
+}
+
+/**
+ * Execute INSERT query with support for complex operations
+ */
+async function executeInsertQuery(sql: string, loopContext?: LoopContext): Promise<QueryResult> {
+  try {
+    // Parse INSERT statement
+    const insertMatch = sql.match(/INSERT\s+INTO\s+(?:FORM\s+)?([^\s(]+)\s*(?:\(([^)]+)\))?\s+(?:VALUES\s*\(([^)]+)\)|SELECT\s+(.+))/is);
+    
+    if (!insertMatch) {
+      return {
+        columns: [],
+        rows: [],
+        errors: ['Invalid INSERT syntax. Use: INSERT INTO FORM form_id (field1, field2) VALUES (value1, value2) or INSERT INTO FORM form_id SELECT ...']
+      };
+    }
+
+    const formId = insertMatch[1];
+    const columnsPart = insertMatch[2];
+    const valuesPart = insertMatch[3];
+    const selectPart = insertMatch[4];
+
+    // Get form fields for validation
+    const { data: formFields, error: fieldsError } = await supabase
+      .from('form_fields')
+      .select('*')
+      .eq('form_id', formId);
+
+    if (fieldsError || !formFields) {
+      return {
+        columns: [],
+        rows: [],
+        errors: [`Form not found or error loading fields: ${fieldsError?.message}`]
+      };
+    }
+
+    // Create field mapping
+    const fieldMap = new Map(formFields.map(f => [f.label.toLowerCase(), f.id]));
+    
+    let insertData: any[] = [];
+
+    if (selectPart) {
+      // INSERT with SELECT - execute the SELECT query first
+      const selectResult = await executeUserQuery(`SELECT ${selectPart}`, loopContext);
+      
+      if (selectResult.errors && selectResult.errors.length > 0) {
+        return {
+          columns: [],
+          rows: [],
+          errors: [`Error in SELECT clause: ${selectResult.errors.join(', ')}`]
+        };
+      }
+
+      // Map SELECT results to insert data
+      const columns = columnsPart ? columnsPart.split(',').map(c => c.trim()) : selectResult.columns;
+      
+      for (const row of selectResult.rows) {
+        const submissionData: Record<string, any> = {};
+        
+        columns.forEach((col, idx) => {
+          const fieldId = fieldMap.get(col.toLowerCase());
+          if (fieldId) {
+            submissionData[fieldId] = Array.isArray(row) ? row[idx] : Object.values(row)[idx];
+          }
+        });
+        
+        insertData.push(submissionData);
+      }
+    } else if (valuesPart) {
+      // INSERT with VALUES
+      const columns = columnsPart ? columnsPart.split(',').map(c => c.trim()) : [];
+      const values = splitTopLevelCommas(valuesPart);
+
+      if (columns.length === 0) {
+        return {
+          columns: [],
+          rows: [],
+          errors: ['Column names are required for INSERT with VALUES']
+        };
+      }
+
+      const submissionData: Record<string, any> = {};
+
+      for (let i = 0; i < columns.length; i++) {
+        const column = columns[i];
+        let value = values[i] ? values[i].trim() : '';
+
+        // Handle FIELD() references
+        if (value.match(/FIELD\s*\(/i)) {
+          const fieldMatch = value.match(/FIELD\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*['"]([^'"]+)['"]\s*)?\)/i);
+          if (fieldMatch) {
+            const sourceFormId = fieldMatch[2] || formId;
+            const sourceFieldLabel = fieldMatch[1];
+            
+            // Fetch the latest submission value
+            const { data: submissions } = await supabase
+              .from('form_submissions')
+              .select('submission_data')
+              .eq('form_id', sourceFormId)
+              .order('submitted_at', { ascending: false })
+              .limit(1);
+
+            if (submissions && submissions.length > 0) {
+              const sourceField = formFields.find(f => f.label.toLowerCase() === sourceFieldLabel.toLowerCase());
+              if (sourceField) {
+                value = submissions[0].submission_data[sourceField.id] || '';
+              }
+            }
+          }
+        } else {
+          // Remove quotes and evaluate expressions
+          value = value.replace(/^['"]|['"]$/g, '');
+          
+          // Handle loop variables
+          if (loopContext && value.startsWith('@')) {
+            const varName = value.substring(1);
+            value = loopContext.variables.get(varName) || value;
+          }
+          
+          // Handle arithmetic expressions
+          if (value.match(/[\+\-\*\/]/) && !isNaN(eval(value.replace(/@/g, '')))) {
+            try {
+              value = eval(value.replace(/@/g, '')).toString();
+            } catch (e) {
+              // Keep original value if eval fails
+            }
+          }
+        }
+
+        const fieldId = fieldMap.get(column.toLowerCase());
+        if (fieldId) {
+          submissionData[fieldId] = value;
+        }
+      }
+
+      insertData.push(submissionData);
+    }
+
+    // Insert all records
+    const results = [];
+    for (const data of insertData) {
+      const { data: submission, error: insertError } = await supabase
+        .from('form_submissions')
+        .insert({
+          form_id: formId,
+          submission_data: data,
+          submitted_by: (await supabase.auth.getUser()).data.user?.id || 'system'
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        results.push({ status: 'error', error: insertError.message });
+      } else {
+        results.push({ status: 'success', id: submission.id });
+      }
+    }
+
+    const successCount = results.filter(r => r.status === 'success').length;
+    const errorCount = results.filter(r => r.status === 'error').length;
+
+    return {
+      columns: ['Status', 'Records Inserted', 'Errors'],
+      rows: [[
+        'Completed',
+        successCount.toString(),
+        errorCount.toString()
+      ]],
+      errors: errorCount > 0 ? results.filter(r => r.status === 'error').map(r => r.error) : []
+    };
+
+  } catch (error) {
+    return {
+      columns: [],
+      rows: [],
+      errors: [`INSERT failed: ${error instanceof Error ? error.message : String(error)}`]
+    };
+  }
 }
 
 /**
