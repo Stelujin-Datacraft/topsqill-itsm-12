@@ -1577,21 +1577,47 @@ function generateAlias(expr: string): string {
  */
 async function executeInsertQuery(sql: string, loopContext?: LoopContext): Promise<QueryResult> {
   try {
-    // Parse INSERT statement
-    const insertMatch = sql.match(/INSERT\s+INTO\s+(?:FORM\s+)?([^\s(]+)\s*(?:\(([^)]+)\))?\s+(?:VALUES\s*\(([^)]+)\)|SELECT\s+(.+))/is);
+    // Parse INSERT statement - handle nested parentheses in FIELD() syntax
+    // First, find the form ID
+    const formIdMatch = sql.match(/INSERT\s+(?:INTO\s+)?(?:FORM\s+)?(['""]?[0-9a-fA-F\-]{36}['""]?)/i);
     
-    if (!insertMatch) {
+    if (!formIdMatch) {
       return {
         columns: [],
         rows: [],
-        errors: ['Invalid INSERT syntax. Use: INSERT INTO form_id (field1, field2) VALUES (value1, value2) or INSERT INTO form_id SELECT ...']
+        errors: ['Invalid INSERT syntax. Form ID not found. Use: INSERT INTO form_id (field1, field2) VALUES (value1, value2)']
       };
     }
 
-    const formId = insertMatch[1];
-    const columnsPart = insertMatch[2];
-    const valuesPart = insertMatch[3];
-    const selectPart = insertMatch[4];
+    const formId = formIdMatch[1].replace(/['"]/g, ''); // Remove quotes from form ID
+    
+    // Find columns part - handle nested parentheses
+    let columnsPart = '';
+    let columnsMatch = sql.match(/\(([^)]*(?:\([^)]*\)[^)]*)*)\)\s+(?:VALUES|SELECT)/i);
+    if (columnsMatch) {
+      columnsPart = columnsMatch[1];
+    }
+    
+    console.log('INSERT Query Debug:', { formId, columnsPart });
+    
+    // Check if this is VALUES or SELECT
+    const isSelect = /SELECT/i.test(sql);
+    let valuesPart = '';
+    let selectPart = '';
+    
+    if (isSelect) {
+      const selectMatch = sql.match(/SELECT\s+(.+)$/is);
+      if (selectMatch) {
+        selectPart = selectMatch[1];
+      }
+    } else {
+      // Extract VALUES part - handle nested parentheses
+      const valuesMatch = sql.match(/VALUES\s*\(([^)]*(?:\([^)]*\)[^)]*)*)\)/i);
+      if (valuesMatch) {
+        valuesPart = valuesMatch[1];
+      }
+      console.log('VALUES Debug:', { valuesPart });
+    }
 
     // Get form fields for validation
     const { data: formFields, error: fieldsError } = await supabase
