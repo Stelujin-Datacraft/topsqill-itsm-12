@@ -4,6 +4,7 @@ import { WorkflowExecutionContext, NodeExecutionResult } from './types';
 import { parseNodeConfig } from './utils';
 import { NodeConnections } from './nodeConnections';
 import { ActionExecutors } from './actionExecutors';
+import { RecordActionExecutors } from './recordActionExecutors';
 import { ConditionEvaluator } from './conditionEvaluator';
 import { BranchDiscovery } from './branchDiscovery';
 import { ConditionEvaluationContext, IfConditionConfig } from '@/types/conditions';
@@ -62,6 +63,14 @@ export class NodeExecutors {
         case 'send_notification':
           console.log('🔔 CALLING ActionExecutors.executeSendNotificationAction');
           actionResult = await ActionExecutors.executeSendNotificationAction(nodeContext);
+          break;
+        case 'change_field_value':
+          console.log('🔧 CALLING RecordActionExecutors.executeChangeFieldValueAction');
+          actionResult = await RecordActionExecutors.executeChangeFieldValueAction(nodeContext);
+          break;
+        case 'change_record_status':
+          console.log('🔄 CALLING RecordActionExecutors.executeChangeRecordStatusAction');
+          actionResult = await RecordActionExecutors.executeChangeRecordStatusAction(nodeContext);
           break;
         default:
           console.error(`❌ Unknown action type: ${config.actionType}`);
