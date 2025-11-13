@@ -85,9 +85,14 @@ export function parseUserQuery(input: string): ParseResult {
     return parseUpdateFormQuery(cleaned)
   }
 
+  // Check if this is an INSERT query (with or without FORM keyword)
+  if (/^INSERT\s+(?:INTO\s+)?(?:FORM\s+)?/i.test(cleaned)) {
+    return parseInsertQuery(cleaned)
+  }
+
   // 1. Only allow SELECT for non-UPDATE queries
   if (!/^SELECT\s+/i.test(cleaned)) {
-    errors.push('Only SELECT queries and UPDATE FORM queries are allowed.')
+    errors.push('Only SELECT, INSERT, and UPDATE FORM queries are allowed.')
     return { errors }
   }
 
@@ -261,6 +266,44 @@ export function parseUpdateFormQuery(input: string): ParseResult {
   const sql = `UPDATE::BATCH::${formId}::${fieldId}::${transformedValue}::${sqlWhereClause}`
 
   return { sql, errors }
+}
+
+/**
+ * Parse INSERT query syntax (with or without FORM keyword)
+ * Supports:
+ * 1. INSERT INTO form_id (columns) VALUES (values)
+ * 2. INSERT INTO form_id SELECT ...
+ * 3. INSERT form_id (columns) VALUES (values) - without INTO
+ * 4. INSERT INTO "form_id" (columns) VALUES (values) - with quotes
+ * 5. Columns can be field names or field IDs (UUIDs)
+ */
+export function parseInsertQuery(input: string): ParseResult {
+  const errors: string[] = []
+  
+  // Flexible pattern to match INSERT with or without INTO/FORM keywords
+  // Supports both field names and field IDs (UUIDs) in column list
+  const insertPattern = /^INSERT\s+(?:INTO\s+)?(?:FORM\s+)?(['""]?[0-9a-fA-F\-]{36}['""]?)\s*(?:\(([^)]+)\))?\s+(?:VALUES|SELECT)/i;
+  
+  const match = input.match(insertPattern);
+  
+  if (!match) {
+    errors.push('Invalid INSERT syntax. Use: INSERT INTO form_id (columns) VALUES (values) or INSERT INTO form_id SELECT ...');
+    return { errors };
+  }
+  
+  // Extract form_id (remove quotes if present)
+  const formId = match[1].replace(/['"]/g, '');
+  
+  // Validate form_id is a valid UUID
+  const uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  if (!uuidPattern.test(formId)) {
+    errors.push('Form ID must be a valid UUID');
+    return { errors };
+  }
+  
+  // Return the original query for execution
+  // The executeInsertQuery function will handle the actual parsing and execution
+  return { sql: input, errors };
 }
 
 import { evaluateExpression, evaluateFunction, aggregateFunctions } from './sqlFunctions';
