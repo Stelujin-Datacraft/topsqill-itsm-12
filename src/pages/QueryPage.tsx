@@ -1,7 +1,6 @@
-
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { QueryEditor } from '@/components/query/QueryEditor';
+import { QueryEditor, QueryEditorRef } from '@/components/query/QueryEditor';
 import { QueryResultsTable } from '@/components/query/QueryResultsTable';
 import { FormsSidebar } from '@/components/query/FormsSidebar';
 import { QueryTabs } from '@/components/query/QueryTabs';
@@ -29,6 +28,7 @@ export default function QueryPage() {
   const { toast } = useToast();
   const { saveQuery } = useSavedQueries();
   const { history, addToHistory, removeFromHistory, clearHistory } = useQueryHistory();
+  const editorRef = useRef<QueryEditorRef>(null);
 
   const activeTab = tabs.find(tab => tab.id === activeTabId);
   const currentQuery = activeTab?.query || '';
@@ -142,7 +142,12 @@ export default function QueryPage() {
   };
 
   const insertText = (text: string) => {
-    updateTabQuery(currentQuery + text);
+    if (editorRef.current) {
+      editorRef.current.insertAtCursor(text);
+    } else {
+      // Fallback to appending
+      updateTabQuery(currentQuery + text);
+    }
   };
 
   const handleSelectQuery = (query: string) => {
@@ -229,6 +234,7 @@ export default function QueryPage() {
                 <ResizablePanel defaultSize={50} minSize={30}>
                   <div className="h-full border-r border-border">
                     <QueryEditor 
+                      ref={editorRef}
                       onExecute={executeQuery} 
                       isExecuting={isExecuting}
                       value={currentQuery}

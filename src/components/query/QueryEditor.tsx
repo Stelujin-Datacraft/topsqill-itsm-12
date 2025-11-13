@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql';
 import { oneDark } from '@codemirror/theme-one-dark';
+import { EditorView } from '@codemirror/view';
 
 interface QueryEditorProps {
   onExecute: (sql: string) => void;
@@ -22,13 +23,18 @@ interface QueryEditorProps {
   onSave: () => void;
 }
 
-export const QueryEditor: React.FC<QueryEditorProps> = ({ 
+export interface QueryEditorRef {
+  insertAtCursor: (text: string) => void;
+}
+
+export const QueryEditor = forwardRef<QueryEditorRef, QueryEditorProps>(({ 
   onExecute, 
   isExecuting,
   value,
   onChange,
   onSave
-}) => {
+}, ref) => {
+  const editorViewRef = useRef<EditorView | null>(null);
   const [parseResult, setParseResult] = useState<ParseResult>({
     errors: []
   });
@@ -37,6 +43,23 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
   const [examplesOpen, setExamplesOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const { toast } = useToast();
+
+  // Expose insertAtCursor method via ref
+  useImperativeHandle(ref, () => ({
+    insertAtCursor: (text: string) => {
+      if (editorViewRef.current) {
+        const view = editorViewRef.current;
+        const { from } = view.state.selection.main;
+        view.dispatch({
+          changes: { from, insert: text },
+          selection: { anchor: from + text.length }
+        });
+      } else {
+        // Fallback if editor view not available
+        onChange(value + text);
+      }
+    }
+  }));
 
   const validateQuery = useCallback((input: string) => {
     if (!input.trim()) {
@@ -203,7 +226,10 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
               value={value} 
               height="100%" 
               extensions={[sql()]} 
-              onChange={val => onChange(val)} 
+              onChange={val => onChange(val)}
+              onCreateEditor={(view) => {
+                editorViewRef.current = view;
+              }}
               basicSetup={{
                 lineNumbers: true,
                 highlightActiveLine: true,
@@ -396,4 +422,4 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
       />
     </div>
   );
-};
+});
