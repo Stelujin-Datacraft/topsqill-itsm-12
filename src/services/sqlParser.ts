@@ -125,7 +125,7 @@ export function parseUserQuery(input: string): ParseResult {
   let offsetExpr = ''
   
   // Extract WHERE clause - use 's' flag to match across newlines
-  const whereMatch = restOfQuery.match(/\s+WHERE\s+(.+?)(?=\s+(?:GROUP BY|ORDER BY|LIMIT|OFFSET|$))/is)
+  const whereMatch = restOfQuery.match(/\s+WHERE\s+(.+?)(?=\s+(?:GROUP BY|ORDER BY|LIMIT|OFFSET)|$)/is)
   if (whereMatch) {
     whereExpr = whereMatch[1].trim()
   }
