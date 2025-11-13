@@ -78,7 +78,9 @@ export function FormFieldSelector({ formId, value, onValueChange, placeholder = 
     <Select 
       value={value} 
       onValueChange={(fieldId) => {
+        console.log('🔍 Field selected:', fieldId);
         const selectedField = fields.find(f => f.id === fieldId);
+        console.log('📋 Selected field details:', selectedField);
         onValueChange(
           fieldId, 
           selectedField?.label || fieldId,
@@ -90,7 +92,7 @@ export function FormFieldSelector({ formId, value, onValueChange, placeholder = 
       <SelectTrigger>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="bg-background z-50">
         {fields.map((field) => (
           <SelectItem key={field.id} value={field.id}>
             <div className="flex items-center gap-2">
