@@ -33,7 +33,9 @@ export type ActionType =
   | 'set_field_values'
   | 'log_event'
   | 'update_workflow_variable'
-  | 'wait_for_completion';
+  | 'wait_for_completion'
+  | 'change_field_value'
+  | 'change_record_status';
 
 export type ConditionOperator = '==' | '!=' | '<' | '>' | '<=' | '>=' | 'contains' | 'in' | 'not_in' | 'exists' | 'not_exists';
 

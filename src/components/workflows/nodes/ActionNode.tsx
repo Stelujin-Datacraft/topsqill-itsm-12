@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { Settings, CheckCircle, XCircle, Mail, MessageSquare, Webhook, FileText, Edit, Activity, Bell, RefreshCw } from 'lucide-react';
+import { Settings, CheckCircle, XCircle, Mail, MessageSquare, Webhook, FileText, Edit, Activity, Bell, RefreshCw, Edit3, FileCheck } from 'lucide-react';
 
 interface ActionNodeProps {
   data: {
@@ -31,6 +31,10 @@ const getActionIcon = (actionType: string) => {
       return Edit;
     case 'log_event':
       return Activity;
+    case 'change_field_value':
+      return Edit3;
+    case 'change_record_status':
+      return FileCheck;
     default:
       return Settings;
   }
@@ -57,6 +61,10 @@ const getActionColor = (actionType: string) => {
       return 'bg-yellow-100 text-yellow-800 border-yellow-200';
     case 'log_event':
       return 'bg-gray-100 text-gray-800 border-gray-200';
+    case 'change_field_value':
+      return 'bg-orange-100 text-orange-800 border-orange-200';
+    case 'change_record_status':
+      return 'bg-emerald-100 text-emerald-800 border-emerald-200';
     default:
       return 'bg-slate-100 text-slate-800 border-slate-200';
   }
@@ -76,6 +84,8 @@ const getActionLabel = (actionType: string) => {
     case 'log_event': return 'Log Event';
     case 'update_workflow_variable': return 'Update Variable';
     case 'wait_for_completion': return 'Wait for Completion';
+    case 'change_field_value': return 'Change Field';
+    case 'change_record_status': return 'Change Status';
     default: return 'Action';
   }
 };
@@ -109,6 +119,21 @@ export function ActionNode({ data }: ActionNodeProps) {
     
     if (config?.webhookConfig?.url) {
       return `${actionLabel}: ${config.webhookConfig.url}`;
+    }
+    
+    if (actionType === 'change_field_value') {
+      const field = config.targetFieldName || config.targetFieldId || 'field';
+      const form = config.targetFormName || 'form';
+      const value = config.valueType === 'static' 
+        ? config.staticValue 
+        : `{${config.dynamicValuePath}}`;
+      return `Update ${field} in ${form} to ${value}`;
+    }
+    
+    if (actionType === 'change_record_status') {
+      const form = config.targetFormName || 'form';
+      const status = config.newStatus || 'status';
+      return `Change ${form} record to ${status}`;
     }
     
     return 'Click to configure';
