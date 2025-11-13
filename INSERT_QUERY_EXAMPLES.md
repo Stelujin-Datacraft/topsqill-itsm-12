@@ -4,34 +4,57 @@
 
 The SQL Query Builder now supports **INSERT** queries with the following features:
 
-1. **Basic INSERT with VALUES** - Insert single records with explicit values
-2. **INSERT with SELECT** - Insert multiple records from query results
-3. **FIELD() References** - Pull values from other form submissions
-4. **Loop Variables** - Use variables from DECLARE/SET/WHILE loops
-5. **Arithmetic Expressions** - Perform calculations in VALUES
-6. **Complex Nested Queries** - Combine all features together
+1. **Flexible Syntax** - Use `INSERT INTO form_id` OR `INSERT INTO FORM form_id` (FORM keyword is optional!)
+2. **Field ID or Name** - Use field IDs (UUIDs) OR field labels/names interchangeably
+3. **Basic INSERT with VALUES** - Insert single records with explicit values
+4. **INSERT with SELECT** - Insert multiple records from query results
+5. **FIELD() References** - Pull values from other form submissions
+6. **Loop Variables** - Use variables from DECLARE/SET/WHILE loops
+7. **Arithmetic Expressions** - Perform calculations in VALUES
+8. **Complex Nested Queries** - Combine all features together
 
 ---
 
 ## Example Queries
 
-### 1. Basic INSERT with VALUES
-Insert a single record with explicit values:
+### 1. Basic INSERT with VALUES (Field Names)
+Insert a single record using field names:
 
 ```sql
-INSERT INTO FORM your-form-id (Name, Email, Age, Status)
+INSERT INTO your-form-id (Name, Email, Age, Status)
 VALUES ('John Doe', 'john@example.com', '30', 'Active')
 ```
 
-### 2. INSERT with Arithmetic Expressions
+### 1b. Basic INSERT with VALUES (Field IDs)
+Same insert but using field IDs instead of names:
+
+```sql
+INSERT INTO your-form-id (abc-123-field-id, def-456-field-id, ghi-789-field-id)
+VALUES ('John Doe', 'john@example.com', '30')
+```
+
+### 2. INSERT with FORM Keyword (Optional)
+Both syntaxes work - with or without FORM keyword:
+
+```sql
+-- With FORM keyword
+INSERT INTO FORM your-form-id (Name, Email)
+VALUES ('Jane Smith', 'jane@example.com')
+
+-- Without FORM keyword (cleaner!)
+INSERT INTO your-form-id (Name, Email)
+VALUES ('Jane Smith', 'jane@example.com')
+```
+
+### 3. INSERT with Arithmetic Expressions
 Perform calculations while inserting:
 
 ```sql
-INSERT INTO FORM your-form-id (Product, Quantity, Price, Total)
+INSERT INTO your-form-id (Product, Quantity, Price, Total)
 VALUES ('Laptop', '5', '1000', 5*1000)
 ```
 
-### 3. INSERT with FIELD() References
+### 4. INSERT with FIELD() References
 Pull values from the latest submission of another form:
 
 ```sql
@@ -43,17 +66,25 @@ VALUES (
 )
 ```
 
-### 4. INSERT with SELECT (Copy Data)
+### 5. INSERT with SELECT (Copy Data)
 Insert multiple records by selecting from another form:
 
 ```sql
-INSERT INTO FORM new-form-id (Name, Email, Phone)
+INSERT INTO new-form-id (Name, Email, Phone)
 SELECT Name, Email, Phone
 FROM FORM source-form-id
 WHERE Status = 'Active'
 ```
 
-### 5. INSERT with SELECT and Calculations
+### 6. Mixed: Field IDs and Names
+You can mix field IDs and field names in the same query:
+
+```sql
+INSERT INTO your-form-id (Name, abc-123-uuid, def-456-uuid, Status)
+VALUES ('Test User', 'test@email.com', '25', 'Active')
+```
+
+### 7. INSERT with SELECT and Calculations
 Insert records with calculated values:
 
 ```sql
@@ -66,7 +97,7 @@ FROM FORM sales-form-id
 GROUP BY Product
 ```
 
-### 6. INSERT with Loop Variables
+### 8. INSERT with Loop Variables
 Use variables from DECLARE/WHILE loops:
 
 ```sql
@@ -75,14 +106,14 @@ DECLARE @name VARCHAR(50) = 'Test User';
 
 WHILE @counter <= 3
 BEGIN
-  INSERT INTO FORM your-form-id (Name, Number, Status)
+  INSERT INTO your-form-id (Name, Number, Status)
   VALUES (@name, @counter, 'Active');
   
   SET @counter = @counter + 1;
 END
 ```
 
-### 7. Complex INSERT with Multiple Features
+### 9. Complex INSERT with Multiple Features
 Combine FIELD(), SELECT, and calculations:
 
 ```sql
@@ -98,11 +129,11 @@ WHERE Status = 'Pending'
   AND Quantity > 0
 ```
 
-### 8. INSERT with CASE WHEN
+### 10. INSERT with CASE WHEN
 Insert records with conditional values:
 
 ```sql
-INSERT INTO FORM status-form-id (Name, Score, Grade)
+INSERT INTO status-form-id (Name, Score, Grade)
 SELECT 
   Name,
   Score,
@@ -115,7 +146,7 @@ SELECT
 FROM FORM results-form-id
 ```
 
-### 9. INSERT Multiple Records with SELECT
+### 11. INSERT Multiple Records with SELECT
 Insert filtered and aggregated data:
 
 ```sql
@@ -129,11 +160,11 @@ FROM FORM orders-form-id
 WHERE submission_ref_id LIKE 'ORD01%'
 ```
 
-### 10. Advanced: INSERT with Nested Aggregations
+### 12. Advanced: INSERT with Nested Aggregations
 Complex query with multiple aggregations:
 
 ```sql
-INSERT INTO FORM analytics-form-id (Category, Products, Sales, AvgPrice, MaxPrice, MinPrice)
+INSERT INTO analytics-form-id (Category, Products, Sales, AvgPrice, MaxPrice, MinPrice)
 SELECT 
   Category,
   COUNT(DISTINCT Product) as Products,
@@ -151,23 +182,45 @@ HAVING SUM(Quantity) > 10
 
 ## Syntax Rules
 
-### Basic Syntax
+### Basic Syntax (Both work!)
 ```sql
+-- Option 1: Without FORM keyword (recommended)
+INSERT INTO form_id (column1, column2, ...)
+VALUES (value1, value2, ...)
+
+-- Option 2: With FORM keyword (also supported)
 INSERT INTO FORM form_id (column1, column2, ...)
 VALUES (value1, value2, ...)
 ```
 
+### Field References (Both work!)
+```sql
+-- Option 1: Using field names/labels
+INSERT INTO form_id (Name, Email, Phone)
+VALUES ('John', 'john@email.com', '123-456')
+
+-- Option 2: Using field IDs (UUIDs)
+INSERT INTO form_id (abc-123-uuid, def-456-uuid, ghi-789-uuid)
+VALUES ('John', 'john@email.com', '123-456')
+
+-- Option 3: Mix both!
+INSERT INTO form_id (Name, abc-123-uuid, Phone)
+VALUES ('John', 'john@email.com', '123-456')
+```
+
 ### INSERT with SELECT
 ```sql
-INSERT INTO FORM form_id (column1, column2, ...)
+INSERT INTO form_id (column1, column2, ...)
 SELECT field1, field2, ...
 FROM FORM source_form_id
 WHERE conditions
 ```
 
 ### Key Points
+- **FORM keyword is optional** - `INSERT INTO form_id` works fine
+- **Use field IDs OR names** - Both are supported, even mixed in same query
 - Form ID must exist in your database
-- Column names must match form field labels (case-insensitive)
+- Column names can be field labels (case-insensitive) OR field IDs (UUIDs)
 - String values should be in quotes: `'text'`
 - Numbers don't need quotes: `42` or `3.14`
 - FIELD() syntax: `FIELD('field_label', 'form_id')` or `FIELD('field_label')` for same form

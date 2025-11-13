@@ -1540,7 +1540,7 @@ async function executeInsertQuery(sql: string, loopContext?: LoopContext): Promi
       return {
         columns: [],
         rows: [],
-        errors: ['Invalid INSERT syntax. Use: INSERT INTO FORM form_id (field1, field2) VALUES (value1, value2) or INSERT INTO FORM form_id SELECT ...']
+        errors: ['Invalid INSERT syntax. Use: INSERT INTO form_id (field1, field2) VALUES (value1, value2) or INSERT INTO form_id SELECT ...']
       };
     }
 
@@ -1563,8 +1563,19 @@ async function executeInsertQuery(sql: string, loopContext?: LoopContext): Promi
       };
     }
 
-    // Create field mapping
+    // Create field mapping (support both labels and IDs)
     const fieldMap = new Map(formFields.map(f => [f.label.toLowerCase(), f.id]));
+    const fieldIdSet = new Set(formFields.map(f => f.id));
+    
+    // Helper function to resolve field ID from name or ID
+    const resolveFieldId = (columnName: string): string | undefined => {
+      // Check if it's already a valid UUID (field ID)
+      if (fieldIdSet.has(columnName)) {
+        return columnName;
+      }
+      // Otherwise, treat it as a field label
+      return fieldMap.get(columnName.toLowerCase());
+    };
     
     let insertData: any[] = [];
 
@@ -1587,7 +1598,7 @@ async function executeInsertQuery(sql: string, loopContext?: LoopContext): Promi
         const submissionData: Record<string, any> = {};
         
         columns.forEach((col, idx) => {
-          const fieldId = fieldMap.get(col.toLowerCase());
+          const fieldId = resolveFieldId(col);
           if (fieldId) {
             submissionData[fieldId] = Array.isArray(row) ? row[idx] : Object.values(row)[idx];
           }
@@ -1656,7 +1667,7 @@ async function executeInsertQuery(sql: string, loopContext?: LoopContext): Promi
           }
         }
 
-        const fieldId = fieldMap.get(column.toLowerCase());
+        const fieldId = resolveFieldId(column);
         if (fieldId) {
           submissionData[fieldId] = value;
         }
