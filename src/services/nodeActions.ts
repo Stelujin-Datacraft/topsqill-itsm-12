@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { ActionExecutors } from './workflow/actionExecutors';
+import { RecordActionExecutors } from './workflow/recordActionExecutors';
 
 export interface NodeExecutionContext {
   executionId: string;
@@ -109,6 +110,14 @@ export class NodeActions {
         case 'send_notification':
           console.log('🔔 EXECUTING SEND_NOTIFICATION ACTION');
           actionResult = await ActionExecutors.executeSendNotificationAction(context);
+          break;
+        case 'change_field_value':
+          console.log('🔧 EXECUTING CHANGE_FIELD_VALUE ACTION');
+          actionResult = await RecordActionExecutors.executeChangeFieldValueAction(context);
+          break;
+        case 'change_record_status':
+          console.log('🔄 EXECUTING CHANGE_RECORD_STATUS ACTION');
+          actionResult = await RecordActionExecutors.executeChangeRecordStatusAction(context);
           break;
         default:
           console.error(`❌ UNKNOWN ACTION TYPE: ${actionType}`);

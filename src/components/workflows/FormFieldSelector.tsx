@@ -1,0 +1,99 @@
+import React, { useEffect, useState } from 'react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { supabase } from '@/integrations/supabase/client';
+import { FormField } from '@/types/form';
+import { Loader2 } from 'lucide-react';
+
+interface FormFieldSelectorProps {
+  formId: string;
+  value: string;
+  onValueChange: (fieldId: string, fieldName: string) => void;
+  placeholder?: string;
+}
+
+export function FormFieldSelector({ formId, value, onValueChange, placeholder = "Select field" }: FormFieldSelectorProps) {
+  const [fields, setFields] = useState<FormField[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!formId) {
+      setFields([]);
+      return;
+    }
+
+    const fetchFields = async () => {
+      setLoading(true);
+      try {
+        const { data: fieldsData, error } = await supabase
+          .from('form_fields')
+          .select('*')
+          .eq('form_id', formId)
+          .order('field_order', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching form fields:', error);
+          return;
+        }
+
+        if (fieldsData) {
+          // Filter out non-data fields (layout-only fields)
+          const dataFields = fieldsData
+            .filter(field => !['header', 'description', 'section-break', 'horizontal-line'].includes(field.field_type))
+            .map(field => ({
+              id: field.id,
+              type: field.field_type,
+              label: field.label,
+            } as FormField));
+          setFields(dataFields);
+        }
+      } catch (error) {
+        console.error('Error loading fields:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFields();
+  }, [formId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 p-2 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading fields...
+      </div>
+    );
+  }
+
+  if (fields.length === 0) {
+    return (
+      <div className="text-sm text-muted-foreground p-2">
+        No fields available in this form
+      </div>
+    );
+  }
+
+  return (
+    <Select 
+      value={value} 
+      onValueChange={(fieldId) => {
+        const selectedField = fields.find(f => f.id === fieldId);
+        onValueChange(fieldId, selectedField?.label || fieldId);
+      }}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {fields.map((field) => (
+          <SelectItem key={field.id} value={field.id}>
+            <div className="flex items-center gap-2">
+              <span>{field.label}</span>
+              <span className="text-xs text-muted-foreground">({field.type})</span>
+            </div>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}

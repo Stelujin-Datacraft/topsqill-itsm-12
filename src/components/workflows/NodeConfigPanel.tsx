@@ -10,6 +10,7 @@ import { WorkflowNode } from '@/types/workflow';
 import { FormSelector } from './FormSelector';
 import { UserSelector } from './UserSelector';
 import { FormStatusSelector } from './FormStatusSelector';
+import { FormFieldSelector } from './FormFieldSelector';
 import { EnhancedConditionBuilder } from './conditions/EnhancedConditionBuilder';
 import { useTriggerManagement } from '@/hooks/useTriggerManagement';
 import { useToast } from '@/hooks/use-toast';
@@ -177,6 +178,8 @@ export function NodeConfigPanel({ node, workflowId, onConfigChange, onDelete, on
                   <SelectItem value="assign_form">Assign Form</SelectItem>
                   <SelectItem value="update_form_lifecycle_status">Update Form Lifecycle Status</SelectItem>
                   <SelectItem value="send_notification">Send Notification</SelectItem>
+                  <SelectItem value="change_field_value">Change Field Value</SelectItem>
+                  <SelectItem value="change_record_status">Change Record Status</SelectItem>
                 </SelectContent>
               </Select>
             </div>
