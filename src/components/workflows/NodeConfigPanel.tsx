@@ -93,22 +93,60 @@ export function NodeConfigPanel({ node, workflowId, onConfigChange, onDelete, on
   };
 
   const validateActionConfig = () => {
-    if (node.type === 'action' && node.data.config?.actionType === 'assign_form') {
-      if (!node.data.config?.targetFormId) {
-        toast({
-          title: "Configuration Error",
-          description: "Please select a target form for assignment.",
-          variant: "destructive",
-        });
-        return false;
+    if (node.type === 'action') {
+      const actionType = node.data.config?.actionType;
+      
+      if (actionType === 'assign_form') {
+        if (!node.data.config?.targetFormId) {
+          toast({
+            title: "Configuration Error",
+            description: "Please select a target form for assignment.",
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (!node.data.config?.assignmentConfig) {
+          toast({
+            title: "Configuration Error", 
+            description: "Please configure assignment settings.",
+            variant: "destructive",
+          });
+          return false;
+        }
       }
-      if (!node.data.config?.assignmentConfig) {
-        toast({
-          title: "Configuration Error", 
-          description: "Please configure assignment settings.",
-          variant: "destructive",
-        });
-        return false;
+
+      if (actionType === 'change_field_value') {
+        if (!node.data.config?.targetFormId) {
+          toast({ title: "Error", description: "Please select a target form", variant: "destructive" });
+          return false;
+        }
+        if (!node.data.config?.targetFieldId) {
+          toast({ title: "Error", description: "Please select a field to update", variant: "destructive" });
+          return false;
+        }
+        if (!node.data.config?.valueType) {
+          toast({ title: "Error", description: "Please select a value type", variant: "destructive" });
+          return false;
+        }
+        if (node.data.config.valueType === 'static' && !node.data.config?.staticValue) {
+          toast({ title: "Error", description: "Please enter a static value", variant: "destructive" });
+          return false;
+        }
+        if (node.data.config.valueType === 'dynamic' && !node.data.config?.dynamicValuePath) {
+          toast({ title: "Error", description: "Please enter a dynamic value path", variant: "destructive" });
+          return false;
+        }
+      }
+      
+      if (actionType === 'change_record_status') {
+        if (!node.data.config?.targetFormId) {
+          toast({ title: "Error", description: "Please select a target form", variant: "destructive" });
+          return false;
+        }
+        if (!node.data.config?.newStatus) {
+          toast({ title: "Error", description: "Please select a new status", variant: "destructive" });
+          return false;
+        }
       }
     }
     return true;
@@ -376,6 +414,155 @@ export function NodeConfigPanel({ node, workflowId, onConfigChange, onDelete, on
                         ? 'form submitter' 
                         : node.data.config.notificationConfig.specificEmail || 'specified user'
                     }
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Change Field Value Configuration */}
+            {node.data.config?.actionType === 'change_field_value' && (
+              <div className="space-y-4">
+                <div>
+                  <Label>Target Form *</Label>
+                  <FormSelector
+                    value={node.data.config?.targetFormId || ''}
+                    onValueChange={(formId, formName) => {
+                      const newConfig = { 
+                        ...node.data.config, 
+                        targetFormId: formId,
+                        targetFormName: formName,
+                        targetFieldId: undefined
+                      };
+                      onConfigChange(newConfig);
+                    }}
+                    placeholder="Select form to update"
+                  />
+                </div>
+
+                {node.data.config?.targetFormId && (
+                  <div>
+                    <Label>Field to Update *</Label>
+                    <FormFieldSelector
+                      formId={node.data.config.targetFormId}
+                      value={node.data.config?.targetFieldId || ''}
+                      onValueChange={(fieldId, fieldName) => {
+                        handleConfigUpdate('targetFieldId', fieldId);
+                        handleConfigUpdate('targetFieldName', fieldName);
+                      }}
+                      placeholder="Select field to change"
+                    />
+                  </div>
+                )}
+
+                {node.data.config?.targetFieldId && (
+                  <div>
+                    <Label>Value Type *</Label>
+                    <Select 
+                      value={node.data.config?.valueType || 'static'} 
+                      onValueChange={(value) => handleConfigUpdate('valueType', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select value type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="static">Static Value</SelectItem>
+                        <SelectItem value="dynamic">Dynamic (from trigger data)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {node.data.config?.valueType === 'static' && (
+                  <div>
+                    <Label>New Value *</Label>
+                    <Input
+                      value={node.data.config?.staticValue || ''}
+                      onChange={(e) => handleConfigUpdate('staticValue', e.target.value)}
+                      placeholder="Enter the value to set"
+                    />
+                  </div>
+                )}
+
+                {node.data.config?.valueType === 'dynamic' && (
+                  <div>
+                    <Label>Value Path (from trigger data) *</Label>
+                    <Input
+                      value={node.data.config?.dynamicValuePath || ''}
+                      onChange={(e) => handleConfigUpdate('dynamicValuePath', e.target.value)}
+                      placeholder="e.g., email or user.phoneNumber"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Path to extract value from trigger/submission data
+                    </p>
+                  </div>
+                )}
+
+                {node.data.config?.targetFieldId && node.data.config?.valueType && (
+                  <div className="text-xs text-blue-600 bg-blue-50 p-3 rounded">
+                    <strong>Configuration:</strong> Will update field "{node.data.config.targetFieldName || node.data.config.targetFieldId}" 
+                    in "{node.data.config.targetFormName}" to {node.data.config.valueType === 'static' 
+                      ? `"${node.data.config.staticValue}"` 
+                      : `value from "${node.data.config.dynamicValuePath}"`}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Change Record Status Configuration */}
+            {node.data.config?.actionType === 'change_record_status' && (
+              <div className="space-y-4">
+                <div>
+                  <Label>Target Form *</Label>
+                  <FormSelector
+                    value={node.data.config?.targetFormId || ''}
+                    onValueChange={(formId, formName) => {
+                      const newConfig = { 
+                        ...node.data.config, 
+                        targetFormId: formId,
+                        targetFormName: formName
+                      };
+                      onConfigChange(newConfig);
+                    }}
+                    placeholder="Select form"
+                  />
+                </div>
+
+                {node.data.config?.targetFormId && (
+                  <div>
+                    <Label>New Status *</Label>
+                    <Select 
+                      value={node.data.config?.newStatus || 'pending'} 
+                      onValueChange={(value) => handleConfigUpdate('newStatus', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="approved">Approved</SelectItem>
+                        <SelectItem value="rejected">Rejected</SelectItem>
+                        <SelectItem value="in_review">In Review</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {node.data.config?.targetFormId && (
+                  <div>
+                    <Label>Status Notes (Optional)</Label>
+                    <Textarea
+                      value={node.data.config?.statusNotes || ''}
+                      onChange={(e) => handleConfigUpdate('statusNotes', e.target.value)}
+                      placeholder="Add notes about this status change..."
+                      rows={3}
+                    />
+                  </div>
+                )}
+
+                {node.data.config?.targetFormId && node.data.config?.newStatus && (
+                  <div className="text-xs text-blue-600 bg-blue-50 p-3 rounded">
+                    <strong>Configuration:</strong> Will change the status of submissions in "{node.data.config.targetFormName}" to "{node.data.config.newStatus}"
+                    {node.data.config.statusNotes && ` with notes: "${node.data.config.statusNotes}"`}
                   </div>
                 )}
               </div>
