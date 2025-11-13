@@ -12,9 +12,11 @@ import { UserSelector } from './UserSelector';
 import { FormStatusSelector } from './FormStatusSelector';
 import { FormFieldSelector } from './FormFieldSelector';
 import { EnhancedConditionBuilder } from './conditions/EnhancedConditionBuilder';
+import { DynamicValueInput } from './conditions/DynamicValueInput';
 import { useTriggerManagement } from '@/hooks/useTriggerManagement';
 import { useToast } from '@/hooks/use-toast';
 import { EnhancedCondition } from '@/types/conditions';
+import { FormFieldOption } from '@/types/conditions';
 
 interface NodeConfigPanelProps {
   node: WorkflowNode;
@@ -445,9 +447,11 @@ export function NodeConfigPanel({ node, workflowId, onConfigChange, onDelete, on
                     <FormFieldSelector
                       formId={node.data.config.targetFormId}
                       value={node.data.config?.targetFieldId || ''}
-                      onValueChange={(fieldId, fieldName) => {
+                      onValueChange={(fieldId, fieldName, fieldType, fieldOptions) => {
                         handleConfigUpdate('targetFieldId', fieldId);
                         handleConfigUpdate('targetFieldName', fieldName);
+                        handleConfigUpdate('targetFieldType', fieldType);
+                        handleConfigUpdate('targetFieldOptions', fieldOptions);
                       }}
                       placeholder="Select field to change"
                     />
@@ -472,13 +476,17 @@ export function NodeConfigPanel({ node, workflowId, onConfigChange, onDelete, on
                   </div>
                 )}
 
-                {node.data.config?.valueType === 'static' && (
+                {node.data.config?.valueType === 'static' && node.data.config?.targetFieldType && (
                   <div>
-                    <Label>New Value *</Label>
-                    <Input
+                    <DynamicValueInput
+                      field={{
+                        id: node.data.config.targetFieldId,
+                        label: node.data.config.targetFieldName || 'Field',
+                        type: node.data.config.targetFieldType,
+                        options: node.data.config.targetFieldOptions || []
+                      } as FormFieldOption}
                       value={node.data.config?.staticValue || ''}
-                      onChange={(e) => handleConfigUpdate('staticValue', e.target.value)}
-                      placeholder="Enter the value to set"
+                      onChange={(value) => handleConfigUpdate('staticValue', value)}
                     />
                   </div>
                 )}

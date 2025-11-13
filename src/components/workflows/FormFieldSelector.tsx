@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react';
 interface FormFieldSelectorProps {
   formId: string;
   value: string;
-  onValueChange: (fieldId: string, fieldName: string) => void;
+  onValueChange: (fieldId: string, fieldName: string, fieldType?: string, fieldOptions?: any[]) => void;
   placeholder?: string;
 }
 
@@ -43,6 +43,7 @@ export function FormFieldSelector({ formId, value, onValueChange, placeholder = 
               id: field.id,
               type: field.field_type,
               label: field.label,
+              options: field.options || [],
             } as FormField));
           setFields(dataFields);
         }
@@ -78,7 +79,12 @@ export function FormFieldSelector({ formId, value, onValueChange, placeholder = 
       value={value} 
       onValueChange={(fieldId) => {
         const selectedField = fields.find(f => f.id === fieldId);
-        onValueChange(fieldId, selectedField?.label || fieldId);
+        onValueChange(
+          fieldId, 
+          selectedField?.label || fieldId,
+          selectedField?.type,
+          selectedField?.options
+        );
       }}
     >
       <SelectTrigger>
