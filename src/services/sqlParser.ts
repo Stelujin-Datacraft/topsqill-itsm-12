@@ -281,10 +281,12 @@ export function parseInsertQuery(input: string): ParseResult {
   const errors: string[] = []
   
   // Flexible pattern to match INSERT with or without INTO/FORM keywords
-  // Supports field names, field IDs (UUIDs), and FIELD() syntax in column list
-  const insertPattern = /^INSERT\s+(?:INTO\s+)?(?:FORM\s+)?(['""]?[0-9a-fA-F\-]{36}['""]?)\s*(?:\(([^)]+)\))?\s+(?:VALUES|SELECT)/i;
+  // Updated to handle nested parentheses in FIELD() syntax
+  const insertPattern = /^INSERT\s+(?:INTO\s+)?(?:FORM\s+)?(['""]?[0-9a-fA-F\-]{36}['""]?)\s*(?:\(([^)]*(?:\([^)]*\)[^)]*)*)\))?\s+(?:VALUES|SELECT)/i;
   
   const match = input.match(insertPattern);
+  
+  console.log('parseInsertQuery Debug:', { input, match, matchedFormId: match?.[1], matchedColumns: match?.[2] });
   
   if (!match) {
     errors.push('Invalid INSERT syntax. Use: INSERT INTO form_id (columns) VALUES (values) or INSERT INTO form_id SELECT ...');
@@ -300,6 +302,8 @@ export function parseInsertQuery(input: string): ParseResult {
     errors.push('Form ID must be a valid UUID');
     return { errors };
   }
+  
+  console.log('parseInsertQuery Success:', { formId });
   
   // Return the original query for execution
   // The executeInsertQuery function will handle the actual parsing and execution
