@@ -887,7 +887,10 @@ export async function executeUserQuery(
     }
     
     // Post-process: Replace field IDs with labels in cross-reference data
-    const processedResults = await replaceFieldIdsWithLabels(finalResults);
+    let processedResults = await replaceFieldIdsWithLabels(finalResults);
+    
+    // Post-process: Replace user/group IDs with names in submission-access data
+    processedResults = await replaceSubmissionAccessIdsWithNames(processedResults);
     
     return { columns, rows: processedResults, errors: [] };
     
@@ -1337,6 +1340,121 @@ async function replaceFieldIdsWithLabels(results: any[][]): Promise<any[][]> {
     );
   } catch (error) {
     console.error('Error in replaceFieldIdsWithLabels:', error);
+    return results;
+  }
+}
+
+/**
+ * Replace user and group IDs with names in submission-access data
+ */
+async function replaceSubmissionAccessIdsWithNames(results: any[][]): Promise<any[][]> {
+  try {
+    const userIds = new Set<string>();
+    const groupIds = new Set<string>();
+    
+    // Collect all user and group IDs from submission-access data
+    results.forEach(row => {
+      row.forEach(cell => {
+        if (typeof cell === 'string' && cell.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(cell);
+            if (parsed && typeof parsed === 'object') {
+              // Check for users array
+              if (Array.isArray(parsed.users)) {
+                parsed.users.forEach((id: string) => {
+                  if (typeof id === 'string' && id.match(/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i)) {
+                    userIds.add(id);
+                  }
+                });
+              }
+              // Check for groups array
+              if (Array.isArray(parsed.groups)) {
+                parsed.groups.forEach((id: string) => {
+                  if (typeof id === 'string' && id.match(/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i)) {
+                    groupIds.add(id);
+                  }
+                });
+              }
+            }
+          } catch (e) {
+            // Not JSON or not submission-access data, skip
+          }
+        }
+      });
+    });
+    
+    // If no IDs found, return results as-is
+    if (userIds.size === 0 && groupIds.size === 0) {
+      return results;
+    }
+    
+    // Fetch user names
+    const userIdToName = new Map<string, string>();
+    if (userIds.size > 0) {
+      const { data: users, error: userError } = await supabase
+        .from('user_profiles')
+        .select('id, first_name, last_name, email')
+        .in('id', Array.from(userIds));
+      
+      if (!userError && users) {
+        users.forEach(user => {
+          const name = user.first_name && user.last_name 
+            ? `${user.first_name} ${user.last_name}` 
+            : user.email;
+          userIdToName.set(user.id, name);
+        });
+      }
+    }
+    
+    // Fetch group names
+    const groupIdToName = new Map<string, string>();
+    if (groupIds.size > 0) {
+      const { data: groups, error: groupError } = await supabase
+        .from('groups')
+        .select('id, name')
+        .in('id', Array.from(groupIds));
+      
+      if (!groupError && groups) {
+        groups.forEach(group => {
+          groupIdToName.set(group.id, group.name);
+        });
+      }
+    }
+    
+    // Replace IDs with names in results
+    return results.map(row => 
+      row.map(cell => {
+        if (typeof cell === 'string' && cell.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(cell);
+            if (parsed && typeof parsed === 'object') {
+              const updated: any = { ...parsed };
+              
+              // Replace user IDs with names
+              if (Array.isArray(updated.users)) {
+                updated.users = updated.users.map((id: string) => 
+                  userIdToName.get(id) || id
+                );
+              }
+              
+              // Replace group IDs with names
+              if (Array.isArray(updated.groups)) {
+                updated.groups = updated.groups.map((id: string) => 
+                  groupIdToName.get(id) || id
+                );
+              }
+              
+              return JSON.stringify(updated, null, 2);
+            }
+          } catch (e) {
+            // Not JSON or parsing error, return as-is
+          }
+        }
+        return cell;
+      })
+    );
+  } catch (error) {
+    console.error('Error in replaceSubmissionAccessIdsWithNames:', error);
     return results;
   }
 }
