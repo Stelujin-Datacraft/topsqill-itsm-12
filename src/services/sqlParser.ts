@@ -231,9 +231,18 @@ export function parseUpdateFormQuery(input: string): ParseResult {
   // Parse WHERE clause
   let sqlWhereClause = ''
   
-  // Check if it's a submission_id condition (maps to submission_ref_id in backend)
-  const submissionIdMatch = whereClause.match(/submission_id\s*(=|!=)\s*['""]([0-9a-fA-F\-]{36})['"\"]/i)
-  if (submissionIdMatch) {
+  // Check for boolean literals (true, false, 1, 0)
+  const trimmedWhere = whereClause.trim();
+  if (/^(true|false|1|0)$/i.test(trimmedWhere)) {
+    const boolValue = trimmedWhere.toLowerCase();
+    if (boolValue === 'true' || boolValue === '1') {
+      sqlWhereClause = 'TRUE';  // Match all records
+    } else {
+      sqlWhereClause = 'FALSE';  // Match no records
+    }
+  } else if (whereClause.match(/submission_id\s*(=|!=)\s*['""]([0-9a-fA-F\-]{36})['"\"]/i)) {
+    // Check if it's a submission_id condition (maps to submission_ref_id in backend)
+    const submissionIdMatch = whereClause.match(/submission_id\s*(=|!=)\s*['""]([0-9a-fA-F\-]{36})['"\"]/i)
     const operator = submissionIdMatch[1]
     const submissionId = submissionIdMatch[2]
     sqlWhereClause = `submission_ref_id ${operator} '${submissionId}'`
@@ -254,10 +263,10 @@ export function parseUpdateFormQuery(input: string): ParseResult {
       } else if (operator === '>' || operator === '<' || operator === '>=' || operator === '<=') {
         sqlWhereClause = `(submission_data ->> '${conditionFieldId}')::numeric ${operator} ${conditionValue}`
       } else {
-        sqlWhereClause = `submission_data ->> '${conditionFieldId}' ${operator} '${conditionValue}'`
+      sqlWhereClause = `submission_data ->> '${conditionFieldId}' ${operator} '${conditionValue}'`
       }
     } else {
-      errors.push('Invalid WHERE clause. Use: WHERE submission_id = \'id\' OR WHERE FIELD(\'field_id\') operator \'value\'')
+      errors.push('Invalid WHERE clause. Use: WHERE true OR WHERE submission_id = \'id\' OR WHERE FIELD(\'field_id\') operator \'value\'')
       return { errors }
     }
   }
