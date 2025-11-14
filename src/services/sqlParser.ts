@@ -207,6 +207,8 @@ export function parseUpdateFormQuery(input: string): ParseResult {
   // Transform value expression to handle FIELD() syntax, functions, arithmetic, and CASE WHEN
   let transformedValue = valueExpression.trim()
   
+  console.log('🔍 UPDATE Parser - Original value expression:', transformedValue);
+  
   // Check for CASE WHEN expressions
   const hasCaseWhen = /CASE\s+WHEN/i.test(transformedValue);
   
@@ -217,15 +219,23 @@ export function parseUpdateFormQuery(input: string): ParseResult {
   const functionPattern = /^(UPPER|LOWER|CONCAT|REPLACE|TRIM|LTRIM|RTRIM|ROUND|CEIL|FLOOR|ABS|COALESCE|NOW|CURRENT_TIMESTAMP|IF|LEFT|RIGHT|SUBSTRING|IFNULL|CASE)\s*\(/i;
   const hasFunction = functionPattern.test(transformedValue);
   
+  console.log('🔍 UPDATE Parser - hasCaseWhen:', hasCaseWhen, 'hasArithmetic:', hasArithmetic, 'hasFunction:', hasFunction);
+  
   if (hasCaseWhen || hasFunction || hasArithmetic) {
     // Store the original expression with FIELD() references for later evaluation
     transformedValue = `FUNC::${transformedValue}`;
+    console.log('🔍 UPDATE Parser - Storing as FUNC:', transformedValue);
   } else {
-    // Handle FIELD() references for simple assignments
+    // Handle FIELD() references for simple assignments - use consistent quote matching
+    const originalValue = transformedValue;
     transformedValue = transformedValue.replace(
-      /FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)/gi,
-      (_match, uuid) => `FIELD_REF::${uuid}`
+      /FIELD\(\s*["']([0-9a-fA-F\-]{36})["']\s*\)/gi,
+      (_match, uuid) => {
+        console.log('🔍 UPDATE Parser - Matched FIELD() with UUID:', uuid);
+        return `FIELD_REF::${uuid}`;
+      }
     );
+    console.log('🔍 UPDATE Parser - Transformed from:', originalValue, 'to:', transformedValue);
   }
 
   // Parse WHERE clause
@@ -1913,9 +1923,13 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
     const updatePromises = filteredSubmissions.map(async (submission) => {
       let newValue: any;
       
+      console.log('🔄 UPDATE Executor - Processing submission:', submission.id);
+      console.log('🔄 UPDATE Executor - Value expression:', valueExpression);
+      
       try {
         // Check if value expression contains a function, CASE WHEN, or arithmetic
         if (valueExpression.startsWith('FUNC::')) {
+          console.log('🔄 UPDATE Executor - Evaluating FUNC expression');
           const funcExpr = valueExpression.substring(6);
           const row = {
             submission_id: submission.submission_ref_id || submission.id,
@@ -1942,10 +1956,15 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
           }
         } else if (valueExpression.startsWith('FIELD_REF::')) {
           const sourceFieldId = valueExpression.substring(11);
+          console.log('🔄 UPDATE Executor - Copying from field:', sourceFieldId);
+          console.log('🔄 UPDATE Executor - Source value:', submission.submission_data[sourceFieldId]);
           newValue = submission.submission_data[sourceFieldId] || '';
         } else {
+          console.log('🔄 UPDATE Executor - Using static value');
           newValue = valueExpression.replace(/['"]/g, '');
         }
+
+        console.log('🔄 UPDATE Executor - Final new value:', newValue);
 
         // Update the submission
         const updatedSubmissionData = {
