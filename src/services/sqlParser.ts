@@ -271,8 +271,8 @@ export function parseUpdateFormQuery(input: string): ParseResult {
     }
   }
 
-  // Build the final SQL - store metadata for batch update
-  const sql = `UPDATE::BATCH::${formId}::${fieldId}::${transformedValue}::${sqlWhereClause}`
+  // Build the final SQL - store metadata for batch update using unique delimiter
+  const sql = `UPDATE||BATCH||${formId}||${fieldId}||${transformedValue}||${sqlWhereClause}`
 
   return { sql, errors }
 }
@@ -1812,12 +1812,12 @@ async function executeInsertQuery(sql: string, loopContext?: LoopContext): Promi
  */
 async function executeUpdateQuery(sql: string): Promise<QueryResult> {
   try {
-    // Parse the batch update metadata
-    if (!sql.startsWith('UPDATE::BATCH::')) {
+    // Parse the batch update metadata using unique delimiter
+    if (!sql.startsWith('UPDATE||BATCH||')) {
       return { columns: [], rows: [], errors: ['Invalid UPDATE query format'] };
     }
 
-    const parts = sql.split('::');
+    const parts = sql.split('||');
     if (parts.length !== 6) {
       return { columns: [], rows: [], errors: ['Failed to parse UPDATE query parameters'] };
     }
@@ -1857,10 +1857,17 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
       return { columns: [], rows: [], errors: ['No submissions found matching the WHERE clause'] };
     }
 
-    // Filter submissions based on FIELD() conditions
+    // Filter submissions based on FIELD() conditions or boolean literals
     let filteredSubmissions = submissions;
     
-    if (!whereClause.startsWith('submission_ref_id ')) {
+    // Check for boolean literals (TRUE/FALSE)
+    if (whereClause === 'TRUE') {
+      // Keep all submissions
+      filteredSubmissions = submissions;
+    } else if (whereClause === 'FALSE') {
+      // Filter out all submissions
+      filteredSubmissions = [];
+    } else if (!whereClause.startsWith('submission_ref_id ')) {
       const fieldConditionMatch = whereClause.match(
         /submission_data ->> '([^']+)' (=|!=|>|<|>=|<=|LIKE|ILIKE) '?([^']+)'?$/i
       );
