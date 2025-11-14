@@ -224,6 +224,8 @@ export function parseUpdateFormQuery(input: string): ParseResult {
   let transformedValue = valueExpression.trim()
   
   console.log('🔍 UPDATE Parser - Processing value expression:', transformedValue);
+  console.log('🔍 UPDATE Parser - Value length:', transformedValue.length);
+  console.log('🔍 UPDATE Parser - Value char codes:', [...transformedValue.slice(0, 20)].map(c => `${c}(${c.charCodeAt(0)})`).join(' '));
   
   // Check for CASE WHEN expressions
   const hasCaseWhen = /CASE\s+WHEN/i.test(transformedValue);
@@ -248,27 +250,38 @@ export function parseUpdateFormQuery(input: string): ParseResult {
     // Handle FIELD() or VALUE_OF() references for simple assignments
     const originalValue = transformedValue;
     
-    // Try to match FIELD() or VALUE_OF() with any quote style
-    const fieldRefPattern = /(?:FIELD|VALUE_OF)\s*\(\s*["']([0-9a-fA-F\-]{36})["']\s*\)/gi;
-    const matches = [...transformedValue.matchAll(fieldRefPattern)];
+    // More robust pattern to match FIELD() or VALUE_OF() with flexible quotes and whitespace
+    // This pattern handles: FIELD("uuid"), FIELD('uuid'), VALUE_OF("uuid"), VALUE_OF('uuid')
+    const fieldRefPattern = /(?:FIELD|VALUE_OF)\s*\(\s*["\u0022\u201C\u201D']([0-9a-fA-F\-]{36})["\u0022\u201C\u201D']\s*\)/gi;
     
     console.log('🔍 UPDATE Parser - Looking for FIELD() or VALUE_OF() references');
-    console.log('  - Pattern:', fieldRefPattern);
+    console.log('  - Testing value:', transformedValue);
+    console.log('  - Pattern:', fieldRefPattern.source);
+    
+    // Test the pattern explicitly
+    const testMatch = transformedValue.match(fieldRefPattern);
+    console.log('  - Match test result:', testMatch);
+    
+    const matches = [...transformedValue.matchAll(fieldRefPattern)];
     console.log('  - Found matches:', matches.length);
     
     if (matches.length > 0) {
+      matches.forEach((match, idx) => {
+        console.log(`  - Match ${idx + 1}:`, match[0], '-> UUID:', match[1]);
+      });
+      
       transformedValue = transformedValue.replace(
         fieldRefPattern,
         (_match, uuid) => {
-          console.log('✅ UPDATE Parser - Matched field reference with UUID:', uuid);
-          console.log('  - Original match:', _match);
+          console.log('✅ UPDATE Parser - Transforming field reference:', _match, '-> FIELD_REF::' + uuid);
           return `FIELD_REF::${uuid}`;
         }
       );
-      console.log('✅ UPDATE Parser - Transformed value:', transformedValue);
+      console.log('✅ UPDATE Parser - Final transformed value:', transformedValue);
     } else {
-      console.log('ℹ️ UPDATE Parser - No FIELD() references found, treating as static value');
-      console.log('  - Original:', originalValue);
+      console.log('ℹ️ UPDATE Parser - No FIELD() or VALUE_OF() references found');
+      console.log('  - This will be treated as a static value');
+      console.log('  - If you meant to copy a field value, use: FIELD("field-uuid") or VALUE_OF("field-uuid")');
     }
   }
 
@@ -1957,14 +1970,20 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
     const updatePromises = filteredSubmissions.map(async (submission) => {
       let newValue: any;
       
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('🔄 UPDATE Executor - Processing submission:', submission.id);
-      console.log('🔄 UPDATE Executor - Value expression:', valueExpression);
+      console.log('🔄 UPDATE Executor - Value expression received:', valueExpression);
+      console.log('🔄 UPDATE Executor - Expression type check:');
+      console.log('  - Starts with FUNC::?', valueExpression.startsWith('FUNC::'));
+      console.log('  - Starts with FIELD_REF::?', valueExpression.startsWith('FIELD_REF::'));
+      console.log('  - Is static value?', !valueExpression.startsWith('FUNC::') && !valueExpression.startsWith('FIELD_REF::'));
       
       try {
         // Check if value expression contains a function, CASE WHEN, or arithmetic
         if (valueExpression.startsWith('FUNC::')) {
-          console.log('🔄 UPDATE Executor - Evaluating FUNC expression');
+          console.log('📝 UPDATE Executor - Evaluating FUNC expression');
           const funcExpr = valueExpression.substring(6);
+          console.log('📝 Function expression:', funcExpr);
           const row = {
             submission_id: submission.submission_ref_id || submission.id,
             ...(submission.submission_data as Record<string, any>)
@@ -1988,17 +2007,31 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
             // Regular function evaluation
             newValue = evaluateExpression(funcExpr.replace(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)/gi, '$1'), row);
           }
+          console.log('📝 Function result:', newValue);
         } else if (valueExpression.startsWith('FIELD_REF::')) {
-          const sourceFieldId = valueExpression.substring(11);
-          console.log('🔄 UPDATE Executor - Copying from field:', sourceFieldId);
-          console.log('🔄 UPDATE Executor - Source value:', submission.submission_data[sourceFieldId]);
-          newValue = submission.submission_data[sourceFieldId] || '';
+          console.log('📋 UPDATE Executor - COPYING VALUE FROM FIELD');
+          const sourceFieldId = valueExpression.substring(11); // Remove "FIELD_REF::" prefix
+          console.log('📋 Source field ID:', sourceFieldId);
+          console.log('📋 Current submission data:', JSON.stringify(submission.submission_data, null, 2));
+          console.log('📋 Source field value:', submission.submission_data[sourceFieldId]);
+          
+          // Get the actual value from the source field
+          const sourceValue = submission.submission_data[sourceFieldId];
+          newValue = sourceValue !== undefined && sourceValue !== null ? sourceValue : '';
+          
+          console.log('📋 Value to copy:', newValue);
+          console.log('📋 Value type:', typeof newValue);
         } else {
-          console.log('🔄 UPDATE Executor - Using static value');
-          newValue = valueExpression.replace(/['"]/g, '');
+          console.log('💾 UPDATE Executor - Using STATIC VALUE (not copying from field)');
+          console.log('💾 Raw expression:', valueExpression);
+          // Remove surrounding quotes if present
+          newValue = valueExpression.replace(/^['"]|['"]$/g, '');
+          console.log('💾 Static value after quote removal:', newValue);
         }
 
-        console.log('🔄 UPDATE Executor - Final new value:', newValue);
+        console.log('✅ UPDATE Executor - Final value to store:', newValue);
+        console.log('✅ Value type:', typeof newValue);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
         // Update the submission
         const updatedSubmissionData = {
