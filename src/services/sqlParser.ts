@@ -248,40 +248,32 @@ export function parseUpdateFormQuery(input: string): ParseResult {
     console.log('✅ UPDATE Parser - Storing as FUNC for runtime evaluation:', transformedValue);
   } else {
     // Handle FIELD() or VALUE_OF() references for simple assignments
-    const originalValue = transformedValue;
-    
-    // More robust pattern to match FIELD() or VALUE_OF() with flexible quotes and whitespace
-    // This pattern handles: FIELD("uuid"), FIELD('uuid'), VALUE_OF("uuid"), VALUE_OF('uuid')
-    const fieldRefPattern = /(?:FIELD|VALUE_OF)\s*\(\s*["\u0022\u201C\u201D']([0-9a-fA-F\-]{36})["\u0022\u201C\u201D']\s*\)/gi;
-    
     console.log('🔍 UPDATE Parser - Looking for FIELD() or VALUE_OF() references');
-    console.log('  - Testing value:', transformedValue);
-    console.log('  - Pattern:', fieldRefPattern.source);
+    console.log('  - Original value:', transformedValue);
     
-    // Test the pattern explicitly
+    // Simple, reliable pattern to match VALUE_OF() or FIELD() with any quote type
+    // Matches: VALUE_OF("uuid"), VALUE_OF('uuid'), FIELD("uuid"), FIELD('uuid')
+    const fieldRefPattern = /(?:VALUE_OF|FIELD)\s*\(\s*["']([0-9a-fA-F-]{36})["']\s*\)/gi;
+    
     const testMatch = transformedValue.match(fieldRefPattern);
-    console.log('  - Match test result:', testMatch);
+    console.log('  - Pattern test result:', testMatch);
     
-    const matches = [...transformedValue.matchAll(fieldRefPattern)];
-    console.log('  - Found matches:', matches.length);
-    
-    if (matches.length > 0) {
-      matches.forEach((match, idx) => {
-        console.log(`  - Match ${idx + 1}:`, match[0], '-> UUID:', match[1]);
-      });
+    if (testMatch && testMatch.length > 0) {
+      console.log('✅ Found field reference patterns:', testMatch);
       
+      // Replace VALUE_OF() or FIELD() with FIELD_REF:: prefix
       transformedValue = transformedValue.replace(
         fieldRefPattern,
-        (_match, uuid) => {
-          console.log('✅ UPDATE Parser - Transforming field reference:', _match, '-> FIELD_REF::' + uuid);
+        (fullMatch, uuid) => {
+          console.log('  - Replacing:', fullMatch, '-> FIELD_REF::' + uuid);
           return `FIELD_REF::${uuid}`;
         }
       );
-      console.log('✅ UPDATE Parser - Final transformed value:', transformedValue);
+      
+      console.log('✅ Transformed value:', transformedValue);
     } else {
-      console.log('ℹ️ UPDATE Parser - No FIELD() or VALUE_OF() references found');
-      console.log('  - This will be treated as a static value');
-      console.log('  - If you meant to copy a field value, use: FIELD("field-uuid") or VALUE_OF("field-uuid")');
+      console.log('ℹ️ No field references found - treating as static value');
+      console.log('  - To copy a field value, use: VALUE_OF("field-id") or FIELD("field-id")');
     }
   }
 
