@@ -1,22 +1,60 @@
 # 📋 Field Value Copy Syntax Guide
 
-## Understanding the Difference
+## ⚡ Quick Start
 
-When updating fields, there are TWO different things you can do:
-
-### ❌ Store Literal Text
+### To COPY a field value:
 ```sql
--- This stores the text "hello" literally
-SET FIELD("target-id") = 'hello'
+-- Method 1: Using FIELD()
+UPDATE FORM "bac30b0c-3010-46ac-9afc-f85382ed50e1"
+SET FIELD("target-field-id") = FIELD("source-field-id")
+WHERE true;
+
+-- Method 2: Using VALUE_OF() (clearer, recommended)
+UPDATE FORM "bac30b0c-3010-46ac-9afc-f85382ed50e1"
+SET FIELD("target-field-id") = VALUE_OF("source-field-id")
+WHERE true;
 ```
 
-### ✅ Copy Field Value  
-```sql
--- This COPIES the VALUE from another field
-SET FIELD("target-id") = FIELD("source-id")
+**Result:** The actual value from `source-field-id` will be copied to `target-field-id`.
 
--- Alternative syntax (same result):
+### To STORE literal text:
+```sql
+UPDATE FORM "bac30b0c-3010-46ac-9afc-f85382ed50e1"
+SET FIELD("target-field-id") = 'Approved'
+WHERE true;
+```
+
+**Result:** The text "Approved" will be stored in `target-field-id`.
+
+---
+
+## 🔑 KEY CONCEPT: Two Different Operations
+
+When you write an UPDATE query, you need to be VERY CLEAR about whether you want to:
+
+### 1️⃣ COPY a field's value (use FIELD() or VALUE_OF())
+```sql
+-- ✅ This COPIES the actual value from the source field
+SET FIELD("target-id") = FIELD("source-id")
 SET FIELD("target-id") = VALUE_OF("source-id")
+
+-- Example: If source field contains "John Doe"
+-- Result: Target field will contain "John Doe" (the actual value)
+```
+
+### 2️⃣ STORE literal text (use quotes)
+```sql
+-- ✅ This stores the literal text "hello"
+SET FIELD("target-id") = 'hello'
+
+-- Result: Target field will contain exactly "hello"
+```
+
+### ❌ COMMON MISTAKE: Wrong syntax
+```sql
+-- ❌ This would store the TEXT "FIELD("source-id")" literally
+-- (if the parser doesn't recognize it as a field reference)
+SET FIELD("target-id") = 'FIELD("source-id")'
 ```
 
 ---
@@ -115,44 +153,61 @@ WHERE true;
 
 ---
 
-## 🐛 Debugging: Is it Working?
+## 🐛 How to Tell If It's Working
 
-### Check Console Logs
+### Console Log Patterns
 
-When you run an UPDATE query, check browser console for:
+When you run an UPDATE query, check your browser console. You should see logs like this:
 
+#### ✅ CORRECT: Field value is being copied
 ```
-📝 UPDATE Parser - Input query: [your query]
-📝 UPDATE Parser - Parsed components:
-  - Form ID: [form-uuid]
-  - Target Field ID: [target-field-uuid]
-  - Value Expression (raw): FIELD("source-field-uuid")
-  - Where Clause: true
-
+📝 UPDATE Parser - Value Expression (raw): FIELD("00516cd7-a32e-4ea0-9c39-2e04dfb9d8d4")
 🔍 UPDATE Parser - Looking for FIELD() or VALUE_OF() references
   - Found matches: 1
-✅ UPDATE Parser - Matched field reference with UUID: [source-field-uuid]
-✅ UPDATE Parser - Transformed value: FIELD_REF::[source-field-uuid]
+  - Match 1: FIELD("00516cd7-a32e-4ea0-9c39-2e04dfb9d8d4") -> UUID: 00516cd7-a32e-4ea0-9c39-2e04dfb9d8d4
+✅ UPDATE Parser - Transforming field reference: FIELD("...") -> FIELD_REF::00516cd7-...
+✅ UPDATE Parser - Final transformed value: FIELD_REF::00516cd7-a32e-4ea0-9c39-2e04dfb9d8d4
 
-🔄 UPDATE Executor - Processing submission: [submission-id]
-🔄 UPDATE Executor - Value expression: FIELD_REF::[source-field-uuid]
-🔄 UPDATE Executor - Copying from field: [source-field-uuid]
-🔄 UPDATE Executor - Source value: [actual-value]
-🔄 UPDATE Executor - Final new value: [actual-value]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔄 UPDATE Executor - Processing submission: abc-123
+🔄 UPDATE Executor - Value expression received: FIELD_REF::00516cd7-a32e-4ea0-9c39-2e04dfb9d8d4
+  - Starts with FIELD_REF::? true
+📋 UPDATE Executor - COPYING VALUE FROM FIELD
+📋 Source field ID: 00516cd7-a32e-4ea0-9c39-2e04dfb9d8d4
+📋 Source field value: "John Doe"
+📋 Value to copy: "John Doe"
+✅ UPDATE Executor - Final value to store: "John Doe"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-### What to Look For:
+#### ❌ WRONG: Literal text being stored
+```
+📝 UPDATE Parser - Value Expression (raw): FIELD("00516cd7-a32e-4ea0-9c39-2e04dfb9d8d4")
+🔍 UPDATE Parser - Looking for FIELD() or VALUE_OF() references
+  - Found matches: 0
+ℹ️ UPDATE Parser - No FIELD() or VALUE_OF() references found
+  - This will be treated as a static value
 
-✅ **Good Signs:**
-- `Found matches: 1` (or more)
-- `Matched field reference with UUID`
-- `Transformed value: FIELD_REF::`
-- `Source value:` shows actual value, not "FIELD(...)"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔄 UPDATE Executor - Processing submission: abc-123
+🔄 UPDATE Executor - Value expression received: FIELD("00516cd7-...")
+  - Is static value? true
+💾 UPDATE Executor - Using STATIC VALUE (not copying from field)
+💾 Static value after quote removal: FIELD("00516cd7-...")
+✅ UPDATE Executor - Final value to store: FIELD("00516cd7-...")  ❌ WRONG!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
 
-❌ **Bad Signs:**
-- `Found matches: 0`
-- `No FIELD() references found`
-- `Source value: FIELD("...")`  ← Literal text instead of value
+### What the Logs Tell You
+
+| Log Message | Meaning |
+|-------------|---------|
+| `Found matches: 1` or more | ✅ Parser recognized your FIELD() reference |
+| `Found matches: 0` | ❌ Parser didn't recognize it - check your syntax |
+| `COPYING VALUE FROM FIELD` | ✅ Executor is copying the actual field value |
+| `Using STATIC VALUE` | ⚠️ Executor is storing literal text |
+| `FIELD_REF::` in value | ✅ Transformation succeeded |
+| No `FIELD_REF::` prefix | ❌ Transformation failed - syntax issue |
 
 ---
 
