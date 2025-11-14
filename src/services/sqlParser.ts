@@ -187,9 +187,19 @@ export function parseUserQuery(input: string): ParseResult {
 /**
  * Parse custom UPDATE FORM syntax with arithmetic and CASE WHEN support
  * Expected format: UPDATE FORM 'form_id' SET FIELD('field_id') = value WHERE submission_id = 'submission_id'
+ * 
+ * Supported value syntaxes:
+ * 1. FIELD("source-field-id") - Copy value from another field
+ * 2. VALUE_OF("source-field-id") - Alternative syntax for copying field value  
+ * 3. 'static text' - Set a static text value
+ * 4. FIELD("field-id") + 10 - Arithmetic with field values
+ * 5. UPPER(FIELD("field-id")) - Functions applied to field values
+ * 6. CASE WHEN ... - Conditional logic
  */
 export function parseUpdateFormQuery(input: string): ParseResult {
   const errors: string[] = []
+
+  console.log('📝 UPDATE Parser - Input query:', input);
 
   // Parse the UPDATE FORM syntax with flexible WHERE clause
   // Supports both: WHERE submission_id = 'id' and WHERE FIELD('field_id') operator 'value'
@@ -204,10 +214,16 @@ export function parseUpdateFormQuery(input: string): ParseResult {
 
   const [, formId, fieldId, valueExpression, whereClause] = updateMatch
 
+  console.log('📝 UPDATE Parser - Parsed components:');
+  console.log('  - Form ID:', formId);
+  console.log('  - Target Field ID:', fieldId);
+  console.log('  - Value Expression (raw):', valueExpression);
+  console.log('  - Where Clause:', whereClause);
+
   // Transform value expression to handle FIELD() syntax, functions, arithmetic, and CASE WHEN
   let transformedValue = valueExpression.trim()
   
-  console.log('🔍 UPDATE Parser - Original value expression:', transformedValue);
+  console.log('🔍 UPDATE Parser - Processing value expression:', transformedValue);
   
   // Check for CASE WHEN expressions
   const hasCaseWhen = /CASE\s+WHEN/i.test(transformedValue);
@@ -219,23 +235,41 @@ export function parseUpdateFormQuery(input: string): ParseResult {
   const functionPattern = /^(UPPER|LOWER|CONCAT|REPLACE|TRIM|LTRIM|RTRIM|ROUND|CEIL|FLOOR|ABS|COALESCE|NOW|CURRENT_TIMESTAMP|IF|LEFT|RIGHT|SUBSTRING|IFNULL|CASE)\s*\(/i;
   const hasFunction = functionPattern.test(transformedValue);
   
-  console.log('🔍 UPDATE Parser - hasCaseWhen:', hasCaseWhen, 'hasArithmetic:', hasArithmetic, 'hasFunction:', hasFunction);
+  console.log('🔍 UPDATE Parser - Expression analysis:');
+  console.log('  - Has CASE WHEN:', hasCaseWhen);
+  console.log('  - Has Arithmetic:', hasArithmetic);
+  console.log('  - Has Function:', hasFunction);
   
   if (hasCaseWhen || hasFunction || hasArithmetic) {
     // Store the original expression with FIELD() references for later evaluation
     transformedValue = `FUNC::${transformedValue}`;
-    console.log('🔍 UPDATE Parser - Storing as FUNC:', transformedValue);
+    console.log('✅ UPDATE Parser - Storing as FUNC for runtime evaluation:', transformedValue);
   } else {
-    // Handle FIELD() references for simple assignments - use consistent quote matching
+    // Handle FIELD() or VALUE_OF() references for simple assignments
     const originalValue = transformedValue;
-    transformedValue = transformedValue.replace(
-      /FIELD\(\s*["']([0-9a-fA-F\-]{36})["']\s*\)/gi,
-      (_match, uuid) => {
-        console.log('🔍 UPDATE Parser - Matched FIELD() with UUID:', uuid);
-        return `FIELD_REF::${uuid}`;
-      }
-    );
-    console.log('🔍 UPDATE Parser - Transformed from:', originalValue, 'to:', transformedValue);
+    
+    // Try to match FIELD() or VALUE_OF() with any quote style
+    const fieldRefPattern = /(?:FIELD|VALUE_OF)\s*\(\s*["']([0-9a-fA-F\-]{36})["']\s*\)/gi;
+    const matches = [...transformedValue.matchAll(fieldRefPattern)];
+    
+    console.log('🔍 UPDATE Parser - Looking for FIELD() or VALUE_OF() references');
+    console.log('  - Pattern:', fieldRefPattern);
+    console.log('  - Found matches:', matches.length);
+    
+    if (matches.length > 0) {
+      transformedValue = transformedValue.replace(
+        fieldRefPattern,
+        (_match, uuid) => {
+          console.log('✅ UPDATE Parser - Matched field reference with UUID:', uuid);
+          console.log('  - Original match:', _match);
+          return `FIELD_REF::${uuid}`;
+        }
+      );
+      console.log('✅ UPDATE Parser - Transformed value:', transformedValue);
+    } else {
+      console.log('ℹ️ UPDATE Parser - No FIELD() references found, treating as static value');
+      console.log('  - Original:', originalValue);
+    }
   }
 
   // Parse WHERE clause
