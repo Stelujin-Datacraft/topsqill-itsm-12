@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { FormField } from '@/types/form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,6 +34,7 @@ export function QueryField({
   const [isExecuting, setIsExecuting] = useState(false);
   const [lastExecuted, setLastExecuted] = useState<string>('');
   const [hasExecutedOnLoad, setHasExecutedOnLoad] = useState(false);
+  const lastTargetValueRef = useRef<any>(undefined);
   const { toast } = useToast();
 
   const customConfig = field.customConfig || {};
@@ -57,7 +58,6 @@ export function QueryField({
     console.log('   Query:', query);
     console.log('   Execute On:', executeOn);
     console.log('   Target Field:', targetFieldId);
-    console.log('   Form Data:', formData);
 
     setIsExecuting(true);
     const startTime = Date.now();
@@ -96,7 +96,7 @@ export function QueryField({
     } finally {
       setIsExecuting(false);
     }
-  }, [query, onChange, toast, executeOn, targetFieldId, formData]);
+  }, [query, onChange, toast, executeOn, targetFieldId]);
 
   // Initialize hasExecutedOnLoad for field-change mode (needs to be ready before changes occur)
   useEffect(() => {
@@ -115,16 +115,23 @@ export function QueryField({
     }
   }, [executeOn, query, hasExecutedOnLoad, executeQuery]);
 
-  // Execute on field change - track target field value
+  // Execute on field change - track target field value with ref to prevent infinite loops
   const targetFieldValue = targetFieldId ? formData?.[targetFieldId] : undefined;
   
   useEffect(() => {
     if (executeOn === 'field-change' && targetFieldId && hasExecutedOnLoad) {
-      console.log('🎯 QueryField: Target field changed');
-      console.log('   Target Field ID:', targetFieldId);
-      console.log('   New Value:', targetFieldValue);
-      console.log('   Full Form Data:', formData);
-      executeQuery();
+      // Only execute if the target field value actually changed (not just formData reference)
+      const hasValueChanged = lastTargetValueRef.current !== targetFieldValue;
+      
+      if (hasValueChanged) {
+        console.log('🎯 QueryField: Target field changed');
+        console.log('   Target Field ID:', targetFieldId);
+        console.log('   Previous Value:', lastTargetValueRef.current);
+        console.log('   New Value:', targetFieldValue);
+        
+        lastTargetValueRef.current = targetFieldValue;
+        executeQuery();
+      }
     }
   }, [targetFieldValue, executeOn, targetFieldId, hasExecutedOnLoad, executeQuery]);
 
