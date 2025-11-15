@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FormField } from '@/types/form';
 import { FieldConfiguration } from '../../hooks/useFieldConfiguration';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,8 @@ import { useSavedQueries } from '@/hooks/useSavedQueries';
 import { useForm } from '@/contexts/FormContext';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql';
-import { Database, Play, FileText, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { Database, Play, FileText, Eye, EyeOff, RefreshCw, Plus, Copy } from 'lucide-react';
+import type { EditorView } from '@codemirror/view';
 
 interface QueryFieldConfigProps {
   config: FieldConfiguration;
@@ -26,6 +27,8 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
   const { savedQueries, isLoading: savedQueriesLoading } = useSavedQueries();
   const { currentForm } = useForm();
   const [availableFields, setAvailableFields] = useState<FormField[]>([]);
+  const [selectedFieldForInsert, setSelectedFieldForInsert] = useState<string>('');
+  const editorViewRef = useRef<EditorView | null>(null);
 
   useEffect(() => {
     // Get all fields from current form for field change targeting
@@ -53,6 +56,38 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
 
   const clearSavedQuery = () => {
     updateCustomConfig('savedQueryId', '');
+  };
+
+  const insertFieldIdAtCursor = () => {
+    if (!selectedFieldForInsert || !editorViewRef.current) return;
+    
+    const view = editorViewRef.current;
+    const selection = view.state.selection.main;
+    const fieldToInsert = availableFields.find(f => f.id === selectedFieldForInsert);
+    
+    if (fieldToInsert) {
+      // Insert as "field-id" in the query
+      const textToInsert = `"${fieldToInsert.id}"`;
+      
+      view.dispatch({
+        changes: {
+          from: selection.from,
+          to: selection.to,
+          insert: textToInsert
+        },
+        selection: { anchor: selection.from + textToInsert.length }
+      });
+      
+      // Update the config with the modified query
+      const newQuery = view.state.doc.toString();
+      updateCustomConfig('query', newQuery);
+    }
+  };
+
+  const copyFormId = () => {
+    if (currentForm?.id) {
+      navigator.clipboard.writeText(currentForm.id);
+    }
   };
 
   return (
@@ -101,6 +136,71 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
             )}
           </div>
 
+          {/* Form and Field Reference Helper */}
+          <div className="space-y-3 p-3 bg-muted/30 rounded-md border">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Query Helper</Label>
+              <Badge variant="outline" className="text-xs">Insert IDs into query</Badge>
+            </div>
+            
+            {/* Current Form ID */}
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Current Form ID</Label>
+              <div className="flex gap-2">
+                <Input 
+                  value={currentForm?.id || 'No form loaded'} 
+                  readOnly 
+                  className="flex-1 text-xs font-mono bg-background"
+                />
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={copyFormId}
+                  disabled={!currentForm?.id}
+                >
+                  <Copy className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Field Selector */}
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Insert Field ID</Label>
+              <div className="flex gap-2">
+                <Select
+                  value={selectedFieldForInsert}
+                  onValueChange={setSelectedFieldForInsert}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Select a field..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {availableFields.map((field) => (
+                      <SelectItem key={field.id} value={field.id}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{field.label}</span>
+                          <span className="text-xs text-muted-foreground font-mono">{field.id}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={insertFieldIdAtCursor}
+                  disabled={!selectedFieldForInsert}
+                  title="Insert field ID at cursor"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Select a field and click + to insert its ID at cursor position
+              </p>
+            </div>
+          </div>
+
           {/* Custom Query */}
           <div className="space-y-2">
             <Label>Custom Query</Label>
@@ -116,6 +216,9 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
                     updateCustomConfig('savedQueryId', '');
                   }
                 }}
+                onCreateEditor={(view) => {
+                  editorViewRef.current = view;
+                }}
                 placeholder="SELECT * FROM form_submissions WHERE..."
                 basicSetup={{
                   lineNumbers: true,
@@ -124,7 +227,7 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Use custom SQL syntax or SELECT queries to retrieve data from form submissions
+              Use custom SQL or SELECT queries. Use the helper above to insert form/field IDs dynamically.
             </p>
           </div>
         </CardContent>
