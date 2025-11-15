@@ -12,7 +12,7 @@ import { useSavedQueries } from '@/hooks/useSavedQueries';
 import { useCurrentFormFields } from '@/hooks/useCurrentFormFields';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql';
-import { Database, Play, FileText, Eye, EyeOff, RefreshCw, Plus, Copy } from 'lucide-react';
+import { Database, Play, FileText, Eye, EyeOff, RefreshCw, Plus } from 'lucide-react';
 import type { EditorView } from '@codemirror/view';
 
 interface QueryFieldConfigProps {
@@ -75,10 +75,25 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
     }
   };
 
-  const copyFormId = () => {
-    if (currentForm?.id) {
-      navigator.clipboard.writeText(currentForm.id);
-    }
+  const insertFormIdAtCursor = () => {
+    if (!currentForm?.id || !editorViewRef.current) return;
+    
+    const view = editorViewRef.current;
+    const selection = view.state.selection.main;
+    const textToInsert = `"${currentForm.id}"`;
+    
+    view.dispatch({
+      changes: {
+        from: selection.from,
+        to: selection.to,
+        insert: textToInsert
+      },
+      selection: { anchor: selection.from + textToInsert.length }
+    });
+    
+    // Update the config with the modified query
+    const newQuery = view.state.doc.toString();
+    updateCustomConfig('query', newQuery);
   };
 
   return (
@@ -146,10 +161,11 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={copyFormId}
+                  onClick={insertFormIdAtCursor}
                   disabled={!currentForm?.id}
+                  title="Insert form ID at cursor"
                 >
-                  <Copy className="h-3 w-3" />
+                  <Plus className="h-4 w-4" />
                 </Button>
               </div>
             </div>
