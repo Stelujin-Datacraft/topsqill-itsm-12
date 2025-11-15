@@ -1937,6 +1937,7 @@ export type Database = {
           permission_type: string
         }[]
       }
+      get_user_email: { Args: { _user_id: string }; Returns: string }
       get_user_form_permissions: {
         Args: { _form_id: string; _project_id: string; _user_id: string }
         Returns: {
@@ -1944,6 +1945,7 @@ export type Database = {
           permission_type: string
         }[]
       }
+      get_user_org_id: { Args: { _user_id: string }; Returns: string }
       get_user_project_invitations: {
         Args: never
         Returns: {
@@ -2006,6 +2008,10 @@ export type Database = {
         Returns: boolean
       }
       is_form_public: { Args: { _form_id: string }; Returns: boolean }
+      is_project_member: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
       reject_project_invitation: {
         Args: { invitation_id_param: string }
         Returns: Json
