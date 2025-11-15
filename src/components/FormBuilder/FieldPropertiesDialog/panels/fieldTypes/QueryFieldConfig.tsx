@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
-import { FormField } from '@/types/form';
+import { useState, useRef } from 'react';
 import { FieldConfiguration } from '../../hooks/useFieldConfiguration';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useSavedQueries } from '@/hooks/useSavedQueries';
-import { useForm } from '@/contexts/FormContext';
+import { useCurrentFormFields } from '@/hooks/useCurrentFormFields';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql';
 import { Database, Play, FileText, Eye, EyeOff, RefreshCw, Plus, Copy } from 'lucide-react';
@@ -25,17 +24,9 @@ interface QueryFieldConfigProps {
 export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigProps) {
   const customConfig = config.customConfig || {};
   const { savedQueries, isLoading: savedQueriesLoading } = useSavedQueries();
-  const { currentForm } = useForm();
-  const [availableFields, setAvailableFields] = useState<FormField[]>([]);
+  const { formFieldOptions, currentForm } = useCurrentFormFields();
   const [selectedFieldForInsert, setSelectedFieldForInsert] = useState<string>('');
   const editorViewRef = useRef<EditorView | null>(null);
-
-  useEffect(() => {
-    // Get all fields from current form for field change targeting
-    if (currentForm?.fields) {
-      setAvailableFields(currentForm.fields.filter(field => field.id !== config.label));
-    }
-  }, [currentForm, config.label]);
 
   const updateCustomConfig = (key: string, value: any) => {
     onUpdate({
@@ -63,11 +54,11 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
     
     const view = editorViewRef.current;
     const selection = view.state.selection.main;
-    const fieldToInsert = availableFields.find(f => f.id === selectedFieldForInsert);
+    const fieldToInsert = formFieldOptions.find(f => f.value === selectedFieldForInsert);
     
     if (fieldToInsert) {
       // Insert as "field-id" in the query
-      const textToInsert = `"${fieldToInsert.id}"`;
+      const textToInsert = `"${fieldToInsert.value}"`;
       
       view.dispatch({
         changes: {
@@ -175,11 +166,11 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
                     <SelectValue placeholder="Select a field..." />
                   </SelectTrigger>
                   <SelectContent className="max-h-[300px]">
-                    {availableFields.map((field) => (
-                      <SelectItem key={field.id} value={field.id}>
+                    {formFieldOptions.map((field) => (
+                      <SelectItem key={field.value} value={field.value}>
                         <div className="flex flex-col">
                           <span className="font-medium">{field.label}</span>
-                          <span className="text-xs text-muted-foreground font-mono">{field.id}</span>
+                          <span className="text-xs text-muted-foreground font-mono">{field.value}</span>
                         </div>
                       </SelectItem>
                     ))}
@@ -327,8 +318,8 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
                   <SelectValue placeholder="Select field to watch for changes" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableFields.map((field) => (
-                    <SelectItem key={field.id} value={field.id}>
+                  {formFieldOptions.map((field) => (
+                    <SelectItem key={field.value} value={field.value}>
                       {field.label} ({field.type})
                     </SelectItem>
                   ))}
