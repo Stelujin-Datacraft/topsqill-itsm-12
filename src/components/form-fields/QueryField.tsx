@@ -48,15 +48,31 @@ export function QueryField({
   } = customConfig;
 
   const executeQuery = useCallback(async () => {
-    if (!query.trim()) return;
+    if (!query.trim()) {
+      console.warn('⚠️ QueryField: No query configured');
+      return;
+    }
+
+    console.log('🔄 QueryField: Starting query execution');
+    console.log('   Query:', query);
+    console.log('   Execute On:', executeOn);
+    console.log('   Target Field:', targetFieldId);
+    console.log('   Form Data:', formData);
 
     setIsExecuting(true);
+    const startTime = Date.now();
+    
     try {
       const result = await executeUserQuery(query);
+      console.log(`✅ QueryField: Query executed successfully in ${Date.now() - startTime}ms`);
+      console.log('   Rows returned:', result.rows.length);
+      console.log('   Columns:', result.columns);
+      
       setQueryResult(result);
       setLastExecuted(new Date().toISOString());
       
       if (result.errors.length > 0) {
+        console.error('❌ QueryField: Query returned errors:', result.errors);
         toast({
           title: "Query Execution Error",
           description: result.errors.join(', '),
@@ -71,39 +87,61 @@ export function QueryField({
         });
       }
     } catch (error) {
-      console.error('Query execution error:', error);
+      console.error('❌ QueryField: Query execution failed:', error);
       toast({
         title: "Query Error",
-        description: "Failed to execute query",
+        description: error instanceof Error ? error.message : "Failed to execute query",
         variant: "destructive",
       });
     } finally {
       setIsExecuting(false);
     }
-  }, [query, onChange, toast]);
+  }, [query, onChange, toast, executeOn, targetFieldId, formData]);
+
+  // Initialize hasExecutedOnLoad for field-change mode (needs to be ready before changes occur)
+  useEffect(() => {
+    if (executeOn === 'field-change' && !hasExecutedOnLoad) {
+      console.log('🎬 QueryField: Initializing field-change mode');
+      setHasExecutedOnLoad(true);
+    }
+  }, [executeOn, hasExecutedOnLoad]);
 
   // Execute on load - only once
   useEffect(() => {
     if (executeOn === 'load' && query.trim() && !hasExecutedOnLoad) {
+      console.log('🚀 QueryField: Executing query on load');
       executeQuery();
       setHasExecutedOnLoad(true);
     }
-  }, [executeOn, query, hasExecutedOnLoad]);
+  }, [executeOn, query, hasExecutedOnLoad, executeQuery]);
 
-  // Execute on field change
+  // Execute on field change - track target field value
+  const targetFieldValue = targetFieldId ? formData?.[targetFieldId] : undefined;
+  
   useEffect(() => {
-    if (executeOn === 'field-change' && targetFieldId && formData[targetFieldId] !== undefined && hasExecutedOnLoad) {
+    if (executeOn === 'field-change' && targetFieldId && hasExecutedOnLoad) {
+      console.log('🎯 QueryField: Target field changed');
+      console.log('   Target Field ID:', targetFieldId);
+      console.log('   New Value:', targetFieldValue);
+      console.log('   Full Form Data:', formData);
       executeQuery();
     }
-  }, [executeOn, targetFieldId, formData?.[targetFieldId]]);
+  }, [targetFieldValue, executeOn, targetFieldId, hasExecutedOnLoad, executeQuery]);
 
   // Auto-refresh interval - only if not submit mode
   useEffect(() => {
     if (refreshInterval > 0 && query.trim() && executeOn !== 'submit') {
-      const interval = setInterval(executeQuery, refreshInterval * 1000);
-      return () => clearInterval(interval);
+      console.log(`⏰ QueryField: Setting up auto-refresh every ${refreshInterval} seconds`);
+      const interval = setInterval(() => {
+        console.log('🔄 QueryField: Auto-refresh triggered');
+        executeQuery();
+      }, refreshInterval * 1000);
+      return () => {
+        console.log('⏰ QueryField: Clearing auto-refresh');
+        clearInterval(interval);
+      };
     }
-  }, [refreshInterval, query, executeOn]);
+  }, [refreshInterval, query, executeOn, executeQuery]);
 
   const handleManualExecute = () => {
     if (executeOn === 'submit') {
