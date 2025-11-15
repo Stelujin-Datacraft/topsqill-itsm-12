@@ -862,6 +862,19 @@ export async function executeUserQuery(
     const selectParts = parseSelectExpressions(selectExpr);
     const isAggregateQuery = selectParts.some(p => p.isAggregate);
     
+    // Generate column headers - replace field IDs with labels
+    const columns = selectParts.map(part => {
+      // Check if the alias is a field ID (UUID format)
+      const isFieldId = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(part.alias);
+      
+      if (isFieldId && fieldMetadata[part.alias]) {
+        // Replace field ID with field label
+        return fieldMetadata[part.alias].label;
+      }
+      
+      return part.alias;
+    });
+    
     // Apply GROUP BY if present
     let groupedRows: any[] = [];
     if (groupByExpr) {
@@ -894,7 +907,6 @@ export async function executeUserQuery(
     
     // Evaluate SELECT expressions for each group
     const resultRows: any[][] = [];
-    const columns: string[] = selectParts.map(p => p.alias);
     
     groupedRows.forEach(groupRows => {
       const row: any[] = [];
