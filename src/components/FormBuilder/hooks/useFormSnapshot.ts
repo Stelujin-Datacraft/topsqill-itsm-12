@@ -7,6 +7,7 @@ export interface FormSnapshot {
   isInitialized: boolean;
   isDirty: boolean;
   lastSaved: Date | null;
+  initializedFormId: string | null;
 }
 
 export function useFormSnapshot(initialForm: Form | null) {
@@ -15,6 +16,7 @@ export function useFormSnapshot(initialForm: Form | null) {
     isInitialized: !!initialForm,
     isDirty: false,
     lastSaved: initialForm ? new Date() : null,
+    initializedFormId: initialForm?.id || null,
   });
 
   const originalFormRef = useRef<Form | null>(initialForm);
@@ -27,6 +29,7 @@ export function useFormSnapshot(initialForm: Form | null) {
       isInitialized: true,
       isDirty: false,
       lastSaved: form ? new Date() : null,
+      initializedFormId: form?.id || null,
     });
   }, []);
 
@@ -276,6 +279,7 @@ export function useFormSnapshot(initialForm: Form | null) {
       isInitialized: !!originalFormRef.current,
       isDirty: false,
       lastSaved: originalFormRef.current ? new Date() : null,
+      initializedFormId: originalFormRef.current?.id || null,
     });
   }, []);
 

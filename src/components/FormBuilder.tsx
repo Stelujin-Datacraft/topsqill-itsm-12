@@ -78,13 +78,17 @@ function FormBuilderContent({
     fields: workingForm?.fields.map(f => f.id) || []
   }];
 
-  // Initialize snapshot when form loads
+  // Initialize snapshot when form loads (only once per form ID)
   useEffect(() => {
     if (currentForm && !snapshot.isInitialized) {
       console.log('Initializing form snapshot:', currentForm);
       initializeSnapshot(currentForm);
+    } else if (currentForm && snapshot.isInitialized && snapshot.form?.id !== currentForm.id) {
+      // Re-initialize only if we're loading a different form
+      console.log('Re-initializing snapshot for different form:', currentForm.id);
+      initializeSnapshot(currentForm);
     }
-  }, [currentForm, snapshot.isInitialized, initializeSnapshot]);
+  }, [currentForm?.id, snapshot.isInitialized, initializeSnapshot]);
 
   // Initialize current page and ensure Page 1 exists for new forms
   useEffect(() => {
