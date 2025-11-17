@@ -87,8 +87,22 @@ export function FormFieldsRenderer({
   formId,
   currentSubmissionId,
 }: FormFieldsRendererProps) {
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Execute all Query Fields configured for "on submit"
+    const submitTriggers = fields
+      .filter(f => f.type === 'query-field' && f.customConfig?.executeOn === 'submit')
+      .map(f => (window as any)[`queryField_${f.id}_submit`])
+      .filter(Boolean);
+    
+    if (submitTriggers.length > 0) {
+      console.log(`🚀 Executing ${submitTriggers.length} Query Fields on submit`);
+      await Promise.all(submitTriggers.map((fn: () => Promise<void>) => fn()));
+      // Small delay to ensure state updates are processed
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
     onSubmit(formData);
   };
 
