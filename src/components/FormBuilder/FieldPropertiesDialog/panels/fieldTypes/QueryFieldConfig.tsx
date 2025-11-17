@@ -65,7 +65,7 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
     const fieldToInsert = formFieldOptions.find(f => f.value === selectedFieldForInsert);
     
     if (fieldToInsert) {
-      const textToInsert = `"${fieldToInsert.value}"`;
+      const textToInsert = `FIELD("${fieldToInsert.value}")`;
       
       view.dispatch({
         changes: {
