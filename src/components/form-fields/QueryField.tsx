@@ -19,6 +19,7 @@ interface QueryFieldProps {
   disabled?: boolean;
   formData?: Record<string, any>;
   onFieldChange?: (fieldId: string, value: any) => void;
+  onSubmitTrigger?: () => Promise<void>;
 }
 
 export function QueryField({ 
@@ -28,7 +29,8 @@ export function QueryField({
   error, 
   disabled = false,
   formData = {},
-  onFieldChange
+  onFieldChange,
+  onSubmitTrigger
 }: QueryFieldProps) {
   const [queryResult, setQueryResult] = useState<QueryResult | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -149,6 +151,18 @@ export function QueryField({
       };
     }
   }, [refreshInterval, query, executeOn, executeQuery]);
+
+  // Register submit trigger callback
+  useEffect(() => {
+    if (executeOn === 'submit' && onSubmitTrigger) {
+      // Store the execute function for submit trigger
+      (window as any)[`queryField_${field.id}_submit`] = executeQuery;
+      
+      return () => {
+        delete (window as any)[`queryField_${field.id}_submit`];
+      };
+    }
+  }, [executeOn, onSubmitTrigger, field.id, executeQuery]);
 
   const handleManualExecute = () => {
     if (executeOn === 'submit') {
