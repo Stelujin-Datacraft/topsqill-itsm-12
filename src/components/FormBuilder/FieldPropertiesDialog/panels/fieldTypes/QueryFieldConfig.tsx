@@ -14,7 +14,7 @@ import { useCurrentFormFields } from '@/hooks/useCurrentFormFields';
 import { QueryTemplates } from '@/components/query/QueryTemplates';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql';
-import { Database, FileText, Eye, RefreshCw, Plus, Code2, HelpCircle, BookOpen } from 'lucide-react';
+import { Database, FileText, Eye, RefreshCw, Plus, Code2, HelpCircle, BookOpen, BarChart3 } from 'lucide-react';
 import type { EditorView } from '@codemirror/view';
 import {
   Tooltip,
@@ -456,6 +456,116 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
                 <p className="text-xs text-muted-foreground">
                   Set to 0 to disable auto-refresh. Query will re-execute at this interval.
                 </p>
+              </div>
+              
+              <Separator />
+              
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">Enable Query Validation</Label>
+                  <Switch
+                    checked={customConfig.enableValidation !== false}
+                    onCheckedChange={(checked) => updateCustomConfig('enableValidation', checked)}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Validates SQL syntax and shows warnings before execution
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Display Options
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Customize how query results are displayed
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm">Chart Type</Label>
+                <Select
+                  value={customConfig.chartType || 'none'}
+                  onValueChange={(value) => updateCustomConfig('chartType', value === 'none' ? undefined : value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Chart</SelectItem>
+                    <SelectItem value="bar">Bar Chart</SelectItem>
+                    <SelectItem value="line">Line Chart</SelectItem>
+                    <SelectItem value="pie">Pie Chart</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Display results as a chart (requires at least 2 columns)
+                </p>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <Label className="text-sm">Max Results</Label>
+                <Input
+                  type="number"
+                  min="10"
+                  max="1000"
+                  value={customConfig.maxResults || 100}
+                  onChange={(e) =>
+                    updateCustomConfig('maxResults', parseInt(e.target.value) || 100)
+                  }
+                  placeholder="100"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Maximum number of rows to display (default: 100)
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Code2 className="h-4 w-4" />
+                Query Variables
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Use dynamic variables in your queries
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="text-xs space-y-1">
+                  <p className="font-medium">Available Variables:</p>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <code className="text-xs bg-muted px-2 py-1 rounded">@current_user</code>
+                    <code className="text-xs bg-muted px-2 py-1 rounded">@current_user_email</code>
+                    <code className="text-xs bg-muted px-2 py-1 rounded">@today</code>
+                    <code className="text-xs bg-muted px-2 py-1 rounded">@now</code>
+                    <code className="text-xs bg-muted px-2 py-1 rounded">@form_id</code>
+                    <code className="text-xs bg-muted px-2 py-1 rounded">@submission_id</code>
+                    <code className="text-xs bg-muted px-2 py-1 rounded">@yesterday</code>
+                    <code className="text-xs bg-muted px-2 py-1 rounded">@this_week_start</code>
+                    <code className="text-xs bg-muted px-2 py-1 rounded">@this_month_start</code>
+                    <code className="text-xs bg-muted px-2 py-1 rounded">@this_year_start</code>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Use these variables in your queries - they will be replaced with actual values at runtime
+                </p>
+                <div className="mt-3 p-2 bg-muted rounded text-xs">
+                  <p className="font-medium mb-1">Example:</p>
+                  <code className="text-xs">
+                    SELECT * FROM submissions<br/>
+                    WHERE submitted_by = @current_user<br/>
+                    AND submitted_at &gt;= @this_week_start
+                  </code>
+                </div>
               </div>
             </CardContent>
           </Card>

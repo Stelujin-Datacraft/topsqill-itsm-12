@@ -5,9 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Play, Database, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Play, Database, Eye, EyeOff, AlertCircle, BarChart3 } from 'lucide-react';
 import { executeUserQuery, QueryResult } from '@/services/sqlParser';
 import { useToast } from '@/hooks/use-toast';
+import { replaceQueryVariables, extractQueryVariables } from '@/utils/queryVariables';
+import { validateQuery, validateFieldFunctions } from '@/utils/queryValidator';
+import { QueryResultChart } from '@/components/query/QueryResultChart';
+import { QueryResultPagination } from '@/components/query/QueryResultPagination';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql';
 
@@ -36,6 +41,10 @@ export function QueryField({
   const [isExecuting, setIsExecuting] = useState(false);
   const [lastExecuted, setLastExecuted] = useState<string>('');
   const [hasExecutedOnLoad, setHasExecutedOnLoad] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
   const lastTargetValueRef = useRef<any>(undefined);
   const { toast } = useToast();
 
@@ -47,12 +56,40 @@ export function QueryField({
     targetFieldId = '',
     refreshInterval = 0,
     showResults = true,
-    maxResults = 100
+    maxResults = 100,
+    chartType = 'bar',
+    enableValidation = true,
+    formId = '',
+    submissionId = ''
   } = customConfig;
+
+  // Validate query on change
+  useEffect(() => {
+    if (enableValidation && query.trim()) {
+      const syntaxValidation = validateQuery(query);
+      const functionValidation = validateFieldFunctions(query);
+      
+      setValidationErrors([...syntaxValidation.errors, ...functionValidation.errors]);
+      setValidationWarnings([...syntaxValidation.warnings, ...functionValidation.warnings]);
+    } else {
+      setValidationErrors([]);
+      setValidationWarnings([]);
+    }
+  }, [query, enableValidation]);
 
   const executeQuery = useCallback(async () => {
     if (!query.trim()) {
       console.warn('⚠️ QueryField: No query configured');
+      return;
+    }
+
+    // Check validation before execution
+    if (enableValidation && validationErrors.length > 0) {
+      toast({
+        title: "Query Validation Failed",
+        description: validationErrors[0],
+        variant: "destructive",
+      });
       return;
     }
 
@@ -65,13 +102,24 @@ export function QueryField({
     const startTime = Date.now();
     
     try {
-      const result = await executeUserQuery(query);
+      // Replace query variables
+      const usedVariables = extractQueryVariables(query);
+      let processedQuery = query;
+      
+      if (usedVariables.length > 0) {
+        console.log('🔄 Replacing query variables:', usedVariables);
+        processedQuery = await replaceQueryVariables(query, { formId, submissionId });
+        console.log('   Processed query:', processedQuery);
+      }
+
+      const result = await executeUserQuery(processedQuery);
       console.log(`✅ QueryField: Query executed successfully in ${Date.now() - startTime}ms`);
       console.log('   Rows returned:', result.rows.length);
       console.log('   Columns:', result.columns);
       
       setQueryResult(result);
       setLastExecuted(new Date().toISOString());
+      setCurrentPage(1); // Reset to first page
       
       if (result.errors.length > 0) {
         console.error('❌ QueryField: Query returned errors:', result.errors);
@@ -98,7 +146,7 @@ export function QueryField({
     } finally {
       setIsExecuting(false);
     }
-  }, [query, onChange, toast, executeOn, targetFieldId]);
+  }, [query, onChange, toast, executeOn, targetFieldId, validationErrors, enableValidation, formId, submissionId]);
 
   // Initialize hasExecutedOnLoad for field-change mode (needs to be ready before changes occur)
   useEffect(() => {
@@ -202,6 +250,13 @@ export function QueryField({
   const renderDataDisplay = () => {
     if (!showResults) return null;
 
+    // Calculate pagination
+    const totalRows = queryResult?.rows.length || 0;
+    const totalPages = Math.ceil(totalRows / pageSize);
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedRows = queryResult?.rows.slice(startIndex, endIndex) || [];
+
     return (
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -228,6 +283,35 @@ export function QueryField({
           </div>
         </div>
 
+        {/* Validation Alerts */}
+        {enableValidation && validationErrors.length > 0 && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <div className="text-sm font-medium">Validation Errors:</div>
+              <ul className="text-xs mt-1 space-y-1">
+                {validationErrors.map((error, i) => (
+                  <li key={i}>• {error}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {enableValidation && validationWarnings.length > 0 && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <div className="text-sm font-medium">Warnings:</div>
+              <ul className="text-xs mt-1 space-y-1">
+                {validationWarnings.map((warning, i) => (
+                  <li key={i}>• {warning}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {queryResult ? (
           queryResult.errors.length > 0 ? (
             <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
@@ -239,62 +323,82 @@ export function QueryField({
               </ul>
             </div>
           ) : (
-            <div className="border rounded-md">
-              <div className="p-3 bg-muted/50 border-b">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Database className="h-4 w-4" />
-                    <span className="text-sm font-medium">
-                      {queryResult.rows.length} row(s) returned
-                    </span>
-                  </div>
-                  {queryResult.columns.length > 0 && (
-                    <Badge variant="secondary">
-                      {queryResult.columns.length} column(s)
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              
-              {queryResult.rows.length > 0 ? (
-                <div className="p-3">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b">
-                          {queryResult.columns.map((column, index) => (
-                            <th key={index} className="text-left p-2 font-medium">
-                              {column}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {queryResult.rows.slice(0, maxResults).map((row, rowIndex) => (
-                          <tr key={rowIndex} className="border-b border-border/50">
-                            {row.map((cell, cellIndex) => (
-                              <td key={cellIndex} className="p-2">
-                                {cell !== null && cell !== undefined ? String(cell) : '—'}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  {queryResult.rows.length > maxResults && (
-                    <div className="mt-2 text-xs text-muted-foreground text-center">
-                      Showing first {maxResults} of {queryResult.rows.length} rows
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="p-8 text-center text-muted-foreground">
-                  <Database className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No data returned</p>
-                </div>
+            <>
+              {/* Chart View */}
+              {displayMode === 'data' && queryResult.rows.length > 0 && queryResult.columns.length >= 2 && chartType && (
+                <QueryResultChart result={queryResult} chartType={chartType} />
               )}
-            </div>
+              
+              {/* Table View */}
+              <div className="border rounded-md">
+                <div className="p-3 bg-muted/50 border-b">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Database className="h-4 w-4" />
+                      <span className="text-sm font-medium">
+                        {queryResult.rows.length} row(s) returned
+                      </span>
+                    </div>
+                    {queryResult.columns.length > 0 && (
+                      <Badge variant="secondary">
+                        {queryResult.columns.length} column(s)
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                
+                {queryResult.rows.length > 0 ? (
+                  <>
+                    <div className="p-3">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b">
+                              {queryResult.columns.map((column, index) => (
+                                <th key={index} className="text-left p-2 font-medium">
+                                  {column}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paginatedRows.map((row, rowIndex) => (
+                              <tr key={rowIndex} className="border-b border-border/50">
+                                {row.map((cell, cellIndex) => (
+                                  <td key={cellIndex} className="p-2">
+                                    {cell !== null && cell !== undefined ? String(cell) : '—'}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    
+                    {/* Pagination */}
+                    {totalRows > pageSize && (
+                      <QueryResultPagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        pageSize={pageSize}
+                        totalRows={totalRows}
+                        onPageChange={setCurrentPage}
+                        onPageSizeChange={(size) => {
+                          setPageSize(size);
+                          setCurrentPage(1);
+                        }}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <Database className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No data returned</p>
+                  </div>
+                )}
+              </div>
+            </>
           )
         ) : (
           <div className="p-8 text-center text-muted-foreground border rounded-md border-dashed">

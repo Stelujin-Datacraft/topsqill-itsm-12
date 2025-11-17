@@ -384,11 +384,15 @@ export interface FormField {
     query?: string;
     savedQueryId?: string;
     displayMode?: 'query' | 'data';
-    executeOn?: 'submit' | 'load' | 'field-change';
+    executeOn?: 'submit' | 'load' | 'field-change' | 'manual';
     targetFieldId?: string;
     refreshInterval?: number;
     showResults?: boolean;
     maxResults?: number;
+    chartType?: 'bar' | 'line' | 'pie';
+    enableValidation?: boolean;
+    formId?: string;
+    submissionId?: string;
   };
 }
 
