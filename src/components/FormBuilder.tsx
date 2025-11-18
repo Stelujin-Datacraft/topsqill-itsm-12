@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -49,6 +49,9 @@ function FormBuilderContent({
   const {
     currentProject
   } = useProject();
+
+  // Ref to prevent concurrent save operations
+  const savingInProgressRef = useRef(false);
 
   // Load the full form with all fields including customConfig
   const { form: currentForm, loading } = useFormLoader(formId);
@@ -169,6 +172,12 @@ function FormBuilderContent({
 
   // Optimized save handler - saves snapshot to database
   const handleSave = async (shouldPublish = false) => {
+    // Prevent concurrent save operations using ref (synchronous check)
+    if (savingInProgressRef.current) {
+      console.log('Save operation already in progress, ignoring duplicate click');
+      return;
+    }
+
     if (!snapshot.form) {
       toast({
         title: "No form to save",
@@ -186,6 +195,8 @@ function FormBuilderContent({
       return;
     }
     try {
+      // Set ref lock immediately (synchronous)
+      savingInProgressRef.current = true;
       shouldPublish ? state.setIsPublishing(true) : state.setIsSaving(true);
       
       // Only create a new form if there's no formId (truly new form)
@@ -280,6 +291,8 @@ function FormBuilderContent({
     } finally {
       state.setIsSaving(false);
       state.setIsPublishing(false);
+      // Release ref lock
+      savingInProgressRef.current = false;
     }
   };
 
