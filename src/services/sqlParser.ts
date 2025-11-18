@@ -251,9 +251,9 @@ export function parseUpdateFormQuery(input: string): ParseResult {
     console.log('🔍 UPDATE Parser - Looking for FIELD() or VALUE_OF() references');
     console.log('  - Original value:', transformedValue);
     
-    // Simple, reliable pattern to match VALUE_OF() or FIELD() with any quote type
-    // Matches: VALUE_OF("uuid"), VALUE_OF('uuid'), FIELD("uuid"), FIELD('uuid')
-    const fieldRefPattern = /(?:VALUE_OF|FIELD)\s*\(\s*["']([0-9a-fA-F-]{36})["']\s*\)/gi;
+    // Permissive pattern to match VALUE_OF() or FIELD() with any quote type (including curly quotes)
+    // Matches: VALUE_OF("uuid"), VALUE_OF('uuid'), FIELD("uuid"), FIELD('uuid'), and curly quote variants
+    const fieldRefPattern = /(?:VALUE_OF|FIELD)\s*\(\s*['"""]([0-9a-fA-F-]{36})['"""\s]*\)/gi;
     
     const testMatch = transformedValue.match(fieldRefPattern);
     console.log('  - Pattern test result:', testMatch);
