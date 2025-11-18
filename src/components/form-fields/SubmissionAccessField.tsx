@@ -28,7 +28,7 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
   const { groups, loading: groupsLoading, error: groupsError } = useGroups();
 
   const config = field.customConfig || {};
-  const allowMultiple = config.allowMultiple || false;
+  const allowMultiple = config.allowMultiple !== false; // Default to true for multiple selection
 
   // Handle default values from rules - ensure they're within allowed users/groups
   useEffect(() => {
