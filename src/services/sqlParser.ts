@@ -231,8 +231,9 @@ export function parseUpdateFormQuery(input: string): ParseResult {
   const hasCaseWhen = /CASE\s+WHEN/i.test(transformedValue);
   
   // Check for arithmetic expressions (e.g., FIELD('id') + 1, value * 2)
-  const hasArithmetic = /[+\-*\/]/.test(transformedValue) && !/\s+AND\s+|\s+OR\s+/i.test(transformedValue);
-  
+  // Use operators surrounded by whitespace to avoid matching hyphens inside UUIDs
+  const hasArithmetic = /\s[+\-*\/]\s/.test(transformedValue) && !/\s+AND\s+|\s+OR\s+/i.test(transformedValue);
+
   // Store function metadata for UPDATE query execution
   const functionPattern = /^(UPPER|LOWER|CONCAT|REPLACE|TRIM|LTRIM|RTRIM|ROUND|CEIL|FLOOR|ABS|COALESCE|NOW|CURRENT_TIMESTAMP|IF|LEFT|RIGHT|SUBSTRING|IFNULL|CASE)\s*\(/i;
   const hasFunction = functionPattern.test(transformedValue);
