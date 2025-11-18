@@ -327,7 +327,7 @@ export function SubmissionAccessFieldConfig({ config, onUpdate, errors }: Submis
         <div className="flex items-center space-x-2">
           <Checkbox
             id="allowMultiple"
-            checked={config.customConfig?.allowMultiple || false}
+            checked={config.customConfig?.allowMultiple !== false}
             onCheckedChange={(checked) => onUpdate({ 
               customConfig: { 
                 ...config.customConfig, 
