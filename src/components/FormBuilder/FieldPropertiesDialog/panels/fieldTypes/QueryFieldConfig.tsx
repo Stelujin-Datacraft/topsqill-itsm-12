@@ -14,7 +14,10 @@ import { useCurrentFormFields } from '@/hooks/useCurrentFormFields';
 import { QueryTemplates } from '@/components/query/QueryTemplates';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql';
-import { Database, FileText, Eye, RefreshCw, Plus, Code2, HelpCircle, BookOpen, BarChart3 } from 'lucide-react';
+import { Database, FileText, Eye, RefreshCw, Plus, Code2, HelpCircle, BookOpen, BarChart3, Search, Check } from 'lucide-react';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import type { EditorView } from '@codemirror/view';
 import {
   Tooltip,
@@ -34,6 +37,7 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
   const { savedQueries, isLoading: savedQueriesLoading } = useSavedQueries();
   const { formFieldOptions, currentForm } = useCurrentFormFields();
   const [selectedFieldForInsert, setSelectedFieldForInsert] = useState<string>('');
+  const [fieldSearchOpen, setFieldSearchOpen] = useState(false);
   const editorViewRef = useRef<EditorView | null>(null);
 
   const updateCustomConfig = (key: string, value: any) => {
@@ -232,24 +236,57 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Insert Field ID</Label>
                   <div className="flex gap-2">
-                    <Select
-                      value={selectedFieldForInsert}
-                      onValueChange={setSelectedFieldForInsert}
-                    >
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Select a field..." />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[300px]">
-                        {formFieldOptions.map((field) => (
-                          <SelectItem key={field.value} value={field.value}>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{field.label}</span>
-                              <span className="text-xs text-muted-foreground font-mono">{field.value}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={fieldSearchOpen} onOpenChange={setFieldSearchOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={fieldSearchOpen}
+                          className="flex-1 justify-between font-normal"
+                        >
+                          {selectedFieldForInsert ? (
+                            <span className="truncate">
+                              {formFieldOptions.find(f => f.value === selectedFieldForInsert)?.label}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">Select a field...</span>
+                          )}
+                          <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[400px] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search fields..." />
+                          <CommandList className="max-h-[300px]">
+                            <CommandEmpty>No field found.</CommandEmpty>
+                            <CommandGroup>
+                              {formFieldOptions.map((field) => (
+                                <CommandItem
+                                  key={field.value}
+                                  value={field.label}
+                                  onSelect={() => {
+                                    setSelectedFieldForInsert(field.value);
+                                    setFieldSearchOpen(false);
+                                  }}
+                                  className="flex items-center justify-between"
+                                >
+                                  <div className="flex flex-col min-w-0 flex-1">
+                                    <span className="font-medium truncate">{field.label}</span>
+                                    <span className="text-xs text-muted-foreground font-mono truncate">{field.value}</span>
+                                  </div>
+                                  <Check
+                                    className={cn(
+                                      "ml-2 h-4 w-4 shrink-0",
+                                      selectedFieldForInsert === field.value ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     <Button 
                       variant="outline" 
                       size="sm"
@@ -261,7 +298,7 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Select a field, then click + to insert its ID at the cursor position
+                    Search and select a field, then click + to insert its ID at the cursor position
                   </p>
                 </div>
               </div>
