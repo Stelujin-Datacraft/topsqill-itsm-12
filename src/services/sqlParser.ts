@@ -202,9 +202,10 @@ export function parseUpdateFormQuery(input: string): ParseResult {
   console.log('📝 UPDATE Parser - Input query:', input);
 
   // Parse the UPDATE FORM syntax with flexible WHERE clause
-  // Supports both: WHERE submission_id = 'id' and WHERE FIELD('field_id') operator 'value'
+  // Supports both: WHERE submission_ref_id = 'id' and WHERE FIELD('field_id') operator 'value'
+  // Also supports subqueries with multiple lines
   const updateMatch = input.match(
-    /^UPDATE\s+FORM\s+['""]([0-9a-fA-F\-]{36})['"\"]\s+SET\s+FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*=\s*(.+?)\s+WHERE\s+(.+)$/i
+    /^UPDATE\s+FORM\s+['""]([0-9a-fA-F\-]{36})['"\"]\s+SET\s+FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*=\s*([\s\S]+?)\s+WHERE\s+([\s\S]+)$/im
   )
 
   if (!updateMatch) {
@@ -1903,17 +1904,15 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
       .select('id, submission_data, submission_ref_id')
       .eq('form_id', formId);
 
-    // Apply WHERE filter for submission_id
-    if (whereClause.startsWith('submission_ref_id ')) {
-      const idMatch = whereClause.match(/submission_ref_id (=|!=) '([^']+)'/);
-      if (idMatch) {
-        const operator = idMatch[1];
-        const submissionId = idMatch[2];
-        if (operator === '=') {
-          query = query.eq('submission_ref_id', submissionId);
-        } else {
-          query = query.neq('submission_ref_id', submissionId);
-        }
+    // Apply WHERE filter for submission_ref_id or submission_id (both map to submission_ref_id column)
+    const submissionIdMatch = whereClause.match(/(?:submission_ref_id|submission_id)\s+(=|!=)\s+'([^']+)'/i);
+    if (submissionIdMatch) {
+      const operator = submissionIdMatch[1];
+      const submissionId = submissionIdMatch[2];
+      if (operator === '=') {
+        query = query.eq('submission_ref_id', submissionId);
+      } else {
+        query = query.neq('submission_ref_id', submissionId);
       }
     }
 
@@ -1937,7 +1936,7 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
     } else if (whereClause === 'FALSE') {
       // Filter out all submissions
       filteredSubmissions = [];
-    } else if (!whereClause.startsWith('submission_ref_id ')) {
+    } else if (!submissionIdMatch) {
       const fieldConditionMatch = whereClause.match(
         /submission_data ->> '([^']+)' (=|!=|>|<|>=|<=|LIKE|ILIKE) '?([^']+)'?$/i
       );
