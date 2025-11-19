@@ -220,12 +220,15 @@ export function parseUpdateFormQuery(input: string): ParseResult {
   console.log('  - Value Expression (raw):', valueExpression);
   console.log('  - Where Clause:', whereClause);
 
-  // Transform value expression to handle FIELD() syntax, functions, arithmetic, and CASE WHEN
+  // Transform value expression to handle FIELD() syntax, functions, arithmetic, CASE WHEN, and SUBQUERIES
   let transformedValue = valueExpression.trim()
   
   console.log('🔍 UPDATE Parser - Processing value expression:', transformedValue);
   console.log('🔍 UPDATE Parser - Value length:', transformedValue.length);
   console.log('🔍 UPDATE Parser - Value char codes:', [...transformedValue.slice(0, 20)].map(c => `${c}(${c.charCodeAt(0)})`).join(' '));
+  
+  // Check for subquery (SELECT statement wrapped in parentheses)
+  const hasSubquery = /^\s*\(\s*SELECT\s+/i.test(transformedValue);
   
   // Check for CASE WHEN expressions
   const hasCaseWhen = /CASE\s+WHEN/i.test(transformedValue);
@@ -239,11 +242,16 @@ export function parseUpdateFormQuery(input: string): ParseResult {
   const hasFunction = functionPattern.test(transformedValue);
   
   console.log('🔍 UPDATE Parser - Expression analysis:');
+  console.log('  - Has Subquery:', hasSubquery);
   console.log('  - Has CASE WHEN:', hasCaseWhen);
   console.log('  - Has Arithmetic:', hasArithmetic);
   console.log('  - Has Function:', hasFunction);
   
-  if (hasCaseWhen || hasFunction || hasArithmetic) {
+  if (hasSubquery) {
+    // Store the subquery for later execution
+    transformedValue = `SUBQUERY::${transformedValue}`;
+    console.log('✅ UPDATE Parser - Storing as SUBQUERY for runtime evaluation:', transformedValue);
+  } else if (hasCaseWhen || hasFunction || hasArithmetic) {
     // Store the original expression with FIELD() references for later evaluation
     transformedValue = `FUNC::${transformedValue}`;
     console.log('✅ UPDATE Parser - Storing as FUNC for runtime evaluation:', transformedValue);
@@ -1984,8 +1992,79 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
       console.log('  - Is static value?', !valueExpression.startsWith('FUNC::') && !valueExpression.startsWith('FIELD_REF::'));
       
       try {
-        // Check if value expression contains a function, CASE WHEN, or arithmetic
-        if (valueExpression.startsWith('FUNC::')) {
+        // Check if value expression contains a subquery, function, CASE WHEN, or arithmetic
+        if (valueExpression.startsWith('SUBQUERY::')) {
+          console.log('🔍 UPDATE Executor - Evaluating SUBQUERY expression');
+          const subqueryExpr = valueExpression.substring(10).trim();
+          console.log('🔍 Subquery expression:', subqueryExpr);
+          
+          // Parse the subquery: (SELECT FIELD("field-id") FROM "form-id" WHERE condition)
+          const subqueryMatch = subqueryExpr.match(
+            /^\s*\(\s*SELECT\s+FIELD\s*\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s+FROM\s+['""]([0-9a-fA-F\-]{36})['"\"]\s+WHERE\s+(.+?)\s*\)\s*$/i
+          );
+          
+          if (!subqueryMatch) {
+            console.error('Failed to parse subquery');
+            newValue = null;
+          } else {
+            const [, selectFieldId, sourceFormId, subWhereClause] = subqueryMatch;
+            console.log('🔍 Subquery parsed:');
+            console.log('  - Select field:', selectFieldId);
+            console.log('  - Source form:', sourceFormId);
+            console.log('  - WHERE clause:', subWhereClause);
+            
+            // Parse WHERE clause: submission_ref_id = JSON_UNQUOTE(JSON_EXTRACT(FIELD("field-id"), '$[0].submission_ref_id'))
+            const jsonExtractMatch = subWhereClause.match(
+              /submission_ref_id\s*=\s*JSON_UNQUOTE\s*\(\s*JSON_EXTRACT\s*\(\s*FIELD\s*\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*,\s*['"](\$\[0\]\.submission_ref_id)['"]\s*\)\s*\)/i
+            );
+            
+            if (!jsonExtractMatch) {
+              console.error('Failed to parse JSON_EXTRACT in WHERE clause');
+              newValue = null;
+            } else {
+              const [, crossRefFieldId, jsonPath] = jsonExtractMatch;
+              console.log('🔍 JSON_EXTRACT parsed:');
+              console.log('  - Cross-ref field:', crossRefFieldId);
+              console.log('  - JSON path:', jsonPath);
+              
+              // Get the cross-reference value from current submission
+              const crossRefValue = submission.submission_data[crossRefFieldId];
+              console.log('🔍 Cross-reference field value:', crossRefValue);
+              
+              if (Array.isArray(crossRefValue) && crossRefValue.length > 0) {
+                const linkedSubmissionRefId = crossRefValue[0]?.submission_ref_id;
+                console.log('🔍 Linked submission ref ID:', linkedSubmissionRefId);
+                
+                if (linkedSubmissionRefId) {
+                  // Query the source form to get the field value
+                  const { data: linkedSubmissions, error: linkedError } = await supabase
+                    .from('form_submissions')
+                    .select('submission_data')
+                    .eq('form_id', sourceFormId)
+                    .eq('submission_ref_id', linkedSubmissionRefId)
+                    .single();
+                  
+                  if (linkedError) {
+                    console.error('Error fetching linked submission:', linkedError);
+                    newValue = null;
+                  } else if (linkedSubmissions) {
+                    newValue = linkedSubmissions.submission_data[selectFieldId];
+                    console.log('✅ Fetched value from linked submission:', newValue);
+                  } else {
+                    console.log('⚠️ No linked submission found');
+                    newValue = null;
+                  }
+                } else {
+                  console.log('⚠️ No submission_ref_id in cross-reference data');
+                  newValue = null;
+                }
+              } else {
+                console.log('⚠️ Cross-reference field is empty or not an array');
+                newValue = null;
+              }
+            }
+          }
+        } else if (valueExpression.startsWith('FUNC::')) {
           console.log('📝 UPDATE Executor - Evaluating FUNC expression');
           const funcExpr = valueExpression.substring(6);
           console.log('📝 Function expression:', funcExpr);
