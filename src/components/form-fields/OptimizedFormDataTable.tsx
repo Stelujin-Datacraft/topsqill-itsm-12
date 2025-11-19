@@ -38,6 +38,7 @@ interface FormDataTableConfig {
   enableSearch?: boolean;
   pageSize?: number;
   isParentReference?: boolean;
+  tableDisplayField?: string;
 }
 interface OptimizedFormDataTableProps {
   config: FormDataTableConfig;
@@ -285,14 +286,25 @@ export function OptimizedFormDataTable({
     const preservedAutoRecords = selectedRecords.filter(record => autoSelectedIds.includes(record.id));
 
     // Add newly selected records from modal
-    const newRecordsFromModal = data.filter(record => modalSelectedRecordIds.has(record.id)).map(record => ({
-      id: record.id,
-      submission_ref_id: record.submission_ref_id || `SUB-${record.id.slice(0, 8)}`,
-      displayData: displayColumns.reduce((acc, colId) => {
-        acc[colId] = record[colId];
-        return acc;
-      }, {} as Record<string, any>)
-    }));
+    const newRecordsFromModal = data.filter(record => modalSelectedRecordIds.has(record.id)).map(record => {
+      const displayData: Record<string, any> = {};
+      
+      // Include tableDisplayField if configured
+      if (config.tableDisplayField) {
+        displayData[config.tableDisplayField] = record[config.tableDisplayField];
+      }
+      
+      // Also include display columns for table view
+      displayColumns.forEach(colId => {
+        displayData[colId] = record[colId];
+      });
+      
+      return {
+        id: record.id,
+        submission_ref_id: record.submission_ref_id || `SUB-${record.id.slice(0, 8)}`,
+        displayData
+      };
+    });
 
     // Combine preserved auto-selected and newly selected records
     const allSelectedRecords = [...preservedAutoRecords, ...newRecordsFromModal];
@@ -314,9 +326,10 @@ export function OptimizedFormDataTable({
     }
   };
   const getDisplayValue = (record: SelectedRecord) => {
-    const primaryField = displayColumns[0];
-    if (primaryField && record.displayData[primaryField]) {
-      return record.displayData[primaryField];
+    // Use tableDisplayField if configured, otherwise fall back to submission_ref_id
+    const tableDisplayField = config.tableDisplayField;
+    if (tableDisplayField && record.displayData[tableDisplayField]) {
+      return record.displayData[tableDisplayField];
     }
     return record.submission_ref_id;
   };
