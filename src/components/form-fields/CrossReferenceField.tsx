@@ -110,6 +110,7 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
     targetFormName: field.customConfig.targetFormName || targetForm?.name || 'Unknown Form',
     filters: field.customConfig.filters || [],
     displayColumns: field.customConfig.displayColumns || [],
+    tableDisplayFields: field.customConfig.tableDisplayFields || [],
     enableSorting: field.customConfig.enableSorting ?? true,
     enableSearch: field.customConfig.enableSearch ?? true,
     pageSize: field.customConfig.pageSize || 10,
