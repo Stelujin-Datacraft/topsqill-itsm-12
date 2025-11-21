@@ -1338,7 +1338,7 @@ function serializeFieldValue(value: any): any {
     // If it's an array of cross-reference objects, format them nicely
     if (typeof value[0] === 'object' && value[0] !== null) {
       const formatted = value.map(item => {
-        // Create a new object with submission_ref_id first, remove id, and flatten displayData
+        // Create a new object with submission_ref_id and form_id first, remove id, and flatten displayData
         const result: any = {};
         
         // Add submission_ref_id first if it exists
@@ -1346,14 +1346,19 @@ function serializeFieldValue(value: any): any {
           result.submission_ref_id = item.submission_ref_id;
         }
         
+        // Add form_id after submission_ref_id
+        if (item.form_id) {
+          result.form_id = item.form_id;
+        }
+        
         // Flatten displayData into the main object (field values)
         if (item.displayData && typeof item.displayData === 'object') {
           Object.assign(result, item.displayData);
         }
         
-        // Add any other properties except 'id' and 'displayData'
+        // Add any other properties except 'id', 'displayData', 'submission_ref_id', and 'form_id'
         Object.keys(item).forEach(key => {
-          if (key !== 'id' && key !== 'displayData' && key !== 'submission_ref_id') {
+          if (key !== 'id' && key !== 'displayData' && key !== 'submission_ref_id' && key !== 'form_id') {
             result[key] = item[key];
           }
         });
