@@ -375,15 +375,13 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
                 const currentFields = Array.isArray(config.customConfig?.tableDisplayFields)
                   ? config.customConfig.tableDisplayFields
                   : [];
-
+                
                 const newFields = checked
                   ? [...currentFields, field.id]
                   : currentFields.filter((id) => id !== field.id);
-
+                
                 console.log('Table display fields updated:', newFields);
                 updateCustomConfig("tableDisplayFields", newFields);
-                // Keep legacy single-value field in sync for backend/query engine
-                updateCustomConfig("tableDisplayField", newFields.length > 0 ? newFields[0] : undefined);
               }}
             />
             <Label htmlFor={`display-field-${field.id}`} className="text-sm cursor-pointer font-medium">

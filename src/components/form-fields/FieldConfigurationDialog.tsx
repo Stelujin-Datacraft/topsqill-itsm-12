@@ -239,15 +239,11 @@ export function FieldConfigurationDialog({ field, open, onClose, onSave }: Field
                         checked={(config.tableDisplayFields || []).includes(field.id)}
                         onCheckedChange={(checked) => {
                           const currentFields = config.tableDisplayFields || [];
-                          const newFields = checked
-                            ? [...currentFields, field.id]
-                            : currentFields.filter((fieldId: string) => fieldId !== field.id);
-
                           setConfig({
                             ...config,
-                            tableDisplayFields: newFields,
-                            // Keep legacy single-value field in sync for backend/query engine
-                            tableDisplayField: newFields.length > 0 ? newFields[0] : undefined,
+                            tableDisplayFields: checked
+                              ? [...currentFields, field.id]
+                              : currentFields.filter((fieldId: string) => fieldId !== field.id)
                           });
                         }}
                       />
