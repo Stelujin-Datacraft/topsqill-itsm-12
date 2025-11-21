@@ -584,7 +584,7 @@ export function OptimizedFormDataTable({
             <TableHeader>
               <TableRow>
                 <TableHead className="w-32">Ref ID</TableHead>
-                {displayColumns.map(fieldId => <TableHead key={fieldId} className={config.enableSorting && !isCrossReference ? "cursor-pointer hover:bg-gray-50" : ""} onClick={() => !isCrossReference && handleSort(fieldId)}>
+                {(isCrossReference ? visibleColumns : displayColumns).map(fieldId => <TableHead key={fieldId} className={config.enableSorting && !isCrossReference ? "cursor-pointer hover:bg-gray-50" : ""} onClick={() => !isCrossReference && handleSort(fieldId)}>
                     <div className="flex items-center gap-2">
                       {getFieldLabel(fieldId)}
                       {config.enableSorting && !isCrossReference && getSortIcon(fieldId, sortConditions)}
@@ -597,14 +597,14 @@ export function OptimizedFormDataTable({
             </TableHeader>
             <TableBody>
               {loading ? <TableRow>
-                  <TableCell colSpan={displayColumns.length + 4} className="text-center py-8">
+                  <TableCell colSpan={(isCrossReference ? visibleColumns.length : displayColumns.length) + 4} className="text-center py-8">
                     <div className="flex items-center justify-center gap-2">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
                       Loading...
                     </div>
                   </TableCell>
                 </TableRow> : displayData.length === 0 ? <TableRow>
-                  <TableCell colSpan={displayColumns.length + 4} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={(isCrossReference ? visibleColumns.length : displayColumns.length) + 4} className="text-center py-8 text-gray-500">
                     {error ? 'Error loading data' : isCrossReference ? 'No records selected' : 'No submissions have been made yet!'}
                     {config.isParentReference && !error && !isCrossReference && <div className="text-sm mt-1">
                         Parent form records will appear here when available
@@ -614,7 +614,7 @@ export function OptimizedFormDataTable({
                     <TableCell className="font-mono text-sm">
                       {row.submission_ref_id || `SUB-${String(index + 1).padStart(3, '0')}`}
                     </TableCell>
-                    {displayColumns.map(fieldId => {
+                    {(isCrossReference ? visibleColumns : displayColumns).map(fieldId => {
                 const field = formFields.find(f => f.id === fieldId);
                 return <TableCell key={fieldId}>
                           {formatCellValue(row[fieldId], field?.field_type)}
