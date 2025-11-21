@@ -34,6 +34,7 @@ interface FormDataTableConfig {
     value: string;
   }>;
   displayColumns?: string[];
+  tableDisplayFields?: string[];
   enableSorting?: boolean;
   enableSearch?: boolean;
   pageSize?: number;
@@ -292,14 +293,14 @@ export function OptimizedFormDataTable({
     const newRecordsFromModal = data.filter(record => modalSelectedRecordIds.has(record.id)).map(record => {
       const displayData: Record<string, any> = {};
       
-      // Include tableDisplayField if configured
-      if (config.tableDisplayField) {
-        displayData[config.tableDisplayField] = record[config.tableDisplayField];
-      }
+      // Only include tableDisplayFields if configured (multiple selection)
+      // This is what gets saved and returned in SQL queries
+      const fieldsToSave = config.tableDisplayFields && config.tableDisplayFields.length > 0 
+        ? config.tableDisplayFields 
+        : (config.tableDisplayField ? [config.tableDisplayField] : []);
       
-      // Also include display columns for table view
-      displayColumns.forEach(colId => {
-        displayData[colId] = record[colId];
+      fieldsToSave.forEach(fieldId => {
+        displayData[fieldId] = record[fieldId];
       });
       
       return {
@@ -330,10 +331,18 @@ export function OptimizedFormDataTable({
     }
   };
   const getDisplayValue = (record: SelectedRecord) => {
-    // Use tableDisplayField if configured, otherwise fall back to submission_ref_id
-    const tableDisplayField = config.tableDisplayField;
-    if (tableDisplayField && record.displayData[tableDisplayField]) {
-      return record.displayData[tableDisplayField];
+    // Use tableDisplayFields to show saved data, fallback to tableDisplayField, then submission_ref_id
+    const fieldsToShow = config.tableDisplayFields && config.tableDisplayFields.length > 0 
+      ? config.tableDisplayFields 
+      : (config.tableDisplayField ? [config.tableDisplayField] : []);
+    
+    if (fieldsToShow.length > 0) {
+      const values = fieldsToShow
+        .map(fieldId => record.displayData[fieldId])
+        .filter(Boolean);
+      if (values.length > 0) {
+        return values.join(' | ');
+      }
     }
     return record.submission_ref_id;
   };

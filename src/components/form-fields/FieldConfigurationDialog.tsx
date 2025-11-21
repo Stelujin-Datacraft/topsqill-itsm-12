@@ -226,31 +226,34 @@ export function FieldConfigurationDialog({ field, open, onClose, onSave }: Field
                 </div>
               </div>
 
-              {/* Display Field in Table View - IMPORTANT CONFIGURATION */}
+              {/* Table Display Fields - Fields to save with cross-reference */}
               <div className="space-y-2 p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
-                <Label className="text-base font-semibold">📊 Table Display Field</Label>
+                <Label className="text-base font-semibold">📊 Table Display Fields (Multiple Selection)</Label>
                 <p className="text-sm text-muted-foreground mb-2">
-                  Choose which field from the linked form to display in the table view. This makes it easier to identify records without opening them.
+                  Select which fields from the linked form to save with the cross-reference. These fields will be included in query results and shown in the table view.
                 </p>
-                <Select
-                  value={config.tableDisplayField || '__default__'}
-                  onValueChange={(value) => setConfig({ ...config, tableDisplayField: value === '__default__' ? '' : value })}
-                >
-                  <SelectTrigger className="border-2">
-                    <SelectValue placeholder="Select a field to display in table" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__default__">Submission ID only (default)</SelectItem>
-                    {targetFormFields.map((field) => (
-                      <SelectItem key={field.id} value={field.id}>
-                        {field.label} ({field.type})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {config.tableDisplayField && config.tableDisplayField !== '__default__' && (
+                <div className="grid grid-cols-2 gap-2 mt-2 p-3 bg-background rounded border">
+                  {targetFormFields.map((field) => (
+                    <div key={field.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        checked={(config.tableDisplayFields || []).includes(field.id)}
+                        onCheckedChange={(checked) => {
+                          const currentFields = config.tableDisplayFields || [];
+                          setConfig({
+                            ...config,
+                            tableDisplayFields: checked
+                              ? [...currentFields, field.id]
+                              : currentFields.filter((fieldId: string) => fieldId !== field.id)
+                          });
+                        }}
+                      />
+                      <span className="text-sm">{field.label}</span>
+                    </div>
+                  ))}
+                </div>
+                {config.tableDisplayFields && config.tableDisplayFields.length > 0 && (
                   <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
-                    ✓ Will display: {targetFormFields.find(f => f.id === config.tableDisplayField)?.label}
+                    ✓ Will save: {config.tableDisplayFields.map((fId: string) => targetFormFields.find(f => f.id === fId)?.label).filter(Boolean).join(', ')}
                   </p>
                 )}
               </div>
