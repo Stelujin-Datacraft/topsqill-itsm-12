@@ -78,6 +78,12 @@ export function OptimizedFormDataTable({
   const pageSize = config.pageSize || 10;
   const displayColumns = config.displayColumns || [];
   const isCrossReference = fieldType === 'cross-reference' || fieldType === 'child-cross-reference';
+  // For cross-reference tables, visible columns should come from tableDisplayFields (if set)
+  const visibleColumns = isCrossReference
+    ? (config.tableDisplayFields && config.tableDisplayFields.length > 0
+        ? config.tableDisplayFields
+        : displayColumns)
+    : displayColumns;
 
   // Convert config filters to the format expected by the hook
   const configFilters = (config.filters || []).map(filter => ({
@@ -411,7 +417,7 @@ export function OptimizedFormDataTable({
                           <Input placeholder="Search submissions..." value={searchTerm} onChange={e => handleSearch(e.target.value)} className="pl-9" />
                         </div>}
                       
-                      <OptimizedFilterControls activeFilters={activeFilters} setActiveFilters={setActiveFilters} formFields={formFields} displayColumns={displayColumns} />
+                      <OptimizedFilterControls activeFilters={activeFilters} setActiveFilters={setActiveFilters} formFields={formFields} displayColumns={visibleColumns} />
                     </div>
 
                     {/* Selection Table */}
@@ -429,7 +435,7 @@ export function OptimizedFormDataTable({
                           }} />
                             </TableHead>
                             <TableHead className="w-32">Ref ID</TableHead>
-                            {displayColumns.map(fieldId => <TableHead key={fieldId} className={config.enableSorting ? "cursor-pointer hover:bg-gray-50" : ""} onClick={() => handleSort(fieldId)}>
+                            {visibleColumns.map(fieldId => <TableHead key={fieldId} className={config.enableSorting ? "cursor-pointer hover:bg-gray-50" : ""} onClick={() => handleSort(fieldId)}>
                                 <div className="flex items-center gap-2">
                                   {getFieldLabel(fieldId)}
                                   {config.enableSorting && getSortIcon(fieldId, sortConditions)}
@@ -441,14 +447,14 @@ export function OptimizedFormDataTable({
                         </TableHeader>
                         <TableBody>
                           {loading ? <TableRow>
-                              <TableCell colSpan={displayColumns.length + 4} className="text-center py-8">
+                              <TableCell colSpan={visibleColumns.length + 4} className="text-center py-8">
                                 <div className="flex items-center justify-center gap-2">
                                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
                                   Loading...
                                 </div>
                               </TableCell>
                             </TableRow> : data.length === 0 ? <TableRow>
-                              <TableCell colSpan={displayColumns.length + 4} className="text-center py-8 text-gray-500">
+                              <TableCell colSpan={visibleColumns.length + 4} className="text-center py-8 text-gray-500">
                                 No submissions found
                               </TableCell>
                             </TableRow> : data.map((row, index) => <TableRow key={row.id || index}>
@@ -458,7 +464,7 @@ export function OptimizedFormDataTable({
                                 <TableCell className="font-mono text-sm">
                                   {row.submission_ref_id || `SUB-${String(index + 1).padStart(3, '0')}`}
                                 </TableCell>
-                                {displayColumns.map(fieldId => {
+                                {visibleColumns.map(fieldId => {
                           const field = formFields.find(f => f.id === fieldId);
                           return <TableCell key={fieldId}>
                                       {formatCellValue(row[fieldId], field?.field_type)}
