@@ -51,6 +51,7 @@ interface OptimizedFormDataTableProps {
 interface SelectedRecord {
   id: string;
   submission_ref_id: string;
+  form_id: string;
   displayData: Record<string, any>;
 }
 export function OptimizedFormDataTable({
@@ -124,6 +125,7 @@ export function OptimizedFormDataTable({
           manuallySelectedRecords = value.map(item => ({
             id: item.id || item.recordId,
             submission_ref_id: item.submission_ref_id || item.refId,
+            form_id: item.form_id || config.targetFormId,
             displayData: item.displayData || item
           }));
         } else {
@@ -142,6 +144,7 @@ export function OptimizedFormDataTable({
               manuallySelectedRecords = (submissions || []).map(sub => ({
                 id: sub.id,
                 submission_ref_id: sub.submission_ref_id || '',
+                form_id: config.targetFormId,
                 displayData: (sub.submission_data as Record<string, any>) || {}
               }));
             } catch (error) {
@@ -302,6 +305,7 @@ export function OptimizedFormDataTable({
       return {
         id: record.id,
         submission_ref_id: record.submission_ref_id || `SUB-${record.id.slice(0, 8)}`,
+        form_id: config.targetFormId,
         displayData
       };
     });
