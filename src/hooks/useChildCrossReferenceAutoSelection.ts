@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface AutoSelectedRecord {
   id: string;
   submission_ref_id: string;
+  form_id: string;
   displayData: Record<string, any>;
 }
 
@@ -122,6 +123,7 @@ export function useChildCrossReferenceAutoSelection({
               matchingSubmissions.push({
                 id: submission.id,
                 submission_ref_id: submission.submission_ref_id || `SUB-${submission.id.slice(0, 8)}`,
+                form_id: parentFormId,
                 displayData
               });
             }
@@ -240,6 +242,7 @@ export function useChildCrossReferenceAutoSelection({
                 matchingSubmissions.push({
                   id: submission.id,
                   submission_ref_id: submission.submission_ref_id || `SUB-${submission.id.slice(0, 8)}`,
+                  form_id: parentFormId,
                   displayData
                 });
               }
