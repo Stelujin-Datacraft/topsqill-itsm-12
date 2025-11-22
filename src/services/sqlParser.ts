@@ -1374,9 +1374,13 @@ async function executeSubquery(subqueryStr: string, loopContext?: LoopContext): 
     return { columns: [], rows: [], errors: [] };
   }
   
-  // Transform to rows with submission_id alias
+  // Transform to rows with helpful aliases
   let rows = submissions.map(sub => ({
+    // Keep a stable "submission_id" alias used by the query engine
     submission_id: sub.submission_ref_id || sub.id,
+    // Also expose both raw identifiers for WHERE clauses
+    submission_ref_id: sub.submission_ref_id,
+    id: sub.id,
     submitted_by: sub.submitted_by,
     submitted_at: sub.submitted_at,
     ...(sub.submission_data as Record<string, any>)
