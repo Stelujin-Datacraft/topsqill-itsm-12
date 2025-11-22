@@ -8,7 +8,7 @@ interface QueryTemplate {
   id: string;
   name: string;
   description: string;
-  category: 'basic' | 'aggregate' | 'filter' | 'advanced';
+  category: 'basic' | 'aggregate' | 'filter' | 'advanced' | 'cross-reference';
   query: string;
   icon: React.ReactNode;
   variables: string[];
@@ -136,6 +136,25 @@ FROM form_submissions
 WHERE form_id = '{linked_form_id}'
   AND submission_ref_id IN ('{ref_id_1}', '{ref_id_2}')`,
     variables: ['{linked_form_id}', '{field_id_1}', '{field_id_2}', '{ref_id_1}', '{ref_id_2}']
+  },
+  {
+    id: 'cross-reference-first-record',
+    name: 'Get First Cross-Reference Record',
+    description: 'Fetch all field values from the first linked cross-reference record',
+    category: 'cross-reference',
+    icon: <Database className="h-4 w-4" />,
+    query: `SELECT 
+  submission_ref_id,
+  submission_data
+FROM form_submissions
+WHERE form_id = '{linked_form_id}'
+AND submission_ref_id = (
+  SELECT submission_data->'{cross_ref_field_id}'->0->>'submission_ref_id'
+  FROM form_submissions
+  WHERE form_id = '{current_form_id}'
+  AND submission_ref_id = '{current_ref_id}'
+);`,
+    variables: ['{linked_form_id}', '{cross_ref_field_id}', '{current_form_id}', '{current_ref_id}']
   }
 ];
 
@@ -175,7 +194,8 @@ export function QueryTemplates({ onSelectTemplate, currentFormId }: QueryTemplat
       basic: { label: 'Basic', variant: 'default' as const },
       filter: { label: 'Filter', variant: 'secondary' as const },
       aggregate: { label: 'Aggregate', variant: 'outline' as const },
-      advanced: { label: 'Advanced', variant: 'destructive' as const }
+      advanced: { label: 'Advanced', variant: 'destructive' as const },
+      'cross-reference': { label: 'Cross-Ref', variant: 'outline' as const }
     };
     return badges[category as keyof typeof badges];
   };
@@ -192,7 +212,8 @@ export function QueryTemplates({ onSelectTemplate, currentFormId }: QueryTemplat
     basic: 'Basic Queries',
     filter: 'Filtering Data',
     aggregate: 'Aggregations & Analytics',
-    advanced: 'Advanced Queries'
+    advanced: 'Advanced Queries',
+    'cross-reference': 'Cross-Reference Queries'
   };
 
   return (
