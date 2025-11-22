@@ -112,7 +112,8 @@ export function parseUserQuery(input: string): ParseResult {
   const normalized = cleaned.replace(/\s+/g, ' ').trim();
   
   // Check for DISTINCT - use 's' flag to match across newlines
-  const distinctMatch = normalized.match(/^SELECT\s+(DISTINCT\s+)?(.+?)\s+FROM\s+['""]([0-9a-fA-F\-]{36})['""](.*)$/is)
+  // Support both quoted and unquoted form UUIDs as table names
+  const distinctMatch = normalized.match(/^SELECT\s+(DISTINCT\s+)?(.+?)\s+FROM\s+['""]?([0-9a-fA-F\-]{36})['""]?(.*)$/is)
   if (!distinctMatch) {
     errors.push('Invalid syntax. Expected: SELECT [DISTINCT] … FROM "form_uuid" [WHERE …] [GROUP BY …] [ORDER BY …] [LIMIT …]')
     return { errors }
@@ -857,15 +858,36 @@ export async function executeUserQuery(
     
     // Apply WHERE filter
     if (whereExpr) {
-      rows = rows.filter(row => {
-        try {
-          const condition = evaluateWhereCondition(whereExpr, row);
-          return Boolean(condition);
-        } catch (e) {
-          console.error('WHERE evaluation error:', e);
-          return false;
+      // Check if WHERE contains a subquery
+      if (whereExpr.includes('SELECT')) {
+        // Handle subquery - extract and execute it first
+        const subqueryMatch = whereExpr.match(/submission_id\s*=\s*\(([\s\S]+)\)/i);
+        if (subqueryMatch) {
+          try {
+            const subqueryResult = await executeSubquery(subqueryMatch[1], loopContext);
+            if (subqueryResult && subqueryResult.rows.length > 0 && subqueryResult.rows[0].length > 0) {
+              const targetRefId = subqueryResult.rows[0][0];
+              rows = rows.filter(row => row.submission_id === targetRefId);
+            } else {
+              rows = []; // No matching subquery result
+            }
+          } catch (e) {
+            console.error('Subquery execution error:', e);
+            return { columns: [], rows: [], errors: ['Failed to execute subquery: ' + (e instanceof Error ? e.message : String(e))] };
+          }
         }
-      });
+      } else {
+        // Regular WHERE evaluation
+        rows = rows.filter(row => {
+          try {
+            const condition = evaluateWhereCondition(whereExpr, row);
+            return Boolean(condition);
+          } catch (e) {
+            console.error('WHERE evaluation error:', e);
+            return false;
+          }
+        });
+      }
     }
     
     // Parse SELECT expressions
@@ -1314,9 +1336,115 @@ function evaluateFieldReference(fieldRef: string, row: any): any {
     return serializeFieldValue(value);
   }
   
+  // Handle submission_id alias
+  if (fieldRef === 'submission_id') {
+    return row.submission_id ?? null;
+  }
+  
   // Direct field reference
   const value = row[fieldRef] ?? null;
   return serializeFieldValue(value);
+}
+
+/**
+ * Execute a subquery and return its result
+ */
+async function executeSubquery(subqueryStr: string, loopContext?: LoopContext): Promise<QueryResult> {
+  const subquery = subqueryStr.trim();
+  
+  // Parse the subquery to extract form_id and WHERE clause
+  const subqueryMatch = subquery.match(/SELECT\s+(.+?)\s+FROM\s+['""]?([0-9a-fA-F\-]{36})['""]?\s+WHERE\s+(.+)/is);
+  if (!subqueryMatch) {
+    throw new Error('Invalid subquery syntax');
+  }
+  
+  const [, selectExpr, formId, whereClause] = subqueryMatch;
+  
+  // Fetch submissions from the subquery form
+  const { data: submissions, error } = await supabase
+    .from('form_submissions')
+    .select('*')
+    .eq('form_id', formId);
+  
+  if (error) {
+    throw new Error(`Subquery failed: ${error.message}`);
+  }
+  
+  if (!submissions || submissions.length === 0) {
+    return { columns: [], rows: [], errors: [] };
+  }
+  
+  // Transform to rows with submission_id alias
+  let rows = submissions.map(sub => ({
+    submission_id: sub.submission_ref_id || sub.id,
+    submitted_by: sub.submitted_by,
+    submitted_at: sub.submitted_at,
+    ...(sub.submission_data as Record<string, any>)
+  }));
+  
+  // Apply WHERE filter - replace submission_id with actual check
+  const normalizedWhere = whereClause.replace(/submission_id/g, 'submission_id');
+  rows = rows.filter(row => {
+    try {
+      return evaluateWhereCondition(normalizedWhere, row);
+    } catch (e) {
+      console.error('Subquery WHERE evaluation error:', e);
+      return false;
+    }
+  });
+  
+  if (rows.length === 0) {
+    return { columns: [], rows: [], errors: [] };
+  }
+  
+  // Evaluate the SELECT expression
+  // Handle FIELD() with JSONB operators like: FIELD("uuid")::jsonb -> 0 ->> 'submission_ref_id'
+  const fieldMatch = selectExpr.match(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)(::jsonb)?\s*(->|->>\s*\d+\s*->>)?\s*(.+)/i);
+  
+  if (fieldMatch) {
+    const [, fieldId, , , jsonPath] = fieldMatch;
+    const fieldValue = rows[0][fieldId];
+    
+    if (!fieldValue) {
+      return { columns: [], rows: [], errors: [] };
+    }
+    
+    // Parse JSONB path like: -> 0 ->> 'submission_ref_id'
+    let result = fieldValue;
+    
+    if (jsonPath) {
+      const pathParts = jsonPath.trim().match(/(->>?)\s*(\d+|'[^']+')/g);
+      if (pathParts) {
+        for (const part of pathParts) {
+          const [, operator, key] = part.match(/(->>?)\s*(\d+|'([^']+)')/) || [];
+          
+          if (operator === '->') {
+            // Array/object access
+            const index = key.replace(/'/g, '');
+            result = Array.isArray(result) ? result[parseInt(index)] : result[index];
+          } else if (operator === '->>') {
+            // Text extraction
+            const keyName = key.replace(/'/g, '');
+            result = result?.[keyName];
+          }
+        }
+      }
+    }
+    
+    return {
+      columns: ['result'],
+      rows: [[result]],
+      errors: []
+    };
+  }
+  
+  // Simple field selection
+  const value = evaluateFieldReference(selectExpr.trim(), rows[0]);
+  return {
+    columns: ['result'],
+    rows: [[value]],
+    errors: []
+  };
 }
 
 /**

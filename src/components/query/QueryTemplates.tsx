@@ -140,19 +140,15 @@ WHERE form_id = '{linked_form_id}'
   {
     id: 'cross-reference-first-record',
     name: 'Get First Cross-Reference Record',
-    description: 'Fetch all field values from the first linked cross-reference record',
+    description: 'Fetch all field values from the first linked cross-reference record using subquery',
     category: 'cross-reference',
     icon: <Database className="h-4 w-4" />,
-    query: `SELECT 
-  submission_ref_id,
-  submission_data
-FROM form_submissions
-WHERE form_id = '{linked_form_id}'
-AND submission_ref_id = (
-  SELECT submission_data->'{cross_ref_field_id}'->0->>'submission_ref_id'
-  FROM form_submissions
-  WHERE form_id = '{current_form_id}'
-  AND submission_ref_id = '{current_ref_id}'
+    query: `SELECT *
+FROM "{linked_form_id}"
+WHERE submission_id = (
+  SELECT (FIELD("{cross_ref_field_id}")::jsonb -> 0 ->> 'submission_ref_id')
+  FROM "{current_form_id}"
+  WHERE submission_id = '{current_ref_id}'
 );`,
     variables: ['{linked_form_id}', '{cross_ref_field_id}', '{current_form_id}', '{current_ref_id}']
   }
