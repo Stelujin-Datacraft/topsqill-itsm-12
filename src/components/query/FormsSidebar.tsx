@@ -11,7 +11,6 @@ import { schemaCache, FormDefinition, FieldDefinition, SystemColumnDefinition } 
 import { SavedQueriesSection } from './SavedQueriesSection';
 import { useSavedQueries } from '@/hooks/useSavedQueries';
 import { SavedQuery } from '@/types/queries';
-import { QueryTemplates } from './QueryTemplates';
 
 interface FormsSidebarProps {
   onInsertText: (text: string) => void;
@@ -161,7 +160,6 @@ export const FormsSidebar: React.FC<FormsSidebarProps> = ({
   const [loading, setLoading] = useState(true);
   const [isFormsExpanded, setIsFormsExpanded] = useState(true);
   const [isSystemTablesExpanded, setIsSystemTablesExpanded] = useState(false);
-  const [isTemplatesExpanded, setIsTemplatesExpanded] = useState(true);
   const { savedQueries, isLoading, deleteQuery } = useSavedQueries();
   const { userProfile } = useAuth();
 
@@ -267,24 +265,6 @@ export const FormsSidebar: React.FC<FormsSidebarProps> = ({
             onSelectQuery={handleSelectQuery}
             onDeleteQuery={deleteQuery}
           />
-
-          {/* Query Templates Section */}
-          <Collapsible open={isTemplatesExpanded} onOpenChange={setIsTemplatesExpanded}>
-            <CollapsibleTrigger className="w-full">
-              <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 border border-border">
-                {isTemplatesExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                <Database className="h-4 w-4" />
-                <span className="font-medium text-sm">Example Queries</span>
-              </div>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-1">
-              <div className="ml-2">
-                <QueryTemplates 
-                  onSelectTemplate={onSelectQuery}
-                />
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
 
           {/* System Tables Section */}
           <Collapsible open={isSystemTablesExpanded} onOpenChange={setIsSystemTablesExpanded}>
