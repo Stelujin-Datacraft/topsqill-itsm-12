@@ -14,7 +14,6 @@ import { useQueryHistory } from '@/hooks/useQueryHistory';
 import { QueryHistory } from '@/components/query/QueryHistory';
 import { Button } from '@/components/ui/button';
 import { History } from 'lucide-react';
-import { QueryTemplates } from '@/components/query/QueryTemplates';
 
 export default function QueryPage() {
   const [queryResult, setQueryResult] = useState<QueryResult>({ columns: [], rows: [], errors: [] });
@@ -249,26 +248,18 @@ export default function QueryPage() {
                 
                 {/* Results Panel */}
                 <ResizablePanel defaultSize={50} minSize={20}>
-                  <div className="h-full overflow-auto">
-                    {resultsData || resultsError ? (
-                      <QueryResultsTable 
-                        data={resultsData}
-                        error={resultsError}
-                        isLoading={isExecuting}
-                        executionTime={executionTime}
-                        queryStats={{
-                          rowsAffected: resultsData?.length || 0,
-                          rowsScanned: resultsData?.length || 0,
-                          bytesProcessed: 1024
-                        }}
-                      />
-                    ) : (
-                      <div className="p-6">
-                        <QueryTemplates 
-                          onSelectTemplate={handleSelectQuery}
-                        />
-                      </div>
-                    )}
+                  <div className="h-full">
+                    <QueryResultsTable 
+                      data={resultsData}
+                      error={resultsError}
+                      isLoading={isExecuting}
+                      executionTime={executionTime}
+                      queryStats={{
+                        rowsAffected: resultsData?.length || 0,
+                        rowsScanned: resultsData?.length || 0,
+                        bytesProcessed: 1024
+                      }}
+                    />
                   </div>
                 </ResizablePanel>
               </ResizablePanelGroup>
