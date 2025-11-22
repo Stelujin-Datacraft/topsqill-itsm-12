@@ -104,6 +104,38 @@ const templates: QueryTemplate[] = [
     icon: <Filter className="h-4 w-4" />,
     query: 'SELECT * FROM "{form_id}" WHERE "{field_id_1}" = \'value1\' AND "{field_id_2}" = \'value2\'',
     variables: ['{form_id}', '{field_id_1}', '{field_id_2}']
+  },
+  {
+    id: 'cross-reference-fetch',
+    name: 'Fetch Cross-Reference Records',
+    description: 'Get full data from linked cross-reference records',
+    category: 'advanced',
+    icon: <Database className="h-4 w-4" />,
+    query: `SELECT 
+  id,
+  submission_ref_id,
+  form_id,
+  submission_data
+FROM form_submissions
+WHERE form_id = '{linked_form_id}'
+  AND submission_ref_id IN ('{ref_id_1}', '{ref_id_2}')`,
+    variables: ['{linked_form_id}', '{ref_id_1}', '{ref_id_2}']
+  },
+  {
+    id: 'cross-reference-fields',
+    name: 'Extract Cross-Reference Field Values',
+    description: 'Get specific fields from cross-referenced records',
+    category: 'advanced',
+    icon: <Filter className="h-4 w-4" />,
+    query: `SELECT 
+  id,
+  submission_ref_id,
+  submission_data->>'{field_id_1}' as field_1,
+  submission_data->>'{field_id_2}' as field_2
+FROM form_submissions
+WHERE form_id = '{linked_form_id}'
+  AND submission_ref_id IN ('{ref_id_1}', '{ref_id_2}')`,
+    variables: ['{linked_form_id}', '{field_id_1}', '{field_id_2}', '{ref_id_1}', '{ref_id_2}']
   }
 ];
 
