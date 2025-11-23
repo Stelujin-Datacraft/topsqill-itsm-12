@@ -1246,6 +1246,9 @@ function evaluateWhereCondition(condition: string, row: any): boolean {
   processedCondition = processedCondition.replace(/\bsubmission_id\b/gi, () => {
     return `'${row.submission_id}'`;
   });
+  processedCondition = processedCondition.replace(/\bsubmission_ref_id\b/gi, () => {
+    return `'${row.submission_ref_id}'`;
+  });
   
   try {
     // Handle IS NULL / IS NOT NULL
