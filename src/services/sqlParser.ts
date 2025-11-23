@@ -300,11 +300,11 @@ export function parseUpdateFormQuery(input: string): ParseResult {
     } else {
       sqlWhereClause = 'FALSE';  // Match no records
     }
-  } else if (whereClause.match(/submission_id\s*(=|!=)\s*['""]([0-9a-fA-F\-]{36})['"\"]/i)) {
-    // Check if it's a submission_id condition (maps to submission_ref_id in backend)
-    const submissionIdMatch = whereClause.match(/submission_id\s*(=|!=)\s*['""]([0-9a-fA-F\-]{36})['"\"]/i)
-    const operator = submissionIdMatch[1]
-    const submissionId = submissionIdMatch[2]
+  } else if (whereClause.match(/(submission_id|submission_ref_id)\s*(=|!=)\s*['""]?([^'"\s]+)['""]?/i)) {
+    // Check if it's a submission_id or submission_ref_id condition
+    const submissionIdMatch = whereClause.match(/(submission_id|submission_ref_id)\s*(=|!=)\s*['""]?([^'"\s]+)['""]?/i)
+    const operator = submissionIdMatch[2]
+    const submissionId = submissionIdMatch[3]
     sqlWhereClause = `submission_ref_id ${operator} '${submissionId}'`
   } else {
     // Parse FIELD() condition
@@ -326,7 +326,7 @@ export function parseUpdateFormQuery(input: string): ParseResult {
       sqlWhereClause = `submission_data ->> '${conditionFieldId}' ${operator} '${conditionValue}'`
       }
     } else {
-      errors.push('Invalid WHERE clause. Use: WHERE true OR WHERE submission_id = \'id\' OR WHERE FIELD(\'field_id\') operator \'value\'')
+      errors.push('Invalid WHERE clause. Use: WHERE true OR WHERE submission_id/submission_ref_id = \'id\' OR WHERE FIELD(\'field_id\') operator \'value\'')
       return { errors }
     }
   }
