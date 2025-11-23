@@ -1472,14 +1472,25 @@ async function executeSubquery(subqueryStr: string, loopContext?: LoopContext): 
   
   // Evaluate the SELECT expression
   // Handle FIELD() with JSONB operators like: FIELD("uuid")::jsonb -> 0 ->> 'submission_ref_id'
-  const fieldMatch = selectExpr.match(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)(::jsonb)?\s*(->|->>\s*\d+\s*->>)?\s*(.+)/i);
+  const fieldMatch = selectExpr.match(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)::jsonb\s*(.+)/i);
   
   if (fieldMatch) {
-    const [, fieldId, , , jsonPath] = fieldMatch;
-    const fieldValue = rows[0][fieldId];
+    const [, fieldId, jsonPath] = fieldMatch;
+    let fieldValue = rows[0][fieldId];
     
-    if (!fieldValue) {
+    // If fieldValue is null or undefined, return empty result
+    if (fieldValue == null) {
       return { columns: [], rows: [], errors: [] };
+    }
+    
+    // Parse field value if it's a JSON string
+    if (typeof fieldValue === 'string') {
+      try {
+        fieldValue = JSON.parse(fieldValue);
+      } catch (e) {
+        console.error('Failed to parse field value as JSON:', e);
+        return { columns: [], rows: [], errors: ['Failed to parse field value'] };
+      }
     }
     
     // Parse JSONB path like: -> 0 ->> 'submission_ref_id'
