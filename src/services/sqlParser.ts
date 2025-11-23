@@ -982,6 +982,33 @@ export async function executeUserQuery(
           
           const result = (aggregateFunctions as any)[part.func.toUpperCase()](values);
           row.push(result);
+        } else if (part.jsonPath && part.fieldRef) {
+          // Handle JSON path extraction
+          const firstRow = groupRows[0];
+          const fieldValue = firstRow[part.fieldRef];
+          
+          try {
+            // Parse the field value as JSON if it's a string
+            let jsonData = typeof fieldValue === 'string' ? JSON.parse(fieldValue) : fieldValue;
+            
+            // Process the JSON path: -> 0 ->> 'submission_ref_id'
+            const pathMatch = part.jsonPath.match(/->?\s*(\d+)\s*-?>>\s*['""]([^'"\"]+)['"\"]/);
+            if (pathMatch) {
+              const arrayIndex = parseInt(pathMatch[1], 10);
+              const key = pathMatch[2];
+              
+              if (Array.isArray(jsonData) && jsonData[arrayIndex]) {
+                row.push(jsonData[arrayIndex][key] || null);
+              } else {
+                row.push(null);
+              }
+            } else {
+              row.push(null);
+            }
+          } catch (e) {
+            console.error('Failed to parse JSON path:', e);
+            row.push(null);
+          }
         } else {
           // Evaluate expression for first row in group
           const firstRow = groupRows[0];
@@ -1090,6 +1117,7 @@ function parseSelectExpressions(selectExpr: string): Array<{
   isAggregate: boolean;
   func?: string;
   fieldRef?: string;
+  jsonPath?: string;
 }> {
   const parts: Array<any> = [];
   const expressions = splitTopLevelCommas(selectExpr);
@@ -1101,6 +1129,19 @@ function parseSelectExpressions(selectExpr: string): Array<{
     const aliasMatch = trimmed.match(/^(.+?)\s+as\s+(\w+)$/i);
     const actualExpr = aliasMatch ? aliasMatch[1].trim() : trimmed;
     const alias = aliasMatch ? aliasMatch[2] : generateAlias(actualExpr);
+    
+    // Check for JSON path expressions: (FIELD(...)::jsonb -> 0 ->> 'key') or FIELD(...)::jsonb -> 0 ->> 'key'
+    const jsonPathMatch = actualExpr.match(/^\(?\s*FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)\s*::jsonb\s*(.+?)\s*\)?$/i);
+    if (jsonPathMatch) {
+      parts.push({
+        expr: actualExpr,
+        alias,
+        isAggregate: false,
+        fieldRef: jsonPathMatch[1],
+        jsonPath: jsonPathMatch[2].trim()
+      });
+      return;
+    }
     
     // Check for aggregate functions - Pattern 1: AGG(FIELD("field-id"))
     const aggFieldMatch = actualExpr.match(/^(COUNT|SUM|AVG|MIN|MAX)\s*\(\s*FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)\s*\)$/i);
