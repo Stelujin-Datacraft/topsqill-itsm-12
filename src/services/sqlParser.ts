@@ -850,7 +850,10 @@ export async function executeUserQuery(
     
     // Transform submissions into rows with flattened field access
     let rows = submissions.map(sub => ({
+      // Stable aliases for identifiers
       submission_id: sub.submission_ref_id || sub.id,
+      submission_ref_id: sub.submission_ref_id,
+      id: sub.id,
       submitted_by: sub.submitted_by,
       submitted_at: sub.submitted_at,
       ...(sub.submission_data as Record<string, any>)
