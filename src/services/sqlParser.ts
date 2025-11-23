@@ -2234,15 +2234,40 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
           console.log('🔍 Subquery expression:', subqueryExpr);
           
           // Parse the subquery: (SELECT FIELD("field-id") FROM "form-id" WHERE condition)
-          const subqueryMatch = subqueryExpr.match(
-            /^\s*\(\s*SELECT\s+FIELD\s*\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s+FROM\s+['""]([0-9a-fA-F\-]{36})['"\"]\s+WHERE\s+(.+?)\s*\)\s*$/i
-          );
+          // Use a helper function to properly extract the WHERE clause handling nested parentheses
+          const extractWhereClause = (query: string): { selectFieldId: string; sourceFormId: string; whereClause: string } | null => {
+            const selectMatch = query.match(/^\s*\(\s*SELECT\s+FIELD\s*\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s+FROM\s+['""]([0-9a-fA-F\-]{36})['"\"]\s+WHERE\s+/i);
+            if (!selectMatch) return null;
+            
+            const selectFieldId = selectMatch[1];
+            const sourceFormId = selectMatch[2];
+            const whereStartIndex = selectMatch[0].length;
+            
+            // Find the matching closing parenthesis for the subquery
+            let parenCount = 1; // We already have the opening '(' from the start
+            let whereEndIndex = whereStartIndex;
+            for (let i = whereStartIndex; i < query.length; i++) {
+              if (query[i] === '(') parenCount++;
+              if (query[i] === ')') {
+                parenCount--;
+                if (parenCount === 0) {
+                  whereEndIndex = i;
+                  break;
+                }
+              }
+            }
+            
+            const whereClause = query.substring(whereStartIndex, whereEndIndex).trim();
+            return { selectFieldId, sourceFormId, whereClause };
+          };
+          
+          const subqueryMatch = extractWhereClause(subqueryExpr);
           
           if (!subqueryMatch) {
             console.error('Failed to parse subquery');
             newValue = null;
           } else {
-            const [, selectFieldId, sourceFormId, subWhereClause] = subqueryMatch;
+            const { selectFieldId, sourceFormId, whereClause: subWhereClause } = subqueryMatch;
             console.log('🔍 Subquery parsed:');
             console.log('  - Select field:', selectFieldId);
             console.log('  - Source form:', sourceFormId);
