@@ -816,7 +816,7 @@ export async function executeUserQuery(
     // Fetch form fields to get weightage values for WEIGHTED_VALUE function
     const { data: formFields } = await supabase
       .from('form_fields')
-      .select('id, label, custom_config')
+      .select('id, label, custom_config, field_type')
       .eq('form_id', formUuid)
       .order('field_order', { ascending: true });
     
@@ -849,8 +849,17 @@ export async function executeUserQuery(
     let expandedSelectExpr = selectExpr;
     if (selectExpr.trim() === '*') {
       if (formFields && formFields.length > 0) {
-        // Create SELECT expression with all field IDs
-        expandedSelectExpr = formFields.map(field => `FIELD("${field.id}")`).join(', ');
+        // Filter to only include actual input fields (exclude display-only fields)
+        const nonInputFieldTypes = ['label', 'divider', 'heading', 'paragraph', 'html', 'image'];
+        const inputFields = formFields.filter(field => !nonInputFieldTypes.includes(field.field_type));
+        
+        if (inputFields.length > 0) {
+          // Create SELECT expression with all input field IDs
+          expandedSelectExpr = inputFields.map(field => `FIELD("${field.id}")`).join(', ');
+        } else {
+          // No input fields - just show system columns
+          expandedSelectExpr = 'submission_id, submission_ref_id, submitted_by, submitted_at';
+        }
       } else {
         // No fields defined - just show system columns
         expandedSelectExpr = 'submission_id, submission_ref_id, submitted_by, submitted_at';
