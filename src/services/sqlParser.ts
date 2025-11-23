@@ -817,7 +817,8 @@ export async function executeUserQuery(
     const { data: formFields } = await supabase
       .from('form_fields')
       .select('id, label, custom_config')
-      .eq('form_id', formUuid);
+      .eq('form_id', formUuid)
+      .order('field_order', { ascending: true });
     
     // Build field metadata for WEIGHTED_VALUE support
     const fieldMetadata: Record<string, any> = {};
@@ -842,6 +843,18 @@ export async function executeUserQuery(
         fieldMetadata[field.id] = { label: field.label, weightage };
         fieldMetadata[field.label] = { id: field.id, weightage };
       });
+    }
+    
+    // Expand SELECT * to all form fields
+    let expandedSelectExpr = selectExpr;
+    if (selectExpr.trim() === '*') {
+      if (formFields && formFields.length > 0) {
+        // Create SELECT expression with all field IDs
+        expandedSelectExpr = formFields.map(field => `FIELD("${field.id}")`).join(', ');
+      } else {
+        // No fields defined - just show system columns
+        expandedSelectExpr = 'submission_id, submission_ref_id, submitted_by, submitted_at';
+      }
     }
     
     console.log('=== Field Metadata Built ===');
@@ -894,7 +907,7 @@ export async function executeUserQuery(
     }
     
     // Parse SELECT expressions
-    const selectParts = parseSelectExpressions(selectExpr);
+    const selectParts = parseSelectExpressions(expandedSelectExpr);
     const isAggregateQuery = selectParts.some(p => p.isAggregate);
     
     // Generate column headers - replace field IDs with labels
