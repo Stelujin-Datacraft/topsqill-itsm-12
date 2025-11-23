@@ -2248,13 +2248,92 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
             console.log('  - Source form:', sourceFormId);
             console.log('  - WHERE clause:', subWhereClause);
             
-            // Parse WHERE clause: submission_ref_id = JSON_UNQUOTE(JSON_EXTRACT(FIELD("field-id"), '$[0].submission_ref_id'))
+            // Parse WHERE clause: supports both JSON_EXTRACT and nested subqueries
+            // Pattern 1: submission_ref_id = JSON_UNQUOTE(JSON_EXTRACT(FIELD("field-id"), '$[0].submission_ref_id'))
             const jsonExtractMatch = subWhereClause.match(
               /submission_ref_id\s*=\s*JSON_UNQUOTE\s*\(\s*JSON_EXTRACT\s*\(\s*FIELD\s*\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*,\s*['"](\$\[0\]\.submission_ref_id)['"]\s*\)\s*\)/i
             );
             
-            if (!jsonExtractMatch) {
-              console.error('Failed to parse JSON_EXTRACT in WHERE clause');
+            // Pattern 2: submission_id = (SELECT (FIELD("field")::jsonb -> 0 ->> 'submission_ref_id') FROM "form" WHERE ...)
+            const nestedSubqueryMatch = subWhereClause.match(
+              /submission_(?:ref_)?id\s*=\s*\(\s*SELECT\s+\(\s*FIELD\s*\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)::jsonb\s*->\s*0\s*->>\s*['"]submission_ref_id['"]\s*\)\s+FROM\s+['""]([0-9a-fA-F\-]{36})['"\"]\s+WHERE\s+(.+?)\s*\)/i
+            );
+            
+            console.log('🔍 WHERE clause parsing:');
+            console.log('  - jsonExtractMatch:', jsonExtractMatch);
+            console.log('  - nestedSubqueryMatch:', nestedSubqueryMatch);
+            
+            if (nestedSubqueryMatch) {
+              // Handle nested subquery pattern
+              const [, crossRefFieldId, nestedFormId, nestedWhereClause] = nestedSubqueryMatch;
+              console.log('🔍 Nested subquery parsed:');
+              console.log('  - Cross-ref field:', crossRefFieldId);
+              console.log('  - Nested form:', nestedFormId);
+              console.log('  - Nested WHERE:', nestedWhereClause);
+              
+              // Parse the nested WHERE clause (e.g., submission_ref_id = 'NT0251123002')
+              const nestedWhereMatch = nestedWhereClause.match(/submission_ref_id\s*=\s*['""]([^'"\"]+)['"\"]/i);
+              
+              if (!nestedWhereMatch) {
+                console.error('Failed to parse nested WHERE clause');
+                newValue = null;
+              } else {
+                const nestedSubmissionRefId = nestedWhereMatch[1];
+                console.log('🔍 Nested submission ref ID:', nestedSubmissionRefId);
+                
+                // First, get the cross-reference value from the nested form
+                const { data: nestedSubmission, error: nestedError } = await supabase
+                  .from('form_submissions')
+                  .select('submission_data')
+                  .eq('form_id', nestedFormId)
+                  .eq('submission_ref_id', nestedSubmissionRefId)
+                  .single();
+                
+                if (nestedError) {
+                  console.error('Error fetching nested submission:', nestedError);
+                  newValue = null;
+                } else if (nestedSubmission) {
+                  const crossRefValue = nestedSubmission.submission_data[crossRefFieldId];
+                  console.log('🔍 Cross-reference field value:', crossRefValue);
+                  
+                  if (Array.isArray(crossRefValue) && crossRefValue.length > 0) {
+                    const linkedSubmissionRefId = crossRefValue[0]?.submission_ref_id;
+                    console.log('🔍 Linked submission ref ID:', linkedSubmissionRefId);
+                    
+                    if (linkedSubmissionRefId) {
+                      // Now query the source form with the linked submission ref ID
+                      const { data: linkedSubmissions, error: linkedError } = await supabase
+                        .from('form_submissions')
+                        .select('submission_data')
+                        .eq('form_id', sourceFormId)
+                        .eq('submission_ref_id', linkedSubmissionRefId)
+                        .single();
+                      
+                      if (linkedError) {
+                        console.error('Error fetching linked submission:', linkedError);
+                        newValue = null;
+                      } else if (linkedSubmissions) {
+                        newValue = linkedSubmissions.submission_data[selectFieldId];
+                        console.log('✅ Fetched value from linked submission:', newValue);
+                      } else {
+                        console.log('⚠️ No linked submission found');
+                        newValue = null;
+                      }
+                    } else {
+                      console.log('⚠️ No submission_ref_id in cross-reference data');
+                      newValue = null;
+                    }
+                  } else {
+                    console.log('⚠️ Cross-reference field is empty or not an array');
+                    newValue = null;
+                  }
+                } else {
+                  console.log('⚠️ No nested submission found');
+                  newValue = null;
+                }
+              }
+            } else if (!jsonExtractMatch) {
+              console.error('Failed to parse WHERE clause - neither JSON_EXTRACT nor nested subquery pattern matched');
               newValue = null;
             } else {
               const [, crossRefFieldId, jsonPath] = jsonExtractMatch;
