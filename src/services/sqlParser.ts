@@ -205,8 +205,9 @@ export function parseUpdateFormQuery(input: string): ParseResult {
   // Parse the UPDATE FORM syntax with flexible WHERE clause
   // Supports both: WHERE submission_ref_id = 'id' and WHERE FIELD('field_id') operator 'value'
   // Also supports subqueries with multiple lines
+  // Strategy: Find the LAST WHERE that's not inside parentheses (i.e., belongs to UPDATE, not a subquery)
   const updateMatch = input.match(
-    /^UPDATE\s+FORM\s+['""]([0-9a-fA-F\-]{36})['"\"]\s+SET\s+FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*=\s*([\s\S]+?)\s+WHERE\s+([\s\S]+)$/im
+    /^UPDATE\s+FORM\s+['""]([0-9a-fA-F\-]{36})['"\"]\s+SET\s+FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*=\s*([\s\S]+)\s+WHERE\s+((?:submission_id|submission_ref_id)\s*(?:=|!=)\s*['"]?[^'";\s]+['"]?)[\s;]*$/im
   )
 
   if (!updateMatch) {
