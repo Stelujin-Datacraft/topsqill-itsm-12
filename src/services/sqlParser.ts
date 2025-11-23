@@ -2115,6 +2115,11 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
     const valueExpression = parts[4];
     const whereClause = parts[5];
 
+    console.log('🔍 UPDATE Executor - WHERE clause debug:');
+    console.log('  - Form ID:', formId);
+    console.log('  - WHERE clause:', whereClause);
+    console.log('  - WHERE clause length:', whereClause.length);
+
     // Fetch all matching submissions based on WHERE clause
     let query = supabase
       .from('form_submissions')
@@ -2123,17 +2128,30 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
 
     // Apply WHERE filter for submission_ref_id or submission_id (both map to submission_ref_id column)
     const submissionIdMatch = whereClause.match(/(?:submission_ref_id|submission_id)\s+(=|!=)\s+'([^']+)'/i);
+    console.log('  - Regex match result:', submissionIdMatch);
+    
     if (submissionIdMatch) {
       const operator = submissionIdMatch[1];
       const submissionId = submissionIdMatch[2];
+      console.log('  - Matched operator:', operator);
+      console.log('  - Matched submission ID:', submissionId);
       if (operator === '=') {
         query = query.eq('submission_ref_id', submissionId);
       } else {
         query = query.neq('submission_ref_id', submissionId);
       }
+    } else {
+      console.log('  - ⚠️ WHERE clause did not match submission_id pattern');
     }
 
     const { data: submissions, error: fetchError } = await query;
+
+    console.log('  - Query result:');
+    console.log('    - Error:', fetchError);
+    console.log('    - Submissions found:', submissions?.length || 0);
+    if (submissions && submissions.length > 0) {
+      console.log('    - First submission ref_id:', submissions[0].submission_ref_id);
+    }
 
     if (fetchError) {
       return { columns: [], rows: [], errors: [fetchError.message] };
