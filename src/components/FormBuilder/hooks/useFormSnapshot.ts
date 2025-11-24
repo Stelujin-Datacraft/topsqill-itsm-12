@@ -10,34 +10,34 @@ export interface FormSnapshot {
   initializedFormId: string | null;
 }
 
-// Helper function to generate localStorage key for new (unsaved) forms only
-const getLocalStorageKey = () => {
-  return 'form-draft-new';
+// Helper function to generate localStorage key
+const getLocalStorageKey = (formId: string | null) => {
+  return `form-draft-${formId || 'new'}`;
 };
 
-// Helper function to save draft to localStorage for new forms
-const saveDraftToLocalStorage = (form: Form | null) => {
+// Helper function to save draft to localStorage
+const saveDraftToLocalStorage = (formId: string | null, form: Form | null) => {
   if (!form) return;
   try {
-    const key = getLocalStorageKey();
+    const key = getLocalStorageKey(formId);
     localStorage.setItem(key, JSON.stringify({
       form,
       savedAt: new Date().toISOString()
     }));
-    console.log('Draft auto-saved to localStorage for new form:', key);
+    console.log('Draft auto-saved to localStorage:', key);
   } catch (error) {
     console.error('Failed to save draft to localStorage:', error);
   }
 };
 
-// Helper function to load draft from localStorage for new forms
-const loadDraftFromLocalStorage = (): Form | null => {
+// Helper function to load draft from localStorage
+const loadDraftFromLocalStorage = (formId: string | null): Form | null => {
   try {
-    const key = getLocalStorageKey();
+    const key = getLocalStorageKey(formId);
     const saved = localStorage.getItem(key);
     if (saved) {
       const { form, savedAt } = JSON.parse(saved);
-      console.log('Draft loaded from localStorage for new form:', key, 'saved at:', savedAt);
+      console.log('Draft loaded from localStorage:', key, 'saved at:', savedAt);
       return form;
     }
   } catch (error) {
@@ -46,12 +46,12 @@ const loadDraftFromLocalStorage = (): Form | null => {
   return null;
 };
 
-// Helper function to clear draft from localStorage for new forms
-const clearDraftFromLocalStorage = () => {
+// Helper function to clear draft from localStorage
+const clearDraftFromLocalStorage = (formId: string | null) => {
   try {
-    const key = getLocalStorageKey();
+    const key = getLocalStorageKey(formId);
     localStorage.removeItem(key);
-    console.log('Draft cleared from localStorage for new form:', key);
+    console.log('Draft cleared from localStorage:', key);
   } catch (error) {
     console.error('Failed to clear draft from localStorage:', error);
   }
@@ -68,42 +68,31 @@ export function useFormSnapshot(initialForm: Form | null) {
 
   const originalFormRef = useRef<Form | null>(initialForm);
   
+  // Auto-save to localStorage whenever snapshot changes and is dirty
   useEffect(() => {
-    // Only auto-save drafts for new (unsaved) forms where there is no initializedFormId
-    if (snapshot.isDirty && snapshot.form && !snapshot.initializedFormId) {
-      saveDraftToLocalStorage(snapshot.form);
+    if (snapshot.isDirty && snapshot.form) {
+      saveDraftToLocalStorage(snapshot.initializedFormId, snapshot.form);
     }
   }, [snapshot.form, snapshot.isDirty, snapshot.initializedFormId]);
 
+  // Initialize snapshot from form
   const initializeSnapshot = useCallback((form: Form | null) => {
     originalFormRef.current = form;
     
-    // For existing forms (with an ID), skip localStorage drafts and use the DB form
-    if (form && form.id) {
-      setSnapshot({
-        form: { ...form },
-        isInitialized: true,
-        isDirty: false,
-        lastSaved: new Date(),
-        initializedFormId: form.id,
-      });
-      return;
-    }
-
-    // For new forms (no ID), try to restore a draft from localStorage
-    const draft = loadDraftFromLocalStorage();
+    // Check for draft in localStorage first (for both new and existing forms)
+    const draft = loadDraftFromLocalStorage(form?.id || null);
     const formToUse = draft || form;
     
     if (draft) {
-      console.log('Restoring draft from localStorage for new form');
+      console.log('Restoring draft from localStorage for form:', form?.id || 'new');
     }
     
     setSnapshot({
       form: formToUse ? { ...formToUse } : null,
       isInitialized: true,
-      isDirty: !!draft,
-      lastSaved: null,
-      initializedFormId: null,
+      isDirty: !!draft, // Mark as dirty if we loaded a draft
+      lastSaved: form ? new Date() : null,
+      initializedFormId: form?.id || null,
     });
   }, []);
 
@@ -338,8 +327,8 @@ export function useFormSnapshot(initialForm: Form | null) {
 
   // Mark as saved (after successful save to DB)
   const markAsSaved = useCallback(() => {
-    // Clear draft from localStorage when form is saved (only relevant for new forms)
-    clearDraftFromLocalStorage();
+    // Clear draft from localStorage when form is saved
+    clearDraftFromLocalStorage(snapshot.initializedFormId);
     
     setSnapshot(prev => ({
       ...prev,
@@ -347,12 +336,12 @@ export function useFormSnapshot(initialForm: Form | null) {
       lastSaved: new Date(),
     }));
     originalFormRef.current = snapshot.form;
-  }, [snapshot.form]);
+  }, [snapshot.form, snapshot.initializedFormId]);
 
   // Reset to original (discard changes)
   const resetSnapshot = useCallback(() => {
-    // Clear draft from localStorage when discarding changes for new forms
-    clearDraftFromLocalStorage();
+    // Clear draft from localStorage when discarding changes
+    clearDraftFromLocalStorage(snapshot.initializedFormId);
     
     setSnapshot({
       form: originalFormRef.current ? { ...originalFormRef.current } : null,
@@ -361,7 +350,7 @@ export function useFormSnapshot(initialForm: Form | null) {
       lastSaved: originalFormRef.current ? new Date() : null,
       initializedFormId: originalFormRef.current?.id || null,
     });
-  }, []);
+  }, [snapshot.initializedFormId]);
 
   return {
     snapshot,
