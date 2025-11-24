@@ -668,7 +668,7 @@ export function FormBuilder({
         <div className="text-muted-foreground">Loading forms...</div>
       </div>;
   }
-  return <FormSnapshotProvider initialForm={currentForm}>
+  return <FormSnapshotProvider initialForm={null}>
       <FormBuilderContent formId={formId} />
     </FormSnapshotProvider>;
 }
