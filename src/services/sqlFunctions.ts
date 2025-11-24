@@ -105,12 +105,14 @@ export const aggregateFunctions = {
     const nums = filteredValues.filter(v => v != null && !isNaN(parseFloat(v))).map(v => parseFloat(v));
     return nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : 0;
   },
-  MIN: (values: any[]) => {
-    const nums = values.filter(v => v != null && !isNaN(parseFloat(v))).map(v => parseFloat(v));
+  MIN: (values: any[], filterFn?: (v: any) => boolean) => {
+    let filteredValues = filterFn ? values.filter(filterFn) : values;
+    const nums = filteredValues.filter(v => v != null && !isNaN(parseFloat(v))).map(v => parseFloat(v));
     return nums.length > 0 ? Math.min(...nums) : null;
   },
-  MAX: (values: any[]) => {
-    const nums = values.filter(v => v != null && !isNaN(parseFloat(v))).map(v => parseFloat(v));
+  MAX: (values: any[], filterFn?: (v: any) => boolean) => {
+    let filteredValues = filterFn ? values.filter(filterFn) : values;
+    const nums = filteredValues.filter(v => v != null && !isNaN(parseFloat(v))).map(v => parseFloat(v));
     return nums.length > 0 ? Math.max(...nums) : null;
   }
 };

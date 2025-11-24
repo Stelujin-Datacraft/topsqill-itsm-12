@@ -1200,6 +1200,20 @@ function parseSelectExpressions(selectExpr: string): Array<{
       return;
     }
     
+    // Check for aggregate functions with FILTER - Pattern: COUNT(*) FILTER (WHERE condition)
+    const aggFilterMatch = actualExpr.match(/^(COUNT|SUM|AVG|MIN|MAX)\s*\(\s*\*?\s*\)\s*FILTER\s*\(\s*WHERE\s+(.+?)\s*\)$/i);
+    if (aggFilterMatch) {
+      parts.push({
+        expr: actualExpr,
+        alias,
+        isAggregate: true,
+        func: aggFilterMatch[1],
+        fieldRef: '*',
+        filterCondition: aggFilterMatch[2].trim()
+      });
+      return;
+    }
+    
     // Check for aggregate functions - Pattern 1: AGG(FIELD("field-id"))
     const aggFieldMatch = actualExpr.match(/^(COUNT|SUM|AVG|MIN|MAX)\s*\(\s*FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)\s*\)$/i);
     if (aggFieldMatch) {
