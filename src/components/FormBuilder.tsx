@@ -90,10 +90,14 @@ function FormBuilderContent({
       // Re-initialize only if we're loading a different form
       console.log('Re-initializing snapshot for different form:', currentForm.id);
       initializeSnapshot(currentForm);
+    } else if (!currentForm && formId && !snapshot.isInitialized) {
+      // Form exists only as a local draft (e.g. unsaved or non-active in DB): restore by ID from localStorage
+      console.log('Initializing snapshot from localStorage for draft form ID:', formId);
+      initializeSnapshot(null, formId);
     } else if (!currentForm && !formId && !snapshot.isInitialized) {
-      // New form creation flow: try to restore draft from localStorage
-      console.log('Initializing snapshot for new form (draft)');
-      initializeSnapshot(null);
+      // New form creation flow: try to restore generic draft from localStorage
+      console.log('Initializing snapshot for new form (draft) with generic key');
+      initializeSnapshot(null, null);
     }
   }, [currentForm?.id, formId, snapshot.isInitialized, snapshot.initializedFormId, initializeSnapshot]);
 
@@ -174,7 +178,8 @@ function FormBuilderContent({
   const handleCreateForm = async (formData: any) => {
     const newForm = await createForm(formData);
     if (newForm) {
-      initializeSnapshot(newForm);
+      // Initialize snapshot with newly created form and ensure drafts use its ID
+      initializeSnapshot(newForm, newForm.id);
       navigate(`/form-builder/${newForm.id}`, {
         replace: true
       });

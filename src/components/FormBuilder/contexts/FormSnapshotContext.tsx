@@ -4,7 +4,7 @@ import { useFormSnapshot, FormSnapshot } from '../hooks/useFormSnapshot';
 
 interface FormSnapshotContextType {
   snapshot: FormSnapshot;
-  initializeSnapshot: (form: Form | null) => void;
+  initializeSnapshot: (form: Form | null, formIdOverride?: string | null) => void;
   updateFormDetails: (updates: Partial<Form>) => void;
   addFieldToSnapshot: (field: Omit<FormField, 'id'>, pageId: string) => FormField;
   updateFieldInSnapshot: (fieldId: string, updates: Partial<FormField>) => void;
