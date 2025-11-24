@@ -81,34 +81,17 @@ function FormBuilderContent({
     fields: workingForm?.fields.map(f => f.id) || []
   }];
 
-  // Initialize snapshot when form loads or route changes
+  // Initialize snapshot when form loads (only once per form ID)
   useEffect(() => {
-    if (currentForm) {
-      if (!snapshot.isInitialized || snapshot.initializedFormId !== currentForm.id) {
-        console.log('Initializing form snapshot for form (from DB):', currentForm.id);
-        initializeSnapshot(currentForm);
-      }
-    } else if (formId) {
-      // Form not loaded from DB (e.g. draft or not active) – always try to restore from localStorage by ID
-      console.log('Initializing snapshot from localStorage for draft form ID:', formId);
-      initializeSnapshot(null, formId);
-    } else if (!formId) {
-      // New form creation flow: try to restore generic draft from localStorage
-      console.log('Initializing snapshot for new form (draft) with generic key');
-      initializeSnapshot(null, null);
+    if (currentForm && !snapshot.isInitialized) {
+      console.log('Initializing form snapshot:', currentForm);
+      initializeSnapshot(currentForm);
+    } else if (currentForm && snapshot.isInitialized && snapshot.form?.id !== currentForm.id) {
+      // Re-initialize only if we're loading a different form
+      console.log('Re-initializing snapshot for different form:', currentForm.id);
+      initializeSnapshot(currentForm);
     }
-  }, [currentForm?.id, formId, snapshot.isInitialized, snapshot.initializedFormId, initializeSnapshot]);
-
-  // Sync state with snapshot when draft is loaded
-  useEffect(() => {
-    if (snapshot.form && snapshot.isDirty) {
-      // If snapshot has a draft (isDirty = true), sync the form name and description to state
-      console.log('Syncing state with loaded draft');
-      state.setFormName(snapshot.form.name);
-      state.setFormDescription(snapshot.form.description);
-      state.setColumnLayout((snapshot.form.layout?.columns as 1 | 2 | 3) || 1);
-    }
-  }, [snapshot.isDirty, snapshot.form?.id]);
+  }, [currentForm?.id, snapshot.isInitialized, initializeSnapshot]);
 
   // Initialize current page and ensure Page 1 exists for new forms
   useEffect(() => {
@@ -176,8 +159,7 @@ function FormBuilderContent({
   const handleCreateForm = async (formData: any) => {
     const newForm = await createForm(formData);
     if (newForm) {
-      // Initialize snapshot with newly created form and ensure drafts use its ID
-      initializeSnapshot(newForm, newForm.id);
+      initializeSnapshot(newForm);
       navigate(`/form-builder/${newForm.id}`, {
         replace: true
       });
