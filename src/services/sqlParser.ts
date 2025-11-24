@@ -90,8 +90,11 @@ export function parseUserQuery(input: string): ParseResult {
     return parseInsertQuery(cleaned)
   }
 
-  // 1. Only allow SELECT for non-UPDATE queries
-  if (!/^SELECT\s+/i.test(cleaned)) {
+  // Check for WITH clause (CTE)
+  const hasWithClause = /^WITH\s+/i.test(cleaned);
+  
+  // 1. Only allow SELECT (including WITH CTEs) for non-UPDATE queries
+  if (!hasWithClause && !/^SELECT\s+/i.test(cleaned)) {
     errors.push('Only SELECT, INSERT, and UPDATE FORM queries are allowed.')
     return { errors }
   }
@@ -107,20 +110,55 @@ export function parseUserQuery(input: string): ParseResult {
     }
   }
 
-  // 2. Extract main parts: SELECT … FROM "formUuid" [WHERE …] [GROUP BY …] [HAVING …] [ORDER BY …] [LIMIT …] [OFFSET …]
+  // 2. Extract main parts: WITH ctes SELECT … FROM "formUuid" or CTE [WHERE …] [GROUP BY …] [HAVING …] [ORDER BY …] [LIMIT …] [OFFSET …]
   // Normalize whitespace and newlines for multi-line queries - preserve structure but collapse whitespace
   const normalized = cleaned.replace(/\s+/g, ' ').trim();
   
+  // Parse CTEs if present
+  let ctes: { name: string; query: string }[] = [];
+  let mainQuery = normalized;
+  
+  if (hasWithClause) {
+    // Extract CTEs from WITH clause
+    const cteMatch = normalized.match(/^WITH\s+([\s\S]+?)\s+SELECT\s+/i);
+    if (!cteMatch) {
+      errors.push('Invalid WITH syntax. Expected: WITH cte_name AS (SELECT ...) SELECT ...')
+      return { errors }
+    }
+    
+    const cteSection = cteMatch[1];
+    mainQuery = normalized.substring(cteMatch[0].length - 7); // Keep "SELECT "
+    
+    // Parse individual CTEs
+    const cteDefinitions = cteSection.split(/\),\s*(?=[a-z_]\w+\s+AS\s+\()/i);
+    for (const cteDef of cteDefinitions) {
+      const cteDefMatch = cteDef.match(/([a-z_]\w+)\s+AS\s+\((.+)\)?$/is);
+      if (cteDefMatch) {
+        const cteName = cteDefMatch[1].trim();
+        let cteQuery = cteDefMatch[2].trim();
+        // Remove trailing parenthesis if present
+        if (cteQuery.endsWith(')')) {
+          cteQuery = cteQuery.slice(0, -1).trim();
+        }
+        ctes.push({ name: cteName, query: cteQuery });
+      }
+    }
+  }
+  
   // Check for DISTINCT - use 's' flag to match across newlines
-  // Support both quoted and unquoted form UUIDs as table names
-  const distinctMatch = normalized.match(/^SELECT\s+(DISTINCT\s+)?(.+?)\s+FROM\s+['""]?([0-9a-fA-F\-]{36})['""]?(.*)$/is)
+  // Support both quoted and unquoted form UUIDs as table names, OR CTE names
+  const distinctMatch = mainQuery.match(/^SELECT\s+(DISTINCT\s+)?(.+?)\s+FROM\s+([a-z_][\w]*|['""]?[0-9a-fA-F\-]{36}['""]?)(.*)$/is)
   if (!distinctMatch) {
-    errors.push('Invalid syntax. Expected: SELECT [DISTINCT] … FROM "form_uuid" [WHERE …] [GROUP BY …] [ORDER BY …] [LIMIT …]')
+    errors.push('Invalid syntax. Expected: SELECT [DISTINCT] … FROM "form_uuid" or cte_name [WHERE …] [GROUP BY …] [ORDER BY …] [LIMIT …]')
     return { errors }
   }
   
-  let [, distinctKeyword, selectExpr, formUuid, restOfQuery] = distinctMatch
+  let [, distinctKeyword, selectExpr, fromSource, restOfQuery] = distinctMatch
   const isDistinct = Boolean(distinctKeyword)
+  
+  // Determine if FROM is a CTE or a form UUID
+  const isCteReference = ctes.some(cte => cte.name === fromSource.replace(/['"]/g, ''));
+  const formUuid = isCteReference ? '' : fromSource.replace(/['"]/g, '');
   
   // Parse optional clauses
   let whereExpr = ''
@@ -169,6 +207,9 @@ export function parseUserQuery(input: string): ParseResult {
   // Store all parsed clauses for client-side execution
   const queryMetadata = {
     formUuid,
+    fromSource,
+    isCteReference,
+    ctes,
     selectExpr,
     whereExpr,
     groupByExpr,
@@ -180,7 +221,12 @@ export function parseUserQuery(input: string): ParseResult {
   };
 
   // Encode metadata in SQL comment for client-side execution
-  const sql = `-- QUERY_METADATA: ${JSON.stringify(queryMetadata)}\nSELECT ${selectExpr} FROM form_submissions WHERE form_id = '${formUuid}';`;
+  let sql: string;
+  if (isCteReference) {
+    sql = `-- QUERY_METADATA: ${JSON.stringify(queryMetadata)}\n-- CTE_QUERY`;
+  } else {
+    sql = `-- QUERY_METADATA: ${JSON.stringify(queryMetadata)}\nSELECT ${selectExpr} FROM form_submissions WHERE form_id = '${formUuid}';`;
+  }
 
   return { sql, errors }
 }
@@ -789,6 +835,16 @@ export async function executeUserQuery(
     // Check if this is a system table query
     if (sql?.includes('-- SYSTEM_TABLE_QUERY')) {
       return await executeSystemTableQuery(sql.replace('-- SYSTEM_TABLE_QUERY\n', ''));
+    }
+    
+    // Check if this is a CTE query
+    if (sql?.includes('-- CTE_QUERY')) {
+      const metadataMatch = sql.match(/-- QUERY_METADATA: (.+)\n/);
+      if (!metadataMatch) {
+        return { columns: [], rows: [], errors: ['Failed to parse CTE query metadata'] };
+      }
+      const metadata = JSON.parse(metadataMatch[1]);
+      return await executeCTEQuery(metadata, loopContext);
     }
     
     // Extract query metadata from SQL comment
