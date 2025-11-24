@@ -88,16 +88,21 @@ export const mathFunctions = {
  * Aggregate Functions
  */
 export const aggregateFunctions = {
-  COUNT: (values: any[]) => {
-    // Handle COUNT(*) - count all rows, not just non-null values
+  COUNT: (values: any[], filterFn?: (v: any) => boolean) => {
+    // Handle COUNT(*) with optional FILTER clause
+    if (filterFn) {
+      return values.filter(filterFn).length;
+    }
     return values.length;
   },
-  SUM: (values: any[]) => {
-    const nums = values.filter(v => v != null && !isNaN(parseFloat(v))).map(v => parseFloat(v));
+  SUM: (values: any[], filterFn?: (v: any) => boolean) => {
+    let filteredValues = filterFn ? values.filter(filterFn) : values;
+    const nums = filteredValues.filter(v => v != null && !isNaN(parseFloat(v))).map(v => parseFloat(v));
     return nums.reduce((sum, v) => sum + v, 0);
   },
-  AVG: (values: any[]) => {
-    const nums = values.filter(v => v != null && !isNaN(parseFloat(v))).map(v => parseFloat(v));
+  AVG: (values: any[], filterFn?: (v: any) => boolean) => {
+    let filteredValues = filterFn ? values.filter(filterFn) : values;
+    const nums = filteredValues.filter(v => v != null && !isNaN(parseFloat(v))).map(v => parseFloat(v));
     return nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : 0;
   },
   MIN: (values: any[]) => {
