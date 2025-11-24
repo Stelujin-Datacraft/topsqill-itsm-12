@@ -75,16 +75,19 @@ export function useFormSnapshot(initialForm: Form | null) {
     }
   }, [snapshot.form, snapshot.isDirty, snapshot.initializedFormId]);
 
-  // Initialize snapshot from form
-  const initializeSnapshot = useCallback((form: Form | null) => {
+  // Initialize snapshot from form or from localStorage-only draft
+  const initializeSnapshot = useCallback((form: Form | null, formIdOverride?: string | null) => {
+    // Determine which ID to use for drafts (supports localStorage-only drafts by ID)
+    const effectiveFormId = form?.id || formIdOverride || null;
+
     originalFormRef.current = form;
     
-    // Check for draft in localStorage first (for both new and existing forms)
-    const draft = loadDraftFromLocalStorage(form?.id || null);
+    // Check for draft in localStorage first (for both new and existing forms, or ID-only drafts)
+    const draft = loadDraftFromLocalStorage(effectiveFormId);
     const formToUse = draft || form;
     
     if (draft) {
-      console.log('Restoring draft from localStorage for form:', form?.id || 'new');
+      console.log('Restoring draft from localStorage for form:', effectiveFormId || 'new');
     }
     
     setSnapshot({
@@ -92,7 +95,7 @@ export function useFormSnapshot(initialForm: Form | null) {
       isInitialized: true,
       isDirty: !!draft, // Mark as dirty if we loaded a draft
       lastSaved: form ? new Date() : null,
-      initializedFormId: form?.id || null,
+      initializedFormId: effectiveFormId,
     });
   }, []);
 
