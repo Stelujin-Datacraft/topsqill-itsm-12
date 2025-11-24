@@ -10,9 +10,9 @@ export interface FormSnapshot {
   initializedFormId: string | null;
 }
 
-// Helper function to generate localStorage key
+// Helper function to generate localStorage key for builder drafts (avoid collision with submission drafts)
 const getLocalStorageKey = (formId: string | null) => {
-  return `form-draft-${formId || 'new'}`;
+  return `form-builder-draft-${formId || 'new'}`;
 };
 
 // Helper function to save draft to localStorage
@@ -30,15 +30,30 @@ const saveDraftToLocalStorage = (formId: string | null, form: Form | null) => {
   }
 };
 
-// Helper function to load draft from localStorage
+// Helper function to load draft from localStorage (supports legacy submission-draft key)
 const loadDraftFromLocalStorage = (formId: string | null): Form | null => {
   try {
-    const key = getLocalStorageKey(formId);
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      const { form, savedAt } = JSON.parse(saved);
-      console.log('Draft loaded from localStorage:', key, 'saved at:', savedAt);
-      return form;
+    const builderKey = getLocalStorageKey(formId);
+    const legacyKey = `form-draft-${formId || 'new'}`;
+
+    const rawBuilder = localStorage.getItem(builderKey);
+    if (rawBuilder) {
+      const { form, savedAt } = JSON.parse(rawBuilder);
+      if (form) {
+        console.log('Builder draft loaded from localStorage:', builderKey, 'saved at:', savedAt);
+        return form as Form;
+      }
+    }
+
+    // Fallback: try legacy key only if it has a builder-style payload (with .form)
+    const rawLegacy = localStorage.getItem(legacyKey);
+    if (rawLegacy) {
+      const parsed = JSON.parse(rawLegacy);
+      if (parsed && typeof parsed === 'object' && 'form' in parsed) {
+        const { form, savedAt } = parsed as { form: Form; savedAt?: string };
+        console.log('Legacy builder draft loaded from localStorage:', legacyKey, 'saved at:', savedAt);
+        return form;
+      }
     }
   } catch (error) {
     console.error('Failed to load draft from localStorage:', error);
@@ -46,12 +61,14 @@ const loadDraftFromLocalStorage = (formId: string | null): Form | null => {
   return null;
 };
 
-// Helper function to clear draft from localStorage
+// Helper function to clear draft from localStorage (builder + legacy key)
 const clearDraftFromLocalStorage = (formId: string | null) => {
   try {
-    const key = getLocalStorageKey(formId);
-    localStorage.removeItem(key);
-    console.log('Draft cleared from localStorage:', key);
+    const builderKey = getLocalStorageKey(formId);
+    const legacyKey = `form-draft-${formId || 'new'}`;
+    localStorage.removeItem(builderKey);
+    localStorage.removeItem(legacyKey);
+    console.log('Draft cleared from localStorage:', { builderKey, legacyKey });
   } catch (error) {
     console.error('Failed to clear draft from localStorage:', error);
   }
@@ -71,6 +88,7 @@ export function useFormSnapshot(initialForm: Form | null) {
   // Auto-save to localStorage whenever snapshot changes and is dirty
   useEffect(() => {
     if (snapshot.isDirty && snapshot.form) {
+      console.log('Auto-saving builder draft. Field count:', snapshot.form.fields?.length || 0);
       saveDraftToLocalStorage(snapshot.initializedFormId, snapshot.form);
     }
   }, [snapshot.form, snapshot.isDirty, snapshot.initializedFormId]);
