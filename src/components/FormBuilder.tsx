@@ -81,20 +81,18 @@ function FormBuilderContent({
     fields: workingForm?.fields.map(f => f.id) || []
   }];
 
-  // Initialize snapshot when form loads (only once per form ID)
+  // Initialize snapshot when form loads or route changes
   useEffect(() => {
-    if (currentForm && !snapshot.isInitialized) {
-      console.log('Initializing form snapshot for existing form:', currentForm);
-      initializeSnapshot(currentForm);
-    } else if (currentForm && snapshot.isInitialized && snapshot.initializedFormId !== currentForm.id) {
-      // Re-initialize only if we're loading a different form
-      console.log('Re-initializing snapshot for different form:', currentForm.id);
-      initializeSnapshot(currentForm);
-    } else if (!currentForm && formId && !snapshot.isInitialized) {
-      // Form exists only as a local draft (e.g. unsaved or non-active in DB): restore by ID from localStorage
+    if (currentForm) {
+      if (!snapshot.isInitialized || snapshot.initializedFormId !== currentForm.id) {
+        console.log('Initializing form snapshot for form (from DB):', currentForm.id);
+        initializeSnapshot(currentForm);
+      }
+    } else if (formId) {
+      // Form not loaded from DB (e.g. draft or not active) – always try to restore from localStorage by ID
       console.log('Initializing snapshot from localStorage for draft form ID:', formId);
       initializeSnapshot(null, formId);
-    } else if (!currentForm && !formId && !snapshot.isInitialized) {
+    } else if (!formId) {
       // New form creation flow: try to restore generic draft from localStorage
       console.log('Initializing snapshot for new form (draft) with generic key');
       initializeSnapshot(null, null);
