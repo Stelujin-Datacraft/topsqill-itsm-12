@@ -30,9 +30,6 @@ import { FormBuilderProps } from './FormBuilder/types/formBuilder';
 import { FormSnapshotProvider, useFormSnapshotContext } from './FormBuilder/contexts/FormSnapshotContext';
 import { useCrossReferenceSync } from '@/hooks/useCrossReferenceSync';
 import { Button } from '@/components/ui/button';
-import { useAutoSave } from './FormBuilder/hooks/useAutoSave';
-import { AutoSaveIndicator } from './FormBuilder/components/AutoSaveIndicator';
-import { Loader2 } from 'lucide-react';
 function FormBuilderContent({
   formId
 }: FormBuilderProps) {
@@ -71,13 +68,6 @@ function FormBuilderContent({
     markAsSaved,
     resetSnapshot
   } = useFormSnapshotContext();
-
-  // Auto-save functionality
-  const { saveStatus } = useAutoSave({
-    snapshot,
-    enabled: !!formId, // Only enable auto-save for existing forms
-    debounceMs: 2000,
-  });
 
   // State management
   const state = useFormBuilderState(currentForm, formId);
@@ -437,13 +427,8 @@ function FormBuilderContent({
               
               {/* Combined Save/Publish Button */}
               <div className="flex items-center gap-2">
-                <AutoSaveIndicator status={saveStatus} />
                 <Button onClick={() => handleSave(true)} disabled={state.isSaving || state.isPublishing} className="flex items-center gap-2">
-                  {state.isPublishing || state.isSaving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4" />
-                  )}
+                  <Save className="h-4 w-4" />
                   {state.isPublishing ? 'Publishing...' : state.isSaving ? 'Saving...' : state.isCreating ? 'Create & Publish' : 'Save & Publish'}
                 </Button>
                 
