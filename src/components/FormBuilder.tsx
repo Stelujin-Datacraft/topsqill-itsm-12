@@ -84,14 +84,18 @@ function FormBuilderContent({
   // Initialize snapshot when form loads (only once per form ID)
   useEffect(() => {
     if (currentForm && !snapshot.isInitialized) {
-      console.log('Initializing form snapshot:', currentForm);
+      console.log('Initializing form snapshot for existing form:', currentForm);
       initializeSnapshot(currentForm);
     } else if (currentForm && snapshot.isInitialized && snapshot.initializedFormId !== currentForm.id) {
       // Re-initialize only if we're loading a different form
       console.log('Re-initializing snapshot for different form:', currentForm.id);
       initializeSnapshot(currentForm);
+    } else if (!currentForm && !formId && !snapshot.isInitialized) {
+      // New form creation flow: try to restore draft from localStorage
+      console.log('Initializing snapshot for new form (draft)');
+      initializeSnapshot(null);
     }
-  }, [currentForm?.id, snapshot.isInitialized, snapshot.initializedFormId, initializeSnapshot]);
+  }, [currentForm?.id, formId, snapshot.isInitialized, snapshot.initializedFormId, initializeSnapshot]);
 
   // Sync state with snapshot when draft is loaded
   useEffect(() => {
