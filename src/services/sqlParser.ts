@@ -90,8 +90,46 @@ export function parseUserQuery(input: string): ParseResult {
     return parseInsertQuery(cleaned)
   }
 
+  // Check if this is a CTE query (WITH ... AS ...)
+  if (/^WITH\s+/i.test(cleaned)) {
+    // Parse CTEs
+    const ctes: Array<{name: string, query: string}> = [];
+    let remaining = cleaned;
+    
+    // Extract all CTEs
+    const cteRegex = /WITH\s+(\w+)\s+AS\s+\(([\s\S]+?)\)(?:\s*,\s*(\w+)\s+AS\s+\(([\s\S]+?)\))*\s+(SELECT[\s\S]+)/i;
+    const cteMatch = remaining.match(cteRegex);
+    
+    if (cteMatch) {
+      // Parse first CTE
+      ctes.push({ name: cteMatch[1], query: cteMatch[2].trim() });
+      
+      // Check for additional CTEs
+      let rest = remaining.substring(remaining.indexOf(cteMatch[2]) + cteMatch[2].length);
+      while (rest.match(/^\s*\)\s*,\s*(\w+)\s+AS\s+\(/)) {
+        const nextCteMatch = rest.match(/^\s*\)\s*,\s*(\w+)\s+AS\s+\(([\s\S]+?)\)(?=\s*(?:,|\s+SELECT))/);
+        if (nextCteMatch) {
+          ctes.push({ name: nextCteMatch[1], query: nextCteMatch[2].trim() });
+          rest = rest.substring(rest.indexOf(nextCteMatch[2]) + nextCteMatch[2].length);
+        } else {
+          break;
+        }
+      }
+      
+      // Get the main SELECT query
+      const mainQueryMatch = remaining.match(/\)\s+(SELECT[\s\S]+)$/i);
+      const mainQuery = mainQueryMatch ? mainQueryMatch[1].trim() : '';
+      
+      // Return CTE metadata
+      return {
+        sql: `-- CTE_QUERY\n${JSON.stringify({ctes, mainQuery})}`,
+        errors: []
+      };
+    }
+  }
+
   // 1. Only allow SELECT for non-UPDATE queries
-  if (!/^SELECT\s+/i.test(cleaned)) {
+  if (!/^SELECT\s+/i.test(cleaned) && !/^WITH\s+/i.test(cleaned)) {
     errors.push('Only SELECT, INSERT, and UPDATE FORM queries are allowed.')
     return { errors }
   }
@@ -382,6 +420,190 @@ export function parseInsertQuery(input: string): ParseResult {
 }
 
 import { evaluateExpression, evaluateFunction, aggregateFunctions } from './sqlFunctions';
+
+/**
+ * Execute CTE (Common Table Expression) query
+ */
+async function executeCTEQuery(metadataJson: string): Promise<QueryResult> {
+  try {
+    const { ctes, mainQuery } = JSON.parse(metadataJson);
+    console.log('🔄 Executing CTE query with', ctes.length, 'CTEs');
+    
+    // Execute CTEs in order and store results
+    const cteResults: Record<string, any[]> = {};
+    
+    for (const cte of ctes) {
+      console.log(`📋 Executing CTE: ${cte.name}`);
+      
+      // Parse and execute the CTE query
+      const cteQuery = cte.query;
+      
+      // Handle jsonb_array_elements
+      if (cteQuery.includes('jsonb_array_elements')) {
+        const elementsMatch = cteQuery.match(/jsonb_array_elements\s*\(\s*FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)::jsonb\s*\)\s*AS\s*(\w+)/i);
+        const fromMatch = cteQuery.match(/FROM\s+['""]([0-9a-fA-F\-]{36})['"\"]/i);
+        const whereMatch = cteQuery.match(/WHERE\s+submission_id\s*=\s*['""]([^'"\"]+)['"\"]/i);
+        const selectMatch = cteQuery.match(/SELECT\s+(\w+)\s*->>\s*['""](\w+)['"\"]\s*AS\s*(\w+)/i);
+        
+        if (elementsMatch && fromMatch && whereMatch && selectMatch) {
+          const fieldId = elementsMatch[1];
+          const elemAlias = elementsMatch[2];
+          const formId = fromMatch[1];
+          const submissionId = whereMatch[1];
+          const jsonKey = selectMatch[2];
+          const resultAlias = selectMatch[3];
+          
+          // Fetch the submission
+          const { data: submission } = await supabase
+            .from('form_submissions')
+            .select('submission_data')
+            .eq('form_id', formId)
+            .or(`submission_ref_id.eq.${submissionId},id.eq.${submissionId}`)
+            .single();
+          
+          if (submission) {
+            const fieldValue = submission.submission_data[fieldId];
+            if (Array.isArray(fieldValue)) {
+              cteResults[cte.name] = fieldValue.map(elem => ({
+                [resultAlias]: elem[jsonKey]
+              }));
+            } else {
+              cteResults[cte.name] = [];
+            }
+          } else {
+            cteResults[cte.name] = [];
+          }
+        }
+      } 
+      // Handle regular SELECT from form with IN subquery
+      else if (cteQuery.includes('WHERE submission_id IN')) {
+        const fieldMatch = cteQuery.match(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)\s*AS\s*(\w+)/i);
+        const fromMatch = cteQuery.match(/FROM\s+['""]([0-9a-fA-F\-]{36})['"\"]/i);
+        const inSubqueryMatch = cteQuery.match(/WHERE\s+submission_id\s+IN\s+\(\s*SELECT\s+(\w+)\s+FROM\s+(\w+)\s*\)/i);
+        
+        if (fieldMatch && fromMatch && inSubqueryMatch) {
+          const fieldId = fieldMatch[1];
+          const fieldAlias = fieldMatch[2];
+          const formId = fromMatch[1];
+          const subqueryColumn = inSubqueryMatch[1];
+          const subqueryCTE = inSubqueryMatch[2];
+          
+          // Get submission IDs from previous CTE
+          const submissionIds = cteResults[subqueryCTE]?.map(row => row[subqueryColumn]) || [];
+          
+          if (submissionIds.length > 0) {
+            // Fetch submissions matching the IDs
+            const { data: submissions } = await supabase
+              .from('form_submissions')
+              .select('submission_data, submission_ref_id, id')
+              .eq('form_id', formId)
+              .in('submission_ref_id', submissionIds);
+            
+            if (submissions) {
+              cteResults[cte.name] = submissions.map(sub => ({
+                [fieldAlias]: sub.submission_data[fieldId]
+              }));
+            } else {
+              cteResults[cte.name] = [];
+            }
+          } else {
+            cteResults[cte.name] = [];
+          }
+        }
+      }
+    }
+    
+    // Execute main query using CTE results
+    console.log('📊 Executing main query:', mainQuery);
+    
+    // Parse the main query for CASE WHEN with COUNT FILTER aggregations
+    const caseMatch = mainQuery.match(/SELECT\s+(CASE[\s\S]+?END)\s+AS\s+(\w+)\s+FROM\s+(\w+)/i);
+    
+    if (caseMatch) {
+      const caseExpr = caseMatch[1];
+      const resultAlias = caseMatch[2];
+      const fromCTE = caseMatch[3];
+      
+      const rows = cteResults[fromCTE] || [];
+      
+      // Parse CASE WHEN conditions
+      const whenClauses = [];
+      const whenRegex = /WHEN\s+(COUNT\(\*\)\s+FILTER\s+\(WHERE\s+(.+?)\)\s*([><=!]+)\s*(.+?))\s+THEN\s+['""]([^'"\"]+)["'"]/gi;
+      let whenMatch;
+      
+      while ((whenMatch = whenRegex.exec(caseExpr)) !== null) {
+        whenClauses.push({
+          condition: whenMatch[1],
+          filterWhere: whenMatch[2],
+          operator: whenMatch[3],
+          value: whenMatch[4].trim(),
+          thenValue: whenMatch[5]
+        });
+      }
+      
+      // Get ELSE value
+      const elseMatch = caseExpr.match(/ELSE\s+['""]([^'"\"]+)["'"]/i);
+      const elseValue = elseMatch ? elseMatch[1] : null;
+      
+      // Evaluate each WHEN clause
+      let result = elseValue;
+      
+      for (const clause of whenClauses) {
+        // Parse the filter condition
+        const filterMatch = clause.filterWhere.match(/(\w+)\s+(IN|=)\s+\(([^)]+)\)/i);
+        
+        if (filterMatch) {
+          const fieldName = filterMatch[1];
+          const operator = filterMatch[2];
+          const values = filterMatch[3].split(',').map(v => v.trim().replace(/['"]/g, ''));
+          
+          // Count rows matching the filter
+          let count = 0;
+          if (operator === 'IN') {
+            count = rows.filter(row => values.includes(row[fieldName])).length;
+          } else if (operator === '=') {
+            count = rows.filter(row => row[fieldName] === values[0]).length;
+          }
+          
+          // Evaluate the condition
+          const compareValue = clause.value === 'COUNT(*)' ? rows.length : parseInt(clause.value);
+          let conditionMet = false;
+          
+          if (clause.operator === '>') {
+            conditionMet = count > compareValue;
+          } else if (clause.operator === '=') {
+            conditionMet = count === compareValue;
+          }
+          
+          if (conditionMet) {
+            result = clause.thenValue;
+            break;
+          }
+        }
+      }
+      
+      return {
+        columns: [resultAlias],
+        rows: [[result]],
+        errors: []
+      };
+    }
+    
+    return {
+      columns: [],
+      rows: [],
+      errors: ['Failed to parse main query']
+    };
+    
+  } catch (error) {
+    console.error('❌ CTE execution error:', error);
+    return {
+      columns: [],
+      rows: [],
+      errors: [error instanceof Error ? error.message : 'Unknown error executing CTE query']
+    };
+  }
+}
 
 /**
  * Execute a query against a system table
@@ -784,6 +1006,11 @@ export async function executeUserQuery(
     // Handle UPDATE queries differently
     if (sql?.startsWith('UPDATE')) {
       return await executeUpdateQuery(sql)
+    }
+
+    // Check if this is a CTE query
+    if (sql?.includes('-- CTE_QUERY')) {
+      return await executeCTEQuery(sql.replace('-- CTE_QUERY\n', ''));
     }
 
     // Check if this is a system table query
