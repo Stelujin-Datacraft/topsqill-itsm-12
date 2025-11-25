@@ -2713,8 +2713,72 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
         if (fieldData?.field_type === 'submission-access' && newValue) {
           console.log('🔐 Converting value for submission-access field');
           
-          // If the value is an email string, convert to proper format
-          if (typeof newValue === 'string' && newValue.includes('@')) {
+          // Check if newValue is an object with users/groups arrays
+          if (typeof newValue === 'object' && newValue !== null && (newValue.users || newValue.groups)) {
+            console.log('🔍 Processing users and groups arrays');
+            
+            const convertedUsers: string[] = [];
+            const convertedGroups: string[] = [];
+            
+            // Process users array - convert emails to user IDs
+            if (Array.isArray(newValue.users) && newValue.users.length > 0) {
+              for (const emailOrId of newValue.users) {
+                if (typeof emailOrId === 'string') {
+                  // Check if it's an email (contains @)
+                  if (emailOrId.includes('@')) {
+                    console.log('📧 Looking up user by email:', emailOrId);
+                    const { data: userData } = await supabase
+                      .from('user_profiles')
+                      .select('id')
+                      .eq('email', emailOrId)
+                      .single();
+                    
+                    if (userData?.id) {
+                      convertedUsers.push(userData.id);
+                      console.log('✅ Converted email to user ID:', emailOrId, '->', userData.id);
+                    } else {
+                      console.warn('⚠️ User not found for email:', emailOrId);
+                    }
+                  } else {
+                    // Assume it's already a user ID
+                    convertedUsers.push(emailOrId);
+                    console.log('✅ Using existing user ID:', emailOrId);
+                  }
+                }
+              }
+            }
+            
+            // Process groups array - convert group names to group IDs
+            if (Array.isArray(newValue.groups) && newValue.groups.length > 0) {
+              for (const nameOrId of newValue.groups) {
+                if (typeof nameOrId === 'string') {
+                  console.log('👥 Looking up group by name:', nameOrId);
+                  // Try to find group by name first
+                  const { data: groupData } = await supabase
+                    .from('groups')
+                    .select('id')
+                    .eq('name', nameOrId)
+                    .single();
+                  
+                  if (groupData?.id) {
+                    convertedGroups.push(groupData.id);
+                    console.log('✅ Converted group name to ID:', nameOrId, '->', groupData.id);
+                  } else {
+                    // If not found by name, assume it's already a group ID
+                    convertedGroups.push(nameOrId);
+                    console.log('✅ Using existing group ID:', nameOrId);
+                  }
+                }
+              }
+            }
+            
+            newValue = {
+              users: convertedUsers,
+              groups: convertedGroups
+            };
+            console.log('✅ Final submission-access format:', JSON.stringify(newValue));
+          } else if (typeof newValue === 'string' && newValue.includes('@')) {
+            // Legacy support: single email string
             console.log('📧 Value is an email, looking up user ID:', newValue);
             
             // Look up user by email
