@@ -268,8 +268,8 @@ export function parseUpdateFormQuery(input: string): ParseResult {
   console.log('🔍 UPDATE Parser - Value length:', transformedValue.length);
   console.log('🔍 UPDATE Parser - Value char codes:', [...transformedValue.slice(0, 20)].map(c => `${c}(${c.charCodeAt(0)})`).join(' '));
   
-  // Check for subquery (SELECT statement or CTE wrapped in parentheses)
-  const hasSubquery = /^\s*\(\s*(?:WITH|SELECT)\s+/i.test(transformedValue);
+  // Check for subquery (SELECT statement wrapped in parentheses)
+  const hasSubquery = /^\s*\(\s*SELECT\s+/i.test(transformedValue);
   
   // Check for CASE WHEN expressions
   const hasCaseWhen = /CASE\s+WHEN/i.test(transformedValue);
@@ -2327,22 +2327,14 @@ async function executeInsertQuery(sql: string, loopContext?: LoopContext): Promi
  * Execute UPDATE queries using Supabase client with support for SQL functions
  */
 async function executeUpdateQuery(sql: string): Promise<QueryResult> {
-  console.log('🚀 UPDATE Executor - Function called!');
-  console.log('📝 Raw SQL input:', sql);
-  
   try {
     // Parse the batch update metadata using unique delimiter
     if (!sql.startsWith('UPDATE||BATCH||')) {
-      console.error('❌ UPDATE Executor - Invalid format, does not start with UPDATE||BATCH||');
       return { columns: [], rows: [], errors: ['Invalid UPDATE query format'] };
     }
 
     const parts = sql.split('||');
-    console.log('📊 UPDATE Executor - Split parts count:', parts.length);
-    console.log('📊 UPDATE Executor - Parts:', parts.map((p, i) => `[${i}]: ${p.substring(0, 100)}...`));
-    
     if (parts.length !== 6) {
-      console.error('❌ UPDATE Executor - Wrong number of parts:', parts.length);
       return { columns: [], rows: [], errors: ['Failed to parse UPDATE query parameters'] };
     }
 
@@ -2351,11 +2343,10 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
     const valueExpression = parts[4];
     const whereClause = parts[5];
 
-    console.log('🔍 UPDATE Executor - Parsed parameters:');
+    console.log('🔍 UPDATE Executor - WHERE clause debug:');
     console.log('  - Form ID:', formId);
-    console.log('  - Field ID:', fieldId);
-    console.log('  - Value Expression (first 200 chars):', valueExpression.substring(0, 200));
     console.log('  - WHERE clause:', whereClause);
+    console.log('  - WHERE clause length:', whereClause.length);
 
     // Fetch all matching submissions based on WHERE clause
     let query = supabase
@@ -2469,42 +2460,11 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
           const subqueryExpr = valueExpression.substring(10).trim();
           console.log('🔍 Subquery expression:', subqueryExpr);
           
-          // Check if it's a CTE (starts with WITH)
-          if (/^\s*\(\s*WITH\s+/i.test(subqueryExpr)) {
-            console.log('🔍 UPDATE Executor - Detected CTE subquery');
-            
-            // Execute the CTE query to get the result
-            const cteResult = await executeUserQuery(subqueryExpr);
-            
-            if (cteResult.errors.length > 0) {
-              console.error('❌ CTE execution error:', cteResult.errors);
-              newValue = null;
-            } else if (cteResult.rows.length > 0 && cteResult.rows[0].length > 0) {
-              // Extract the single value from the result
-              newValue = cteResult.rows[0][0];
-              console.log('✅ CTE result value:', newValue);
-              console.log('✅ CTE result value type:', typeof newValue);
-              
-              // If the result is a JSON string, parse it into an object
-              if (typeof newValue === 'string' && (newValue.trim().startsWith('{') || newValue.trim().startsWith('['))) {
-                try {
-                  newValue = JSON.parse(newValue);
-                  console.log('✅ Parsed JSON string to object:', newValue);
-                } catch (parseError) {
-                  console.warn('⚠️ Failed to parse JSON string:', parseError);
-                  // Keep as string if parsing fails
-                }
-              }
-            } else {
-              console.log('⚠️ CTE returned no results');
-              newValue = null;
-            }
-          } else {
-            // Parse the subquery: (SELECT FIELD("field-id") FROM "form-id" WHERE condition)
-            // Use a helper function to properly extract the WHERE clause handling nested parentheses
-            const extractWhereClause = (query: string): { selectFieldId: string; sourceFormId: string; whereClause: string } | null => {
-              const selectMatch = query.match(/^\s*\(\s*SELECT\s+FIELD\s*\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s+FROM\s+['""]([0-9a-fA-F\-]{36})['"\"]\s+WHERE\s+/i);
-              if (!selectMatch) return null;
+          // Parse the subquery: (SELECT FIELD("field-id") FROM "form-id" WHERE condition)
+          // Use a helper function to properly extract the WHERE clause handling nested parentheses
+          const extractWhereClause = (query: string): { selectFieldId: string; sourceFormId: string; whereClause: string } | null => {
+            const selectMatch = query.match(/^\s*\(\s*SELECT\s+FIELD\s*\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s+FROM\s+['""]([0-9a-fA-F\-]{36})['"\"]\s+WHERE\s+/i);
+            if (!selectMatch) return null;
             
             const selectFieldId = selectMatch[1];
             const sourceFormId = selectMatch[2];
@@ -2670,7 +2630,6 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
               }
             }
           }
-          }  // Close else block for regular SELECT subqueries
         } else if (valueExpression.startsWith('FUNC::')) {
           console.log('📝 UPDATE Executor - Evaluating FUNC expression');
           const funcExpr = valueExpression.substring(6);
@@ -2723,125 +2682,6 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
         console.log('✅ UPDATE Executor - Final value to store:', newValue);
         console.log('✅ Value type:', typeof newValue);
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
-        // Check if field is submission-access and convert value format if needed
-        const { data: fieldData } = await supabase
-          .from('form_fields')
-          .select('field_type')
-          .eq('id', fieldId)
-          .single();
-
-        if (fieldData?.field_type === 'submission-access' && newValue) {
-          console.log('🔐 Converting value for submission-access field');
-          
-          // Check if newValue is an object with users/groups arrays
-          if (typeof newValue === 'object' && newValue !== null && (newValue.users || newValue.groups)) {
-            console.log('🔍 Processing users and groups arrays');
-            
-            const convertedUsers: string[] = [];
-            const convertedGroups: string[] = [];
-            
-            // Process users array - convert emails to user IDs
-            if (Array.isArray(newValue.users) && newValue.users.length > 0) {
-              for (const emailOrId of newValue.users) {
-                if (typeof emailOrId === 'string') {
-                  // Check if it's an email (contains @)
-                  if (emailOrId.includes('@')) {
-                    console.log('📧 Looking up user by email:', emailOrId);
-                    const { data: userData } = await supabase
-                      .from('user_profiles')
-                      .select('id')
-                      .eq('email', emailOrId)
-                      .single();
-                    
-                    if (userData?.id) {
-                      convertedUsers.push(userData.id);
-                      console.log('✅ Converted email to user ID:', emailOrId, '->', userData.id);
-                    } else {
-                      console.warn('⚠️ User not found for email:', emailOrId);
-                    }
-                  } else {
-                    // Assume it's already a user ID
-                    convertedUsers.push(emailOrId);
-                    console.log('✅ Using existing user ID:', emailOrId);
-                  }
-                }
-              }
-            }
-            
-            // Process groups array - convert group names to group IDs
-            if (Array.isArray(newValue.groups) && newValue.groups.length > 0) {
-              for (const nameOrId of newValue.groups) {
-                if (typeof nameOrId === 'string') {
-                  console.log('👥 Looking up group by name:', nameOrId);
-                  // Try to find group by name first
-                  const { data: groupData } = await supabase
-                    .from('groups')
-                    .select('id')
-                    .eq('name', nameOrId)
-                    .single();
-                  
-                  if (groupData?.id) {
-                    convertedGroups.push(groupData.id);
-                    console.log('✅ Converted group name to ID:', nameOrId, '->', groupData.id);
-                  } else {
-                    // If not found by name, assume it's already a group ID
-                    convertedGroups.push(nameOrId);
-                    console.log('✅ Using existing group ID:', nameOrId);
-                  }
-                }
-              }
-            }
-            
-            newValue = {
-              users: convertedUsers,
-              groups: convertedGroups
-            };
-            console.log('✅ Final submission-access format:', JSON.stringify(newValue));
-          } else if (typeof newValue === 'string' && newValue.includes('@')) {
-            // Legacy support: single email string
-            console.log('📧 Value is an email, looking up user ID:', newValue);
-            
-            // Look up user by email
-            const { data: userData } = await supabase
-              .from('user_profiles')
-              .select('id')
-              .eq('email', newValue)
-              .single();
-            
-            if (userData?.id) {
-              console.log('✅ Found user ID:', userData.id);
-              // Convert to proper submission-access format
-              newValue = {
-                users: [userData.id],
-                groups: []
-              };
-              console.log('✅ Converted to submission-access format:', JSON.stringify(newValue));
-            } else {
-              console.warn('⚠️ User not found for email:', newValue);
-              // Keep as empty selection
-              newValue = {
-                users: [],
-                groups: []
-              };
-            }
-          } else if (typeof newValue === 'string' && !newValue.includes('@')) {
-            // Assume it's a user ID
-            console.log('🆔 Value appears to be a user ID, wrapping in format:', newValue);
-            newValue = {
-              users: [newValue],
-              groups: []
-            };
-          } else if (typeof newValue === 'object' && !newValue.users && !newValue.groups) {
-            // Unknown object format, convert to empty
-            console.warn('⚠️ Unknown format for submission-access, setting to empty');
-            newValue = {
-              users: [],
-              groups: []
-            };
-          }
-          // If already in correct format {users: [...], groups: [...]}, keep as is
-        }
 
         // Update the submission
         const updatedSubmissionData = {
