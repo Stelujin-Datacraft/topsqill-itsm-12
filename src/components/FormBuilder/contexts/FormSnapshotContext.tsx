@@ -15,6 +15,7 @@ interface FormSnapshotContextType {
   deletePageFromSnapshot: (pageId: string) => void;
   markAsSaved: () => void;
   resetSnapshot: () => void;
+  clearLocalStorage: (formId: string) => void;
 }
 
 const FormSnapshotContext = createContext<FormSnapshotContextType | null>(null);
