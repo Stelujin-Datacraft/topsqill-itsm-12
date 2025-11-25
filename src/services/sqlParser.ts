@@ -2683,6 +2683,61 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
         console.log('✅ Value type:', typeof newValue);
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
+        // Check if field is submission-access and convert value format if needed
+        const { data: fieldData } = await supabase
+          .from('form_fields')
+          .select('field_type')
+          .eq('id', fieldId)
+          .single();
+
+        if (fieldData?.field_type === 'submission-access' && newValue) {
+          console.log('🔐 Converting value for submission-access field');
+          
+          // If the value is an email string, convert to proper format
+          if (typeof newValue === 'string' && newValue.includes('@')) {
+            console.log('📧 Value is an email, looking up user ID:', newValue);
+            
+            // Look up user by email
+            const { data: userData } = await supabase
+              .from('user_profiles')
+              .select('id')
+              .eq('email', newValue)
+              .single();
+            
+            if (userData?.id) {
+              console.log('✅ Found user ID:', userData.id);
+              // Convert to proper submission-access format
+              newValue = {
+                users: [userData.id],
+                groups: []
+              };
+              console.log('✅ Converted to submission-access format:', JSON.stringify(newValue));
+            } else {
+              console.warn('⚠️ User not found for email:', newValue);
+              // Keep as empty selection
+              newValue = {
+                users: [],
+                groups: []
+              };
+            }
+          } else if (typeof newValue === 'string' && !newValue.includes('@')) {
+            // Assume it's a user ID
+            console.log('🆔 Value appears to be a user ID, wrapping in format:', newValue);
+            newValue = {
+              users: [newValue],
+              groups: []
+            };
+          } else if (typeof newValue === 'object' && !newValue.users && !newValue.groups) {
+            // Unknown object format, convert to empty
+            console.warn('⚠️ Unknown format for submission-access, setting to empty');
+            newValue = {
+              users: [],
+              groups: []
+            };
+          }
+          // If already in correct format {users: [...], groups: [...]}, keep as is
+        }
+
         // Update the submission
         const updatedSubmissionData = {
           ...(submission.submission_data as Record<string, any>),
