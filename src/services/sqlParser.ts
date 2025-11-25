@@ -2737,9 +2737,76 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
             }
           }
           
-          // If accessData has users/groups structure, ensure it's properly formatted
+          // If accessData has users/groups structure, convert emails to UUIDs
           if (accessData && typeof accessData === 'object' && ('users' in accessData || 'groups' in accessData)) {
             console.log('🔐 Submission-access data structure detected:', accessData);
+            
+            // Convert emails to user IDs
+            if (accessData.users && Array.isArray(accessData.users)) {
+              const convertedUsers = [];
+              
+              for (const userIdentifier of accessData.users) {
+                // Check if it's an email (contains @)
+                if (typeof userIdentifier === 'string' && userIdentifier.includes('@')) {
+                  console.log('📧 Converting email to user ID:', userIdentifier);
+                  
+                  const { data: userProfile, error: userError } = await supabase
+                    .from('user_profiles')
+                    .select('id')
+                    .eq('email', userIdentifier.trim())
+                    .single();
+                  
+                  if (userProfile && !userError) {
+                    console.log('✅ Found user ID:', userProfile.id);
+                    convertedUsers.push(userProfile.id);
+                  } else {
+                    console.warn('⚠️ Could not find user with email:', userIdentifier);
+                    // Keep the original value if user not found
+                    convertedUsers.push(userIdentifier);
+                  }
+                } else {
+                  // Already a UUID, keep as is
+                  convertedUsers.push(userIdentifier);
+                }
+              }
+              
+              accessData.users = convertedUsers;
+              console.log('✅ Converted users array:', convertedUsers);
+            }
+            
+            // Convert group names to group IDs
+            if (accessData.groups && Array.isArray(accessData.groups)) {
+              const convertedGroups = [];
+              
+              for (const groupIdentifier of accessData.groups) {
+                // Check if it's a group name (not a UUID format)
+                if (typeof groupIdentifier === 'string' && !/^[0-9a-fA-F-]{36}$/.test(groupIdentifier)) {
+                  console.log('👥 Converting group name to group ID:', groupIdentifier);
+                  
+                  const { data: groupData, error: groupError } = await supabase
+                    .from('groups')
+                    .select('id')
+                    .eq('name', groupIdentifier.trim())
+                    .single();
+                  
+                  if (groupData && !groupError) {
+                    console.log('✅ Found group ID:', groupData.id);
+                    convertedGroups.push(groupData.id);
+                  } else {
+                    console.warn('⚠️ Could not find group with name:', groupIdentifier);
+                    // Keep the original value if group not found
+                    convertedGroups.push(groupIdentifier);
+                  }
+                } else {
+                  // Already a UUID, keep as is
+                  convertedGroups.push(groupIdentifier);
+                }
+              }
+              
+              accessData.groups = convertedGroups;
+              console.log('✅ Converted groups array:', convertedGroups);
+            }
+            
             finalValue = accessData;
           }
         }
