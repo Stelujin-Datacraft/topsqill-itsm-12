@@ -2327,14 +2327,22 @@ async function executeInsertQuery(sql: string, loopContext?: LoopContext): Promi
  * Execute UPDATE queries using Supabase client with support for SQL functions
  */
 async function executeUpdateQuery(sql: string): Promise<QueryResult> {
+  console.log('🚀 UPDATE Executor - Function called!');
+  console.log('📝 Raw SQL input:', sql);
+  
   try {
     // Parse the batch update metadata using unique delimiter
     if (!sql.startsWith('UPDATE||BATCH||')) {
+      console.error('❌ UPDATE Executor - Invalid format, does not start with UPDATE||BATCH||');
       return { columns: [], rows: [], errors: ['Invalid UPDATE query format'] };
     }
 
     const parts = sql.split('||');
+    console.log('📊 UPDATE Executor - Split parts count:', parts.length);
+    console.log('📊 UPDATE Executor - Parts:', parts.map((p, i) => `[${i}]: ${p.substring(0, 100)}...`));
+    
     if (parts.length !== 6) {
+      console.error('❌ UPDATE Executor - Wrong number of parts:', parts.length);
       return { columns: [], rows: [], errors: ['Failed to parse UPDATE query parameters'] };
     }
 
@@ -2343,10 +2351,11 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
     const valueExpression = parts[4];
     const whereClause = parts[5];
 
-    console.log('🔍 UPDATE Executor - WHERE clause debug:');
+    console.log('🔍 UPDATE Executor - Parsed parameters:');
     console.log('  - Form ID:', formId);
+    console.log('  - Field ID:', fieldId);
+    console.log('  - Value Expression (first 200 chars):', valueExpression.substring(0, 200));
     console.log('  - WHERE clause:', whereClause);
-    console.log('  - WHERE clause length:', whereClause.length);
 
     // Fetch all matching submissions based on WHERE clause
     let query = supabase
