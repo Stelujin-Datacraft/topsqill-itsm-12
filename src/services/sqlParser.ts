@@ -2474,6 +2474,18 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
               // Extract the single value from the result
               newValue = cteResult.rows[0][0];
               console.log('✅ CTE result value:', newValue);
+              console.log('✅ CTE result value type:', typeof newValue);
+              
+              // If the result is a JSON string, parse it into an object
+              if (typeof newValue === 'string' && (newValue.trim().startsWith('{') || newValue.trim().startsWith('['))) {
+                try {
+                  newValue = JSON.parse(newValue);
+                  console.log('✅ Parsed JSON string to object:', newValue);
+                } catch (parseError) {
+                  console.warn('⚠️ Failed to parse JSON string:', parseError);
+                  // Keep as string if parsing fails
+                }
+              }
             } else {
               console.log('⚠️ CTE returned no results');
               newValue = null;
