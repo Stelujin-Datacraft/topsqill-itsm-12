@@ -541,9 +541,39 @@ async function executeCTEQuery(metadataJson: string): Promise<QueryResult> {
         });
       }
       
-      // Get ELSE value
-      const elseMatch = caseExpr.match(/ELSE\s+['""]([^'"\"]+)["'"]/i);
-      const elseValue = elseMatch ? elseMatch[1] : null;
+      // Get ELSE value - support both string literals and JSON object literals
+      let elseValue = null;
+      const elseStringMatch = caseExpr.match(/ELSE\s+['""]([^'"\"]+)["'"]/i);
+      const elseJsonMatch = caseExpr.match(/ELSE\s+(\{[^}]+\})/i);
+      
+      if (elseStringMatch) {
+        elseValue = elseStringMatch[1];
+      } else if (elseJsonMatch) {
+        // Try to parse JSON object literal
+        try {
+          // Clean up the JSON string (remove single quotes, fix format)
+          let jsonStr = elseJsonMatch[1]
+            .replace(/'/g, '"')  // Replace single quotes with double quotes
+            .replace(/(\w+):/g, '"$1":')  // Quote property names
+            .replace(/\[([^\]]+)\]/g, (match, content) => {
+              // Quote array elements if they're UUIDs
+              const elements = content.split(',').map((el: string) => {
+                el = el.trim();
+                // If it's a UUID, quote it
+                if (/^[0-9a-fA-F\-]{36}$/.test(el)) {
+                  return `"${el}"`;
+                }
+                return el;
+              });
+              return `[${elements.join(', ')}]`;
+            });
+          
+          elseValue = JSON.parse(jsonStr);
+        } catch (e) {
+          console.error('Failed to parse ELSE JSON:', e);
+          elseValue = elseJsonMatch[1];
+        }
+      }
       
       // Evaluate each WHEN clause
       let result = elseValue;
@@ -2681,12 +2711,46 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
 
         console.log('✅ UPDATE Executor - Final value to store:', newValue);
         console.log('✅ Value type:', typeof newValue);
+        
+        // Special handling for submission-access field
+        // Check if this is a submission-access field by fetching field config
+        const { data: fieldConfig } = await supabase
+          .from('form_fields')
+          .select('field_type')
+          .eq('id', fieldId)
+          .single();
+        
+        let finalValue = newValue;
+        
+        if (fieldConfig?.field_type === 'submission-access' && newValue) {
+          console.log('🔐 Processing submission-access field');
+          
+          // Parse JSON string if needed
+          let accessData = newValue;
+          if (typeof newValue === 'string') {
+            try {
+              // Try to parse as JSON
+              accessData = JSON.parse(newValue);
+              console.log('📝 Parsed JSON string:', accessData);
+            } catch (e) {
+              console.warn('Could not parse as JSON, treating as plain value:', newValue);
+            }
+          }
+          
+          // If accessData has users/groups structure, ensure it's properly formatted
+          if (accessData && typeof accessData === 'object' && ('users' in accessData || 'groups' in accessData)) {
+            console.log('🔐 Submission-access data structure detected:', accessData);
+            finalValue = accessData;
+          }
+        }
+        
+        console.log('✅ Final processed value:', finalValue);
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
         // Update the submission
         const updatedSubmissionData = {
           ...(submission.submission_data as Record<string, any>),
-          [fieldId]: newValue
+          [fieldId]: finalValue
         };
 
         const { error: updateError } = await supabase
