@@ -10,6 +10,8 @@ export interface FormSnapshot {
   initializedFormId: string | null;
 }
 
+const LOCAL_STORAGE_PREFIX = 'form-draft-';
+
 export function useFormSnapshot(initialForm: Form | null) {
   const [snapshot, setSnapshot] = useState<FormSnapshot>({
     form: initialForm,
@@ -21,29 +23,86 @@ export function useFormSnapshot(initialForm: Form | null) {
 
   const originalFormRef = useRef<Form | null>(initialForm);
 
+  // Local storage utilities
+  const saveToLocalStorage = useCallback((formData: Form) => {
+    if (!formData.id) return;
+    
+    try {
+      const storageKey = `${LOCAL_STORAGE_PREFIX}${formData.id}`;
+      const dataToStore = {
+        form: formData,
+        timestamp: new Date().toISOString(),
+      };
+      localStorage.setItem(storageKey, JSON.stringify(dataToStore));
+      console.log('💾 Form draft saved to local storage:', storageKey);
+    } catch (error) {
+      console.error('❌ Failed to save form to local storage:', error);
+    }
+  }, []);
+
+  const loadFromLocalStorage = useCallback((formId: string): Form | null => {
+    try {
+      const storageKey = `${LOCAL_STORAGE_PREFIX}${formId}`;
+      const stored = localStorage.getItem(storageKey);
+      
+      if (stored) {
+        const { form, timestamp } = JSON.parse(stored);
+        console.log('📂 Loaded form draft from local storage:', storageKey, 'saved at:', timestamp);
+        return form;
+      }
+    } catch (error) {
+      console.error('❌ Failed to load form from local storage:', error);
+    }
+    return null;
+  }, []);
+
+  const clearLocalStorage = useCallback((formId: string) => {
+    try {
+      const storageKey = `${LOCAL_STORAGE_PREFIX}${formId}`;
+      localStorage.removeItem(storageKey);
+      console.log('🗑️ Cleared form draft from local storage:', storageKey);
+    } catch (error) {
+      console.error('❌ Failed to clear form from local storage:', error);
+    }
+  }, []);
+
   // Initialize snapshot from form
   const initializeSnapshot = useCallback((form: Form | null) => {
-    originalFormRef.current = form;
+    // Try to load from local storage first if form has an ID
+    let formToUse = form;
+    if (form?.id) {
+      const draftForm = loadFromLocalStorage(form.id);
+      if (draftForm) {
+        formToUse = draftForm;
+        console.log('✅ Initialized form from local storage draft');
+      }
+    }
+    
+    originalFormRef.current = form; // Keep original for reset
     setSnapshot({
-      form: form ? { ...form } : null,
+      form: formToUse ? { ...formToUse } : null,
       isInitialized: true,
-      isDirty: false,
+      isDirty: formToUse !== form, // Mark dirty if we loaded from localStorage
       lastSaved: form ? new Date() : null,
       initializedFormId: form?.id || null,
     });
-  }, []);
+  }, [loadFromLocalStorage]);
 
   // Update form details
   const updateFormDetails = useCallback((updates: Partial<Form>) => {
     setSnapshot(prev => {
       if (!prev.form) return prev;
+      
+      const updatedForm = { ...prev.form, ...updates };
+      saveToLocalStorage(updatedForm);
+      
       return {
         ...prev,
-        form: { ...prev.form, ...updates },
+        form: updatedForm,
         isDirty: true,
       };
     });
-  }, []);
+  }, [saveToLocalStorage]);
 
   // Add field to snapshot
   const addFieldToSnapshot = useCallback((field: Omit<FormField, 'id'>, pageId: string) => {
@@ -62,19 +121,23 @@ export function useFormSnapshot(initialForm: Form | null) {
           : page
       );
 
+      const updatedForm = {
+        ...prev.form,
+        fields: [...prev.form.fields, newField],
+        pages: updatedPages,
+      };
+
+      saveToLocalStorage(updatedForm);
+
       return {
         ...prev,
-        form: {
-          ...prev.form,
-          fields: [...prev.form.fields, newField],
-          pages: updatedPages,
-        },
+        form: updatedForm,
         isDirty: true,
       };
     });
 
     return newField;
-  }, []);
+  }, [saveToLocalStorage]);
 
   // Update field in snapshot
   const updateFieldInSnapshot = useCallback((fieldId: string, updates: Partial<FormField>) => {
@@ -97,16 +160,20 @@ export function useFormSnapshot(initialForm: Form | null) {
         return field;
       });
 
+      const updatedForm = {
+        ...prev.form,
+        fields: updatedFields,
+      };
+
+      saveToLocalStorage(updatedForm);
+
       return {
         ...prev,
-        form: {
-          ...prev.form,
-          fields: updatedFields,
-        },
+        form: updatedForm,
         isDirty: true,
       };
     });
-  }, []);
+  }, [saveToLocalStorage]);
 
   // Delete field from snapshot
   const deleteFieldFromSnapshot = useCallback((fieldId: string) => {
@@ -119,17 +186,21 @@ export function useFormSnapshot(initialForm: Form | null) {
         fields: page.fields.filter(fId => fId !== fieldId)
       }));
 
+      const updatedForm = {
+        ...prev.form,
+        fields: updatedFields,
+        pages: updatedPages,
+      };
+
+      saveToLocalStorage(updatedForm);
+
       return {
         ...prev,
-        form: {
-          ...prev.form,
-          fields: updatedFields,
-          pages: updatedPages,
-        },
+        form: updatedForm,
         isDirty: true,
       };
     });
-  }, []);
+  }, [saveToLocalStorage]);
 
   // Reorder fields in snapshot
   const reorderFieldsInSnapshot = useCallback((pageId: string, sourceIndex: number, destinationIndex: number) => {
@@ -177,32 +248,40 @@ export function useFormSnapshot(initialForm: Form | null) {
         updatedFields.push(...reorderedPageFields);
       }
 
+      const updatedForm = {
+        ...prev.form,
+        fields: updatedFields,
+      };
+
+      saveToLocalStorage(updatedForm);
+
       return {
         ...prev,
-        form: {
-          ...prev.form,
-          fields: updatedFields,
-        },
+        form: updatedForm,
         isDirty: true,
       };
     });
-  }, []);
+  }, [saveToLocalStorage]);
 
   // Add page to snapshot
   const addPageToSnapshot = useCallback((page: FormPage) => {
     setSnapshot(prev => {
       if (!prev.form) return prev;
       
+      const updatedForm = {
+        ...prev.form,
+        pages: [...prev.form.pages, page],
+      };
+
+      saveToLocalStorage(updatedForm);
+
       return {
         ...prev,
-        form: {
-          ...prev.form,
-          pages: [...prev.form.pages, page],
-        },
+        form: updatedForm,
         isDirty: true,
       };
     });
-  }, []);
+  }, [saveToLocalStorage]);
 
   // Update page in snapshot
   const updatePageInSnapshot = useCallback((pageId: string, updates: Partial<FormPage>) => {
@@ -213,16 +292,20 @@ export function useFormSnapshot(initialForm: Form | null) {
         page.id === pageId ? { ...page, ...updates } : page
       );
 
+      const updatedForm = {
+        ...prev.form,
+        pages: updatedPages,
+      };
+
+      saveToLocalStorage(updatedForm);
+
       return {
         ...prev,
-        form: {
-          ...prev.form,
-          pages: updatedPages,
-        },
+        form: updatedForm,
         isDirty: true,
       };
     });
-  }, []);
+  }, [saveToLocalStorage]);
 
   // Delete page from snapshot
   const deletePageFromSnapshot = useCallback((pageId: string) => {
@@ -250,30 +333,46 @@ export function useFormSnapshot(initialForm: Form | null) {
           : field
       );
 
+      const updatedForm = {
+        ...prev.form,
+        pages: updatedPages,
+        fields: updatedFields,
+      };
+
+      saveToLocalStorage(updatedForm);
+
       return {
         ...prev,
-        form: {
-          ...prev.form,
-          pages: updatedPages,
-          fields: updatedFields,
-        },
+        form: updatedForm,
         isDirty: true,
       };
     });
-  }, []);
+  }, [saveToLocalStorage]);
 
   // Mark as saved (after successful save to DB)
   const markAsSaved = useCallback(() => {
-    setSnapshot(prev => ({
-      ...prev,
-      isDirty: false,
-      lastSaved: new Date(),
-    }));
+    setSnapshot(prev => {
+      // Clear local storage when successfully saved to database
+      if (prev.form?.id) {
+        clearLocalStorage(prev.form.id);
+      }
+      
+      return {
+        ...prev,
+        isDirty: false,
+        lastSaved: new Date(),
+      };
+    });
     originalFormRef.current = snapshot.form;
-  }, [snapshot.form]);
+  }, [snapshot.form, clearLocalStorage]);
 
   // Reset to original (discard changes)
   const resetSnapshot = useCallback(() => {
+    // Clear local storage when resetting
+    if (originalFormRef.current?.id) {
+      clearLocalStorage(originalFormRef.current.id);
+    }
+    
     setSnapshot({
       form: originalFormRef.current ? { ...originalFormRef.current } : null,
       isInitialized: !!originalFormRef.current,
@@ -281,7 +380,7 @@ export function useFormSnapshot(initialForm: Form | null) {
       lastSaved: originalFormRef.current ? new Date() : null,
       initializedFormId: originalFormRef.current?.id || null,
     });
-  }, []);
+  }, [clearLocalStorage]);
 
   return {
     snapshot,
@@ -296,5 +395,6 @@ export function useFormSnapshot(initialForm: Form | null) {
     deletePageFromSnapshot,
     markAsSaved,
     resetSnapshot,
+    clearLocalStorage,
   };
 }
