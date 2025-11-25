@@ -268,8 +268,8 @@ export function parseUpdateFormQuery(input: string): ParseResult {
   console.log('🔍 UPDATE Parser - Value length:', transformedValue.length);
   console.log('🔍 UPDATE Parser - Value char codes:', [...transformedValue.slice(0, 20)].map(c => `${c}(${c.charCodeAt(0)})`).join(' '));
   
-  // Check for subquery (SELECT statement wrapped in parentheses)
-  const hasSubquery = /^\s*\(\s*SELECT\s+/i.test(transformedValue);
+  // Check for subquery (SELECT statement or CTE wrapped in parentheses)
+  const hasSubquery = /^\s*\(\s*(?:WITH|SELECT)\s+/i.test(transformedValue);
   
   // Check for CASE WHEN expressions
   const hasCaseWhen = /CASE\s+WHEN/i.test(transformedValue);
@@ -2460,11 +2460,30 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
           const subqueryExpr = valueExpression.substring(10).trim();
           console.log('🔍 Subquery expression:', subqueryExpr);
           
-          // Parse the subquery: (SELECT FIELD("field-id") FROM "form-id" WHERE condition)
-          // Use a helper function to properly extract the WHERE clause handling nested parentheses
-          const extractWhereClause = (query: string): { selectFieldId: string; sourceFormId: string; whereClause: string } | null => {
-            const selectMatch = query.match(/^\s*\(\s*SELECT\s+FIELD\s*\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s+FROM\s+['""]([0-9a-fA-F\-]{36})['"\"]\s+WHERE\s+/i);
-            if (!selectMatch) return null;
+          // Check if it's a CTE (starts with WITH)
+          if (/^\s*\(\s*WITH\s+/i.test(subqueryExpr)) {
+            console.log('🔍 UPDATE Executor - Detected CTE subquery');
+            
+            // Execute the CTE query to get the result
+            const cteResult = await executeUserQuery(subqueryExpr);
+            
+            if (cteResult.errors.length > 0) {
+              console.error('❌ CTE execution error:', cteResult.errors);
+              newValue = null;
+            } else if (cteResult.rows.length > 0 && cteResult.rows[0].length > 0) {
+              // Extract the single value from the result
+              newValue = cteResult.rows[0][0];
+              console.log('✅ CTE result value:', newValue);
+            } else {
+              console.log('⚠️ CTE returned no results');
+              newValue = null;
+            }
+          } else {
+            // Parse the subquery: (SELECT FIELD("field-id") FROM "form-id" WHERE condition)
+            // Use a helper function to properly extract the WHERE clause handling nested parentheses
+            const extractWhereClause = (query: string): { selectFieldId: string; sourceFormId: string; whereClause: string } | null => {
+              const selectMatch = query.match(/^\s*\(\s*SELECT\s+FIELD\s*\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s+FROM\s+['""]([0-9a-fA-F\-]{36})['"\"]\s+WHERE\s+/i);
+              if (!selectMatch) return null;
             
             const selectFieldId = selectMatch[1];
             const sourceFormId = selectMatch[2];
@@ -2630,6 +2649,7 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
               }
             }
           }
+          }  // Close else block for regular SELECT subqueries
         } else if (valueExpression.startsWith('FUNC::')) {
           console.log('📝 UPDATE Executor - Evaluating FUNC expression');
           const funcExpr = valueExpression.substring(6);
