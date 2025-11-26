@@ -68,21 +68,26 @@ export function useFormSnapshot(initialForm: Form | null) {
 
   // Initialize snapshot from form
   const initializeSnapshot = useCallback((form: Form | null) => {
-    // Try to load from local storage first if form has an ID
+    // ALWAYS prioritize localStorage draft over database version
     let formToUse = form;
+    let hasDraft = false;
+    
     if (form?.id) {
       const draftForm = loadFromLocalStorage(form.id);
       if (draftForm) {
         formToUse = draftForm;
-        console.log('✅ Initialized form from local storage draft');
+        hasDraft = true;
+        console.log('✅ Initialized form from local storage draft with', draftForm.fields?.length || 0, 'fields');
+      } else {
+        console.log('📝 No draft found, using database version with', form.fields?.length || 0, 'fields');
       }
     }
     
-    originalFormRef.current = form; // Keep original for reset
+    originalFormRef.current = form; // Keep original database version for reset
     setSnapshot({
       form: formToUse ? { ...formToUse } : null,
       isInitialized: true,
-      isDirty: formToUse !== form, // Mark dirty if we loaded from localStorage
+      isDirty: hasDraft, // Mark dirty if we loaded from localStorage
       lastSaved: form ? new Date() : null,
       initializedFormId: form?.id || null,
     });
