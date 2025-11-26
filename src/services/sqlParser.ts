@@ -96,8 +96,8 @@ export function parseUserQuery(input: string): ParseResult {
     const ctes: Array<{name: string, query: string}> = [];
     let remaining = cleaned;
     
-    // Extract all CTEs - more flexible regex to support both SELECT and UPDATE
-    const cteRegex = /WITH\s+(\w+)\s+AS\s+\(([\s\S]+?)\)(?:\s*,\s*(\w+)\s+AS\s+\(([\s\S]+?)\))*\s+(SELECT|UPDATE\s+FORM)[\s\S]+/i;
+    // Extract all CTEs
+    const cteRegex = /WITH\s+(\w+)\s+AS\s+\(([\s\S]+?)\)(?:\s*,\s*(\w+)\s+AS\s+\(([\s\S]+?)\))*\s+(SELECT[\s\S]+)/i;
     const cteMatch = remaining.match(cteRegex);
     
     if (cteMatch) {
@@ -107,7 +107,7 @@ export function parseUserQuery(input: string): ParseResult {
       // Check for additional CTEs
       let rest = remaining.substring(remaining.indexOf(cteMatch[2]) + cteMatch[2].length);
       while (rest.match(/^\s*\)\s*,\s*(\w+)\s+AS\s+\(/)) {
-        const nextCteMatch = rest.match(/^\s*\)\s*,\s*(\w+)\s+AS\s+\(([\s\S]+?)\)(?=\s*(?:,|\s+(?:SELECT|UPDATE)))/i);
+        const nextCteMatch = rest.match(/^\s*\)\s*,\s*(\w+)\s+AS\s+\(([\s\S]+?)\)(?=\s*(?:,|\s+SELECT))/);
         if (nextCteMatch) {
           ctes.push({ name: nextCteMatch[1], query: nextCteMatch[2].trim() });
           rest = rest.substring(rest.indexOf(nextCteMatch[2]) + nextCteMatch[2].length);
@@ -116,20 +116,13 @@ export function parseUserQuery(input: string): ParseResult {
         }
       }
       
-      // Get the main query (SELECT or UPDATE FORM)
-      const mainQueryMatch = remaining.match(/\)\s+((?:SELECT|UPDATE\s+FORM)[\s\S]+)$/i);
+      // Get the main SELECT query
+      const mainQueryMatch = remaining.match(/\)\s+(SELECT[\s\S]+)$/i);
       const mainQuery = mainQueryMatch ? mainQueryMatch[1].trim() : '';
-      
-      // Determine query type
-      const queryType = /^UPDATE\s+FORM/i.test(mainQuery) ? 'UPDATE' : 'SELECT';
-      
-      console.log('🔍 CTE Parser - Detected CTE with', queryType, 'query');
-      console.log('  - CTEs:', ctes.map(c => c.name).join(', '));
-      console.log('  - Main Query:', mainQuery.substring(0, 100) + '...');
       
       // Return CTE metadata
       return {
-        sql: `-- CTE_QUERY\n${JSON.stringify({ctes, mainQuery, queryType})}`,
+        sql: `-- CTE_QUERY\n${JSON.stringify({ctes, mainQuery})}`,
         errors: []
       };
     }
@@ -433,8 +426,8 @@ import { evaluateExpression, evaluateFunction, aggregateFunctions } from './sqlF
  */
 async function executeCTEQuery(metadataJson: string): Promise<QueryResult> {
   try {
-    const { ctes, mainQuery, queryType } = JSON.parse(metadataJson);
-    console.log('🔄 Executing CTE query with', ctes.length, 'CTEs, type:', queryType || 'SELECT');
+    const { ctes, mainQuery } = JSON.parse(metadataJson);
+    console.log('🔄 Executing CTE query with', ctes.length, 'CTEs');
     
     // Execute CTEs in order and store results
     const cteResults: Record<string, any[]> = {};
@@ -518,153 +511,12 @@ async function executeCTEQuery(metadataJson: string): Promise<QueryResult> {
           }
         }
       }
-      // Handle general SELECT from form with subquery in WHERE clause
-      else if (cteQuery.match(/SELECT.*FROM\s+['""]([0-9a-fA-F\-]{36})['"\"]/i)) {
-        console.log('📋 Executing general CTE query:', cteQuery);
-        
-        // This is a general SELECT query - execute it using the regular query executor
-        // First, replace FIELD() syntax for the WHERE subquery
-        let processedQuery = cteQuery;
-        
-        // Handle nested SELECT with FIELD() in WHERE clause
-        const nestedSelectMatch = processedQuery.match(/WHERE\s+submission_id\s*=\s*\(\s*SELECT\s+([\s\S]+?)\s+WHERE\s+submission_ref_id\s*=\s*['"]([^'"]+)['"]\s*\)/i);
-        
-        if (nestedSelectMatch) {
-          const [fullMatch, selectExpr, refId] = nestedSelectMatch;
-          
-          // Extract field ID from FIELD() in the nested SELECT
-          const fieldMatch = selectExpr.match(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)::jsonb\s*->\s*(\d+)\s*->>\s*['"](\w+)['"]/i);
-          const fromMatch = selectExpr.match(/FROM\s+['""]([0-9a-fA-F\-]{36})['"\"]/i);
-          
-          if (fieldMatch && fromMatch) {
-            const [, fieldId, arrayIndex, jsonKey] = fieldMatch;
-            const subFormId = fromMatch[1];
-            
-            // Execute the nested SELECT to get the submission_id
-            const { data: subSubmission } = await supabase
-              .from('form_submissions')
-              .select('submission_data')
-              .eq('form_id', subFormId)
-              .eq('submission_ref_id', refId)
-              .single();
-            
-            if (subSubmission) {
-              const fieldValue = subSubmission.submission_data[fieldId];
-              const submissionId = Array.isArray(fieldValue) && fieldValue[parseInt(arrayIndex)]
-                ? fieldValue[parseInt(arrayIndex)][jsonKey]
-                : null;
-              
-              if (submissionId) {
-                // Now execute the main CTE query with the resolved submission_id
-                const mainFieldMatch = processedQuery.match(/SELECT\s+FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)\s*(?:AS\s+(\w+))?/i);
-                const mainFromMatch = processedQuery.match(/FROM\s+['""]([0-9a-fA-F\-]{36})['"\"]/i);
-                
-                if (mainFieldMatch && mainFromMatch) {
-                  const mainFieldId = mainFieldMatch[1];
-                  const fieldAlias = mainFieldMatch[2] || 'value';
-                  const mainFormId = mainFromMatch[1];
-                  
-                  // Fetch the submission
-                  const { data: mainSubmission } = await supabase
-                    .from('form_submissions')
-                    .select('submission_data')
-                    .eq('form_id', mainFormId)
-                    .or(`submission_ref_id.eq.${submissionId},id.eq.${submissionId}`)
-                    .maybeSingle();
-                  
-                  if (mainSubmission) {
-                    const value = mainSubmission.submission_data[mainFieldId];
-                    cteResults[cte.name] = [{
-                      [fieldAlias]: value
-                    }];
-                    console.log(`✅ CTE '${cte.name}' resolved:`, cteResults[cte.name]);
-                  } else {
-                    cteResults[cte.name] = [];
-                  }
-                }
-              } else {
-                cteResults[cte.name] = [];
-              }
-            } else {
-              cteResults[cte.name] = [];
-            }
-          }
-        }
-      }
     }
     
     // Execute main query using CTE results
     console.log('📊 Executing main query:', mainQuery);
     
-    // Handle UPDATE FORM queries
-    if (queryType === 'UPDATE') {
-      console.log('🔄 Processing UPDATE FORM with CTE results');
-      
-      // Parse the UPDATE FORM query
-      const updateMatch = mainQuery.match(
-        /^UPDATE\s+FORM\s+['""]([0-9a-fA-F\-]{36})['"\"]\s+SET\s+FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*=\s*\(\s*SELECT\s+([\s\S]+?)\s+FROM\s+(\w+)\s*\)\s+WHERE\s+((?:submission_id|submission_ref_id)\s*(?:=|!=)\s*['"]?[^'";\s]+['"]?)[\s;]*$/im
-      );
-      
-      if (!updateMatch) {
-        return {
-          columns: [],
-          rows: [],
-          errors: ['Invalid UPDATE FORM syntax with CTE. Expected: SET FIELD(...) = (SELECT ... FROM cte_name)']
-        };
-      }
-      
-      const [, formId, fieldId, selectExpr, cteName, whereClause] = updateMatch;
-      
-      console.log('📋 UPDATE FORM components:', { formId, fieldId, selectExpr, cteName, whereClause });
-      
-      // Get the CTE result
-      const cteData = cteResults[cteName];
-      if (!cteData || cteData.length === 0) {
-        return {
-          columns: [],
-          rows: [],
-          errors: [`CTE '${cteName}' has no results`]
-        };
-      }
-      
-      // Parse the SELECT expression to extract the field/column name
-      // Support: field_name, JSON_BUILD_OBJECT(...), JSON_BUILD_ARRAY(...)
-      let valueToUpdate: any;
-      
-      if (selectExpr.includes('JSON_BUILD_OBJECT')) {
-        // Handle JSON_BUILD_OBJECT
-        const jsonMatch = selectExpr.match(/JSON_BUILD_OBJECT\s*\(\s*['"](\w+)['"]\s*,\s*JSON_BUILD_ARRAY\s*\((\w+)\)\s*,\s*['"](\w+)['"]\s*,\s*JSON_BUILD_ARRAY\s*\(\s*\)\s*\)/i);
-        if (jsonMatch) {
-          const [, key1, arrayField, key2] = jsonMatch;
-          // Build the JSON object from CTE results
-          const arrayValue = cteData.map(row => row[arrayField]);
-          valueToUpdate = {
-            [key1]: arrayValue,
-            [key2]: []
-          };
-          console.log('📦 Built JSON object from CTE:', valueToUpdate);
-        }
-      } else {
-        // Simple field reference
-        const fieldName = selectExpr.trim();
-        valueToUpdate = cteData[0][fieldName];
-        console.log('📋 Extracted field value from CTE:', valueToUpdate);
-      }
-      
-      // Now execute the UPDATE using the extracted value
-      // Build the UPDATE query as a batch update
-      const batchMetadata = {
-        formId,
-        fieldId,
-        whereClause,
-        value: valueToUpdate
-      };
-      
-      const updateSql = `UPDATE -- BATCH_UPDATE\n${JSON.stringify(batchMetadata)}`;
-      return await executeUpdateQuery(updateSql);
-    }
-    
-    // Parse the main query for CASE WHEN with COUNT FILTER aggregations (SELECT queries)
+    // Parse the main query for CASE WHEN with COUNT FILTER aggregations
     const caseMatch = mainQuery.match(/SELECT\s+(CASE[\s\S]+?END)\s+AS\s+(\w+)\s+FROM\s+(\w+)/i);
     
     if (caseMatch) {
