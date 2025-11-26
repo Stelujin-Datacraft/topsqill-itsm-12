@@ -14,11 +14,11 @@ const LOCAL_STORAGE_PREFIX = 'form-draft-';
 
 export function useFormSnapshot(initialForm: Form | null) {
   const [snapshot, setSnapshot] = useState<FormSnapshot>({
-    form: initialForm,
-    isInitialized: !!initialForm,
+    form: null,
+    isInitialized: false,
     isDirty: false,
-    lastSaved: initialForm ? new Date() : null,
-    initializedFormId: initialForm?.id || null,
+    lastSaved: null,
+    initializedFormId: null,
   });
 
   const originalFormRef = useRef<Form | null>(initialForm);
