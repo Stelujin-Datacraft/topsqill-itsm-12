@@ -68,13 +68,17 @@ export function useFormSnapshot(initialForm: Form | null) {
 
   // Initialize snapshot from form
   const initializeSnapshot = useCallback((form: Form | null) => {
+    console.log('🔄 Initializing snapshot for form:', form?.id);
+    
     // Try to load from local storage first if form has an ID
     let formToUse = form;
     if (form?.id) {
       const draftForm = loadFromLocalStorage(form.id);
       if (draftForm) {
         formToUse = draftForm;
-        console.log('✅ Initialized form from local storage draft');
+        console.log('📂 Loaded draft from localStorage with', draftForm.fields?.length || 0, 'fields');
+      } else {
+        console.log('📄 No draft found in localStorage, using database version with', form.fields?.length || 0, 'fields');
       }
     }
     
@@ -86,6 +90,8 @@ export function useFormSnapshot(initialForm: Form | null) {
       lastSaved: form ? new Date() : null,
       initializedFormId: form?.id || null,
     });
+    
+    console.log('✅ Snapshot initialized with', formToUse?.fields?.length || 0, 'fields');
   }, [loadFromLocalStorage]);
 
   // Update form details
@@ -95,6 +101,7 @@ export function useFormSnapshot(initialForm: Form | null) {
       
       const updatedForm = { ...prev.form, ...updates };
       saveToLocalStorage(updatedForm);
+      console.log('📝 Form details updated in snapshot:', Object.keys(updates).join(', '));
       
       return {
         ...prev,
@@ -128,6 +135,7 @@ export function useFormSnapshot(initialForm: Form | null) {
       };
 
       saveToLocalStorage(updatedForm);
+      console.log('➕ Field added to snapshot:', newField.label, '| Total fields:', updatedForm.fields.length);
 
       return {
         ...prev,
@@ -166,6 +174,7 @@ export function useFormSnapshot(initialForm: Form | null) {
       };
 
       saveToLocalStorage(updatedForm);
+      console.log('✏️ Field updated in snapshot:', fieldId);
 
       return {
         ...prev,
@@ -193,6 +202,7 @@ export function useFormSnapshot(initialForm: Form | null) {
       };
 
       saveToLocalStorage(updatedForm);
+      console.log('🗑️ Field deleted from snapshot:', fieldId, '| Remaining fields:', updatedFields.length);
 
       return {
         ...prev,
@@ -350,13 +360,9 @@ export function useFormSnapshot(initialForm: Form | null) {
   }, [saveToLocalStorage]);
 
   // Mark as saved (after successful save to DB)
+  // NOTE: We don't clear localStorage here - drafts persist until explicitly cleared
   const markAsSaved = useCallback(() => {
     setSnapshot(prev => {
-      // Clear local storage when successfully saved to database
-      if (prev.form?.id) {
-        clearLocalStorage(prev.form.id);
-      }
-      
       return {
         ...prev,
         isDirty: false,
@@ -364,7 +370,8 @@ export function useFormSnapshot(initialForm: Form | null) {
       };
     });
     originalFormRef.current = snapshot.form;
-  }, [snapshot.form, clearLocalStorage]);
+    console.log('✅ Form marked as saved, draft still in localStorage for recovery');
+  }, [snapshot.form]);
 
   // Reset to original (discard changes)
   const resetSnapshot = useCallback(() => {

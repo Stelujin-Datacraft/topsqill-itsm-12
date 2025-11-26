@@ -83,14 +83,14 @@ function FormBuilderContent({
 
   // Initialize snapshot when form loads
   useEffect(() => {
-    if (currentForm) {
-      // Always initialize if not initialized OR if form ID changed
+    if (currentForm?.id) {
+      // Only initialize if form ID changed or not initialized yet
       if (!snapshot.isInitialized || snapshot.initializedFormId !== currentForm.id) {
-        console.log('Initializing form snapshot:', currentForm);
+        console.log('🚀 Form ID changed or not initialized, initializing snapshot for:', currentForm.id);
         initializeSnapshot(currentForm);
       }
     }
-  }, [currentForm, snapshot.isInitialized, snapshot.initializedFormId, initializeSnapshot]);
+  }, [currentForm?.id, snapshot.isInitialized, snapshot.initializedFormId, initializeSnapshot]);
 
   // Initialize current page and ensure Page 1 exists for new forms
   useEffect(() => {
