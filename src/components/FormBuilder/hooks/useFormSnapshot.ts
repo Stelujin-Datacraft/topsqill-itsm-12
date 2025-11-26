@@ -13,12 +13,30 @@ export interface FormSnapshot {
 const LOCAL_STORAGE_PREFIX = 'form-draft-';
 
 export function useFormSnapshot(initialForm: Form | null) {
-  const [snapshot, setSnapshot] = useState<FormSnapshot>({
-    form: initialForm,
-    isInitialized: !!initialForm,
-    isDirty: false,
-    lastSaved: initialForm ? new Date() : null,
-    initializedFormId: initialForm?.id || null,
+  const [snapshot, setSnapshot] = useState<FormSnapshot>(() => {
+    let formFromState: Form | null = initialForm;
+
+    if (initialForm?.id) {
+      try {
+        const storageKey = `${LOCAL_STORAGE_PREFIX}${initialForm.id}`;
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+          const { form } = JSON.parse(stored);
+          console.log('📂 Initialized snapshot from localStorage (state init):', storageKey, 'fields:', form?.fields?.length || 0);
+          formFromState = form;
+        }
+      } catch (error) {
+        console.error('❌ Failed to load initial form draft from local storage in state initializer:', error);
+      }
+    }
+
+    return {
+      form: formFromState,
+      isInitialized: !!formFromState,
+      isDirty: false,
+      lastSaved: formFromState ? new Date() : null,
+      initializedFormId: formFromState?.id || initialForm?.id || null,
+    };
   });
 
   const originalFormRef = useRef<Form | null>(initialForm);
