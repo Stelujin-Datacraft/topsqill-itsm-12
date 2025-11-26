@@ -2733,7 +2733,18 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
               accessData = JSON.parse(newValue);
               console.log('📝 Parsed JSON string:', accessData);
             } catch (e) {
-              console.warn('Could not parse as JSON, treating as plain value:', newValue);
+              console.warn('Could not parse as JSON, treating as plain email value');
+              // If it's a plain string that looks like an email, wrap it in the proper format
+              if (newValue.includes('@')) {
+                console.log('📧 Detected plain email, wrapping in submission-access format');
+                accessData = {
+                  users: [newValue.trim()],
+                  groups: []
+                };
+                console.log('📝 Auto-wrapped email in JSON structure:', accessData);
+              } else {
+                console.warn('Plain string is not an email, skipping auto-wrap');
+              }
             }
           }
           
