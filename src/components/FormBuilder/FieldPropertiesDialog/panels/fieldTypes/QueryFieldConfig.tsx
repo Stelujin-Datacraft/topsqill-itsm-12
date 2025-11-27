@@ -535,14 +535,33 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No Chart</SelectItem>
-                    <SelectItem value="bar">Bar Chart</SelectItem>
-                    <SelectItem value="line">Line Chart</SelectItem>
-                    <SelectItem value="pie">Pie Chart</SelectItem>
+                    <SelectItem value="bar">Bar Chart - Compare categories</SelectItem>
+                    <SelectItem value="line">Line Chart - Show trends</SelectItem>
+                    <SelectItem value="pie">Pie Chart - Show distribution</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">
-                  Display results as a chart (requires at least 2 columns)
-                </p>
+                
+                {customConfig.chartType && (
+                  <div className="p-2 bg-muted/50 rounded-md text-xs space-y-1">
+                    <p className="font-medium">Chart Requirements:</p>
+                    <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
+                      <li>First column = labels/categories (text)</li>
+                      <li>Second column+ = values (numbers)</li>
+                      {customConfig.chartType === 'pie' && (
+                        <>
+                          <li>Best with ≤10 categories</li>
+                          <li>Values should be positive</li>
+                        </>
+                      )}
+                      {customConfig.chartType === 'line' && (
+                        <li>Best with sequential/time data</li>
+                      )}
+                      {customConfig.chartType === 'bar' && (
+                        <li>Supports multiple value columns</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
               </div>
 
               <Separator />
