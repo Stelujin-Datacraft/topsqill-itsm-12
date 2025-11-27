@@ -2200,13 +2200,28 @@ async function executeInsertQuery(sql: string, loopContext?: LoopContext): Promi
     const resolveFieldId = (columnName: string): string | undefined => {
       console.log('resolveFieldId input:', columnName);
       
+      // Normalize quotes - replace curly/fancy quotes with standard quotes
+      const normalizedColumn = columnName
+        .replace(/[""]/g, '"')
+        .replace(/['']/g, "'");
+      
+      console.log('resolveFieldId normalized:', normalizedColumn);
+      
       // Check if it uses FIELD() syntax - capture UUID between parentheses
       // Handle with or without quotes, any quote style
       const fieldPattern = /FIELD\s*\(\s*["']?([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})["']?\s*\)/i;
-      const fieldMatch = columnName.match(fieldPattern);
+      const fieldMatch = normalizedColumn.match(fieldPattern);
       if (fieldMatch) {
         console.log('Resolved FIELD() to:', fieldMatch[1]);
         return fieldMatch[1]; // Return the UUID directly
+      }
+      
+      // Also try to extract UUID directly if FIELD() pattern didn't match
+      const uuidPattern = /([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/;
+      const uuidMatch = normalizedColumn.match(uuidPattern);
+      if (uuidMatch && fieldIdSet.has(uuidMatch[1])) {
+        console.log('Resolved UUID directly:', uuidMatch[1]);
+        return uuidMatch[1];
       }
       
       // Check if it's already a valid UUID (field ID)
