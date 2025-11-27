@@ -484,10 +484,11 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
                 <Input
                   type="number"
                   min="0"
-                  value={customConfig.refreshInterval || 0}
-                  onChange={(e) =>
-                    updateCustomConfig('refreshInterval', parseInt(e.target.value) || 0)
-                  }
+                  value={customConfig.refreshInterval === undefined ? '' : customConfig.refreshInterval}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    updateCustomConfig('refreshInterval', value === '' ? 0 : parseInt(value) || 0);
+                  }}
                   placeholder="0"
                 />
                 <p className="text-xs text-muted-foreground">

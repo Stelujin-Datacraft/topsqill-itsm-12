@@ -128,13 +128,24 @@ export function QueryField({
           description: result.errors.join(', '),
           variant: "destructive",
         });
-      } else if (onChange) {
-        // Store the result in the field value
-        onChange({
-          result,
-          executedAt: new Date().toISOString(),
-          query
-        });
+      } else {
+        // Check if this is an INSERT or UPDATE query
+        const queryType = processedQuery.trim().toUpperCase();
+        if (queryType.startsWith('INSERT') || queryType.startsWith('UPDATE')) {
+          toast({
+            title: "Query Executed Successfully",
+            description: `${queryType.startsWith('INSERT') ? 'Records inserted' : 'Records updated'} successfully`,
+          });
+        }
+        
+        if (onChange) {
+          // Store the result in the field value
+          onChange({
+            result,
+            executedAt: new Date().toISOString(),
+            query
+          });
+        }
       }
     } catch (error) {
       console.error('❌ QueryField: Query execution failed:', error);
