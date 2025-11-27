@@ -75,30 +75,43 @@ export function useFormSnapshot(initialForm: Form | null) {
   const initializeSnapshot = useCallback((form: Form | null) => {
     console.log('🔄 Initializing snapshot for form:', form?.id);
     
-    // Try to load from local storage first if form has an ID
     let formToUse = form;
     if (form?.id) {
       const draftForm = loadFromLocalStorage(form.id);
       if (draftForm && form) {
-        // Merge database fields with draft fields, deduplicating by ID and characteristics
+        // Smart merge strategy to prevent duplicates
         const dbFieldIds = new Set(form.fields.map(f => f.id));
+        
+        // Create a map of DB fields by their characteristics for quick lookup
+        const dbFieldSignatures = new Set(
+          form.fields.map(f => `${f.label}|${f.type}|${f.pageId}`)
+        );
+        
+        // Filter draft fields: keep only if not in DB (by ID or characteristics)
         const draftOnlyFields = draftForm.fields.filter(draftField => {
-          // Keep draft field only if it doesn't exist in DB
+          // Skip if field exists in DB by ID
           if (dbFieldIds.has(draftField.id)) return false;
           
-          // Also check for duplicate by label+type+page to prevent same field with different ID
-          return !form.fields.some(dbField => 
-            dbField.label === draftField.label &&
-            dbField.type === draftField.type &&
-            dbField.pageId === draftField.pageId
-          );
+          // Skip if same field exists in DB by characteristics
+          const signature = `${draftField.label}|${draftField.type}|${draftField.pageId}`;
+          if (dbFieldSignatures.has(signature)) return false;
+          
+          return true;
         });
         
-        // Combine: DB fields (source of truth) + unique draft fields
+        // For pages: prefer draft pages structure if it has unsaved changes
+        const pages = draftForm.pages && draftForm.pages.length > 0 
+          ? draftForm.pages 
+          : form.pages;
+        
+        // Combine: DB fields (always source of truth) + unique draft-only fields
         formToUse = {
-          ...form,
-          ...draftForm, // Take name, description, etc. from draft
-          fields: [...form.fields, ...draftOnlyFields], // Merge fields with deduplication
+          ...form, // Start with DB version
+          name: draftForm.name || form.name, // Prefer draft name if exists
+          description: draftForm.description || form.description,
+          layout: draftForm.layout || form.layout,
+          pages: pages,
+          fields: [...form.fields, ...draftOnlyFields], // DB fields first, then unique drafts
         };
         
         console.log('📂 Merged draft with DB:', {
@@ -118,7 +131,7 @@ export function useFormSnapshot(initialForm: Form | null) {
     setSnapshot({
       form: formToUse ? { ...formToUse } : null,
       isInitialized: true,
-      isDirty: formToUse !== form, // Mark dirty if we loaded from localStorage
+      isDirty: draftForm ? true : false, // Mark dirty if localStorage had changes
       lastSaved: form ? new Date() : null,
       initializedFormId: form?.id || null,
     });
@@ -409,13 +422,13 @@ export function useFormSnapshot(initialForm: Form | null) {
   }, [saveToLocalStorage]);
 
   // Mark as saved (after successful save to DB)
-  // Clear localStorage after successful save to prevent duplicates on reload
+  // Keep localStorage for recovery, update the saved form reference
   const markAsSaved = useCallback(() => {
     setSnapshot(prev => {
-      // Clear local storage now that data is in database
+      // Update the saved state in localStorage to match DB
       if (prev.form?.id) {
-        clearLocalStorage(prev.form.id);
-        console.log('🗑️ Cleared localStorage after successful save to prevent duplicates');
+        saveToLocalStorage(prev.form);
+        console.log('💾 Updated localStorage after successful save');
       }
       
       return {
@@ -425,8 +438,8 @@ export function useFormSnapshot(initialForm: Form | null) {
       };
     });
     originalFormRef.current = snapshot.form;
-    console.log('✅ Form marked as saved and localStorage cleared');
-  }, [snapshot.form, clearLocalStorage]);
+    console.log('✅ Form marked as saved, localStorage kept for recovery');
+  }, [snapshot.form, saveToLocalStorage]);
 
   // Reset to original (discard changes)
   const resetSnapshot = useCallback(() => {
