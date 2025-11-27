@@ -20,17 +20,26 @@ export function QueryResultChart({ result, chartType }: QueryResultChartProps) {
     );
   }
 
-  // Transform data for charts
+  // Transform data for charts - ensure numeric values are parsed
   const chartData = result.rows.map(row => {
     const obj: Record<string, any> = {};
     result.columns.forEach((col, idx) => {
-      obj[col] = row[idx];
+      const value = row[idx];
+      // Try to parse numeric values
+      const numericValue = typeof value === 'string' ? parseFloat(value) : value;
+      obj[col] = !isNaN(numericValue) && typeof numericValue === 'number' ? numericValue : value;
     });
     return obj;
   });
 
   const firstColumn = result.columns[0];
   const secondColumn = result.columns[1];
+  
+  // For pie charts, ensure we have valid numeric data
+  const pieChartData = chartData.map((item, index) => ({
+    name: String(item[firstColumn] || `Item ${index + 1}`),
+    value: typeof item[secondColumn] === 'number' ? item[secondColumn] : parseFloat(item[secondColumn]) || 0
+  })).filter(item => item.value > 0);
 
   if (chartType === 'bar') {
     return (
@@ -83,25 +92,29 @@ export function QueryResultChart({ result, chartType }: QueryResultChartProps) {
           <CardTitle className="text-sm">Pie Chart</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={chartData}
-                dataKey={secondColumn}
-                nameKey={firstColumn}
-                cx="50%"
-                cy="50%"
-                outerRadius={80}
-                label
-              >
-                {chartData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
+          {pieChartData.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No valid numeric data for pie chart</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={pieChartData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                >
+                  {pieChartData.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value: number) => value.toLocaleString()} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
     );
