@@ -34,9 +34,9 @@ export function validateQuery(query: string): QueryValidationResult {
     errors.push('Query must start with SELECT, INSERT, or UPDATE');
   }
 
-  // Check for basic SQL structure
-  if (!trimmedQuery.includes('FROM')) {
-    errors.push('Query must include FROM clause');
+  // Check for basic SQL structure - only SELECT queries need FROM clause
+  if (trimmedQuery.startsWith('SELECT') && !trimmedQuery.includes('FROM')) {
+    errors.push('SELECT query must include FROM clause');
   }
 
   // Check for unclosed quotes
@@ -59,13 +59,15 @@ export function validateQuery(query: string): QueryValidationResult {
     errors.push('Unclosed parenthesis detected');
   }
 
-  // Warnings for performance
-  if (!trimmedQuery.includes('LIMIT')) {
-    warnings.push('Consider adding LIMIT to improve performance');
-  }
+  // Warnings for performance - only for SELECT queries
+  if (trimmedQuery.startsWith('SELECT')) {
+    if (!trimmedQuery.includes('LIMIT')) {
+      warnings.push('Consider adding LIMIT to improve performance');
+    }
 
-  if (trimmedQuery.includes('SELECT *')) {
-    warnings.push('Consider selecting specific columns instead of using SELECT *');
+    if (trimmedQuery.includes('SELECT *')) {
+      warnings.push('Consider selecting specific columns instead of using SELECT *');
+    }
   }
 
   return {
