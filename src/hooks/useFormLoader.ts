@@ -19,7 +19,7 @@ export function useFormLoader(formId: string | undefined) {
       try {
         console.log('useFormLoader: Loading form:', formId);
         
-        // Load form from Supabase
+        // Load form from Supabase - load any status when editing
         const { data: formData, error: formError } = await supabase
           .from('forms')
           .select(`
@@ -27,7 +27,6 @@ export function useFormLoader(formId: string | undefined) {
             fields:form_fields(*)
           `)
           .eq('id', formId)
-          .eq('status', 'active')
           .single();
 
         if (formError) {
