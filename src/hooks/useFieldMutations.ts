@@ -4,7 +4,7 @@ import { toast } from '@/hooks/use-toast';
 import { schemaCache } from '@/services/schemaCache';
 
 export function useFieldMutations() {
-  const addField = async (formId: string, fieldData: Omit<FormField, 'id'>, userProfile: any) => {
+  const addField = async (formId: string, fieldData: Omit<FormField, 'id'> & { id?: string }, userProfile: any) => {
     if (!userProfile?.organization_id) {
       console.error('useFieldMutations: No organization for adding field');
       toast({
@@ -40,7 +40,7 @@ export function useFieldMutations() {
         }
       }
 
-      const insertData = {
+      const insertData: Record<string, any> = {
         form_id: formId,
         field_type: fieldData.type,
         label: fieldData.label,
@@ -60,9 +60,14 @@ export function useFieldMutations() {
         custom_config: fieldData.customConfig ? JSON.stringify(fieldData.customConfig) : null,
       };
 
+      // Include the client-generated ID if provided to preserve field ID consistency
+      if (fieldData.id) {
+        insertData.id = fieldData.id;
+      }
+
       const { data, error } = await supabase
         .from('form_fields')
-        .insert(insertData)
+        .insert(insertData as any)
         .select()
         .single();
 
