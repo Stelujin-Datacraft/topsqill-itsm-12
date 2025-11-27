@@ -21,17 +21,17 @@ export function validateQuery(query: string): QueryValidationResult {
 
   const trimmedQuery = query.trim().toUpperCase();
 
-  // Check for dangerous operations
-  const dangerousOperations = ['DROP', 'DELETE', 'TRUNCATE', 'ALTER', 'CREATE', 'INSERT', 'UPDATE'];
+  // Check for dangerous operations (excluding INSERT and UPDATE which are now supported)
+  const dangerousOperations = ['DROP', 'DELETE', 'TRUNCATE', 'ALTER', 'CREATE'];
   for (const op of dangerousOperations) {
     if (trimmedQuery.includes(op)) {
-      errors.push(`Dangerous operation detected: ${op}. Only SELECT queries are allowed.`);
+      errors.push(`Dangerous operation detected: ${op}. Only SELECT, INSERT, and UPDATE queries are allowed.`);
     }
   }
 
-  // Must start with SELECT
-  if (!trimmedQuery.startsWith('SELECT')) {
-    errors.push('Query must start with SELECT');
+  // Must start with SELECT, INSERT, or UPDATE
+  if (!trimmedQuery.startsWith('SELECT') && !trimmedQuery.startsWith('INSERT') && !trimmedQuery.startsWith('UPDATE')) {
+    errors.push('Query must start with SELECT, INSERT, or UPDATE');
   }
 
   // Check for basic SQL structure
