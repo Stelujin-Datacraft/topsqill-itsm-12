@@ -47,7 +47,7 @@ export function useFormsData() {
     setForms(prev => prev.filter(form => form.id !== id));
   };
 
-  const addField = async (formId: string, fieldData: Omit<FormField, 'id'>) => {
+  const addField = async (formId: string, fieldData: Omit<FormField, 'id'> & { id?: string }) => {
     const newField = await addFieldMutation(formId, fieldData, userProfile);
     if (newField) {
       setForms(prev =>
