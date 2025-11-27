@@ -2198,10 +2198,18 @@ async function executeInsertQuery(sql: string, loopContext?: LoopContext): Promi
     
     // Helper function to resolve field ID from name, ID, or FIELD() syntax
     const resolveFieldId = (columnName: string): string | undefined => {
-      // Check if it uses FIELD() syntax - include regular double quotes, single quotes, and curly quotes
-      const fieldMatch = columnName.match(/FIELD\s*\(\s*['"""]([0-9a-fA-F\-]{36})['"""]\s*\)/i);
+      // Check if it uses FIELD() syntax - use simple pattern with standard ASCII quotes
+      const fieldMatch = columnName.match(/FIELD\s*\(\s*['"]+([0-9a-fA-F-]{36})['"]+\s*\)/i);
       if (fieldMatch) {
+        console.log('Resolved FIELD() to:', fieldMatch[1]);
         return fieldMatch[1]; // Return the UUID directly
+      }
+      
+      // Also try without any quotes (in case quotes were stripped)
+      const noQuoteMatch = columnName.match(/FIELD\s*\(\s*([0-9a-fA-F-]{36})\s*\)/i);
+      if (noQuoteMatch) {
+        console.log('Resolved FIELD() (no quotes) to:', noQuoteMatch[1]);
+        return noQuoteMatch[1];
       }
       
       // Check if it's already a valid UUID (field ID)
