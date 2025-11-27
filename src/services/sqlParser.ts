@@ -1028,8 +1028,8 @@ export async function executeUserQuery(
       }
     }
     
-    // Handle INSERT queries
-    if (sql?.match(/^INSERT\s+INTO/i)) {
+    // Handle INSERT queries (with or without INTO/FORM keywords)
+    if (sql?.match(/^INSERT\s+(?:INTO\s+)?(?:FORM\s+)?/i)) {
       return await executeInsertQuery(sql, loopContext);
     }
 
