@@ -76,8 +76,10 @@ export function useFormSnapshot(initialForm: Form | null) {
     console.log('🔄 Initializing snapshot for form:', form?.id);
     
     let formToUse = form;
+    let draftForm: Form | null = null;
+    
     if (form?.id) {
-      const draftForm = loadFromLocalStorage(form.id);
+      draftForm = loadFromLocalStorage(form.id);
       if (draftForm && form) {
         // Smart merge strategy to prevent duplicates
         const dbFieldIds = new Set(form.fields.map(f => f.id));
