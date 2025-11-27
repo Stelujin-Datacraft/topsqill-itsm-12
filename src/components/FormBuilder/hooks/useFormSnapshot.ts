@@ -409,24 +409,30 @@ export function useFormSnapshot(initialForm: Form | null) {
   }, [saveToLocalStorage]);
 
   // Mark as saved (after successful save to DB)
-  // Clear localStorage after successful save to prevent duplicates on reload
+  // Keep localStorage for recovery but mark snapshot as clean
   const markAsSaved = useCallback(() => {
     setSnapshot(prev => {
-      // Clear local storage now that data is in database
-      if (prev.form?.id) {
-        clearLocalStorage(prev.form.id);
-        console.log('🗑️ Cleared localStorage after successful save to prevent duplicates');
+      if (!prev.form) return prev;
+
+      // Persist the latest form state to localStorage for draft recovery
+      if (prev.form.id) {
+        saveToLocalStorage(prev.form);
+        console.log('💾 Updated localStorage after successful save (kept for recovery)');
       }
-      
-      return {
+
+      const updated = {
         ...prev,
         isDirty: false,
         lastSaved: new Date(),
       };
+
+      return updated;
     });
+
+    // Update originalFormRef so resetSnapshot restores this saved version
     originalFormRef.current = snapshot.form;
-    console.log('✅ Form marked as saved and localStorage cleared');
-  }, [snapshot.form, clearLocalStorage]);
+    console.log('✅ Form marked as saved; localStorage draft kept for recovery');
+  }, [snapshot.form, saveToLocalStorage]);
 
   // Reset to original (discard changes)
   const resetSnapshot = useCallback(() => {
