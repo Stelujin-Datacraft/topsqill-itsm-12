@@ -4,6 +4,99 @@ import { toast } from '@/hooks/use-toast';
 import { schemaCache } from '@/services/schemaCache';
 
 export function useFieldMutations() {
+  // Define updateField first since addField may call it
+  const updateField = async (fieldId: string, updates: Partial<FormField>) => {
+    try {
+      console.log('useFieldMutations: Starting field update for fieldId:', fieldId);
+      console.log('useFieldMutations: Updates received:', updates);
+      
+      const updateData: any = {};
+      if (updates.label !== undefined) updateData.label = updates.label;
+      if (updates.placeholder !== undefined) updateData.placeholder = updates.placeholder;
+      if (updates.required !== undefined) updateData.required = updates.required;
+      
+      // Handle defaultValue properly - convert to string for database storage
+      if (updates.defaultValue !== undefined) {
+        if (typeof updates.defaultValue === 'boolean') {
+          updateData.default_value = updates.defaultValue.toString();
+        } else if (Array.isArray(updates.defaultValue)) {
+          updateData.default_value = JSON.stringify(updates.defaultValue);
+        } else {
+          updateData.default_value = String(updates.defaultValue);
+        }
+      }
+      
+      if (updates.options !== undefined) {
+        updateData.options = JSON.stringify(updates.options);
+        console.log('useFieldMutations: Setting options:', updates.options);
+      }
+      if (updates.validation !== undefined) updateData.validation = JSON.stringify(updates.validation);
+      if (updates.permissions !== undefined) updateData.permissions = JSON.stringify(updates.permissions);
+      if (updates.triggers !== undefined) updateData.triggers = JSON.stringify(updates.triggers);
+      if (updates.isVisible !== undefined) updateData.is_visible = updates.isVisible;
+      if (updates.isEnabled !== undefined) updateData.is_enabled = updates.isEnabled;
+      if (updates.currentValue !== undefined) updateData.current_value = updates.currentValue;
+      if (updates.tooltip !== undefined) updateData.tooltip = updates.tooltip;
+      if (updates.errorMessage !== undefined) updateData.error_message = updates.errorMessage;
+      
+      // Properly handle customConfig updates with comprehensive logging
+      if (updates.customConfig !== undefined) {
+        const customConfigString = JSON.stringify(updates.customConfig);
+        updateData.custom_config = customConfigString;
+        console.log('useFieldMutations: Setting custom_config for field:', fieldId);
+        console.log('useFieldMutations: Custom config object:', updates.customConfig);
+        console.log('useFieldMutations: Custom config JSON string:', customConfigString);
+        
+        // Validate JSON can be parsed back
+        try {
+          const testParse = JSON.parse(customConfigString);
+          console.log('useFieldMutations: Custom config JSON validation successful:', testParse);
+        } catch (parseError) {
+          console.error('useFieldMutations: Custom config JSON validation failed:', parseError);
+          throw new Error('Invalid custom configuration JSON');
+        }
+      }
+
+      console.log('useFieldMutations: Final update data being sent to database:', updateData);
+
+      const { error } = await supabase
+        .from('form_fields')
+        .update(updateData)
+        .eq('id', fieldId);
+
+      if (error) {
+        console.error('useFieldMutations: Database error updating field:', error);
+        throw error;
+      }
+
+      console.log('useFieldMutations: Field updated successfully in database');
+      
+      // Verify the update by reading back the data
+      const { data: verificationData, error: verificationError } = await supabase
+        .from('form_fields')
+        .select('custom_config, options')
+        .eq('id', fieldId)
+        .single();
+      
+      if (verificationError) {
+        console.warn('useFieldMutations: Could not verify update:', verificationError);
+      } else {
+        console.log('useFieldMutations: Verification - field data after update:', verificationData);
+      }
+      
+      // Invalidate schema cache to refresh query explorer
+      schemaCache.invalidateCache();
+    } catch (error) {
+      console.error('useFieldMutations: Error updating field:', error);
+      toast({
+        title: "Error updating field",
+        description: "Failed to update the field. Please try again.",
+        variant: "destructive",
+      });
+      throw error; // Re-throw to allow caller to handle
+    }
+  };
+
   const addField = async (formId: string, fieldData: Omit<FormField, 'id'> & { id?: string }, userProfile: any) => {
     if (!userProfile?.organization_id) {
       console.error('useFieldMutations: No organization for adding field');
@@ -17,6 +110,25 @@ export function useFieldMutations() {
 
     try {
       console.log('useFieldMutations: Adding field to form:', formId, fieldData);
+      
+      // Check if field with this ID already exists (to handle duplicate key errors)
+      if (fieldData.id) {
+        const { data: existingField, error: checkError } = await supabase
+          .from('form_fields')
+          .select('id')
+          .eq('id', fieldData.id)
+          .maybeSingle();
+        
+        if (!checkError && existingField) {
+          console.log('useFieldMutations: Field already exists, updating instead of inserting:', fieldData.id);
+          // Field exists, update it instead
+          await updateField(fieldData.id, fieldData);
+          return {
+            id: fieldData.id,
+            ...fieldData,
+          } as FormField;
+        }
+      }
       
       // First, get the current max field order for this form
       const { data: maxOrderData } = await supabase
@@ -155,98 +267,6 @@ export function useFieldMutations() {
         variant: "destructive",
       });
       return null;
-    }
-  };
-
-  const updateField = async (fieldId: string, updates: Partial<FormField>) => {
-    try {
-      console.log('useFieldMutations: Starting field update for fieldId:', fieldId);
-      console.log('useFieldMutations: Updates received:', updates);
-      
-      const updateData: any = {};
-      if (updates.label !== undefined) updateData.label = updates.label;
-      if (updates.placeholder !== undefined) updateData.placeholder = updates.placeholder;
-      if (updates.required !== undefined) updateData.required = updates.required;
-      
-      // Handle defaultValue properly - convert to string for database storage
-      if (updates.defaultValue !== undefined) {
-        if (typeof updates.defaultValue === 'boolean') {
-          updateData.default_value = updates.defaultValue.toString();
-        } else if (Array.isArray(updates.defaultValue)) {
-          updateData.default_value = JSON.stringify(updates.defaultValue);
-        } else {
-          updateData.default_value = String(updates.defaultValue);
-        }
-      }
-      
-      if (updates.options !== undefined) {
-        updateData.options = JSON.stringify(updates.options);
-        console.log('useFieldMutations: Setting options:', updates.options);
-      }
-      if (updates.validation !== undefined) updateData.validation = JSON.stringify(updates.validation);
-      if (updates.permissions !== undefined) updateData.permissions = JSON.stringify(updates.permissions);
-      if (updates.triggers !== undefined) updateData.triggers = JSON.stringify(updates.triggers);
-      if (updates.isVisible !== undefined) updateData.is_visible = updates.isVisible;
-      if (updates.isEnabled !== undefined) updateData.is_enabled = updates.isEnabled;
-      if (updates.currentValue !== undefined) updateData.current_value = updates.currentValue;
-      if (updates.tooltip !== undefined) updateData.tooltip = updates.tooltip;
-      if (updates.errorMessage !== undefined) updateData.error_message = updates.errorMessage;
-      
-      // Properly handle customConfig updates with comprehensive logging
-      if (updates.customConfig !== undefined) {
-        const customConfigString = JSON.stringify(updates.customConfig);
-        updateData.custom_config = customConfigString;
-        console.log('useFieldMutations: Setting custom_config for field:', fieldId);
-        console.log('useFieldMutations: Custom config object:', updates.customConfig);
-        console.log('useFieldMutations: Custom config JSON string:', customConfigString);
-        
-        // Validate JSON can be parsed back
-        try {
-          const testParse = JSON.parse(customConfigString);
-          console.log('useFieldMutations: Custom config JSON validation successful:', testParse);
-        } catch (parseError) {
-          console.error('useFieldMutations: Custom config JSON validation failed:', parseError);
-          throw new Error('Invalid custom configuration JSON');
-        }
-      }
-
-      console.log('useFieldMutations: Final update data being sent to database:', updateData);
-
-      const { error } = await supabase
-        .from('form_fields')
-        .update(updateData)
-        .eq('id', fieldId);
-
-      if (error) {
-        console.error('useFieldMutations: Database error updating field:', error);
-        throw error;
-      }
-
-      console.log('useFieldMutations: Field updated successfully in database');
-      
-      // Verify the update by reading back the data
-      const { data: verificationData, error: verificationError } = await supabase
-        .from('form_fields')
-        .select('custom_config, options')
-        .eq('id', fieldId)
-        .single();
-      
-      if (verificationError) {
-        console.warn('useFieldMutations: Could not verify update:', verificationError);
-      } else {
-        console.log('useFieldMutations: Verification - field data after update:', verificationData);
-      }
-      
-      // Invalidate schema cache to refresh query explorer
-      schemaCache.invalidateCache();
-    } catch (error) {
-      console.error('useFieldMutations: Error updating field:', error);
-      toast({
-        title: "Error updating field",
-        description: "Failed to update the field. Please try again.",
-        variant: "destructive",
-      });
-      throw error; // Re-throw to allow caller to handle
     }
   };
 
