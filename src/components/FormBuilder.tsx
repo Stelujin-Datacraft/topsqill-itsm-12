@@ -657,17 +657,22 @@ function FormBuilderContent({
 export function FormBuilder({
   formId
 }: FormBuilderProps) {
-  const {
-    forms,
-    loading
-  } = useFormsData();
-  const currentForm = formId ? forms.find(f => f.id === formId) : null;
+  // Load the complete form with all fields using useFormLoader
+  // This ensures we have consistent form data with proper field IDs
+  const { form: loadedForm, loading: formLoading } = useFormLoader(formId);
+  const { loading: formsLoading } = useFormsData();
+  
+  const loading = formLoading || formsLoading;
+  
   if (loading) {
     return <div className="flex items-center justify-center h-64">
         <div className="text-muted-foreground">Loading forms...</div>
       </div>;
   }
-  return <FormSnapshotProvider initialForm={currentForm}>
+  
+  // Use the form from useFormLoader (complete with all field data and IDs)
+  // instead of forms.find() which may have incomplete data
+  return <FormSnapshotProvider initialForm={loadedForm}>
       <FormBuilderContent formId={formId} />
     </FormSnapshotProvider>;
 }

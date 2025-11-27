@@ -129,11 +129,13 @@ export function useFormSnapshot(initialForm: Form | null) {
     });
   }, [saveToLocalStorage]);
 
-  // Add field to snapshot
-  const addFieldToSnapshot = useCallback((field: Omit<FormField, 'id'>, pageId: string) => {
+  // Add field to snapshot - preserve existing ID if provided
+  const addFieldToSnapshot = useCallback((field: Omit<FormField, 'id'> & { id?: string }, pageId: string) => {
+    // Use provided ID or generate a new one - this ensures ID consistency
+    const fieldId = field.id || uuidv4();
     const newField: FormField = {
       ...field,
-      id: uuidv4(),
+      id: fieldId,
       pageId,
     };
 

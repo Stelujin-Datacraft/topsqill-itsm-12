@@ -6,7 +6,7 @@ interface FormSnapshotContextType {
   snapshot: FormSnapshot;
   initializeSnapshot: (form: Form | null) => void;
   updateFormDetails: (updates: Partial<Form>) => void;
-  addFieldToSnapshot: (field: Omit<FormField, 'id'>, pageId: string) => FormField;
+  addFieldToSnapshot: (field: Omit<FormField, 'id'> & { id?: string }, pageId: string) => FormField;
   updateFieldInSnapshot: (fieldId: string, updates: Partial<FormField>) => void;
   deleteFieldFromSnapshot: (fieldId: string) => void;
   reorderFieldsInSnapshot: (pageId: string, sourceIndex: number, destinationIndex: number) => void;
