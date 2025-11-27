@@ -57,7 +57,7 @@ export function QueryField({
     refreshInterval = 0,
     showResults = true,
     maxResults = 100,
-    chartType = 'bar',
+    chartType,
     enableValidation = true,
     formId = '',
     submissionId = ''
