@@ -209,8 +209,8 @@ export const QueryResultsTabs: React.FC<QueryResultsTabsProps> = ({
         <div className="flex-1 overflow-hidden">
           <TabsContent value="results" className="h-full m-0 p-4">
             <div className="h-full flex flex-col">
-              <div className="flex-1 overflow-hidden border rounded-lg">
-                <ScrollArea className="h-full">
+              <div className="flex-1 overflow-hidden border rounded-lg max-h-[220px]">
+                <ScrollArea className="h-full max-h-[220px]">
                   <div ref={tableRef} className="min-w-full">
                     <Table>
                       <TableHeader className="sticky top-0 bg-muted z-10">

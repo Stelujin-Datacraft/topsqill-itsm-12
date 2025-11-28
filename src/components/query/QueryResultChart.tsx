@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { QueryResult } from '@/services/sqlParser';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface QueryResultChartProps {
@@ -57,20 +58,25 @@ export function QueryResultChart({ result, chartType, colorful = true }: QueryRe
           <CardTitle className="text-sm">Bar Chart</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey={firstColumn} />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey={secondColumn} fill={barFill}>
-                {colorful && chartData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <ScrollArea className="w-full">
+            <div style={{ minWidth: Math.max(400, chartData.length * 60) }}>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey={firstColumn} />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey={secondColumn} fill={barFill}>
+                    {colorful && chartData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         </CardContent>
       </Card>
     );
@@ -83,16 +89,21 @@ export function QueryResultChart({ result, chartType, colorful = true }: QueryRe
           <CardTitle className="text-sm">Line Chart</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey={firstColumn} />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey={secondColumn} stroke={lineStroke} />
-            </LineChart>
-          </ResponsiveContainer>
+          <ScrollArea className="w-full">
+            <div style={{ minWidth: Math.max(400, chartData.length * 60) }}>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey={firstColumn} />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey={secondColumn} stroke={lineStroke} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         </CardContent>
       </Card>
     );
