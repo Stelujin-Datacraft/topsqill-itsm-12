@@ -6,11 +6,16 @@ import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Cart
 interface QueryResultChartProps {
   result: QueryResult;
   chartType: 'bar' | 'line' | 'pie';
+  colorful?: boolean;
 }
 
-const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F'];
+const COLORFUL_COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F'];
+const GRAYSCALE_COLORS = ['#374151', '#6B7280', '#9CA3AF', '#D1D5DB', '#4B5563', '#1F2937', '#111827', '#E5E7EB'];
 
-export function QueryResultChart({ result, chartType }: QueryResultChartProps) {
+export function QueryResultChart({ result, chartType, colorful = true }: QueryResultChartProps) {
+  const COLORS = colorful ? COLORFUL_COLORS : GRAYSCALE_COLORS;
+  const barFill = colorful ? 'hsl(var(--primary))' : '#374151';
+  const lineStroke = colorful ? 'hsl(var(--primary))' : '#374151';
   if (!result || result.rows.length === 0) {
     return (
       <Card>
@@ -59,7 +64,7 @@ export function QueryResultChart({ result, chartType }: QueryResultChartProps) {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey={secondColumn} fill="hsl(var(--primary))" />
+              <Bar dataKey={secondColumn} fill={barFill} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -81,7 +86,7 @@ export function QueryResultChart({ result, chartType }: QueryResultChartProps) {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey={secondColumn} stroke="hsl(var(--primary))" />
+              <Line type="monotone" dataKey={secondColumn} stroke={lineStroke} />
             </LineChart>
           </ResponsiveContainer>
         </CardContent>

@@ -545,6 +545,19 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
                 </p>
               </div>
 
+              {customConfig.chartType && customConfig.chartType !== 'none' && (
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label className="text-sm">Colorful Chart</Label>
+                    <p className="text-xs text-muted-foreground">Display chart with multiple colors</p>
+                  </div>
+                  <Switch
+                    checked={customConfig.colorfulChart !== false}
+                    onCheckedChange={(checked) => updateCustomConfig('colorfulChart', checked)}
+                  />
+                </div>
+              )}
+
               <Separator />
 
               <div className="space-y-2">
