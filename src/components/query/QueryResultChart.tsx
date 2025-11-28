@@ -9,8 +9,8 @@ interface QueryResultChartProps {
   colorful?: boolean;
 }
 
-const COLORFUL_COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F'];
-const GRAYSCALE_COLORS = ['#374151', '#6B7280', '#9CA3AF', '#D1D5DB', '#4B5563', '#1F2937', '#111827', '#E5E7EB'];
+const COLORFUL_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
+const GRAYSCALE_COLORS = ['#1f2937', '#374151', '#4b5563', '#6b7280', '#111827', '#334155', '#1e293b', '#0f172a'];
 
 export function QueryResultChart({ result, chartType, colorful = true }: QueryResultChartProps) {
   const COLORS = colorful ? COLORFUL_COLORS : GRAYSCALE_COLORS;
