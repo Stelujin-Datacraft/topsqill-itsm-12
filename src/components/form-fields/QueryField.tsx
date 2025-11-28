@@ -64,7 +64,6 @@ export function QueryField({
     formId = '',
     submissionId = ''
   } = customConfig;
-  const colorfulRows = (customConfig as any).colorfulRows === true;
 
   // Validate query on change
   useEffect(() => {
@@ -406,28 +405,15 @@ export function QueryField({
                             </tr>
                           </thead>
                           <tbody>
-                            {paginatedRows.map((row, rowIndex) => {
-                              const rowColors = [
-                                'bg-blue-50 dark:bg-blue-950/30',
-                                'bg-green-50 dark:bg-green-950/30',
-                                'bg-purple-50 dark:bg-purple-950/30',
-                                'bg-orange-50 dark:bg-orange-950/30',
-                                'bg-pink-50 dark:bg-pink-950/30',
-                                'bg-cyan-50 dark:bg-cyan-950/30',
-                              ];
-                              const colorClass = colorfulRows 
-                                ? rowColors[rowIndex % rowColors.length] 
-                                : '';
-                              return (
-                                <tr key={rowIndex} className={`border-b border-border/50 ${colorClass}`}>
-                                  {row.map((cell, cellIndex) => (
-                                    <td key={cellIndex} className="p-2">
-                                      {cell !== null && cell !== undefined ? String(cell) : '—'}
-                                    </td>
-                                  ))}
-                                </tr>
-                              );
-                            })}
+                            {paginatedRows.map((row, rowIndex) => (
+                              <tr key={rowIndex} className="border-b border-border/50">
+                                {row.map((cell, cellIndex) => (
+                                  <td key={cellIndex} className="p-2">
+                                    {cell !== null && cell !== undefined ? String(cell) : '—'}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
                           </tbody>
                         </table>
                       </div>

@@ -415,19 +415,6 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
                   Limit the number of rows displayed (1-1000)
                 </p>
               </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label className="text-sm">Colorful Rows</Label>
-                  <p className="text-xs text-muted-foreground">Display alternating row colors to help distinguish data</p>
-                </div>
-                <Switch
-                  checked={customConfig.colorfulRows === true}
-                  onCheckedChange={(checked) =>
-                    updateCustomConfig('colorfulRows', checked)
-                  }
-                />
-              </div>
             </CardContent>
           </Card>
 
