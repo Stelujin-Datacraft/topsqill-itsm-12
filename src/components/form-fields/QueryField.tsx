@@ -364,6 +364,12 @@ export function QueryField({
                   setFilterValue={filterState.setFilterValue}
                   filteredCount={totalRows}
                   totalCount={originalTotal}
+                  groupByColumn={filterState.groupByColumn}
+                  setGroupByColumn={filterState.setGroupByColumn}
+                  aggregateColumn={filterState.aggregateColumn}
+                  setAggregateColumn={filterState.setAggregateColumn}
+                  aggregationType={filterState.aggregationType}
+                  setAggregationType={filterState.setAggregationType}
                 />
               )}
 
@@ -386,9 +392,9 @@ export function QueryField({
                         {totalRows} row(s) {totalRows !== originalTotal ? `(filtered from ${originalTotal})` : 'returned'}
                       </span>
                     </div>
-                    {queryResult.columns.length > 0 && (
+                    {filterState.displayColumns.length > 0 && (
                       <Badge variant="secondary">
-                        {queryResult.columns.length} column(s)
+                        {filterState.displayColumns.length} column(s)
                       </Badge>
                     )}
                   </div>
@@ -401,7 +407,7 @@ export function QueryField({
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="border-b">
-                              {queryResult.columns.map((column, index) => (
+                              {filterState.displayColumns.map((column, index) => (
                                 <th key={index} className="text-left p-2 font-medium">
                                   {column}
                                 </th>
