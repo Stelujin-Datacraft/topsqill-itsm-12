@@ -369,7 +369,11 @@ export function QueryField({
 
               {/* Chart View */}
               {displayMode === 'data' && filteredResult && filteredResult.rows.length > 0 && queryResult.columns.length >= 2 && chartType && (
-                <QueryResultChart result={filteredResult} chartType={chartType} />
+                <QueryResultChart 
+                  result={filteredResult} 
+                  chartType={chartType} 
+                  colorful={(customConfig as any).colorfulChart !== false}
+                />
               )}
               
               {/* Table View */}
