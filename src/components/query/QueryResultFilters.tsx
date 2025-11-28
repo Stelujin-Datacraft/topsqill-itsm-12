@@ -80,6 +80,7 @@ export function QueryResultFilters({
         </Select>
         {sortColumn && (
           <Button
+            type="button"
             variant="outline"
             size="sm"
             className="h-8 px-2"
@@ -91,7 +92,7 @@ export function QueryResultFilters({
       </div>
 
       {(filterColumn || sortColumn) && (
-        <Button variant="ghost" size="sm" className="h-8 px-2" onClick={clearFilters}>
+        <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={clearFilters}>
           <X className="h-3 w-3 mr-1" /> Clear
         </Button>
       )}
