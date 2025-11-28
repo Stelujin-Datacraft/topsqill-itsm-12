@@ -64,7 +64,11 @@ export function QueryResultChart({ result, chartType, colorful = true }: QueryRe
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey={secondColumn} fill={barFill} />
+              <Bar dataKey={secondColumn} fill={barFill}>
+                {colorful && chartData.map((_, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
