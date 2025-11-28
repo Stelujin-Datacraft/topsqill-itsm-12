@@ -12,6 +12,8 @@ import { replaceQueryVariables, extractQueryVariables } from '@/utils/queryVaria
 import { validateQuery, validateFieldFunctions } from '@/utils/queryValidator';
 import { QueryResultChart } from '@/components/query/QueryResultChart';
 import { QueryResultPagination } from '@/components/query/QueryResultPagination';
+import { QueryResultFilters } from '@/components/query/QueryResultFilters';
+import { useQueryResultFilters } from '@/hooks/useQueryResultFilters';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql';
@@ -258,15 +260,28 @@ export function QueryField({
     </div>
   );
 
+  // Filter hook - must be called at component level
+  const filterState = useQueryResultFilters({
+    rows: queryResult?.rows || [],
+    columns: queryResult?.columns || [],
+  });
+
   const renderDataDisplay = () => {
     if (!showResults) return null;
 
-    // Calculate pagination
-    const totalRows = queryResult?.rows.length || 0;
+    // Calculate pagination using filtered rows
+    const totalRows = filterState.processedRows.length;
+    const originalTotal = queryResult?.rows.length || 0;
     const totalPages = Math.ceil(totalRows / pageSize);
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
-    const paginatedRows = queryResult?.rows.slice(startIndex, endIndex) || [];
+    const paginatedRows = filterState.processedRows.slice(startIndex, endIndex);
+
+    // Create filtered result for chart
+    const filteredResult = queryResult ? {
+      ...queryResult,
+      rows: filterState.processedRows,
+    } : null;
 
     return (
       <div className="space-y-2">
@@ -335,9 +350,26 @@ export function QueryField({
             </div>
           ) : (
             <>
+              {/* Filter Controls */}
+              {queryResult.rows.length > 0 && (
+                <QueryResultFilters
+                  columns={queryResult.columns}
+                  sortColumn={filterState.sortColumn}
+                  setSortColumn={filterState.setSortColumn}
+                  sortDirection={filterState.sortDirection}
+                  setSortDirection={filterState.setSortDirection}
+                  filterColumn={filterState.filterColumn}
+                  setFilterColumn={filterState.setFilterColumn}
+                  filterValue={filterState.filterValue}
+                  setFilterValue={filterState.setFilterValue}
+                  filteredCount={totalRows}
+                  totalCount={originalTotal}
+                />
+              )}
+
               {/* Chart View */}
-              {displayMode === 'data' && queryResult.rows.length > 0 && queryResult.columns.length >= 2 && chartType && (
-                <QueryResultChart result={queryResult} chartType={chartType} />
+              {displayMode === 'data' && filteredResult && filteredResult.rows.length > 0 && queryResult.columns.length >= 2 && chartType && (
+                <QueryResultChart result={filteredResult} chartType={chartType} />
               )}
               
               {/* Table View */}
@@ -347,7 +379,7 @@ export function QueryField({
                     <div className="flex items-center gap-2">
                       <Database className="h-4 w-4" />
                       <span className="text-sm font-medium">
-                        {queryResult.rows.length} row(s) returned
+                        {totalRows} row(s) {totalRows !== originalTotal ? `(filtered from ${originalTotal})` : 'returned'}
                       </span>
                     </div>
                     {queryResult.columns.length > 0 && (
@@ -358,7 +390,7 @@ export function QueryField({
                   </div>
                 </div>
                 
-                {queryResult.rows.length > 0 ? (
+                {totalRows > 0 ? (
                   <>
                     <div className="p-3">
                       <div className="overflow-x-auto">
