@@ -366,6 +366,9 @@ export function QueryField({
                   totalCount={originalTotal}
                   groupByColumn={filterState.groupByColumn}
                   setGroupByColumn={filterState.setGroupByColumn}
+                  groupByValue={filterState.groupByValue}
+                  setGroupByValue={filterState.setGroupByValue}
+                  groupByValues={filterState.groupByValues}
                   aggregateColumn={filterState.aggregateColumn}
                   setAggregateColumn={filterState.setAggregateColumn}
                   aggregationType={filterState.aggregationType}
