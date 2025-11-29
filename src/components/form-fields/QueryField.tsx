@@ -13,6 +13,7 @@ import { validateQuery, validateFieldFunctions } from '@/utils/queryValidator';
 import { QueryResultChart } from '@/components/query/QueryResultChart';
 import { QueryResultPagination } from '@/components/query/QueryResultPagination';
 import { QueryResultFilters } from '@/components/query/QueryResultFilters';
+import { QueryResultExport } from '@/components/query/QueryResultExport';
 import { useQueryResultFilters } from '@/hooks/useQueryResultFilters';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import CodeMirror from '@uiw/react-codemirror';
@@ -395,11 +396,19 @@ export function QueryField({
                         {totalRows} row(s) {totalRows !== originalTotal ? `(filtered from ${originalTotal})` : 'returned'}
                       </span>
                     </div>
-                    {filterState.displayColumns.length > 0 && (
-                      <Badge variant="secondary">
-                        {filterState.displayColumns.length} column(s)
-                      </Badge>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {filterState.displayColumns.length > 0 && (
+                        <Badge variant="secondary">
+                          {filterState.displayColumns.length} column(s)
+                        </Badge>
+                      )}
+                      <QueryResultExport
+                        columns={filterState.displayColumns}
+                        originalRows={queryResult.rows}
+                        filteredRows={filterState.processedRows}
+                        filename={`query-${field.id}`}
+                      />
+                    </div>
                   </div>
                 </div>
                 
