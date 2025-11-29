@@ -18,6 +18,9 @@ interface QueryResultFiltersProps {
   totalCount: number;
   groupByColumn?: string | null;
   setGroupByColumn?: (value: string | null) => void;
+  groupByValue?: string | null;
+  setGroupByValue?: (value: string | null) => void;
+  groupByValues?: string[];
   aggregateColumn?: string | null;
   setAggregateColumn?: (value: string | null) => void;
   aggregationType?: AggregationType;
@@ -46,6 +49,9 @@ export function QueryResultFilters({
   totalCount,
   groupByColumn,
   setGroupByColumn,
+  groupByValue,
+  setGroupByValue,
+  groupByValues = [],
   aggregateColumn,
   setAggregateColumn,
   aggregationType = 'count',
@@ -57,6 +63,7 @@ export function QueryResultFilters({
     setSortColumn(null);
     setSortDirection('asc');
     setGroupByColumn?.(null);
+    setGroupByValue?.(null);
     setAggregateColumn?.(null);
     setAggregationType?.('count');
   };
@@ -129,7 +136,7 @@ export function QueryResultFilters({
         <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/50">
           <div className="flex items-center gap-2">
             <Group className="h-4 w-4 text-muted-foreground" />
-            <Select value={groupByColumn || ''} onValueChange={(val) => setGroupByColumn(val || null)}>
+            <Select value={groupByColumn || ''} onValueChange={(val) => { setGroupByColumn(val || null); setGroupByValue?.(null); }}>
               <SelectTrigger className="w-[120px] h-8 text-xs">
                 <SelectValue placeholder="Group by..." />
               </SelectTrigger>
@@ -139,6 +146,19 @@ export function QueryResultFilters({
                 ))}
               </SelectContent>
             </Select>
+            
+            {groupByColumn && setGroupByValue && groupByValues.length > 0 && (
+              <Select value={groupByValue || ''} onValueChange={(val) => setGroupByValue(val || null)}>
+                <SelectTrigger className="w-[120px] h-8 text-xs">
+                  <SelectValue placeholder="All values" />
+                </SelectTrigger>
+                <SelectContent>
+                  {groupByValues.map(val => (
+                    <SelectItem key={val} value={val}>{val === 'null' ? '(empty)' : val}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {groupByColumn && setAggregationType && (

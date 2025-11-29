@@ -13,6 +13,7 @@ export function useQueryResultFilters({ rows, columns }: UseQueryResultFiltersPr
   const [filterColumn, setFilterColumn] = useState<string | null>(null);
   const [filterValue, setFilterValue] = useState('');
   const [groupByColumn, setGroupByColumn] = useState<string | null>(null);
+  const [groupByValue, setGroupByValue] = useState<string | null>(null);
   const [aggregateColumn, setAggregateColumn] = useState<string | null>(null);
   const [aggregationType, setAggregationType] = useState<AggregationType>('count');
 
@@ -45,37 +46,39 @@ export function useQueryResultFilters({ rows, columns }: UseQueryResultFiltersPr
         groups[key].push(item);
       });
 
-      data = Object.entries(groups).map(([key, items]) => {
-        const result: Record<string, any> = { [groupByColumn]: key === 'null' ? null : key };
-        
-        // Calculate aggregation for the selected column or count
-        if (aggregationType === 'count') {
-          result['count'] = items.length;
-        } else if (aggregateColumn) {
-          const values = items
-            .map(item => item[aggregateColumn])
-            .filter(v => typeof v === 'number');
+      data = Object.entries(groups)
+        .filter(([key]) => !groupByValue || key === groupByValue)
+        .map(([key, items]) => {
+          const result: Record<string, any> = { [groupByColumn]: key === 'null' ? null : key };
           
-          switch (aggregationType) {
-            case 'sum':
-              result[`sum_${aggregateColumn}`] = values.reduce((a, b) => a + b, 0);
-              break;
-            case 'avg':
-              result[`avg_${aggregateColumn}`] = values.length > 0 
-                ? values.reduce((a, b) => a + b, 0) / values.length 
-                : 0;
-              break;
-            case 'min':
-              result[`min_${aggregateColumn}`] = values.length > 0 ? Math.min(...values) : 0;
-              break;
-            case 'max':
-              result[`max_${aggregateColumn}`] = values.length > 0 ? Math.max(...values) : 0;
-              break;
+          // Calculate aggregation for the selected column or count
+          if (aggregationType === 'count') {
+            result['count'] = items.length;
+          } else if (aggregateColumn) {
+            const values = items
+              .map(item => item[aggregateColumn])
+              .filter(v => typeof v === 'number');
+            
+            switch (aggregationType) {
+              case 'sum':
+                result[`sum_${aggregateColumn}`] = values.reduce((a, b) => a + b, 0);
+                break;
+              case 'avg':
+                result[`avg_${aggregateColumn}`] = values.length > 0 
+                  ? values.reduce((a, b) => a + b, 0) / values.length 
+                  : 0;
+                break;
+              case 'min':
+                result[`min_${aggregateColumn}`] = values.length > 0 ? Math.min(...values) : 0;
+                break;
+              case 'max':
+                result[`max_${aggregateColumn}`] = values.length > 0 ? Math.max(...values) : 0;
+                break;
+            }
           }
-        }
-        
-        return result;
-      });
+          
+          return result;
+        });
     }
 
     // Apply sort
@@ -95,7 +98,20 @@ export function useQueryResultFilters({ rows, columns }: UseQueryResultFiltersPr
     }
 
     return data;
-  }, [rows, columns, filterColumn, filterValue, sortColumn, sortDirection, groupByColumn, aggregateColumn, aggregationType]);
+  }, [rows, columns, filterColumn, filterValue, sortColumn, sortDirection, groupByColumn, groupByValue, aggregateColumn, aggregationType]);
+
+  // Get unique values for group by column
+  const groupByValues = useMemo(() => {
+    if (!groupByColumn) return [];
+    const values = new Set<string>();
+    rows.forEach(row => {
+      const idx = columns.indexOf(groupByColumn);
+      if (idx >= 0) {
+        values.add(String(row[idx] ?? 'null'));
+      }
+    });
+    return Array.from(values).sort();
+  }, [rows, columns, groupByColumn]);
 
   // Get columns for display (may change when grouped)
   const displayColumns = useMemo(() => {
@@ -121,6 +137,9 @@ export function useQueryResultFilters({ rows, columns }: UseQueryResultFiltersPr
     setFilterValue,
     groupByColumn,
     setGroupByColumn,
+    groupByValue,
+    setGroupByValue,
+    groupByValues,
     aggregateColumn,
     setAggregateColumn,
     aggregationType,
