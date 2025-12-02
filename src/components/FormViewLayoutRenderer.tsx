@@ -464,14 +464,14 @@ export function FormViewLayoutRenderer({
   }
 
   const mainContent = (
-    <div className={`grid gap-6 h-[calc(100vh-12rem)] ${
+    <div className={`grid gap-6 h-[calc(100vh-12rem)] print:block ${
       navigationVisible 
         ? 'grid-cols-1 lg:grid-cols-4' 
         : 'grid-cols-1'
     }`}>
       {/* Navigation Panel */}
       {showNavigation && (
-        <div className={navigationVisible ? "lg:col-span-1" : ""}>
+        <div className={`print:hidden ${navigationVisible ? "lg:col-span-1" : ""}`}>
           <FormNavigationPanel
             pages={pages}
             fields={Array.isArray(form.fields) ? form.fields : []}
@@ -487,7 +487,7 @@ export function FormViewLayoutRenderer({
       )}
       
       {/* Professional Form Content */}
-      <div className={navigationVisible && showNavigation ? "lg:col-span-3" : "lg:col-span-4"}>
+      <div className={`print:col-span-1 ${navigationVisible && showNavigation ? "lg:col-span-3" : "lg:col-span-4"}`}>
         <Card className="h-full overflow-hidden bg-white dark:bg-gray-950">
           <CardHeader className="pb-4 border-b bg-slate-50/80 dark:bg-gray-900/80">
            <CardTitle className="flex flex-col gap-1">
