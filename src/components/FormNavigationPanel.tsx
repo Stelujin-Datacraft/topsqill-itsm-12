@@ -147,7 +147,7 @@ export function FormNavigationPanel({
   }
 
   return (
-    <Card className="h-fit print:hidden">
+    <Card className="h-fit">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm">Form Navigation</CardTitle>

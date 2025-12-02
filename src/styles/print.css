@@ -35,14 +35,9 @@
     box-sizing: border-box;
   }
 
-  /* Maintain grid layouts exactly as shown, but allow form content to use full width */
+  /* Maintain grid layouts exactly as shown */
   .grid {
     display: grid !important;
-  }
-
-  /* Special case: main form layout should be single column in print */
-  .form-print-layout {
-    grid-template-columns: minmax(0, 1fr) !important;
   }
 
   .grid-cols-1 {
