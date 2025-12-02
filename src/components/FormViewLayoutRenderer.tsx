@@ -5,7 +5,7 @@ import { FileDown } from 'lucide-react';
 import { FormNavigationPanel } from './FormNavigationPanel';
 import { FormPagination } from './FormPagination';
 import { PublicHeader } from './PublicHeader';
-import { FormFieldRenderer } from './FormFieldRenderer';
+import { FormFieldsRenderer } from './FormFieldsRenderer';
 import type { Form } from '@/types/form';
 
 interface FormViewLayoutRendererProps {
@@ -108,28 +108,27 @@ export const FormViewLayoutRenderer: React.FC<FormViewLayoutRendererProps> = ({
       );
     }
 
-    return currentPageFields.map((field) => (
-      <div
-        key={field.id}
-        className={`transition-all duration-300 ${
-          highlightedField === field.id
-            ? 'ring-2 ring-blue-500 ring-offset-2 rounded-lg'
-            : ''
-        }`}
-      >
-        <FormFieldRenderer
-          field={field}
-          value={formData[field.id]}
-          onChange={(value) =>
-            setFormData((prev) => ({
-              ...prev,
-              [field.id]: value,
-            }))
-          }
-          isSelected={selectedField === field.id}
-        />
-      </div>
-    ));
+    return (
+      <FormFieldsRenderer
+        fields={currentPageFields}
+        formData={formData}
+        errors={{}}
+        fieldStates={{}}
+        columns={2}
+        onFieldChange={(fieldId, value) =>
+          setFormData((prev) => ({
+            ...prev,
+            [fieldId]: value,
+          }))
+        }
+        onSubmit={handleFormSubmit}
+        onSave={handleSaveDraft}
+        showButtons={false}
+        allFormFields={currentPageFields}
+        highlightedFieldId={highlightedField}
+        formId={form.id}
+      />
+    );
   }, [form, currentPageId, formData, highlightedField, selectedField]);
 
   const mainContent = (
@@ -224,14 +223,14 @@ export const FormViewLayoutRenderer: React.FC<FormViewLayoutRendererProps> = ({
                   <Button 
                     variant="outline" 
                     size="default"
-                    onClick={() => handleSave(formData)}
+                    onClick={handleSaveDraft}
                     className="px-6 py-2 text-sm font-medium border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 bg-white dark:bg-gray-950 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-200"
                   >
                     Save Draft
                   </Button>
                   <Button 
                     size="default"
-                    onClick={() => handleFormSubmit(formData)}
+                    onClick={handleFormSubmit}
                     disabled={isSubmitting}
                     className="px-6 py-2 text-sm font-medium bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 text-white dark:text-slate-900 transition-colors duration-200"
                   >
