@@ -203,12 +203,31 @@
     break-inside: avoid;
   }
 
-  /* Charts and visualizations */
+  /* Charts, canvases, and query results */
   canvas,
-  svg {
+  svg,
+  .recharts-wrapper,
+  [class*="chart"],
+  [class*="query-results"],
+  [class*="QueryField"] {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  /* Ensure canvas elements are visible */
+  canvas {
     max-width: 100% !important;
     height: auto !important;
+  }
+
+  /* Query field specific styles */
+  [data-field-type="query-field"],
+  [class*="QueryField"] {
     page-break-inside: avoid;
+    break-inside: avoid;
   }
 
   /* Remove shadows and focus states */
