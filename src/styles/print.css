@@ -263,4 +263,18 @@
   .justify-between {
     justify-content: space-between !important;
   }
+
+  /* Ensure scrollable containers don't clip charts/results */
+  [class*="overflow-"],
+  .overflow-x-auto,
+  .overflow-y-auto {
+    overflow: visible !important;
+  }
+
+  [class*="max-h-"],
+  .max-h-full {
+    max-height: none !important;
+    height: auto !important;
+  }
 }
+
