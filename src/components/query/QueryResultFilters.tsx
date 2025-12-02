@@ -25,6 +25,7 @@ interface QueryResultFiltersProps {
   setAggregateColumn?: (value: string | null) => void;
   aggregationType?: AggregationType;
   setAggregationType?: (value: AggregationType) => void;
+  disabled?: boolean;
 }
 
 const AGGREGATION_OPTIONS: { value: AggregationType; label: string }[] = [
@@ -56,6 +57,7 @@ export function QueryResultFilters({
   setAggregateColumn,
   aggregationType = 'count',
   setAggregationType,
+  disabled = false,
 }: QueryResultFiltersProps) {
   const clearFilters = () => {
     setFilterColumn(null);
@@ -81,7 +83,7 @@ export function QueryResultFilters({
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-muted-foreground" />
-          <Select value={filterColumn || ''} onValueChange={(val) => setFilterColumn(val || null)}>
+          <Select value={filterColumn || ''} onValueChange={(val) => setFilterColumn(val || null)} disabled={disabled}>
             <SelectTrigger className="w-[120px] h-8 text-xs">
               <SelectValue placeholder="Filter by..." />
             </SelectTrigger>
@@ -97,13 +99,14 @@ export function QueryResultFilters({
               value={filterValue}
               onChange={(e) => setFilterValue(e.target.value)}
               className="w-[120px] h-8 text-xs"
+              disabled={disabled}
             />
           )}
         </div>
         
         <div className="flex items-center gap-2">
           <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-          <Select value={sortColumn || ''} onValueChange={(val) => { setSortColumn(val || null); setSortDirection('asc'); }}>
+          <Select value={sortColumn || ''} onValueChange={(val) => { setSortColumn(val || null); setSortDirection('asc'); }} disabled={disabled}>
             <SelectTrigger className="w-[120px] h-8 text-xs">
               <SelectValue placeholder="Sort by..." />
             </SelectTrigger>
@@ -120,6 +123,7 @@ export function QueryResultFilters({
               size="sm"
               className="h-8 px-2"
               onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
+              disabled={disabled}
             >
               <SortIcon column={sortColumn} />
             </Button>
@@ -136,7 +140,7 @@ export function QueryResultFilters({
         <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/50">
           <div className="flex items-center gap-2">
             <Group className="h-4 w-4 text-muted-foreground" />
-            <Select value={groupByColumn || ''} onValueChange={(val) => { setGroupByColumn(val || null); setGroupByValue?.(null); }}>
+            <Select value={groupByColumn || ''} onValueChange={(val) => { setGroupByColumn(val || null); setGroupByValue?.(null); }} disabled={disabled}>
               <SelectTrigger className="w-[120px] h-8 text-xs">
                 <SelectValue placeholder="Group by..." />
               </SelectTrigger>
@@ -148,7 +152,7 @@ export function QueryResultFilters({
             </Select>
             
             {groupByColumn && setGroupByValue && groupByValues.length > 0 && (
-              <Select value={groupByValue || ''} onValueChange={(val) => setGroupByValue(val || null)}>
+              <Select value={groupByValue || ''} onValueChange={(val) => setGroupByValue(val || null)} disabled={disabled}>
                 <SelectTrigger className="w-[120px] h-8 text-xs">
                   <SelectValue placeholder="All values" />
                 </SelectTrigger>
@@ -164,7 +168,7 @@ export function QueryResultFilters({
           {groupByColumn && setAggregationType && (
             <div className="flex items-center gap-2">
               <Calculator className="h-4 w-4 text-muted-foreground" />
-              <Select value={aggregationType} onValueChange={(val) => setAggregationType(val as AggregationType)}>
+              <Select value={aggregationType} onValueChange={(val) => setAggregationType(val as AggregationType)} disabled={disabled}>
                 <SelectTrigger className="w-[100px] h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
@@ -176,7 +180,7 @@ export function QueryResultFilters({
               </Select>
               
               {aggregationType !== 'count' && setAggregateColumn && (
-                <Select value={aggregateColumn || ''} onValueChange={(val) => setAggregateColumn(val || null)}>
+                <Select value={aggregateColumn || ''} onValueChange={(val) => setAggregateColumn(val || null)} disabled={disabled}>
                   <SelectTrigger className="w-[120px] h-8 text-xs">
                     <SelectValue placeholder="Column..." />
                   </SelectTrigger>
@@ -191,7 +195,7 @@ export function QueryResultFilters({
           )}
 
           {hasActiveFilters && (
-            <Button type="button" variant="ghost" size="sm" className="h-8 px-2 ml-auto" onClick={clearFilters}>
+            <Button type="button" variant="ghost" size="sm" className="h-8 px-2 ml-auto" onClick={clearFilters} disabled={disabled}>
               <X className="h-3 w-3 mr-1" /> Clear All
             </Button>
           )}
