@@ -346,7 +346,6 @@ export function FormViewLayoutRenderer({
 
   const handlePrint = () => {
     window.print();
-    toast.success('Use your browser\'s print dialog to save as PDF');
   };
 
   // Enhanced field rendering logic for proper layout handling - EXACT COPY from FormPreview
@@ -506,7 +505,7 @@ export function FormViewLayoutRenderer({
                   onClick={handlePrint}
                   variant="outline"
                   size="sm"
-                  className="flex items-center gap-2 shrink-0 print:hidden"
+                  className="flex items-center gap-2 shrink-0"
                 >
                   <FileDown className="h-4 w-4" />
                   Save as PDF
