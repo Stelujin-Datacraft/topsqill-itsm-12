@@ -3,7 +3,13 @@
   .print\\:hidden,
   button.print\\:hidden,
   nav,
-  aside {
+  aside,
+  [class*="sidebar"],
+  [class*="Sidebar"],
+  [class*="navigation"],
+  header nav,
+  .fixed.left-0,
+  .sticky.left-0 {
     display: none !important;
   }
 
