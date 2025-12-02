@@ -35,10 +35,9 @@
     box-sizing: border-box;
   }
 
-  /* Maintain grid layouts exactly as shown */
+  /* Maintain grid layouts exactly as shown - preserve multi-column layouts */
   .grid {
     display: grid !important;
-    grid-template-columns: var(--grid-template-columns) !important;
   }
 
   .grid-cols-1 {
@@ -46,13 +45,21 @@
   }
 
   .grid-cols-2,
-  .md\\:grid-cols-2 {
+  .md\\:grid-cols-2,
+  .sm\\:grid-cols-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
   .grid-cols-3,
-  .lg\\:grid-cols-3 {
+  .lg\\:grid-cols-3,
+  .md\\:grid-cols-3 {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  /* Ensure grid items don't break across pages */
+  .grid > * {
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 
   /* Preserve spacing */
