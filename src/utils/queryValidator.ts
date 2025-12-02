@@ -29,9 +29,22 @@ export function validateQuery(query: string): QueryValidationResult {
     }
   }
 
-  // Must start with SELECT, INSERT, or UPDATE
-  if (!trimmedQuery.startsWith('SELECT') && !trimmedQuery.startsWith('INSERT') && !trimmedQuery.startsWith('UPDATE')) {
-    errors.push('Query must start with SELECT, INSERT, or UPDATE');
+  // Must start with SELECT, INSERT, UPDATE, or WITH (for CTEs)
+  if (!trimmedQuery.startsWith('SELECT') && 
+      !trimmedQuery.startsWith('INSERT') && 
+      !trimmedQuery.startsWith('UPDATE') &&
+      !trimmedQuery.startsWith('WITH')) {
+    errors.push('Query must start with SELECT, INSERT, UPDATE, or WITH (for CTEs)');
+  }
+
+  // If query starts with WITH, validate that it contains a valid main query after the CTE
+  if (trimmedQuery.startsWith('WITH')) {
+    const hasValidMainQuery = trimmedQuery.includes('SELECT') || 
+                              trimmedQuery.includes('INSERT') || 
+                              trimmedQuery.includes('UPDATE');
+    if (!hasValidMainQuery) {
+      errors.push('CTE (WITH clause) must be followed by a SELECT, INSERT, or UPDATE statement');
+    }
   }
 
   // Check for basic SQL structure - only SELECT queries need FROM clause
