@@ -1,0 +1,81 @@
+@media print {
+  /* Hide unnecessary elements */
+  .print\\:hidden,
+  button:not(.print-visible),
+  nav,
+  header > *:not(h1):not(p),
+  aside,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Reset page layout */
+  @page {
+    margin: 2cm;
+    size: A4;
+  }
+
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Ensure proper page breaks */
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  /* Field layout fixes */
+  .field-container {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin-bottom: 1rem;
+  }
+
+  /* Grid layout fixes for proper alignment */
+  .grid {
+    display: grid !important;
+  }
+
+  /* Table fixes */
+  table {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    width: 100%;
+  }
+
+  /* Form field labels and values */
+  label {
+    font-weight: 600;
+    color: #000 !important;
+  }
+
+  input, textarea, select {
+    border: 1px solid #ccc !important;
+    padding: 0.5rem;
+    background: #fff !important;
+  }
+
+  /* Card and container styles */
+  .Card, .card {
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* Ensure text is readable */
+  * {
+    color: #000 !important;
+    background: transparent !important;
+  }
+
+  /* Specific overrides for dark text on light background */
+  h1, h2, h3, h4, h5, h6, p, span, div, label {
+    color: #000 !important;
+  }
+
+  /* Borders for structure */
+  .border, [class*="border-"] {
+    border-color: #ccc !important;
+  }
+}
