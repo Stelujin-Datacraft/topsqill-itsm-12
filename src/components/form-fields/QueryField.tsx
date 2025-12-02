@@ -50,6 +50,7 @@ export function QueryField({
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [hasSavedResults, setHasSavedResults] = useState(false);
   const lastTargetValueRef = useRef<any>(undefined);
   const { toast } = useToast();
 
@@ -244,7 +245,13 @@ export function QueryField({
     }
   };
 
-  const handleSaveResults = () => {
+  const handleSaveResults = (e?: React.MouseEvent) => {
+    // Prevent form submission
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     if (!queryResult || !onChange) return;
 
     // Save the current filtered/sorted state
@@ -268,6 +275,7 @@ export function QueryField({
     };
 
     onChange(savedData);
+    setHasSavedResults(true);
     
     toast({
       title: "Results Saved",
@@ -300,6 +308,29 @@ export function QueryField({
     columns: queryResult?.columns || [],
   });
 
+  // Load saved results on mount
+  useEffect(() => {
+    if (value && typeof value === 'object' && value.savedAt) {
+      console.log('📦 QueryField: Loading saved results from value');
+      setQueryResult(value.result);
+      setLastExecuted(value.savedAt);
+      setHasSavedResults(true);
+      
+      // Restore filter settings if they exist
+      if (value.filterSettings) {
+        const settings = value.filterSettings;
+        filterState.setSortColumn(settings.sortColumn || '');
+        filterState.setSortDirection(settings.sortDirection || 'asc');
+        filterState.setFilterColumn(settings.filterColumn || '');
+        filterState.setFilterValue(settings.filterValue || '');
+        filterState.setGroupByColumn(settings.groupByColumn || '');
+        filterState.setGroupByValue(settings.groupByValue || '');
+        filterState.setAggregateColumn(settings.aggregateColumn || '');
+        filterState.setAggregationType(settings.aggregationType || 'sum');
+      }
+    }
+  }, [value, filterState]);
+
   const renderDataDisplay = () => {
     if (!showResults) return null;
 
@@ -324,31 +355,36 @@ export function QueryField({
           <div className="flex items-center gap-2">
             {lastExecuted && (
               <span className="text-xs text-muted-foreground">
-                Last executed: {new Date(lastExecuted).toLocaleString()}
+                {hasSavedResults ? 'Saved: ' : 'Last executed: '}{new Date(lastExecuted).toLocaleString()}
               </span>
             )}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleManualExecute}
-              disabled={disabled || isExecuting || !query.trim()}
-            >
-              {isExecuting ? (
-                <Loader2 className="h-3 w-3 animate-spin mr-1" />
-              ) : (
-                <Play className="h-3 w-3 mr-1" />
-              )}
-              Execute
-            </Button>
-            {queryResult && queryResult.rows.length > 0 && onChange && (
-              <Button
-                size="sm"
-                variant="default"
-                onClick={handleSaveResults}
-                disabled={disabled}
-              >
-                Save Results
-              </Button>
+            {!disabled && (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleManualExecute}
+                  disabled={disabled || isExecuting || !query.trim()}
+                >
+                  {isExecuting ? (
+                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                  ) : (
+                    <Play className="h-3 w-3 mr-1" />
+                  )}
+                  Execute
+                </Button>
+                {queryResult && queryResult.rows.length > 0 && onChange && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={handleSaveResults}
+                    disabled={disabled}
+                    type="button"
+                  >
+                    Save Results
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>
