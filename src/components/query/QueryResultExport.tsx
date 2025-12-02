@@ -16,6 +16,7 @@ interface QueryResultExportProps {
   originalRows: any[][];
   filteredRows: any[][];
   filename?: string;
+  disabled?: boolean;
 }
 
 export function QueryResultExport({
@@ -23,6 +24,7 @@ export function QueryResultExport({
   originalRows,
   filteredRows,
   filename = 'query-export',
+  disabled = false,
 }: QueryResultExportProps) {
   const { toast } = useToast();
 
@@ -89,7 +91,7 @@ export function QueryResultExport({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 px-2">
+        <Button variant="outline" size="sm" className="h-8 px-2" disabled={disabled}>
           <Download className="h-3 w-3 mr-1" />
           Export
         </Button>

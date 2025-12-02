@@ -453,6 +453,7 @@ export function QueryField({
                   setAggregateColumn={filterState.setAggregateColumn}
                   aggregationType={filterState.aggregationType}
                   setAggregationType={filterState.setAggregationType}
+                  disabled={disabled}
                 />
               )}
 
@@ -486,6 +487,7 @@ export function QueryField({
                         originalRows={queryResult.rows}
                         filteredRows={filterState.processedRows}
                         filename={`query-${field.id}`}
+                        disabled={disabled}
                       />
                     </div>
                   </div>
