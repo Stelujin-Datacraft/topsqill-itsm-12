@@ -1,26 +1,47 @@
 @media print {
-  /* Hide navigation, sidebars, and form navigation controls in print */
+  /* Hide everything except the main form fields */
   .print\\:hidden,
   button.print\\:hidden,
   nav,
   aside,
-  /* Generic layout sidebars */
+  header,
+  /* Hide PublicHeader component */
+  [class*="PublicHeader"],
+  /* Hide all navigation elements */
   [class*="sidebar"],
   [class*="Sidebar"],
   [class*="navigation"],
-  header nav,
+  [class*="Navigation"],
+  [class*="FormNavigation"],
   .fixed.left-0,
   .sticky.left-0,
-  /* Form navigation / steppers / tabs */
-  [data-role="form-navigation"],
-  [data-component="FormNavigation"],
-  [aria-label*="form navigation" i],
-  [class*="form-nav"],
-  [class*="FormNav"],
-  [class*="stepper"],
-  [class*="tabs"],
-  [role="tablist"] {
+  /* Hide form header with title/description/PDF button */
+  [class*="CardHeader"],
+  /* Hide action buttons at bottom */
+  .px-16.py-8.bg-slate-50 {
     display: none !important;
+  }
+
+  /* Show only the main form content area */
+  body > div,
+  #root,
+  #root > div {
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Make form content take full width */
+  [class*="lg:col-span-3"],
+  [class*="lg:col-span-4"] {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+  }
+
+  /* Remove card borders and shadows for clean print */
+  [class*="Card"] {
+    border: none !important;
+    box-shadow: none !important;
   }
 
   /* Force single column layout for print */
