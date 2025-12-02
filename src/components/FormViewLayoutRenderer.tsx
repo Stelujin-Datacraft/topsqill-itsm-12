@@ -1,19 +1,18 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Form, FormField } from '@/types/form';
 import { FormFieldsRenderer } from './FormFieldsRenderer';
 import { FormPagination } from './FormPagination';
 import { FormNavigationPanel } from './FormNavigationPanel';
-import { CheckCircle, FileDown } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { PublicHeader } from './PublicHeader';
 import { RuleProcessor, RuleProcessingContext } from '@/utils/ruleProcessor';
 import { parseFormFields } from '@/utils/fieldReferenceParser';
 import { useUniqueFieldValidation } from '@/hooks/useUniqueFieldValidation';
 import { useEmailTemplates } from '@/hooks/useEmailTemplates';
-import { exportFormToPdf } from '@/utils/pdfExport';
 
 interface FormViewLayoutRendererProps {
   form: Form;
@@ -48,7 +47,6 @@ export function FormViewLayoutRenderer({
   const [formLocked, setFormLocked] = useState(false);
   const [submitAllowed, setSubmitAllowed] = useState(true);
   const { sendTemplateEmail } = useEmailTemplates();
-  const formContentRef = useRef<HTMLDivElement>(null);
 
   // Initialize pages with proper type checking
   const pages = Array.isArray(form.pages) && form.pages.length > 0 
@@ -346,21 +344,6 @@ export function FormViewLayoutRenderer({
     }, 5000);
   };
 
-  const handleExportPdf = async () => {
-    if (!formContentRef.current) {
-      toast.error('Unable to export form');
-      return;
-    }
-
-    await exportFormToPdf({
-      formName: form.name,
-      formElement: formContentRef.current,
-      pages: pages,
-      currentPageId: currentPageId,
-      onPageChange: handlePageChange,
-    });
-  };
-
   // Enhanced field rendering logic for proper layout handling - EXACT COPY from FormPreview
   const renderFieldsWithSmartLayout = () => {
     const currentFields = getCurrentPageFields();
@@ -503,31 +486,18 @@ export function FormViewLayoutRenderer({
         <Card className="h-full overflow-hidden bg-white dark:bg-gray-950">
           <CardHeader className="pb-4 border-b bg-slate-50/80 dark:bg-gray-900/80">
            <CardTitle className="flex flex-col gap-1">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 leading-tight font-['Inter',system-ui,sans-serif]">
-                    {form.name}
-                  </h1>
-                  {form.description && (
-                    <p className="text-base text-slate-600 dark:text-slate-300 leading-relaxed font-['Inter',system-ui,sans-serif]">
-                      {form.description}
-                    </p>
-                  )}
-                </div>
-                <Button
-                  onClick={handleExportPdf}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2 shrink-0"
-                >
-                  <FileDown className="h-4 w-4" />
-                  Save as PDF
-                </Button>
-              </div>
+              <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 leading-tight font-['Inter',system-ui,sans-serif]">
+                {form.name}
+              </h1>
+              {form.description && (
+                <p className="text-base text-slate-600 dark:text-slate-300 leading-relaxed font-['Inter',system-ui,sans-serif]">
+                  {form.description}
+                </p>
+              )}
             </CardTitle>
 
           </CardHeader>
-          <CardContent ref={formContentRef} className="p-0 h-full overflow-y-auto">
+          <CardContent className="p-0 h-full overflow-y-auto">
             {/* Professional Form Header with Light Lines */}
             <div className="relative">
               <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
