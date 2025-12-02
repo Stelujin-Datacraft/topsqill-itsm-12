@@ -14,6 +14,7 @@ import { QueryResultChart } from '@/components/query/QueryResultChart';
 import { QueryResultPagination } from '@/components/query/QueryResultPagination';
 import { QueryResultFilters } from '@/components/query/QueryResultFilters';
 import { QueryResultExport } from '@/components/query/QueryResultExport';
+import { SaveQueryDialog } from '@/components/query/SaveQueryDialog';
 import { useQueryResultFilters } from '@/hooks/useQueryResultFilters';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import CodeMirror from '@uiw/react-codemirror';
@@ -48,6 +49,7 @@ export function QueryField({
   const [pageSize, setPageSize] = useState(25);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const lastTargetValueRef = useRef<any>(undefined);
   const { toast } = useToast();
 
@@ -242,6 +244,37 @@ export function QueryField({
     }
   };
 
+  const handleSaveResults = () => {
+    if (!queryResult || !onChange) return;
+
+    // Save the current filtered/sorted state
+    const savedData = {
+      result: {
+        ...queryResult,
+        rows: filterState.processedRows,
+      },
+      filterSettings: {
+        sortColumn: filterState.sortColumn,
+        sortDirection: filterState.sortDirection,
+        filterColumn: filterState.filterColumn,
+        filterValue: filterState.filterValue,
+        groupByColumn: filterState.groupByColumn,
+        groupByValue: filterState.groupByValue,
+        aggregateColumn: filterState.aggregateColumn,
+        aggregationType: filterState.aggregationType,
+      },
+      savedAt: new Date().toISOString(),
+      query,
+    };
+
+    onChange(savedData);
+    
+    toast({
+      title: "Results Saved",
+      description: "Query results have been saved to this record",
+    });
+  };
+
   const renderQueryDisplay = () => (
     <div className="space-y-2">
       <Label className="text-sm font-medium">Query</Label>
@@ -307,6 +340,16 @@ export function QueryField({
               )}
               Execute
             </Button>
+            {queryResult && queryResult.rows.length > 0 && onChange && (
+              <Button
+                size="sm"
+                variant="default"
+                onClick={handleSaveResults}
+                disabled={disabled}
+              >
+                Save Results
+              </Button>
+            )}
           </div>
         </div>
 
