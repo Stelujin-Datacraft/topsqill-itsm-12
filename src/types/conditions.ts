@@ -59,6 +59,8 @@ export interface ConditionItem {
   systemType: ConditionSystemType;
   formLevelCondition?: FormLevelCondition;
   fieldLevelCondition?: FieldLevelCondition;
+  // Logical operator to combine with the NEXT condition (not applicable for last item)
+  logicalOperatorWithNext?: LogicalOperator;
 }
 
 export interface EnhancedCondition {

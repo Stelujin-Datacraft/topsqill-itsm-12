@@ -72,24 +72,34 @@ export class ConditionEvaluator {
   ): boolean {
     console.log('🚀 Evaluating enhanced condition:', { 
       systemType: condition.systemType,
-      hasMultipleConditions: !!condition.conditions?.length,
-      logicalOperator: condition.logicalOperator
+      hasMultipleConditions: !!condition.conditions?.length
     });
 
-    // Handle multiple conditions with logical operator
+    // Handle multiple conditions with individual logical operators
     if (condition.conditions && condition.conditions.length > 0) {
-      const results = condition.conditions.map(cond => 
-        this.evaluateSingleConditionItem(cond, context)
-      );
+      const conditions = condition.conditions;
       
-      console.log('📊 Multiple conditions results:', results);
+      // Evaluate first condition
+      let result = this.evaluateSingleConditionItem(conditions[0], context);
+      console.log('📊 Condition 0 result:', result);
       
-      const logicalOperator = condition.logicalOperator || 'AND';
-      if (logicalOperator === 'AND') {
-        return results.every(r => r);
-      } else {
-        return results.some(r => r);
+      // Chain with subsequent conditions using their preceding logical operators
+      for (let i = 1; i < conditions.length; i++) {
+        const prevCondition = conditions[i - 1];
+        const currentResult = this.evaluateSingleConditionItem(conditions[i], context);
+        const operator = prevCondition.logicalOperatorWithNext || 'AND';
+        
+        console.log(`📊 Condition ${i} result:`, currentResult, `(operator: ${operator})`);
+        
+        if (operator === 'AND') {
+          result = result && currentResult;
+        } else {
+          result = result || currentResult;
+        }
       }
+      
+      console.log('📊 Final combined result:', result);
+      return result;
     }
 
     // Fallback to single condition evaluation (backward compatibility)
