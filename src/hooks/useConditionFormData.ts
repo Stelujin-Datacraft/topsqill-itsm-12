@@ -16,7 +16,7 @@ export function useConditionFormData() {
           name,
           status
         `)
-        .eq('status', 'published');
+        .in('status', ['published', 'active', 'draft']);
 
       if (formsError) {
         console.error('❌ Error fetching forms:', formsError);
