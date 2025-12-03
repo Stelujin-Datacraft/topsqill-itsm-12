@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Settings, Users, FileText, Database, CheckCircle, Plus, Trash2, AlertCircle } from 'lucide-react';
@@ -23,22 +22,19 @@ interface EnhancedConditionBuilderProps {
 }
 
 export function EnhancedConditionBuilder({ value, onChange }: EnhancedConditionBuilderProps) {
-  const [logicalOperator, setLogicalOperator] = useState<LogicalOperator>(value?.logicalOperator || 'AND');
   const [conditions, setConditions] = useState<ConditionItem[]>(() => {
-    // Initialize from existing conditions or create a default one
     if (value?.conditions && value.conditions.length > 0) {
       return value.conditions;
     }
-    // Convert single condition to array format
     if (value?.formLevelCondition || value?.fieldLevelCondition) {
       return [{
         id: `condition-${Date.now()}`,
         systemType: value.systemType || 'form_level',
         formLevelCondition: value.formLevelCondition,
-        fieldLevelCondition: value.fieldLevelCondition
+        fieldLevelCondition: value.fieldLevelCondition,
+        logicalOperatorWithNext: 'AND'
       }];
     }
-    // Default empty condition
     return [{
       id: `condition-${Date.now()}`,
       systemType: 'form_level',
@@ -47,7 +43,8 @@ export function EnhancedConditionBuilder({ value, onChange }: EnhancedConditionB
         conditionType: 'form_status',
         operator: '==',
         value: 'submitted'
-      }
+      },
+      logicalOperatorWithNext: 'AND'
     }];
   });
   
@@ -57,24 +54,16 @@ export function EnhancedConditionBuilder({ value, onChange }: EnhancedConditionB
     return forms.filter(form => form.id && form.id.trim() !== '');
   }, [forms]);
 
-  // Update parent whenever conditions or logical operator changes
-  const updateParent = useCallback((newConditions: ConditionItem[], newOperator: LogicalOperator) => {
+  const updateParent = useCallback((newConditions: ConditionItem[]) => {
     const updatedCondition: EnhancedCondition = {
       id: value?.id || `enhanced-condition-${Date.now()}`,
       systemType: newConditions[0]?.systemType || 'form_level',
-      logicalOperator: newOperator,
       conditions: newConditions,
-      // Keep first condition for backward compatibility
       formLevelCondition: newConditions[0]?.formLevelCondition,
       fieldLevelCondition: newConditions[0]?.fieldLevelCondition
     };
     onChange(updatedCondition);
   }, [value?.id, onChange]);
-
-  const handleLogicalOperatorChange = useCallback((op: LogicalOperator) => {
-    setLogicalOperator(op);
-    updateParent(conditions, op);
-  }, [conditions, updateParent]);
 
   const handleAddCondition = useCallback(() => {
     const newCondition: ConditionItem = {
@@ -85,31 +74,40 @@ export function EnhancedConditionBuilder({ value, onChange }: EnhancedConditionB
         conditionType: 'form_status',
         operator: '==',
         value: 'submitted'
-      }
+      },
+      logicalOperatorWithNext: 'AND'
     };
     const newConditions = [...conditions, newCondition];
     setConditions(newConditions);
-    updateParent(newConditions, logicalOperator);
-  }, [conditions, logicalOperator, updateParent]);
+    updateParent(newConditions);
+  }, [conditions, updateParent]);
 
   const handleRemoveCondition = useCallback((conditionId: string) => {
-    if (conditions.length <= 1) return; // Keep at least one condition
+    if (conditions.length <= 1) return;
     const newConditions = conditions.filter(c => c.id !== conditionId);
     setConditions(newConditions);
-    updateParent(newConditions, logicalOperator);
-  }, [conditions, logicalOperator, updateParent]);
+    updateParent(newConditions);
+  }, [conditions, updateParent]);
 
   const handleConditionChange = useCallback((conditionId: string, updatedItem: Partial<ConditionItem>) => {
     const newConditions = conditions.map(c => 
       c.id === conditionId ? { ...c, ...updatedItem } : c
     );
     setConditions(newConditions);
-    updateParent(newConditions, logicalOperator);
-  }, [conditions, logicalOperator, updateParent]);
+    updateParent(newConditions);
+  }, [conditions, updateParent]);
+
+  const handleLogicalOperatorChange = useCallback((conditionId: string, operator: LogicalOperator) => {
+    const newConditions = conditions.map(c => 
+      c.id === conditionId ? { ...c, logicalOperatorWithNext: operator } : c
+    );
+    setConditions(newConditions);
+    updateParent(newConditions);
+  }, [conditions, updateParent]);
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 p-4 text-muted-foreground">
+      <div className="flex items-center gap-2 p-3 text-muted-foreground">
         <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
         Loading forms...
       </div>
@@ -118,7 +116,7 @@ export function EnhancedConditionBuilder({ value, onChange }: EnhancedConditionB
 
   if (validForms.length === 0) {
     return (
-      <div className="flex items-center gap-2 p-4 text-amber-600 bg-amber-50 rounded-md">
+      <div className="flex items-center gap-2 p-3 text-amber-600 bg-amber-50 rounded-md">
         <AlertCircle className="h-4 w-4" />
         <span className="text-sm">No forms available. Please create and publish forms first.</span>
       </div>
@@ -126,70 +124,48 @@ export function EnhancedConditionBuilder({ value, onChange }: EnhancedConditionB
   }
 
   return (
-    <div className="space-y-4">
-      {/* Logical Operator Selection - Only show when multiple conditions */}
-      {conditions.length > 1 && (
-        <div className="flex items-center gap-4 p-3 bg-primary/10 rounded-md border border-primary/20">
-          <Label className="text-sm font-medium">Combine conditions with:</Label>
-          <Select value={logicalOperator} onValueChange={(v) => handleLogicalOperatorChange(v as LogicalOperator)}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="AND">
-                <span className="font-medium">AND</span> - All must match
-              </SelectItem>
-              <SelectItem value="OR">
-                <span className="font-medium">OR</span> - Any can match
-              </SelectItem>
-            </SelectContent>
-          </Select>
+    <div className="space-y-2">
+      {conditions.map((condition, index) => (
+        <div key={condition.id}>
+          <SingleConditionBuilder
+            condition={condition}
+            forms={validForms}
+            index={index}
+            canRemove={conditions.length > 1}
+            onChange={(updated) => handleConditionChange(condition.id, updated)}
+            onRemove={() => handleRemoveCondition(condition.id)}
+          />
+          
+          {/* Per-condition logical operator selector - only show if not last condition */}
+          {index < conditions.length - 1 && (
+            <div className="flex items-center justify-center py-1">
+              <Select 
+                value={condition.logicalOperatorWithNext || 'AND'} 
+                onValueChange={(v) => handleLogicalOperatorChange(condition.id, v as LogicalOperator)}
+              >
+                <SelectTrigger className="w-24 h-7 text-xs font-medium bg-primary/10 border-primary/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="AND">AND</SelectItem>
+                  <SelectItem value="OR">OR</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
-      )}
+      ))}
 
-      {/* Conditions List */}
-      <div className="space-y-3">
-        {conditions.map((condition, index) => (
-          <div key={condition.id} className="relative">
-            {/* Logical operator badge between conditions */}
-            {index > 0 && (
-              <div className="flex items-center justify-center -mt-1 -mb-1 relative z-10">
-                <Badge variant="secondary" className="bg-primary text-primary-foreground">
-                  {logicalOperator}
-                </Badge>
-              </div>
-            )}
-            
-            <SingleConditionBuilder
-              condition={condition}
-              forms={validForms}
-              index={index}
-              canRemove={conditions.length > 1}
-              onChange={(updated) => handleConditionChange(condition.id, updated)}
-              onRemove={() => handleRemoveCondition(condition.id)}
-            />
-          </div>
-        ))}
-      </div>
-
-      {/* Add Condition Button */}
       <Button
         type="button"
         variant="outline"
         size="sm"
         onClick={handleAddCondition}
-        className="w-full border-dashed"
+        className="w-full border-dashed h-8 text-xs"
       >
-        <Plus className="h-4 w-4 mr-2" />
-        Add Another Condition
+        <Plus className="h-3 w-3 mr-1" />
+        Add Condition
       </Button>
-
-      {/* Summary Preview */}
-      {conditions.length > 1 && (
-        <div className="p-3 bg-muted/50 rounded-md text-sm">
-          <strong>Summary:</strong> {conditions.length} conditions combined with <Badge variant="outline">{logicalOperator}</Badge>
-        </div>
-      )}
     </div>
   );
 }
@@ -234,49 +210,46 @@ function SingleConditionBuilder({ condition, forms, index, canRemove, onChange, 
 
   return (
     <Card className="border-border">
-      <CardHeader className="py-3 px-4">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">
-              {index + 1}
-            </span>
-            Condition {index + 1}
-          </CardTitle>
+      <CardHeader className="py-2 px-3">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="h-5 w-5 flex items-center justify-center p-0 text-xs">
+              {index + 1}
+            </Badge>
             <Select value={condition.systemType} onValueChange={(v) => handleSystemTypeChange(v as ConditionSystemType)}>
-              <SelectTrigger className="w-40 h-8 text-xs">
+              <SelectTrigger className="w-32 h-7 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="form_level">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <FileText className="h-3 w-3" />
                     Form-Level
                   </div>
                 </SelectItem>
                 <SelectItem value="field_level">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <Database className="h-3 w-3" />
                     Field-Level
                   </div>
                 </SelectItem>
               </SelectContent>
             </Select>
-            {canRemove && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={onRemove}
-                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
           </div>
+          {canRemove && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onRemove}
+              className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+            >
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          )}
         </div>
       </CardHeader>
-      <CardContent className="pt-0 pb-4 px-4">
+      <CardContent className="pt-0 pb-3 px-3">
         {condition.systemType === 'form_level' ? (
           <FormLevelConditionBuilder
             condition={condition.formLevelCondition}
@@ -309,7 +282,6 @@ const FormLevelConditionBuilder = React.memo(({ condition, forms, onChange }: Fo
   const [operator, setOperator] = useState<ComparisonOperator>(condition?.operator || '==');
   const [value, setValue] = useState(condition?.value as string || '');
 
-  // Debounced update to parent
   React.useEffect(() => {
     const timeoutId = setTimeout(() => {
       const updatedCondition: FormLevelCondition = {
@@ -321,7 +293,6 @@ const FormLevelConditionBuilder = React.memo(({ condition, forms, onChange }: Fo
       };
       onChange(updatedCondition);
     }, 300);
-
     return () => clearTimeout(timeoutId);
   }, [selectedForm, conditionType, operator, value, condition?.id, onChange]);
 
@@ -366,19 +337,18 @@ const FormLevelConditionBuilder = React.memo(({ condition, forms, onChange }: Fo
   }, [conditionType]);
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
-        {/* Condition Type */}
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2">
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Type</Label>
           <Select value={conditionType} onValueChange={(v) => setConditionType(v as any)}>
-            <SelectTrigger className="h-9">
+            <SelectTrigger className="h-8 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {getConditionTypeOptions.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <opt.icon className="h-3 w-3" />
                     {opt.label}
                   </div>
@@ -388,12 +358,11 @@ const FormLevelConditionBuilder = React.memo(({ condition, forms, onChange }: Fo
           </Select>
         </div>
 
-        {/* Target Form */}
         {(conditionType === 'form_status' || conditionType === 'form_submission') && (
           <div>
             <Label className="text-xs text-muted-foreground mb-1 block">Form</Label>
             <Select value={selectedForm} onValueChange={setSelectedForm}>
-              <SelectTrigger className="h-9">
+              <SelectTrigger className="h-8 text-xs">
                 <SelectValue placeholder="Select form" />
               </SelectTrigger>
               <SelectContent>
@@ -408,12 +377,11 @@ const FormLevelConditionBuilder = React.memo(({ condition, forms, onChange }: Fo
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        {/* Operator */}
+      <div className="grid grid-cols-2 gap-2">
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Operator</Label>
           <Select value={operator} onValueChange={(v) => setOperator(v as ComparisonOperator)}>
-            <SelectTrigger className="h-9">
+            <SelectTrigger className="h-8 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -427,11 +395,10 @@ const FormLevelConditionBuilder = React.memo(({ condition, forms, onChange }: Fo
           </Select>
         </div>
 
-        {/* Value */}
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Value</Label>
           <Select value={value} onValueChange={setValue}>
-            <SelectTrigger className="h-9">
+            <SelectTrigger className="h-8 text-xs">
               <SelectValue placeholder="Select value" />
             </SelectTrigger>
             <SelectContent>
@@ -445,9 +412,8 @@ const FormLevelConditionBuilder = React.memo(({ condition, forms, onChange }: Fo
         </div>
       </div>
 
-      {/* Preview */}
       {selectedForm && value && (
-        <div className="text-xs bg-muted/50 p-2 rounded flex items-center gap-2">
+        <div className="text-xs bg-muted/50 p-2 rounded flex items-center gap-1">
           <CheckCircle className="h-3 w-3 text-green-600" />
           <span>
             <strong>{forms.find(f => f.id === selectedForm)?.name || 'Form'}</strong>
@@ -474,43 +440,35 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
 
   const { fields, loading } = useFormFields(selectedForm);
 
-  // Debounced update to parent
   React.useEffect(() => {
     const timeoutId = setTimeout(() => {
-      const field = fields.find(f => f.id === selectedField);
+      const selectedFieldData = fields.find(f => f.id === selectedField);
       const updatedCondition: FieldLevelCondition = {
         id: condition?.id || `field-level-${Date.now()}`,
         formId: selectedForm,
         fieldId: selectedField,
-        fieldType: field?.type || 'text',
+        fieldType: selectedFieldData?.type || 'text',
         operator,
         value
       };
       onChange(updatedCondition);
     }, 300);
-
     return () => clearTimeout(timeoutId);
   }, [selectedForm, selectedField, operator, value, fields, condition?.id, onChange]);
 
-  const selectedFieldData = useMemo(() => 
-    fields.find(f => f.id === selectedField), [fields, selectedField]
-  );
+  const selectedFieldData = useMemo(() => {
+    return fields.find(f => f.id === selectedField);
+  }, [fields, selectedField]);
 
-  const validFields = useMemo(() => 
-    fields.filter(field => field.id && field.id.trim() !== ''), [fields]
-  );
+  const hasOptions = selectedFieldData?.options && selectedFieldData.options.length > 0;
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
-        {/* Form Selection */}
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2">
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Form</Label>
-          <Select value={selectedForm} onValueChange={(v) => {
-            setSelectedForm(v);
-            setSelectedField('');
-          }}>
-            <SelectTrigger className="h-9">
+          <Select value={selectedForm} onValueChange={(v) => { setSelectedForm(v); setSelectedField(''); }}>
+            <SelectTrigger className="h-8 text-xs">
               <SelectValue placeholder="Select form" />
             </SelectTrigger>
             <SelectContent>
@@ -523,15 +481,14 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
           </Select>
         </div>
 
-        {/* Field Selection */}
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Field</Label>
           <Select value={selectedField} onValueChange={setSelectedField} disabled={!selectedForm || loading}>
-            <SelectTrigger className="h-9">
+            <SelectTrigger className="h-8 text-xs">
               <SelectValue placeholder={loading ? "Loading..." : "Select field"} />
             </SelectTrigger>
             <SelectContent>
-              {validFields.map((field) => (
+              {fields.map((field) => (
                 <SelectItem key={field.id} value={field.id}>
                   {field.label}
                 </SelectItem>
@@ -541,21 +498,16 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        {/* Operator */}
+      <div className="grid grid-cols-2 gap-2">
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Operator</Label>
           <Select value={operator} onValueChange={(v) => setOperator(v as ComparisonOperator)}>
-            <SelectTrigger className="h-9">
+            <SelectTrigger className="h-8 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="==">Equals</SelectItem>
               <SelectItem value="!=">Not Equals</SelectItem>
-              <SelectItem value=">">Greater Than</SelectItem>
-              <SelectItem value="<">Less Than</SelectItem>
-              <SelectItem value=">=">Greater or Equal</SelectItem>
-              <SelectItem value="<=">Less or Equal</SelectItem>
               <SelectItem value="contains">Contains</SelectItem>
               <SelectItem value="not_contains">Not Contains</SelectItem>
               <SelectItem value="exists">Exists</SelectItem>
@@ -564,12 +516,11 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
           </Select>
         </div>
 
-        {/* Value */}
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Value</Label>
-          {selectedFieldData?.options && selectedFieldData.options.length > 0 ? (
-            <Select value={value as string} onValueChange={setValue}>
-              <SelectTrigger className="h-9">
+          {hasOptions ? (
+            <Select value={value} onValueChange={setValue}>
+              <SelectTrigger className="h-8 text-xs">
                 <SelectValue placeholder="Select value" />
               </SelectTrigger>
               <SelectContent>
@@ -581,24 +532,24 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
               </SelectContent>
             </Select>
           ) : (
-            <Input
-              value={value as string}
+            <input
+              type="text"
+              value={value}
               onChange={(e) => setValue(e.target.value)}
               placeholder="Enter value"
-              className="h-9"
+              className="w-full h-8 px-2 text-xs border border-input rounded-md bg-background"
             />
           )}
         </div>
       </div>
 
-      {/* Preview */}
-      {selectedForm && selectedField && value && (
-        <div className="text-xs bg-muted/50 p-2 rounded flex items-center gap-2">
+      {selectedForm && selectedField && (
+        <div className="text-xs bg-muted/50 p-2 rounded flex items-center gap-1">
           <CheckCircle className="h-3 w-3 text-green-600" />
           <span>
             <strong>{selectedFieldData?.label || 'Field'}</strong>
-            {' '}{operator}{' '}
-            <strong>{value}</strong>
+            {' '}{operator === '==' ? 'equals' : operator === '!=' ? 'not equals' : operator}{' '}
+            <strong>"{value}"</strong>
           </span>
         </div>
       )}
