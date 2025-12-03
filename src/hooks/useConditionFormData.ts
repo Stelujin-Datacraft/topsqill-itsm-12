@@ -25,7 +25,7 @@ export function useConditionFormData() {
           status
         `)
         .eq('project_id', currentProject.id)
-        .eq('status', 'published');
+        .in('status', ['published', 'active']);
 
       if (formsError) {
         console.error('❌ Error fetching forms:', formsError);
