@@ -3,12 +3,20 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { FormOption, FormFieldOption } from '@/types/conditions';
+import { useProject } from '@/contexts/ProjectContext';
 
 export function useConditionFormData() {
+  const { currentProject } = useProject();
+  
   const { data: forms, isLoading } = useQuery({
-    queryKey: ['condition-forms'],
+    queryKey: ['condition-forms', currentProject?.id],
     queryFn: async () => {
-      console.log('🔍 Fetching forms for condition builder...');
+      if (!currentProject?.id) {
+        console.log('🔍 No project selected, skipping form fetch');
+        return [];
+      }
+      
+      console.log('🔍 Fetching published forms for project:', currentProject.id);
       const { data: formsData, error: formsError } = await supabase
         .from('forms')
         .select(`
@@ -16,14 +24,15 @@ export function useConditionFormData() {
           name,
           status
         `)
-        .in('status', ['published', 'active', 'draft']);
+        .eq('project_id', currentProject.id)
+        .eq('status', 'published');
 
       if (formsError) {
         console.error('❌ Error fetching forms:', formsError);
         throw formsError;
       }
 
-      console.log('✅ Fetched forms:', formsData?.length || 0);
+      console.log('✅ Fetched published forms:', formsData?.length || 0);
 
       const formsWithFields = await Promise.all(
         formsData.map(async (form) => {
@@ -71,7 +80,8 @@ export function useConditionFormData() {
       );
 
       return formsWithFields as FormOption[];
-    }
+    },
+    enabled: !!currentProject?.id
   });
 
   return {
