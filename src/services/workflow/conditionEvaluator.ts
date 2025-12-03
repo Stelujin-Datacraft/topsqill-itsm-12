@@ -11,7 +11,8 @@ import {
   ConditionEvaluationResult,
   EnhancedCondition,
   FormLevelCondition,
-  FieldLevelCondition
+  FieldLevelCondition,
+  ConditionItem
 } from '@/types/conditions';
 
 export class ConditionEvaluator {
@@ -69,8 +70,29 @@ export class ConditionEvaluator {
     condition: EnhancedCondition,
     context: ConditionEvaluationContext
   ): boolean {
-    console.log('🚀 Evaluating enhanced condition:', { systemType: condition.systemType });
+    console.log('🚀 Evaluating enhanced condition:', { 
+      systemType: condition.systemType,
+      hasMultipleConditions: !!condition.conditions?.length,
+      logicalOperator: condition.logicalOperator
+    });
 
+    // Handle multiple conditions with logical operator
+    if (condition.conditions && condition.conditions.length > 0) {
+      const results = condition.conditions.map(cond => 
+        this.evaluateSingleConditionItem(cond, context)
+      );
+      
+      console.log('📊 Multiple conditions results:', results);
+      
+      const logicalOperator = condition.logicalOperator || 'AND';
+      if (logicalOperator === 'AND') {
+        return results.every(r => r);
+      } else {
+        return results.some(r => r);
+      }
+    }
+
+    // Fallback to single condition evaluation (backward compatibility)
     if (condition.systemType === 'form_level' && condition.formLevelCondition) {
       return this.evaluateFormLevelCondition(condition.formLevelCondition, context);
     } else if (condition.systemType === 'field_level' && condition.fieldLevelCondition) {
@@ -78,6 +100,18 @@ export class ConditionEvaluator {
     }
 
     console.warn('⚠️ Enhanced condition missing configuration');
+    return false;
+  }
+
+  private static evaluateSingleConditionItem(
+    conditionItem: ConditionItem,
+    context: ConditionEvaluationContext
+  ): boolean {
+    if (conditionItem.systemType === 'form_level' && conditionItem.formLevelCondition) {
+      return this.evaluateFormLevelCondition(conditionItem.formLevelCondition, context);
+    } else if (conditionItem.systemType === 'field_level' && conditionItem.fieldLevelCondition) {
+      return this.evaluateFieldLevelCondition(conditionItem.fieldLevelCondition, context);
+    }
     return false;
   }
 

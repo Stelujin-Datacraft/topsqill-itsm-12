@@ -53,12 +53,22 @@ export interface LogicalGroup {
   conditions: (SimpleCondition | LogicalGroup)[];
 }
 
+// Single condition item for multiple conditions support
+export interface ConditionItem {
+  id: string;
+  systemType: ConditionSystemType;
+  formLevelCondition?: FormLevelCondition;
+  fieldLevelCondition?: FieldLevelCondition;
+}
+
 export interface EnhancedCondition {
   id: string;
   systemType: ConditionSystemType;
   formLevelCondition?: FormLevelCondition;
   fieldLevelCondition?: FieldLevelCondition;
   logicalOperator?: LogicalOperator;
+  // Multiple conditions support
+  conditions?: ConditionItem[];
 }
 
 export interface IfConditionConfig {
