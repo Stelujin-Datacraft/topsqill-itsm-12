@@ -460,7 +460,10 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
     return fields.find(f => f.id === selectedField);
   }, [fields, selectedField]);
 
-  const hasOptions = selectedFieldData?.options && selectedFieldData.options.length > 0;
+  // Field types that should show dropdown with options
+  const optionFieldTypes = ['select', 'multi-select', 'multiselect', 'radio', 'dropdown', 'checkbox'];
+  const isOptionFieldType = selectedFieldData?.type && optionFieldTypes.includes(selectedFieldData.type.toLowerCase());
+  const hasOptions = isOptionFieldType && selectedFieldData?.options && selectedFieldData.options.length > 0;
 
   return (
     <div className="space-y-2">
