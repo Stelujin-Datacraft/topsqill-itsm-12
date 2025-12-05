@@ -992,32 +992,30 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <Label className="text-xs text-muted-foreground mb-1 block">Operator</Label>
-          <Select value={operator} onValueChange={(v) => setOperator(v as ComparisonOperator)}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="==">Equals</SelectItem>
-              <SelectItem value="!=">Not Equals</SelectItem>
-              <SelectItem value="contains">Contains</SelectItem>
-              <SelectItem value="not_contains">Not Contains</SelectItem>
-              <SelectItem value="exists">Exists</SelectItem>
-              <SelectItem value="not_exists">Not Exists</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <FieldValueInput 
-          fieldType={selectedFieldData?.type || ''}
-          value={value}
-          onChange={setValue}
-          valueOptions={valueOptions}
-          selectedFieldData={selectedFieldData}
-        />
+      <div>
+        <Label className="text-xs text-muted-foreground mb-1 block">Operator</Label>
+        <Select value={operator} onValueChange={(v) => setOperator(v as ComparisonOperator)}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="==">Equals</SelectItem>
+            <SelectItem value="!=">Not Equals</SelectItem>
+            <SelectItem value="contains">Contains</SelectItem>
+            <SelectItem value="not_contains">Not Contains</SelectItem>
+            <SelectItem value="exists">Exists</SelectItem>
+            <SelectItem value="not_exists">Not Exists</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
+
+      <FieldValueInput 
+        fieldType={selectedFieldData?.type || ''}
+        value={value}
+        onChange={setValue}
+        valueOptions={valueOptions}
+        selectedFieldData={selectedFieldData}
+      />
 
       {selectedForm && selectedField && (
         <div className="text-xs bg-muted/50 p-2 rounded flex items-center gap-1">
