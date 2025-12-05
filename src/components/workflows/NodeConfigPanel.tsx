@@ -12,6 +12,7 @@ import { UserSelector } from './UserSelector';
 import { EnhancedUserSelector } from './EnhancedUserSelector';
 import { FormStatusSelector } from './FormStatusSelector';
 import { FormFieldSelector } from './FormFieldSelector';
+import { WorkflowEmailTemplateSelector } from './WorkflowEmailTemplateSelector';
 import { EnhancedConditionBuilder } from './conditions/EnhancedConditionBuilder';
 import { DynamicValueInput } from './conditions/DynamicValueInput';
 import { useTriggerManagement } from '@/hooks/useTriggerManagement';
@@ -22,6 +23,7 @@ import { FormFieldOption } from '@/types/conditions';
 interface NodeConfigPanelProps {
   node: WorkflowNode;
   workflowId?: string;
+  projectId?: string;
   triggerFormId?: string;
   formFields?: Array<{ id: string; label: string; type: string }>;
   onConfigChange: (config: any) => void;
@@ -30,7 +32,7 @@ interface NodeConfigPanelProps {
   onSave: () => void;
 }
 
-export function NodeConfigPanel({ node, workflowId, triggerFormId, formFields = [], onConfigChange, onDelete, onClose, onSave }: NodeConfigPanelProps) {
+export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, formFields = [], onConfigChange, onDelete, onClose, onSave }: NodeConfigPanelProps) {
   const { createTrigger, deleteTrigger, loading } = useTriggerManagement();
   const { toast } = useToast();
 
@@ -330,7 +332,9 @@ export function NodeConfigPanel({ node, workflowId, triggerFormId, formFields = 
                     value={node.data.config?.notificationConfig?.type || 'in_app'} 
                     onValueChange={(value) => handleConfigUpdate('notificationConfig', { 
                       ...node.data.config?.notificationConfig, 
-                      type: value 
+                      type: value,
+                      // Clear template when switching to in_app
+                      ...(value === 'in_app' ? { emailTemplateId: undefined, emailTemplateName: undefined } : {})
                     })}
                   >
                     <SelectTrigger>
@@ -342,6 +346,22 @@ export function NodeConfigPanel({ node, workflowId, triggerFormId, formFields = 
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Email Template Selector - only show for email type */}
+                {node.data.config?.notificationConfig?.type === 'email' && (
+                  <WorkflowEmailTemplateSelector
+                    projectId={projectId}
+                    value={node.data.config?.notificationConfig?.emailTemplateId}
+                    onValueChange={(templateId, templateName, templateSubject) => {
+                      handleConfigUpdate('notificationConfig', {
+                        ...node.data.config?.notificationConfig,
+                        emailTemplateId: templateId,
+                        emailTemplateName: templateName,
+                        subject: templateSubject
+                      });
+                    }}
+                  />
+                )}
 
                 <div>
                   <Label htmlFor="recipient">Send To</Label>
@@ -377,35 +397,46 @@ export function NodeConfigPanel({ node, workflowId, triggerFormId, formFields = 
                   </div>
                 )}
 
-                <div>
-                  <Label htmlFor="subject">Subject</Label>
-                  <Input
-                    id="subject"
-                    value={node.data.config?.notificationConfig?.subject || ''}
-                    onChange={(e) => handleConfigUpdate('notificationConfig', {
-                      ...node.data.config?.notificationConfig,
-                      subject: e.target.value
-                    })}
-                    placeholder="Enter notification subject"
-                  />
-                </div>
+                {/* Subject - only show for in_app or if no template selected for email */}
+                {(node.data.config?.notificationConfig?.type !== 'email' || !node.data.config?.notificationConfig?.emailTemplateId) && (
+                  <div>
+                    <Label htmlFor="subject">Subject</Label>
+                    <Input
+                      id="subject"
+                      value={node.data.config?.notificationConfig?.subject || ''}
+                      onChange={(e) => handleConfigUpdate('notificationConfig', {
+                        ...node.data.config?.notificationConfig,
+                        subject: e.target.value
+                      })}
+                      placeholder="Enter notification subject"
+                    />
+                  </div>
+                )}
 
-                <div>
-                  <Label htmlFor="message">Message</Label>
-                  <Textarea
-                    id="message"
-                    value={node.data.config?.notificationConfig?.message || ''}
-                    onChange={(e) => handleConfigUpdate('notificationConfig', {
-                      ...node.data.config?.notificationConfig,
-                      message: e.target.value
-                    })}
-                    placeholder="Enter notification message"
-                  />
-                </div>
+                {/* Message - only show for in_app notifications */}
+                {node.data.config?.notificationConfig?.type !== 'email' && (
+                  <div>
+                    <Label htmlFor="message">Message</Label>
+                    <Textarea
+                      id="message"
+                      value={node.data.config?.notificationConfig?.message || ''}
+                      onChange={(e) => handleConfigUpdate('notificationConfig', {
+                        ...node.data.config?.notificationConfig,
+                        message: e.target.value
+                      })}
+                      placeholder="Enter notification message"
+                    />
+                  </div>
+                )}
 
-                {node.data.config?.notificationConfig?.subject && node.data.config?.notificationConfig?.message && (
+                {/* Configuration summary */}
+                {((node.data.config?.notificationConfig?.type === 'email' && node.data.config?.notificationConfig?.emailTemplateId) ||
+                  (node.data.config?.notificationConfig?.type !== 'email' && node.data.config?.notificationConfig?.subject && node.data.config?.notificationConfig?.message)) && (
                   <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
-                    <strong>Configuration:</strong> Send {node.data.config.notificationConfig.type} notification to {
+                    <strong>Configuration:</strong> Send {node.data.config.notificationConfig.type} notification 
+                    {node.data.config.notificationConfig.type === 'email' && node.data.config.notificationConfig.emailTemplateName && (
+                      <> using template "{node.data.config.notificationConfig.emailTemplateName}"</>
+                    )} to {
                       node.data.config.notificationConfig.recipient === 'form_submitter' 
                         ? 'form submitter' 
                         : node.data.config.notificationConfig.specificEmail || 'specified user'

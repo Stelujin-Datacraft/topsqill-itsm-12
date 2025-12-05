@@ -45,12 +45,13 @@ function generateUUID(): string {
 
 interface WorkflowDesignerProps {
   workflowId?: string;
+  projectId?: string;
   initialNodes: WorkflowNode[];
   initialConnections: WorkflowConnection[];
   onSave: (nodes: WorkflowNode[], connections: WorkflowConnection[]) => void;
 }
 
-export function WorkflowDesigner({ workflowId, initialNodes, initialConnections, onSave }: WorkflowDesignerProps) {
+export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialConnections, onSave }: WorkflowDesignerProps) {
   const [reactFlowNodes, setReactFlowNodes, onNodesChange] = useNodesState([]);
   const [reactFlowEdges, setReactFlowEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null);
@@ -283,6 +284,7 @@ export function WorkflowDesigner({ workflowId, initialNodes, initialConnections,
         <NodeConfigPanel
           node={selectedNode}
           workflowId={workflowId}
+          projectId={projectId}
           triggerFormId={triggerFormId}
           formFields={formFields}
           onConfigChange={(config) => updateNodeConfig(selectedNode.id, config)}
