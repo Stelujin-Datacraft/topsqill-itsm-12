@@ -560,69 +560,49 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
     // Date field - date picker
     if (normalizedType === 'date') {
       return (
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-3 w-3 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Date</span>
-          </div>
-          <Input
-            type="date"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            className="h-8 text-xs"
-          />
-        </div>
+        <Input
+          type="date"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-8 text-xs"
+        />
       );
     }
 
     // Time field - time picker
     if (normalizedType === 'time') {
       return (
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Clock className="h-3 w-3 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Time</span>
-          </div>
-          <Input
-            type="time"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            className="h-8 text-xs"
-          />
-        </div>
+        <Input
+          type="time"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-8 text-xs"
+        />
       );
     }
 
     // DateTime field - datetime picker
     if (normalizedType === 'datetime' || normalizedType === 'date-time' || normalizedType === 'datetime-local') {
       return (
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Clock className="h-3 w-3 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Date & Time</span>
-          </div>
-          <Input
-            type="datetime-local"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            className="h-8 text-xs"
-          />
-        </div>
+        <Input
+          type="datetime-local"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-8 text-xs"
+        />
       );
     }
 
     // Phone number field
     if (normalizedType === 'phone' || normalizedType === 'phonenumber' || normalizedType === 'phone-number' || normalizedType === 'tel') {
       return (
-        <div className="space-y-1">
-          <Input
-            type="tel"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="Enter phone number"
-            className="h-8 text-xs"
-          />
-        </div>
+        <Input
+          type="tel"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Enter phone number"
+          className="h-8 text-xs"
+        />
       );
     }
 
@@ -630,12 +610,12 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
     if (normalizedType === 'toggle' || normalizedType === 'switch' || normalizedType === 'toggle-switch') {
       const isOn = value === 'true' || value === 'on' || value === 'yes' || value === '1';
       return (
-        <div className="flex items-center gap-3 h-8 p-2 border rounded-md bg-muted/30">
+        <div className="flex items-center gap-3 h-8 px-2 border rounded-md bg-muted/30">
           <Switch
             checked={isOn}
             onCheckedChange={(checked) => onChange(checked ? 'true' : 'false')}
           />
-          <span className="text-xs font-medium">{isOn ? 'On / Yes' : 'Off / No'}</span>
+          <span className="text-xs font-medium">{isOn ? 'On' : 'Off'}</span>
         </div>
       );
     }
@@ -644,19 +624,16 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
     if (sliderConfig && (normalizedType === 'slider' || normalizedType === 'range')) {
       const numValue = Number(value) || sliderConfig.min;
       return (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Value: {numValue}</span>
-            <span className="text-xs text-muted-foreground">{sliderConfig.min} - {sliderConfig.max}</span>
-          </div>
+        <div className="flex items-center gap-2 h-8">
           <Slider
             value={[numValue]}
             onValueChange={([v]) => onChange(String(v))}
             min={sliderConfig.min}
             max={sliderConfig.max}
             step={sliderConfig.step}
-            className="w-full"
+            className="flex-1"
           />
+          <span className="text-xs text-muted-foreground w-8 text-right">{numValue}</span>
         </div>
       );
     }
@@ -665,25 +642,23 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
     if (ratingConfig && (normalizedType === 'rating' || normalizedType === 'star-rating' || normalizedType === 'starrating')) {
       const numValue = Number(value) || 0;
       return (
-        <div className="space-y-1">
-          <div className="flex items-center gap-1">
-            {Array.from({ length: ratingConfig.max }, (_, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => onChange(String(i + 1))}
-                className="focus:outline-none"
-              >
-                <Star
-                  className={cn(
-                    "h-5 w-5 transition-colors",
-                    i < numValue ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"
-                  )}
-                />
-              </button>
-            ))}
-            <span className="text-xs ml-2 text-muted-foreground">{numValue} / {ratingConfig.max}</span>
-          </div>
+        <div className="flex items-center gap-1 h-8">
+          {Array.from({ length: ratingConfig.max }, (_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onChange(String(i + 1))}
+              className="focus:outline-none"
+            >
+              <Star
+                className={cn(
+                  "h-4 w-4 transition-colors",
+                  i < numValue ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"
+                )}
+              />
+            </button>
+          ))}
+          <span className="text-xs ml-1 text-muted-foreground">{numValue}/{ratingConfig.max}</span>
         </div>
       );
     }
@@ -692,25 +667,23 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
     if (normalizedType === 'checkbox') {
       if (hasValueOptions) {
         return (
-          <div className="space-y-2 max-h-32 overflow-y-auto">
-            {valueOptions!.map((opt) => (
-              <div key={opt.value} className="flex items-center gap-2">
-                <Checkbox
-                  id={`checkbox-${opt.value}`}
-                  checked={value === opt.value}
-                  onCheckedChange={(checked) => checked && onChange(opt.value)}
-                />
-                <label htmlFor={`checkbox-${opt.value}`} className="text-xs cursor-pointer">
+          <Select value={value} onValueChange={onChange}>
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Select option" />
+            </SelectTrigger>
+            <SelectContent>
+              {valueOptions!.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
                   {opt.label}
-                </label>
-              </div>
-            ))}
-          </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         );
       }
       // Checkbox without options - true/false toggle
       return (
-        <div className="flex items-center gap-3 h-8">
+        <div className="flex items-center gap-3 h-8 px-2 border rounded-md bg-muted/30">
           <Checkbox
             checked={value === 'true' || value === 'checked'}
             onCheckedChange={(checked) => onChange(checked ? 'true' : 'false')}
@@ -723,27 +696,21 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
     // Country field - country dropdown
     if (normalizedType === 'country') {
       return (
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Globe className="h-3 w-3 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Country</span>
-          </div>
-          <Select value={value} onValueChange={onChange} disabled={countriesLoading}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder={countriesLoading ? "Loading..." : "Select country"} />
-            </SelectTrigger>
-            <SelectContent className="max-h-60">
-              {countries.map((country) => (
-                <SelectItem key={country.code} value={country.code}>
-                  <div className="flex items-center gap-2">
-                    {country.flag && <img src={country.flag} alt="" className="h-3 w-4 object-cover" />}
-                    {country.name}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <Select value={value} onValueChange={onChange} disabled={countriesLoading}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder={countriesLoading ? "Loading..." : "Select country"} />
+          </SelectTrigger>
+          <SelectContent className="max-h-60">
+            {countries.map((country) => (
+              <SelectItem key={country.code} value={country.code}>
+                <div className="flex items-center gap-2">
+                  {country.flag && <img src={country.flag} alt="" className="h-3 w-4 object-cover" />}
+                  {country.name}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       );
     }
 
@@ -752,12 +719,11 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
       // Show loading state
       if (usersLoading || groupsLoading) {
         return (
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Users className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Loading users & groups...</span>
-            </div>
-          </div>
+          <Select disabled>
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Loading..." />
+            </SelectTrigger>
+          </Select>
         );
       }
 
@@ -765,81 +731,65 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
       
       if (allOptions.length > 0) {
         return (
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Users className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">User/Group</span>
-            </div>
-            <Select value={value} onValueChange={onChange}>
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Select user or group" />
-              </SelectTrigger>
-              <SelectContent className="max-h-60">
-                {submissionAccessOptions.users.length > 0 && (
-                  <>
-                    <div className="px-2 py-1 text-xs font-medium text-muted-foreground">Users</div>
-                    {submissionAccessOptions.users.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </>
-                )}
-                {submissionAccessOptions.groups.length > 0 && (
-                  <>
-                    <div className="px-2 py-1 text-xs font-medium text-muted-foreground border-t mt-1 pt-1">Groups</div>
-                    {submissionAccessOptions.groups.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
+          <Select value={value} onValueChange={onChange}>
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Select user or group" />
+            </SelectTrigger>
+            <SelectContent className="max-h-60">
+              {submissionAccessOptions.users.length > 0 && (
+                <>
+                  <div className="px-2 py-1 text-xs font-medium text-muted-foreground">Users</div>
+                  {submissionAccessOptions.users.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </>
+              )}
+              {submissionAccessOptions.groups.length > 0 && (
+                <>
+                  <div className="px-2 py-1 text-xs font-medium text-muted-foreground border-t mt-1 pt-1">Groups</div>
+                  {submissionAccessOptions.groups.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </>
+              )}
+            </SelectContent>
+          </Select>
         );
       }
       
       // Fallback if no users/groups available
       return (
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Users className="h-3 w-3 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Access</span>
-          </div>
-          <Input
-            type="text"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="Enter email or group"
-            className="h-8 text-xs"
-          />
-          <p className="text-xs text-muted-foreground">No users/groups available in organization</p>
-        </div>
+        <Input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Enter email or group"
+          className="h-8 text-xs"
+        />
       );
     }
 
     // Tags field - tag input
     if (normalizedType === 'tags' || normalizedType === 'tag') {
       return (
-        <div className="space-y-1">
-          <Input
-            type="text"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="Enter tag value"
-            className="h-8 text-xs"
-          />
-          <p className="text-xs text-muted-foreground">Enter a single tag to match</p>
-        </div>
+        <Input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Enter tag value"
+          className="h-8 text-xs"
+        />
       );
     }
 
     // Yes/No field
     if (normalizedType === 'yes-no' || normalizedType === 'yesno') {
       return (
-        <div className="flex gap-2">
+        <div className="flex gap-2 h-8">
           <Button
             type="button"
             variant={value === 'yes' ? 'default' : 'outline'}
