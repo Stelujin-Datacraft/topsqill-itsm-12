@@ -407,78 +407,74 @@ const FormLevelConditionBuilder = React.memo(({ condition, forms, onChange }: Fo
 
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <Label className="text-xs text-muted-foreground mb-1 block">Type</Label>
-          <Select value={conditionType} onValueChange={(v) => setConditionType(v as any)}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {getConditionTypeOptions.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  <div className="flex items-center gap-1">
-                    <opt.icon className="h-3 w-3" />
-                    {opt.label}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {(conditionType === 'form_status' || conditionType === 'form_submission') && (
-          <div>
-            <Label className="text-xs text-muted-foreground mb-1 block">Form</Label>
-            <Select value={selectedForm} onValueChange={setSelectedForm}>
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Select form" />
-              </SelectTrigger>
-              <SelectContent>
-                {forms.map((form) => (
-                  <SelectItem key={form.id} value={form.id}>
-                    {form.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+      <div>
+        <Label className="text-xs text-muted-foreground mb-1 block">Type</Label>
+        <Select value={conditionType} onValueChange={(v) => setConditionType(v as any)}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {getConditionTypeOptions.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                <div className="flex items-center gap-1">
+                  <opt.icon className="h-3 w-3" />
+                  {opt.label}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      {(conditionType === 'form_status' || conditionType === 'form_submission') && (
         <div>
-          <Label className="text-xs text-muted-foreground mb-1 block">Operator</Label>
-          <Select value={operator} onValueChange={(v) => setOperator(v as ComparisonOperator)}>
+          <Label className="text-xs text-muted-foreground mb-1 block">Form</Label>
+          <Select value={selectedForm} onValueChange={setSelectedForm}>
             <SelectTrigger className="h-8 text-xs">
-              <SelectValue />
+              <SelectValue placeholder="Select form" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="==">Equals</SelectItem>
-              <SelectItem value="!=">Not Equals</SelectItem>
-              <SelectItem value="contains">Contains</SelectItem>
-              <SelectItem value="not_contains">Not Contains</SelectItem>
-              <SelectItem value="exists">Exists</SelectItem>
-              <SelectItem value="not_exists">Not Exists</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div>
-          <Label className="text-xs text-muted-foreground mb-1 block">Value</Label>
-          <Select value={value} onValueChange={setValue}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Select value" />
-            </SelectTrigger>
-            <SelectContent>
-              {getValueOptions.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
+              {forms.map((form) => (
+                <SelectItem key={form.id} value={form.id}>
+                  {form.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
+      )}
+
+      <div>
+        <Label className="text-xs text-muted-foreground mb-1 block">Operator</Label>
+        <Select value={operator} onValueChange={(v) => setOperator(v as ComparisonOperator)}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="==">Equals</SelectItem>
+            <SelectItem value="!=">Not Equals</SelectItem>
+            <SelectItem value="contains">Contains</SelectItem>
+            <SelectItem value="not_contains">Not Contains</SelectItem>
+            <SelectItem value="exists">Exists</SelectItem>
+            <SelectItem value="not_exists">Not Exists</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label className="text-xs text-muted-foreground mb-1 block">Value</Label>
+        <Select value={value} onValueChange={setValue}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="Select value" />
+          </SelectTrigger>
+          <SelectContent>
+            {getValueOptions.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {selectedForm && value && (
