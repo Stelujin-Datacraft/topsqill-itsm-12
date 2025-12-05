@@ -225,7 +225,7 @@ export function NodeConfigPanel({ node, workflowId, onConfigChange, onDelete, on
             </div>
 
             {/* Approve Form Configuration */}
-            {node.data.config?.actionType === 'approve_form' && (
+            {(!node.data.config?.actionType || node.data.config?.actionType === 'approve_form') && (
               <div>
                 <Label htmlFor="targetForm">Form to Approve</Label>
                 <FormSelector
