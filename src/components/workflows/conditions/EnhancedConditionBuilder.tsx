@@ -21,6 +21,8 @@ import { useConditionFormData, useFormFields } from '@/hooks/useConditionFormDat
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import axios from 'axios';
+import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
+import { useGroups } from '@/hooks/useGroups';
 
 // Country type for country field
 interface Country {
@@ -476,8 +478,10 @@ interface FieldValueInputProps {
 }
 
 const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, selectedFieldData }: FieldValueInputProps) => {
-  const normalizedType = (fieldType || '').toLowerCase();
+  const normalizedType = (fieldType || '').toLowerCase().replace(/[_\s]/g, '-');
   const { countries, loading: countriesLoading } = useCountries();
+  const { users: orgUsers, loading: usersLoading } = useOrganizationUsers();
+  const { groups: orgGroups, loading: groupsLoading } = useGroups();
   
   // Determine slider config
   const sliderConfig = useMemo(() => {
@@ -505,37 +509,51 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
 
   const hasValueOptions = Array.isArray(valueOptions) && valueOptions.length > 0;
 
-  // Get submission access config from field
+  // Get submission access config from field - uses allowedUsers and allowedGroups arrays of IDs
   const submissionAccessOptions = useMemo(() => {
     if (normalizedType === 'submission-access' || normalizedType === 'submissionaccess') {
-      const config = selectedFieldData?.custom_config || selectedFieldData?.options || {};
+      const config = selectedFieldData?.custom_config || {};
       const users: Array<{ value: string; label: string }> = [];
       const groups: Array<{ value: string; label: string }> = [];
       
-      // Extract configured users
-      if (config.users && Array.isArray(config.users)) {
-        config.users.forEach((user: any) => {
-          const email = typeof user === 'string' ? user : (user.email || user.id || '');
-          if (email) {
-            users.push({ value: `user:${email}`, label: email });
+      // Extract configured users from allowedUsers (array of user IDs)
+      const allowedUserIds = config.allowedUsers || [];
+      if (Array.isArray(allowedUserIds) && allowedUserIds.length > 0 && orgUsers) {
+        allowedUserIds.forEach((userId: string) => {
+          const user = orgUsers.find(u => u.id === userId);
+          if (user) {
+            const label = `${user.first_name || ''} ${user.last_name || ''} (${user.email})`.trim();
+            users.push({ value: `user:${user.email}`, label });
           }
         });
       }
       
-      // Extract configured groups
-      if (config.groups && Array.isArray(config.groups)) {
-        config.groups.forEach((group: any) => {
-          const name = typeof group === 'string' ? group : (group.name || group.id || '');
-          if (name) {
-            groups.push({ value: `group:${name}`, label: `Group: ${name}` });
+      // Extract configured groups from allowedGroups (array of group IDs)
+      const allowedGroupIds = config.allowedGroups || [];
+      if (Array.isArray(allowedGroupIds) && allowedGroupIds.length > 0 && orgGroups) {
+        allowedGroupIds.forEach((groupId: string) => {
+          const group = orgGroups.find(g => g.id === groupId);
+          if (group) {
+            groups.push({ value: `group:${group.name}`, label: `Group: ${group.name}` });
           }
+        });
+      }
+      
+      // If no specific users/groups configured, show all org users and groups
+      if (users.length === 0 && groups.length === 0) {
+        orgUsers?.forEach(user => {
+          const label = `${user.first_name || ''} ${user.last_name || ''} (${user.email})`.trim();
+          users.push({ value: `user:${user.email}`, label });
+        });
+        orgGroups?.forEach(group => {
+          groups.push({ value: `group:${group.name}`, label: `Group: ${group.name}` });
         });
       }
       
       return { users, groups, hasConfig: users.length > 0 || groups.length > 0 };
     }
     return { users: [], groups: [], hasConfig: false };
-  }, [normalizedType, selectedFieldData]);
+  }, [normalizedType, selectedFieldData, orgUsers, orgGroups]);
 
   // Render specialized input based on field type
   const renderInput = () => {
@@ -609,14 +627,15 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
     }
 
     // Toggle/Switch field - toggle switch
-    if (normalizedType === 'toggle' || normalizedType === 'switch') {
+    if (normalizedType === 'toggle' || normalizedType === 'switch' || normalizedType === 'toggle-switch') {
+      const isOn = value === 'true' || value === 'on' || value === 'yes' || value === '1';
       return (
-        <div className="flex items-center gap-3 h-8">
+        <div className="flex items-center gap-3 h-8 p-2 border rounded-md bg-muted/30">
           <Switch
-            checked={value === 'true' || value === 'on' || value === 'yes'}
+            checked={isOn}
             onCheckedChange={(checked) => onChange(checked ? 'true' : 'false')}
           />
-          <span className="text-xs">{value === 'true' || value === 'on' || value === 'yes' ? 'On / Yes' : 'Off / No'}</span>
+          <span className="text-xs font-medium">{isOn ? 'On / Yes' : 'Off / No'}</span>
         </div>
       );
     }
@@ -728,8 +747,20 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
       );
     }
 
-    // Submission access field - show configured users/groups
+    // Submission access field - show configured users/groups from organization
     if (normalizedType === 'submission-access' || normalizedType === 'submissionaccess') {
+      // Show loading state
+      if (usersLoading || groupsLoading) {
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Users className="h-3 w-3 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Loading users & groups...</span>
+            </div>
+          </div>
+        );
+      }
+
       const allOptions = [...submissionAccessOptions.users, ...submissionAccessOptions.groups];
       
       if (allOptions.length > 0) {
@@ -770,7 +801,7 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
         );
       }
       
-      // Fallback if no users/groups configured
+      // Fallback if no users/groups available
       return (
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -784,7 +815,7 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
             placeholder="Enter email or group"
             className="h-8 text-xs"
           />
-          <p className="text-xs text-muted-foreground">No users/groups configured</p>
+          <p className="text-xs text-muted-foreground">No users/groups available in organization</p>
         </div>
       );
     }
