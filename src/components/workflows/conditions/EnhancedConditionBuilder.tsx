@@ -457,25 +457,38 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
   }, [selectedForm, selectedField, operator, value, fields, condition?.id, onChange]);
 
   const selectedFieldData = useMemo(() => {
-    return fields.find(f => f.id === selectedField);
+    const found = fields.find(f => f.id === selectedField);
+    console.log('🎯 selectedFieldData:', found ? {
+      id: found.id,
+      label: found.label,
+      type: found.type,
+      optionsCount: found.options?.length || 0,
+      options: found.options
+    } : 'none');
+    return found;
   }, [fields, selectedField]);
 
   // Generate value options based on field type
   const valueOptions = useMemo((): Array<{ value: string; label: string }> | null => {
     if (!selectedFieldData) {
+      console.log('⚠️ No selectedFieldData - returning null');
       return null;
     }
     
     const fieldType = (selectedFieldData.type || '').toLowerCase();
     const fieldOptions = selectedFieldData.options || [];
     
+    console.log('🔍 Checking field type:', fieldType, 'fieldOptions:', fieldOptions);
+    
     // Field types with predefined options from the field config
     const optionFieldTypes = ['select', 'multi-select', 'multiselect', 'radio', 'dropdown', 'checkbox'];
     if (optionFieldTypes.includes(fieldType) && fieldOptions.length > 0) {
-      return fieldOptions.map((opt: any) => ({
+      const mapped = fieldOptions.map((opt: any) => ({
         value: String(opt.value || opt.id || opt.label || opt),
         label: String(opt.label || opt.value || opt.id || opt)
       }));
+      console.log('✅ Returning mapped options:', mapped);
+      return mapped;
     }
     
     // Toggle/Switch field - boolean options
@@ -532,6 +545,7 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
   }, [selectedFieldData]);
 
   const hasValueOptions = Array.isArray(valueOptions) && valueOptions.length > 0;
+  console.log('🎯 hasValueOptions:', hasValueOptions, 'valueOptions:', valueOptions);
 
   return (
     <div className="space-y-2">

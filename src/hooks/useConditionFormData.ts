@@ -54,11 +54,22 @@ export function useConditionFormData() {
           const fields: FormFieldOption[] = fieldsData.map(field => {
             let processedOptions: Array<{ id: string; value: string; label: string }> = [];
             
-            if (field.options && Array.isArray(field.options)) {
-              processedOptions = field.options.map((opt: any) => ({
-                id: opt.id || opt.value || String(opt),
-                value: opt.value || String(opt),
-                label: opt.label || opt.value || String(opt)
+            // Handle options - could be array, JSON string, or null
+            let rawOptions = field.options;
+            
+            if (typeof rawOptions === 'string') {
+              try {
+                rawOptions = JSON.parse(rawOptions);
+              } catch (e) {
+                rawOptions = [];
+              }
+            }
+            
+            if (rawOptions && Array.isArray(rawOptions) && rawOptions.length > 0) {
+              processedOptions = rawOptions.map((opt: any) => ({
+                id: String(opt.id || opt.value || opt.label || opt),
+                value: String(opt.value || opt.id || opt.label || opt),
+                label: String(opt.label || opt.value || opt.id || opt)
               }));
             }
 
@@ -115,12 +126,27 @@ export function useFormFields(formId: string | undefined) {
         const formattedFields: FormFieldOption[] = data.map(field => {
           let processedOptions: Array<{ id: string; value: string; label: string }> = [];
           
-          if (field.options && Array.isArray(field.options)) {
-            processedOptions = field.options.map((opt: any) => ({
-              id: opt.id || opt.value || String(opt),
-              value: opt.value || String(opt),
-              label: opt.label || opt.value || String(opt)
+          // Handle options - could be array, JSON string, or null
+          let rawOptions = field.options;
+          
+          // If options is a string, try to parse it as JSON
+          if (typeof rawOptions === 'string') {
+            try {
+              rawOptions = JSON.parse(rawOptions);
+            } catch (e) {
+              console.warn('Failed to parse options as JSON:', rawOptions);
+              rawOptions = [];
+            }
+          }
+          
+          // Now process the options array
+          if (rawOptions && Array.isArray(rawOptions) && rawOptions.length > 0) {
+            processedOptions = rawOptions.map((opt: any) => ({
+              id: String(opt.id || opt.value || opt.label || opt),
+              value: String(opt.value || opt.id || opt.label || opt),
+              label: String(opt.label || opt.value || opt.id || opt)
             }));
+            console.log(`📋 Field "${field.label}" (${field.field_type}) has ${processedOptions.length} options:`, processedOptions);
           }
 
           return {
