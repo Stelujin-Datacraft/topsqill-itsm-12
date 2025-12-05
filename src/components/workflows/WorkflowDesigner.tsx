@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -23,6 +23,7 @@ import { ActionNode } from './nodes/ActionNode';
 import { ApprovalNode } from './nodes/ApprovalNode';
 import { NodePalette } from './NodePalette';
 import { NodeConfigPanel } from './NodeConfigPanel';
+import { useFormFields } from '@/hooks/useConditionFormData';
 
 const nodeTypes: NodeTypes = {
   'start': StartNode,
@@ -57,6 +58,15 @@ export function WorkflowDesigner({ workflowId, initialNodes, initialConnections,
   const [workflowConnections, setWorkflowConnections] = useState<WorkflowConnection[]>([]);
   
   const isInitialized = useRef(false);
+
+  // Get trigger form ID from start node
+  const triggerFormId = useMemo(() => {
+    const startNode = workflowNodes.find(n => n.type === 'start');
+    return startNode?.data?.config?.triggerFormId;
+  }, [workflowNodes]);
+
+  // Load form fields for the trigger form
+  const { fields: formFields } = useFormFields(triggerFormId);
 
   // Initialize only once from props
   useEffect(() => {
@@ -273,6 +283,8 @@ export function WorkflowDesigner({ workflowId, initialNodes, initialConnections,
         <NodeConfigPanel
           node={selectedNode}
           workflowId={workflowId}
+          triggerFormId={triggerFormId}
+          formFields={formFields}
           onConfigChange={(config) => updateNodeConfig(selectedNode.id, config)}
           onDelete={() => deleteNode(selectedNode.id)}
           onClose={() => setSelectedNode(null)}
