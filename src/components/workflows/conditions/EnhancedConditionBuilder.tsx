@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -7,7 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Settings, Users, FileText, Database, CheckCircle, Plus, Trash2, AlertCircle, Star, Calendar, Clock, Globe } from 'lucide-react';
+import { Settings, Users, FileText, Database, CheckCircle, Plus, Trash2, AlertCircle, Star, Calendar, Clock, Globe, X } from 'lucide-react';
 import { 
   ConditionSystemType,
   FormLevelCondition,
@@ -23,6 +23,33 @@ import { cn } from '@/lib/utils';
 import axios from 'axios';
 import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
 import { useGroups } from '@/hooks/useGroups';
+
+// Phone country codes
+const PHONE_COUNTRY_CODES = [
+  { code: '+1', country: 'US', name: 'United States' },
+  { code: '+1', country: 'CA', name: 'Canada' },
+  { code: '+44', country: 'GB', name: 'United Kingdom' },
+  { code: '+33', country: 'FR', name: 'France' },
+  { code: '+49', country: 'DE', name: 'Germany' },
+  { code: '+81', country: 'JP', name: 'Japan' },
+  { code: '+61', country: 'AU', name: 'Australia' },
+  { code: '+55', country: 'BR', name: 'Brazil' },
+  { code: '+91', country: 'IN', name: 'India' },
+  { code: '+86', country: 'CN', name: 'China' },
+];
+
+// Currency list
+const CURRENCIES = [
+  { code: 'USD', name: 'US Dollar', symbol: '$' },
+  { code: 'EUR', name: 'Euro', symbol: '€' },
+  { code: 'GBP', name: 'British Pound', symbol: '£' },
+  { code: 'JPY', name: 'Japanese Yen', symbol: '¥' },
+  { code: 'CAD', name: 'Canadian Dollar', symbol: 'C$' },
+  { code: 'AUD', name: 'Australian Dollar', symbol: 'A$' },
+  { code: 'CHF', name: 'Swiss Franc', symbol: 'CHF' },
+  { code: 'CNY', name: 'Chinese Yuan', symbol: '¥' },
+  { code: 'INR', name: 'Indian Rupee', symbol: '₹' },
+];
 
 // Country type for country field
 interface Country {
@@ -593,16 +620,42 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
       );
     }
 
-    // Phone number field
+    // Phone number field with country code selector
     if (normalizedType === 'phone' || normalizedType === 'phonenumber' || normalizedType === 'phone-number' || normalizedType === 'tel') {
+      const [phoneCountryCode, phoneNumber] = React.useMemo(() => {
+        if (!value) return ['+1', ''];
+        if (value.includes(' ')) {
+          const parts = value.split(' ');
+          return [parts[0], parts.slice(1).join(' ')];
+        }
+        return ['+1', value];
+      }, [value]);
+      
       return (
-        <Input
-          type="tel"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Enter phone number"
-          className="h-8 text-xs"
-        />
+        <div className="flex gap-1">
+          <Select 
+            value={phoneCountryCode} 
+            onValueChange={(code) => onChange(phoneNumber ? `${code} ${phoneNumber}` : code)}
+          >
+            <SelectTrigger className="h-8 text-xs w-[80px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PHONE_COUNTRY_CODES.map((c, idx) => (
+                <SelectItem key={`${c.code}-${c.country}-${idx}`} value={c.code}>
+                  {c.code} {c.country}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            type="tel"
+            value={phoneNumber}
+            onChange={(e) => onChange(`${phoneCountryCode} ${e.target.value}`)}
+            placeholder="Phone number"
+            className="h-8 text-xs flex-1"
+          />
+        </div>
       );
     }
 
@@ -773,16 +826,66 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
       );
     }
 
-    // Tags field - tag input
+    // Tags field - multiple tag input like form preview
     if (normalizedType === 'tags' || normalizedType === 'tag') {
+      const tags = React.useMemo(() => {
+        if (!value) return [];
+        try {
+          return Array.isArray(value) ? value : JSON.parse(value);
+        } catch {
+          return value ? value.split(',').map((t: string) => t.trim()).filter(Boolean) : [];
+        }
+      }, [value]);
+      
+      const [tagInput, setTagInput] = React.useState('');
+      
+      const addTag = () => {
+        const trimmed = tagInput.trim();
+        if (trimmed && !tags.includes(trimmed)) {
+          const newTags = [...tags, trimmed];
+          onChange(JSON.stringify(newTags));
+          setTagInput('');
+        }
+      };
+      
+      const removeTag = (index: number) => {
+        const newTags = tags.filter((_: string, i: number) => i !== index);
+        onChange(JSON.stringify(newTags));
+      };
+      
+      const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' || e.key === ',') {
+          e.preventDefault();
+          addTag();
+        } else if (e.key === 'Backspace' && tagInput === '' && tags.length > 0) {
+          removeTag(tags.length - 1);
+        }
+      };
+      
       return (
-        <Input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Enter tag value"
-          className="h-8 text-xs"
-        />
+        <div className="space-y-1">
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {tags.map((tag: string, index: number) => (
+                <Badge key={index} variant="secondary" className="px-1.5 py-0.5 text-xs">
+                  {tag}
+                  <button type="button" onClick={() => removeTag(index)} className="ml-1 hover:text-destructive">
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+          <Input
+            type="text"
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={addTag}
+            placeholder="Type and press Enter"
+            className="h-8 text-xs"
+          />
+        </div>
       );
     }
 
@@ -812,7 +915,83 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
       );
     }
 
-    // Fields with options (select, radio, dropdown, multi-select)
+    // Multi-select field - allow multiple selections
+    if ((normalizedType === 'multi-select' || normalizedType === 'multiselect') && hasValueOptions) {
+      const selectedValues = React.useMemo(() => {
+        if (!value) return [];
+        try {
+          return Array.isArray(value) ? value : JSON.parse(value);
+        } catch {
+          return value ? [value] : [];
+        }
+      }, [value]);
+      
+      const toggleOption = (optValue: string) => {
+        const newValues = selectedValues.includes(optValue)
+          ? selectedValues.filter((v: string) => v !== optValue)
+          : [...selectedValues, optValue];
+        onChange(JSON.stringify(newValues));
+      };
+      
+      return (
+        <div className="space-y-1 max-h-32 overflow-y-auto border rounded-md p-2 bg-background">
+          {valueOptions!.map((opt) => (
+            <div key={opt.value} className="flex items-center gap-2">
+              <Checkbox
+                id={`multi-${opt.value}`}
+                checked={selectedValues.includes(opt.value)}
+                onCheckedChange={() => toggleOption(opt.value)}
+              />
+              <label htmlFor={`multi-${opt.value}`} className="text-xs cursor-pointer">
+                {opt.label}
+              </label>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // Currency field with currency selector
+    if (normalizedType === 'currency') {
+      const [currencyCode, currencyAmount] = React.useMemo(() => {
+        if (!value) return ['USD', ''];
+        try {
+          const parsed = JSON.parse(value);
+          return [parsed.currency || 'USD', String(parsed.amount || '')];
+        } catch {
+          return ['USD', value];
+        }
+      }, [value]);
+      
+      return (
+        <div className="flex gap-1">
+          <Select 
+            value={currencyCode} 
+            onValueChange={(code) => onChange(JSON.stringify({ currency: code, amount: parseFloat(currencyAmount) || 0 }))}
+          >
+            <SelectTrigger className="h-8 text-xs w-[90px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CURRENCIES.map((c) => (
+                <SelectItem key={c.code} value={c.code}>
+                  {c.symbol} {c.code}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            type="number"
+            value={currencyAmount}
+            onChange={(e) => onChange(JSON.stringify({ currency: currencyCode, amount: parseFloat(e.target.value) || 0 }))}
+            placeholder="Amount"
+            className="h-8 text-xs flex-1"
+          />
+        </div>
+      );
+    }
+
+    // Fields with options (select, radio, dropdown)
     if (hasValueOptions) {
       return (
         <Select value={value} onValueChange={onChange}>
