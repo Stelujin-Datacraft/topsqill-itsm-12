@@ -183,7 +183,7 @@ export function NodeConfigPanel({ node, workflowId, onConfigChange, onDelete, on
                 </SelectContent>
               </Select>
             </div>
-            {(node.data.config?.triggerType === 'form_submission' || node.data.config?.triggerType === 'form_completion') && (
+            {(!node.data.config?.triggerType || node.data.config?.triggerType === 'form_submission' || node.data.config?.triggerType === 'form_completion') && (
               <div>
                 <Label htmlFor="triggerForm">Select Form</Label>
                 <FormSelector
