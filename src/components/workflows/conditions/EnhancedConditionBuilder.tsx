@@ -958,38 +958,36 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
 
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <Label className="text-xs text-muted-foreground mb-1 block">Form</Label>
-          <Select value={selectedForm} onValueChange={(v) => { setSelectedForm(v); setSelectedField(''); setValue(''); }}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Select form" />
-            </SelectTrigger>
-            <SelectContent>
-              {forms.map((form) => (
-                <SelectItem key={form.id} value={form.id}>
-                  {form.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <div>
+        <Label className="text-xs text-muted-foreground mb-1 block">Form</Label>
+        <Select value={selectedForm} onValueChange={(v) => { setSelectedForm(v); setSelectedField(''); setValue(''); }}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="Select form" />
+          </SelectTrigger>
+          <SelectContent>
+            {forms.map((form) => (
+              <SelectItem key={form.id} value={form.id}>
+                {form.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-        <div>
-          <Label className="text-xs text-muted-foreground mb-1 block">Field</Label>
-          <Select value={selectedField} onValueChange={(v) => { setSelectedField(v); setValue(''); }} disabled={!selectedForm || loading}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder={loading ? "Loading..." : "Select field"} />
-            </SelectTrigger>
-            <SelectContent>
-              {fields.map((field) => (
-                <SelectItem key={field.id} value={field.id}>
-                  {field.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <div>
+        <Label className="text-xs text-muted-foreground mb-1 block">Field</Label>
+        <Select value={selectedField} onValueChange={(v) => { setSelectedField(v); setValue(''); }} disabled={!selectedForm || loading}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder={loading ? "Loading..." : "Select field"} />
+          </SelectTrigger>
+          <SelectContent>
+            {fields.map((field) => (
+              <SelectItem key={field.id} value={field.id}>
+                {field.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div>
