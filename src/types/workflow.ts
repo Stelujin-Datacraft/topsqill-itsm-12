@@ -113,6 +113,7 @@ export interface Workflow {
   name: string;
   description: string;
   organizationId: string;
+  projectId?: string;
   status: 'draft' | 'active' | 'inactive';
   nodes: WorkflowNode[];
   connections: WorkflowConnection[];

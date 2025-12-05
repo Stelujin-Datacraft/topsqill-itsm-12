@@ -171,6 +171,7 @@ const WorkflowDesignerPage = () => {
           <TabsContent value="designer" className="flex-1">
             <WorkflowDesigner
               workflowId={id}
+              projectId={currentWorkflow?.projectId}
               initialNodes={workflowData.nodes}
               initialConnections={workflowData.connections}
               onSave={handleSave}
