@@ -9,6 +9,7 @@ import { X, Trash2, Save, Sparkles } from 'lucide-react';
 import { WorkflowNode } from '@/types/workflow';
 import { FormSelector } from './FormSelector';
 import { UserSelector } from './UserSelector';
+import { EnhancedUserSelector } from './EnhancedUserSelector';
 import { FormStatusSelector } from './FormStatusSelector';
 import { FormFieldSelector } from './FormFieldSelector';
 import { EnhancedConditionBuilder } from './conditions/EnhancedConditionBuilder';
@@ -21,13 +22,15 @@ import { FormFieldOption } from '@/types/conditions';
 interface NodeConfigPanelProps {
   node: WorkflowNode;
   workflowId?: string;
+  triggerFormId?: string;
+  formFields?: Array<{ id: string; label: string; type: string }>;
   onConfigChange: (config: any) => void;
   onDelete: () => void;
   onClose: () => void;
   onSave: () => void;
 }
 
-export function NodeConfigPanel({ node, workflowId, onConfigChange, onDelete, onClose, onSave }: NodeConfigPanelProps) {
+export function NodeConfigPanel({ node, workflowId, triggerFormId, formFields = [], onConfigChange, onDelete, onClose, onSave }: NodeConfigPanelProps) {
   const { createTrigger, deleteTrigger, loading } = useTriggerManagement();
   const { toast } = useToast();
 
@@ -268,7 +271,7 @@ export function NodeConfigPanel({ node, workflowId, onConfigChange, onDelete, on
                 
                 <div>
                   <Label>Assignment Configuration *</Label>
-                  <UserSelector
+                  <EnhancedUserSelector
                     value={node.data.config?.assignmentConfig || { type: 'form_submitter' }}
                     onValueChange={(value) => {
                       console.log('📝 Assignment config being saved:', value);
@@ -279,19 +282,10 @@ export function NodeConfigPanel({ node, workflowId, onConfigChange, onDelete, on
                       console.log('📝 Updated node config:', newConfig);
                       onConfigChange(newConfig);
                     }}
+                    triggerFormId={triggerFormId}
+                    formFields={formFields}
                   />
-                  {!node.data.config?.assignmentConfig && (
-                    <p className="text-xs text-red-500 mt-1">Required: Please configure assignment settings</p>
-                  )}
                 </div>
-
-                {node.data.config?.assignmentConfig && (
-                  <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
-                    <strong>Current assignment:</strong> {node.data.config.assignmentConfig.type === 'form_submitter' 
-                      ? 'Assign to form submitter' 
-                      : `Assign to ${node.data.config.assignmentConfig.email || 'specified user'}`}
-                  </div>
-                )}
               </div>
             )}
 
