@@ -510,6 +510,50 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
   const { users: orgUsers, loading: usersLoading } = useOrganizationUsers();
   const { groups: orgGroups, loading: groupsLoading } = useGroups();
   
+  // State for tag input (must be at top level)
+  const [tagInput, setTagInput] = useState('');
+  
+  // Parse phone value at top level
+  const [phoneCountryCode, phoneNumber] = useMemo(() => {
+    if (!value) return ['+1', ''];
+    if (value.includes(' ')) {
+      const parts = value.split(' ');
+      return [parts[0], parts.slice(1).join(' ')];
+    }
+    return ['+1', value];
+  }, [value]);
+  
+  // Parse tags at top level
+  const tags = useMemo(() => {
+    if (!value) return [];
+    try {
+      return Array.isArray(value) ? value : JSON.parse(value);
+    } catch {
+      return value ? value.split(',').map((t: string) => t.trim()).filter(Boolean) : [];
+    }
+  }, [value]);
+  
+  // Parse multi-select values at top level
+  const selectedMultiValues = useMemo(() => {
+    if (!value) return [];
+    try {
+      return Array.isArray(value) ? value : JSON.parse(value);
+    } catch {
+      return value ? [value] : [];
+    }
+  }, [value]);
+  
+  // Parse currency value at top level
+  const [currencyCode, currencyAmount] = useMemo(() => {
+    if (!value) return ['USD', ''];
+    try {
+      const parsed = JSON.parse(value);
+      return [parsed.currency || 'USD', String(parsed.amount || '')];
+    } catch {
+      return ['USD', value];
+    }
+  }, [value]);
+  
   // Determine slider config
   const sliderConfig = useMemo(() => {
     if (normalizedType === 'slider' || normalizedType === 'range') {
@@ -622,15 +666,6 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
 
     // Phone number field with country code selector
     if (normalizedType === 'phone' || normalizedType === 'phonenumber' || normalizedType === 'phone-number' || normalizedType === 'tel') {
-      const [phoneCountryCode, phoneNumber] = React.useMemo(() => {
-        if (!value) return ['+1', ''];
-        if (value.includes(' ')) {
-          const parts = value.split(' ');
-          return [parts[0], parts.slice(1).join(' ')];
-        }
-        return ['+1', value];
-      }, [value]);
-      
       return (
         <div className="flex gap-1">
           <Select 
@@ -828,17 +863,6 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
 
     // Tags field - multiple tag input like form preview
     if (normalizedType === 'tags' || normalizedType === 'tag') {
-      const tags = React.useMemo(() => {
-        if (!value) return [];
-        try {
-          return Array.isArray(value) ? value : JSON.parse(value);
-        } catch {
-          return value ? value.split(',').map((t: string) => t.trim()).filter(Boolean) : [];
-        }
-      }, [value]);
-      
-      const [tagInput, setTagInput] = React.useState('');
-      
       const addTag = () => {
         const trimmed = tagInput.trim();
         if (trimmed && !tags.includes(trimmed)) {
@@ -917,19 +941,10 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
 
     // Multi-select field - allow multiple selections
     if ((normalizedType === 'multi-select' || normalizedType === 'multiselect') && hasValueOptions) {
-      const selectedValues = React.useMemo(() => {
-        if (!value) return [];
-        try {
-          return Array.isArray(value) ? value : JSON.parse(value);
-        } catch {
-          return value ? [value] : [];
-        }
-      }, [value]);
-      
       const toggleOption = (optValue: string) => {
-        const newValues = selectedValues.includes(optValue)
-          ? selectedValues.filter((v: string) => v !== optValue)
-          : [...selectedValues, optValue];
+        const newValues = selectedMultiValues.includes(optValue)
+          ? selectedMultiValues.filter((v: string) => v !== optValue)
+          : [...selectedMultiValues, optValue];
         onChange(JSON.stringify(newValues));
       };
       
@@ -939,7 +954,7 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
             <div key={opt.value} className="flex items-center gap-2">
               <Checkbox
                 id={`multi-${opt.value}`}
-                checked={selectedValues.includes(opt.value)}
+                checked={selectedMultiValues.includes(opt.value)}
                 onCheckedChange={() => toggleOption(opt.value)}
               />
               <label htmlFor={`multi-${opt.value}`} className="text-xs cursor-pointer">
@@ -953,16 +968,6 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
 
     // Currency field with currency selector
     if (normalizedType === 'currency') {
-      const [currencyCode, currencyAmount] = React.useMemo(() => {
-        if (!value) return ['USD', ''];
-        try {
-          const parsed = JSON.parse(value);
-          return [parsed.currency || 'USD', String(parsed.amount || '')];
-        } catch {
-          return ['USD', value];
-        }
-      }, [value]);
-      
       return (
         <div className="flex gap-1">
           <Select 
