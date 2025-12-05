@@ -73,12 +73,42 @@ export function useConditionFormData() {
               }));
             }
 
+            // Parse custom_config if it's a string or non-object
+            let customConfig: Record<string, any> = {};
+            if (field.custom_config) {
+              if (typeof field.custom_config === 'string') {
+                try {
+                  customConfig = JSON.parse(field.custom_config);
+                } catch (e) {
+                  customConfig = {};
+                }
+              } else if (typeof field.custom_config === 'object' && !Array.isArray(field.custom_config)) {
+                customConfig = field.custom_config as Record<string, any>;
+              }
+            }
+
+            // Parse validation if needed
+            let validation: Record<string, any> = {};
+            if (field.validation) {
+              if (typeof field.validation === 'string') {
+                try {
+                  validation = JSON.parse(field.validation);
+                } catch (e) {
+                  validation = {};
+                }
+              } else if (typeof field.validation === 'object' && !Array.isArray(field.validation)) {
+                validation = field.validation as Record<string, any>;
+              }
+            }
+
             return {
               id: field.id,
               label: field.label,
               type: field.field_type,
               options: processedOptions,
-              required: field.required || false
+              required: field.required || false,
+              custom_config: customConfig,
+              validation: validation
             };
           });
 
@@ -146,12 +176,42 @@ export function useFormFields(formId: string | undefined) {
             }));
           }
 
+          // Parse custom_config if it's a string or non-object
+          let customConfig: Record<string, any> = {};
+          if (field.custom_config) {
+            if (typeof field.custom_config === 'string') {
+              try {
+                customConfig = JSON.parse(field.custom_config);
+              } catch (e) {
+                customConfig = {};
+              }
+            } else if (typeof field.custom_config === 'object' && !Array.isArray(field.custom_config)) {
+              customConfig = field.custom_config as Record<string, any>;
+            }
+          }
+
+          // Parse validation if needed
+          let validation: Record<string, any> = {};
+          if (field.validation) {
+            if (typeof field.validation === 'string') {
+              try {
+                validation = JSON.parse(field.validation);
+              } catch (e) {
+                validation = {};
+              }
+            } else if (typeof field.validation === 'object' && !Array.isArray(field.validation)) {
+              validation = field.validation as Record<string, any>;
+            }
+          }
+
           return {
             id: field.id,
             label: field.label,
             type: field.field_type,
             options: processedOptions,
-            required: field.required || false
+            required: field.required || false,
+            custom_config: customConfig,
+            validation: validation
           };
         });
 

@@ -133,4 +133,6 @@ export interface FormFieldOption {
   type: string;
   options?: Array<{ id: string; value: string; label: string }>;
   required: boolean;
+  custom_config?: Record<string, any>;
+  validation?: Record<string, any>;
 }
