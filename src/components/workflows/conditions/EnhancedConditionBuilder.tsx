@@ -436,7 +436,7 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
   const [selectedForm, setSelectedForm] = useState(condition?.formId || '');
   const [selectedField, setSelectedField] = useState(condition?.fieldId || '');
   const [operator, setOperator] = useState<ComparisonOperator>(condition?.operator || '==');
-  const [value, setValue] = useState(condition?.value || '');
+  const [value, setValue] = useState(String(condition?.value ?? ''));
 
   const { fields, loading } = useFormFields(selectedForm);
 
@@ -461,17 +461,20 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
   }, [fields, selectedField]);
 
   // Generate value options based on field type
-  const valueOptions = useMemo(() => {
-    if (!selectedFieldData) return null;
+  const valueOptions = useMemo((): Array<{ value: string; label: string }> | null => {
+    if (!selectedFieldData) {
+      return null;
+    }
     
-    const fieldType = selectedFieldData.type?.toLowerCase() || '';
+    const fieldType = (selectedFieldData.type || '').toLowerCase();
+    const fieldOptions = selectedFieldData.options || [];
     
     // Field types with predefined options from the field config
     const optionFieldTypes = ['select', 'multi-select', 'multiselect', 'radio', 'dropdown', 'checkbox'];
-    if (optionFieldTypes.includes(fieldType) && selectedFieldData.options?.length > 0) {
-      return selectedFieldData.options.map((opt: any) => ({
-        value: opt.value || opt.id || opt.label,
-        label: opt.label || opt.value || opt.id
+    if (optionFieldTypes.includes(fieldType) && fieldOptions.length > 0) {
+      return fieldOptions.map((opt: any) => ({
+        value: String(opt.value || opt.id || opt.label || opt),
+        label: String(opt.label || opt.value || opt.id || opt)
       }));
     }
     
@@ -483,13 +486,13 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
       ];
     }
     
-    // Slider field - generate range options from config or default
+    // Slider field - generate range options
     if (fieldType === 'slider' || fieldType === 'range') {
       const fieldConfig = selectedFieldData as any;
-      const min = fieldConfig.validation?.min ?? fieldConfig.custom_config?.min ?? 0;
-      const max = fieldConfig.validation?.max ?? fieldConfig.custom_config?.max ?? 100;
-      const step = fieldConfig.validation?.step ?? fieldConfig.custom_config?.step ?? 10;
-      const options = [];
+      const min = Number(fieldConfig.validation?.min ?? fieldConfig.custom_config?.min ?? 0);
+      const max = Number(fieldConfig.validation?.max ?? fieldConfig.custom_config?.max ?? 100);
+      const step = Number(fieldConfig.validation?.step ?? fieldConfig.custom_config?.step ?? 10);
+      const options: Array<{ value: string; label: string }> = [];
       for (let i = min; i <= max; i += step) {
         options.push({ value: String(i), label: String(i) });
       }
@@ -497,10 +500,10 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
     }
     
     // Rating field - generate 1-5 or custom range
-    if (fieldType === 'rating' || fieldType === 'star-rating') {
+    if (fieldType === 'rating' || fieldType === 'star-rating' || fieldType === 'starrating') {
       const fieldConfig = selectedFieldData as any;
-      const maxRating = fieldConfig.custom_config?.maxRating ?? fieldConfig.validation?.max ?? 5;
-      const options = [];
+      const maxRating = Number(fieldConfig.custom_config?.maxRating ?? fieldConfig.validation?.max ?? 5);
+      const options: Array<{ value: string; label: string }> = [];
       for (let i = 1; i <= maxRating; i++) {
         options.push({ value: String(i), label: `${i} Star${i > 1 ? 's' : ''}` });
       }
@@ -509,8 +512,8 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
     
     // Ranking field - generate position options
     if (fieldType === 'ranking') {
-      const itemCount = selectedFieldData.options?.length || 5;
-      const options = [];
+      const itemCount = fieldOptions.length || 5;
+      const options: Array<{ value: string; label: string }> = [];
       for (let i = 1; i <= itemCount; i++) {
         options.push({ value: String(i), label: `Position ${i}` });
       }
@@ -528,7 +531,7 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
     return null;
   }, [selectedFieldData]);
 
-  const hasValueOptions = valueOptions && valueOptions.length > 0;
+  const hasValueOptions = Array.isArray(valueOptions) && valueOptions.length > 0;
 
   return (
     <div className="space-y-2">
@@ -587,12 +590,16 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Value</Label>
           {hasValueOptions ? (
-            <Select value={value} onValueChange={setValue}>
+            <Select 
+              key={`value-select-${selectedField}-${valueOptions.length}`}
+              value={value} 
+              onValueChange={setValue}
+            >
               <SelectTrigger className="h-8 text-xs">
                 <SelectValue placeholder="Select value" />
               </SelectTrigger>
               <SelectContent>
-                {valueOptions.map((opt: { value: string; label: string }) => (
+                {valueOptions.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>
                     {opt.label}
                   </SelectItem>
