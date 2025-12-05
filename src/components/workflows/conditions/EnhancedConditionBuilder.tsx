@@ -505,6 +505,38 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
 
   const hasValueOptions = Array.isArray(valueOptions) && valueOptions.length > 0;
 
+  // Get submission access config from field
+  const submissionAccessOptions = useMemo(() => {
+    if (normalizedType === 'submission-access' || normalizedType === 'submissionaccess') {
+      const config = selectedFieldData?.custom_config || selectedFieldData?.options || {};
+      const users: Array<{ value: string; label: string }> = [];
+      const groups: Array<{ value: string; label: string }> = [];
+      
+      // Extract configured users
+      if (config.users && Array.isArray(config.users)) {
+        config.users.forEach((user: any) => {
+          const email = typeof user === 'string' ? user : (user.email || user.id || '');
+          if (email) {
+            users.push({ value: `user:${email}`, label: email });
+          }
+        });
+      }
+      
+      // Extract configured groups
+      if (config.groups && Array.isArray(config.groups)) {
+        config.groups.forEach((group: any) => {
+          const name = typeof group === 'string' ? group : (group.name || group.id || '');
+          if (name) {
+            groups.push({ value: `group:${name}`, label: `Group: ${name}` });
+          }
+        });
+      }
+      
+      return { users, groups, hasConfig: users.length > 0 || groups.length > 0 };
+    }
+    return { users: [], groups: [], hasConfig: false };
+  }, [normalizedType, selectedFieldData]);
+
   // Render specialized input based on field type
   const renderInput = () => {
     // Date field - date picker
@@ -517,6 +549,24 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
           </div>
           <Input
             type="date"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="h-8 text-xs"
+          />
+        </div>
+      );
+    }
+
+    // Time field - time picker
+    if (normalizedType === 'time') {
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Clock className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Time</span>
+          </div>
+          <Input
+            type="time"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             className="h-8 text-xs"
@@ -543,15 +593,30 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
       );
     }
 
+    // Phone number field
+    if (normalizedType === 'phone' || normalizedType === 'phonenumber' || normalizedType === 'phone-number' || normalizedType === 'tel') {
+      return (
+        <div className="space-y-1">
+          <Input
+            type="tel"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Enter phone number"
+            className="h-8 text-xs"
+          />
+        </div>
+      );
+    }
+
     // Toggle/Switch field - toggle switch
     if (normalizedType === 'toggle' || normalizedType === 'switch') {
       return (
         <div className="flex items-center gap-3 h-8">
           <Switch
-            checked={value === 'true'}
+            checked={value === 'true' || value === 'on' || value === 'yes'}
             onCheckedChange={(checked) => onChange(checked ? 'true' : 'false')}
           />
-          <span className="text-xs">{value === 'true' ? 'On / Yes' : 'Off / No'}</span>
+          <span className="text-xs">{value === 'true' || value === 'on' || value === 'yes' ? 'On / Yes' : 'Off / No'}</span>
         </div>
       );
     }
@@ -604,22 +669,34 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
       );
     }
 
-    // Checkbox field - checkbox
-    if (normalizedType === 'checkbox' && hasValueOptions) {
+    // Checkbox field - checkboxes (when has options, allow single selection for condition)
+    if (normalizedType === 'checkbox') {
+      if (hasValueOptions) {
+        return (
+          <div className="space-y-2 max-h-32 overflow-y-auto">
+            {valueOptions!.map((opt) => (
+              <div key={opt.value} className="flex items-center gap-2">
+                <Checkbox
+                  id={`checkbox-${opt.value}`}
+                  checked={value === opt.value}
+                  onCheckedChange={(checked) => checked && onChange(opt.value)}
+                />
+                <label htmlFor={`checkbox-${opt.value}`} className="text-xs cursor-pointer">
+                  {opt.label}
+                </label>
+              </div>
+            ))}
+          </div>
+        );
+      }
+      // Checkbox without options - true/false toggle
       return (
-        <div className="space-y-2 max-h-32 overflow-y-auto">
-          {valueOptions!.map((opt) => (
-            <div key={opt.value} className="flex items-center gap-2">
-              <Checkbox
-                id={`checkbox-${opt.value}`}
-                checked={value === opt.value}
-                onCheckedChange={(checked) => checked && onChange(opt.value)}
-              />
-              <label htmlFor={`checkbox-${opt.value}`} className="text-xs cursor-pointer">
-                {opt.label}
-              </label>
-            </div>
-          ))}
+        <div className="flex items-center gap-3 h-8">
+          <Checkbox
+            checked={value === 'true' || value === 'checked'}
+            onCheckedChange={(checked) => onChange(checked ? 'true' : 'false')}
+          />
+          <span className="text-xs">{value === 'true' || value === 'checked' ? 'Checked' : 'Unchecked'}</span>
         </div>
       );
     }
@@ -651,25 +728,63 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
       );
     }
 
-    // Submission access field
+    // Submission access field - show configured users/groups
     if (normalizedType === 'submission-access' || normalizedType === 'submissionaccess') {
+      const allOptions = [...submissionAccessOptions.users, ...submissionAccessOptions.groups];
+      
+      if (allOptions.length > 0) {
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Users className="h-3 w-3 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">User/Group</span>
+            </div>
+            <Select value={value} onValueChange={onChange}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Select user or group" />
+              </SelectTrigger>
+              <SelectContent className="max-h-60">
+                {submissionAccessOptions.users.length > 0 && (
+                  <>
+                    <div className="px-2 py-1 text-xs font-medium text-muted-foreground">Users</div>
+                    {submissionAccessOptions.users.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </>
+                )}
+                {submissionAccessOptions.groups.length > 0 && (
+                  <>
+                    <div className="px-2 py-1 text-xs font-medium text-muted-foreground border-t mt-1 pt-1">Groups</div>
+                    {submissionAccessOptions.groups.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+        );
+      }
+      
+      // Fallback if no users/groups configured
       return (
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Users className="h-3 w-3 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Access Level</span>
+            <span className="text-xs text-muted-foreground">Access</span>
           </div>
-          <Select value={value} onValueChange={onChange}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Select access level" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="owner_only">Owner Only</SelectItem>
-              <SelectItem value="team">Team Members</SelectItem>
-              <SelectItem value="organization">Organization</SelectItem>
-              <SelectItem value="public">Public</SelectItem>
-            </SelectContent>
-          </Select>
+          <Input
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Enter email or group"
+            className="h-8 text-xs"
+          />
+          <p className="text-xs text-muted-foreground">No users/groups configured</p>
         </div>
       );
     }
