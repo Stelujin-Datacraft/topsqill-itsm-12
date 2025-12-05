@@ -460,17 +460,82 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
     return fields.find(f => f.id === selectedField);
   }, [fields, selectedField]);
 
-  // Field types that should show dropdown with options
-  const optionFieldTypes = ['select', 'multi-select', 'multiselect', 'radio', 'dropdown', 'checkbox'];
-  const isOptionFieldType = selectedFieldData?.type && optionFieldTypes.includes(selectedFieldData.type.toLowerCase());
-  const hasOptions = isOptionFieldType && selectedFieldData?.options && selectedFieldData.options.length > 0;
+  // Generate value options based on field type
+  const valueOptions = useMemo(() => {
+    if (!selectedFieldData) return null;
+    
+    const fieldType = selectedFieldData.type?.toLowerCase() || '';
+    
+    // Field types with predefined options from the field config
+    const optionFieldTypes = ['select', 'multi-select', 'multiselect', 'radio', 'dropdown', 'checkbox'];
+    if (optionFieldTypes.includes(fieldType) && selectedFieldData.options?.length > 0) {
+      return selectedFieldData.options.map((opt: any) => ({
+        value: opt.value || opt.id || opt.label,
+        label: opt.label || opt.value || opt.id
+      }));
+    }
+    
+    // Toggle/Switch field - boolean options
+    if (fieldType === 'toggle' || fieldType === 'switch') {
+      return [
+        { value: 'true', label: 'On / Yes / True' },
+        { value: 'false', label: 'Off / No / False' }
+      ];
+    }
+    
+    // Slider field - generate range options from config or default
+    if (fieldType === 'slider' || fieldType === 'range') {
+      const fieldConfig = selectedFieldData as any;
+      const min = fieldConfig.validation?.min ?? fieldConfig.custom_config?.min ?? 0;
+      const max = fieldConfig.validation?.max ?? fieldConfig.custom_config?.max ?? 100;
+      const step = fieldConfig.validation?.step ?? fieldConfig.custom_config?.step ?? 10;
+      const options = [];
+      for (let i = min; i <= max; i += step) {
+        options.push({ value: String(i), label: String(i) });
+      }
+      return options;
+    }
+    
+    // Rating field - generate 1-5 or custom range
+    if (fieldType === 'rating' || fieldType === 'star-rating') {
+      const fieldConfig = selectedFieldData as any;
+      const maxRating = fieldConfig.custom_config?.maxRating ?? fieldConfig.validation?.max ?? 5;
+      const options = [];
+      for (let i = 1; i <= maxRating; i++) {
+        options.push({ value: String(i), label: `${i} Star${i > 1 ? 's' : ''}` });
+      }
+      return options;
+    }
+    
+    // Ranking field - generate position options
+    if (fieldType === 'ranking') {
+      const itemCount = selectedFieldData.options?.length || 5;
+      const options = [];
+      for (let i = 1; i <= itemCount; i++) {
+        options.push({ value: String(i), label: `Position ${i}` });
+      }
+      return options;
+    }
+    
+    // Yes/No field
+    if (fieldType === 'yes-no' || fieldType === 'yesno') {
+      return [
+        { value: 'yes', label: 'Yes' },
+        { value: 'no', label: 'No' }
+      ];
+    }
+    
+    return null;
+  }, [selectedFieldData]);
+
+  const hasValueOptions = valueOptions && valueOptions.length > 0;
 
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Form</Label>
-          <Select value={selectedForm} onValueChange={(v) => { setSelectedForm(v); setSelectedField(''); }}>
+          <Select value={selectedForm} onValueChange={(v) => { setSelectedForm(v); setSelectedField(''); setValue(''); }}>
             <SelectTrigger className="h-8 text-xs">
               <SelectValue placeholder="Select form" />
             </SelectTrigger>
@@ -486,7 +551,7 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
 
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Field</Label>
-          <Select value={selectedField} onValueChange={setSelectedField} disabled={!selectedForm || loading}>
+          <Select value={selectedField} onValueChange={(v) => { setSelectedField(v); setValue(''); }} disabled={!selectedForm || loading}>
             <SelectTrigger className="h-8 text-xs">
               <SelectValue placeholder={loading ? "Loading..." : "Select field"} />
             </SelectTrigger>
@@ -521,14 +586,14 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
 
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Value</Label>
-          {hasOptions ? (
+          {hasValueOptions ? (
             <Select value={value} onValueChange={setValue}>
               <SelectTrigger className="h-8 text-xs">
                 <SelectValue placeholder="Select value" />
               </SelectTrigger>
               <SelectContent>
-                {selectedFieldData.options.map((opt: any) => (
-                  <SelectItem key={opt.id || opt.value} value={opt.value}>
+                {valueOptions.map((opt: { value: string; label: string }) => (
+                  <SelectItem key={opt.value} value={opt.value}>
                     {opt.label}
                   </SelectItem>
                 ))}
