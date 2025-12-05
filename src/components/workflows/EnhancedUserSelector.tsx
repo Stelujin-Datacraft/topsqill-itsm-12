@@ -262,9 +262,9 @@ export function EnhancedUserSelector({
                   </SelectItem>
                 ))
               ) : (
-                <SelectItem value="" disabled>
+                <div className="px-2 py-1.5 text-sm text-muted-foreground">
                   No email fields found in trigger form
-                </SelectItem>
+                </div>
               )}
             </SelectContent>
           </Select>
