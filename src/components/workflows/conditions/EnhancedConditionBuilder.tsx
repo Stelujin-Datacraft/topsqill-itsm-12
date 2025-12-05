@@ -1,9 +1,13 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Settings, Users, FileText, Database, CheckCircle, Plus, Trash2, AlertCircle } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Settings, Users, FileText, Database, CheckCircle, Plus, Trash2, AlertCircle, Star, Calendar, Clock, Globe } from 'lucide-react';
 import { 
   ConditionSystemType,
   FormLevelCondition,
@@ -15,6 +19,42 @@ import {
 } from '@/types/conditions';
 import { useConditionFormData, useFormFields } from '@/hooks/useConditionFormData';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import axios from 'axios';
+
+// Country type for country field
+interface Country {
+  name: string;
+  code: string;
+  flag: string;
+}
+
+// Hook to fetch countries
+const useCountries = () => {
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await axios.get('https://restcountries.com/v3.1/all?fields=name,flags,cca2');
+        const data = response.data.map((country: any) => ({
+          name: country.name?.common || '',
+          code: country.cca2 || '',
+          flag: country.flags?.svg || country.flags?.png || ''
+        }));
+        setCountries(data.sort((a: Country, b: Country) => a.name.localeCompare(b.name)));
+      } catch (err) {
+        console.error('Error fetching countries:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCountries();
+  }, []);
+
+  return { countries, loading };
+};
 
 interface EnhancedConditionBuilderProps {
   value?: EnhancedCondition;
@@ -426,6 +466,295 @@ const FormLevelConditionBuilder = React.memo(({ condition, forms, onChange }: Fo
   );
 });
 
+// Specialized Value Input Component for different field types
+interface FieldValueInputProps {
+  fieldType: string;
+  value: string;
+  onChange: (value: string) => void;
+  valueOptions: Array<{ value: string; label: string }> | null;
+  selectedFieldData?: any;
+}
+
+const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, selectedFieldData }: FieldValueInputProps) => {
+  const normalizedType = (fieldType || '').toLowerCase();
+  const { countries, loading: countriesLoading } = useCountries();
+  
+  // Determine slider config
+  const sliderConfig = useMemo(() => {
+    if (normalizedType === 'slider' || normalizedType === 'range') {
+      const config = selectedFieldData as any;
+      return {
+        min: Number(config?.validation?.min ?? config?.custom_config?.min ?? 0),
+        max: Number(config?.validation?.max ?? config?.custom_config?.max ?? 100),
+        step: Number(config?.validation?.step ?? config?.custom_config?.step ?? 1)
+      };
+    }
+    return null;
+  }, [normalizedType, selectedFieldData]);
+
+  // Determine rating config
+  const ratingConfig = useMemo(() => {
+    if (normalizedType === 'rating' || normalizedType === 'star-rating' || normalizedType === 'starrating') {
+      const config = selectedFieldData as any;
+      return {
+        max: Number(config?.custom_config?.maxRating ?? config?.validation?.max ?? 5)
+      };
+    }
+    return null;
+  }, [normalizedType, selectedFieldData]);
+
+  const hasValueOptions = Array.isArray(valueOptions) && valueOptions.length > 0;
+
+  // Render specialized input based on field type
+  const renderInput = () => {
+    // Date field - date picker
+    if (normalizedType === 'date') {
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Date</span>
+          </div>
+          <Input
+            type="date"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="h-8 text-xs"
+          />
+        </div>
+      );
+    }
+
+    // DateTime field - datetime picker
+    if (normalizedType === 'datetime' || normalizedType === 'date-time' || normalizedType === 'datetime-local') {
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Clock className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Date & Time</span>
+          </div>
+          <Input
+            type="datetime-local"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="h-8 text-xs"
+          />
+        </div>
+      );
+    }
+
+    // Toggle/Switch field - toggle switch
+    if (normalizedType === 'toggle' || normalizedType === 'switch') {
+      return (
+        <div className="flex items-center gap-3 h-8">
+          <Switch
+            checked={value === 'true'}
+            onCheckedChange={(checked) => onChange(checked ? 'true' : 'false')}
+          />
+          <span className="text-xs">{value === 'true' ? 'On / Yes' : 'Off / No'}</span>
+        </div>
+      );
+    }
+
+    // Slider/Range field - slider
+    if (sliderConfig && (normalizedType === 'slider' || normalizedType === 'range')) {
+      const numValue = Number(value) || sliderConfig.min;
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">Value: {numValue}</span>
+            <span className="text-xs text-muted-foreground">{sliderConfig.min} - {sliderConfig.max}</span>
+          </div>
+          <Slider
+            value={[numValue]}
+            onValueChange={([v]) => onChange(String(v))}
+            min={sliderConfig.min}
+            max={sliderConfig.max}
+            step={sliderConfig.step}
+            className="w-full"
+          />
+        </div>
+      );
+    }
+
+    // Rating field - star rating
+    if (ratingConfig && (normalizedType === 'rating' || normalizedType === 'star-rating' || normalizedType === 'starrating')) {
+      const numValue = Number(value) || 0;
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center gap-1">
+            {Array.from({ length: ratingConfig.max }, (_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onChange(String(i + 1))}
+                className="focus:outline-none"
+              >
+                <Star
+                  className={cn(
+                    "h-5 w-5 transition-colors",
+                    i < numValue ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"
+                  )}
+                />
+              </button>
+            ))}
+            <span className="text-xs ml-2 text-muted-foreground">{numValue} / {ratingConfig.max}</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Checkbox field - checkbox
+    if (normalizedType === 'checkbox' && hasValueOptions) {
+      return (
+        <div className="space-y-2 max-h-32 overflow-y-auto">
+          {valueOptions!.map((opt) => (
+            <div key={opt.value} className="flex items-center gap-2">
+              <Checkbox
+                id={`checkbox-${opt.value}`}
+                checked={value === opt.value}
+                onCheckedChange={(checked) => checked && onChange(opt.value)}
+              />
+              <label htmlFor={`checkbox-${opt.value}`} className="text-xs cursor-pointer">
+                {opt.label}
+              </label>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // Country field - country dropdown
+    if (normalizedType === 'country') {
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Globe className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Country</span>
+          </div>
+          <Select value={value} onValueChange={onChange} disabled={countriesLoading}>
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder={countriesLoading ? "Loading..." : "Select country"} />
+            </SelectTrigger>
+            <SelectContent className="max-h-60">
+              {countries.map((country) => (
+                <SelectItem key={country.code} value={country.code}>
+                  <div className="flex items-center gap-2">
+                    {country.flag && <img src={country.flag} alt="" className="h-3 w-4 object-cover" />}
+                    {country.name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+
+    // Submission access field
+    if (normalizedType === 'submission-access' || normalizedType === 'submissionaccess') {
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Users className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Access Level</span>
+          </div>
+          <Select value={value} onValueChange={onChange}>
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Select access level" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="owner_only">Owner Only</SelectItem>
+              <SelectItem value="team">Team Members</SelectItem>
+              <SelectItem value="organization">Organization</SelectItem>
+              <SelectItem value="public">Public</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+
+    // Tags field - tag input
+    if (normalizedType === 'tags' || normalizedType === 'tag') {
+      return (
+        <div className="space-y-1">
+          <Input
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Enter tag value"
+            className="h-8 text-xs"
+          />
+          <p className="text-xs text-muted-foreground">Enter a single tag to match</p>
+        </div>
+      );
+    }
+
+    // Yes/No field
+    if (normalizedType === 'yes-no' || normalizedType === 'yesno') {
+      return (
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant={value === 'yes' ? 'default' : 'outline'}
+            size="sm"
+            className="h-8 text-xs flex-1"
+            onClick={() => onChange('yes')}
+          >
+            Yes
+          </Button>
+          <Button
+            type="button"
+            variant={value === 'no' ? 'default' : 'outline'}
+            size="sm"
+            className="h-8 text-xs flex-1"
+            onClick={() => onChange('no')}
+          >
+            No
+          </Button>
+        </div>
+      );
+    }
+
+    // Fields with options (select, radio, dropdown, multi-select)
+    if (hasValueOptions) {
+      return (
+        <Select value={value} onValueChange={onChange}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="Select value" />
+          </SelectTrigger>
+          <SelectContent>
+            {valueOptions!.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+
+    // Default text input
+    return (
+      <Input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Enter value"
+        className="h-8 text-xs"
+      />
+    );
+  };
+
+  return (
+    <div>
+      <Label className="text-xs text-muted-foreground mb-1 block">Value</Label>
+      {renderInput()}
+    </div>
+  );
+});
+FieldValueInput.displayName = 'FieldValueInput';
+
 interface FieldLevelConditionBuilderProps {
   condition?: FieldLevelCondition;
   forms: any[];
@@ -457,38 +786,25 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
   }, [selectedForm, selectedField, operator, value, fields, condition?.id, onChange]);
 
   const selectedFieldData = useMemo(() => {
-    const found = fields.find(f => f.id === selectedField);
-    console.log('🎯 selectedFieldData:', found ? {
-      id: found.id,
-      label: found.label,
-      type: found.type,
-      optionsCount: found.options?.length || 0,
-      options: found.options
-    } : 'none');
-    return found;
+    return fields.find(f => f.id === selectedField);
   }, [fields, selectedField]);
 
   // Generate value options based on field type
   const valueOptions = useMemo((): Array<{ value: string; label: string }> | null => {
     if (!selectedFieldData) {
-      console.log('⚠️ No selectedFieldData - returning null');
       return null;
     }
     
     const fieldType = (selectedFieldData.type || '').toLowerCase();
     const fieldOptions = selectedFieldData.options || [];
     
-    console.log('🔍 Checking field type:', fieldType, 'fieldOptions:', fieldOptions);
-    
     // Field types with predefined options from the field config
     const optionFieldTypes = ['select', 'multi-select', 'multiselect', 'radio', 'dropdown', 'checkbox'];
     if (optionFieldTypes.includes(fieldType) && fieldOptions.length > 0) {
-      const mapped = fieldOptions.map((opt: any) => ({
+      return fieldOptions.map((opt: any) => ({
         value: String(opt.value || opt.id || opt.label || opt),
         label: String(opt.label || opt.value || opt.id || opt)
       }));
-      console.log('✅ Returning mapped options:', mapped);
-      return mapped;
     }
     
     // Toggle/Switch field - boolean options
@@ -544,9 +860,6 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
     return null;
   }, [selectedFieldData]);
 
-  const hasValueOptions = Array.isArray(valueOptions) && valueOptions.length > 0;
-  console.log('🎯 hasValueOptions:', hasValueOptions, 'valueOptions:', valueOptions);
-
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
@@ -601,35 +914,13 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
           </Select>
         </div>
 
-        <div>
-          <Label className="text-xs text-muted-foreground mb-1 block">Value</Label>
-          {hasValueOptions ? (
-            <Select 
-              key={`value-select-${selectedField}-${valueOptions.length}`}
-              value={value} 
-              onValueChange={setValue}
-            >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Select value" />
-              </SelectTrigger>
-              <SelectContent>
-                {valueOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <input
-              type="text"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder="Enter value"
-              className="w-full h-8 px-2 text-xs border border-input rounded-md bg-background"
-            />
-          )}
-        </div>
+        <FieldValueInput 
+          fieldType={selectedFieldData?.type || ''}
+          value={value}
+          onChange={setValue}
+          valueOptions={valueOptions}
+          selectedFieldData={selectedFieldData}
+        />
       </div>
 
       {selectedForm && selectedField && (
