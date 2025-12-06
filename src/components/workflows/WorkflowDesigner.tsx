@@ -24,6 +24,7 @@ import { ApprovalNode } from './nodes/ApprovalNode';
 import { NodePalette } from './NodePalette';
 import { NodeConfigPanel } from './NodeConfigPanel';
 import { useFormFields } from '@/hooks/useConditionFormData';
+import { supabase } from '@/integrations/supabase/client';
 
 const nodeTypes: NodeTypes = {
   'start': StartNode,
@@ -85,11 +86,46 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
     return workflowNodes.find(n => n.id === selectedNodeId) || null;
   }, [selectedNodeId, workflowNodes]);
 
-  // Get trigger form ID from start node
-  const triggerFormId = useMemo(() => {
+  // Get trigger form ID from start node - check multiple possible locations
+  const startNodeTriggerFormId = useMemo(() => {
     const startNode = workflowNodes.find(n => n.type === 'start');
-    return startNode?.data?.config?.triggerFormId;
+    return startNode?.data?.config?.triggerFormId || 
+           startNode?.data?.config?.formId ||
+           startNode?.data?.config?.sourceFormId;
   }, [workflowNodes]);
+
+  // Fallback: fetch trigger form ID from workflow_triggers table if not in start node
+  const [triggerFormIdFromDB, setTriggerFormIdFromDB] = useState<string | undefined>();
+  
+  useEffect(() => {
+    const fetchTriggerFormId = async () => {
+      if (startNodeTriggerFormId || !workflowId) {
+        setTriggerFormIdFromDB(undefined);
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('workflow_triggers')
+          .select('source_form_id')
+          .eq('target_workflow_id', workflowId)
+          .eq('is_active', true)
+          .limit(1)
+          .single();
+        
+        if (!error && data?.source_form_id) {
+          setTriggerFormIdFromDB(data.source_form_id);
+        }
+      } catch (err) {
+        console.error('Error fetching trigger form ID:', err);
+      }
+    };
+    
+    fetchTriggerFormId();
+  }, [workflowId, startNodeTriggerFormId]);
+
+  // Use start node config first, fallback to DB
+  const triggerFormId = startNodeTriggerFormId || triggerFormIdFromDB;
 
   // Load form fields for the trigger form
   const { fields: formFields } = useFormFields(triggerFormId);
