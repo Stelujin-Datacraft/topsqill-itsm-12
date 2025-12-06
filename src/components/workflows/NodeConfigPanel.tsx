@@ -363,26 +363,29 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   />
                 )}
 
-                <div>
-                  <Label htmlFor="recipient">Send To</Label>
-                  <Select 
-                    value={node.data.config?.notificationConfig?.recipient || 'form_submitter'} 
-                    onValueChange={(value) => handleConfigUpdate('notificationConfig', { 
-                      ...node.data.config?.notificationConfig, 
-                      recipient: value 
-                    })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select recipient" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="form_submitter">Form Submitter</SelectItem>
-                      <SelectItem value="specific_user">Specific User</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {/* Send To - only show for in_app notifications */}
+                {node.data.config?.notificationConfig?.type !== 'email' && (
+                  <div>
+                    <Label htmlFor="recipient">Send To</Label>
+                    <Select 
+                      value={node.data.config?.notificationConfig?.recipient || 'form_submitter'} 
+                      onValueChange={(value) => handleConfigUpdate('notificationConfig', { 
+                        ...node.data.config?.notificationConfig, 
+                        recipient: value 
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select recipient" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="form_submitter">Form Submitter</SelectItem>
+                        <SelectItem value="specific_user">Specific User</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
-                {node.data.config?.notificationConfig?.recipient === 'specific_user' && (
+                {node.data.config?.notificationConfig?.type !== 'email' && node.data.config?.notificationConfig?.recipient === 'specific_user' && (
                   <div>
                     <Label htmlFor="specificEmail">User Email</Label>
                     <Input
@@ -397,8 +400,8 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   </div>
                 )}
 
-                {/* Subject - only show for in_app or if no template selected for email */}
-                {(node.data.config?.notificationConfig?.type !== 'email' || !node.data.config?.notificationConfig?.emailTemplateId) && (
+                {/* Subject - only show for in_app notifications */}
+                {node.data.config?.notificationConfig?.type !== 'email' && (
                   <div>
                     <Label htmlFor="subject">Subject</Label>
                     <Input
