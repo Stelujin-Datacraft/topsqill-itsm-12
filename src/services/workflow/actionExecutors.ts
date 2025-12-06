@@ -578,120 +578,74 @@ export class ActionExecutors {
       
       console.log('📧 Final notification config:', JSON.stringify(notificationConfig, null, 2));
 
-      if (!notificationConfig || !notificationConfig.subject || !notificationConfig.message) {
-        throw new Error('Subject and message are required for notification');
+      // For in-app notifications, subject and message are required
+      if (notificationConfig?.type === 'in_app' || !notificationConfig?.type) {
+        if (!notificationConfig?.subject || !notificationConfig?.message) {
+          throw new Error('Subject and message are required for in-app notification');
+        }
       }
 
-      // Determine recipient with default fallback
-      let recipientUserId = null;
-      let recipientEmail = null;
-      const recipientType = notificationConfig.recipient || 'form_submitter'; // Default to form_submitter
+      // Resolve recipients based on recipientConfig (new format) or recipient (old format)
+      const recipients = await this.resolveNotificationRecipients(notificationConfig, context);
       
-      console.log('👤 Processing recipient type:', recipientType);
-
-      if (recipientType === 'form_submitter') {
-        console.log('📧 Sending notification to form submitter');
-        recipientUserId = context.submitterId;
-        recipientEmail = context.triggerData?.userEmail || 
-                        context.triggerData?.email ||
-                        context.triggerData?.submissionData?.email;
-
-        console.log('🔍 Form submitter details:', {
-          submitterId: recipientUserId,
-          foundEmail: recipientEmail,
-          triggerData: context.triggerData
-        });
-
-        // If no email found but we have submitter ID, look up user profile
-        if (!recipientEmail && recipientUserId) {
-          console.log('🔍 Looking up submitter email from profile');
-          const { data: userProfile, error: profileError } = await supabase
-            .from('user_profiles')
-            .select('email')
-            .eq('id', recipientUserId)
-            .single();
-          
-          if (!profileError && userProfile) {
-            recipientEmail = userProfile.email;
-            console.log('✅ Found submitter email from profile:', recipientEmail);
-          }
-        }
-      } else if (recipientType === 'specific_user' && notificationConfig.specificEmail) {
-        console.log('📧 Sending notification to specific user:', notificationConfig.specificEmail);
-        recipientEmail = notificationConfig.specificEmail;
-        
-        // Try to find user by email
-        const { data: userProfile, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('id')
-          .eq('email', recipientEmail)
-          .single();
-        
-        if (!profileError && userProfile) {
-          recipientUserId = userProfile.id;
-          console.log('✅ Found user ID for specific email:', recipientUserId);
-        }
+      if (recipients.length === 0) {
+        throw new Error('No recipients found for notification');
       }
 
-      if (!recipientEmail) {
-        throw new Error(`No recipient email found for notification. Recipient type: ${recipientType}`);
-      }
+      console.log('👤 Notification recipients resolved:', recipients);
 
-      console.log('👤 Notification recipient resolved:', {
-        userId: recipientUserId,
-        email: recipientEmail,
-        type: recipientType
-      });
+      // Send in-app notifications
+      let notificationsCreated = 0;
+      let emailsSent = 0;
 
-      // Send in-app notification if user ID is available
-      let notificationCreated = false;
-      if (recipientUserId && (notificationConfig.type === 'in_app' || !notificationConfig.type)) {
-        try {
-          const notificationData = {
-            user_id: recipientUserId,
-            type: 'workflow_notification',
-            title: notificationConfig.subject,
-            message: notificationConfig.message,
-            data: {
-              workflow_execution_id: context.executionId,
-              notification_type: notificationConfig.type,
-              source: 'workflow'
+      if (notificationConfig.type === 'in_app' || !notificationConfig.type) {
+        for (const recipient of recipients) {
+          if (recipient.userId) {
+            try {
+              const notificationData = {
+                user_id: recipient.userId,
+                type: 'workflow_notification',
+                title: notificationConfig.subject,
+                message: notificationConfig.message,
+                data: {
+                  workflow_execution_id: context.executionId,
+                  notification_type: notificationConfig.type,
+                  source: 'workflow'
+                }
+              };
+
+              console.log('💾 Creating in-app notification for:', recipient.email);
+
+              const { error: notificationError } = await supabase
+                .from('notifications')
+                .insert(notificationData);
+
+              if (notificationError) {
+                console.error('❌ In-app notification creation failed for', recipient.email, ':', notificationError);
+              } else {
+                console.log('✅ In-app notification created for:', recipient.email);
+                notificationsCreated++;
+              }
+            } catch (notificationError) {
+              console.error('❌ In-app notification creation failed:', notificationError);
             }
-          };
-
-          console.log('💾 Creating in-app notification:', JSON.stringify(notificationData, null, 2));
-
-          const { data: notification, error: notificationError } = await supabase
-            .from('notifications')
-            .insert(notificationData)
-            .select()
-            .single();
-
-          if (notificationError) {
-            console.error('❌ In-app notification creation failed:', notificationError);
-          } else {
-            console.log('✅ In-app notification created successfully:', notification.id);
-            notificationCreated = true;
           }
-        } catch (notificationError) {
-          console.error('❌ In-app notification creation failed:', notificationError);
         }
       }
 
       // TODO: Implement email notification if type is 'email'
-      let emailSent = false;
       if (notificationConfig.type === 'email') {
-        console.log('📧 Email notification functionality not implemented yet');
-        // This would require an edge function with Resend integration
+        console.log('📧 Email notification - using email template:', notificationConfig.emailTemplateId);
+        // This would require an edge function with the email template
       }
 
       const result = {
         success: true,
         notificationType: notificationConfig.type,
-        recipient: recipientEmail,
-        recipientUserId: recipientUserId,
-        inAppNotificationCreated: notificationCreated,
-        emailSent: emailSent,
+        recipientCount: recipients.length,
+        recipients: recipients.map(r => r.email),
+        inAppNotificationsCreated: notificationsCreated,
+        emailsSent: emailsSent,
         subject: notificationConfig.subject,
         message: notificationConfig.message
       };
@@ -699,7 +653,8 @@ export class ActionExecutors {
       const output = {
         actionType: 'send_notification',
         notificationType: notificationConfig.type,
-        recipient: recipientEmail,
+        recipientCount: recipients.length,
+        recipients: recipients.map(r => r.email),
         subject: notificationConfig.subject,
         success: true
       };
@@ -713,8 +668,8 @@ export class ActionExecutors {
           actionType: 'send_notification',
           result: 'success',
           notificationType: notificationConfig.type,
-          recipient: recipientEmail,
-          notificationCreated: notificationCreated
+          recipientCount: recipients.length,
+          notificationsCreated: notificationsCreated
         }
       };
     } catch (error) {
@@ -729,5 +684,149 @@ export class ActionExecutors {
         }
       };
     }
+  }
+
+  private static async resolveNotificationRecipients(
+    notificationConfig: any, 
+    context: NodeExecutionContext
+  ): Promise<Array<{ userId: string | null; email: string }>> {
+    const recipients: Array<{ userId: string | null; email: string }> = [];
+
+    // Check for new recipientConfig format (static/dynamic/form_submitter)
+    const recipientConfig = notificationConfig.recipientConfig;
+    
+    if (recipientConfig) {
+      console.log('📧 Using new recipientConfig format:', recipientConfig.type);
+      
+      if (recipientConfig.type === 'form_submitter') {
+        const result = await this.getFormSubmitterInfo(context);
+        if (result) {
+          recipients.push(result);
+        }
+      } else if (recipientConfig.type === 'static' && recipientConfig.emails?.length > 0) {
+        // Static emails - look up user IDs for each
+        for (const email of recipientConfig.emails) {
+          const { data: userProfile } = await supabase
+            .from('user_profiles')
+            .select('id')
+            .eq('email', email)
+            .single();
+          
+          recipients.push({
+            userId: userProfile?.id || null,
+            email: email
+          });
+        }
+      } else if (recipientConfig.type === 'dynamic' && recipientConfig.dynamicFieldPath) {
+        // Dynamic - get email from form field value
+        const fieldValue = context.triggerData?.submissionData?.[recipientConfig.dynamicFieldPath];
+        console.log('📧 Dynamic field value:', fieldValue);
+        
+        if (fieldValue) {
+          // Handle different field value formats
+          const emails = this.extractEmailsFromFieldValue(fieldValue);
+          for (const email of emails) {
+            const { data: userProfile } = await supabase
+              .from('user_profiles')
+              .select('id')
+              .eq('email', email)
+              .single();
+            
+            recipients.push({
+              userId: userProfile?.id || null,
+              email: email
+            });
+          }
+        }
+      }
+    } else {
+      // Fallback to old recipient format
+      console.log('📧 Using old recipient format');
+      const recipientType = notificationConfig.recipient || 'form_submitter';
+      
+      if (recipientType === 'form_submitter') {
+        const result = await this.getFormSubmitterInfo(context);
+        if (result) {
+          recipients.push(result);
+        }
+      } else if (recipientType === 'specific_user' && notificationConfig.specificEmail) {
+        const { data: userProfile } = await supabase
+          .from('user_profiles')
+          .select('id')
+          .eq('email', notificationConfig.specificEmail)
+          .single();
+        
+        recipients.push({
+          userId: userProfile?.id || null,
+          email: notificationConfig.specificEmail
+        });
+      }
+    }
+
+    return recipients;
+  }
+
+  private static async getFormSubmitterInfo(context: NodeExecutionContext): Promise<{ userId: string | null; email: string } | null> {
+    let email = context.triggerData?.userEmail || 
+                context.triggerData?.email ||
+                context.triggerData?.submissionData?.email;
+
+    // If no email found but we have submitter ID, look up user profile
+    if (!email && context.submitterId) {
+      const { data: userProfile } = await supabase
+        .from('user_profiles')
+        .select('email')
+        .eq('id', context.submitterId)
+        .single();
+      
+      if (userProfile) {
+        email = userProfile.email;
+      }
+    }
+
+    if (email) {
+      return {
+        userId: context.submitterId || null,
+        email: email
+      };
+    }
+    return null;
+  }
+
+  private static extractEmailsFromFieldValue(fieldValue: any): string[] {
+    const emails: string[] = [];
+    
+    if (typeof fieldValue === 'string') {
+      // Simple email string
+      if (fieldValue.includes('@')) {
+        emails.push(fieldValue);
+      }
+    } else if (Array.isArray(fieldValue)) {
+      // Array of emails or objects
+      for (const item of fieldValue) {
+        if (typeof item === 'string' && item.includes('@')) {
+          emails.push(item);
+        } else if (item?.email) {
+          emails.push(item.email);
+        }
+      }
+    } else if (fieldValue && typeof fieldValue === 'object') {
+      // Handle submission-access field format: { users: [...], groups: [...] }
+      if (fieldValue.users && Array.isArray(fieldValue.users)) {
+        for (const user of fieldValue.users) {
+          if (typeof user === 'string' && user.includes('@')) {
+            emails.push(user);
+          } else if (user?.email) {
+            emails.push(user.email);
+          }
+        }
+      }
+      // Single object with email property
+      if (fieldValue.email) {
+        emails.push(fieldValue.email);
+      }
+    }
+
+    return emails;
   }
 }
