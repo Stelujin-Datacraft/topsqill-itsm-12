@@ -93,16 +93,27 @@ export function EnhancedUserSelector({
   const selectedEmails = value?.emails || [];
 
   // Filter fields that can contain user emails for dynamic mode
-  const emailFields = formFields.filter(f => 
-    f.type === 'email' || 
-    f.type === 'user-picker' ||
-    f.type === 'submission-access' ||
-    f.type === 'user-select' ||
-    f.type === 'assignee' ||
-    f.label.toLowerCase().includes('email') ||
-    f.label.toLowerCase().includes('user') ||
-    f.label.toLowerCase().includes('assignee')
-  );
+  // Include submission-access, user-picker, email, and other user-related fields
+  const emailFields = formFields.filter(f => {
+    const fieldType = f.type?.toLowerCase() || '';
+    const fieldLabel = f.label?.toLowerCase() || '';
+    
+    return (
+      fieldType === 'email' || 
+      fieldType === 'user-picker' ||
+      fieldType === 'submission-access' ||
+      fieldType === 'user-select' ||
+      fieldType === 'assignee' ||
+      fieldType === 'group-picker' ||
+      fieldLabel.includes('email') ||
+      fieldLabel.includes('user') ||
+      fieldLabel.includes('assignee') ||
+      fieldLabel.includes('access')
+    );
+  });
+
+  console.log('📧 EnhancedUserSelector - formFields:', formFields);
+  console.log('📧 EnhancedUserSelector - emailFields:', emailFields);
 
   return (
     <div className="space-y-3">
