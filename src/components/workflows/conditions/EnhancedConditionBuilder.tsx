@@ -473,6 +473,12 @@ const FormLevelConditionBuilder = React.memo(({ condition, forms, onChange }: Fo
   const [operator, setOperator] = useState<ComparisonOperator>(condition?.operator || '==');
   const [value, setValue] = useState(condition?.value as string || '');
 
+  // Use ref to store latest onChange to avoid infinite loops
+  const onChangeRef = React.useRef(onChange);
+  React.useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
   React.useEffect(() => {
     const timeoutId = setTimeout(() => {
       const updatedCondition: FormLevelCondition = {
@@ -482,10 +488,10 @@ const FormLevelConditionBuilder = React.memo(({ condition, forms, onChange }: Fo
         value,
         formId: selectedForm
       };
-      onChange(updatedCondition);
+      onChangeRef.current(updatedCondition);
     }, 300);
     return () => clearTimeout(timeoutId);
-  }, [selectedForm, conditionType, operator, value, condition?.id, onChange]);
+  }, [selectedForm, conditionType, operator, value, condition?.id]);
 
   const getConditionTypeOptions = useMemo(() => [
     { value: 'form_status', label: 'Form Status', icon: Settings },
@@ -1167,6 +1173,12 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
 
   const { fields, loading } = useFormFields(selectedForm);
 
+  // Use ref to store latest onChange to avoid infinite loops
+  const onChangeRef = React.useRef(onChange);
+  React.useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
   React.useEffect(() => {
     const timeoutId = setTimeout(() => {
       const selectedFieldData = fields.find(f => f.id === selectedField);
@@ -1178,10 +1190,10 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
         operator,
         value
       };
-      onChange(updatedCondition);
+      onChangeRef.current(updatedCondition);
     }, 300);
     return () => clearTimeout(timeoutId);
-  }, [selectedForm, selectedField, operator, value, fields, condition?.id, onChange]);
+  }, [selectedForm, selectedField, operator, value, fields, condition?.id]);
 
   const selectedFieldData = useMemo(() => {
     return fields.find(f => f.id === selectedField);
