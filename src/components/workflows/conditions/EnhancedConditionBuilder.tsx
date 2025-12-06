@@ -7,7 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Settings, Users, FileText, Database, CheckCircle, Plus, Trash2, AlertCircle, Star, Calendar, Clock, Globe, X } from 'lucide-react';
+import { Settings, Users, FileText, Database, CheckCircle, Plus, Trash2, AlertCircle, Star, Calendar, Clock, Globe, X, Code, ListTree } from 'lucide-react';
 import { 
   ConditionSystemType,
   FormLevelCondition,
@@ -23,6 +23,8 @@ import { cn } from '@/lib/utils';
 import axios from 'axios';
 import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
 import { useGroups } from '@/hooks/useGroups';
+import { LogicalExpressionInput } from './LogicalExpressionInput';
+import { ExpressionEvaluator } from '@/utils/expressionEvaluator';
 
 // Phone country codes
 const PHONE_COUNTRY_CODES = [
@@ -117,22 +119,58 @@ export function EnhancedConditionBuilder({ value, onChange }: EnhancedConditionB
     }];
   });
   
+  const [useManualExpression, setUseManualExpression] = useState(value?.useManualExpression || false);
+  const [manualExpression, setManualExpression] = useState(value?.manualExpression || '');
+  
   const { forms, isLoading } = useConditionFormData();
 
   const validForms = useMemo(() => {
     return forms.filter(form => form.id && form.id.trim() !== '');
   }, [forms]);
 
-  const updateParent = useCallback((newConditions: ConditionItem[]) => {
+  // Generate condition labels for the expression input
+  const conditionLabels = useMemo(() => {
+    return conditions.map((c, i) => {
+      if (c.systemType === 'form_level') {
+        const type = c.formLevelCondition?.conditionType || 'form_status';
+        const val = c.formLevelCondition?.value || '';
+        return `${type}: ${val}`;
+      } else {
+        const fieldId = c.fieldLevelCondition?.fieldId || '';
+        return `field: ${fieldId.substring(0, 8)}...`;
+      }
+    });
+  }, [conditions]);
+
+  const updateParent = useCallback((newConditions: ConditionItem[], newUseManual?: boolean, newExpression?: string) => {
     const updatedCondition: EnhancedCondition = {
       id: value?.id || `enhanced-condition-${Date.now()}`,
       systemType: newConditions[0]?.systemType || 'form_level',
       conditions: newConditions,
       formLevelCondition: newConditions[0]?.formLevelCondition,
-      fieldLevelCondition: newConditions[0]?.fieldLevelCondition
+      fieldLevelCondition: newConditions[0]?.fieldLevelCondition,
+      useManualExpression: newUseManual !== undefined ? newUseManual : useManualExpression,
+      manualExpression: newExpression !== undefined ? newExpression : manualExpression
     };
     onChange(updatedCondition);
-  }, [value?.id, onChange]);
+  }, [value?.id, onChange, useManualExpression, manualExpression]);
+
+  const handleToggleManualMode = useCallback((checked: boolean) => {
+    setUseManualExpression(checked);
+    if (checked && !manualExpression) {
+      // Generate default expression from current conditions
+      const defaultExpr = ExpressionEvaluator.generateDefaultExpression(conditions.length, 'AND');
+      setManualExpression(defaultExpr);
+      updateParent(conditions, checked, defaultExpr);
+    } else {
+      updateParent(conditions, checked, manualExpression);
+    }
+  }, [conditions, manualExpression, updateParent]);
+
+  const handleExpressionChange = useCallback((expression: string) => {
+    setManualExpression(expression);
+    updateParent(conditions, useManualExpression, expression);
+  }, [conditions, useManualExpression, updateParent]);
 
   const handleAddCondition = useCallback(() => {
     const newCondition: ConditionItem = {
@@ -148,15 +186,63 @@ export function EnhancedConditionBuilder({ value, onChange }: EnhancedConditionB
     };
     const newConditions = [...conditions, newCondition];
     setConditions(newConditions);
-    updateParent(newConditions);
-  }, [conditions, updateParent]);
+    
+    // Auto-update expression if in manual mode
+    if (useManualExpression) {
+      const newExpr = manualExpression 
+        ? `${manualExpression} AND ${newConditions.length}` 
+        : ExpressionEvaluator.generateDefaultExpression(newConditions.length, 'AND');
+      setManualExpression(newExpr);
+      updateParent(newConditions, useManualExpression, newExpr);
+    } else {
+      updateParent(newConditions);
+    }
+  }, [conditions, updateParent, useManualExpression, manualExpression]);
 
   const handleRemoveCondition = useCallback((conditionId: string) => {
     if (conditions.length <= 1) return;
+    const removedIndex = conditions.findIndex(c => c.id === conditionId);
     const newConditions = conditions.filter(c => c.id !== conditionId);
     setConditions(newConditions);
-    updateParent(newConditions);
-  }, [conditions, updateParent]);
+    
+    // Update expression if in manual mode - remove the deleted condition number
+    if (useManualExpression && removedIndex !== -1) {
+      // Renumber conditions in expression
+      let newExpr = manualExpression;
+      const removedNum = removedIndex + 1;
+      
+      // Remove references to the deleted condition
+      newExpr = newExpr.replace(new RegExp(`\\b${removedNum}\\b`, 'g'), '');
+      
+      // Renumber higher conditions
+      for (let i = conditions.length; i > removedNum; i--) {
+        newExpr = newExpr.replace(new RegExp(`\\b${i}\\b`, 'g'), String(i - 1));
+      }
+      
+      // Clean up any double operators or orphaned parentheses
+      newExpr = newExpr
+        .replace(/\s+/g, ' ')
+        .replace(/AND\s+AND/gi, 'AND')
+        .replace(/OR\s+OR/gi, 'OR')
+        .replace(/AND\s+OR/gi, 'OR')
+        .replace(/OR\s+AND/gi, 'AND')
+        .replace(/\(\s*\)/g, '')
+        .replace(/\(\s+/g, '(')
+        .replace(/\s+\)/g, ')')
+        .trim();
+      
+      // If expression becomes invalid or empty, regenerate
+      const validation = ExpressionEvaluator.validate(newExpr);
+      if (!newExpr || !validation.valid) {
+        newExpr = ExpressionEvaluator.generateDefaultExpression(newConditions.length, 'AND');
+      }
+      
+      setManualExpression(newExpr);
+      updateParent(newConditions, useManualExpression, newExpr);
+    } else {
+      updateParent(newConditions);
+    }
+  }, [conditions, updateParent, useManualExpression, manualExpression]);
 
   const handleConditionChange = useCallback((conditionId: string, updatedItem: Partial<ConditionItem>) => {
     const newConditions = conditions.map(c => 
@@ -193,7 +279,33 @@ export function EnhancedConditionBuilder({ value, onChange }: EnhancedConditionB
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      {/* Mode Toggle */}
+      <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md border border-border/50">
+        <div className="flex items-center gap-2">
+          {useManualExpression ? (
+            <Code className="h-4 w-4 text-primary" />
+          ) : (
+            <ListTree className="h-4 w-4 text-muted-foreground" />
+          )}
+          <span className="text-xs font-medium">
+            {useManualExpression ? 'Manual Expression Mode' : 'Visual Builder Mode'}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="expression-mode" className="text-xs text-muted-foreground">
+            Use manual expression
+          </Label>
+          <Switch
+            id="expression-mode"
+            checked={useManualExpression}
+            onCheckedChange={handleToggleManualMode}
+            className="scale-75"
+          />
+        </div>
+      </div>
+
+      {/* Conditions List */}
       {conditions.map((condition, index) => (
         <div key={condition.id}>
           <SingleConditionBuilder
@@ -205,8 +317,8 @@ export function EnhancedConditionBuilder({ value, onChange }: EnhancedConditionB
             onRemove={() => handleRemoveCondition(condition.id)}
           />
           
-          {/* Per-condition logical operator selector - only show if not last condition */}
-          {index < conditions.length - 1 && (
+          {/* Per-condition logical operator selector - only show if not last condition AND not in manual mode */}
+          {index < conditions.length - 1 && !useManualExpression && (
             <div className="flex items-center justify-center py-1">
               <Select 
                 value={condition.logicalOperatorWithNext || 'AND'} 
@@ -224,6 +336,16 @@ export function EnhancedConditionBuilder({ value, onChange }: EnhancedConditionB
           )}
         </div>
       ))}
+
+      {/* Manual Expression Input */}
+      {useManualExpression && conditions.length > 1 && (
+        <LogicalExpressionInput
+          value={manualExpression}
+          onChange={handleExpressionChange}
+          conditionCount={conditions.length}
+          conditionLabels={conditionLabels}
+        />
+      )}
 
       <Button
         type="button"
