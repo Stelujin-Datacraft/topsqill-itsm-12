@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,9 +8,16 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { X, Plus, Users, ChevronDown, Check } from 'lucide-react';
+import { X, Plus, Users, ChevronDown, Check, Loader2 } from 'lucide-react';
 import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+
+interface FormFieldData {
+  id: string;
+  label: string;
+  type: string;
+}
 
 interface EnhancedUserSelectorProps {
   value: {
@@ -20,6 +27,7 @@ interface EnhancedUserSelectorProps {
   };
   onValueChange: (value: any) => void;
   triggerFormId?: string;
+  targetFormId?: string;
   formFields?: Array<{ id: string; label: string; type: string }>;
 }
 
@@ -27,11 +35,126 @@ export function EnhancedUserSelector({
   value, 
   onValueChange, 
   triggerFormId,
+  targetFormId,
   formFields = []
 }: EnhancedUserSelectorProps) {
   const [manualEmail, setManualEmail] = useState('');
   const [userSelectorOpen, setUserSelectorOpen] = useState(false);
-  const { users, loading } = useOrganizationUsers();
+  const { users, loading: usersLoading } = useOrganizationUsers();
+  
+  // Fetch fields directly from both trigger and target forms
+  const [triggerFields, setTriggerFields] = useState<FormFieldData[]>([]);
+  const [targetFields, setTargetFields] = useState<FormFieldData[]>([]);
+  const [triggerFormName, setTriggerFormName] = useState<string>('');
+  const [targetFormName, setTargetFormName] = useState<string>('');
+  const [fieldsLoading, setFieldsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchFields = async () => {
+      setFieldsLoading(true);
+      try {
+        // Fetch trigger form fields
+        if (triggerFormId) {
+          const { data: triggerFieldsData, error: triggerError } = await supabase
+            .from('form_fields')
+            .select('id, label, field_type')
+            .eq('form_id', triggerFormId)
+            .order('field_order', { ascending: true });
+
+          if (!triggerError && triggerFieldsData) {
+            const dataFields = triggerFieldsData
+              .filter(field => !['header', 'description', 'section-break', 'horizontal-line'].includes(field.field_type))
+              .map(field => ({
+                id: field.id,
+                type: field.field_type,
+                label: field.label,
+              }));
+            setTriggerFields(dataFields);
+          }
+
+          const { data: triggerFormData } = await supabase
+            .from('forms')
+            .select('name')
+            .eq('id', triggerFormId)
+            .single();
+
+          if (triggerFormData) {
+            setTriggerFormName(triggerFormData.name);
+          }
+        } else {
+          setTriggerFields([]);
+          setTriggerFormName('');
+        }
+
+        // Fetch target form fields (if different from trigger)
+        if (targetFormId && targetFormId !== triggerFormId) {
+          const { data: targetFieldsData, error: targetError } = await supabase
+            .from('form_fields')
+            .select('id, label, field_type')
+            .eq('form_id', targetFormId)
+            .order('field_order', { ascending: true });
+
+          if (!targetError && targetFieldsData) {
+            const dataFields = targetFieldsData
+              .filter(field => !['header', 'description', 'section-break', 'horizontal-line'].includes(field.field_type))
+              .map(field => ({
+                id: field.id,
+                type: field.field_type,
+                label: field.label,
+              }));
+            setTargetFields(dataFields);
+          }
+
+          const { data: targetFormData } = await supabase
+            .from('forms')
+            .select('name')
+            .eq('id', targetFormId)
+            .single();
+
+          if (targetFormData) {
+            setTargetFormName(targetFormData.name);
+          }
+        } else {
+          setTargetFields([]);
+          setTargetFormName('');
+        }
+      } catch (error) {
+        console.error('Error loading fields for EnhancedUserSelector:', error);
+      } finally {
+        setFieldsLoading(false);
+      }
+    };
+
+    fetchFields();
+  }, [triggerFormId, targetFormId]);
+
+  // Filter fields that can contain user emails - combine from both forms
+  const emailFields = useMemo(() => {
+    const filterUserFields = (fields: FormFieldData[]) => {
+      return fields.filter(f => {
+        const fieldType = f.type?.toLowerCase() || '';
+        const fieldLabel = f.label?.toLowerCase() || '';
+        
+        return (
+          fieldType === 'email' || 
+          fieldType === 'user-picker' ||
+          fieldType === 'submission-access' ||
+          fieldType === 'user-select' ||
+          fieldType === 'assignee' ||
+          fieldType === 'group-picker' ||
+          fieldLabel.includes('email') ||
+          fieldLabel.includes('user') ||
+          fieldLabel.includes('assignee') ||
+          fieldLabel.includes('access')
+        );
+      });
+    };
+
+    const triggerEmailFields = filterUserFields(triggerFields).map(f => ({ ...f, source: 'trigger' as const, formName: triggerFormName }));
+    const targetEmailFields = filterUserFields(targetFields).map(f => ({ ...f, source: 'target' as const, formName: targetFormName }));
+
+    return [...triggerEmailFields, ...targetEmailFields];
+  }, [triggerFields, targetFields, triggerFormName, targetFormName]);
 
   const handleTypeChange = (type: string) => {
     console.log('🔧 Assignment type changed:', type);
@@ -91,29 +214,6 @@ export function EnhancedUserSelector({
   };
 
   const selectedEmails = value?.emails || [];
-
-  // Filter fields that can contain user emails for dynamic mode
-  // Include submission-access, user-picker, email, and other user-related fields
-  const emailFields = formFields.filter(f => {
-    const fieldType = f.type?.toLowerCase() || '';
-    const fieldLabel = f.label?.toLowerCase() || '';
-    
-    return (
-      fieldType === 'email' || 
-      fieldType === 'user-picker' ||
-      fieldType === 'submission-access' ||
-      fieldType === 'user-select' ||
-      fieldType === 'assignee' ||
-      fieldType === 'group-picker' ||
-      fieldLabel.includes('email') ||
-      fieldLabel.includes('user') ||
-      fieldLabel.includes('assignee') ||
-      fieldLabel.includes('access')
-    );
-  });
-
-  console.log('📧 EnhancedUserSelector - formFields:', formFields);
-  console.log('📧 EnhancedUserSelector - emailFields:', emailFields);
 
   return (
     <div className="space-y-3">
@@ -186,7 +286,7 @@ export function EnhancedUserSelector({
                   <CommandInput placeholder="Search users..." />
                   <CommandList>
                     <CommandEmpty>
-                      {loading ? 'Loading users...' : 'No users found.'}
+                      {usersLoading ? 'Loading users...' : 'No users found.'}
                     </CommandEmpty>
                     <CommandGroup>
                       <ScrollArea className="h-[200px]">
@@ -263,29 +363,62 @@ export function EnhancedUserSelector({
       {value?.type === 'dynamic' && (
         <div>
           <Label>Select Field Containing User Email</Label>
-          <Select 
-            value={value?.dynamicFieldPath || ''} 
-            onValueChange={handleDynamicFieldChange}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select field..." />
-            </SelectTrigger>
-            <SelectContent>
-              {emailFields.length > 0 ? (
-                emailFields.map((field) => (
-                  <SelectItem key={field.id} value={field.id}>
-                    {field.label} ({field.type})
-                  </SelectItem>
-                ))
-              ) : (
-                <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                  No email fields found in trigger form
-                </div>
-              )}
-            </SelectContent>
-          </Select>
+          {fieldsLoading ? (
+            <div className="flex items-center gap-2 p-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading fields...
+            </div>
+          ) : (
+            <Select 
+              value={value?.dynamicFieldPath || ''} 
+              onValueChange={handleDynamicFieldChange}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select field..." />
+              </SelectTrigger>
+              <SelectContent className="bg-background z-50 max-h-[300px]">
+                {emailFields.length > 0 ? (
+                  <>
+                    {/* Trigger Form Fields */}
+                    {emailFields.filter(f => f.source === 'trigger').length > 0 && (
+                      <>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">
+                          📥 From Trigger Form ({triggerFormName})
+                        </div>
+                        {emailFields.filter(f => f.source === 'trigger').map((field) => (
+                          <SelectItem key={`trigger-${field.id}`} value={field.id}>
+                            {field.label} ({field.type})
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
+
+                    {/* Target Form Fields */}
+                    {emailFields.filter(f => f.source === 'target').length > 0 && (
+                      <>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50 mt-1">
+                          📤 From Target Form ({targetFormName})
+                        </div>
+                        {emailFields.filter(f => f.source === 'target').map((field) => (
+                          <SelectItem key={`target-${field.id}`} value={field.id}>
+                            {field.label} ({field.type})
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    {!triggerFormId && !targetFormId 
+                      ? 'Please configure trigger form first'
+                      : 'No email/user fields found in forms'}
+                  </div>
+                )}
+              </SelectContent>
+            </Select>
+          )}
           <p className="text-xs text-muted-foreground mt-1">
-            The form will be assigned to the user email from this field value
+            Select a field containing user email or access information
           </p>
         </div>
       )}

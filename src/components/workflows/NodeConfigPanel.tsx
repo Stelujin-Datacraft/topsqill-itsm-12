@@ -286,6 +286,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                       onConfigChange(newConfig);
                     }}
                     triggerFormId={triggerFormId}
+                    targetFormId={node.data.config?.targetFormId}
                     formFields={formFields}
                   />
                 </div>
@@ -374,7 +375,8 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                         ...node.data.config?.notificationConfig,
                         recipientConfig: config
                       })}
-                      triggerFormId={node.data.config?.notificationConfig?.triggerFormId}
+                      triggerFormId={triggerFormId}
+                      targetFormId={node.data.config?.notificationConfig?.targetFormId}
                       formFields={formFields}
                     />
                   </div>
