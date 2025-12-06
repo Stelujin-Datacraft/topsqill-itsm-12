@@ -92,11 +92,16 @@ export function EnhancedUserSelector({
 
   const selectedEmails = value?.emails || [];
 
-  // Filter email fields for dynamic mode
+  // Filter fields that can contain user emails for dynamic mode
   const emailFields = formFields.filter(f => 
     f.type === 'email' || 
     f.type === 'user-picker' ||
-    f.label.toLowerCase().includes('email')
+    f.type === 'submission-access' ||
+    f.type === 'user-select' ||
+    f.type === 'assignee' ||
+    f.label.toLowerCase().includes('email') ||
+    f.label.toLowerCase().includes('user') ||
+    f.label.toLowerCase().includes('assignee')
   );
 
   return (
