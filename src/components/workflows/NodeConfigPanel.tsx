@@ -12,6 +12,7 @@ import { UserSelector } from './UserSelector';
 import { EnhancedUserSelector } from './EnhancedUserSelector';
 import { FormStatusSelector } from './FormStatusSelector';
 import { FormFieldSelector } from './FormFieldSelector';
+import { DynamicFieldSelector } from './DynamicFieldSelector';
 import { WorkflowEmailTemplateSelector } from './WorkflowEmailTemplateSelector';
 import { EnhancedConditionBuilder } from './conditions/EnhancedConditionBuilder';
 import { DynamicValueInput } from './conditions/DynamicValueInput';
@@ -505,37 +506,18 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                 )}
 
                 {node.data.config?.valueType === 'dynamic' && (
-                  <div>
-                    <Label>Select Source Field *</Label>
-                    <Select
-                      value={node.data.config?.dynamicValuePath || ''}
-                      onValueChange={(fieldId) => {
-                        const selectedField = formFields.find(f => f.id === fieldId);
-                        handleConfigUpdate('dynamicValuePath', fieldId);
-                        if (selectedField) {
-                          handleConfigUpdate('dynamicFieldName', selectedField.label);
-                        }
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select field from trigger form" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {formFields.length === 0 ? (
-                          <SelectItem value="_none" disabled>No fields available - configure trigger form first</SelectItem>
-                        ) : (
-                          formFields.map((field) => (
-                            <SelectItem key={field.id} value={field.id}>
-                              {field.label} ({field.type})
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Select a field from the trigger form to use its value
-                    </p>
-                  </div>
+                  <DynamicFieldSelector
+                    triggerFormId={triggerFormId}
+                    targetFormId={node.data.config?.targetFormId}
+                    targetFieldType={node.data.config?.targetFieldType}
+                    value={node.data.config?.dynamicValuePath || ''}
+                    onValueChange={(fieldId, fieldName, sourceForm) => {
+                      handleConfigUpdate('dynamicValuePath', fieldId);
+                      handleConfigUpdate('dynamicFieldName', fieldName);
+                      handleConfigUpdate('dynamicSourceForm', sourceForm);
+                    }}
+                    placeholder="Select compatible field"
+                  />
                 )}
 
                 {node.data.config?.targetFieldId && node.data.config?.valueType && (
@@ -543,7 +525,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                     <strong>Configuration:</strong> Will update field "{node.data.config.targetFieldName || node.data.config.targetFieldId}" 
                     in "{node.data.config.targetFormName}" to {node.data.config.valueType === 'static' 
                       ? `"${node.data.config.staticValue}"` 
-                      : `value from field "${node.data.config.dynamicFieldName || node.data.config.dynamicValuePath}"`}
+                      : `value from field "${node.data.config.dynamicFieldName || node.data.config.dynamicValuePath}"${node.data.config.dynamicSourceForm ? ` (${node.data.config.dynamicSourceForm} form)` : ''}`}
                   </div>
                 )}
               </div>
