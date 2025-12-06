@@ -784,8 +784,12 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
               <Input
                 id="waitDuration"
                 type="number"
-                value={node.data.config?.waitDuration || ''}
-                onChange={(e) => handleConfigUpdate('waitDuration', parseInt(e.target.value))}
+                min="0"
+                value={node.data.config?.waitDuration ?? ''}
+                onChange={(e) => {
+                  const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                  handleConfigUpdate('waitDuration', isNaN(value) ? 0 : value);
+                }}
                 placeholder="Enter duration"
               />
             </div>
