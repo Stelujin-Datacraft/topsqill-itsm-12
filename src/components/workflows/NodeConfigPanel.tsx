@@ -506,14 +506,34 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
 
                 {node.data.config?.valueType === 'dynamic' && (
                   <div>
-                    <Label>Value Path (from trigger data) *</Label>
-                    <Input
+                    <Label>Select Source Field *</Label>
+                    <Select
                       value={node.data.config?.dynamicValuePath || ''}
-                      onChange={(e) => handleConfigUpdate('dynamicValuePath', e.target.value)}
-                      placeholder="e.g., email or user.phoneNumber"
-                    />
+                      onValueChange={(fieldId) => {
+                        const selectedField = formFields.find(f => f.id === fieldId);
+                        handleConfigUpdate('dynamicValuePath', fieldId);
+                        if (selectedField) {
+                          handleConfigUpdate('dynamicFieldName', selectedField.label);
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select field from trigger form" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {formFields.length === 0 ? (
+                          <SelectItem value="_none" disabled>No fields available - configure trigger form first</SelectItem>
+                        ) : (
+                          formFields.map((field) => (
+                            <SelectItem key={field.id} value={field.id}>
+                              {field.label} ({field.type})
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Path to extract value from trigger/submission data
+                      Select a field from the trigger form to use its value
                     </p>
                   </div>
                 )}
@@ -523,7 +543,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                     <strong>Configuration:</strong> Will update field "{node.data.config.targetFieldName || node.data.config.targetFieldId}" 
                     in "{node.data.config.targetFormName}" to {node.data.config.valueType === 'static' 
                       ? `"${node.data.config.staticValue}"` 
-                      : `value from "${node.data.config.dynamicValuePath}"`}
+                      : `value from field "${node.data.config.dynamicFieldName || node.data.config.dynamicValuePath}"`}
                   </div>
                 )}
               </div>

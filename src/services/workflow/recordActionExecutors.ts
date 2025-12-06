@@ -42,13 +42,21 @@ export class RecordActionExecutors {
       if (config.valueType === 'static') {
         newValue = config.staticValue;
       } else if (config.valueType === 'dynamic') {
-        // Extract value from trigger data using path
-        newValue = this.getNestedValue(context.triggerData, config.dynamicValuePath);
+        // The dynamicValuePath now contains a field ID
+        // First try to get from submissionData using the field ID directly
+        const submissionData = context.triggerData?.submissionData || context.triggerData || {};
+        
+        if (config.dynamicValuePath in submissionData) {
+          newValue = submissionData[config.dynamicValuePath];
+        } else {
+          // Fallback: try nested path extraction for backward compatibility
+          newValue = this.getNestedValue(context.triggerData, config.dynamicValuePath);
+        }
         
         if (newValue === undefined) {
           return {
             success: false,
-            error: `Could not find value at path: ${config.dynamicValuePath}`,
+            error: `Could not find value for field: ${config.dynamicFieldName || config.dynamicValuePath}`,
             actionDetails
           };
         }
