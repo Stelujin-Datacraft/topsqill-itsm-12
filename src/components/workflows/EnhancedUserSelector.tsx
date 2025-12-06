@@ -48,7 +48,6 @@ export function EnhancedUserSelector({
   const [triggerFormName, setTriggerFormName] = useState<string>('');
   const [targetFormName, setTargetFormName] = useState<string>('');
   const [fieldsLoading, setFieldsLoading] = useState(false);
-
   useEffect(() => {
     const fetchFields = async () => {
       setFieldsLoading(true);
