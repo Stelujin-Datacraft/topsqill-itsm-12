@@ -767,9 +767,6 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
               onChange={(condition: EnhancedCondition) => {
                 handleConfigUpdate('enhancedCondition', condition);
               }}
-              triggerFormId={triggerFormId}
-              formFields={formFields}
-              projectId={projectId}
             />
           </div>
         );
