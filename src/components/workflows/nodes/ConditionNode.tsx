@@ -7,7 +7,8 @@ interface ConditionNodeProps {
   data: {
     label: string;
     config: any;
-    onSelect: () => void;
+    nodeId: string;
+    onSelect: (nodeId: string) => void;
   };
 }
 
@@ -69,7 +70,7 @@ export function ConditionNode({ data }: ConditionNodeProps) {
           ? 'bg-yellow-100 border-yellow-200 hover:border-yellow-300' 
           : 'bg-gray-50 border-gray-200 hover:border-gray-300'
       }`}
-      onClick={data.onSelect}
+      onClick={() => data.onSelect(data.nodeId)}
     >
       <Handle
         type="target"

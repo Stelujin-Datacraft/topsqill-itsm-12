@@ -7,7 +7,8 @@ interface WaitNodeProps {
   data: {
     label: string;
     config: any;
-    onSelect: () => void;
+    nodeId: string;
+    onSelect: (nodeId: string) => void;
   };
 }
 
@@ -15,7 +16,7 @@ export function WaitNode({ data }: WaitNodeProps) {
   return (
     <div 
       className="px-4 py-2 shadow-md rounded-md bg-orange-100 border-2 border-orange-200 min-w-[150px] cursor-pointer"
-      onClick={data.onSelect}
+      onClick={() => data.onSelect(data.nodeId)}
     >
       <Handle
         type="target"

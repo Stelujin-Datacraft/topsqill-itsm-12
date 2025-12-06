@@ -59,6 +59,12 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
   const [workflowConnections, setWorkflowConnections] = useState<WorkflowConnection[]>([]);
   
   const isInitialized = useRef(false);
+  const workflowNodesRef = useRef<WorkflowNode[]>([]);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    workflowNodesRef.current = workflowNodes;
+  }, [workflowNodes]);
 
   // Get trigger form ID from start node
   const triggerFormId = useMemo(() => {
@@ -68,6 +74,41 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
 
   // Load form fields for the trigger form
   const { fields: formFields } = useFormFields(triggerFormId);
+
+  // Stable node select handler using ref
+  const handleNodeSelect = useCallback((nodeId: string) => {
+    const currentNode = workflowNodesRef.current.find(n => n.id === nodeId);
+    if (currentNode) {
+      setSelectedNode(currentNode);
+    }
+  }, []);
+
+  // Convert workflow data to React Flow format
+  const syncToReactFlow = useCallback((nodes: WorkflowNode[], connections: WorkflowConnection[]) => {
+    const flowNodes = nodes.map(node => ({
+      id: node.id,
+      type: node.type,
+      position: node.position,
+      data: {
+        label: node.label,
+        config: node.data?.config || {},
+        nodeId: node.id,
+        onSelect: handleNodeSelect,
+      },
+    }));
+
+    const flowEdges = connections.map(conn => ({
+      id: conn.id,
+      source: conn.source,
+      target: conn.target,
+      sourceHandle: conn.sourceHandle,
+      targetHandle: conn.targetHandle,
+    }));
+
+    console.log('Syncing to React Flow:', { nodes: flowNodes.length, edges: flowEdges.length });
+    setReactFlowNodes(flowNodes);
+    setReactFlowEdges(flowEdges);
+  }, [setReactFlowNodes, setReactFlowEdges, handleNodeSelect]);
 
   // Initialize only once from props
   useEffect(() => {
@@ -86,38 +127,7 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
       setReactFlowEdges([]);
       isInitialized.current = true;
     }
-  }, [initialNodes, initialConnections]);
-
-  // Convert workflow data to React Flow format
-  const syncToReactFlow = useCallback((nodes: WorkflowNode[], connections: WorkflowConnection[]) => {
-    const flowNodes = nodes.map(node => ({
-      id: node.id,
-      type: node.type,
-      position: node.position,
-      data: {
-        label: node.label,
-        config: node.data?.config || {},
-        onSelect: () => {
-          const currentNode = nodes.find(n => n.id === node.id);
-          if (currentNode) {
-            setSelectedNode(currentNode);
-          }
-        },
-      },
-    }));
-
-    const flowEdges = connections.map(conn => ({
-      id: conn.id,
-      source: conn.source,
-      target: conn.target,
-      sourceHandle: conn.sourceHandle,
-      targetHandle: conn.targetHandle,
-    }));
-
-    console.log('Syncing to React Flow:', { nodes: flowNodes.length, edges: flowEdges.length });
-    setReactFlowNodes(flowNodes);
-    setReactFlowEdges(flowEdges);
-  }, [setReactFlowNodes, setReactFlowEdges]);
+  }, [initialNodes, initialConnections, syncToReactFlow]);
 
   // Add node
   const addNodeToWorkflow = useCallback((nodeType: string, position: { x: number; y: number }) => {
@@ -255,6 +265,28 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
     onSave(workflowNodes, workflowConnections);
   }, [workflowNodes, workflowConnections, onSave]);
 
+  // Stable handlers for NodeConfigPanel
+  const selectedNodeRef = useRef<WorkflowNode | null>(null);
+  useEffect(() => {
+    selectedNodeRef.current = selectedNode;
+  }, [selectedNode]);
+
+  const handleConfigChange = useCallback((config: any) => {
+    if (selectedNodeRef.current) {
+      updateNodeConfig(selectedNodeRef.current.id, config);
+    }
+  }, [updateNodeConfig]);
+
+  const handleDelete = useCallback(() => {
+    if (selectedNodeRef.current) {
+      deleteNode(selectedNodeRef.current.id);
+    }
+  }, [deleteNode]);
+
+  const handleClosePanel = useCallback(() => {
+    setSelectedNode(null);
+  }, []);
+
   return (
     <div className="h-full flex">
       <NodePalette onAddNode={addNodeToWorkflow} />
@@ -282,14 +314,15 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
 
       {selectedNode && (
         <NodeConfigPanel
+          key={selectedNode.id}
           node={selectedNode}
           workflowId={workflowId}
           projectId={projectId}
           triggerFormId={triggerFormId}
           formFields={formFields}
-          onConfigChange={(config) => updateNodeConfig(selectedNode.id, config)}
-          onDelete={() => deleteNode(selectedNode.id)}
-          onClose={() => setSelectedNode(null)}
+          onConfigChange={handleConfigChange}
+          onDelete={handleDelete}
+          onClose={handleClosePanel}
           onSave={handleSave}
         />
       )}
