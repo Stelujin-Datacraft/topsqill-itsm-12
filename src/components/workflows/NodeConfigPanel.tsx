@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, Trash2, Save, Sparkles } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { X, Trash2, Save, Sparkles, Maximize2, Minimize2 } from 'lucide-react';
 import { WorkflowNode } from '@/types/workflow';
 import { FormSelector } from './FormSelector';
 import { UserSelector } from './UserSelector';
@@ -36,6 +38,7 @@ interface NodeConfigPanelProps {
 export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, formFields = [], onConfigChange, onDelete, onClose, onSave }: NodeConfigPanelProps) {
   const { createTrigger, deleteTrigger, loading } = useTriggerManagement();
   const { toast } = useToast();
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const handleConfigUpdate = (key: string, value: any) => {
     console.log('🔧 Updating node config:', { key, value, nodeId: node.id });
@@ -810,41 +813,93 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
     }
   };
 
-  return (
-    <Card className="w-80 h-full rounded-none border-l">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-lg">Configure Node</CardTitle>
-        <Button variant="ghost" size="sm" onClick={onClose}>
-          <X className="h-4 w-4" />
+  // Shared content for both compact and expanded views
+  const ConfigContent = ({ expanded = false }: { expanded?: boolean }) => (
+    <div className={expanded ? "space-y-6" : "space-y-4"}>
+      <div>
+        <Label htmlFor="nodeLabel" className={expanded ? "text-sm font-medium" : ""}>Node Label</Label>
+        <Input
+          id="nodeLabel"
+          value={node.label}
+          onChange={(e) => onConfigChange({ ...node.data.config, label: e.target.value })}
+          placeholder="Enter node label"
+          className={expanded ? "mt-1.5" : ""}
+        />
+      </div>
+
+      <div className="border-t pt-4">
+        <h4 className={expanded ? "font-semibold mb-4 text-base" : "font-medium mb-3"}>Node Configuration</h4>
+        {renderNodeSpecificConfig()}
+      </div>
+
+      <div className="border-t pt-4 space-y-2">
+        <Button onClick={handleSave} className="w-full" variant="outline" disabled={loading}>
+          <Save className="h-4 w-4 mr-2" />
+          Save Workflow
         </Button>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <Label htmlFor="nodeLabel">Node Label</Label>
-          <Input
-            id="nodeLabel"
-            value={node.label}
-            onChange={(e) => onConfigChange({ ...node.data.config, label: e.target.value })}
-            placeholder="Enter node label"
-          />
-        </div>
+        <Button variant="destructive" onClick={onDelete} className="w-full">
+          <Trash2 className="h-4 w-4 mr-2" />
+          Delete Node
+        </Button>
+      </div>
+    </div>
+  );
 
-        <div className="border-t pt-4">
-          <h4 className="font-medium mb-3">Node Configuration</h4>
-          {renderNodeSpecificConfig()}
-        </div>
+  return (
+    <>
+      {/* Compact Side Panel */}
+      <Card className="w-80 h-full rounded-none border-l">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-lg">Configure Node</CardTitle>
+          <div className="flex items-center gap-1">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setIsExpanded(true)}
+              title="Expand configuration"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ConfigContent />
+        </CardContent>
+      </Card>
 
-        <div className="border-t pt-4 space-y-2">
-          <Button onClick={handleSave} className="w-full" variant="outline" disabled={loading}>
-            <Save className="h-4 w-4 mr-2" />
-            Save Workflow
-          </Button>
-          <Button variant="destructive" onClick={onDelete} className="w-full">
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete Node
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      {/* Expanded Modal Dialog */}
+      <Dialog open={isExpanded} onOpenChange={setIsExpanded}>
+        <DialogContent className="max-w-3xl max-h-[90vh] p-0 gap-0">
+          <DialogHeader className="px-6 py-4 border-b bg-muted/30">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+                <span className="capitalize">{node.type}</span> Node Configuration
+              </DialogTitle>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setIsExpanded(false)}
+                className="h-8 w-8 p-0"
+              >
+                <Minimize2 className="h-4 w-4" />
+              </Button>
+            </div>
+            {node.label && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Currently editing: <span className="font-medium text-foreground">{node.label}</span>
+              </p>
+            )}
+          </DialogHeader>
+          <ScrollArea className="max-h-[calc(90vh-120px)]">
+            <div className="px-6 py-6">
+              <ConfigContent expanded />
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
