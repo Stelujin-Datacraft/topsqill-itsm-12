@@ -121,12 +121,26 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
 
   // Add node
   const addNodeToWorkflow = useCallback((nodeType: string, position: { x: number; y: number }) => {
+    // Set default config based on node type
+    const getDefaultConfig = (type: string) => {
+      switch (type) {
+        case 'wait':
+          return { waitUnit: 'minutes', waitDuration: 1 };
+        case 'start':
+          return { triggerType: 'form_submission' };
+        case 'action':
+          return { actionType: 'approve_form' };
+        default:
+          return {};
+      }
+    };
+
     const newNode: WorkflowNode = {
       id: generateUUID(),
       type: nodeType as any,
       label: `${nodeType.charAt(0).toUpperCase() + nodeType.slice(1).replace('-', ' ')} Node`,
       position,
-      data: { config: {} },
+      data: { config: getDefaultConfig(nodeType) },
     };
 
     console.log('Adding node:', newNode);
