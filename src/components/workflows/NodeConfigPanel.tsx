@@ -783,12 +783,16 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
               <Label htmlFor="waitDuration">Duration</Label>
               <Input
                 id="waitDuration"
-                type="number"
-                min="0"
-                value={node.data.config?.waitDuration ?? ''}
+                type="text"
+                inputMode="numeric"
+                value={node.data.config?.waitDuration !== undefined ? String(node.data.config.waitDuration) : ''}
                 onChange={(e) => {
-                  const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
-                  handleConfigUpdate('waitDuration', isNaN(value) ? 0 : value);
+                  const inputValue = e.target.value;
+                  // Allow empty string or valid numbers only
+                  if (inputValue === '' || /^\d+$/.test(inputValue)) {
+                    const numValue = inputValue === '' ? 0 : parseInt(inputValue, 10);
+                    handleConfigUpdate('waitDuration', numValue);
+                  }
                 }}
                 placeholder="Enter duration"
               />
