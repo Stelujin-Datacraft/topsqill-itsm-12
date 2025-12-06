@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { GitBranch, Settings } from 'lucide-react';
 
@@ -8,11 +7,11 @@ interface ConditionNodeProps {
     label: string;
     config: any;
     nodeId: string;
-    onSelect: (nodeId: string) => void;
+    onSelect: React.MutableRefObject<(nodeId: string) => void>;
   };
 }
 
-export function ConditionNode({ data }: ConditionNodeProps) {
+export const ConditionNode = React.memo(function ConditionNode({ data }: ConditionNodeProps) {
   const getConditionPreview = () => {
     const config = data.config;
     
@@ -63,6 +62,10 @@ export function ConditionNode({ data }: ConditionNodeProps) {
     return data.config?.enhancedCondition || data.config?.conditionConfig;
   };
 
+  const handleClick = useCallback(() => {
+    data.onSelect.current(data.nodeId);
+  }, [data.nodeId, data.onSelect]);
+
   return (
     <div 
       className={`px-4 py-3 shadow-md rounded-md border-2 min-w-[180px] cursor-pointer transition-colors ${
@@ -70,7 +73,7 @@ export function ConditionNode({ data }: ConditionNodeProps) {
           ? 'bg-yellow-100 border-yellow-200 hover:border-yellow-300' 
           : 'bg-gray-50 border-gray-200 hover:border-gray-300'
       }`}
-      onClick={() => data.onSelect(data.nodeId)}
+      onClick={handleClick}
     >
       <Handle
         type="target"
@@ -141,4 +144,4 @@ export function ConditionNode({ data }: ConditionNodeProps) {
       )}
     </div>
   );
-}
+});

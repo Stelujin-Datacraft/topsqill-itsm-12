@@ -54,17 +54,23 @@ interface WorkflowDesignerProps {
 export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialConnections, onSave }: WorkflowDesignerProps) {
   const [reactFlowNodes, setReactFlowNodes, onNodesChange] = useNodesState([]);
   const [reactFlowEdges, setReactFlowEdges, onEdgesChange] = useEdgesState([]);
-  const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [workflowNodes, setWorkflowNodes] = useState<WorkflowNode[]>([]);
   const [workflowConnections, setWorkflowConnections] = useState<WorkflowConnection[]>([]);
   
   const isInitialized = useRef(false);
-  const workflowNodesRef = useRef<WorkflowNode[]>([]);
   
-  // Keep ref in sync with state
-  useEffect(() => {
-    workflowNodesRef.current = workflowNodes;
-  }, [workflowNodes]);
+  // Create a stable ref for the node select handler
+  const nodeSelectHandlerRef = useRef<(nodeId: string) => void>(() => {});
+  nodeSelectHandlerRef.current = (nodeId: string) => {
+    setSelectedNodeId(nodeId);
+  };
+
+  // Get selected node from workflowNodes
+  const selectedNode = useMemo(() => {
+    if (!selectedNodeId) return null;
+    return workflowNodes.find(n => n.id === selectedNodeId) || null;
+  }, [selectedNodeId, workflowNodes]);
 
   // Get trigger form ID from start node
   const triggerFormId = useMemo(() => {
@@ -75,40 +81,61 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
   // Load form fields for the trigger form
   const { fields: formFields } = useFormFields(triggerFormId);
 
-  // Stable node select handler using ref
-  const handleNodeSelect = useCallback((nodeId: string) => {
-    const currentNode = workflowNodesRef.current.find(n => n.id === nodeId);
-    if (currentNode) {
-      setSelectedNode(currentNode);
-    }
-  }, []);
-
-  // Convert workflow data to React Flow format
+  // Convert workflow data to React Flow format - only called when nodes/connections change structurally
   const syncToReactFlow = useCallback((nodes: WorkflowNode[], connections: WorkflowConnection[]) => {
-    const flowNodes = nodes.map(node => ({
-      id: node.id,
-      type: node.type,
-      position: node.position,
-      data: {
-        label: node.label,
-        config: node.data?.config || {},
-        nodeId: node.id,
-        onSelect: handleNodeSelect,
-      },
-    }));
+    setReactFlowNodes(currentNodes => {
+      const newNodes = nodes.map(node => {
+        // Find existing React Flow node to preserve its reference if possible
+        const existingNode = currentNodes.find(n => n.id === node.id);
+        
+        // Check if we need to update
+        const needsUpdate = !existingNode || 
+          existingNode.position.x !== node.position.x ||
+          existingNode.position.y !== node.position.y ||
+          existingNode.data?.label !== node.label ||
+          JSON.stringify(existingNode.data?.config) !== JSON.stringify(node.data?.config);
+        
+        if (!needsUpdate && existingNode) {
+          return existingNode;
+        }
+        
+        return {
+          id: node.id,
+          type: node.type,
+          position: node.position,
+          data: {
+            label: node.label,
+            config: node.data?.config || {},
+            nodeId: node.id,
+            onSelect: nodeSelectHandlerRef,
+          },
+        };
+      });
+      
+      return newNodes;
+    });
 
-    const flowEdges = connections.map(conn => ({
-      id: conn.id,
-      source: conn.source,
-      target: conn.target,
-      sourceHandle: conn.sourceHandle,
-      targetHandle: conn.targetHandle,
-    }));
-
-    console.log('Syncing to React Flow:', { nodes: flowNodes.length, edges: flowEdges.length });
-    setReactFlowNodes(flowNodes);
-    setReactFlowEdges(flowEdges);
-  }, [setReactFlowNodes, setReactFlowEdges, handleNodeSelect]);
+    setReactFlowEdges(currentEdges => {
+      // Only update if edges actually changed
+      const newEdgeIds = new Set(connections.map(c => c.id));
+      const currentEdgeIds = new Set(currentEdges.map(e => e.id));
+      
+      const sameEdges = newEdgeIds.size === currentEdgeIds.size && 
+        [...newEdgeIds].every(id => currentEdgeIds.has(id));
+      
+      if (sameEdges) {
+        return currentEdges;
+      }
+      
+      return connections.map(conn => ({
+        id: conn.id,
+        source: conn.source,
+        target: conn.target,
+        sourceHandle: conn.sourceHandle,
+        targetHandle: conn.targetHandle,
+      }));
+    });
+  }, [setReactFlowNodes, setReactFlowEdges]);
 
   // Initialize only once from props
   useEffect(() => {
@@ -119,7 +146,6 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
       syncToReactFlow(initialNodes, initialConnections);
       isInitialized.current = true;
     } else if (!isInitialized.current) {
-      // Initialize with empty state
       console.log('Initializing WorkflowDesigner with empty state');
       setWorkflowNodes([]);
       setWorkflowConnections([]);
@@ -127,7 +153,7 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
       setReactFlowEdges([]);
       isInitialized.current = true;
     }
-  }, [initialNodes, initialConnections, syncToReactFlow]);
+  }, [initialNodes, initialConnections, syncToReactFlow, setReactFlowNodes, setReactFlowEdges]);
 
   // Add node
   const addNodeToWorkflow = useCallback((nodeType: string, position: { x: number; y: number }) => {
@@ -141,10 +167,12 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
 
     console.log('Adding node:', newNode);
     
-    const updatedNodes = [...workflowNodes, newNode];
-    setWorkflowNodes(updatedNodes);
-    syncToReactFlow(updatedNodes, workflowConnections);
-  }, [workflowNodes, workflowConnections, syncToReactFlow]);
+    setWorkflowNodes(prev => {
+      const updatedNodes = [...prev, newNode];
+      syncToReactFlow(updatedNodes, workflowConnections);
+      return updatedNodes;
+    });
+  }, [workflowConnections, syncToReactFlow]);
 
   // Handle connections
   const onConnect = useCallback(
@@ -160,27 +188,24 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
       };
 
       console.log('Adding connection:', newConnection);
-      const updatedConnections = [...workflowConnections, newConnection];
-      setWorkflowConnections(updatedConnections);
+      setWorkflowConnections(prev => [...prev, newConnection]);
       
       // Update React Flow edges immediately
       setReactFlowEdges((eds) => addEdge(params, eds));
     },
-    [workflowConnections, setReactFlowEdges]
+    [setReactFlowEdges]
   );
 
   // Handle node position changes (drag)
   const onNodeDragStop = useCallback(
     (event: React.MouseEvent, node: Node) => {
-      console.log('Node drag stopped:', node.id, node.position);
-      const updatedNodes = workflowNodes.map(n => 
+      setWorkflowNodes(prev => prev.map(n => 
         n.id === node.id 
           ? { ...n, position: node.position }
           : n
-      );
-      setWorkflowNodes(updatedNodes);
+      ));
     },
-    [workflowNodes]
+    []
   );
 
   // Handle drag and drop from palette
@@ -209,82 +234,64 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
     [addNodeToWorkflow]
   );
 
-  // Update node configuration
+  // Update node configuration - stable callback
   const updateNodeConfig = useCallback((nodeId: string, config: any) => {
     console.log('🔧 WorkflowDesigner: Updating node config:', nodeId, config);
-    const updatedNodes = workflowNodes.map(node =>
-      node.id === nodeId
-        ? { 
-            ...node, 
-            data: { ...node.data, config },
-            label: config.label || node.label
-          }
-        : node
-    );
     
-    console.log('🔧 WorkflowDesigner: Updated nodes array:', updatedNodes);
-    setWorkflowNodes(updatedNodes);
-    
-    // Update selected node to reflect changes in the panel
-    setSelectedNode(prev => prev?.id === nodeId ? { 
-      ...prev, 
-      data: { ...prev.data, config },
-      label: config.label || prev.label
-    } : prev);
-    
-    // Update React Flow immediately for visual feedback
-    syncToReactFlow(updatedNodes, workflowConnections);
-  }, [workflowNodes, workflowConnections, syncToReactFlow]);
+    setWorkflowNodes(prev => {
+      const updatedNodes = prev.map(node =>
+        node.id === nodeId
+          ? { 
+              ...node, 
+              data: { ...node.data, config },
+              label: config.label || node.label
+            }
+          : node
+      );
+      
+      // Sync to React Flow after state update
+      setTimeout(() => syncToReactFlow(updatedNodes, workflowConnections), 0);
+      
+      return updatedNodes;
+    });
+  }, [workflowConnections, syncToReactFlow]);
 
   // Delete node
   const deleteNode = useCallback((nodeId: string) => {
     console.log('Deleting node:', nodeId);
-    const updatedNodes = workflowNodes.filter(node => node.id !== nodeId);
-    const updatedConnections = workflowConnections.filter(
-      conn => conn.source !== nodeId && conn.target !== nodeId
-    );
     
-    setWorkflowNodes(updatedNodes);
-    setWorkflowConnections(updatedConnections);
-    setSelectedNode(null);
-    syncToReactFlow(updatedNodes, updatedConnections);
-  }, [workflowNodes, workflowConnections, syncToReactFlow]);
+    setWorkflowNodes(prev => {
+      const updatedNodes = prev.filter(node => node.id !== nodeId);
+      setWorkflowConnections(prevConns => {
+        const updatedConnections = prevConns.filter(
+          conn => conn.source !== nodeId && conn.target !== nodeId
+        );
+        syncToReactFlow(updatedNodes, updatedConnections);
+        return updatedConnections;
+      });
+      return updatedNodes;
+    });
+    
+    setSelectedNodeId(null);
+  }, [syncToReactFlow]);
 
   // Handle edge deletion
   const onEdgesDelete = useCallback((edgesToDelete: Edge[]) => {
     console.log('Deleting edges:', edgesToDelete.map(e => e.id));
-    const updatedConnections = workflowConnections.filter(
-      conn => !edgesToDelete.some(edge => edge.id === conn.id)
+    setWorkflowConnections(prev => 
+      prev.filter(conn => !edgesToDelete.some(edge => edge.id === conn.id))
     );
-    setWorkflowConnections(updatedConnections);
-  }, [workflowConnections]);
+  }, []);
 
-  // Save current state
+  // Save current state - memoized to prevent re-renders
   const handleSave = useCallback(() => {
     console.log('Saving workflow state:', { nodes: workflowNodes.length, connections: workflowConnections.length });
     onSave(workflowNodes, workflowConnections);
   }, [workflowNodes, workflowConnections, onSave]);
 
-  // Stable handlers for NodeConfigPanel
-  const selectedNodeRef = useRef<WorkflowNode | null>(null);
-  useEffect(() => {
-    selectedNodeRef.current = selectedNode;
-  }, [selectedNode]);
-
-  const handleConfigChange = useCallback((config: any) => {
-    if (selectedNodeRef.current) {
-      updateNodeConfig(selectedNodeRef.current.id, config);
-    }
-  }, [updateNodeConfig]);
-
-  const handleDelete = useCallback(() => {
-    if (selectedNodeRef.current) {
-      deleteNode(selectedNodeRef.current.id);
-    }
-  }, [deleteNode]);
-
+  // Close panel handler
   const handleClosePanel = useCallback(() => {
-    setSelectedNode(null);
+    setSelectedNodeId(null);
   }, []);
 
   return (
@@ -320,8 +327,8 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
           projectId={projectId}
           triggerFormId={triggerFormId}
           formFields={formFields}
-          onConfigChange={handleConfigChange}
-          onDelete={handleDelete}
+          onConfigChange={(config) => updateNodeConfig(selectedNode.id, config)}
+          onDelete={() => deleteNode(selectedNode.id)}
           onClose={handleClosePanel}
           onSave={handleSave}
         />

@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { CheckCircle, XCircle, FileCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -14,11 +13,11 @@ interface ApprovalNodeProps {
       targetFormName?: string;
       notes?: string;
     };
-    onSelect?: (nodeId: string) => void;
+    onSelect: React.MutableRefObject<(nodeId: string) => void>;
   };
 }
 
-export function ApprovalNode({ data }: ApprovalNodeProps) {
+export const ApprovalNode = React.memo(function ApprovalNode({ data }: ApprovalNodeProps) {
   const config = data.config || {};
   const approvalAction = config.approvalAction;
   const targetFormName = config.targetFormName;
@@ -41,10 +40,14 @@ export function ApprovalNode({ data }: ApprovalNodeProps) {
     return 'Set Status';
   };
 
+  const handleClick = useCallback(() => {
+    data.onSelect.current(data.nodeId);
+  }, [data.nodeId, data.onSelect]);
+
   return (
     <div 
       className={`px-4 py-3 shadow-md rounded-md border-2 min-w-[200px] cursor-pointer hover:shadow-lg transition-shadow ${getNodeColor()}`}
-      onClick={() => data.onSelect?.(data.nodeId)}
+      onClick={handleClick}
     >
       <Handle type="target" position={Position.Top} className="w-3 h-3" />
       
@@ -74,4 +77,4 @@ export function ApprovalNode({ data }: ApprovalNodeProps) {
       <Handle type="source" position={Position.Bottom} className="w-3 h-3" />
     </div>
   );
-}
+});
