@@ -125,7 +125,7 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
     const getDefaultConfig = (type: string) => {
       switch (type) {
         case 'wait':
-          return { waitUnit: 'minutes', waitDuration: 1 };
+          return { waitUnit: 'minutes', waitDuration: 0 };
         case 'start':
           return { triggerType: 'form_submission' };
         case 'action':
