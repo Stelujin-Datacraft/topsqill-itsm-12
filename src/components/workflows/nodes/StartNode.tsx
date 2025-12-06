@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Play } from 'lucide-react';
 
@@ -8,11 +7,11 @@ interface StartNodeProps {
     label: string;
     config: any;
     nodeId: string;
-    onSelect: (nodeId: string) => void;
+    onSelect: React.MutableRefObject<(nodeId: string) => void>;
   };
 }
 
-export function StartNode({ data }: StartNodeProps) {
+export const StartNode = React.memo(function StartNode({ data }: StartNodeProps) {
   const getDisplayText = () => {
     if (data.config?.triggerType === 'form_submission' && data.config?.triggerFormName) {
       return data.config.triggerFormName;
@@ -20,10 +19,14 @@ export function StartNode({ data }: StartNodeProps) {
     return data.config?.triggerType || 'Click to configure';
   };
 
+  const handleClick = useCallback(() => {
+    data.onSelect.current(data.nodeId);
+  }, [data.nodeId, data.onSelect]);
+
   return (
     <div 
       className="px-4 py-2 shadow-md rounded-md bg-green-100 border-2 border-green-200 min-w-[150px] cursor-pointer"
-      onClick={() => data.onSelect(data.nodeId)}
+      onClick={handleClick}
     >
       <div className="flex items-center space-x-2">
         <Play className="h-4 w-4 text-green-700" />
@@ -39,4 +42,4 @@ export function StartNode({ data }: StartNodeProps) {
       />
     </div>
   );
-}
+});

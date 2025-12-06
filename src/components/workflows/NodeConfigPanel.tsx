@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,34 +40,37 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
   const { toast } = useToast();
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const handleConfigUpdate = (key: string, value: any) => {
-    console.log('🔧 Updating node config:', { key, value, nodeId: node.id });
-    const newConfig = { ...node.data.config, [key]: value };
-    onConfigChange(newConfig);
-  };
+  // Memoize the config to prevent unnecessary child re-renders
+  const nodeConfig = useMemo(() => node.data.config || {}, [node.data.config]);
 
-  const handleFormSelection = async (formId: string, formName: string) => {
+  const handleConfigUpdate = useCallback((key: string, value: any) => {
+    console.log('🔧 Updating node config:', { key, value, nodeId: node.id });
+    const newConfig = { ...nodeConfig, [key]: value };
+    onConfigChange(newConfig);
+  }, [nodeConfig, onConfigChange, node.id]);
+
+  const handleFormSelection = useCallback(async (formId: string, formName: string) => {
     const newConfig = { 
-      ...node.data.config, 
+      ...nodeConfig, 
       triggerFormId: formId,
       triggerFormName: formName
     };
     onConfigChange(newConfig);
 
     // Auto-create trigger for start nodes
-    if (node.type === 'start' && workflowId && node.data.config?.triggerType) {
-      await createWorkflowTrigger(formId, node.data.config.triggerType);
+    if (node.type === 'start' && workflowId && nodeConfig?.triggerType) {
+      await createWorkflowTrigger(formId, nodeConfig.triggerType);
     }
-  };
+  }, [nodeConfig, onConfigChange, node.type, workflowId]);
 
-  const handleTriggerTypeChange = async (triggerType: string) => {
+  const handleTriggerTypeChange = useCallback(async (triggerType: string) => {
     handleConfigUpdate('triggerType', triggerType);
 
     // Auto-create trigger if form is already selected
-    if (node.type === 'start' && workflowId && node.data.config?.triggerFormId) {
-      await createWorkflowTrigger(node.data.config.triggerFormId, triggerType);
+    if (node.type === 'start' && workflowId && nodeConfig?.triggerFormId) {
+      await createWorkflowTrigger(nodeConfig.triggerFormId, triggerType);
     }
-  };
+  }, [handleConfigUpdate, node.type, workflowId, nodeConfig?.triggerFormId]);
 
   const createWorkflowTrigger = async (formId: string, triggerType: string) => {
     if (!workflowId || !formId || !triggerType) return;
@@ -103,12 +106,12 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
     }
   };
 
-  const validateActionConfig = () => {
+  const validateActionConfig = useCallback(() => {
     if (node.type === 'action') {
-      const actionType = node.data.config?.actionType;
+      const actionType = nodeConfig?.actionType;
       
       if (actionType === 'assign_form') {
-        if (!node.data.config?.targetFormId) {
+        if (!nodeConfig?.targetFormId) {
           toast({
             title: "Configuration Error",
             description: "Please select a target form for assignment.",
@@ -116,7 +119,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
           });
           return false;
         }
-        if (!node.data.config?.assignmentConfig) {
+        if (!nodeConfig?.assignmentConfig) {
           toast({
             title: "Configuration Error", 
             description: "Please configure assignment settings.",
@@ -127,47 +130,47 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
       }
 
       if (actionType === 'change_field_value') {
-        if (!node.data.config?.targetFormId) {
+        if (!nodeConfig?.targetFormId) {
           toast({ title: "Error", description: "Please select a target form", variant: "destructive" });
           return false;
         }
-        if (!node.data.config?.targetFieldId) {
+        if (!nodeConfig?.targetFieldId) {
           toast({ title: "Error", description: "Please select a field to update", variant: "destructive" });
           return false;
         }
-        if (!node.data.config?.valueType) {
+        if (!nodeConfig?.valueType) {
           toast({ title: "Error", description: "Please select a value type", variant: "destructive" });
           return false;
         }
-        if (node.data.config.valueType === 'static' && !node.data.config?.staticValue) {
+        if (nodeConfig.valueType === 'static' && !nodeConfig?.staticValue) {
           toast({ title: "Error", description: "Please enter a static value", variant: "destructive" });
           return false;
         }
-        if (node.data.config.valueType === 'dynamic' && !node.data.config?.dynamicValuePath) {
+        if (nodeConfig.valueType === 'dynamic' && !nodeConfig?.dynamicValuePath) {
           toast({ title: "Error", description: "Please enter a dynamic value path", variant: "destructive" });
           return false;
         }
       }
       
       if (actionType === 'change_record_status') {
-        if (!node.data.config?.targetFormId) {
+        if (!nodeConfig?.targetFormId) {
           toast({ title: "Error", description: "Please select a target form", variant: "destructive" });
           return false;
         }
-        if (!node.data.config?.newStatus) {
+        if (!nodeConfig?.newStatus) {
           toast({ title: "Error", description: "Please select a new status", variant: "destructive" });
           return false;
         }
       }
     }
     return true;
-  };
+  }, [node.type, nodeConfig, toast]);
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (validateActionConfig()) {
       onSave();
     }
-  };
+  }, [validateActionConfig, onSave]);
 
   const renderNodeSpecificConfig = () => {
     switch (node.type) {

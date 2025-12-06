@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Square } from 'lucide-react';
 
@@ -8,15 +7,19 @@ interface EndNodeProps {
     label: string;
     config: any;
     nodeId: string;
-    onSelect: (nodeId: string) => void;
+    onSelect: React.MutableRefObject<(nodeId: string) => void>;
   };
 }
 
-export function EndNode({ data }: EndNodeProps) {
+export const EndNode = React.memo(function EndNode({ data }: EndNodeProps) {
+  const handleClick = useCallback(() => {
+    data.onSelect.current(data.nodeId);
+  }, [data.nodeId, data.onSelect]);
+
   return (
     <div 
       className="px-4 py-2 shadow-md rounded-md bg-red-100 border-2 border-red-200 min-w-[150px] cursor-pointer"
-      onClick={() => data.onSelect(data.nodeId)}
+      onClick={handleClick}
     >
       <Handle
         type="target"
@@ -32,4 +35,4 @@ export function EndNode({ data }: EndNodeProps) {
       </div>
     </div>
   );
-}
+});

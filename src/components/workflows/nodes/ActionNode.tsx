@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Settings, CheckCircle, XCircle, Mail, MessageSquare, Webhook, FileText, Edit, Activity, Bell, RefreshCw, Edit3, FileCheck } from 'lucide-react';
 
@@ -8,7 +7,7 @@ interface ActionNodeProps {
     label: string;
     config: any;
     nodeId: string;
-    onSelect: (nodeId: string) => void;
+    onSelect: React.MutableRefObject<(nodeId: string) => void>;
   };
 }
 
@@ -91,7 +90,7 @@ const getActionLabel = (actionType: string) => {
   }
 };
 
-export function ActionNode({ data }: ActionNodeProps) {
+export const ActionNode = React.memo(function ActionNode({ data }: ActionNodeProps) {
   const actionType = data.config?.actionType || 'action';
   const Icon = getActionIcon(actionType);
   const colorClass = getActionColor(actionType);
@@ -140,10 +139,14 @@ export function ActionNode({ data }: ActionNodeProps) {
     return 'Click to configure';
   };
 
+  const handleClick = useCallback(() => {
+    data.onSelect.current(data.nodeId);
+  }, [data.nodeId, data.onSelect]);
+
   return (
     <div 
       className={`px-4 py-2 shadow-md rounded-md border-2 min-w-[150px] cursor-pointer ${colorClass}`}
-      onClick={() => data.onSelect(data.nodeId)}
+      onClick={handleClick}
     >
       <Handle
         type="target"
@@ -164,4 +167,4 @@ export function ActionNode({ data }: ActionNodeProps) {
       />
     </div>
   );
-}
+});
