@@ -365,37 +365,16 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
 
                 {/* Send To - only show for in_app notifications */}
                 {node.data.config?.notificationConfig?.type !== 'email' && (
-                  <div>
-                    <Label htmlFor="recipient">Send To</Label>
-                    <Select 
-                      value={node.data.config?.notificationConfig?.recipient || 'form_submitter'} 
-                      onValueChange={(value) => handleConfigUpdate('notificationConfig', { 
-                        ...node.data.config?.notificationConfig, 
-                        recipient: value 
-                      })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select recipient" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="form_submitter">Form Submitter</SelectItem>
-                        <SelectItem value="specific_user">Specific User</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {node.data.config?.notificationConfig?.type !== 'email' && node.data.config?.notificationConfig?.recipient === 'specific_user' && (
-                  <div>
-                    <Label htmlFor="specificEmail">User Email</Label>
-                    <Input
-                      id="specificEmail"
-                      value={node.data.config?.notificationConfig?.specificEmail || ''}
-                      onChange={(e) => handleConfigUpdate('notificationConfig', {
+                  <div className="space-y-2">
+                    <Label>Send To</Label>
+                    <EnhancedUserSelector
+                      value={node.data.config?.notificationConfig?.recipientConfig || { type: 'form_submitter', emails: [], dynamicFieldPath: '' }}
+                      onValueChange={(config) => handleConfigUpdate('notificationConfig', {
                         ...node.data.config?.notificationConfig,
-                        specificEmail: e.target.value
+                        recipientConfig: config
                       })}
-                      placeholder="Enter user email"
+                      triggerFormId={node.data.config?.notificationConfig?.triggerFormId}
+                      formFields={formFields}
                     />
                   </div>
                 )}
