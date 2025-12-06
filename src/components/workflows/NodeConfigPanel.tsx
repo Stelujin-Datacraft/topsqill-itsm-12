@@ -751,12 +751,23 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
             />
             
             {node.data.config?.enhancedCondition && (
-              <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded mt-2">
-                <strong>Preview:</strong> {
-                  node.data.config.enhancedCondition.systemType === 'form_level' 
-                    ? `Form-level condition configured` 
-                    : `Field-level condition configured`
-                }
+              <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded mt-2 space-y-1">
+                <div>
+                  <strong>Conditions:</strong> {node.data.config.enhancedCondition.conditions?.length || 1} configured
+                </div>
+                {node.data.config.enhancedCondition.useManualExpression && node.data.config.enhancedCondition.manualExpression && (
+                  <div>
+                    <strong>Expression:</strong>{' '}
+                    <code className="font-mono bg-blue-100 px-1 rounded">
+                      {node.data.config.enhancedCondition.manualExpression}
+                    </code>
+                  </div>
+                )}
+                {!node.data.config.enhancedCondition.useManualExpression && (
+                  <div>
+                    <strong>Mode:</strong> Sequential evaluation with individual operators
+                  </div>
+                )}
               </div>
             )}
           </div>

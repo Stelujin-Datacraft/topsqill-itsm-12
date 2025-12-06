@@ -71,6 +71,9 @@ export interface EnhancedCondition {
   logicalOperator?: LogicalOperator;
   // Multiple conditions support
   conditions?: ConditionItem[];
+  // Manual expression mode
+  useManualExpression?: boolean;
+  manualExpression?: string; // e.g., "(1 AND 2) OR (3 AND 4)"
 }
 
 export interface IfConditionConfig {

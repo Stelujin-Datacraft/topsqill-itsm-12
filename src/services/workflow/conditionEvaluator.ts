@@ -14,6 +14,7 @@ import {
   FieldLevelCondition,
   ConditionItem
 } from '@/types/conditions';
+import { ExpressionEvaluator, EvaluationContext } from '@/utils/expressionEvaluator';
 
 export class ConditionEvaluator {
   static evaluateCondition(
@@ -72,24 +73,45 @@ export class ConditionEvaluator {
   ): boolean {
     console.log('🚀 Evaluating enhanced condition:', { 
       systemType: condition.systemType,
-      hasMultipleConditions: !!condition.conditions?.length
+      hasMultipleConditions: !!condition.conditions?.length,
+      useManualExpression: condition.useManualExpression,
+      manualExpression: condition.manualExpression
     });
 
     // Handle multiple conditions with individual logical operators
     if (condition.conditions && condition.conditions.length > 0) {
       const conditions = condition.conditions;
       
-      // Evaluate first condition
-      let result = this.evaluateSingleConditionItem(conditions[0], context);
-      console.log('📊 Condition 0 result:', result);
+      // First, evaluate all individual conditions
+      const conditionResults: Record<string, boolean> = {};
+      for (let i = 0; i < conditions.length; i++) {
+        const result = this.evaluateSingleConditionItem(conditions[i], context);
+        conditionResults[String(i + 1)] = result;
+        console.log(`📊 Condition ${i + 1} result:`, result);
+      }
+
+      // Use manual expression if enabled
+      if (condition.useManualExpression && condition.manualExpression) {
+        try {
+          const result = ExpressionEvaluator.evaluate(condition.manualExpression, conditionResults);
+          console.log('📊 Manual expression result:', result, `(expression: ${condition.manualExpression})`);
+          return result;
+        } catch (error) {
+          console.error('❌ Failed to evaluate manual expression:', error);
+          // Fall back to sequential AND evaluation
+          console.log('⚠️ Falling back to sequential AND evaluation');
+        }
+      }
       
-      // Chain with subsequent conditions using their preceding logical operators
+      // Default: Chain with sequential logical operators
+      let result = conditionResults['1'];
+      
       for (let i = 1; i < conditions.length; i++) {
         const prevCondition = conditions[i - 1];
-        const currentResult = this.evaluateSingleConditionItem(conditions[i], context);
+        const currentResult = conditionResults[String(i + 1)];
         const operator = prevCondition.logicalOperatorWithNext || 'AND';
         
-        console.log(`📊 Condition ${i} result:`, currentResult, `(operator: ${operator})`);
+        console.log(`📊 Combining with condition ${i + 1}:`, currentResult, `(operator: ${operator})`);
         
         if (operator === 'AND') {
           result = result && currentResult;
