@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,42 +40,91 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
   const { toast } = useToast();
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Memoize the config to prevent unnecessary child re-renders
-  const nodeConfig = useMemo(() => node.data.config || {}, [node.data.config]);
+  // Use local state for the config to prevent re-renders from parent
+  const [localConfig, setLocalConfig] = useState<any>(() => node.data.config || {});
+  
+  // Keep a ref to the onConfigChange to avoid stale closures
+  const onConfigChangeRef = useRef(onConfigChange);
+  onConfigChangeRef.current = onConfigChange;
+  
+  // Track if we need to sync back to parent
+  const pendingUpdateRef = useRef<any>(null);
+  const updateTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Sync local config to parent with debouncing
+  const syncToParent = useCallback((newConfig: any) => {
+    pendingUpdateRef.current = newConfig;
+    
+    if (updateTimerRef.current) {
+      clearTimeout(updateTimerRef.current);
+    }
+    
+    updateTimerRef.current = setTimeout(() => {
+      if (pendingUpdateRef.current) {
+        console.log('🔄 Syncing config to parent:', pendingUpdateRef.current);
+        onConfigChangeRef.current(pendingUpdateRef.current);
+        pendingUpdateRef.current = null;
+      }
+    }, 100);
+  }, []);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (updateTimerRef.current) {
+        clearTimeout(updateTimerRef.current);
+      }
+      // Final sync on unmount
+      if (pendingUpdateRef.current) {
+        onConfigChangeRef.current(pendingUpdateRef.current);
+      }
+    };
+  }, []);
+
+  // Update local config and schedule parent sync
   const handleConfigUpdate = useCallback((key: string, value: any) => {
-    console.log('🔧 Updating node config:', { key, value, nodeId: node.id });
-    const newConfig = { ...nodeConfig, [key]: value };
-    onConfigChange(newConfig);
-  }, [nodeConfig, onConfigChange, node.id]);
+    console.log('🔧 Updating local config:', { key, value, nodeId: node.id });
+    setLocalConfig((prev: any) => {
+      const newConfig = { ...prev, [key]: value };
+      syncToParent(newConfig);
+      return newConfig;
+    });
+  }, [node.id, syncToParent]);
 
-  const handleFormSelection = useCallback(async (formId: string, formName: string) => {
+  // Handle full config replacement
+  const handleFullConfigUpdate = useCallback((newConfig: any) => {
+    console.log('🔧 Full config update:', newConfig);
+    setLocalConfig(newConfig);
+    syncToParent(newConfig);
+  }, [syncToParent]);
+
+  const handleFormSelection = useCallback((formId: string, formName: string) => {
     const newConfig = { 
-      ...nodeConfig, 
+      ...localConfig, 
       triggerFormId: formId,
       triggerFormName: formName
     };
-    onConfigChange(newConfig);
+    setLocalConfig(newConfig);
+    syncToParent(newConfig);
 
     // Auto-create trigger for start nodes
-    if (node.type === 'start' && workflowId && nodeConfig?.triggerType) {
-      await createWorkflowTrigger(formId, nodeConfig.triggerType);
+    if (node.type === 'start' && workflowId && localConfig?.triggerType) {
+      createWorkflowTrigger(formId, localConfig.triggerType);
     }
-  }, [nodeConfig, onConfigChange, node.type, workflowId]);
+  }, [localConfig, node.type, workflowId, syncToParent]);
 
-  const handleTriggerTypeChange = useCallback(async (triggerType: string) => {
+  const handleTriggerTypeChange = useCallback((triggerType: string) => {
     handleConfigUpdate('triggerType', triggerType);
 
     // Auto-create trigger if form is already selected
-    if (node.type === 'start' && workflowId && nodeConfig?.triggerFormId) {
-      await createWorkflowTrigger(nodeConfig.triggerFormId, triggerType);
+    if (node.type === 'start' && workflowId && localConfig?.triggerFormId) {
+      createWorkflowTrigger(localConfig.triggerFormId, triggerType);
     }
-  }, [handleConfigUpdate, node.type, workflowId, nodeConfig?.triggerFormId]);
+  }, [handleConfigUpdate, node.type, workflowId, localConfig?.triggerFormId]);
 
   const createWorkflowTrigger = async (formId: string, triggerType: string) => {
     if (!workflowId || !formId || !triggerType) return;
 
-    // Map trigger types to database format
     const triggerTypeMap: Record<string, 'onFormSubmit' | 'onFormCompletion' | 'onFormApproval' | 'onFormRejection'> = {
       'form_submission': 'onFormSubmit',
       'form_completion': 'onFormCompletion',
@@ -108,10 +157,10 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
 
   const validateActionConfig = useCallback(() => {
     if (node.type === 'action') {
-      const actionType = nodeConfig?.actionType;
+      const actionType = localConfig?.actionType;
       
       if (actionType === 'assign_form') {
-        if (!nodeConfig?.targetFormId) {
+        if (!localConfig?.targetFormId) {
           toast({
             title: "Configuration Error",
             description: "Please select a target form for assignment.",
@@ -119,7 +168,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
           });
           return false;
         }
-        if (!nodeConfig?.assignmentConfig) {
+        if (!localConfig?.assignmentConfig) {
           toast({
             title: "Configuration Error", 
             description: "Please configure assignment settings.",
@@ -130,43 +179,49 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
       }
 
       if (actionType === 'change_field_value') {
-        if (!nodeConfig?.targetFormId) {
+        if (!localConfig?.targetFormId) {
           toast({ title: "Error", description: "Please select a target form", variant: "destructive" });
           return false;
         }
-        if (!nodeConfig?.targetFieldId) {
+        if (!localConfig?.targetFieldId) {
           toast({ title: "Error", description: "Please select a field to update", variant: "destructive" });
           return false;
         }
-        if (!nodeConfig?.valueType) {
+        if (!localConfig?.valueType) {
           toast({ title: "Error", description: "Please select a value type", variant: "destructive" });
           return false;
         }
-        if (nodeConfig.valueType === 'static' && !nodeConfig?.staticValue) {
+        if (localConfig.valueType === 'static' && !localConfig?.staticValue) {
           toast({ title: "Error", description: "Please enter a static value", variant: "destructive" });
           return false;
         }
-        if (nodeConfig.valueType === 'dynamic' && !nodeConfig?.dynamicValuePath) {
+        if (localConfig.valueType === 'dynamic' && !localConfig?.dynamicValuePath) {
           toast({ title: "Error", description: "Please enter a dynamic value path", variant: "destructive" });
           return false;
         }
       }
       
       if (actionType === 'change_record_status') {
-        if (!nodeConfig?.targetFormId) {
+        if (!localConfig?.targetFormId) {
           toast({ title: "Error", description: "Please select a target form", variant: "destructive" });
           return false;
         }
-        if (!nodeConfig?.newStatus) {
+        if (!localConfig?.newStatus) {
           toast({ title: "Error", description: "Please select a new status", variant: "destructive" });
           return false;
         }
       }
     }
     return true;
-  }, [node.type, nodeConfig, toast]);
+  }, [node.type, localConfig, toast]);
 
   const handleSave = useCallback(() => {
+    // Force sync any pending updates before save
+    if (pendingUpdateRef.current) {
+      onConfigChangeRef.current(pendingUpdateRef.current);
+      pendingUpdateRef.current = null;
+    }
+    
     if (validateActionConfig()) {
       onSave();
     }
@@ -180,7 +235,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
             <div>
               <Label htmlFor="triggerType">Trigger Type</Label>
               <Select 
-                value={node.data.config?.triggerType || 'form_submission'} 
+                value={localConfig?.triggerType || 'form_submission'} 
                 onValueChange={handleTriggerTypeChange}
               >
                 <SelectTrigger>
@@ -195,15 +250,15 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                 </SelectContent>
               </Select>
             </div>
-            {(!node.data.config?.triggerType || node.data.config?.triggerType === 'form_submission' || node.data.config?.triggerType === 'form_completion') && (
+            {(!localConfig?.triggerType || localConfig?.triggerType === 'form_submission' || localConfig?.triggerType === 'form_completion') && (
               <div>
                 <Label htmlFor="triggerForm">Select Form</Label>
                 <FormSelector
-                  value={node.data.config?.triggerFormId || ''}
+                  value={localConfig?.triggerFormId || ''}
                   onValueChange={handleFormSelection}
                   placeholder="Select a form to trigger this workflow"
                 />
-                {node.data.config?.triggerFormId && (
+                {localConfig?.triggerFormId && (
                   <p className="text-xs text-green-600 mt-2">
                     ✓ Trigger will be automatically created for this form
                   </p>
@@ -219,7 +274,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
             <div>
               <Label htmlFor="actionType">Action Type</Label>
               <Select 
-                value={node.data.config?.actionType || 'approve_form'} 
+                value={localConfig?.actionType || 'approve_form'} 
                 onValueChange={(value) => handleConfigUpdate('actionType', value)}
               >
                 <SelectTrigger>
@@ -237,18 +292,17 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
             </div>
 
             {/* Approve Form Configuration */}
-            {(!node.data.config?.actionType || node.data.config?.actionType === 'approve_form') && (
+            {(!localConfig?.actionType || localConfig?.actionType === 'approve_form') && (
               <div>
                 <Label htmlFor="targetForm">Form to Approve</Label>
                 <FormSelector
-                  value={node.data.config?.targetFormId || ''}
+                  value={localConfig?.targetFormId || ''}
                   onValueChange={(formId, formName) => {
-                    const newConfig = { 
-                      ...node.data.config, 
+                    handleFullConfigUpdate({ 
+                      ...localConfig, 
                       targetFormId: formId,
                       targetFormName: formName
-                    };
-                    onConfigChange(newConfig);
+                    });
                   }}
                   placeholder="Select form to approve"
                 />
@@ -256,24 +310,23 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
             )}
 
             {/* Assign Form Configuration */}
-            {node.data.config?.actionType === 'assign_form' && (
+            {localConfig?.actionType === 'assign_form' && (
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="targetForm">Form to Assign *</Label>
                   <FormSelector
-                    value={node.data.config?.targetFormId || ''}
+                    value={localConfig?.targetFormId || ''}
                     onValueChange={(formId, formName) => {
                       console.log('📝 Form selected for assignment:', { formId, formName });
-                      const newConfig = { 
-                        ...node.data.config, 
+                      handleFullConfigUpdate({ 
+                        ...localConfig, 
                         targetFormId: formId,
                         targetFormName: formName
-                      };
-                      onConfigChange(newConfig);
+                      });
                     }}
                     placeholder="Select form to assign"
                   />
-                  {!node.data.config?.targetFormId && (
+                  {!localConfig?.targetFormId && (
                     <p className="text-xs text-red-500 mt-1">Required: Please select a form to assign</p>
                   )}
                 </div>
@@ -281,18 +334,16 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                 <div>
                   <Label>Assignment Configuration *</Label>
                   <EnhancedUserSelector
-                    value={node.data.config?.assignmentConfig || { type: 'form_submitter' }}
+                    value={localConfig?.assignmentConfig || { type: 'form_submitter' }}
                     onValueChange={(value) => {
                       console.log('📝 Assignment config being saved:', value);
-                      const newConfig = { 
-                        ...node.data.config, 
+                      handleFullConfigUpdate({ 
+                        ...localConfig, 
                         assignmentConfig: value
-                      };
-                      console.log('📝 Updated node config:', newConfig);
-                      onConfigChange(newConfig);
+                      });
                     }}
                     triggerFormId={triggerFormId}
-                    targetFormId={node.data.config?.targetFormId}
+                    targetFormId={localConfig?.targetFormId}
                     formFields={formFields}
                   />
                 </div>
@@ -300,48 +351,46 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
             )}
 
             {/* Update Form Lifecycle Status Configuration */}
-            {node.data.config?.actionType === 'update_form_lifecycle_status' && (
+            {localConfig?.actionType === 'update_form_lifecycle_status' && (
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="targetForm">Target Form</Label>
                   <FormSelector
-                    value={node.data.config?.targetFormId || ''}
+                    value={localConfig?.targetFormId || ''}
                     onValueChange={(formId, formName) => {
-                      const newConfig = { 
-                        ...node.data.config, 
+                      handleFullConfigUpdate({ 
+                        ...localConfig, 
                         targetFormId: formId,
                         targetFormName: formName
-                      };
-                      onConfigChange(newConfig);
+                      });
                     }}
                     placeholder="Select form to update lifecycle status"
                   />
                 </div>
                 <div>
                   <FormStatusSelector
-                    value={node.data.config?.newStatus || 'active'}
+                    value={localConfig?.newStatus || 'active'}
                     onValueChange={(value) => handleConfigUpdate('newStatus', value)}
                   />
                 </div>
-                {node.data.config?.targetFormId && node.data.config?.newStatus && (
+                {localConfig?.targetFormId && localConfig?.newStatus && (
                   <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
-                    <strong>Configuration:</strong> Update {node.data.config.targetFormName || 'selected form'} lifecycle status to {node.data.config.newStatus}
+                    <strong>Configuration:</strong> Update {localConfig.targetFormName || 'selected form'} lifecycle status to {localConfig.newStatus}
                   </div>
                 )}
               </div>
             )}
 
             {/* Send Notification Configuration */}
-            {node.data.config?.actionType === 'send_notification' && (
+            {localConfig?.actionType === 'send_notification' && (
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="notificationType">Notification Type</Label>
                   <Select 
-                    value={node.data.config?.notificationConfig?.type || 'in_app'} 
+                    value={localConfig?.notificationConfig?.type || 'in_app'} 
                     onValueChange={(value) => handleConfigUpdate('notificationConfig', { 
-                      ...node.data.config?.notificationConfig, 
+                      ...localConfig?.notificationConfig, 
                       type: value,
-                      // Clear template when switching to in_app
                       ...(value === 'in_app' ? { emailTemplateId: undefined, emailTemplateName: undefined } : {})
                     })}
                   >
@@ -355,14 +404,13 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   </Select>
                 </div>
 
-                {/* Email Template Selector - only show for email type */}
-                {node.data.config?.notificationConfig?.type === 'email' && (
+                {localConfig?.notificationConfig?.type === 'email' && (
                   <WorkflowEmailTemplateSelector
                     projectId={projectId}
-                    value={node.data.config?.notificationConfig?.emailTemplateId}
+                    value={localConfig?.notificationConfig?.emailTemplateId}
                     onValueChange={(templateId, templateName, templateSubject) => {
                       handleConfigUpdate('notificationConfig', {
-                        ...node.data.config?.notificationConfig,
+                        ...localConfig?.notificationConfig,
                         emailTemplateId: templateId,
                         emailTemplateName: templateName,
                         subject: templateSubject
@@ -371,32 +419,30 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   />
                 )}
 
-                {/* Send To - only show for in_app notifications */}
-                {node.data.config?.notificationConfig?.type !== 'email' && (
+                {localConfig?.notificationConfig?.type !== 'email' && (
                   <div className="space-y-2">
                     <Label>Send To</Label>
                     <EnhancedUserSelector
-                      value={node.data.config?.notificationConfig?.recipientConfig || { type: 'form_submitter', emails: [], dynamicFieldPath: '' }}
+                      value={localConfig?.notificationConfig?.recipientConfig || { type: 'form_submitter', emails: [], dynamicFieldPath: '' }}
                       onValueChange={(config) => handleConfigUpdate('notificationConfig', {
-                        ...node.data.config?.notificationConfig,
+                        ...localConfig?.notificationConfig,
                         recipientConfig: config
                       })}
                       triggerFormId={triggerFormId}
-                      targetFormId={node.data.config?.notificationConfig?.targetFormId}
+                      targetFormId={localConfig?.notificationConfig?.targetFormId}
                       formFields={formFields}
                     />
                   </div>
                 )}
 
-                {/* Subject - only show for in_app notifications */}
-                {node.data.config?.notificationConfig?.type !== 'email' && (
+                {localConfig?.notificationConfig?.type !== 'email' && (
                   <div>
                     <Label htmlFor="subject">Subject</Label>
                     <Input
                       id="subject"
-                      value={node.data.config?.notificationConfig?.subject || ''}
+                      value={localConfig?.notificationConfig?.subject || ''}
                       onChange={(e) => handleConfigUpdate('notificationConfig', {
-                        ...node.data.config?.notificationConfig,
+                        ...localConfig?.notificationConfig,
                         subject: e.target.value
                       })}
                       placeholder="Enter notification subject"
@@ -404,15 +450,14 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   </div>
                 )}
 
-                {/* Message - only show for in_app notifications */}
-                {node.data.config?.notificationConfig?.type !== 'email' && (
+                {localConfig?.notificationConfig?.type !== 'email' && (
                   <div>
                     <Label htmlFor="message">Message</Label>
                     <Textarea
                       id="message"
-                      value={node.data.config?.notificationConfig?.message || ''}
+                      value={localConfig?.notificationConfig?.message || ''}
                       onChange={(e) => handleConfigUpdate('notificationConfig', {
-                        ...node.data.config?.notificationConfig,
+                        ...localConfig?.notificationConfig,
                         message: e.target.value
                       })}
                       placeholder="Enter notification message"
@@ -420,17 +465,16 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   </div>
                 )}
 
-                {/* Configuration summary */}
-                {((node.data.config?.notificationConfig?.type === 'email' && node.data.config?.notificationConfig?.emailTemplateId) ||
-                  (node.data.config?.notificationConfig?.type !== 'email' && node.data.config?.notificationConfig?.subject && node.data.config?.notificationConfig?.message)) && (
+                {((localConfig?.notificationConfig?.type === 'email' && localConfig?.notificationConfig?.emailTemplateId) ||
+                  (localConfig?.notificationConfig?.type !== 'email' && localConfig?.notificationConfig?.subject && localConfig?.notificationConfig?.message)) && (
                   <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
-                    <strong>Configuration:</strong> Send {node.data.config.notificationConfig.type} notification 
-                    {node.data.config.notificationConfig.type === 'email' && node.data.config.notificationConfig.emailTemplateName && (
-                      <> using template "{node.data.config.notificationConfig.emailTemplateName}"</>
+                    <strong>Configuration:</strong> Send {localConfig.notificationConfig.type} notification 
+                    {localConfig.notificationConfig.type === 'email' && localConfig.notificationConfig.emailTemplateName && (
+                      <> using template "{localConfig.notificationConfig.emailTemplateName}"</>
                     )} to {
-                      node.data.config.notificationConfig.recipient === 'form_submitter' 
+                      localConfig.notificationConfig.recipient === 'form_submitter' 
                         ? 'form submitter' 
-                        : node.data.config.notificationConfig.specificEmail || 'specified user'
+                        : localConfig.notificationConfig.specificEmail || 'specified user'
                     }
                   </div>
                 )}
@@ -438,53 +482,50 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
             )}
 
             {/* Change Field Value Configuration */}
-            {node.data.config?.actionType === 'change_field_value' && (
+            {localConfig?.actionType === 'change_field_value' && (
               <div className="space-y-4">
                 <div>
                   <Label>Target Form *</Label>
                   <FormSelector
-                    value={node.data.config?.targetFormId || ''}
+                    value={localConfig?.targetFormId || ''}
                     onValueChange={(formId, formName) => {
-                      const newConfig = { 
-                        ...node.data.config, 
+                      handleFullConfigUpdate({ 
+                        ...localConfig, 
                         targetFormId: formId,
                         targetFormName: formName,
                         targetFieldId: undefined
-                      };
-                      onConfigChange(newConfig);
+                      });
                     }}
                     placeholder="Select form to update"
                   />
                 </div>
 
-                {node.data.config?.targetFormId && (
+                {localConfig?.targetFormId && (
                   <div>
                     <Label>Field to Update *</Label>
                     <FormFieldSelector
-                      formId={node.data.config.targetFormId}
-                      value={node.data.config?.targetFieldId || ''}
+                      formId={localConfig.targetFormId}
+                      value={localConfig?.targetFieldId || ''}
                       onValueChange={(fieldId, fieldName, fieldType, fieldOptions) => {
                         console.log('🎯 Updating field config:', { fieldId, fieldName, fieldType, fieldOptions });
-                        const newConfig = {
-                          ...node.data.config,
+                        handleFullConfigUpdate({
+                          ...localConfig,
                           targetFieldId: fieldId,
                           targetFieldName: fieldName,
                           targetFieldType: fieldType,
                           targetFieldOptions: fieldOptions
-                        };
-                        console.log('📝 New config:', newConfig);
-                        onConfigChange(newConfig);
+                        });
                       }}
                       placeholder="Select field to change"
                     />
                   </div>
                 )}
 
-                {node.data.config?.targetFieldId && (
+                {localConfig?.targetFieldId && (
                   <div>
                     <Label>Value Type *</Label>
                     <Select 
-                      value={node.data.config?.valueType || 'static'} 
+                      value={localConfig?.valueType || 'static'} 
                       onValueChange={(value) => handleConfigUpdate('valueType', value)}
                     >
                       <SelectTrigger>
@@ -498,71 +539,73 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   </div>
                 )}
 
-                {node.data.config?.valueType === 'static' && node.data.config?.targetFieldType && (
+                {localConfig?.valueType === 'static' && localConfig?.targetFieldType && (
                   <div>
                     <DynamicValueInput
                       field={{
-                        id: node.data.config.targetFieldId,
-                        label: node.data.config.targetFieldName || 'Field',
-                        type: node.data.config.targetFieldType,
-                        options: node.data.config.targetFieldOptions || []
+                        id: localConfig.targetFieldId,
+                        label: localConfig.targetFieldName || 'Field',
+                        type: localConfig.targetFieldType,
+                        options: localConfig.targetFieldOptions || []
                       } as FormFieldOption}
-                      value={node.data.config?.staticValue || ''}
+                      value={localConfig?.staticValue || ''}
                       onChange={(value) => handleConfigUpdate('staticValue', value)}
                     />
                   </div>
                 )}
 
-                {node.data.config?.valueType === 'dynamic' && (
+                {localConfig?.valueType === 'dynamic' && (
                   <DynamicFieldSelector
                     triggerFormId={triggerFormId}
-                    targetFormId={node.data.config?.targetFormId}
-                    targetFieldType={node.data.config?.targetFieldType}
-                    value={node.data.config?.dynamicValuePath || ''}
+                    targetFormId={localConfig?.targetFormId}
+                    targetFieldType={localConfig?.targetFieldType}
+                    value={localConfig?.dynamicValuePath || ''}
                     onValueChange={(fieldId, fieldName, sourceForm) => {
-                      handleConfigUpdate('dynamicValuePath', fieldId);
-                      handleConfigUpdate('dynamicFieldName', fieldName);
-                      handleConfigUpdate('dynamicSourceForm', sourceForm);
+                      handleFullConfigUpdate({
+                        ...localConfig,
+                        dynamicValuePath: fieldId,
+                        dynamicFieldName: fieldName,
+                        dynamicSourceForm: sourceForm
+                      });
                     }}
                     placeholder="Select compatible field"
                   />
                 )}
 
-                {node.data.config?.targetFieldId && node.data.config?.valueType && (
+                {localConfig?.targetFieldId && localConfig?.valueType && (
                   <div className="text-xs text-blue-600 bg-blue-50 p-3 rounded">
-                    <strong>Configuration:</strong> Will update field "{node.data.config.targetFieldName || node.data.config.targetFieldId}" 
-                    in "{node.data.config.targetFormName}" to {node.data.config.valueType === 'static' 
-                      ? `"${node.data.config.staticValue}"` 
-                      : `value from field "${node.data.config.dynamicFieldName || node.data.config.dynamicValuePath}"${node.data.config.dynamicSourceForm ? ` (${node.data.config.dynamicSourceForm} form)` : ''}`}
+                    <strong>Configuration:</strong> Will update field "{localConfig.targetFieldName || localConfig.targetFieldId}" 
+                    in "{localConfig.targetFormName}" to {localConfig.valueType === 'static' 
+                      ? `"${localConfig.staticValue}"` 
+                      : `value from field "${localConfig.dynamicFieldName || localConfig.dynamicValuePath}"${localConfig.dynamicSourceForm ? ` (${localConfig.dynamicSourceForm} form)` : ''}`}
                   </div>
                 )}
               </div>
             )}
 
             {/* Change Record Status Configuration */}
-            {node.data.config?.actionType === 'change_record_status' && (
+            {localConfig?.actionType === 'change_record_status' && (
               <div className="space-y-4">
                 <div>
                   <Label>Target Form *</Label>
                   <FormSelector
-                    value={node.data.config?.targetFormId || ''}
+                    value={localConfig?.targetFormId || ''}
                     onValueChange={(formId, formName) => {
-                      const newConfig = { 
-                        ...node.data.config, 
+                      handleFullConfigUpdate({ 
+                        ...localConfig, 
                         targetFormId: formId,
                         targetFormName: formName
-                      };
-                      onConfigChange(newConfig);
+                      });
                     }}
                     placeholder="Select form"
                   />
                 </div>
 
-                {node.data.config?.targetFormId && (
+                {localConfig?.targetFormId && (
                   <div>
                     <Label>New Status *</Label>
                     <Select 
-                      value={node.data.config?.newStatus || 'pending'} 
+                      value={localConfig?.newStatus || 'pending'} 
                       onValueChange={(value) => handleConfigUpdate('newStatus', value)}
                     >
                       <SelectTrigger>
@@ -578,11 +621,11 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   </div>
                 )}
 
-                {node.data.config?.targetFormId && (
+                {localConfig?.targetFormId && (
                   <div>
                     <Label>Status Notes (Optional)</Label>
                     <Textarea
-                      value={node.data.config?.statusNotes || ''}
+                      value={localConfig?.statusNotes || ''}
                       onChange={(e) => handleConfigUpdate('statusNotes', e.target.value)}
                       placeholder="Add notes about this status change..."
                       rows={3}
@@ -590,10 +633,10 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   </div>
                 )}
 
-                {node.data.config?.targetFormId && node.data.config?.newStatus && (
+                {localConfig?.targetFormId && localConfig?.newStatus && (
                   <div className="text-xs text-blue-600 bg-blue-50 p-3 rounded">
-                    <strong>Configuration:</strong> Will change the status of submissions in "{node.data.config.targetFormName}" to "{node.data.config.newStatus}"
-                    {node.data.config.statusNotes && ` with notes: "${node.data.config.statusNotes}"`}
+                    <strong>Configuration:</strong> Will change the status of submissions in "{localConfig.targetFormName}" to "{localConfig.newStatus}"
+                    {localConfig.statusNotes && ` with notes: "${localConfig.statusNotes}"`}
                   </div>
                 )}
               </div>
@@ -607,7 +650,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
             <div>
               <Label htmlFor="approvalAction">Approval Action</Label>
               <Select 
-                value={node.data.config?.approvalAction || 'approve'} 
+                value={localConfig?.approvalAction || 'approve'} 
                 onValueChange={(value) => handleConfigUpdate('approvalAction', value)}
               >
                 <SelectTrigger>
@@ -623,14 +666,13 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
             <div>
               <Label htmlFor="targetForm">Target Form</Label>
               <FormSelector
-                value={node.data.config?.targetFormId || ''}
+                value={localConfig?.targetFormId || ''}
                 onValueChange={(formId, formName) => {
-                  const newConfig = { 
-                    ...node.data.config, 
+                  handleFullConfigUpdate({ 
+                    ...localConfig, 
                     targetFormId: formId,
                     targetFormName: formName
-                  };
-                  onConfigChange(newConfig);
+                  });
                 }}
                 placeholder="Select form to approve/disapprove"
               />
@@ -640,16 +682,16 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
               <Label htmlFor="notes">Notes (Optional)</Label>
               <Textarea
                 id="notes"
-                value={node.data.config?.notes || ''}
+                value={localConfig?.notes || ''}
                 onChange={(e) => handleConfigUpdate('notes', e.target.value)}
                 placeholder="Enter approval/disapproval notes"
               />
             </div>
 
-            {node.data.config?.targetFormId && node.data.config?.approvalAction && (
+            {localConfig?.targetFormId && localConfig?.approvalAction && (
               <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
-                <strong>Configuration:</strong> {node.data.config.approvalAction === 'approve' ? 'Approve' : 'Disapprove'} submissions for {node.data.config.targetFormName || 'selected form'}
-                {node.data.config.notes && <div className="mt-1"><strong>Notes:</strong> {node.data.config.notes}</div>}
+                <strong>Configuration:</strong> {localConfig.approvalAction === 'approve' ? 'Approve' : 'Disapprove'} submissions for {localConfig.targetFormName || 'selected form'}
+                {localConfig.notes && <div className="mt-1"><strong>Notes:</strong> {localConfig.notes}</div>}
               </div>
             )}
           </div>
@@ -661,14 +703,13 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
             <div>
               <Label htmlFor="targetForm">Form to Assign</Label>
               <FormSelector
-                value={node.data.config?.targetFormId || ''}
+                value={localConfig?.targetFormId || ''}
                 onValueChange={(formId, formName) => {
-                  const newConfig = { 
-                    ...node.data.config, 
+                  handleFullConfigUpdate({ 
+                    ...localConfig, 
                     targetFormId: formId,
                     targetFormName: formName
-                  };
-                  onConfigChange(newConfig);
+                  });
                 }}
                 placeholder="Select form to assign"
               />
@@ -676,7 +717,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
             <div>
               <Label htmlFor="actionType">Assignment Type</Label>
               <Select 
-                value={node.data.config?.actionType || 'assign_form'} 
+                value={localConfig?.actionType || 'assign_form'} 
                 onValueChange={(value) => handleConfigUpdate('actionType', value)}
               >
                 <SelectTrigger>
@@ -698,33 +739,17 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
             <div>
               <Label htmlFor="notificationType">Notification Type</Label>
               <Select 
-                value={node.data.config?.notificationConfig?.type || 'email'} 
-                onValueChange={(value) => handleConfigUpdate('notificationConfig', { 
-                  ...node.data.config?.notificationConfig, 
-                  type: value 
-                })}
+                value={localConfig?.notificationType || 'email'} 
+                onValueChange={(value) => handleConfigUpdate('notificationType', value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select notification type" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="sms">SMS</SelectItem>
-                  <SelectItem value="in_app">In-App</SelectItem>
+                  <SelectItem value="in_app">In-App Notification</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label htmlFor="message">Message</Label>
-              <Textarea
-                id="message"
-                value={node.data.config?.notificationConfig?.message || ''}
-                onChange={(e) => handleConfigUpdate('notificationConfig', {
-                  ...node.data.config?.notificationConfig,
-                  message: e.target.value
-                })}
-                placeholder="Enter notification message"
-              />
             </div>
           </div>
         );
@@ -732,50 +757,20 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
       case 'condition':
         return (
           <div className="space-y-4">
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-800">Enhanced Condition Builder</span>
-              </div>
-              <p className="text-xs text-blue-700">
-                Build intuitive conditions with form-aware inputs and smart field detection
-              </p>
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="h-4 w-4 text-amber-500" />
+              <Label>Enhanced Condition Builder</Label>
             </div>
             
             <EnhancedConditionBuilder
-              value={node.data.config?.enhancedCondition}
-              onChange={(enhancedCondition: EnhancedCondition) => {
-                console.log('🔧 Enhanced condition updated in NodeConfigPanel:', enhancedCondition);
-                const newConfig = {
-                  ...node.data.config,
-                  enhancedCondition,
-                  conditionType: 'enhanced'
-                };
-                console.log('🔧 Calling onConfigChange with:', newConfig);
-                onConfigChange(newConfig);
+              value={localConfig?.enhancedCondition}
+              onChange={(condition: EnhancedCondition) => {
+                handleConfigUpdate('enhancedCondition', condition);
               }}
+              triggerFormId={triggerFormId}
+              formFields={formFields}
+              projectId={projectId}
             />
-            
-            {node.data.config?.enhancedCondition && (
-              <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded mt-2 space-y-1">
-                <div>
-                  <strong>Conditions:</strong> {node.data.config.enhancedCondition.conditions?.length || 1} configured
-                </div>
-                {node.data.config.enhancedCondition.useManualExpression && node.data.config.enhancedCondition.manualExpression && (
-                  <div>
-                    <strong>Expression:</strong>{' '}
-                    <code className="font-mono bg-blue-100 px-1 rounded">
-                      {node.data.config.enhancedCondition.manualExpression}
-                    </code>
-                  </div>
-                )}
-                {!node.data.config.enhancedCondition.useManualExpression && (
-                  <div>
-                    <strong>Mode:</strong> Sequential evaluation with individual operators
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         );
 
@@ -783,126 +778,219 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
         return (
           <div className="space-y-4">
             <div>
-              <Label htmlFor="waitDuration">Duration</Label>
-              <Input
-                id="waitDuration"
-                type="number"
-                value={node.data.config?.waitDuration || ''}
-                onChange={(e) => handleConfigUpdate('waitDuration', parseInt(e.target.value))}
-                placeholder="Enter duration"
-              />
-            </div>
-            <div>
-              <Label htmlFor="waitUnit">Unit</Label>
+              <Label htmlFor="waitType">Wait Type</Label>
               <Select 
-                value={node.data.config?.waitUnit || 'minutes'} 
-                onValueChange={(value) => handleConfigUpdate('waitUnit', value)}
+                value={localConfig?.waitType || 'duration'} 
+                onValueChange={(value) => handleConfigUpdate('waitType', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select time unit" />
+                  <SelectValue placeholder="Select wait type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="minutes">Minutes</SelectItem>
-                  <SelectItem value="hours">Hours</SelectItem>
-                  <SelectItem value="days">Days</SelectItem>
+                  <SelectItem value="duration">Wait Duration</SelectItem>
+                  <SelectItem value="until_date">Wait Until Date</SelectItem>
+                  <SelectItem value="until_event">Wait Until Event</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {localConfig?.waitType === 'duration' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="durationValue">Duration</Label>
+                  <Input
+                    id="durationValue"
+                    type="number"
+                    min="1"
+                    value={localConfig?.durationValue || 1}
+                    onChange={(e) => handleConfigUpdate('durationValue', parseInt(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="durationUnit">Unit</Label>
+                  <Select 
+                    value={localConfig?.durationUnit || 'hours'} 
+                    onValueChange={(value) => handleConfigUpdate('durationUnit', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="minutes">Minutes</SelectItem>
+                      <SelectItem value="hours">Hours</SelectItem>
+                      <SelectItem value="days">Days</SelectItem>
+                      <SelectItem value="weeks">Weeks</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {localConfig?.waitType === 'until_date' && (
+              <div>
+                <Label htmlFor="untilDate">Wait Until</Label>
+                <Input
+                  id="untilDate"
+                  type="datetime-local"
+                  value={localConfig?.untilDate || ''}
+                  onChange={(e) => handleConfigUpdate('untilDate', e.target.value)}
+                />
+              </div>
+            )}
+
+            {localConfig?.waitType === 'until_event' && (
+              <div>
+                <Label htmlFor="eventType">Event Type</Label>
+                <Select 
+                  value={localConfig?.eventType || 'form_submission'} 
+                  onValueChange={(value) => handleConfigUpdate('eventType', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select event" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="form_submission">Form Submission</SelectItem>
+                    <SelectItem value="form_approval">Form Approval</SelectItem>
+                    <SelectItem value="manual_trigger">Manual Trigger</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+        );
+
+      case 'end':
+        return (
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="endStatus">End Status</Label>
+              <Select 
+                value={localConfig?.endStatus || 'completed'} 
+                onValueChange={(value) => handleConfigUpdate('endStatus', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select end status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="summary">Summary</Label>
+              <Textarea
+                id="summary"
+                value={localConfig?.summary || ''}
+                onChange={(e) => handleConfigUpdate('summary', e.target.value)}
+                placeholder="Enter workflow completion summary"
+              />
             </div>
           </div>
         );
 
       default:
-        return <p className="text-sm text-slate-500">No configuration options available</p>;
+        return (
+          <div className="text-sm text-gray-500">
+            Configuration not available for this node type
+          </div>
+        );
     }
   };
 
-  // Shared content for both compact and expanded views
-  const ConfigContent = ({ expanded = false }: { expanded?: boolean }) => (
-    <div className={expanded ? "space-y-6" : "space-y-4"}>
-      <div>
-        <Label htmlFor="nodeLabel" className={expanded ? "text-sm font-medium" : ""}>Node Label</Label>
-        <Input
-          id="nodeLabel"
-          value={node.label}
-          onChange={(e) => onConfigChange({ ...node.data.config, label: e.target.value })}
-          placeholder="Enter node label"
-          className={expanded ? "mt-1.5" : ""}
-        />
-      </div>
-
-      <div className="border-t pt-4">
-        <h4 className={expanded ? "font-semibold mb-4 text-base" : "font-medium mb-3"}>Node Configuration</h4>
-        {renderNodeSpecificConfig()}
-      </div>
-
-      <div className="border-t pt-4 space-y-2">
-        <Button onClick={handleSave} className="w-full" variant="outline" disabled={loading}>
-          <Save className="h-4 w-4 mr-2" />
-          Save Workflow
-        </Button>
-        <Button variant="destructive" onClick={onDelete} className="w-full">
-          <Trash2 className="h-4 w-4 mr-2" />
-          Delete Node
-        </Button>
-      </div>
-    </div>
-  );
-
-  return (
+  const panelContent = (
     <>
-      {/* Compact Side Panel */}
-      <Card className="w-80 h-full rounded-none border-l">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-lg">Configure Node</CardTitle>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">{node.label || 'Configure Node'}</CardTitle>
           <div className="flex items-center gap-1">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setIsExpanded(true)}
-              title="Expand configuration"
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="h-8 w-8"
             >
-              <Maximize2 className="h-4 w-4" />
+              {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </Button>
-            <Button variant="ghost" size="sm" onClick={onClose}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="h-8 w-8"
+            >
               <X className="h-4 w-4" />
             </Button>
           </div>
-        </CardHeader>
-        <CardContent>
-          <ConfigContent />
-        </CardContent>
-      </Card>
+        </div>
+        <p className="text-sm text-muted-foreground capitalize">{node.type} Node</p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <Label htmlFor="nodeLabel">Node Label</Label>
+          <Input
+            id="nodeLabel"
+            value={localConfig?.label || node.label || ''}
+            onChange={(e) => handleConfigUpdate('label', e.target.value)}
+            placeholder="Enter node label"
+          />
+        </div>
+        
+        {renderNodeSpecificConfig()}
+        
+        <div className="flex gap-2 pt-4 border-t">
+          <Button onClick={handleSave} className="flex-1" disabled={loading}>
+            <Save className="h-4 w-4 mr-2" />
+            Save Changes
+          </Button>
+          <Button variant="destructive" onClick={onDelete} disabled={loading}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardContent>
+    </>
+  );
 
-      {/* Expanded Modal Dialog */}
+  if (isExpanded) {
+    return (
       <Dialog open={isExpanded} onOpenChange={setIsExpanded}>
-        <DialogContent className="max-w-3xl max-h-[90vh] p-0 gap-0">
-          <DialogHeader className="px-6 py-4 border-b bg-muted/30">
-            <div className="flex items-center justify-between">
-              <DialogTitle className="text-xl font-semibold flex items-center gap-2">
-                <span className="capitalize">{node.type}</span> Node Configuration
-              </DialogTitle>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setIsExpanded(false)}
-                className="h-8 w-8 p-0"
-              >
-                <Minimize2 className="h-4 w-4" />
-              </Button>
-            </div>
-            {node.label && (
-              <p className="text-sm text-muted-foreground mt-1">
-                Currently editing: <span className="font-medium text-foreground">{node.label}</span>
-              </p>
-            )}
+        <DialogContent className="max-w-2xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>{node.label || 'Configure Node'}</DialogTitle>
           </DialogHeader>
-          <ScrollArea className="max-h-[calc(90vh-120px)]">
-            <div className="px-6 py-6">
-              <ConfigContent expanded />
+          <ScrollArea className="max-h-[70vh] pr-4">
+            <div className="space-y-4 p-1">
+              <div>
+                <Label htmlFor="nodeLabel">Node Label</Label>
+                <Input
+                  id="nodeLabel"
+                  value={localConfig?.label || node.label || ''}
+                  onChange={(e) => handleConfigUpdate('label', e.target.value)}
+                  placeholder="Enter node label"
+                />
+              </div>
+              
+              {renderNodeSpecificConfig()}
+              
+              <div className="flex gap-2 pt-4 border-t">
+                <Button onClick={handleSave} className="flex-1" disabled={loading}>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Changes
+                </Button>
+                <Button variant="destructive" onClick={onDelete} disabled={loading}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </ScrollArea>
         </DialogContent>
       </Dialog>
-    </>
+    );
+  }
+
+  return (
+    <Card className="w-80 h-fit max-h-[calc(100vh-200px)] overflow-y-auto absolute right-4 top-4 z-10 shadow-lg">
+      {panelContent}
+    </Card>
   );
 }
