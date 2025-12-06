@@ -7,7 +7,8 @@ interface ActionNodeProps {
   data: {
     label: string;
     config: any;
-    onSelect: () => void;
+    nodeId: string;
+    onSelect: (nodeId: string) => void;
   };
 }
 
@@ -142,7 +143,7 @@ export function ActionNode({ data }: ActionNodeProps) {
   return (
     <div 
       className={`px-4 py-2 shadow-md rounded-md border-2 min-w-[150px] cursor-pointer ${colorClass}`}
-      onClick={data.onSelect}
+      onClick={() => data.onSelect(data.nodeId)}
     >
       <Handle
         type="target"

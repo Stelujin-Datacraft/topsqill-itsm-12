@@ -7,7 +7,8 @@ interface StartNodeProps {
   data: {
     label: string;
     config: any;
-    onSelect: () => void;
+    nodeId: string;
+    onSelect: (nodeId: string) => void;
   };
 }
 
@@ -22,7 +23,7 @@ export function StartNode({ data }: StartNodeProps) {
   return (
     <div 
       className="px-4 py-2 shadow-md rounded-md bg-green-100 border-2 border-green-200 min-w-[150px] cursor-pointer"
-      onClick={data.onSelect}
+      onClick={() => data.onSelect(data.nodeId)}
     >
       <div className="flex items-center space-x-2">
         <Play className="h-4 w-4 text-green-700" />

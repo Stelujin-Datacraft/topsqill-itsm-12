@@ -7,13 +7,14 @@ import { Badge } from '@/components/ui/badge';
 interface ApprovalNodeProps {
   data: {
     label: string;
+    nodeId: string;
     config?: {
       actionType?: string;
       approvalAction?: 'approve' | 'disapprove';
       targetFormName?: string;
       notes?: string;
     };
-    onSelect?: () => void;
+    onSelect?: (nodeId: string) => void;
   };
 }
 
@@ -43,7 +44,7 @@ export function ApprovalNode({ data }: ApprovalNodeProps) {
   return (
     <div 
       className={`px-4 py-3 shadow-md rounded-md border-2 min-w-[200px] cursor-pointer hover:shadow-lg transition-shadow ${getNodeColor()}`}
-      onClick={data.onSelect}
+      onClick={() => data.onSelect?.(data.nodeId)}
     >
       <Handle type="target" position={Position.Top} className="w-3 h-3" />
       
