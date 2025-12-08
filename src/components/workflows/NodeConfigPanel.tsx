@@ -986,7 +986,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
   }
 
   return (
-    <Card className="w-80 h-fit max-h-[calc(100vh-200px)] overflow-y-auto absolute right-4 top-1/2 -translate-y-1/2 z-10 shadow-lg border bg-card">
+    <Card className="w-80 h-fit max-h-[calc(100vh-200px)] overflow-y-auto absolute right-4 top-4 z-10 shadow-lg border bg-card">
       {panelContent}
     </Card>
   );
