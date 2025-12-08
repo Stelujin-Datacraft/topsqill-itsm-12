@@ -111,24 +111,28 @@ export function FieldMappingConfig({
   }
 
   return (
-    <div className="space-y-3 mt-2 pl-6 border-l-2 border-muted">
+    <div className="space-y-3 mt-2 pl-4 border-l-2 border-muted">
       <Label className="text-sm font-medium">Field Mappings</Label>
+      <p className="text-xs text-muted-foreground mb-2">
+        Map fields from the <span className="font-medium text-primary">Trigger Form (Start Node)</span> to fields in the <span className="font-medium text-primary">Target Form (This Action)</span>
+      </p>
       
       {fieldMappings.length === 0 && (
         <p className="text-xs text-muted-foreground">
-          No mappings configured. Fields will be matched by label automatically.
+          No mappings configured. Click "Add Field Mapping" to map trigger form fields to target form fields.
         </p>
       )}
 
       {fieldMappings.map((mapping, index) => (
         <div key={index} className="flex items-center gap-2 p-2 bg-muted/30 rounded">
           <div className="flex-1">
+            <Label className="text-xs text-muted-foreground mb-1 block">From Trigger Form</Label>
             <Select
               value={mapping.sourceFieldId}
               onValueChange={(value) => handleMappingChange(index, 'sourceFieldId', value)}
             >
               <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Source field" />
+                <SelectValue placeholder="Select trigger field" />
               </SelectTrigger>
               <SelectContent>
                 {triggerFields.map((field) => (
@@ -140,15 +144,16 @@ export function FieldMappingConfig({
             </Select>
           </div>
           
-          <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-5" />
           
           <div className="flex-1">
+            <Label className="text-xs text-muted-foreground mb-1 block">To Target Form</Label>
             <Select
               value={mapping.targetFieldId}
               onValueChange={(value) => handleMappingChange(index, 'targetFieldId', value)}
             >
               <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Target field" />
+                <SelectValue placeholder="Select target field" />
               </SelectTrigger>
               <SelectContent>
                 {targetFields.map((field) => (
@@ -163,7 +168,7 @@ export function FieldMappingConfig({
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 flex-shrink-0"
+            className="h-8 w-8 flex-shrink-0 mt-5"
             onClick={() => handleRemoveMapping(index)}
           >
             <Trash2 className="h-3 w-3 text-destructive" />
@@ -180,10 +185,6 @@ export function FieldMappingConfig({
         <Plus className="h-3 w-3 mr-1" />
         Add Field Mapping
       </Button>
-      
-      <p className="text-xs text-muted-foreground">
-        Map specific fields from trigger form to target form. Unmapped fields will try to match by label.
-      </p>
     </div>
   );
 }
