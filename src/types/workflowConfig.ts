@@ -31,6 +31,13 @@ export interface CreateRecordFieldValue {
   dynamicValuePath?: string;
 }
 
+export interface FieldMapping {
+  sourceFieldId: string;
+  sourceFieldName?: string;
+  targetFieldId: string;
+  targetFieldName?: string;
+}
+
 export interface CreateRecordConfig {
   targetFormId: string;
   targetFormName?: string;
@@ -41,5 +48,6 @@ export interface CreateRecordConfig {
   specificSubmitterId?: string;
   initialStatus?: 'pending' | 'approved' | 'rejected' | 'in_review';
   copyAllTriggerFields?: boolean; // Copy all matching fields from trigger form
+  fieldMappings?: FieldMapping[]; // Custom field mappings when copyAllTriggerFields is true
   assignToSubmitter?: boolean; // Assign created records to trigger form submitter
 }

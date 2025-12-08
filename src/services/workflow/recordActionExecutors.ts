@@ -312,13 +312,28 @@ export class RecordActionExecutors {
         // Build submission data from field values
         const submissionData: Record<string, any> = {};
 
-        // If copyAllTriggerFields is enabled, copy all trigger data first
+        // If copyAllTriggerFields is enabled, copy fields
         if (config.copyAllTriggerFields && triggerSubmissionData) {
-          Object.entries(triggerSubmissionData).forEach(([key, value]) => {
-            if (value !== undefined && value !== null && value !== '') {
-              submissionData[key] = value;
+          const fieldMappings = config.fieldMappings || [];
+          
+          if (fieldMappings.length > 0) {
+            // Use explicit field mappings
+            for (const mapping of fieldMappings) {
+              if (mapping.sourceFieldId && mapping.targetFieldId) {
+                const sourceValue = triggerSubmissionData[mapping.sourceFieldId];
+                if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
+                  submissionData[mapping.targetFieldId] = sourceValue;
+                }
+              }
             }
-          });
+          } else {
+            // Fallback: copy all trigger data by field ID (matching labels)
+            Object.entries(triggerSubmissionData).forEach(([key, value]) => {
+              if (value !== undefined && value !== null && value !== '') {
+                submissionData[key] = value;
+              }
+            });
+          }
         }
 
         // Then apply specific field values (these override copied values)
