@@ -106,6 +106,7 @@ export interface WorkflowConnection {
   sourceHandle?: string;
   targetHandle?: string;
   condition?: string;
+  label?: string;
 }
 
 export interface Workflow {
