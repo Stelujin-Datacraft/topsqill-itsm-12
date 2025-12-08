@@ -12,7 +12,9 @@ import {
   Node,
   NodeTypes,
   BackgroundVariant,
+  OnSelectionChangeParams,
 } from '@xyflow/react';
+import { toast } from 'sonner';
 import '@xyflow/react/dist/style.css';
 import { WorkflowNode, WorkflowConnection } from '@/types/workflow';
 import { StartNode } from './nodes/StartNode';
@@ -345,6 +347,13 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
     );
   }, []);
 
+  // Show hint when edge is selected
+  const onSelectionChange = useCallback(({ edges }: OnSelectionChangeParams) => {
+    if (edges.length > 0) {
+      toast.info('Press Delete or Backspace to remove connection', { duration: 2000 });
+    }
+  }, []);
+
   // Save current state - use refs for latest values
   const handleSave = useCallback(() => {
     console.log('Saving workflow state:', { nodes: workflowNodesRef.current.length, connections: workflowConnectionsRef.current.length });
@@ -379,6 +388,7 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onEdgesDelete={onEdgesDelete}
+          onSelectionChange={onSelectionChange}
           onConnect={onConnect}
           onNodeDragStop={onNodeDragStop}
           onDragOver={onDragOver}
