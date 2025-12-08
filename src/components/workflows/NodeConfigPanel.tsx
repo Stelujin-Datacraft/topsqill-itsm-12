@@ -20,6 +20,8 @@ import { WorkflowEmailTemplateSelector } from './WorkflowEmailTemplateSelector';
 import { EnhancedConditionBuilder } from './conditions/EnhancedConditionBuilder';
 import { DynamicValueInput } from './conditions/DynamicValueInput';
 import { CreateRecordFieldsConfig } from './CreateRecordFieldsConfig';
+import { FieldMappingConfig } from './FieldMappingConfig';
+import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
 import { useTriggerManagement } from '@/hooks/useTriggerManagement';
 import { useToast } from '@/hooks/use-toast';
 import { EnhancedCondition } from '@/types/conditions';
@@ -39,6 +41,7 @@ interface NodeConfigPanelProps {
 
 export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, formFields = [], onConfigChange, onDelete, onClose, onSave }: NodeConfigPanelProps) {
   const { createTrigger, deleteTrigger, loading } = useTriggerManagement();
+  const { users: organizationUsers, loading: loadingUsers } = useOrganizationUsers();
   const { toast } = useToast();
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -672,8 +675,24 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                         type="number"
                         min={1}
                         max={100}
-                        value={localConfig?.recordCount || 1}
-                        onChange={(e) => handleConfigUpdate('recordCount', Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                        value={localConfig?.recordCount ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '') {
+                            handleConfigUpdate('recordCount', '');
+                          } else {
+                            const num = parseInt(val);
+                            if (!isNaN(num)) {
+                              handleConfigUpdate('recordCount', Math.max(1, Math.min(100, num)));
+                            }
+                          }
+                        }}
+                        onBlur={() => {
+                          // Ensure valid value on blur
+                          if (!localConfig?.recordCount || localConfig.recordCount < 1) {
+                            handleConfigUpdate('recordCount', 1);
+                          }
+                        }}
                         placeholder="Enter number of records to create"
                       />
                       <p className="text-xs text-muted-foreground mt-1">Maximum 100 records per action</p>
@@ -701,29 +720,72 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                       <Label>Submitted By</Label>
                       <Select
                         value={localConfig?.setSubmittedBy || 'trigger_submitter'}
-                        onValueChange={(value) => handleConfigUpdate('setSubmittedBy', value)}
+                        onValueChange={(value) => {
+                          handleConfigUpdate('setSubmittedBy', value);
+                          if (value !== 'specific_user') {
+                            handleConfigUpdate('specificSubmitterId', undefined);
+                          }
+                        }}
                       >
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Select submitter" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="trigger_submitter">Trigger Form Submitter</SelectItem>
+                          <SelectItem value="specific_user">Specific User</SelectItem>
                           <SelectItem value="system">System (No User)</SelectItem>
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground mt-1">Who will be recorded as the submitter</p>
                     </div>
 
+                    {localConfig?.setSubmittedBy === 'specific_user' && (
+                      <div>
+                        <Label>Select User *</Label>
+                        <Select
+                          value={localConfig?.specificSubmitterId || ''}
+                          onValueChange={(value) => handleConfigUpdate('specificSubmitterId', value)}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder={loadingUsers ? "Loading users..." : "Select a user"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {organizationUsers.map((user) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.first_name && user.last_name 
+                                  ? `${user.first_name} ${user.last_name} (${user.email})`
+                                  : user.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         id="copyAllTriggerFields"
                         checked={localConfig?.copyAllTriggerFields || false}
-                        onCheckedChange={(checked) => handleConfigUpdate('copyAllTriggerFields', checked)}
+                        onCheckedChange={(checked) => {
+                          handleConfigUpdate('copyAllTriggerFields', checked);
+                          if (!checked) {
+                            handleConfigUpdate('fieldMappings', []);
+                          }
+                        }}
                       />
                       <Label htmlFor="copyAllTriggerFields" className="text-sm font-normal cursor-pointer">
-                        Copy all matching fields from trigger form
+                        Copy fields from trigger form
                       </Label>
                     </div>
+
+                    {localConfig?.copyAllTriggerFields && (
+                      <FieldMappingConfig
+                        triggerFormId={triggerFormId}
+                        targetFormId={localConfig.targetFormId}
+                        fieldMappings={localConfig?.fieldMappings || []}
+                        onFieldMappingsChange={(mappings) => handleConfigUpdate('fieldMappings', mappings)}
+                      />
+                    )}
 
                     <CreateRecordFieldsConfig
                       targetFormId={localConfig.targetFormId}
@@ -737,12 +799,18 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                 {localConfig?.targetFormId && (
                   <div className="text-xs text-cyan-700 bg-cyan-50 p-3 rounded border border-cyan-200">
                     <strong>Summary:</strong> Will create {localConfig.recordCount || 1} record{(localConfig.recordCount || 1) > 1 ? 's' : ''} in "{localConfig.targetFormName}"
-                    {localConfig.copyAllTriggerFields && ' (copying all matching fields)'}
+                    {localConfig.copyAllTriggerFields && ` (copying ${localConfig.fieldMappings?.length ? localConfig.fieldMappings.length + ' mapped' : 'matching'} fields)`}
                     {(localConfig.fieldValues?.length || 0) > 0 
                       ? ` with ${localConfig.fieldValues.length} additional field value${localConfig.fieldValues.length > 1 ? 's' : ''}`
                       : localConfig.copyAllTriggerFields ? '' : ' with empty/default values'}
                     {' | Status: '}{localConfig.initialStatus || 'pending'}
-                    {' | By: '}{localConfig.setSubmittedBy === 'system' ? 'System' : 'Trigger Submitter'}
+                    {' | By: '}{
+                      localConfig.setSubmittedBy === 'system' 
+                        ? 'System' 
+                        : localConfig.setSubmittedBy === 'specific_user'
+                          ? (organizationUsers.find(u => u.id === localConfig.specificSubmitterId)?.email || 'Selected User')
+                          : 'Trigger Submitter'
+                    }
                   </div>
                 )}
               </div>
