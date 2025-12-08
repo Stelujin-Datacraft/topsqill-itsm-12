@@ -265,6 +265,145 @@ export class RecordActionExecutors {
     }
   }
 
+  static async executeCreateRecordAction(context: NodeExecutionContext): Promise<ActionExecutionResult> {
+    console.log('➕ EXECUTING CREATE RECORD ACTION');
+    console.log('📋 Context:', JSON.stringify(context, null, 2));
+
+    const config = context.config;
+    const actionDetails = {
+      actionType: 'create_record',
+      targetFormId: config.targetFormId,
+      recordCount: config.recordCount || 1,
+      timestamp: new Date().toISOString()
+    };
+
+    try {
+      // Validate configuration
+      if (!config.targetFormId) {
+        return {
+          success: false,
+          error: 'Missing target form ID for record creation',
+          actionDetails
+        };
+      }
+
+      const recordCount = Math.min(Math.max(config.recordCount || 1, 1), 100);
+      const fieldValues = config.fieldValues || [];
+      const createdRecords: string[] = [];
+
+      console.log(`📊 Creating ${recordCount} records for form ${config.targetFormId}`);
+
+      // Get trigger data for dynamic values
+      const triggerSubmissionData = context.triggerData?.submissionData || context.triggerData || {};
+
+      // Determine submitter based on config
+      let submittedBy: string | null = null;
+      if (config.setSubmittedBy === 'trigger_submitter' || !config.setSubmittedBy) {
+        submittedBy = context.submitterId || null;
+      } else if (config.setSubmittedBy === 'specific_user' && config.specificSubmitterId) {
+        submittedBy = config.specificSubmitterId;
+      }
+      // 'system' leaves submittedBy as null
+
+      // Determine initial status
+      const initialStatus = config.initialStatus || 'pending';
+
+      for (let i = 0; i < recordCount; i++) {
+        // Build submission data from field values
+        const submissionData: Record<string, any> = {};
+
+        // If copyAllTriggerFields is enabled, copy all trigger data first
+        if (config.copyAllTriggerFields && triggerSubmissionData) {
+          Object.entries(triggerSubmissionData).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && value !== '') {
+              submissionData[key] = value;
+            }
+          });
+        }
+
+        // Then apply specific field values (these override copied values)
+        for (const fieldValue of fieldValues) {
+          if (!fieldValue.fieldId) continue;
+
+          let value: any;
+
+          if (fieldValue.valueType === 'static') {
+            value = fieldValue.staticValue;
+          } else if (fieldValue.valueType === 'dynamic') {
+            // Get value from trigger submission data
+            const dynamicPath = fieldValue.dynamicValuePath;
+            if (dynamicPath && dynamicPath in triggerSubmissionData) {
+              value = triggerSubmissionData[dynamicPath];
+            } else {
+              // Try nested extraction
+              value = this.getNestedValue(context.triggerData, dynamicPath || '');
+            }
+          }
+
+          if (value !== undefined && value !== null && value !== '') {
+            submissionData[fieldValue.fieldId] = value;
+          }
+        }
+
+        console.log(`📝 Creating record ${i + 1}/${recordCount} with data:`, submissionData);
+
+        // Create the submission record
+        const { data: newSubmission, error: insertError } = await supabase
+          .from('form_submissions')
+          .insert({
+            form_id: config.targetFormId,
+            submission_data: submissionData,
+            submitted_by: submittedBy,
+            approval_status: initialStatus
+          })
+          .select('id')
+          .single();
+
+        if (insertError) {
+          console.error(`❌ Error creating record ${i + 1}:`, insertError);
+          return {
+            success: false,
+            error: `Failed to create record ${i + 1}: ${insertError.message}`,
+            actionDetails: {
+              ...actionDetails,
+              createdSoFar: createdRecords.length,
+              failedAt: i + 1
+            }
+          };
+        }
+
+        if (newSubmission) {
+          createdRecords.push(newSubmission.id);
+          console.log(`✅ Created record ${i + 1}: ${newSubmission.id}`);
+        }
+      }
+
+      console.log(`✅ Successfully created ${createdRecords.length} records`);
+
+      return {
+        success: true,
+        output: {
+          createdRecordIds: createdRecords,
+          recordCount: createdRecords.length,
+          targetFormId: config.targetFormId,
+          createdAt: new Date().toISOString()
+        },
+        actionDetails: {
+          ...actionDetails,
+          createdRecordIds: createdRecords
+        }
+      };
+
+    } catch (error) {
+      console.error('❌ Error in create record action:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        actionDetails
+      };
+    }
+  }
+
   // Helper method for nested value extraction
   private static getNestedValue(obj: any, path: string): any {
     if (!path) return undefined;

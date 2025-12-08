@@ -36,4 +36,10 @@ export interface CreateRecordConfig {
   targetFormName?: string;
   recordCount: number;
   fieldValues: CreateRecordFieldValue[];
+  // Enhanced options
+  setSubmittedBy?: 'trigger_submitter' | 'system' | 'specific_user';
+  specificSubmitterId?: string;
+  initialStatus?: 'pending' | 'approved' | 'rejected' | 'in_review';
+  copyAllTriggerFields?: boolean; // Copy all matching fields from trigger form
+  assignToSubmitter?: boolean; // Assign created records to trigger form submitter
 }
