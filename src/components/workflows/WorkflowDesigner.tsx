@@ -105,16 +105,18 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
       }
       
       try {
+        // Use .maybeSingle() or fetch array since there may be multiple triggers
         const { data, error } = await supabase
           .from('workflow_triggers')
           .select('source_form_id')
           .eq('target_workflow_id', workflowId)
           .eq('is_active', true)
-          .limit(1)
-          .single();
+          .order('created_at', { ascending: false })
+          .limit(1);
         
-        if (!error && data?.source_form_id) {
-          setTriggerFormIdFromDB(data.source_form_id);
+        if (!error && data && data.length > 0 && data[0].source_form_id) {
+          console.log('📋 Fetched trigger form ID from DB:', data[0].source_form_id);
+          setTriggerFormIdFromDB(data[0].source_form_id);
         }
       } catch (err) {
         console.error('Error fetching trigger form ID:', err);
