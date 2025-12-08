@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { X, Trash2, Save, Sparkles, Maximize2, Minimize2 } from 'lucide-react';
@@ -678,6 +679,52 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                       <p className="text-xs text-muted-foreground mt-1">Maximum 100 records per action</p>
                     </div>
 
+                    <div>
+                      <Label>Initial Status</Label>
+                      <Select
+                        value={localConfig?.initialStatus || 'pending'}
+                        onValueChange={(value) => handleConfigUpdate('initialStatus', value)}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select initial status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="approved">Approved</SelectItem>
+                          <SelectItem value="rejected">Rejected</SelectItem>
+                          <SelectItem value="in_review">In Review</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label>Submitted By</Label>
+                      <Select
+                        value={localConfig?.setSubmittedBy || 'trigger_submitter'}
+                        onValueChange={(value) => handleConfigUpdate('setSubmittedBy', value)}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select submitter" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="trigger_submitter">Trigger Form Submitter</SelectItem>
+                          <SelectItem value="system">System (No User)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">Who will be recorded as the submitter</p>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="copyAllTriggerFields"
+                        checked={localConfig?.copyAllTriggerFields || false}
+                        onCheckedChange={(checked) => handleConfigUpdate('copyAllTriggerFields', checked)}
+                      />
+                      <Label htmlFor="copyAllTriggerFields" className="text-sm font-normal cursor-pointer">
+                        Copy all matching fields from trigger form
+                      </Label>
+                    </div>
+
                     <CreateRecordFieldsConfig
                       targetFormId={localConfig.targetFormId}
                       triggerFormId={triggerFormId}
@@ -688,11 +735,14 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                 )}
 
                 {localConfig?.targetFormId && (
-                  <div className="text-xs text-blue-600 bg-blue-50 p-3 rounded">
-                    <strong>Configuration:</strong> Will create {localConfig.recordCount || 1} record{(localConfig.recordCount || 1) > 1 ? 's' : ''} in "{localConfig.targetFormName}"
+                  <div className="text-xs text-cyan-700 bg-cyan-50 p-3 rounded border border-cyan-200">
+                    <strong>Summary:</strong> Will create {localConfig.recordCount || 1} record{(localConfig.recordCount || 1) > 1 ? 's' : ''} in "{localConfig.targetFormName}"
+                    {localConfig.copyAllTriggerFields && ' (copying all matching fields)'}
                     {(localConfig.fieldValues?.length || 0) > 0 
-                      ? ` with ${localConfig.fieldValues.length} field value${localConfig.fieldValues.length > 1 ? 's' : ''} set`
-                      : ' with empty/default values'}
+                      ? ` with ${localConfig.fieldValues.length} additional field value${localConfig.fieldValues.length > 1 ? 's' : ''}`
+                      : localConfig.copyAllTriggerFields ? '' : ' with empty/default values'}
+                    {' | Status: '}{localConfig.initialStatus || 'pending'}
+                    {' | By: '}{localConfig.setSubmittedBy === 'system' ? 'System' : 'Trigger Submitter'}
                   </div>
                 )}
               </div>
