@@ -18,6 +18,7 @@ import { DynamicFieldSelector } from './DynamicFieldSelector';
 import { WorkflowEmailTemplateSelector } from './WorkflowEmailTemplateSelector';
 import { EnhancedConditionBuilder } from './conditions/EnhancedConditionBuilder';
 import { DynamicValueInput } from './conditions/DynamicValueInput';
+import { CreateRecordFieldsConfig } from './CreateRecordFieldsConfig';
 import { useTriggerManagement } from '@/hooks/useTriggerManagement';
 import { useToast } from '@/hooks/use-toast';
 import { EnhancedCondition } from '@/types/conditions';
@@ -287,6 +288,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   <SelectItem value="send_notification">Send Notification</SelectItem>
                   <SelectItem value="change_field_value">Change Field Value</SelectItem>
                   <SelectItem value="change_record_status">Change Record Status</SelectItem>
+                  <SelectItem value="create_record">Create Record</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -637,6 +639,60 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   <div className="text-xs text-blue-600 bg-blue-50 p-3 rounded">
                     <strong>Configuration:</strong> Will change the status of submissions in "{localConfig.targetFormName}" to "{localConfig.newStatus}"
                     {localConfig.statusNotes && ` with notes: "${localConfig.statusNotes}"`}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Create Record Configuration */}
+            {localConfig?.actionType === 'create_record' && (
+              <div className="space-y-4">
+                <div>
+                  <Label>Target Form *</Label>
+                  <FormSelector
+                    value={localConfig?.targetFormId || ''}
+                    onValueChange={(formId, formName) => {
+                      handleFullConfigUpdate({ 
+                        ...localConfig, 
+                        targetFormId: formId,
+                        targetFormName: formName,
+                        fieldValues: [] // Reset field values when form changes
+                      });
+                    }}
+                    placeholder="Select form to create records in"
+                  />
+                </div>
+
+                {localConfig?.targetFormId && (
+                  <>
+                    <div>
+                      <Label>Number of Records *</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={localConfig?.recordCount || 1}
+                        onChange={(e) => handleConfigUpdate('recordCount', Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                        placeholder="Enter number of records to create"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">Maximum 100 records per action</p>
+                    </div>
+
+                    <CreateRecordFieldsConfig
+                      targetFormId={localConfig.targetFormId}
+                      triggerFormId={triggerFormId}
+                      fieldValues={localConfig?.fieldValues || []}
+                      onFieldValuesChange={(values) => handleConfigUpdate('fieldValues', values)}
+                    />
+                  </>
+                )}
+
+                {localConfig?.targetFormId && (
+                  <div className="text-xs text-blue-600 bg-blue-50 p-3 rounded">
+                    <strong>Configuration:</strong> Will create {localConfig.recordCount || 1} record{(localConfig.recordCount || 1) > 1 ? 's' : ''} in "{localConfig.targetFormName}"
+                    {(localConfig.fieldValues?.length || 0) > 0 
+                      ? ` with ${localConfig.fieldValues.length} field value${localConfig.fieldValues.length > 1 ? 's' : ''} set`
+                      : ' with empty/default values'}
                   </div>
                 )}
               </div>

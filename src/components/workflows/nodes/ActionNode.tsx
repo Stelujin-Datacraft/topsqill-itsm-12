@@ -35,6 +35,8 @@ const getActionIcon = (actionType: string) => {
       return Edit3;
     case 'change_record_status':
       return FileCheck;
+    case 'create_record':
+      return FileText;
     default:
       return Settings;
   }
@@ -65,6 +67,8 @@ const getActionColor = (actionType: string) => {
       return 'bg-orange-100 text-orange-800 border-orange-200';
     case 'change_record_status':
       return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+    case 'create_record':
+      return 'bg-cyan-100 text-cyan-800 border-cyan-200';
     default:
       return 'bg-slate-100 text-slate-800 border-slate-200';
   }
@@ -86,6 +90,7 @@ const getActionLabel = (actionType: string) => {
     case 'wait_for_completion': return 'Wait for Completion';
     case 'change_field_value': return 'Change Field';
     case 'change_record_status': return 'Change Status';
+    case 'create_record': return 'Create Record';
     default: return 'Action';
   }
 };
@@ -134,6 +139,13 @@ export const ActionNode = React.memo(function ActionNode({ data }: ActionNodePro
       const form = config.targetFormName || 'form';
       const status = config.newStatus || 'status';
       return `Change ${form} record to ${status}`;
+    }
+    
+    if (actionType === 'create_record') {
+      const form = config.targetFormName || 'form';
+      const count = config.recordCount || 1;
+      const fieldCount = config.fieldValues?.length || 0;
+      return `Create ${count} record${count > 1 ? 's' : ''} in ${form}${fieldCount > 0 ? ` with ${fieldCount} field${fieldCount > 1 ? 's' : ''}` : ''}`;
     }
     
     return 'Click to configure';
