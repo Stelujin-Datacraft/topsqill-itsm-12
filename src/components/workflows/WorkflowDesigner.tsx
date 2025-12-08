@@ -393,13 +393,17 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
 
   // Delete edge from modal
   const handleDeleteEdge = useCallback((edgeId: string) => {
+    // Close modal first to prevent state conflicts
+    setIsEdgeModalOpen(false);
+    setSelectedEdgeId(null);
+    
+    // Then delete the edge
     setWorkflowConnections(prev => {
       const updated = prev.filter(conn => conn.id !== edgeId);
-      syncToReactFlow(workflowNodesRef.current, updated);
       return updated;
     });
     setReactFlowEdges(prev => prev.filter(edge => edge.id !== edgeId));
-  }, [syncToReactFlow, setReactFlowEdges]);
+  }, [setReactFlowEdges]);
 
   // Close edge modal
   const handleCloseEdgeModal = useCallback(() => {

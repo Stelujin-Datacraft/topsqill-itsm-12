@@ -44,7 +44,7 @@ export function EdgeConfigModal({
   const handleDelete = () => {
     if (edgeId) {
       onDelete(edgeId);
-      onClose();
+      // Don't call onClose here - parent handles it
     }
   };
 
@@ -71,18 +71,18 @@ export function EdgeConfigModal({
           </div>
         </div>
 
-        <DialogFooter className="flex gap-2 sm:justify-between">
+        <DialogFooter className="flex flex-row gap-2 w-full sm:flex-row">
           <Button
             variant="destructive"
             onClick={handleDelete}
-            className="flex items-center gap-2"
+            className="flex-1 flex items-center justify-center gap-2"
           >
             <Trash2 className="h-4 w-4" />
             Delete
           </Button>
           <Button
             onClick={handleSave}
-            className="flex items-center gap-2"
+            className="flex-1 flex items-center justify-center gap-2"
           >
             <Save className="h-4 w-4" />
             Save
