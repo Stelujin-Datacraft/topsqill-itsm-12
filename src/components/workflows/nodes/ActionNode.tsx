@@ -161,7 +161,7 @@ export const ActionNode = React.memo(function ActionNode({ data }: ActionNodePro
         {getDisplayText()}
       </div>
       {data.config?.description && (
-        <div className="text-xs mt-1 opacity-60 italic line-clamp-2 break-words">
+        <div className="text-xs mt-1 opacity-60 italic line-clamp-2 break-words w-full whitespace-normal">
           {data.config.description}
         </div>
       )}

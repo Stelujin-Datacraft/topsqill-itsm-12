@@ -34,7 +34,7 @@ export const EndNode = React.memo(function EndNode({ data }: EndNodeProps) {
         End of workflow
       </div>
       {data.config?.description && (
-        <div className="text-xs text-red-500 mt-1 italic line-clamp-2 break-words">
+        <div className="text-xs text-red-500 mt-1 italic line-clamp-2 break-words w-full whitespace-normal">
           {data.config.description}
         </div>
       )}
