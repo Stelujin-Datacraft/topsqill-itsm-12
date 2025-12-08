@@ -20,3 +20,19 @@ export interface ChangeRecordStatusConfig {
   submissionSource: 'trigger' | 'specific';
   specificSubmissionId?: string;
 }
+
+export interface CreateRecordFieldValue {
+  fieldId: string;
+  fieldName?: string;
+  fieldType?: string;
+  valueType: 'static' | 'dynamic';
+  staticValue?: any;
+  dynamicValuePath?: string;
+}
+
+export interface CreateRecordConfig {
+  targetFormId: string;
+  targetFormName?: string;
+  recordCount: number;
+  fieldValues: CreateRecordFieldValue[];
+}
