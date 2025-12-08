@@ -12,6 +12,7 @@ interface ApprovalNodeProps {
       approvalAction?: 'approve' | 'disapprove';
       targetFormName?: string;
       notes?: string;
+      description?: string;
     };
     onSelect: React.MutableRefObject<(nodeId: string) => void>;
   };
@@ -46,7 +47,7 @@ export const ApprovalNode = React.memo(function ApprovalNode({ data }: ApprovalN
 
   return (
     <div 
-      className={`px-4 py-3 shadow-md rounded-md border-2 min-w-[200px] cursor-pointer hover:shadow-lg transition-shadow ${getNodeColor()}`}
+      className={`px-4 py-3 shadow-md rounded-md border-2 min-w-[200px] max-w-[240px] cursor-pointer hover:shadow-lg transition-shadow ${getNodeColor()}`}
       onClick={handleClick}
     >
       <Handle type="target" position={Position.Top} className="w-3 h-3" />
@@ -70,6 +71,12 @@ export const ApprovalNode = React.memo(function ApprovalNode({ data }: ApprovalN
         {config.notes && (
           <div className="text-xs text-gray-500 mt-1 truncate">
             Notes: {config.notes}
+          </div>
+        )}
+
+        {config.description && (
+          <div className="text-xs text-gray-400 mt-1 italic line-clamp-2">
+            {config.description}
           </div>
         )}
       </div>

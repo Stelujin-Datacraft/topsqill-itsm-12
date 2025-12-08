@@ -25,7 +25,7 @@ export const StartNode = React.memo(function StartNode({ data }: StartNodeProps)
 
   return (
     <div 
-      className="px-4 py-2 shadow-md rounded-md bg-green-100 border-2 border-green-200 min-w-[150px] cursor-pointer"
+      className="px-4 py-2 shadow-md rounded-md bg-green-100 border-2 border-green-200 min-w-[150px] max-w-[220px] cursor-pointer"
       onClick={handleClick}
     >
       <div className="flex items-center space-x-2">
@@ -35,6 +35,11 @@ export const StartNode = React.memo(function StartNode({ data }: StartNodeProps)
       <div className="text-xs text-green-600 mt-1">
         {getDisplayText()}
       </div>
+      {data.config?.description && (
+        <div className="text-xs text-green-500 mt-1 italic line-clamp-2">
+          {data.config.description}
+        </div>
+      )}
       <Handle
         type="source"
         position={Position.Right}

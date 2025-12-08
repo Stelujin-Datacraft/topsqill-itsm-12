@@ -933,6 +933,26 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
           />
         </div>
         
+        <div>
+          <Label htmlFor="nodeDescription">Description</Label>
+          <Textarea
+            id="nodeDescription"
+            value={localConfig?.description || ''}
+            onChange={(e) => {
+              const words = e.target.value.trim().split(/\s+/).filter(w => w.length > 0);
+              if (words.length <= 50 || e.target.value.length < (localConfig?.description || '').length) {
+                handleConfigUpdate('description', e.target.value);
+              }
+            }}
+            placeholder="Add context or notes about this node (max 50 words)"
+            rows={2}
+            className="resize-none"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            {(localConfig?.description || '').trim().split(/\s+/).filter((w: string) => w.length > 0).length}/50 words
+          </p>
+        </div>
+        
         {renderNodeSpecificConfig()}
         
         <div className="flex gap-2 pt-4 border-t">
@@ -965,6 +985,26 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   onChange={(e) => handleConfigUpdate('label', e.target.value)}
                   placeholder="Enter node label"
                 />
+              </div>
+              
+              <div>
+                <Label htmlFor="nodeDescriptionExpanded">Description</Label>
+                <Textarea
+                  id="nodeDescriptionExpanded"
+                  value={localConfig?.description || ''}
+                  onChange={(e) => {
+                    const words = e.target.value.trim().split(/\s+/).filter(w => w.length > 0);
+                    if (words.length <= 50 || e.target.value.length < (localConfig?.description || '').length) {
+                      handleConfigUpdate('description', e.target.value);
+                    }
+                  }}
+                  placeholder="Add context or notes about this node (max 50 words)"
+                  rows={3}
+                  className="resize-none"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {(localConfig?.description || '').trim().split(/\s+/).filter((w: string) => w.length > 0).length}/50 words
+                </p>
               </div>
               
               {renderNodeSpecificConfig()}

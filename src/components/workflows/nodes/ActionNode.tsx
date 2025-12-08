@@ -145,7 +145,7 @@ export const ActionNode = React.memo(function ActionNode({ data }: ActionNodePro
 
   return (
     <div 
-      className={`px-4 py-2 shadow-md rounded-md border-2 min-w-[150px] cursor-pointer ${colorClass}`}
+      className={`px-4 py-2 shadow-md rounded-md border-2 min-w-[150px] max-w-[220px] cursor-pointer ${colorClass}`}
       onClick={handleClick}
     >
       <Handle
@@ -160,6 +160,11 @@ export const ActionNode = React.memo(function ActionNode({ data }: ActionNodePro
       <div className="text-xs mt-1 opacity-75">
         {getDisplayText()}
       </div>
+      {data.config?.description && (
+        <div className="text-xs mt-1 opacity-60 italic line-clamp-2">
+          {data.config.description}
+        </div>
+      )}
       <Handle
         type="source"
         position={Position.Right}
