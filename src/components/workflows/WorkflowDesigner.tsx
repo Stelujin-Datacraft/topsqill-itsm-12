@@ -222,6 +222,24 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
   const onConnect = useCallback(
     (params: Connection) => {
       if (!params.source || !params.target) return;
+      
+      // Prevent self-connections
+      if (params.source === params.target) {
+        console.warn('Cannot connect a node to itself');
+        return;
+      }
+
+      // Prevent duplicate connections
+      const isDuplicate = workflowConnectionsRef.current.some(
+        conn => conn.source === params.source && 
+                conn.target === params.target &&
+                conn.sourceHandle === (params.sourceHandle || undefined)
+      );
+      
+      if (isDuplicate) {
+        console.warn('Connection already exists');
+        return;
+      }
 
       const newConnection: WorkflowConnection = {
         id: generateUUID(),
