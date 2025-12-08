@@ -14,7 +14,7 @@ interface NotificationNodeProps {
 export function NotificationNode({ data }: NotificationNodeProps) {
   return (
     <div 
-      className="px-4 py-2 shadow-md rounded-md bg-purple-100 border-2 border-purple-200 min-w-[150px] cursor-pointer"
+      className="px-4 py-2 shadow-md rounded-md bg-purple-100 border-2 border-purple-200 min-w-[150px] max-w-[220px] cursor-pointer"
       onClick={data.onSelect}
     >
       <Handle
@@ -29,6 +29,11 @@ export function NotificationNode({ data }: NotificationNodeProps) {
       <div className="text-xs text-purple-600 mt-1">
         {data.config.notificationConfig?.type || 'Click to configure'}
       </div>
+      {data.config?.description && (
+        <div className="text-xs text-purple-500 mt-1 italic line-clamp-2">
+          {data.config.description}
+        </div>
+      )}
       <Handle
         type="source"
         position={Position.Right}

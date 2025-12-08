@@ -68,7 +68,7 @@ export const ConditionNode = React.memo(function ConditionNode({ data }: Conditi
 
   return (
     <div 
-      className={`px-4 py-3 shadow-md rounded-md border-2 min-w-[180px] cursor-pointer transition-colors ${
+      className={`px-4 py-3 shadow-md rounded-md border-2 min-w-[180px] max-w-[220px] cursor-pointer transition-colors ${
         isConfigured() 
           ? 'bg-yellow-100 border-yellow-200 hover:border-yellow-300' 
           : 'bg-gray-50 border-gray-200 hover:border-gray-300'
@@ -98,6 +98,12 @@ export const ConditionNode = React.memo(function ConditionNode({ data }: Conditi
       <div className={`text-xs break-words ${isConfigured() ? 'text-yellow-600' : 'text-gray-400'}`}>
         {getConditionPreview()}
       </div>
+
+      {data.config?.description && (
+        <div className={`text-xs mt-1 italic line-clamp-2 ${isConfigured() ? 'text-yellow-500' : 'text-gray-400'}`}>
+          {data.config.description}
+        </div>
+      )}
 
       {/* Output handles for different condition types */}
       {data.config?.conditionConfig?.type === 'switch' ? (

@@ -14,7 +14,7 @@ interface FormAssignmentNodeProps {
 export function FormAssignmentNode({ data }: FormAssignmentNodeProps) {
   return (
     <div 
-      className="px-4 py-2 shadow-md rounded-md bg-blue-100 border-2 border-blue-200 min-w-[150px] cursor-pointer"
+      className="px-4 py-2 shadow-md rounded-md bg-blue-100 border-2 border-blue-200 min-w-[150px] max-w-[220px] cursor-pointer"
       onClick={data.onSelect}
     >
       <Handle
@@ -29,6 +29,11 @@ export function FormAssignmentNode({ data }: FormAssignmentNodeProps) {
       <div className="text-xs text-blue-600 mt-1">
         {data.config.actionType || 'Click to configure'}
       </div>
+      {data.config?.description && (
+        <div className="text-xs text-blue-500 mt-1 italic line-clamp-2">
+          {data.config.description}
+        </div>
+      )}
       <Handle
         type="source"
         position={Position.Right}
