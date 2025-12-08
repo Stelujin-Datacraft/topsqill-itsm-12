@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,6 +15,35 @@ interface CreateRecordFieldsConfigProps {
   fieldValues: CreateRecordFieldValue[];
   onFieldValuesChange: (values: CreateRecordFieldValue[]) => void;
 }
+
+// Helper to normalize options from various formats
+const normalizeOptions = (options: any): Array<{ id: string; value: string; label: string }> => {
+  if (!options) return [];
+  
+  // Handle JSON string
+  let parsed = options;
+  if (typeof options === 'string') {
+    try {
+      parsed = JSON.parse(options);
+    } catch {
+      return [];
+    }
+  }
+  
+  if (!Array.isArray(parsed)) return [];
+  
+  return parsed.map((opt: any, idx: number) => {
+    // Handle different option formats
+    if (typeof opt === 'string') {
+      return { id: `opt-${idx}`, value: opt, label: opt };
+    }
+    return {
+      id: opt.id || `opt-${idx}`,
+      value: opt.value || opt.label || '',
+      label: opt.label || opt.value || ''
+    };
+  }).filter((opt: { value: string }) => opt.value && opt.value.trim() !== '');
+};
 
 export function CreateRecordFieldsConfig({
   targetFormId,
@@ -89,11 +118,13 @@ export function CreateRecordFieldsConfig({
               formId={targetFormId}
               value={fieldValue.fieldId}
               onValueChange={(fieldId, fieldName, fieldType, fieldOptions) => {
+                const normalizedOpts = normalizeOptions(fieldOptions);
+                console.log('📋 Field selected:', { fieldId, fieldName, fieldType, rawOptions: fieldOptions, normalizedOptions: normalizedOpts });
                 handleFieldUpdate(index, {
                   fieldId,
                   fieldName,
                   fieldType,
-                  fieldOptions: fieldOptions || [],
+                  fieldOptions: normalizedOpts,
                 });
               }}
               placeholder="Select field"
