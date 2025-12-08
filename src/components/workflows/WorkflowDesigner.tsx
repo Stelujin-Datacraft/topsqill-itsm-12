@@ -11,9 +11,12 @@ import {
   Edge,
   Node,
   NodeTypes,
+  EdgeTypes,
   BackgroundVariant,
   OnSelectionChangeParams,
 } from '@xyflow/react';
+import { LabeledEdge } from './edges/LabeledEdge';
+import { EdgeConfigModal } from './EdgeConfigModal';
 import { toast } from 'sonner';
 import '@xyflow/react/dist/style.css';
 import { WorkflowNode, WorkflowConnection } from '@/types/workflow';
@@ -35,6 +38,10 @@ const nodeTypes: NodeTypes = {
   'condition': ConditionNode,
   'wait': WaitNode,
   'end': EndNode,
+};
+
+const edgeTypes: EdgeTypes = {
+  labeled: LabeledEdge,
 };
 
 // Helper function to generate valid UUIDs
@@ -60,6 +67,10 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [workflowNodes, setWorkflowNodes] = useState<WorkflowNode[]>([]);
   const [workflowConnections, setWorkflowConnections] = useState<WorkflowConnection[]>([]);
+  
+  // Edge config modal state
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [isEdgeModalOpen, setIsEdgeModalOpen] = useState(false);
   
   const isInitialized = useRef(false);
   
@@ -166,10 +177,10 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
     });
 
     setReactFlowEdges(currentEdges => {
-      const newEdgeIds = connections.map(c => c.id).sort().join(',');
-      const currentEdgeIds = currentEdges.map(e => e.id).sort().join(',');
+      const newEdgeData = connections.map(c => `${c.id}:${c.label || ''}`).sort().join(',');
+      const currentEdgeData = currentEdges.map(e => `${e.id}:${e.data?.label || ''}`).sort().join(',');
       
-      if (newEdgeIds === currentEdgeIds) {
+      if (newEdgeData === currentEdgeData) {
         return currentEdges;
       }
       
@@ -179,6 +190,8 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
         target: conn.target,
         sourceHandle: conn.sourceHandle,
         targetHandle: conn.targetHandle,
+        type: 'labeled',
+        data: { label: conn.label || '' },
       }));
     });
   }, [setReactFlowNodes, setReactFlowEdges]);
@@ -350,8 +363,48 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
   // Show hint when edge is selected
   const onSelectionChange = useCallback(({ edges }: OnSelectionChangeParams) => {
     if (edges.length > 0) {
-      toast.info('Press Delete or Backspace to remove connection', { duration: 2000 });
+      toast.info('Click on connection to rename or delete it', { duration: 2000 });
     }
+  }, []);
+
+  // Handle edge click - open modal
+  const onEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
+    setSelectedEdgeId(edge.id);
+    setIsEdgeModalOpen(true);
+  }, []);
+
+  // Get selected edge name
+  const selectedEdgeName = useMemo(() => {
+    if (!selectedEdgeId) return '';
+    const conn = workflowConnections.find(c => c.id === selectedEdgeId);
+    return conn?.label || '';
+  }, [selectedEdgeId, workflowConnections]);
+
+  // Save edge name
+  const handleSaveEdgeName = useCallback((edgeId: string, name: string) => {
+    setWorkflowConnections(prev => {
+      const updated = prev.map(conn =>
+        conn.id === edgeId ? { ...conn, label: name } : conn
+      );
+      syncToReactFlow(workflowNodesRef.current, updated);
+      return updated;
+    });
+  }, [syncToReactFlow]);
+
+  // Delete edge from modal
+  const handleDeleteEdge = useCallback((edgeId: string) => {
+    setWorkflowConnections(prev => {
+      const updated = prev.filter(conn => conn.id !== edgeId);
+      syncToReactFlow(workflowNodesRef.current, updated);
+      return updated;
+    });
+    setReactFlowEdges(prev => prev.filter(edge => edge.id !== edgeId));
+  }, [syncToReactFlow, setReactFlowEdges]);
+
+  // Close edge modal
+  const handleCloseEdgeModal = useCallback(() => {
+    setIsEdgeModalOpen(false);
+    setSelectedEdgeId(null);
   }, []);
 
   // Save current state - use refs for latest values
@@ -393,7 +446,9 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
           onNodeDragStop={onNodeDragStop}
           onDragOver={onDragOver}
           onDrop={onDrop}
+          onEdgeClick={onEdgeClick}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           fitView
           className="bg-slate-50"
         >
@@ -417,6 +472,15 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
           onSave={handleSave}
         />
       )}
+
+      <EdgeConfigModal
+        isOpen={isEdgeModalOpen}
+        edgeId={selectedEdgeId}
+        edgeName={selectedEdgeName}
+        onClose={handleCloseEdgeModal}
+        onSave={handleSaveEdgeName}
+        onDelete={handleDeleteEdge}
+      />
     </div>
   );
 }
