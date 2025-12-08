@@ -93,8 +93,6 @@ export function CreateRecordFieldsConfig({
                   fieldId,
                   fieldName,
                   fieldType,
-                  fieldOptions: fieldOptions || [],
-                  staticValue: '', // Reset value when field changes
                 });
               }}
               placeholder="Select field"
@@ -133,7 +131,7 @@ export function CreateRecordFieldsConfig({
                   id: fieldValue.fieldId,
                   label: fieldValue.fieldName || 'Field',
                   type: fieldValue.fieldType,
-                  options: fieldValue.fieldOptions || []
+                  options: []
                 } as FormFieldOption}
                 value={fieldValue.staticValue || ''}
                 onChange={(value) => handleFieldUpdate(index, { staticValue: value })}

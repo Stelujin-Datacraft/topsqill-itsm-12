@@ -25,7 +25,6 @@ export interface CreateRecordFieldValue {
   fieldId: string;
   fieldName?: string;
   fieldType?: string;
-  fieldOptions?: Array<{ value: string; label: string }>;
   valueType: 'static' | 'dynamic';
   staticValue?: any;
   dynamicValuePath?: string;
