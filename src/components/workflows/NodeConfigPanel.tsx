@@ -216,6 +216,29 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
           return false;
         }
       }
+
+      if (actionType === 'create_record') {
+        if (!localConfig?.targetFormId) {
+          toast({ title: "Error", description: "Please select a target form for record creation", variant: "destructive" });
+          return false;
+        }
+        if (!localConfig?.recordCount || localConfig.recordCount < 1) {
+          toast({ title: "Error", description: "Please specify the number of records to create (at least 1)", variant: "destructive" });
+          return false;
+        }
+        if (localConfig?.setSubmittedBy === 'specific_user' && !localConfig?.specificSubmitterId) {
+          toast({ title: "Error", description: "Please select a specific user for the 'Submitted By' option", variant: "destructive" });
+          return false;
+        }
+        if (localConfig?.fieldConfigMode === 'field_mapping') {
+          const mappings = localConfig?.fieldMappings || [];
+          const hasIncompleteMappings = mappings.some((m: any) => !m.sourceFieldId || !m.targetFieldId);
+          if (hasIncompleteMappings) {
+            toast({ title: "Error", description: "Please complete all field mappings or remove incomplete ones", variant: "destructive" });
+            return false;
+          }
+        }
+      }
     }
     return true;
   }, [node.type, localConfig, toast]);
@@ -660,7 +683,9 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                         ...localConfig, 
                         targetFormId: formId,
                         targetFormName: formName,
-                        fieldValues: [] // Reset field values when form changes
+                        fieldValues: [], // Reset field values when form changes
+                        fieldMappings: [], // Reset field mappings when form changes
+                        fieldConfigMode: localConfig?.fieldConfigMode || 'field_values' // Ensure default mode is set
                       });
                     }}
                     placeholder="Select form to create records in"
@@ -688,8 +713,9 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                           }
                         }}
                         onBlur={() => {
-                          // Ensure valid value on blur
-                          if (!localConfig?.recordCount || localConfig.recordCount < 1) {
+                          // Ensure valid value on blur - check for empty string, null, undefined, or less than 1
+                          const currentValue = localConfig?.recordCount;
+                          if (currentValue === '' || currentValue === null || currentValue === undefined || (typeof currentValue === 'number' && currentValue < 1)) {
                             handleConfigUpdate('recordCount', 1);
                           }
                         }}
