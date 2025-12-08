@@ -47,7 +47,7 @@ export interface CreateRecordConfig {
   setSubmittedBy?: 'trigger_submitter' | 'system' | 'specific_user';
   specificSubmitterId?: string;
   initialStatus?: 'pending' | 'approved' | 'rejected' | 'in_review';
-  copyAllTriggerFields?: boolean; // Copy all matching fields from trigger form
-  fieldMappings?: FieldMapping[]; // Custom field mappings when copyAllTriggerFields is true
+  fieldConfigMode?: 'field_values' | 'field_mapping'; // Toggle between setting values or mapping fields
+  fieldMappings?: FieldMapping[]; // Custom field mappings when fieldConfigMode is 'field_mapping'
   assignToSubmitter?: boolean; // Assign created records to trigger form submitter
 }

@@ -762,47 +762,61 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                       </div>
                     )}
 
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="copyAllTriggerFields"
-                        checked={localConfig?.copyAllTriggerFields || false}
-                        onCheckedChange={(checked) => {
-                          handleConfigUpdate('copyAllTriggerFields', checked);
-                          if (!checked) {
+                    <div>
+                      <Label>Field Configuration Mode</Label>
+                      <Select
+                        value={localConfig?.fieldConfigMode || 'field_values'}
+                        onValueChange={(value) => {
+                          handleConfigUpdate('fieldConfigMode', value);
+                          // Clear the other mode's data when switching
+                          if (value === 'field_values') {
                             handleConfigUpdate('fieldMappings', []);
+                          } else {
+                            handleConfigUpdate('fieldValues', []);
                           }
                         }}
-                      />
-                      <Label htmlFor="copyAllTriggerFields" className="text-sm font-normal cursor-pointer">
-                        Copy fields from trigger form
-                      </Label>
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select configuration mode" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="field_values">Set Field Values</SelectItem>
+                          <SelectItem value="field_mapping">Map Fields from Trigger Form</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {localConfig?.fieldConfigMode === 'field_mapping' 
+                          ? 'Map fields from the trigger form to the target form'
+                          : 'Set static or dynamic values for target form fields'}
+                      </p>
                     </div>
 
-                    {localConfig?.copyAllTriggerFields && (
+                    {localConfig?.fieldConfigMode === 'field_mapping' ? (
                       <FieldMappingConfig
                         triggerFormId={triggerFormId}
                         targetFormId={localConfig.targetFormId}
                         fieldMappings={localConfig?.fieldMappings || []}
                         onFieldMappingsChange={(mappings) => handleConfigUpdate('fieldMappings', mappings)}
                       />
+                    ) : (
+                      <CreateRecordFieldsConfig
+                        targetFormId={localConfig.targetFormId}
+                        triggerFormId={triggerFormId}
+                        fieldValues={localConfig?.fieldValues || []}
+                        onFieldValuesChange={(values) => handleConfigUpdate('fieldValues', values)}
+                      />
                     )}
-
-                    <CreateRecordFieldsConfig
-                      targetFormId={localConfig.targetFormId}
-                      triggerFormId={triggerFormId}
-                      fieldValues={localConfig?.fieldValues || []}
-                      onFieldValuesChange={(values) => handleConfigUpdate('fieldValues', values)}
-                    />
                   </>
                 )}
 
                 {localConfig?.targetFormId && (
                   <div className="text-xs text-cyan-700 bg-cyan-50 p-3 rounded border border-cyan-200">
                     <strong>Summary:</strong> Will create {localConfig.recordCount || 1} record{(localConfig.recordCount || 1) > 1 ? 's' : ''} in "{localConfig.targetFormName}"
-                    {localConfig.copyAllTriggerFields && ` (copying ${localConfig.fieldMappings?.length ? localConfig.fieldMappings.length + ' mapped' : 'matching'} fields)`}
-                    {(localConfig.fieldValues?.length || 0) > 0 
-                      ? ` with ${localConfig.fieldValues.length} additional field value${localConfig.fieldValues.length > 1 ? 's' : ''}`
-                      : localConfig.copyAllTriggerFields ? '' : ' with empty/default values'}
+                    {localConfig.fieldConfigMode === 'field_mapping' 
+                      ? ` (mapping ${localConfig.fieldMappings?.length || 0} field${(localConfig.fieldMappings?.length || 0) !== 1 ? 's' : ''} from trigger form)`
+                      : (localConfig.fieldValues?.length || 0) > 0 
+                        ? ` with ${localConfig.fieldValues.length} field value${localConfig.fieldValues.length > 1 ? 's' : ''}`
+                        : ' with empty/default values'}
                     {' | Status: '}{localConfig.initialStatus || 'pending'}
                     {' | By: '}{
                       localConfig.setSubmittedBy === 'system' 
