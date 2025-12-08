@@ -939,17 +939,16 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
             id="nodeDescription"
             value={localConfig?.description || ''}
             onChange={(e) => {
-              const words = e.target.value.trim().split(/\s+/).filter(w => w.length > 0);
-              if (words.length <= 50 || e.target.value.length < (localConfig?.description || '').length) {
+              if (e.target.value.length <= 70 || e.target.value.length < (localConfig?.description || '').length) {
                 handleConfigUpdate('description', e.target.value);
               }
             }}
-            placeholder="Add context or notes about this node (max 50 words)"
+            placeholder="Add context or notes about this node (max 70 characters)"
             rows={2}
             className="resize-none"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            {(localConfig?.description || '').trim().split(/\s+/).filter((w: string) => w.length > 0).length}/50 words
+            {(localConfig?.description || '').length}/70 characters
           </p>
         </div>
         
@@ -993,17 +992,16 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   id="nodeDescriptionExpanded"
                   value={localConfig?.description || ''}
                   onChange={(e) => {
-                    const words = e.target.value.trim().split(/\s+/).filter(w => w.length > 0);
-                    if (words.length <= 50 || e.target.value.length < (localConfig?.description || '').length) {
+                    if (e.target.value.length <= 70 || e.target.value.length < (localConfig?.description || '').length) {
                       handleConfigUpdate('description', e.target.value);
                     }
                   }}
-                  placeholder="Add context or notes about this node (max 50 words)"
+                  placeholder="Add context or notes about this node (max 70 characters)"
                   rows={3}
                   className="resize-none"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  {(localConfig?.description || '').trim().split(/\s+/).filter((w: string) => w.length > 0).length}/50 words
+                  {(localConfig?.description || '').length}/70 characters
                 </p>
               </div>
               
