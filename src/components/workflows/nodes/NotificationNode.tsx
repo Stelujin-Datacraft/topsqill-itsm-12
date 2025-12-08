@@ -30,7 +30,7 @@ export function NotificationNode({ data }: NotificationNodeProps) {
         {data.config.notificationConfig?.type || 'Click to configure'}
       </div>
       {data.config?.description && (
-        <div className="text-xs text-purple-500 mt-1 italic line-clamp-2 break-words">
+        <div className="text-xs text-purple-500 mt-1 italic line-clamp-2 break-words w-full whitespace-normal">
           {data.config.description}
         </div>
       )}

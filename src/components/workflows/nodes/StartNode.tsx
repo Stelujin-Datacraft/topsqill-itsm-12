@@ -36,7 +36,7 @@ export const StartNode = React.memo(function StartNode({ data }: StartNodeProps)
         {getDisplayText()}
       </div>
       {data.config?.description && (
-        <div className="text-xs text-green-500 mt-1 italic line-clamp-2 break-words">
+        <div className="text-xs text-green-500 mt-1 italic line-clamp-2 break-words w-full whitespace-normal">
           {data.config.description}
         </div>
       )}

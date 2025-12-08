@@ -30,7 +30,7 @@ export function FormAssignmentNode({ data }: FormAssignmentNodeProps) {
         {data.config.actionType || 'Click to configure'}
       </div>
       {data.config?.description && (
-        <div className="text-xs text-blue-500 mt-1 italic line-clamp-2 break-words">
+        <div className="text-xs text-blue-500 mt-1 italic line-clamp-2 break-words w-full whitespace-normal">
           {data.config.description}
         </div>
       )}
