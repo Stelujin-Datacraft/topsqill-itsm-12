@@ -100,7 +100,7 @@ export const ConditionNode = React.memo(function ConditionNode({ data }: Conditi
       </div>
 
       {data.config?.description && (
-        <div className={`text-xs mt-1 italic line-clamp-2 ${isConfigured() ? 'text-yellow-500' : 'text-gray-400'}`}>
+        <div className={`text-xs mt-1 italic line-clamp-2 break-words ${isConfigured() ? 'text-yellow-500' : 'text-gray-400'}`}>
           {data.config.description}
         </div>
       )}

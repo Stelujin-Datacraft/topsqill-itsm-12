@@ -75,7 +75,7 @@ export const ApprovalNode = React.memo(function ApprovalNode({ data }: ApprovalN
         )}
 
         {config.description && (
-          <div className="text-xs text-gray-400 mt-1 italic line-clamp-2">
+          <div className="text-xs text-gray-400 mt-1 italic line-clamp-2 break-words">
             {config.description}
           </div>
         )}
