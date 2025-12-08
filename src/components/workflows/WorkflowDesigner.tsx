@@ -266,7 +266,18 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
 
       console.log('Adding connection:', newConnection);
       setWorkflowConnections(prev => [...prev, newConnection]);
-      setReactFlowEdges((eds) => addEdge(params, eds));
+      
+      // Add edge with proper type and data for labeled edge
+      const newEdge: Edge = {
+        id: newConnection.id,
+        source: newConnection.source,
+        target: newConnection.target,
+        sourceHandle: newConnection.sourceHandle,
+        targetHandle: newConnection.targetHandle,
+        type: 'labeled',
+        data: { label: '' },
+      };
+      setReactFlowEdges((eds) => [...eds, newEdge]);
     },
     [setReactFlowEdges]
   );
