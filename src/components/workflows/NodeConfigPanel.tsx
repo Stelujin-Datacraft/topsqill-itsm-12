@@ -201,6 +201,14 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
           });
           return false;
         }
+        if (!localConfig?.assignRoleId) {
+          toast({
+            title: "Configuration Error", 
+            description: "Please select a role to assign to the user.",
+            variant: "destructive",
+          });
+          return false;
+        }
       }
 
       if (actionType === 'change_field_value') {
@@ -398,15 +406,14 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                 </div>
                 
                 <div>
-                  <Label htmlFor="assignRoleId">Auto-assign Role (Optional)</Label>
+                  <Label htmlFor="assignRoleId">Assign Role *</Label>
                   <Select 
-                    value={localConfig?.assignRoleId || 'none'} 
+                    value={localConfig?.assignRoleId || ''} 
                     onValueChange={(value) => {
-                      const roleId = value === 'none' ? undefined : value;
-                      const role = roles.find(r => r.id === roleId);
+                      const role = roles.find(r => r.id === value);
                       handleFullConfigUpdate({ 
                         ...localConfig, 
-                        assignRoleId: roleId,
+                        assignRoleId: value,
                         assignRoleName: role?.name
                       });
                     }}
@@ -415,7 +422,6 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                       <SelectValue placeholder="Select role to assign" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">No role assignment</SelectItem>
                       {roles.map(role => (
                         <SelectItem key={role.id} value={role.id}>
                           {role.name}
@@ -423,8 +429,11 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                       ))}
                     </SelectContent>
                   </Select>
+                  {!localConfig?.assignRoleId && (
+                    <p className="text-xs text-red-500 mt-1">Required: Please select a role to assign</p>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1">
-                    Optionally assign a role to the user when the form is assigned
+                    The selected role will be automatically assigned to the user
                   </p>
                 </div>
               </div>
