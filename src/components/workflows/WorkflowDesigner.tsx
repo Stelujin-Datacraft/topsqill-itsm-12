@@ -425,15 +425,42 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
 
   const { userProfile } = useAuth();
 
-  // Sync workflow trigger when saving
+  // Ensure start node has triggerType set before saving
+  const ensureStartNodeConfig = useCallback((nodes: WorkflowNode[]): WorkflowNode[] => {
+    return nodes.map(node => {
+      if (node.type === 'start') {
+        const config = node.data.config || {};
+        // Ensure triggerType defaults to 'form_submission' if not set
+        if (!config.triggerType && config.triggerFormId) {
+          console.log('🔧 Setting default triggerType for start node');
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              config: {
+                ...config,
+                triggerType: 'form_submission'
+              }
+            }
+          };
+        }
+      }
+      return node;
+    });
+  }, []);
+
+  // Sync workflow trigger when saving - this creates a trigger record for reference
   const syncWorkflowTrigger = useCallback(async (nodes: WorkflowNode[]) => {
     if (!workflowId || !userProfile?.organization_id) return;
 
     const startNode = nodes.find(n => n.type === 'start');
     const startConfig = startNode?.data?.config;
     
-    if (!startConfig?.triggerFormId || !startConfig?.triggerType) {
-      console.log('⚠️ No trigger form or type configured in start node');
+    // Default triggerType if not set
+    const triggerType = startConfig?.triggerType || 'form_submission';
+    
+    if (!startConfig?.triggerFormId) {
+      console.log('⚠️ No trigger form configured in start node');
       return;
     }
 
@@ -444,16 +471,14 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
       'form_rejection': 'onFormRejection'
     };
 
-    const dbTriggerType = triggerTypeMap[startConfig.triggerType];
-    if (!dbTriggerType) return;
+    const dbTriggerType = triggerTypeMap[triggerType] || 'onFormSubmit';
 
     // Check if trigger already exists
     const { data: existingTriggers } = await supabase
       .from('workflow_triggers')
       .select('id')
       .eq('target_workflow_id', workflowId)
-      .eq('source_form_id', startConfig.triggerFormId)
-      .eq('trigger_type', dbTriggerType);
+      .eq('source_form_id', startConfig.triggerFormId);
 
     if (existingTriggers && existingTriggers.length > 0) {
       console.log('✅ Trigger already exists');
@@ -477,22 +502,29 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
 
     if (error) {
       console.error('❌ Error creating trigger:', error);
-      toast.error('Failed to create workflow trigger');
     } else {
       console.log('✅ Created workflow trigger');
-      toast.success('Workflow trigger created');
     }
   }, [workflowId, userProfile?.organization_id, userProfile?.id]);
 
   // Save current state - use refs for latest values
   const handleSave = useCallback(async () => {
-    console.log('Saving workflow state:', { nodes: workflowNodesRef.current.length, connections: workflowConnectionsRef.current.length });
+    // Ensure start node has proper config
+    const nodesWithDefaults = ensureStartNodeConfig(workflowNodesRef.current);
     
-    // Sync trigger first
-    await syncWorkflowTrigger(workflowNodesRef.current);
+    // Update refs if changed
+    if (nodesWithDefaults !== workflowNodesRef.current) {
+      workflowNodesRef.current = nodesWithDefaults;
+      setWorkflowNodes(nodesWithDefaults);
+    }
     
-    onSave(workflowNodesRef.current, workflowConnectionsRef.current);
-  }, [onSave, syncWorkflowTrigger]);
+    console.log('Saving workflow state:', { nodes: nodesWithDefaults.length, connections: workflowConnectionsRef.current.length });
+    
+    // Sync trigger
+    await syncWorkflowTrigger(nodesWithDefaults);
+    
+    onSave(nodesWithDefaults, workflowConnectionsRef.current);
+  }, [onSave, syncWorkflowTrigger, ensureStartNodeConfig]);
 
   // Close panel handler - stable
   const handleClosePanel = useCallback(() => {
