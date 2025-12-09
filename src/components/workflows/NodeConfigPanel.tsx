@@ -313,6 +313,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   value={localConfig?.triggerFormId || ''}
                   onValueChange={handleFormSelection}
                   placeholder="Select a form to trigger this workflow"
+                  projectId={projectId}
                 />
                 {localConfig?.triggerFormId && (
                   <p className="text-xs text-green-600 mt-2">
@@ -362,6 +363,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                     });
                   }}
                   placeholder="Select form to approve"
+                  projectId={projectId}
                 />
               </div>
             )}
@@ -382,6 +384,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                       });
                     }}
                     placeholder="Select form to assign"
+                    projectId={projectId}
                   />
                   {!localConfig?.targetFormId && (
                     <p className="text-xs text-red-500 mt-1">Required: Please select a form to assign</p>
@@ -454,6 +457,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                       });
                     }}
                     placeholder="Select form to update lifecycle status"
+                    projectId={projectId}
                   />
                 </div>
                 <div>
@@ -586,6 +590,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                       });
                     }}
                     placeholder="Select form to update"
+                    projectId={projectId}
                   />
                 </div>
 
@@ -687,6 +692,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                       });
                     }}
                     placeholder="Select form"
+                    projectId={projectId}
                   />
                 </div>
 
@@ -749,6 +755,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                       });
                     }}
                     placeholder="Select form to create records in"
+                    projectId={projectId}
                   />
                 </div>
 
@@ -949,6 +956,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   });
                 }}
                 placeholder="Select form to approve/disapprove"
+                projectId={projectId}
               />
             </div>
 
