@@ -133,8 +133,22 @@ export class ActionExecutors {
         assignedTo: assignment.assigned_to_email
       });
 
-      // Step 5: Send notification
-      console.log('🔍 STEP 5: Sending notification');
+      // Step 5: Assign role if configured
+      let roleAssignmentResult = { success: false, assigned: false };
+      if (config.assignRoleId && assigneeResult.userId) {
+        console.log('🔍 STEP 5: Assigning role to user');
+        roleAssignmentResult = await this.assignRoleToUser(
+          assigneeResult.userId,
+          config.assignRoleId,
+          context.submitterId
+        );
+        console.log('✅ STEP 5 COMPLETED: Role assignment result:', roleAssignmentResult);
+      } else {
+        console.log('⏭️ STEP 5 SKIPPED: No role assignment configured');
+      }
+
+      // Step 6: Send notification
+      console.log('🔍 STEP 6: Sending notification');
       const notificationResult = await this.sendAssignmentNotification(
         assigneeResult.userId,
         assigneeResult.email,
@@ -143,7 +157,7 @@ export class ActionExecutors {
         context.executionId
       );
 
-      console.log('✅ STEP 5 COMPLETED: Notification result:', {
+      console.log('✅ STEP 6 COMPLETED: Notification result:', {
         success: notificationResult.success,
         notificationId: notificationResult.notificationId
       });
@@ -157,7 +171,9 @@ export class ActionExecutors {
         assignedTo: assigneeResult.email,
         assignedUserId: assigneeResult.userId,
         notificationSent: notificationResult.success,
-        notificationId: notificationResult.notificationId
+        notificationId: notificationResult.notificationId,
+        roleAssigned: roleAssignmentResult.assigned,
+        roleId: config.assignRoleId
       };
 
       console.log('🎉 ASSIGN FORM ACTION COMPLETED SUCCESSFULLY:', output);
@@ -170,7 +186,8 @@ export class ActionExecutors {
           result: 'success',
           assignmentId: assignment.id,
           assignedTo: assigneeResult.email,
-          notificationSent: notificationResult.success
+          notificationSent: notificationResult.success,
+          roleAssigned: roleAssignmentResult.assigned
         }
       };
 
@@ -306,6 +323,70 @@ export class ActionExecutors {
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown notification error' 
+      };
+    }
+  }
+
+  private static async assignRoleToUser(
+    userId: string,
+    roleId: string,
+    assignedBy?: string
+  ): Promise<{ success: boolean; assigned: boolean; error?: string }> {
+    console.log('🎭 ASSIGNING ROLE TO USER:', { userId, roleId, assignedBy });
+
+    try {
+      // First check if user already has a role assignment
+      const { data: existingAssignment } = await supabase
+        .from('user_role_assignments')
+        .select('id, role_id')
+        .eq('user_id', userId)
+        .single();
+
+      if (existingAssignment) {
+        // User already has a role - update it if different
+        if (existingAssignment.role_id === roleId) {
+          console.log('✅ User already has this role assigned');
+          return { success: true, assigned: false };
+        }
+
+        // Update to new role
+        const { error: updateError } = await supabase
+          .from('user_role_assignments')
+          .update({ role_id: roleId, assigned_by: assignedBy })
+          .eq('user_id', userId);
+
+        if (updateError) {
+          console.error('❌ Role update failed:', updateError);
+          return { success: false, assigned: false, error: updateError.message };
+        }
+
+        console.log('✅ Role updated successfully for user');
+        return { success: true, assigned: true };
+      }
+
+      // Insert new role assignment
+      const { error: insertError } = await supabase
+        .from('user_role_assignments')
+        .insert({
+          user_id: userId,
+          role_id: roleId,
+          assigned_by: assignedBy
+        });
+
+      if (insertError) {
+        console.error('❌ Role assignment failed:', insertError);
+        return { success: false, assigned: false, error: insertError.message };
+      }
+
+      console.log('✅ Role assigned successfully to user');
+      return { success: true, assigned: true };
+
+    } catch (error) {
+      console.error('❌ Role assignment error:', error);
+      return { 
+        success: false, 
+        assigned: false,
+        error: error instanceof Error ? error.message : 'Unknown role assignment error' 
       };
     }
   }
