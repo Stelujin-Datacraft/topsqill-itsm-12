@@ -15,6 +15,7 @@ import {
   BackgroundVariant,
   OnSelectionChangeParams,
 } from '@xyflow/react';
+import { useAuth } from '@/contexts/AuthContext';
 import { LabeledEdge } from './edges/LabeledEdge';
 import { EdgeConfigModal } from './EdgeConfigModal';
 import { toast } from 'sonner';
@@ -422,11 +423,76 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
     setSelectedEdgeId(null);
   }, []);
 
+  const { userProfile } = useAuth();
+
+  // Sync workflow trigger when saving
+  const syncWorkflowTrigger = useCallback(async (nodes: WorkflowNode[]) => {
+    if (!workflowId || !userProfile?.organization_id) return;
+
+    const startNode = nodes.find(n => n.type === 'start');
+    const startConfig = startNode?.data?.config;
+    
+    if (!startConfig?.triggerFormId || !startConfig?.triggerType) {
+      console.log('⚠️ No trigger form or type configured in start node');
+      return;
+    }
+
+    const triggerTypeMap: Record<string, string> = {
+      'form_submission': 'onFormSubmit',
+      'form_completion': 'onFormCompletion',
+      'form_approval': 'onFormApproval',
+      'form_rejection': 'onFormRejection'
+    };
+
+    const dbTriggerType = triggerTypeMap[startConfig.triggerType];
+    if (!dbTriggerType) return;
+
+    // Check if trigger already exists
+    const { data: existingTriggers } = await supabase
+      .from('workflow_triggers')
+      .select('id')
+      .eq('target_workflow_id', workflowId)
+      .eq('source_form_id', startConfig.triggerFormId)
+      .eq('trigger_type', dbTriggerType);
+
+    if (existingTriggers && existingTriggers.length > 0) {
+      console.log('✅ Trigger already exists');
+      return;
+    }
+
+    // Create trigger
+    const triggerPayload = {
+      organization_id: userProfile.organization_id,
+      trigger_id: `${workflowId}_${dbTriggerType}_${startConfig.triggerFormId}`,
+      target_workflow_id: workflowId,
+      trigger_type: dbTriggerType,
+      source_form_id: startConfig.triggerFormId,
+      metadata: { nodeId: startNode?.id, nodeType: startNode?.type },
+      created_by: userProfile.id
+    };
+
+    const { error } = await supabase
+      .from('workflow_triggers')
+      .insert(triggerPayload);
+
+    if (error) {
+      console.error('❌ Error creating trigger:', error);
+      toast.error('Failed to create workflow trigger');
+    } else {
+      console.log('✅ Created workflow trigger');
+      toast.success('Workflow trigger created');
+    }
+  }, [workflowId, userProfile?.organization_id, userProfile?.id]);
+
   // Save current state - use refs for latest values
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     console.log('Saving workflow state:', { nodes: workflowNodesRef.current.length, connections: workflowConnectionsRef.current.length });
+    
+    // Sync trigger first
+    await syncWorkflowTrigger(workflowNodesRef.current);
+    
     onSave(workflowNodesRef.current, workflowConnectionsRef.current);
-  }, [onSave]);
+  }, [onSave, syncWorkflowTrigger]);
 
   // Close panel handler - stable
   const handleClosePanel = useCallback(() => {
@@ -456,8 +522,8 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
   }, [workflowNodes, workflowConnections]);
 
   // Save with feedback
-  const handleSaveWithFeedback = useCallback(() => {
-    handleSave();
+  const handleSaveWithFeedback = useCallback(async () => {
+    await handleSave();
     setHasUnsavedChanges(false);
   }, [handleSave]);
 
