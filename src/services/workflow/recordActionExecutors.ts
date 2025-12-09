@@ -79,14 +79,10 @@ export class RecordActionExecutors {
         };
       }
 
-      // Verify form ID matches
-      if (submission.form_id !== config.targetFormId) {
-        return {
-          success: false,
-          error: 'Target form ID does not match submission form ID',
-          actionDetails
-        };
-      }
+      // Note: We no longer enforce strict form ID matching since Change Field Value
+      // always operates on the trigger submission. The targetFormId in config is used
+      // to help users select the correct field, but the actual update is on the trigger submission.
+      console.log('📋 Submission form:', submission.form_id, 'Config target form:', config.targetFormId);
 
       // Update the field value in submission data
       const currentData = submission.submission_data || {};
@@ -180,14 +176,10 @@ export class RecordActionExecutors {
         };
       }
 
-      // Verify form ID matches
-      if (submission.form_id !== config.targetFormId) {
-        return {
-          success: false,
-          error: 'Target form ID does not match submission form ID',
-          actionDetails
-        };
-      }
+      // Note: We no longer enforce strict form ID matching since Change Record Status
+      // always operates on the trigger submission. The targetFormId in config is used
+      // for UI display purposes only.
+      console.log('📋 Submission form:', submission.form_id, 'Config target form:', config.targetFormId);
 
       // Update the approval status
       const updateData: any = {

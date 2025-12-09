@@ -1851,8 +1851,6 @@ export type Database = {
               p_drilldown_values?: string[]
               p_filters?: Json
               p_form_id: string
-              p_group_by_field?: string
-              p_metric_aggregations?: Json
               p_metrics?: string[]
             }
             Returns: {
@@ -1869,6 +1867,8 @@ export type Database = {
               p_drilldown_values?: string[]
               p_filters?: Json
               p_form_id: string
+              p_group_by_field?: string
+              p_metric_aggregations?: Json
               p_metrics?: string[]
             }
             Returns: {
