@@ -46,7 +46,14 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Use local state for the config to prevent re-renders from parent
-  const [localConfig, setLocalConfig] = useState<any>(() => node.data.config || {});
+  // Ensure start nodes have triggerType defaulted to 'form_submission'
+  const [localConfig, setLocalConfig] = useState<any>(() => {
+    const config = node.data.config || {};
+    if (node.type === 'start' && !config.triggerType) {
+      return { ...config, triggerType: 'form_submission' };
+    }
+    return config;
+  });
   
   // Keep a ref to the onConfigChange to avoid stale closures
   const onConfigChangeRef = useRef(onConfigChange);
@@ -86,6 +93,14 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
     };
   }, []);
 
+  // Sync default triggerType to parent for start nodes on mount
+  useEffect(() => {
+    if (node.type === 'start' && !node.data.config?.triggerType && localConfig.triggerType) {
+      console.log('🔄 Syncing default triggerType to parent:', localConfig.triggerType);
+      onConfigChangeRef.current(localConfig);
+    }
+  }, [node.type, node.data.config?.triggerType, localConfig]);
+
   // Update local config and schedule parent sync
   const handleConfigUpdate = useCallback((key: string, value: any) => {
     console.log('🔧 Updating local config:', { key, value, nodeId: node.id });
@@ -104,17 +119,20 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
   }, [syncToParent]);
 
   const handleFormSelection = useCallback((formId: string, formName: string) => {
+    // Always ensure triggerType is set for start nodes (default to form_submission)
+    const triggerType = localConfig?.triggerType || 'form_submission';
     const newConfig = { 
       ...localConfig, 
       triggerFormId: formId,
-      triggerFormName: formName
+      triggerFormName: formName,
+      triggerType: triggerType
     };
     setLocalConfig(newConfig);
     syncToParent(newConfig);
 
     // Auto-create trigger for start nodes
-    if (node.type === 'start' && workflowId && localConfig?.triggerType) {
-      createWorkflowTrigger(formId, localConfig.triggerType);
+    if (node.type === 'start' && workflowId) {
+      createWorkflowTrigger(formId, triggerType);
     }
   }, [localConfig, node.type, workflowId, syncToParent]);
 

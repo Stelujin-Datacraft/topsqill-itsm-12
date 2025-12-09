@@ -52,13 +52,16 @@ export class WorkflowTrigger {
         const config = parseNodeConfig(node.config);
         console.log(`🔍 Checking start node ${node.id} config:`, config);
         
+        // Default triggerType to 'form_submission' if not set
+        const triggerType = config.triggerType || 'form_submission';
+        
         // Check for both 'form_submission' and 'form_completion' trigger types
-        const triggerMatches = (config.triggerType === 'form_submission' || config.triggerType === 'form_completion') 
+        const triggerMatches = (triggerType === 'form_submission' || triggerType === 'form_completion') 
           && config.triggerFormId === formId;
         
         console.log(`🎯 Trigger match result:`, {
           nodeId: node.id,
-          triggerType: config.triggerType,
+          triggerType: triggerType,
           triggerFormId: config.triggerFormId,
           expectedFormId: formId,
           matches: triggerMatches
