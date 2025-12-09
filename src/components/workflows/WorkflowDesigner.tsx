@@ -459,7 +459,6 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
   const handleSaveWithFeedback = useCallback(() => {
     handleSave();
     setHasUnsavedChanges(false);
-    toast.success('Workflow saved successfully');
   }, [handleSave]);
 
   return (
