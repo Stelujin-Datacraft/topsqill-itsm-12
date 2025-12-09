@@ -24,6 +24,7 @@ import { FieldMappingConfig } from './FieldMappingConfig';
 import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
 import { useTriggerManagement } from '@/hooks/useTriggerManagement';
 import { useToast } from '@/hooks/use-toast';
+import { useRoles } from '@/hooks/useRoles';
 import { EnhancedCondition } from '@/types/conditions';
 import { FormFieldOption } from '@/types/conditions';
 
@@ -42,6 +43,7 @@ interface NodeConfigPanelProps {
 export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, formFields = [], onConfigChange, onDelete, onClose, onSave }: NodeConfigPanelProps) {
   const { createTrigger, deleteTrigger, loading } = useTriggerManagement();
   const { users: organizationUsers, loading: loadingUsers } = useOrganizationUsers();
+  const { roles, loading: loadingRoles } = useRoles();
   const { toast } = useToast();
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -393,6 +395,37 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                     targetFormId={localConfig?.targetFormId}
                     formFields={formFields}
                   />
+                </div>
+                
+                <div>
+                  <Label htmlFor="assignRoleId">Auto-assign Role (Optional)</Label>
+                  <Select 
+                    value={localConfig?.assignRoleId || 'none'} 
+                    onValueChange={(value) => {
+                      const roleId = value === 'none' ? undefined : value;
+                      const role = roles.find(r => r.id === roleId);
+                      handleFullConfigUpdate({ 
+                        ...localConfig, 
+                        assignRoleId: roleId,
+                        assignRoleName: role?.name
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role to assign" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No role assignment</SelectItem>
+                      {roles.map(role => (
+                        <SelectItem key={role.id} value={role.id}>
+                          {role.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Optionally assign a role to the user when the form is assigned
+                  </p>
                 </div>
               </div>
             )}
