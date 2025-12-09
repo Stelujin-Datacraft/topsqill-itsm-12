@@ -25,17 +25,6 @@ export class RecordActionExecutors {
         };
       }
 
-      // Determine submission ID to update (use submission from trigger)
-      const submissionId = context.submissionId;
-      
-      if (!submissionId) {
-        return {
-          success: false,
-          error: 'No submission ID available to update',
-          actionDetails
-        };
-      }
-
       // Determine the new value
       let newValue: any;
       
@@ -64,59 +53,146 @@ export class RecordActionExecutors {
 
       console.log('💾 New value determined:', { newValue, valueType: config.valueType });
 
-      // Fetch current submission data
-      const { data: submission, error: fetchError } = await supabase
-        .from('form_submissions')
-        .select('submission_data, form_id')
-        .eq('id', submissionId)
-        .single();
+      // Get the trigger form ID from context
+      const triggerFormId = context.triggerData?.formId;
+      
+      // Check if target form is different from trigger form
+      const isTargetFormDifferent = config.targetFormId !== triggerFormId;
+      
+      console.log('📋 Trigger form:', triggerFormId, 'Target form:', config.targetFormId, 'Is different:', isTargetFormDifferent);
 
-      if (fetchError || !submission) {
+      if (isTargetFormDifferent) {
+        // Update ALL submissions in the target form
+        console.log('🔄 Updating ALL submissions in target form:', config.targetFormId);
+        
+        // Fetch all submissions from the target form
+        const { data: targetSubmissions, error: fetchError } = await supabase
+          .from('form_submissions')
+          .select('id, submission_data')
+          .eq('form_id', config.targetFormId);
+
+        if (fetchError) {
+          return {
+            success: false,
+            error: `Failed to fetch target form submissions: ${fetchError.message}`,
+            actionDetails
+          };
+        }
+
+        if (!targetSubmissions || targetSubmissions.length === 0) {
+          return {
+            success: false,
+            error: 'No submissions found in target form to update',
+            actionDetails
+          };
+        }
+
+        console.log(`📊 Found ${targetSubmissions.length} submissions to update`);
+
+        let updatedCount = 0;
+        const updatedIds: string[] = [];
+
+        // Update each submission
+        for (const submission of targetSubmissions) {
+          const currentData = submission.submission_data || {};
+          const updatedData = {
+            ...(typeof currentData === 'object' ? currentData : {}),
+            [config.targetFieldId]: newValue
+          };
+
+          const { error: updateError } = await supabase
+            .from('form_submissions')
+            .update({ submission_data: updatedData })
+            .eq('id', submission.id);
+
+          if (!updateError) {
+            updatedCount++;
+            updatedIds.push(submission.id);
+          } else {
+            console.error(`❌ Failed to update submission ${submission.id}:`, updateError);
+          }
+        }
+
+        console.log(`✅ Successfully updated ${updatedCount}/${targetSubmissions.length} submissions`);
+
         return {
-          success: false,
-          error: `Failed to fetch submission: ${fetchError?.message}`,
+          success: true,
+          output: {
+            targetFormId: config.targetFormId,
+            fieldId: config.targetFieldId,
+            newValue,
+            updatedCount,
+            totalSubmissions: targetSubmissions.length,
+            updatedSubmissionIds: updatedIds,
+            updatedAt: new Date().toISOString()
+          },
+          actionDetails: {
+            ...actionDetails,
+            updatedCount,
+            totalSubmissions: targetSubmissions.length
+          }
+        };
+      } else {
+        // Update the trigger submission (original behavior)
+        const submissionId = context.submissionId;
+        
+        if (!submissionId) {
+          return {
+            success: false,
+            error: 'No submission ID available to update',
+            actionDetails
+          };
+        }
+
+        // Fetch current submission data
+        const { data: submission, error: fetchError } = await supabase
+          .from('form_submissions')
+          .select('submission_data, form_id')
+          .eq('id', submissionId)
+          .single();
+
+        if (fetchError || !submission) {
+          return {
+            success: false,
+            error: `Failed to fetch submission: ${fetchError?.message}`,
+            actionDetails
+          };
+        }
+
+        // Update the field value in submission data
+        const currentData = submission.submission_data || {};
+        const updatedData = {
+          ...(typeof currentData === 'object' ? currentData : {}),
+          [config.targetFieldId]: newValue
+        };
+
+        const { error: updateError } = await supabase
+          .from('form_submissions')
+          .update({ submission_data: updatedData })
+          .eq('id', submissionId);
+
+        if (updateError) {
+          return {
+            success: false,
+            error: `Failed to update submission: ${updateError.message}`,
+            actionDetails
+          };
+        }
+
+        console.log('✅ Field value updated successfully');
+
+        return {
+          success: true,
+          output: {
+            submissionId,
+            fieldId: config.targetFieldId,
+            oldValue: (submission.submission_data as any)?.[config.targetFieldId],
+            newValue,
+            updatedAt: new Date().toISOString()
+          },
           actionDetails
         };
       }
-
-      // Note: We no longer enforce strict form ID matching since Change Field Value
-      // always operates on the trigger submission. The targetFormId in config is used
-      // to help users select the correct field, but the actual update is on the trigger submission.
-      console.log('📋 Submission form:', submission.form_id, 'Config target form:', config.targetFormId);
-
-      // Update the field value in submission data
-      const currentData = submission.submission_data || {};
-      const updatedData = {
-        ...(typeof currentData === 'object' ? currentData : {}),
-        [config.targetFieldId]: newValue
-      };
-
-      const { error: updateError } = await supabase
-        .from('form_submissions')
-        .update({ submission_data: updatedData })
-        .eq('id', submissionId);
-
-      if (updateError) {
-        return {
-          success: false,
-          error: `Failed to update submission: ${updateError.message}`,
-          actionDetails
-        };
-      }
-
-      console.log('✅ Field value updated successfully');
-
-      return {
-        success: true,
-        output: {
-          submissionId,
-          fieldId: config.targetFieldId,
-          oldValue: submission.submission_data[config.targetFieldId],
-          newValue,
-          updatedAt: new Date().toISOString()
-        },
-        actionDetails
-      };
 
     } catch (error) {
       console.error('❌ Error in change field value action:', error);
