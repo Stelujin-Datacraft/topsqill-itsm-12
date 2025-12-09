@@ -72,6 +72,10 @@ export class NodeExecutors {
           console.log('🔄 CALLING RecordActionExecutors.executeChangeRecordStatusAction');
           actionResult = await RecordActionExecutors.executeChangeRecordStatusAction(nodeContext);
           break;
+        case 'create_record':
+          console.log('➕ CALLING RecordActionExecutors.executeCreateRecordAction');
+          actionResult = await RecordActionExecutors.executeCreateRecordAction(nodeContext);
+          break;
         default:
           console.error(`❌ Unknown action type: ${config.actionType}`);
           actionResult = {
