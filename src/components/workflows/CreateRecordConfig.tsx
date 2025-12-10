@@ -22,8 +22,8 @@ interface CrossReferenceField {
   id: string;
   label: string;
   type: string;
-  parentFormId?: string;
   targetFormId?: string;
+  targetFormName?: string;
 }
 
 export function CreateRecordConfig({
@@ -35,80 +35,90 @@ export function CreateRecordConfig({
   handleConfigUpdate,
   handleFullConfigUpdate,
 }: CreateRecordConfigProps) {
-  const [crossRefField, setCrossRefField] = useState<CrossReferenceField | null>(null);
+  const [crossRefFields, setCrossRefFields] = useState<CrossReferenceField[]>([]);
   const [loadingCrossRef, setLoadingCrossRef] = useState(false);
 
-  // Check if target form has a cross-reference field pointing to trigger form
+  // Detect cross-reference fields in the TRIGGER form (parent form)
   useEffect(() => {
-    const checkCrossReference = async () => {
-      if (!localConfig?.targetFormId || !triggerFormId) {
-        setCrossRefField(null);
+    const fetchCrossReferenceFields = async () => {
+      if (!triggerFormId) {
+        setCrossRefFields([]);
         return;
       }
 
       setLoadingCrossRef(true);
       try {
-        // Fetch fields from target form that are cross-reference or child-cross-reference
+        // Fetch cross-reference fields from the trigger form
         const { data: fields, error } = await supabase
           .from('form_fields')
           .select('id, label, field_type, custom_config')
-          .eq('form_id', localConfig.targetFormId)
+          .eq('form_id', triggerFormId)
           .in('field_type', ['cross-reference', 'child-cross-reference']);
 
         if (error) {
           console.error('Error fetching cross-reference fields:', error);
-          setCrossRefField(null);
+          setCrossRefFields([]);
           return;
         }
 
-        // Find a cross-reference field that points to the trigger form
-        const matchingField = fields?.find(field => {
-          const config = field.custom_config as any;
-          if (!config) return false;
-          
-          // For child-cross-reference, check parentFormId
-          if (field.field_type === 'child-cross-reference') {
-            return config.parentFormId === triggerFormId;
-          }
-          
-          // For cross-reference, check targetFormId
-          if (field.field_type === 'cross-reference') {
-            return config.targetFormId === triggerFormId;
-          }
-          
-          return false;
-        });
+        // Get target form IDs to fetch their names
+        const targetFormIds = fields
+          ?.map(f => {
+            const config = f.custom_config as any;
+            return config?.targetFormId;
+          })
+          .filter(Boolean) || [];
 
-        if (matchingField) {
-          const config = matchingField.custom_config as any;
-          setCrossRefField({
-            id: matchingField.id,
-            label: matchingField.label,
-            type: matchingField.field_type,
-            parentFormId: config?.parentFormId,
-            targetFormId: config?.targetFormId,
-          });
+        // Fetch form names
+        let formNames: Record<string, string> = {};
+        if (targetFormIds.length > 0) {
+          const { data: forms } = await supabase
+            .from('forms')
+            .select('id, name')
+            .in('id', targetFormIds);
           
-          // Auto-enable cross-reference linking if field found and not explicitly set
-          if (localConfig.linkCrossReference === undefined) {
-            handleConfigUpdate('linkCrossReference', true);
-            handleConfigUpdate('crossReferenceFieldId', matchingField.id);
-          }
-        } else {
-          setCrossRefField(null);
-          handleConfigUpdate('linkCrossReference', false);
-          handleConfigUpdate('crossReferenceFieldId', undefined);
+          forms?.forEach(f => {
+            formNames[f.id] = f.name;
+          });
         }
+
+        const crossRefFieldsList = fields?.map(field => {
+          const config = field.custom_config as any;
+          return {
+            id: field.id,
+            label: field.label,
+            type: field.field_type,
+            targetFormId: config?.targetFormId,
+            targetFormName: formNames[config?.targetFormId] || 'Unknown Form',
+          };
+        }).filter(f => f.targetFormId) || [];
+
+        setCrossRefFields(crossRefFieldsList);
       } catch (err) {
-        console.error('Error checking cross-reference:', err);
-        setCrossRefField(null);
+        console.error('Error fetching cross-reference fields:', err);
+        setCrossRefFields([]);
       } finally {
         setLoadingCrossRef(false);
       }
     };
 
-    checkCrossReference();
-  }, [localConfig?.targetFormId, triggerFormId]);
+    fetchCrossReferenceFields();
+  }, [triggerFormId]);
+
+  const handleCrossReferenceFieldSelect = useCallback((fieldId: string) => {
+    const selectedField = crossRefFields.find(f => f.id === fieldId);
+    if (selectedField) {
+      handleFullConfigUpdate({
+        ...localConfig,
+        linkCrossReference: true,
+        crossReferenceFieldId: fieldId,
+        targetFormId: selectedField.targetFormId,
+        targetFormName: selectedField.targetFormName,
+        fieldValues: [],
+        fieldMappings: [],
+      });
+    }
+  }, [crossRefFields, localConfig, handleFullConfigUpdate]);
 
   const handleFormChange = useCallback((formId: string, formName: string) => {
     handleFullConfigUpdate({ 
@@ -118,64 +128,83 @@ export function CreateRecordConfig({
       fieldValues: [],
       fieldMappings: [],
       fieldConfigMode: localConfig?.fieldConfigMode || 'field_values',
-      linkCrossReference: undefined,
+      linkCrossReference: false,
       crossReferenceFieldId: undefined,
+    });
+  }, [localConfig, handleFullConfigUpdate]);
+
+  const handleDisableCrossRefLinking = useCallback(() => {
+    handleFullConfigUpdate({
+      ...localConfig,
+      linkCrossReference: false,
+      crossReferenceFieldId: undefined,
+      targetFormId: undefined,
+      targetFormName: undefined,
     });
   }, [localConfig, handleFullConfigUpdate]);
 
   return (
     <div className="space-y-4">
-      <div>
-        <Label>Target Form *</Label>
-        <FormSelector
-          value={localConfig?.targetFormId || ''}
-          onValueChange={handleFormChange}
-          placeholder="Select form to create records in"
-          projectId={projectId}
-        />
-      </div>
+      {/* Cross-Reference Field Selection (Primary Option) */}
+      {crossRefFields.length > 0 && (
+        <div className="border rounded-lg p-3 bg-blue-50 border-blue-200 space-y-3">
+          <div className="flex items-center gap-2">
+            <Link2 className="h-4 w-4 text-blue-600" />
+            <span className="text-sm font-medium text-blue-800">
+              Create Linked Record
+            </span>
+          </div>
+          <p className="text-xs text-blue-700">
+            Select a cross-reference field from the trigger form to create a linked child record.
+          </p>
+          <Select
+            value={localConfig?.crossReferenceFieldId || ''}
+            onValueChange={handleCrossReferenceFieldSelect}
+          >
+            <SelectTrigger className="h-9 bg-white">
+              <SelectValue placeholder="Select cross-reference field" />
+            </SelectTrigger>
+            <SelectContent>
+              {crossRefFields.map((field) => (
+                <SelectItem key={field.id} value={field.id}>
+                  {field.label} → {field.targetFormName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          {localConfig?.linkCrossReference && localConfig?.crossReferenceFieldId && (
+            <div className="text-xs text-green-700 bg-green-50 p-2 rounded border border-green-200">
+              <strong>✓ Linked:</strong> Creating records in "{localConfig.targetFormName}" and auto-linking to parent's "{crossRefFields.find(f => f.id === localConfig.crossReferenceFieldId)?.label}" field.
+              <button
+                type="button"
+                onClick={handleDisableCrossRefLinking}
+                className="ml-2 text-red-600 hover:text-red-800 underline"
+              >
+                Disable
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Manual Form Selection (Alternative) */}
+      {!localConfig?.linkCrossReference && (
+        <>
+          <div>
+            <Label>{crossRefFields.length > 0 ? 'Or Select Target Form Manually' : 'Target Form *'}</Label>
+            <FormSelector
+              value={localConfig?.targetFormId || ''}
+              onValueChange={handleFormChange}
+              placeholder="Select form to create records in"
+              projectId={projectId}
+            />
+          </div>
+        </>
+      )}
 
       {localConfig?.targetFormId && (
         <>
-          {/* Cross-Reference Link Detection */}
-          {loadingCrossRef ? (
-            <div className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
-              Checking for cross-reference links...
-            </div>
-          ) : crossRefField ? (
-            <div className="border rounded-lg p-3 bg-blue-50 border-blue-200 space-y-2">
-              <div className="flex items-center gap-2">
-                <Link2 className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-800">
-                  Cross-Reference Link Detected
-                </span>
-              </div>
-              <p className="text-xs text-blue-700">
-                Field "<strong>{crossRefField.label}</strong>" ({crossRefField.type}) links back to the trigger form.
-                New records will be automatically linked.
-              </p>
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="linkCrossReference"
-                  checked={localConfig?.linkCrossReference ?? true}
-                  onChange={(e) => {
-                    handleConfigUpdate('linkCrossReference', e.target.checked);
-                    if (e.target.checked) {
-                      handleConfigUpdate('crossReferenceFieldId', crossRefField.id);
-                    } else {
-                      handleConfigUpdate('crossReferenceFieldId', undefined);
-                    }
-                  }}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <Label htmlFor="linkCrossReference" className="text-xs text-blue-700 cursor-pointer">
-                  Auto-link created records to trigger submission
-                </Label>
-              </div>
-            </div>
-          ) : null}
-
           <div>
             <Label>Number of Records *</Label>
             <Input
@@ -320,8 +349,8 @@ export function CreateRecordConfig({
 
           {localConfig?.linkCrossReference && (
             <div className="text-xs text-amber-700 bg-amber-50 p-3 rounded border border-amber-200">
-              <strong>Note:</strong> When cross-reference linking is enabled, the created record will only have the link populated.
-              Other field values can be set via field mapping or static values if you disable auto-linking.
+              <strong>Note:</strong> When cross-reference linking is enabled, the created child record will be automatically linked to the parent submission's cross-reference field.
+              Additional field values can be set if you disable auto-linking.
             </div>
           )}
         </>
@@ -331,7 +360,7 @@ export function CreateRecordConfig({
         <div className="text-xs text-cyan-700 bg-cyan-50 p-3 rounded border border-cyan-200">
           <strong>Summary:</strong> Will create {localConfig.recordCount || 1} record{(localConfig.recordCount || 1) > 1 ? 's' : ''} in "{localConfig.targetFormName}"
           {localConfig.linkCrossReference 
-            ? ' (auto-linked to trigger record)'
+            ? ' and link back to parent submission'
             : localConfig.fieldConfigMode === 'field_mapping' 
               ? ` (mapping ${localConfig.fieldMappings?.length || 0} field${(localConfig.fieldMappings?.length || 0) !== 1 ? 's' : ''} from trigger form)`
               : (localConfig.fieldValues?.length || 0) > 0 
