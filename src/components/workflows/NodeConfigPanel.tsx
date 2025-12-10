@@ -511,20 +511,9 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                         });
                       }}
                     />
-                    
-                    <div className="space-y-2">
-                      <Label>Send To *</Label>
-                      <EnhancedUserSelector
-                        value={localConfig?.notificationConfig?.recipientConfig || { type: 'form_submitter', emails: [], dynamicFieldPath: '' }}
-                        onValueChange={(config) => handleConfigUpdate('notificationConfig', {
-                          ...localConfig?.notificationConfig,
-                          recipientConfig: config
-                        })}
-                        triggerFormId={triggerFormId}
-                        targetFormId={localConfig?.notificationConfig?.targetFormId}
-                        formFields={formFields}
-                      />
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Recipients will be taken from the email template configuration.
+                    </p>
                   </>
                 )}
 

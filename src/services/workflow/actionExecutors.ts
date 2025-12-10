@@ -722,15 +722,6 @@ export class ActionExecutors {
           throw new Error('Email template is required for email notifications');
         }
 
-        // Get recipient emails
-        const recipientEmails = recipients.map(r => r.email).filter(e => e);
-        
-        if (recipientEmails.length === 0) {
-          throw new Error('No valid recipients for email notification');
-        }
-
-        console.log('📧 Sending email to recipients:', recipientEmails);
-
         try {
           // Build template data from trigger context
           const templateData: Record<string, any> = {};
@@ -746,12 +737,12 @@ export class ActionExecutors {
           templateData.workflow_execution_id = context.executionId;
           templateData.submission_id = context.submissionId;
 
-          console.log('📧 Calling send-template-email edge function');
+          console.log('📧 Calling send-template-email edge function (recipients from template)');
           
+          // Recipients will be taken from the email template configuration
           const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-template-email', {
             body: {
               templateId: notificationConfig.emailTemplateId,
-              recipients: recipientEmails,
               templateData,
               triggerContext: {
                 workflow_execution_id: context.executionId,
@@ -769,7 +760,7 @@ export class ActionExecutors {
           console.log('✅ Email sending result:', emailResult);
           
           if (emailResult?.success) {
-            emailsSent = emailResult.sentCount || recipientEmails.length;
+            emailsSent = emailResult.sentCount || 0;
           } else {
             throw new Error(emailResult?.error || 'Email sending failed');
           }
