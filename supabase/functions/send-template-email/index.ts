@@ -9,10 +9,23 @@ const corsHeaders = {
 
 interface EmailRequest {
   templateId: string;
-  recipients: string[];
+  recipients?: string[];
   templateData: Record<string, any>;
   smtpConfigId?: string;
   triggerContext?: Record<string, any>;
+}
+
+interface RecipientConfig {
+  type: 'static' | 'parameter' | 'dynamic';
+  value: string;
+  label?: string;
+}
+
+interface TemplateRecipients {
+  to?: RecipientConfig[];
+  cc?: RecipientConfig[];
+  bcc?: RecipientConfig[];
+  permanent_recipients?: string[];
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -29,12 +42,12 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { templateId, recipients, templateData, smtpConfigId, triggerContext }: EmailRequest = await req.json();
+    const { templateId, recipients: passedRecipients, templateData, smtpConfigId, triggerContext }: EmailRequest = await req.json();
 
     console.log('📧 Email Request Details:', {
       templateId,
-      recipients,
-      templateDataKeys: Object.keys(templateData),
+      passedRecipients,
+      templateDataKeys: Object.keys(templateData || {}),
       smtpConfigId,
       triggerContext
     });
@@ -54,6 +67,70 @@ const handler = async (req: Request): Promise<Response> => {
     }
     
     console.log('✅ Template found:', template.name);
+    console.log('📋 Template recipients config:', JSON.stringify(template.recipients));
+
+    // Resolve all recipients from template configuration AND passed recipients
+    const allRecipients = new Set<string>();
+    
+    // Add passed recipients (from workflow)
+    if (passedRecipients && Array.isArray(passedRecipients)) {
+      passedRecipients.forEach(r => {
+        if (r && typeof r === 'string' && r.includes('@')) {
+          allRecipients.add(r.trim().toLowerCase());
+        }
+      });
+    }
+    
+    // Extract recipients from template configuration
+    const templateRecipients = template.recipients as TemplateRecipients | null;
+    if (templateRecipients) {
+      console.log('📧 Processing template recipients configuration...');
+      
+      // Process "to" recipients
+      if (templateRecipients.to && Array.isArray(templateRecipients.to)) {
+        for (const recipient of templateRecipients.to) {
+          if (recipient.type === 'static' && recipient.value) {
+            console.log('📧 Adding static TO recipient:', recipient.value);
+            allRecipients.add(recipient.value.trim().toLowerCase());
+          } else if (recipient.type === 'parameter' && recipient.value && templateData) {
+            // Extract variable name from {{variable}}
+            const varMatch = recipient.value.match(/\{\{\s*(\w+)\s*\}\}/);
+            if (varMatch && templateData[varMatch[1]]) {
+              const email = String(templateData[varMatch[1]]).trim().toLowerCase();
+              if (email.includes('@')) {
+                console.log('📧 Adding parameter TO recipient:', email);
+                allRecipients.add(email);
+              }
+            }
+          } else if (recipient.type === 'dynamic' && recipient.value) {
+            // Dynamic recipient from form field - value should be resolved already
+            if (recipient.value.includes('@')) {
+              console.log('📧 Adding dynamic TO recipient:', recipient.value);
+              allRecipients.add(recipient.value.trim().toLowerCase());
+            }
+          }
+        }
+      }
+      
+      // Process permanent recipients
+      if (templateRecipients.permanent_recipients && Array.isArray(templateRecipients.permanent_recipients)) {
+        for (const email of templateRecipients.permanent_recipients) {
+          if (email && typeof email === 'string' && email.includes('@')) {
+            console.log('📧 Adding permanent recipient:', email);
+            allRecipients.add(email.trim().toLowerCase());
+          }
+        }
+      }
+    }
+    
+    // Convert Set to Array
+    const finalRecipients = Array.from(allRecipients);
+    console.log('📮 Final recipients list:', finalRecipients);
+    
+    if (finalRecipients.length === 0) {
+      console.error('❌ No recipients to send email to');
+      throw new Error('No recipients found - please configure recipients in the email template or pass them in the request');
+    }
 
     // Get organization ID from template project
     console.log('🏢 Fetching project for organization:', template.project_id);
@@ -124,14 +201,14 @@ const handler = async (req: Request): Promise<Response> => {
       return processed;
     };
 
-    const processedSubject = processTemplate(template.subject, templateData);
-    const processedHtmlContent = processTemplate(template.html_content, templateData);
+    const processedSubject = processTemplate(template.subject, templateData || {});
+    const processedHtmlContent = processTemplate(template.html_content, templateData || {});
     const processedTextContent = template.text_content 
-      ? processTemplate(template.text_content, templateData) 
+      ? processTemplate(template.text_content, templateData || {}) 
       : undefined;
 
     // Send emails to all recipients
-    console.log(`📮 Processing ${recipients.length} recipient(s)`);
+    console.log(`📮 Processing ${finalRecipients.length} recipient(s)`);
     const emailResults = [];
     
     // Initialize SMTP client
@@ -147,7 +224,7 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
     
-    for (const recipient of recipients) {
+    for (const recipient of finalRecipients) {
       console.log(`📧 Sending to: ${recipient}`);
       try {
         // Send email using SMTP
