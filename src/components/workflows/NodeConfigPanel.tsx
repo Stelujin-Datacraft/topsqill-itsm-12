@@ -20,6 +20,7 @@ import { WorkflowEmailTemplateSelector } from './WorkflowEmailTemplateSelector';
 import { EnhancedConditionBuilder } from './conditions/EnhancedConditionBuilder';
 import { DynamicValueInput } from './conditions/DynamicValueInput';
 import { CreateRecordFieldsConfig } from './CreateRecordFieldsConfig';
+import { CreateRecordConfig } from './CreateRecordConfig';
 import { FieldMappingConfig } from './FieldMappingConfig';
 import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
 import { useTriggerManagement } from '@/hooks/useTriggerManagement';
@@ -741,188 +742,15 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
 
             {/* Create Record Configuration */}
             {localConfig?.actionType === 'create_record' && (
-              <div className="space-y-4">
-                <div>
-                  <Label>Target Form *</Label>
-                  <FormSelector
-                    value={localConfig?.targetFormId || ''}
-                    onValueChange={(formId, formName) => {
-                      handleFullConfigUpdate({ 
-                        ...localConfig, 
-                        targetFormId: formId,
-                        targetFormName: formName,
-                        fieldValues: [], // Reset field values when form changes
-                        fieldMappings: [], // Reset field mappings when form changes
-                        fieldConfigMode: localConfig?.fieldConfigMode || 'field_values' // Ensure default mode is set
-                      });
-                    }}
-                    placeholder="Select form to create records in"
-                    projectId={projectId}
-                  />
-                </div>
-
-                {localConfig?.targetFormId && (
-                  <>
-                    <div>
-                      <Label>Number of Records *</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={100}
-                        value={localConfig?.recordCount ?? ''}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val === '') {
-                            handleConfigUpdate('recordCount', '');
-                          } else {
-                            const num = parseInt(val);
-                            if (!isNaN(num)) {
-                              handleConfigUpdate('recordCount', Math.max(1, Math.min(100, num)));
-                            }
-                          }
-                        }}
-                        onBlur={() => {
-                          // Ensure valid value on blur - check for empty string, null, undefined, or less than 1
-                          const currentValue = localConfig?.recordCount;
-                          if (currentValue === '' || currentValue === null || currentValue === undefined || (typeof currentValue === 'number' && currentValue < 1)) {
-                            handleConfigUpdate('recordCount', 1);
-                          }
-                        }}
-                        placeholder="Enter number of records to create"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">Maximum 100 records per action</p>
-                    </div>
-
-                    <div>
-                      <Label>Initial Status</Label>
-                      <Select
-                        value={localConfig?.initialStatus || 'pending'}
-                        onValueChange={(value) => handleConfigUpdate('initialStatus', value)}
-                      >
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Select initial status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="approved">Approved</SelectItem>
-                          <SelectItem value="rejected">Rejected</SelectItem>
-                          <SelectItem value="in_review">In Review</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label>Submitted By</Label>
-                      <Select
-                        value={localConfig?.setSubmittedBy || 'trigger_submitter'}
-                        onValueChange={(value) => {
-                          handleConfigUpdate('setSubmittedBy', value);
-                          if (value !== 'specific_user') {
-                            handleConfigUpdate('specificSubmitterId', undefined);
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Select submitter" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="trigger_submitter">Trigger Form Submitter</SelectItem>
-                          <SelectItem value="specific_user">Specific User</SelectItem>
-                          <SelectItem value="system">System (No User)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground mt-1">Who will be recorded as the submitter</p>
-                    </div>
-
-                    {localConfig?.setSubmittedBy === 'specific_user' && (
-                      <div>
-                        <Label>Select User *</Label>
-                        <Select
-                          value={localConfig?.specificSubmitterId || ''}
-                          onValueChange={(value) => handleConfigUpdate('specificSubmitterId', value)}
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue placeholder={loadingUsers ? "Loading users..." : "Select a user"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {organizationUsers.map((user) => (
-                              <SelectItem key={user.id} value={user.id}>
-                                {user.first_name && user.last_name 
-                                  ? `${user.first_name} ${user.last_name} (${user.email})`
-                                  : user.email}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-
-                    <div>
-                      <Label>Field Configuration Mode</Label>
-                      <Select
-                        value={localConfig?.fieldConfigMode || 'field_values'}
-                        onValueChange={(value) => {
-                          handleConfigUpdate('fieldConfigMode', value);
-                          // Clear the other mode's data when switching
-                          if (value === 'field_values') {
-                            handleConfigUpdate('fieldMappings', []);
-                          } else {
-                            handleConfigUpdate('fieldValues', []);
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Select configuration mode" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="field_values">Set Field Values</SelectItem>
-                          <SelectItem value="field_mapping">Map Fields from Trigger Form</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {localConfig?.fieldConfigMode === 'field_mapping' 
-                          ? 'Map fields from the trigger form to the target form'
-                          : 'Set static or dynamic values for target form fields'}
-                      </p>
-                    </div>
-
-                    {localConfig?.fieldConfigMode === 'field_mapping' ? (
-                      <FieldMappingConfig
-                        triggerFormId={triggerFormId}
-                        targetFormId={localConfig.targetFormId}
-                        fieldMappings={localConfig?.fieldMappings || []}
-                        onFieldMappingsChange={(mappings) => handleConfigUpdate('fieldMappings', mappings)}
-                      />
-                    ) : (
-                      <CreateRecordFieldsConfig
-                        targetFormId={localConfig.targetFormId}
-                        triggerFormId={triggerFormId}
-                        fieldValues={localConfig?.fieldValues || []}
-                        onFieldValuesChange={(values) => handleConfigUpdate('fieldValues', values)}
-                      />
-                    )}
-                  </>
-                )}
-
-                {localConfig?.targetFormId && (
-                  <div className="text-xs text-cyan-700 bg-cyan-50 p-3 rounded border border-cyan-200">
-                    <strong>Summary:</strong> Will create {localConfig.recordCount || 1} record{(localConfig.recordCount || 1) > 1 ? 's' : ''} in "{localConfig.targetFormName}"
-                    {localConfig.fieldConfigMode === 'field_mapping' 
-                      ? ` (mapping ${localConfig.fieldMappings?.length || 0} field${(localConfig.fieldMappings?.length || 0) !== 1 ? 's' : ''} from trigger form)`
-                      : (localConfig.fieldValues?.length || 0) > 0 
-                        ? ` with ${localConfig.fieldValues.length} field value${localConfig.fieldValues.length > 1 ? 's' : ''}`
-                        : ' with empty/default values'}
-                    {' | Status: '}{localConfig.initialStatus || 'pending'}
-                    {' | By: '}{
-                      localConfig.setSubmittedBy === 'system' 
-                        ? 'System' 
-                        : localConfig.setSubmittedBy === 'specific_user'
-                          ? (organizationUsers.find(u => u.id === localConfig.specificSubmitterId)?.email || 'Selected User')
-                          : 'Trigger Submitter'
-                    }
-                  </div>
-                )}
-              </div>
+              <CreateRecordConfig
+                localConfig={localConfig}
+                triggerFormId={triggerFormId}
+                projectId={projectId}
+                organizationUsers={organizationUsers}
+                loadingUsers={loadingUsers}
+                handleConfigUpdate={handleConfigUpdate}
+                handleFullConfigUpdate={handleFullConfigUpdate}
+              />
             )}
           </div>
         );
