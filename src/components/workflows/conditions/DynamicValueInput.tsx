@@ -163,15 +163,19 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
   const submissionAccessOptions = useMemo(() => {
     if (normalizedType === 'submission-access' || normalizedType === 'submissionaccess') {
       // Check all possible property names for custom config
-      const config = (field as any).custom_config || (field as any).customConfig || (field as any).custom || {};
-      console.log('🔐 Submission access field received:', {
-        field,
-        custom_config: (field as any).custom_config,
-        customConfig: (field as any).customConfig,
-        resolvedConfig: config,
-        allowedUsers: config.allowedUsers,
-        allowedGroups: config.allowedGroups
-      });
+      let rawConfig = (field as any).custom_config || (field as any).customConfig || (field as any).custom || {};
+      
+      // Parse JSON string if needed
+      let config: any = {};
+      if (typeof rawConfig === 'string') {
+        try {
+          config = JSON.parse(rawConfig);
+        } catch {
+          config = {};
+        }
+      } else {
+        config = rawConfig;
+      }
       
       const users: Array<{ value: string; label: string }> = [];
       const groups: Array<{ value: string; label: string }> = [];
@@ -179,8 +183,6 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
       // Check for allowedUsers or allowedUserIds (different naming conventions)
       const allowedUserIds = config.allowedUsers || config.allowedUserIds || [];
       const allowedGroupIds = config.allowedGroups || config.allowedGroupIds || [];
-      
-      console.log('🔐 Allowed IDs:', { allowedUserIds, allowedGroupIds, orgUsers: orgUsers?.length, orgGroups: orgGroups?.length });
       
       // Only add users that are explicitly configured
       if (Array.isArray(allowedUserIds) && allowedUserIds.length > 0 && orgUsers) {
@@ -202,8 +204,6 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
           }
         });
       }
-      
-      console.log('🔐 Resolved options:', { users, groups });
       
       // NO FALLBACK - if no config, show empty (no options configured)
       const hasConfig = allowedUserIds.length > 0 || allowedGroupIds.length > 0;
