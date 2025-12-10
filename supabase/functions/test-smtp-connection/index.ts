@@ -144,7 +144,11 @@ If you received this email, your SMTP configuration is working properly!
     } catch (error: any) {
       console.error('❌ SMTP test failed:', error);
       
-      await client.close().catch(() => {});
+      try {
+        await client.close();
+      } catch (closeError) {
+        // Ignore close errors
+      }
       
       return new Response(JSON.stringify({
         success: false,
