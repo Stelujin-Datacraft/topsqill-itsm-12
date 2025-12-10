@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect, KeyboardEvent } from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -383,7 +384,7 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
       );
     }
 
-    // Submission access field
+    // Submission access field - Multi-select for multiple users/groups
     if (normalizedType === 'submission-access' || normalizedType === 'submissionaccess') {
       if (usersLoading || groupsLoading) {
         return (
@@ -398,34 +399,30 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
       const allOptions = [...submissionAccessOptions.users, ...submissionAccessOptions.groups];
       
       if (allOptions.length > 0) {
+        // Parse selected values - support both array and comma-separated string
+        let selectedValues: string[] = [];
+        if (value) {
+          if (Array.isArray(value)) {
+            selectedValues = value;
+          } else if (typeof value === 'string') {
+            // Try to parse as JSON array first
+            try {
+              const parsed = JSON.parse(value);
+              selectedValues = Array.isArray(parsed) ? parsed : [value];
+            } catch {
+              // Treat as comma-separated
+              selectedValues = value.split(',').map(v => v.trim()).filter(Boolean);
+            }
+          }
+        }
+        
         return (
-          <Select value={value} onValueChange={onChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select user or group" />
-            </SelectTrigger>
-            <SelectContent className="max-h-60">
-              {submissionAccessOptions.users.length > 0 && (
-                <>
-                  <div className="px-2 py-1 text-xs font-medium text-muted-foreground">Users</div>
-                  {submissionAccessOptions.users.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </>
-              )}
-              {submissionAccessOptions.groups.length > 0 && (
-                <>
-                  <div className="px-2 py-1 text-xs font-medium text-muted-foreground border-t mt-1 pt-1">Groups</div>
-                  {submissionAccessOptions.groups.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </>
-              )}
-            </SelectContent>
-          </Select>
+          <MultiSelect
+            options={allOptions}
+            selected={selectedValues}
+            onChange={(selected) => onChange(selected)}
+            placeholder="Select users or groups"
+          />
         );
       }
       
