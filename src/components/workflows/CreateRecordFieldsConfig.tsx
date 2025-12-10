@@ -117,14 +117,15 @@ export function CreateRecordFieldsConfig({
             <FormFieldSelector
               formId={targetFormId}
               value={fieldValue.fieldId}
-              onValueChange={(fieldId, fieldName, fieldType, fieldOptions) => {
+              onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
                 const normalizedOpts = normalizeOptions(fieldOptions);
-                console.log('📋 Field selected:', { fieldId, fieldName, fieldType, rawOptions: fieldOptions, normalizedOptions: normalizedOpts });
+                console.log('📋 Field selected:', { fieldId, fieldName, fieldType, rawOptions: fieldOptions, normalizedOptions: normalizedOpts, customConfig });
                 handleFieldUpdate(index, {
                   fieldId,
                   fieldName,
                   fieldType,
                   fieldOptions: normalizedOpts,
+                  customConfig,
                 });
               }}
               placeholder="Select field"
@@ -163,7 +164,8 @@ export function CreateRecordFieldsConfig({
                   id: fieldValue.fieldId,
                   label: fieldValue.fieldName || 'Field',
                   type: fieldValue.fieldType,
-                  options: fieldValue.fieldOptions || []
+                  options: fieldValue.fieldOptions || [],
+                  custom_config: fieldValue.customConfig || {}
                 } as FormFieldOption}
                 value={fieldValue.staticValue || ''}
                 onChange={(value) => handleFieldUpdate(index, { staticValue: value })}

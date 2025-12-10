@@ -600,14 +600,15 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                     <FormFieldSelector
                       formId={localConfig.targetFormId}
                       value={localConfig?.targetFieldId || ''}
-                      onValueChange={(fieldId, fieldName, fieldType, fieldOptions) => {
-                        console.log('🎯 Updating field config:', { fieldId, fieldName, fieldType, fieldOptions });
+                      onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
+                        console.log('🎯 Updating field config:', { fieldId, fieldName, fieldType, fieldOptions, customConfig });
                         handleFullConfigUpdate({
                           ...localConfig,
                           targetFieldId: fieldId,
                           targetFieldName: fieldName,
                           targetFieldType: fieldType,
-                          targetFieldOptions: fieldOptions
+                          targetFieldOptions: fieldOptions,
+                          targetFieldCustomConfig: customConfig
                         });
                       }}
                       placeholder="Select field to change"
@@ -640,7 +641,8 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                         id: localConfig.targetFieldId,
                         label: localConfig.targetFieldName || 'Field',
                         type: localConfig.targetFieldType,
-                        options: localConfig.targetFieldOptions || []
+                        options: localConfig.targetFieldOptions || [],
+                        custom_config: localConfig.targetFieldCustomConfig || {}
                       } as FormFieldOption}
                       value={localConfig?.staticValue || ''}
                       onChange={(value) => handleConfigUpdate('staticValue', value)}

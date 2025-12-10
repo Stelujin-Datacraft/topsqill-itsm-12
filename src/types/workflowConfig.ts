@@ -26,6 +26,7 @@ export interface CreateRecordFieldValue {
   fieldName?: string;
   fieldType?: string;
   fieldOptions?: Array<{ label: string; value: string }>;
+  customConfig?: any; // Custom configuration for submission-access and other special fields
   valueType: 'static' | 'dynamic';
   staticValue?: any;
   dynamicValuePath?: string;

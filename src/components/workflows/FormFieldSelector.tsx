@@ -4,15 +4,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { FormField } from '@/types/form';
 import { Loader2 } from 'lucide-react';
 
+interface ExtendedFormField extends FormField {
+  customConfig?: any;
+}
+
 interface FormFieldSelectorProps {
   formId: string;
   value: string;
-  onValueChange: (fieldId: string, fieldName: string, fieldType?: string, fieldOptions?: any[]) => void;
+  onValueChange: (fieldId: string, fieldName: string, fieldType?: string, fieldOptions?: any[], customConfig?: any) => void;
   placeholder?: string;
 }
 
 export function FormFieldSelector({ formId, value, onValueChange, placeholder = "Select field" }: FormFieldSelectorProps) {
-  const [fields, setFields] = useState<FormField[]>([]);
+  const [fields, setFields] = useState<ExtendedFormField[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -44,7 +48,8 @@ export function FormFieldSelector({ formId, value, onValueChange, placeholder = 
               type: field.field_type,
               label: field.label,
               options: field.options || [],
-            } as FormField));
+              customConfig: field.custom_config || {},
+            } as ExtendedFormField));
           setFields(dataFields);
         }
       } catch (error) {
@@ -85,7 +90,8 @@ export function FormFieldSelector({ formId, value, onValueChange, placeholder = 
           fieldId, 
           selectedField?.label || fieldId,
           selectedField?.type,
-          selectedField?.options
+          selectedField?.options,
+          selectedField?.customConfig
         );
       }}
     >
