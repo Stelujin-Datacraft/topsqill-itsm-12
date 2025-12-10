@@ -714,10 +714,59 @@ export class ActionExecutors {
         }
       }
 
-      // TODO: Implement email notification if type is 'email'
+      // Send email notification if type is 'email'
       if (notificationConfig.type === 'email') {
         console.log('📧 Email notification - using email template:', notificationConfig.emailTemplateId);
-        // This would require an edge function with the email template
+        
+        if (!notificationConfig.emailTemplateId) {
+          console.error('❌ No email template ID provided for email notification');
+          throw new Error('Email template is required for email notifications');
+        }
+
+        try {
+          // Get recipient emails
+          const recipientEmails = recipients.map(r => r.email).filter(Boolean);
+          console.log('📧 Sending email to recipients:', recipientEmails);
+
+          // Prepare template data from workflow context
+          const templateData = {
+            ...context.triggerData,
+            workflow_execution_id: context.executionId,
+            workflow_name: context.workflowId,
+            timestamp: new Date().toISOString(),
+          };
+
+          console.log('📧 Calling send-template-email with:', {
+            templateId: notificationConfig.emailTemplateId,
+            recipients: recipientEmails,
+            templateDataKeys: Object.keys(templateData)
+          });
+
+          // Call the edge function to send email
+          const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-template-email', {
+            body: {
+              templateId: notificationConfig.emailTemplateId,
+              recipients: recipientEmails,
+              templateData,
+              triggerContext: {
+                trigger_type: 'workflow_notification',
+                workflow_execution_id: context.executionId,
+                notification_type: 'email'
+              }
+            }
+          });
+
+          if (emailError) {
+            console.error('❌ Email sending failed:', emailError);
+            throw new Error(`Failed to send email: ${emailError.message}`);
+          }
+
+          console.log('✅ Email sent successfully:', emailResult);
+          emailsSent = emailResult?.sentCount || recipientEmails.length;
+        } catch (emailSendError) {
+          console.error('❌ Email notification sending failed:', emailSendError);
+          throw emailSendError;
+        }
       }
 
       const result = {
