@@ -159,14 +159,17 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
     return null;
   }, [normalizedType, field]);
 
-  // Get submission access options
+  // Get submission access options - ONLY show users/groups configured by admin
   const submissionAccessOptions = useMemo(() => {
     if (normalizedType === 'submission-access' || normalizedType === 'submissionaccess') {
-      const config = (field as any).custom_config || {};
+      const config = (field as any).custom_config || (field as any).customConfig || {};
       const users: Array<{ value: string; label: string }> = [];
       const groups: Array<{ value: string; label: string }> = [];
       
       const allowedUserIds = config.allowedUsers || [];
+      const allowedGroupIds = config.allowedGroups || [];
+      
+      // Only add users that are explicitly configured
       if (Array.isArray(allowedUserIds) && allowedUserIds.length > 0 && orgUsers) {
         allowedUserIds.forEach((userId: string) => {
           const user = orgUsers.find(u => u.id === userId);
@@ -177,7 +180,7 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
         });
       }
       
-      const allowedGroupIds = config.allowedGroups || [];
+      // Only add groups that are explicitly configured
       if (Array.isArray(allowedGroupIds) && allowedGroupIds.length > 0 && orgGroups) {
         allowedGroupIds.forEach((groupId: string) => {
           const group = orgGroups.find(g => g.id === groupId);
@@ -187,17 +190,10 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
         });
       }
       
-      if (users.length === 0 && groups.length === 0) {
-        orgUsers?.forEach(user => {
-          const label = `${user.first_name || ''} ${user.last_name || ''} (${user.email})`.trim();
-          users.push({ value: `user:${user.email}`, label });
-        });
-        orgGroups?.forEach(group => {
-          groups.push({ value: `group:${group.name}`, label: `Group: ${group.name}` });
-        });
-      }
+      // NO FALLBACK - if no config, show empty (no options configured)
+      const hasConfig = allowedUserIds.length > 0 || allowedGroupIds.length > 0;
       
-      return { users, groups, hasConfig: users.length > 0 || groups.length > 0 };
+      return { users, groups, hasConfig };
     }
     return { users: [], groups: [], hasConfig: false };
   }, [normalizedType, field, orgUsers, orgGroups]);
@@ -418,13 +414,11 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
         );
       }
       
+      // No users/groups configured - show message
       return (
-        <Input
-          type="text"
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Enter email or group"
-        />
+        <div className="text-sm text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
+          No users/groups configured for this field. Please configure allowed users/groups in the field settings.
+        </div>
       );
     }
 
