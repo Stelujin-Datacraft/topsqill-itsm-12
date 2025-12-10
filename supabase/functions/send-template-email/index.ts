@@ -90,22 +90,23 @@ const handler = async (req: Request): Promise<Response> => {
       smtpConfig = data;
     } else {
       console.log('📌 Using default SMTP config');
-      // Get default SMTP config (order by created_at to get most recent if multiple exist)
+      // Get default SMTP config - prioritize most recently updated active config
       const { data, error } = await supabaseClient
         .from('smtp_configs')
         .select('*')
         .eq('organization_id', project.organization_id)
-        .eq('is_default', true)
         .eq('is_active', true)
-        .order('created_at', { ascending: false })
+        .order('is_default', { ascending: false })
+        .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle();
       
       if (error || !data) {
-        console.error('❌ Default SMTP config not found:', error);
-        throw new Error('No default SMTP configuration found');
+        console.error('❌ SMTP config not found:', error);
+        throw new Error('No active SMTP configuration found');
       }
       smtpConfig = data;
+      console.log('📌 Selected SMTP config:', smtpConfig.name, '-', smtpConfig.host);
     }
     
     console.log('✅ SMTP config found:', smtpConfig.from_email);
