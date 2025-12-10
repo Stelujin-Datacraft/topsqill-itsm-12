@@ -61,6 +61,38 @@ export class RecordActionExecutors {
       
       console.log('📋 Trigger form:', triggerFormId, 'Target form:', config.targetFormId, 'Is different:', isTargetFormDifferent);
 
+      // Fetch target field to check if it's a submission-access field
+      const { data: targetField, error: fieldError } = await supabase
+        .from('form_fields')
+        .select('id, field_type, custom_config')
+        .eq('id', config.targetFieldId)
+        .single();
+
+      if (fieldError) {
+        console.error('⚠️ Could not fetch target field config:', fieldError);
+      }
+
+      // Validate submission-access field value if applicable
+      if (targetField && targetField.field_type === 'submission-access') {
+        const customConfig = (targetField.custom_config as any) || {};
+        const accessConfig = {
+          allowedUsers: customConfig.allowedUsers || [],
+          allowedGroups: customConfig.allowedGroups || []
+        };
+        
+        const validatedValue = this.validateSubmissionAccessValue(newValue, accessConfig);
+        if (validatedValue && (validatedValue.users.length > 0 || validatedValue.groups.length > 0)) {
+          newValue = validatedValue;
+          console.log(`✅ Validated submission-access field value:`, validatedValue);
+        } else {
+          return {
+            success: false,
+            error: 'The users/groups from the source field are not allowed in the target submission-access field configuration',
+            actionDetails
+          };
+        }
+      }
+
       if (isTargetFormDifferent) {
         // Update ALL submissions in the target form
         console.log('🔄 Updating ALL submissions in target form:', config.targetFormId);
@@ -361,6 +393,32 @@ export class RecordActionExecutors {
 
       console.log(`📊 Creating ${recordCount} records for form ${config.targetFormId}`);
 
+      // Fetch target form fields to get submission-access field configurations
+      const { data: targetFormFields, error: fieldsError } = await supabase
+        .from('form_fields')
+        .select('id, field_type, custom_config')
+        .eq('form_id', config.targetFormId);
+
+      if (fieldsError) {
+        console.error('❌ Error fetching target form fields:', fieldsError);
+      }
+
+      // Build a map of submission-access fields and their allowed users/groups
+      const submissionAccessFieldConfigs: Record<string, { allowedUsers: string[]; allowedGroups: string[] }> = {};
+      if (targetFormFields) {
+        for (const field of targetFormFields) {
+          if (field.field_type === 'submission-access') {
+            const customConfig = (field.custom_config as any) || {};
+            submissionAccessFieldConfigs[field.id] = {
+              allowedUsers: customConfig.allowedUsers || [],
+              allowedGroups: customConfig.allowedGroups || []
+            };
+          }
+        }
+      }
+
+      console.log('📋 Submission-access field configs:', submissionAccessFieldConfigs);
+
       // Get trigger data for dynamic values
       const triggerSubmissionData = context.triggerData?.submissionData || context.triggerData || {};
 
@@ -388,7 +446,19 @@ export class RecordActionExecutors {
             if (mapping.sourceFieldId && mapping.targetFieldId) {
               const sourceValue = triggerSubmissionData[mapping.sourceFieldId];
               if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
-                submissionData[mapping.targetFieldId] = sourceValue;
+                // Check if this is a submission-access field and validate the value
+                const accessConfig = submissionAccessFieldConfigs[mapping.targetFieldId];
+                if (accessConfig) {
+                  const validatedValue = this.validateSubmissionAccessValue(sourceValue, accessConfig);
+                  if (validatedValue && (validatedValue.users.length > 0 || validatedValue.groups.length > 0)) {
+                    submissionData[mapping.targetFieldId] = validatedValue;
+                    console.log(`✅ Validated submission-access field ${mapping.targetFieldId}:`, validatedValue);
+                  } else {
+                    console.log(`⚠️ Skipping submission-access field ${mapping.targetFieldId} - no valid users/groups after validation`);
+                  }
+                } else {
+                  submissionData[mapping.targetFieldId] = sourceValue;
+                }
               }
             }
           }
@@ -414,7 +484,19 @@ export class RecordActionExecutors {
           }
 
           if (value !== undefined && value !== null && value !== '') {
-            submissionData[fieldValue.fieldId] = value;
+            // Check if this is a submission-access field and validate the value
+            const accessConfig = submissionAccessFieldConfigs[fieldValue.fieldId];
+            if (accessConfig) {
+              const validatedValue = this.validateSubmissionAccessValue(value, accessConfig);
+              if (validatedValue && (validatedValue.users.length > 0 || validatedValue.groups.length > 0)) {
+                submissionData[fieldValue.fieldId] = validatedValue;
+                console.log(`✅ Validated submission-access field ${fieldValue.fieldId}:`, validatedValue);
+              } else {
+                console.log(`⚠️ Skipping submission-access field ${fieldValue.fieldId} - no valid users/groups after validation`);
+              }
+            } else {
+              submissionData[fieldValue.fieldId] = value;
+            }
           }
         }
 
@@ -474,6 +556,51 @@ export class RecordActionExecutors {
         error: error instanceof Error ? error.message : 'Unknown error',
         actionDetails
       };
+    }
+  }
+
+  // Validate submission-access value against field configuration
+  private static validateSubmissionAccessValue(
+    value: any, 
+    config: { allowedUsers: string[]; allowedGroups: string[] }
+  ): { users: string[]; groups: string[] } | null {
+    try {
+      // Parse value if it's a string
+      let parsedValue = value;
+      if (typeof value === 'string') {
+        try {
+          parsedValue = JSON.parse(value);
+        } catch {
+          return null;
+        }
+      }
+
+      if (!parsedValue || typeof parsedValue !== 'object') {
+        return null;
+      }
+
+      const sourceUsers = parsedValue.users || [];
+      const sourceGroups = parsedValue.groups || [];
+
+      // Filter users to only include those allowed in target field config
+      const validUsers = sourceUsers.filter((userId: string) => 
+        config.allowedUsers.includes(userId)
+      );
+
+      // Filter groups to only include those allowed in target field config
+      const validGroups = sourceGroups.filter((groupId: string) => 
+        config.allowedGroups.includes(groupId)
+      );
+
+      console.log(`🔍 Submission-access validation: source users=${sourceUsers.length}, valid=${validUsers.length}, source groups=${sourceGroups.length}, valid=${validGroups.length}`);
+
+      return {
+        users: validUsers,
+        groups: validGroups
+      };
+    } catch (error) {
+      console.error('❌ Error validating submission-access value:', error);
+      return null;
     }
   }
 
