@@ -511,7 +511,7 @@ export class RecordActionExecutors {
             submitted_by: submittedBy,
             approval_status: initialStatus
           })
-          .select('id, submission_ref_id')
+          .select('id')
           .single();
 
         if (insertError) {
@@ -530,48 +530,6 @@ export class RecordActionExecutors {
         if (newSubmission) {
           createdRecords.push(newSubmission.id);
           console.log(`✅ Created record ${i + 1}: ${newSubmission.id}`);
-
-          // Handle cross-reference auto-linking - update PARENT form's cross-reference field
-          if (config.linkCrossReference && config.crossReferenceFieldId && context.submissionId) {
-            const childRefId = newSubmission.submission_ref_id || newSubmission.id;
-            
-            // Fetch current parent submission data
-            const { data: parentSubmission, error: parentFetchError } = await supabase
-              .from('form_submissions')
-              .select('submission_data')
-              .eq('id', context.submissionId)
-              .single();
-
-            if (parentFetchError) {
-              console.error(`⚠️ Failed to fetch parent submission for cross-reference linking:`, parentFetchError);
-            } else {
-              // Get existing cross-reference values and add the new child record
-              const currentData = parentSubmission?.submission_data || {};
-              const existingCrossRefValues = (currentData as any)[config.crossReferenceFieldId] || [];
-              const crossRefArray = Array.isArray(existingCrossRefValues) ? existingCrossRefValues : [];
-              
-              // Add the new child record's ref ID if not already present
-              if (!crossRefArray.includes(childRefId)) {
-                crossRefArray.push(childRefId);
-              }
-
-              const updatedData = {
-                ...(typeof currentData === 'object' ? currentData : {}),
-                [config.crossReferenceFieldId]: crossRefArray
-              };
-
-              const { error: parentUpdateError } = await supabase
-                .from('form_submissions')
-                .update({ submission_data: updatedData })
-                .eq('id', context.submissionId);
-
-              if (parentUpdateError) {
-                console.error(`⚠️ Failed to update parent's cross-reference field:`, parentUpdateError);
-              } else {
-                console.log(`🔗 Linked child record ${childRefId} to parent's cross-reference field ${config.crossReferenceFieldId}`);
-              }
-            }
-          }
         }
       }
 
