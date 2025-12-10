@@ -500,6 +500,22 @@ export class RecordActionExecutors {
           }
         }
 
+        // Handle cross-reference auto-linking
+        if (config.linkCrossReference && config.crossReferenceFieldId) {
+          // Get the trigger submission's reference ID to link
+          const triggerSubmissionRefId = context.triggerData?.submissionRefId || 
+                                          context.triggerData?.submission_ref_id ||
+                                          context.submissionId;
+          
+          if (triggerSubmissionRefId) {
+            // Cross-reference fields store an array of submission ref IDs
+            submissionData[config.crossReferenceFieldId] = [triggerSubmissionRefId];
+            console.log(`🔗 Auto-linked cross-reference field ${config.crossReferenceFieldId} with value:`, [triggerSubmissionRefId]);
+          } else {
+            console.warn('⚠️ Cross-reference linking enabled but no trigger submission ref ID available');
+          }
+        }
+
         console.log(`📝 Creating record ${i + 1}/${recordCount} with data:`, submissionData);
 
         // Create the submission record

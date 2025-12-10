@@ -51,4 +51,7 @@ export interface CreateRecordConfig {
   fieldConfigMode?: 'field_values' | 'field_mapping'; // Toggle between setting values or mapping fields
   fieldMappings?: FieldMapping[]; // Custom field mappings when fieldConfigMode is 'field_mapping'
   assignToSubmitter?: boolean; // Assign created records to trigger form submitter
+  // Cross-reference linking
+  linkCrossReference?: boolean; // Auto-link created record to trigger submission
+  crossReferenceFieldId?: string; // Field ID of the cross-reference field to populate
 }
