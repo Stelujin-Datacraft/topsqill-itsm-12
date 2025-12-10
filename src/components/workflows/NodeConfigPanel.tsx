@@ -498,18 +498,34 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                 </div>
 
                 {localConfig?.notificationConfig?.type === 'email' && (
-                  <WorkflowEmailTemplateSelector
-                    projectId={projectId}
-                    value={localConfig?.notificationConfig?.emailTemplateId}
-                    onValueChange={(templateId, templateName, templateSubject) => {
-                      handleConfigUpdate('notificationConfig', {
-                        ...localConfig?.notificationConfig,
-                        emailTemplateId: templateId,
-                        emailTemplateName: templateName,
-                        subject: templateSubject
-                      });
-                    }}
-                  />
+                  <>
+                    <WorkflowEmailTemplateSelector
+                      projectId={projectId}
+                      value={localConfig?.notificationConfig?.emailTemplateId}
+                      onValueChange={(templateId, templateName, templateSubject) => {
+                        handleConfigUpdate('notificationConfig', {
+                          ...localConfig?.notificationConfig,
+                          emailTemplateId: templateId,
+                          emailTemplateName: templateName,
+                          subject: templateSubject
+                        });
+                      }}
+                    />
+                    
+                    <div className="space-y-2">
+                      <Label>Send To *</Label>
+                      <EnhancedUserSelector
+                        value={localConfig?.notificationConfig?.recipientConfig || { type: 'form_submitter', emails: [], dynamicFieldPath: '' }}
+                        onValueChange={(config) => handleConfigUpdate('notificationConfig', {
+                          ...localConfig?.notificationConfig,
+                          recipientConfig: config
+                        })}
+                        triggerFormId={triggerFormId}
+                        targetFormId={localConfig?.notificationConfig?.targetFormId}
+                        formFields={formFields}
+                      />
+                    </div>
+                  </>
                 )}
 
                 {localConfig?.notificationConfig?.type !== 'email' && (

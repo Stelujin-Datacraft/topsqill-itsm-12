@@ -714,10 +714,69 @@ export class ActionExecutors {
         }
       }
 
-      // TODO: Implement email notification if type is 'email'
+      // Handle email notification
       if (notificationConfig.type === 'email') {
         console.log('📧 Email notification - using email template:', notificationConfig.emailTemplateId);
-        // This would require an edge function with the email template
+        
+        if (!notificationConfig.emailTemplateId) {
+          throw new Error('Email template is required for email notifications');
+        }
+
+        // Get recipient emails
+        const recipientEmails = recipients.map(r => r.email).filter(e => e);
+        
+        if (recipientEmails.length === 0) {
+          throw new Error('No valid recipients for email notification');
+        }
+
+        console.log('📧 Sending email to recipients:', recipientEmails);
+
+        try {
+          // Build template data from trigger context
+          const templateData: Record<string, any> = {};
+          
+          // Add form submission data as template variables if available
+          if (context.triggerData?.submissionData) {
+            Object.entries(context.triggerData.submissionData).forEach(([key, value]) => {
+              templateData[key] = value;
+            });
+          }
+          
+          // Add any additional context
+          templateData.workflow_execution_id = context.executionId;
+          templateData.submission_id = context.submissionId;
+
+          console.log('📧 Calling send-template-email edge function');
+          
+          const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-template-email', {
+            body: {
+              templateId: notificationConfig.emailTemplateId,
+              recipients: recipientEmails,
+              templateData,
+              triggerContext: {
+                workflow_execution_id: context.executionId,
+                trigger_type: 'workflow',
+                form_id: context.triggerData?.formId
+              }
+            }
+          });
+
+          if (emailError) {
+            console.error('❌ Email sending failed:', emailError);
+            throw new Error(`Failed to send email: ${emailError.message}`);
+          }
+
+          console.log('✅ Email sending result:', emailResult);
+          
+          if (emailResult?.success) {
+            emailsSent = emailResult.sentCount || recipientEmails.length;
+          } else {
+            throw new Error(emailResult?.error || 'Email sending failed');
+          }
+        } catch (emailError) {
+          console.error('❌ Email notification error:', emailError);
+          throw emailError;
+        }
       }
 
       const result = {
@@ -737,6 +796,9 @@ export class ActionExecutors {
         recipientCount: recipients.length,
         recipients: recipients.map(r => r.email),
         subject: notificationConfig.subject,
+        emailsSent: emailsSent,
+        inAppNotificationsCreated: notificationsCreated,
+        emailTemplateId: notificationConfig.emailTemplateId,
         success: true
       };
 
