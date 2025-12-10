@@ -9,16 +9,10 @@ const corsHeaders = {
 
 interface EmailRequest {
   templateId: string;
-  recipients?: string[];
+  recipients: string[];
   templateData: Record<string, any>;
   smtpConfigId?: string;
   triggerContext?: Record<string, any>;
-}
-
-interface RecipientConfig {
-  type: 'static' | 'dynamic' | 'parameter';
-  value: string;
-  label?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -35,12 +29,12 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { templateId, recipients: providedRecipients, templateData, smtpConfigId, triggerContext }: EmailRequest = await req.json();
+    const { templateId, recipients, templateData, smtpConfigId, triggerContext }: EmailRequest = await req.json();
 
     console.log('📧 Email Request Details:', {
       templateId,
-      providedRecipients,
-      templateDataKeys: Object.keys(templateData || {}),
+      recipients,
+      templateDataKeys: Object.keys(templateData),
       smtpConfigId,
       triggerContext
     });
@@ -60,76 +54,6 @@ const handler = async (req: Request): Promise<Response> => {
     }
     
     console.log('✅ Template found:', template.name);
-    console.log('📋 Template recipients config:', JSON.stringify(template.recipients));
-
-    // Build recipients list from template configuration if not provided
-    let finalRecipients: string[] = [];
-    
-    if (providedRecipients && providedRecipients.length > 0) {
-      // Use provided recipients
-      finalRecipients = providedRecipients;
-      console.log('📧 Using provided recipients:', finalRecipients);
-    } else if (template.recipients) {
-      // Extract recipients from template configuration
-      const recipientsConfig = template.recipients as {
-        to?: RecipientConfig[];
-        cc?: RecipientConfig[];
-        bcc?: RecipientConfig[];
-        permanent_recipients?: RecipientConfig[];
-      };
-
-      console.log('📋 Processing template recipient config:', recipientsConfig);
-
-      const processRecipientConfig = (configs: RecipientConfig[]): string[] => {
-        const emails: string[] = [];
-        
-        for (const config of configs) {
-          if (config.type === 'static' && config.value) {
-            // Static email address
-            emails.push(config.value);
-          } else if (config.type === 'dynamic' && config.value) {
-            // Dynamic email from template data
-            emails.push(config.value);
-          } else if (config.type === 'parameter' && config.value) {
-            // Parameter template variable - replace with actual value
-            const paramName = config.value.replace(/\{\{|\}\}/g, '').trim();
-            const resolvedValue = templateData?.[paramName];
-            if (resolvedValue && typeof resolvedValue === 'string' && resolvedValue.includes('@')) {
-              emails.push(resolvedValue);
-            }
-          }
-        }
-        
-        return emails;
-      };
-
-      // Process all recipient types
-      if (recipientsConfig.to) {
-        finalRecipients.push(...processRecipientConfig(recipientsConfig.to));
-      }
-      if (recipientsConfig.cc) {
-        finalRecipients.push(...processRecipientConfig(recipientsConfig.cc));
-      }
-      if (recipientsConfig.bcc) {
-        finalRecipients.push(...processRecipientConfig(recipientsConfig.bcc));
-      }
-      if (recipientsConfig.permanent_recipients) {
-        finalRecipients.push(...processRecipientConfig(recipientsConfig.permanent_recipients));
-      }
-
-      console.log('📧 Recipients from template:', finalRecipients);
-    }
-
-    // Remove duplicates and filter valid emails
-    finalRecipients = [...new Set(finalRecipients)].filter(email => 
-      email && typeof email === 'string' && email.includes('@')
-    );
-
-    console.log('📧 Final recipients to send:', finalRecipients);
-
-    if (finalRecipients.length === 0) {
-      throw new Error('No valid recipients found. Check template recipient configuration.');
-    }
 
     // Get organization ID from template project
     console.log('🏢 Fetching project for organization:', template.project_id);
@@ -184,14 +108,14 @@ const handler = async (req: Request): Promise<Response> => {
       smtpConfig = data;
     }
     
-    console.log('✅ SMTP config found:', smtpConfig.name, '-', smtpConfig.from_email);
+    console.log('✅ SMTP config found:', smtpConfig.from_email);
 
     // Process template variables
     const processTemplate = (text: string, data: Record<string, any>): string => {
       let processed = text;
       
       // Replace template variables
-      Object.keys(data || {}).forEach(key => {
+      Object.keys(data).forEach(key => {
         const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
         processed = processed.replace(regex, String(data[key] || ''));
       });
@@ -199,18 +123,17 @@ const handler = async (req: Request): Promise<Response> => {
       return processed;
     };
 
-    const processedSubject = processTemplate(template.subject, templateData || {});
-    const processedHtmlContent = processTemplate(template.html_content, templateData || {});
+    const processedSubject = processTemplate(template.subject, templateData);
+    const processedHtmlContent = processTemplate(template.html_content, templateData);
     const processedTextContent = template.text_content 
-      ? processTemplate(template.text_content, templateData || {}) 
+      ? processTemplate(template.text_content, templateData) 
       : undefined;
 
     // Send emails to all recipients
-    console.log(`📮 Processing ${finalRecipients.length} recipient(s)`);
+    console.log(`📮 Processing ${recipients.length} recipient(s)`);
     const emailResults = [];
     
     // Initialize SMTP client
-    console.log(`🔌 Connecting to SMTP: ${smtpConfig.host}:${smtpConfig.port} (TLS: ${smtpConfig.use_tls})`);
     const smtpClient = new SMTPClient({
       connection: {
         hostname: smtpConfig.host,
@@ -223,7 +146,7 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
     
-    for (const recipient of finalRecipients) {
+    for (const recipient of recipients) {
       console.log(`📧 Sending to: ${recipient}`);
       try {
         // Send email using SMTP

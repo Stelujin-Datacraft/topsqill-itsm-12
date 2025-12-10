@@ -498,23 +498,18 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                 </div>
 
                 {localConfig?.notificationConfig?.type === 'email' && (
-                  <>
-                    <WorkflowEmailTemplateSelector
-                      projectId={projectId}
-                      value={localConfig?.notificationConfig?.emailTemplateId}
-                      onValueChange={(templateId, templateName, templateSubject) => {
-                        handleConfigUpdate('notificationConfig', {
-                          ...localConfig?.notificationConfig,
-                          emailTemplateId: templateId,
-                          emailTemplateName: templateName,
-                          subject: templateSubject
-                        });
-                      }}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Recipients will be taken from the email template configuration.
-                    </p>
-                  </>
+                  <WorkflowEmailTemplateSelector
+                    projectId={projectId}
+                    value={localConfig?.notificationConfig?.emailTemplateId}
+                    onValueChange={(templateId, templateName, templateSubject) => {
+                      handleConfigUpdate('notificationConfig', {
+                        ...localConfig?.notificationConfig,
+                        emailTemplateId: templateId,
+                        emailTemplateName: templateName,
+                        subject: templateSubject
+                      });
+                    }}
+                  />
                 )}
 
                 {localConfig?.notificationConfig?.type !== 'email' && (
