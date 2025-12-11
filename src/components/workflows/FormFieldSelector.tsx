@@ -13,9 +13,10 @@ interface FormFieldSelectorProps {
   value: string;
   onValueChange: (fieldId: string, fieldName: string, fieldType?: string, fieldOptions?: any[], customConfig?: any) => void;
   placeholder?: string;
+  filterTypes?: string[]; // Optional filter to show only specific field types
 }
 
-export function FormFieldSelector({ formId, value, onValueChange, placeholder = "Select field" }: FormFieldSelectorProps) {
+export function FormFieldSelector({ formId, value, onValueChange, placeholder = "Select field", filterTypes }: FormFieldSelectorProps) {
   const [fields, setFields] = useState<ExtendedFormField[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -41,7 +42,7 @@ export function FormFieldSelector({ formId, value, onValueChange, placeholder = 
 
         if (fieldsData) {
           // Filter out non-data fields (layout-only fields)
-          const dataFields = fieldsData
+          let dataFields = fieldsData
             .filter(field => !['header', 'description', 'section-break', 'horizontal-line'].includes(field.field_type))
             .map(field => ({
               id: field.id,
@@ -50,6 +51,12 @@ export function FormFieldSelector({ formId, value, onValueChange, placeholder = 
               options: field.options || [],
               customConfig: field.custom_config || {},
             } as ExtendedFormField));
+          
+          // Apply type filter if provided
+          if (filterTypes && filterTypes.length > 0) {
+            dataFields = dataFields.filter(field => filterTypes.includes(field.type));
+          }
+          
           setFields(dataFields);
         }
       } catch (error) {
@@ -60,7 +67,7 @@ export function FormFieldSelector({ formId, value, onValueChange, placeholder = 
     };
 
     fetchFields();
-  }, [formId]);
+  }, [formId, filterTypes]);
 
   if (loading) {
     return (
@@ -74,7 +81,9 @@ export function FormFieldSelector({ formId, value, onValueChange, placeholder = 
   if (fields.length === 0) {
     return (
       <div className="text-sm text-muted-foreground p-2">
-        No fields available in this form
+        {filterTypes && filterTypes.length > 0 
+          ? `No ${filterTypes.join(' or ')} fields available in this form`
+          : 'No fields available in this form'}
       </div>
     );
   }

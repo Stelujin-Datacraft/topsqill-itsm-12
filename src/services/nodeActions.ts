@@ -123,6 +123,10 @@ export class NodeActions {
           console.log('➕ EXECUTING CREATE_RECORD ACTION');
           actionResult = await RecordActionExecutors.executeCreateRecordAction(context);
           break;
+        case 'create_linked_record':
+          console.log('🔗 EXECUTING CREATE_LINKED_RECORD ACTION');
+          actionResult = await RecordActionExecutors.executeCreateLinkedRecordAction(context);
+          break;
         default:
           console.error(`❌ UNKNOWN ACTION TYPE: ${actionType}`);
           return {

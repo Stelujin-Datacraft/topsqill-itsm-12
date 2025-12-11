@@ -52,3 +52,22 @@ export interface CreateRecordConfig {
   fieldMappings?: FieldMapping[]; // Custom field mappings when fieldConfigMode is 'field_mapping'
   assignToSubmitter?: boolean; // Assign created records to trigger form submitter
 }
+
+export interface CreateLinkedRecordConfig {
+  // The cross-reference field from the trigger form that points to the child form
+  crossReferenceFieldId: string;
+  crossReferenceFieldName?: string;
+  // The target (child) form where the new record will be created
+  targetFormId: string;
+  targetFormName?: string;
+  // Optional field values for the new child record
+  fieldValues?: CreateRecordFieldValue[];
+  // Optional field mappings from trigger form to child form
+  fieldMappings?: FieldMapping[];
+  fieldConfigMode?: 'field_values' | 'field_mapping' | 'none';
+  // Submitter settings
+  setSubmittedBy?: 'trigger_submitter' | 'system' | 'specific_user';
+  specificSubmitterId?: string;
+  // Initial status for the new record
+  initialStatus?: 'pending' | 'approved' | 'rejected' | 'in_review';
+}
