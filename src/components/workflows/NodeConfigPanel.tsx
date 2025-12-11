@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRoles } from '@/hooks/useRoles';
 import { EnhancedCondition } from '@/types/conditions';
 import { FormFieldOption } from '@/types/conditions';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NodeConfigPanelProps {
   node: WorkflowNode;
@@ -102,6 +103,49 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
       onConfigChangeRef.current(localConfig);
     }
   }, [node.type, node.data.config?.triggerType, localConfig]);
+
+  // Auto-fetch target form for cross-reference field in Create Linked Record action
+  useEffect(() => {
+    const fetchCrossRefTargetForm = async () => {
+      if (
+        localConfig?.actionType === 'create_linked_record' &&
+        localConfig?.crossReferenceFieldId &&
+        !localConfig?.targetFormId
+      ) {
+        console.log('🔍 Fetching cross-reference field details for:', localConfig.crossReferenceFieldId);
+        try {
+          const { data: fieldData, error } = await supabase
+            .from('form_fields')
+            .select('custom_config')
+            .eq('id', localConfig.crossReferenceFieldId)
+            .single();
+
+          if (error) {
+            console.error('Error fetching cross-reference field:', error);
+            return;
+          }
+
+          const customConfig = fieldData?.custom_config as any;
+          if (customConfig?.targetFormId) {
+            console.log('✅ Auto-detected target form:', customConfig.targetFormId, customConfig.targetFormName);
+            setLocalConfig((prev: any) => {
+              const newConfig = {
+                ...prev,
+                targetFormId: customConfig.targetFormId,
+                targetFormName: customConfig.targetFormName || 'Unknown Form'
+              };
+              syncToParent(newConfig);
+              return newConfig;
+            });
+          }
+        } catch (err) {
+          console.error('Error in fetchCrossRefTargetForm:', err);
+        }
+      }
+    };
+
+    fetchCrossRefTargetForm();
+  }, [localConfig?.actionType, localConfig?.crossReferenceFieldId, localConfig?.targetFormId, syncToParent]);
 
   // Update local config and schedule parent sync
   const handleConfigUpdate = useCallback((key: string, value: any) => {
