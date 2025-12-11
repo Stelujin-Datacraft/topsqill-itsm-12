@@ -915,29 +915,19 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                       <>
                         <div>
                           <Label>Target Form (Child Form)</Label>
-                          <p className="text-xs text-muted-foreground mb-2">
-                            {localConfig?.targetFormId 
-                              ? `Auto-detected from cross-reference: ${localConfig.targetFormName || 'Unknown'}`
-                              : 'Will be auto-detected from cross-reference field'
-                            }
-                          </p>
-                          {!localConfig?.targetFormId && (
-                            <FormSelector
-                              value={localConfig?.targetFormId || ''}
-                              onValueChange={(formId, formName) => {
-                                handleFullConfigUpdate({ 
-                                  ...localConfig, 
-                                  targetFormId: formId,
-                                  targetFormName: formName
-                                });
-                              }}
-                              placeholder="Select target form (if not auto-detected)"
-                              projectId={projectId}
-                            />
-                          )}
-                          {localConfig?.targetFormId && (
-                            <div className="text-sm p-2 bg-muted rounded">
-                              {localConfig.targetFormName || localConfig.targetFormId}
+                          {localConfig?.targetFormId ? (
+                            <>
+                              <p className="text-xs text-muted-foreground mb-2">
+                                Auto-detected from cross-reference field
+                              </p>
+                              <div className="text-sm p-2 bg-green-50 border border-green-200 rounded flex items-center gap-2">
+                                <span className="text-green-600">✓</span>
+                                <span className="font-medium">{localConfig.targetFormName || localConfig.targetFormId}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-sm p-2 bg-amber-50 border border-amber-200 rounded text-amber-700">
+                              Could not auto-detect target form. Please re-select the cross-reference field or ensure it has a target form configured.
                             </div>
                           )}
                         </div>
