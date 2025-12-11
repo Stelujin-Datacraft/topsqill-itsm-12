@@ -50,20 +50,22 @@ const handler = async (req: Request): Promise<Response> => {
       use_tls: smtpConfig.use_tls,
     });
 
-    // Initialize SMTP client with actual configuration
-    const client = new SMTPClient({
-      connection: {
-        hostname: smtpConfig.host,
-        port: smtpConfig.port,
-        tls: smtpConfig.use_tls,
-        auth: {
-          username: smtpConfig.username,
-          password: smtpConfig.password,
-        },
-      },
-    });
-
+    let client: SMTPClient | null = null;
+    
     try {
+      // Initialize SMTP client with actual configuration
+      client = new SMTPClient({
+        connection: {
+          hostname: smtpConfig.host,
+          port: smtpConfig.port,
+          tls: smtpConfig.use_tls,
+          auth: {
+            username: smtpConfig.username,
+            password: smtpConfig.password,
+          },
+        },
+      });
+
       // Send test email using actual SMTP
       await client.send({
         from: smtpConfig.from_name 
@@ -71,66 +73,18 @@ const handler = async (req: Request): Promise<Response> => {
           : smtpConfig.from_email,
         to: testEmail,
         subject: `SMTP Test - ${smtpConfig.name}`,
-        content: `
-SMTP Configuration Test
-
-This is a test email to verify your SMTP configuration is working correctly.
-
-Configuration Details:
-- Name: ${smtpConfig.name}
-- Host: ${smtpConfig.host}
-- Port: ${smtpConfig.port}
-- TLS: ${smtpConfig.use_tls ? 'Enabled' : 'Disabled'}
-- Test Time: ${new Date().toISOString()}
-
-If you received this email, your SMTP configuration is working properly!
-        `,
-        html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: #4F46E5; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
-    .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
-    .detail-row { margin: 10px 0; }
-    .label { font-weight: bold; color: #4F46E5; }
-    .success { background: #10b981; color: white; padding: 10px; border-radius: 4px; text-align: center; margin-top: 20px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h2>SMTP Configuration Test</h2>
-    </div>
-    <div class="content">
-      <p>This is a test email to verify your SMTP configuration is working correctly.</p>
-      
-      <h3>Configuration Details:</h3>
-      <div class="detail-row"><span class="label">Name:</span> ${smtpConfig.name}</div>
-      <div class="detail-row"><span class="label">Host:</span> ${smtpConfig.host}</div>
-      <div class="detail-row"><span class="label">Port:</span> ${smtpConfig.port}</div>
-      <div class="detail-row"><span class="label">TLS:</span> ${smtpConfig.use_tls ? 'Enabled' : 'Disabled'}</div>
-      <div class="detail-row"><span class="label">Test Time:</span> ${new Date().toISOString()}</div>
-      
-      <div class="success">
-        ✅ Your SMTP configuration is working properly!
-      </div>
-    </div>
-  </div>
-</body>
-</html>
-        `,
+        content: `SMTP Configuration Test\n\nThis is a test email to verify your SMTP configuration is working correctly.\n\nConfiguration: ${smtpConfig.name}\nHost: ${smtpConfig.host}\nPort: ${smtpConfig.port}\nTest Time: ${new Date().toISOString()}\n\nIf you received this email, your SMTP configuration is working properly!`,
+        html: `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#4F46E5;">SMTP Test - ${smtpConfig.name}</h2><p>Your SMTP configuration is working correctly.</p><p><strong>Host:</strong> ${smtpConfig.host}<br><strong>Port:</strong> ${smtpConfig.port}<br><strong>Time:</strong> ${new Date().toISOString()}</p><p style="background:#10b981;color:white;padding:10px;border-radius:4px;text-align:center;">✅ Configuration verified!</p></body></html>`,
       });
 
       await client.close();
+      client = null;
 
       console.log('✅ SMTP test successful - email sent to:', testEmail);
 
       return new Response(JSON.stringify({
         success: true,
-        message: `Test email sent successfully to ${testEmail}`,
+        message: `Test email sent successfully to ${testEmail}. Please check your inbox (and spam folder).`,
         details: {
           host: smtpConfig.host,
           port: smtpConfig.port,
@@ -144,7 +98,14 @@ If you received this email, your SMTP configuration is working properly!
     } catch (error: any) {
       console.error('❌ SMTP test failed:', error);
       
-      await client.close().catch(() => {});
+      // Safely close client if it exists
+      if (client) {
+        try {
+          await client.close();
+        } catch (closeError) {
+          console.error('Error closing SMTP client:', closeError);
+        }
+      }
       
       return new Response(JSON.stringify({
         success: false,
