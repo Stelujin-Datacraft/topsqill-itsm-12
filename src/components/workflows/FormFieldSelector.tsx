@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { FormField } from '@/types/form';
@@ -19,6 +19,9 @@ interface FormFieldSelectorProps {
 export function FormFieldSelector({ formId, value, onValueChange, placeholder = "Select field", filterTypes }: FormFieldSelectorProps) {
   const [fields, setFields] = useState<ExtendedFormField[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Memoize filterTypes to prevent infinite re-renders
+  const filterTypesKey = useMemo(() => filterTypes?.join(',') || '', [filterTypes]);
 
   useEffect(() => {
     if (!formId) {
@@ -53,8 +56,9 @@ export function FormFieldSelector({ formId, value, onValueChange, placeholder = 
             } as ExtendedFormField));
           
           // Apply type filter if provided
-          if (filterTypes && filterTypes.length > 0) {
-            dataFields = dataFields.filter(field => filterTypes.includes(field.type));
+          const typesToFilter = filterTypesKey ? filterTypesKey.split(',') : [];
+          if (typesToFilter.length > 0) {
+            dataFields = dataFields.filter(field => typesToFilter.includes(field.type));
           }
           
           setFields(dataFields);
@@ -67,7 +71,7 @@ export function FormFieldSelector({ formId, value, onValueChange, placeholder = 
     };
 
     fetchFields();
-  }, [formId, filterTypes]);
+  }, [formId, filterTypesKey]);
 
   if (loading) {
     return (
