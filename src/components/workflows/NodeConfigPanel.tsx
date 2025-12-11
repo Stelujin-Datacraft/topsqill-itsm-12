@@ -27,7 +27,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useRoles } from '@/hooks/useRoles';
 import { EnhancedCondition } from '@/types/conditions';
 import { FormFieldOption } from '@/types/conditions';
-import { supabase } from '@/integrations/supabase/client';
 
 interface NodeConfigPanelProps {
   node: WorkflowNode;
@@ -103,49 +102,6 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
       onConfigChangeRef.current(localConfig);
     }
   }, [node.type, node.data.config?.triggerType, localConfig]);
-
-  // Auto-fetch target form for cross-reference field in Create Linked Record action
-  useEffect(() => {
-    const fetchCrossRefTargetForm = async () => {
-      if (
-        localConfig?.actionType === 'create_linked_record' &&
-        localConfig?.crossReferenceFieldId &&
-        !localConfig?.targetFormId
-      ) {
-        console.log('🔍 Fetching cross-reference field details for:', localConfig.crossReferenceFieldId);
-        try {
-          const { data: fieldData, error } = await supabase
-            .from('form_fields')
-            .select('custom_config')
-            .eq('id', localConfig.crossReferenceFieldId)
-            .single();
-
-          if (error) {
-            console.error('Error fetching cross-reference field:', error);
-            return;
-          }
-
-          const customConfig = fieldData?.custom_config as any;
-          if (customConfig?.targetFormId) {
-            console.log('✅ Auto-detected target form:', customConfig.targetFormId, customConfig.targetFormName);
-            setLocalConfig((prev: any) => {
-              const newConfig = {
-                ...prev,
-                targetFormId: customConfig.targetFormId,
-                targetFormName: customConfig.targetFormName || 'Unknown Form'
-              };
-              syncToParent(newConfig);
-              return newConfig;
-            });
-          }
-        } catch (err) {
-          console.error('Error in fetchCrossRefTargetForm:', err);
-        }
-      }
-    };
-
-    fetchCrossRefTargetForm();
-  }, [localConfig?.actionType, localConfig?.crossReferenceFieldId, localConfig?.targetFormId, syncToParent]);
 
   // Update local config and schedule parent sync
   const handleConfigUpdate = useCallback((key: string, value: any) => {
@@ -958,35 +914,31 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                     {localConfig?.crossReferenceFieldId && (
                       <>
                         <div>
-                          <Label>Target Form (Child Form) *</Label>
-                          {localConfig?.targetFormId ? (
-                            <>
-                              <p className="text-xs text-muted-foreground mb-2">
-                                Auto-detected from cross-reference field
-                              </p>
-                              <div className="text-sm p-2 bg-green-50 border border-green-200 rounded flex items-center gap-2">
-                                <span className="text-green-600">✓</span>
-                                <span className="font-medium">{localConfig.targetFormName || localConfig.targetFormId}</span>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <p className="text-xs text-amber-600 mb-2">
-                                Could not auto-detect. The cross-reference field may not be fully configured. Please select the target form manually:
-                              </p>
-                              <FormSelector
-                                value={localConfig?.targetFormId || ''}
-                                onValueChange={(formId, formName) => {
-                                  handleFullConfigUpdate({ 
-                                    ...localConfig, 
-                                    targetFormId: formId,
-                                    targetFormName: formName
-                                  });
-                                }}
-                                placeholder="Select child form"
-                                projectId={projectId}
-                              />
-                            </>
+                          <Label>Target Form (Child Form)</Label>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            {localConfig?.targetFormId 
+                              ? `Auto-detected from cross-reference: ${localConfig.targetFormName || 'Unknown'}`
+                              : 'Will be auto-detected from cross-reference field'
+                            }
+                          </p>
+                          {!localConfig?.targetFormId && (
+                            <FormSelector
+                              value={localConfig?.targetFormId || ''}
+                              onValueChange={(formId, formName) => {
+                                handleFullConfigUpdate({ 
+                                  ...localConfig, 
+                                  targetFormId: formId,
+                                  targetFormName: formName
+                                });
+                              }}
+                              placeholder="Select target form (if not auto-detected)"
+                              projectId={projectId}
+                            />
+                          )}
+                          {localConfig?.targetFormId && (
+                            <div className="text-sm p-2 bg-muted rounded">
+                              {localConfig.targetFormName || localConfig.targetFormId}
+                            </div>
                           )}
                         </div>
 
