@@ -46,7 +46,7 @@ export interface WorkflowCondition {
 }
 
 export interface WorkflowAction {
-  type: 'approve' | 'disapprove' | 'assign_form' | 'send_email' | 'send_notification' | 
+  type: 'approve' | 'disapprove' | 'send_email' | 'send_notification' | 
         'send_sms' | 'webhook' | 'change_status' | 'set_field' | 'log_event' | 
         'update_variable' | 'start_subworkflow';
   config: Record<string, any>;

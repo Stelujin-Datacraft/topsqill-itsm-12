@@ -22,7 +22,6 @@ export type TriggerType =
   | 'schedule';
 
 export type ActionType = 
-  | 'assign_form'
   | 'approve_form'
   | 'disapprove_form'
   | 'send_email'
