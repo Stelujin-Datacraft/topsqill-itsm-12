@@ -184,33 +184,6 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
     if (node.type === 'action') {
       const actionType = localConfig?.actionType;
       
-      if (actionType === 'assign_form') {
-        if (!localConfig?.targetFormId) {
-          toast({
-            title: "Configuration Error",
-            description: "Please select a target form for assignment.",
-            variant: "destructive",
-          });
-          return false;
-        }
-        if (!localConfig?.assignmentConfig) {
-          toast({
-            title: "Configuration Error", 
-            description: "Please configure assignment settings.",
-            variant: "destructive",
-          });
-          return false;
-        }
-        if (!localConfig?.assignRoleId) {
-          toast({
-            title: "Configuration Error", 
-            description: "Please select a role to assign to the user.",
-            variant: "destructive",
-          });
-          return false;
-        }
-      }
-
       if (actionType === 'change_field_value') {
         if (!localConfig?.targetFormId) {
           toast({ title: "Error", description: "Please select a target form", variant: "destructive" });
@@ -339,7 +312,6 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="approve_form">Approve Form</SelectItem>
-                  <SelectItem value="assign_form">Assign Form</SelectItem>
                   <SelectItem value="update_form_lifecycle_status">Update Form Lifecycle Status</SelectItem>
                   <SelectItem value="send_notification">Send Notification</SelectItem>
                   <SelectItem value="change_field_value">Change Field Value</SelectItem>
@@ -365,80 +337,6 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   placeholder="Select form to approve"
                   projectId={projectId}
                 />
-              </div>
-            )}
-
-            {/* Assign Form Configuration */}
-            {localConfig?.actionType === 'assign_form' && (
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="targetForm">Form to Assign *</Label>
-                  <FormSelector
-                    value={localConfig?.targetFormId || ''}
-                    onValueChange={(formId, formName) => {
-                      console.log('📝 Form selected for assignment:', { formId, formName });
-                      handleFullConfigUpdate({ 
-                        ...localConfig, 
-                        targetFormId: formId,
-                        targetFormName: formName
-                      });
-                    }}
-                    placeholder="Select form to assign"
-                    projectId={projectId}
-                  />
-                  {!localConfig?.targetFormId && (
-                    <p className="text-xs text-red-500 mt-1">Required: Please select a form to assign</p>
-                  )}
-                </div>
-                
-                <div>
-                  <Label>Assignment Configuration *</Label>
-                  <EnhancedUserSelector
-                    value={localConfig?.assignmentConfig || { type: 'form_submitter' }}
-                    onValueChange={(value) => {
-                      console.log('📝 Assignment config being saved:', value);
-                      handleFullConfigUpdate({ 
-                        ...localConfig, 
-                        assignmentConfig: value
-                      });
-                    }}
-                    triggerFormId={triggerFormId}
-                    targetFormId={localConfig?.targetFormId}
-                    formFields={formFields}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="assignRoleId">Assign Role *</Label>
-                  <Select 
-                    value={localConfig?.assignRoleId || ''} 
-                    onValueChange={(value) => {
-                      const role = roles.find(r => r.id === value);
-                      handleFullConfigUpdate({ 
-                        ...localConfig, 
-                        assignRoleId: value,
-                        assignRoleName: role?.name
-                      });
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select role to assign" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {roles.map(role => (
-                        <SelectItem key={role.id} value={role.id}>
-                          {role.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {!localConfig?.assignRoleId && (
-                    <p className="text-xs text-red-500 mt-1">Required: Please select a role to assign</p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    The selected role will be automatically assigned to the user
-                  </p>
-                </div>
               </div>
             )}
 
@@ -1001,14 +899,13 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
             <div>
               <Label htmlFor="actionType">Assignment Type</Label>
               <Select 
-                value={localConfig?.actionType || 'assign_form'} 
+                value={localConfig?.actionType || 'approve_form'} 
                 onValueChange={(value) => handleConfigUpdate('actionType', value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select assignment type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="assign_form">Assign Form</SelectItem>
                   <SelectItem value="approve_form">Approve Form</SelectItem>
                   <SelectItem value="update_status">Update Status</SelectItem>
                 </SelectContent>
