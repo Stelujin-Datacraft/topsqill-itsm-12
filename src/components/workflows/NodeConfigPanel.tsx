@@ -914,7 +914,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                     {localConfig?.crossReferenceFieldId && (
                       <>
                         <div>
-                          <Label>Target Form (Child Form)</Label>
+                          <Label>Target Form (Child Form) *</Label>
                           {localConfig?.targetFormId ? (
                             <>
                               <p className="text-xs text-muted-foreground mb-2">
@@ -926,9 +926,23 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                               </div>
                             </>
                           ) : (
-                            <div className="text-sm p-2 bg-amber-50 border border-amber-200 rounded text-amber-700">
-                              Could not auto-detect target form. Please re-select the cross-reference field or ensure it has a target form configured.
-                            </div>
+                            <>
+                              <p className="text-xs text-amber-600 mb-2">
+                                Could not auto-detect. The cross-reference field may not be fully configured. Please select the target form manually:
+                              </p>
+                              <FormSelector
+                                value={localConfig?.targetFormId || ''}
+                                onValueChange={(formId, formName) => {
+                                  handleFullConfigUpdate({ 
+                                    ...localConfig, 
+                                    targetFormId: formId,
+                                    targetFormName: formName
+                                  });
+                                }}
+                                placeholder="Select child form"
+                                projectId={projectId}
+                              />
+                            </>
                           )}
                         </div>
 
