@@ -211,21 +211,23 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`📮 Processing ${finalRecipients.length} recipient(s)`);
     const emailResults = [];
     
-    // Initialize SMTP client
-    const smtpClient = new SMTPClient({
-      connection: {
-        hostname: smtpConfig.host,
-        port: smtpConfig.port,
-        tls: smtpConfig.use_tls,
-        auth: {
-          username: smtpConfig.username,
-          password: smtpConfig.password,
-        },
-      },
-    });
-    
+    // Send to each recipient with a fresh SMTP connection to avoid "nested MAIL command" error
     for (const recipient of finalRecipients) {
       console.log(`📧 Sending to: ${recipient}`);
+      
+      // Create a new SMTP client for each email to avoid connection state issues
+      const smtpClient = new SMTPClient({
+        connection: {
+          hostname: smtpConfig.host,
+          port: smtpConfig.port,
+          tls: smtpConfig.use_tls,
+          auth: {
+            username: smtpConfig.username,
+            password: smtpConfig.password,
+          },
+        },
+      });
+      
       try {
         // Send email using SMTP
         await smtpClient.send({
@@ -237,6 +239,9 @@ const handler = async (req: Request): Promise<Response> => {
           content: processedTextContent || processedHtmlContent.replace(/<[^>]*>/g, ''),
           html: processedHtmlContent,
         });
+
+        // Close connection after successful send
+        await smtpClient.close();
 
         console.log(`✅ Email sent successfully to ${recipient}`);
         
@@ -262,6 +267,9 @@ const handler = async (req: Request): Promise<Response> => {
       } catch (error) {
         console.error(`❌ Failed to send email to ${recipient}:`, error);
         
+        // Ensure connection is closed even on error
+        await smtpClient.close().catch(() => {});
+        
         // Log failed email
         await supabaseClient.from('email_logs').insert({
           organization_id: project.organization_id,
@@ -284,9 +292,6 @@ const handler = async (req: Request): Promise<Response> => {
         });
       }
     }
-
-    // Close SMTP connection
-    await smtpClient.close();
 
     console.log('✅ Email sending completed:', emailResults);
 
