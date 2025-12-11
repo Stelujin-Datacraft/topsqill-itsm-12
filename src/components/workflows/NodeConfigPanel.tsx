@@ -250,6 +250,10 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
           toast({ title: "Error", description: "Target form is required. Please ensure the cross-reference field has a target form configured.", variant: "destructive" });
           return false;
         }
+        if (!localConfig?.recordCount || localConfig.recordCount < 1) {
+          toast({ title: "Error", description: "Please specify the number of records to create (at least 1)", variant: "destructive" });
+          return false;
+        }
         if (localConfig?.setSubmittedBy === 'specific_user' && !localConfig?.specificSubmitterId) {
           toast({ title: "Error", description: "Please select a specific user for the 'Submitted By' option", variant: "destructive" });
           return false;
@@ -846,21 +850,20 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                 )}
               </div>
             )}
-
             {/* Create Linked Record Configuration */}
             {localConfig?.actionType === 'create_linked_record' && (
               <div className="space-y-4 border-t pt-4">
                 <div className="text-xs text-violet-700 bg-violet-50 p-3 rounded border border-violet-200 mb-4">
-                  <strong>Create Linked Record</strong> creates a new record in a child form and automatically links it back to the parent form's cross-reference field.
+                  <strong>Create Linked Record</strong> creates new record(s) in a child form and automatically links them back to the parent form's cross-reference field.
                 </div>
                 
                 <div className="text-xs text-amber-700 bg-amber-50 p-3 rounded border border-amber-200 mb-4">
-                  <strong>Important:</strong> The Start Node must be configured with the <strong>Parent Form</strong> (the form containing the cross-reference field). This action will create a child record and link its ID back to the parent.
+                  <strong>Important:</strong> The Start Node must be configured with the <strong>Parent Form</strong> (the form containing the cross-reference field). This action will create child record(s) and link their submission reference IDs back to the parent.
                 </div>
 
                 {!triggerFormId ? (
                   <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded border border-amber-200">
-                    Please configure the Start Node with a trigger form first. The trigger form should be the Parent Form that contains the cross-reference field.
+                    Please configure the Start Node with a trigger form first, then <strong>save the workflow</strong>. The trigger form should be the Parent Form that contains the cross-reference field.
                   </div>
                 ) : (
                   <>
@@ -888,6 +891,24 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                         placeholder="Select cross-reference field"
                         filterTypes={['cross-reference']}
                       />
+                    </div>
+
+                    <div>
+                      <Label>Number of Records *</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={localConfig?.recordCount ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          handleConfigUpdate('recordCount', val === '' ? undefined : parseInt(val, 10));
+                        }}
+                        placeholder="Enter number of records to create"
+                        className="h-9"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        How many linked records to create (each will be linked to the parent)
+                      </p>
                     </div>
 
                     {localConfig?.crossReferenceFieldId && (
@@ -1036,7 +1057,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
 
                 {localConfig?.crossReferenceFieldId && localConfig?.targetFormId && (
                   <div className="text-xs text-violet-700 bg-violet-50 p-3 rounded border border-violet-200">
-                    <strong>Summary:</strong> Will create a linked record in "{localConfig.targetFormName}" and update the "{localConfig.crossReferenceFieldName}" field in the parent form
+                    <strong>Summary:</strong> Will create {localConfig.recordCount || 1} linked record{(localConfig.recordCount || 1) > 1 ? 's' : ''} in "{localConfig.targetFormName}" and update the "{localConfig.crossReferenceFieldName}" field in the parent form
                     {localConfig.fieldConfigMode === 'field_mapping' 
                       ? ` (mapping ${localConfig.fieldMappings?.length || 0} field${(localConfig.fieldMappings?.length || 0) !== 1 ? 's' : ''})`
                       : localConfig.fieldConfigMode === 'field_values' && (localConfig.fieldValues?.length || 0) > 0 

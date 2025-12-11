@@ -627,10 +627,12 @@ export class RecordActionExecutors {
     console.log('📋 Context:', JSON.stringify(context, null, 2));
 
     const config = context.config;
+    const recordCount = Math.min(Math.max(config.recordCount || 1, 1), 100);
     const actionDetails = {
       actionType: 'create_linked_record',
       crossReferenceFieldId: config.crossReferenceFieldId,
       targetFormId: config.targetFormId,
+      recordCount,
       timestamp: new Date().toISOString()
     };
 
@@ -657,7 +659,7 @@ export class RecordActionExecutors {
       const triggerSubmissionId = context.submissionId;
       const triggerFormId = context.triggerData?.formId;
 
-      console.log('📋 Trigger data:', { triggerSubmissionId, triggerFormId });
+      console.log('📋 Trigger data:', { triggerSubmissionId, triggerFormId, recordCount });
 
       // Determine submitter
       let submittedBy: string | null = null;
@@ -670,7 +672,7 @@ export class RecordActionExecutors {
       // Determine initial status
       const initialStatus = config.initialStatus || 'pending';
 
-      // Build submission data for the new child record
+      // Build base submission data for the new child records
       const childSubmissionData: Record<string, any> = {};
 
       // Apply field values if configured
@@ -703,34 +705,47 @@ export class RecordActionExecutors {
         }
       }
 
-      console.log('📝 Child submission data:', childSubmissionData);
+      console.log('📝 Child submission data template:', childSubmissionData);
 
-      // Create the new child record in the target form
-      const { data: newSubmission, error: createError } = await supabase
-        .from('form_submissions')
-        .insert({
-          form_id: config.targetFormId,
-          submission_data: childSubmissionData,
-          submitted_by: submittedBy,
-          approval_status: initialStatus
-        })
-        .select('id, submission_ref_id')
-        .single();
+      // Create multiple child records
+      const createdRecords: Array<{ id: string; submission_ref_id: string }> = [];
+      
+      for (let i = 0; i < recordCount; i++) {
+        const { data: newSubmission, error: createError } = await supabase
+          .from('form_submissions')
+          .insert({
+            form_id: config.targetFormId,
+            submission_data: childSubmissionData,
+            submitted_by: submittedBy,
+            approval_status: initialStatus
+          })
+          .select('id, submission_ref_id')
+          .single();
 
-      if (createError || !newSubmission) {
-        console.error('❌ Error creating child record:', createError);
+        if (createError || !newSubmission) {
+          console.error(`❌ Error creating child record ${i + 1}/${recordCount}:`, createError);
+          // Continue trying to create remaining records
+          continue;
+        }
+
+        console.log(`✅ Child record ${i + 1}/${recordCount} created:`, newSubmission);
+        createdRecords.push({
+          id: newSubmission.id,
+          submission_ref_id: newSubmission.submission_ref_id || ''
+        });
+      }
+
+      if (createdRecords.length === 0) {
         return {
           success: false,
-          error: `Failed to create linked record: ${createError?.message || 'Unknown error'}`,
+          error: 'Failed to create any linked records',
           actionDetails
         };
       }
 
-      console.log('✅ Child record created:', newSubmission);
-
       // Now update the parent (trigger) submission's cross-reference field
-      // to include the new child record's submission_ref_id
-      if (triggerSubmissionId && newSubmission.submission_ref_id) {
+      // to include all new child records' submission_ref_ids
+      if (triggerSubmissionId && createdRecords.length > 0) {
         // Fetch current parent submission data
         const { data: parentSubmission, error: fetchError } = await supabase
           .from('form_submissions')
@@ -740,14 +755,14 @@ export class RecordActionExecutors {
 
         if (fetchError || !parentSubmission) {
           console.error('⚠️ Could not fetch parent submission to update cross-reference:', fetchError);
-          // The child record was created, but we couldn't link it back
           return {
             success: true,
             output: {
-              childRecordId: newSubmission.id,
-              childSubmissionRefId: newSubmission.submission_ref_id,
+              createdCount: createdRecords.length,
+              requestedCount: recordCount,
+              childRecords: createdRecords,
               parentUpdated: false,
-              warning: 'Child record created but could not update parent cross-reference field'
+              warning: 'Child records created but could not update parent cross-reference field'
             },
             actionDetails
           };
@@ -760,14 +775,18 @@ export class RecordActionExecutors {
         // Cross-reference fields typically store an array of submission_ref_ids
         let updatedCrossRefValue: string[];
         if (Array.isArray(currentCrossRefValue)) {
-          // Add the new submission_ref_id to the existing array
-          updatedCrossRefValue = [...currentCrossRefValue, newSubmission.submission_ref_id];
+          updatedCrossRefValue = [...currentCrossRefValue];
         } else if (typeof currentCrossRefValue === 'string' && currentCrossRefValue) {
-          // Convert single value to array and add new one
-          updatedCrossRefValue = [currentCrossRefValue, newSubmission.submission_ref_id];
+          updatedCrossRefValue = [currentCrossRefValue];
         } else {
-          // Start fresh array
-          updatedCrossRefValue = [newSubmission.submission_ref_id];
+          updatedCrossRefValue = [];
+        }
+
+        // Add all new submission_ref_ids
+        for (const record of createdRecords) {
+          if (record.submission_ref_id) {
+            updatedCrossRefValue.push(record.submission_ref_id);
+          }
         }
 
         // Update the parent submission with the new cross-reference value
@@ -786,22 +805,24 @@ export class RecordActionExecutors {
           return {
             success: true,
             output: {
-              childRecordId: newSubmission.id,
-              childSubmissionRefId: newSubmission.submission_ref_id,
+              createdCount: createdRecords.length,
+              requestedCount: recordCount,
+              childRecords: createdRecords,
               parentUpdated: false,
-              warning: `Child record created but failed to update parent: ${updateError.message}`
+              warning: `Child records created but failed to update parent: ${updateError.message}`
             },
             actionDetails
           };
         }
 
-        console.log('✅ Parent cross-reference field updated with new child ref:', newSubmission.submission_ref_id);
+        console.log(`✅ Parent cross-reference field updated with ${createdRecords.length} new child refs`);
 
         return {
           success: true,
           output: {
-            childRecordId: newSubmission.id,
-            childSubmissionRefId: newSubmission.submission_ref_id,
+            createdCount: createdRecords.length,
+            requestedCount: recordCount,
+            childRecords: createdRecords,
             parentSubmissionId: triggerSubmissionId,
             crossReferenceFieldId: config.crossReferenceFieldId,
             crossReferenceValue: updatedCrossRefValue,
@@ -812,12 +833,13 @@ export class RecordActionExecutors {
         };
       }
 
-      // If no trigger submission to update, just return the created child
+      // If no trigger submission to update, just return the created children
       return {
         success: true,
         output: {
-          childRecordId: newSubmission.id,
-          childSubmissionRefId: newSubmission.submission_ref_id,
+          createdCount: createdRecords.length,
+          requestedCount: recordCount,
+          childRecords: createdRecords,
           parentUpdated: false,
           note: 'No parent submission to update'
         },

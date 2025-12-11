@@ -60,6 +60,8 @@ export interface CreateLinkedRecordConfig {
   // The target (child) form where the new record will be created
   targetFormId: string;
   targetFormName?: string;
+  // Number of records to create
+  recordCount: number;
   // Optional field values for the new child record
   fieldValues?: CreateRecordFieldValue[];
   // Optional field mappings from trigger form to child form
