@@ -156,7 +156,8 @@ export const ActionNode = React.memo(function ActionNode({ data }: ActionNodePro
     if (actionType === 'create_linked_record') {
       const crossRefField = config.crossReferenceFieldName || 'cross-reference field';
       const targetForm = config.targetFormName || 'child form';
-      return `Create linked record in ${targetForm} via ${crossRefField}`;
+      const count = config.recordCount || 1;
+      return `Create ${count} linked record${count > 1 ? 's' : ''} in ${targetForm} via ${crossRefField}`;
     }
     
     return 'Click to configure';
