@@ -240,6 +240,29 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
           }
         }
       }
+
+      if (actionType === 'create_linked_record') {
+        if (!localConfig?.crossReferenceFieldId) {
+          toast({ title: "Error", description: "Please select a cross-reference field", variant: "destructive" });
+          return false;
+        }
+        if (!localConfig?.targetFormId) {
+          toast({ title: "Error", description: "Target form is required. Please ensure the cross-reference field has a target form configured.", variant: "destructive" });
+          return false;
+        }
+        if (localConfig?.setSubmittedBy === 'specific_user' && !localConfig?.specificSubmitterId) {
+          toast({ title: "Error", description: "Please select a specific user for the 'Submitted By' option", variant: "destructive" });
+          return false;
+        }
+        if (localConfig?.fieldConfigMode === 'field_mapping') {
+          const mappings = localConfig?.fieldMappings || [];
+          const hasIncompleteMappings = mappings.some((m: any) => !m.sourceFieldId || !m.targetFieldId);
+          if (hasIncompleteMappings) {
+            toast({ title: "Error", description: "Please complete all field mappings or remove incomplete ones", variant: "destructive" });
+            return false;
+          }
+        }
+      }
     }
     return true;
   }, [node.type, localConfig, toast]);
@@ -317,6 +340,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   <SelectItem value="change_field_value">Change Field Value</SelectItem>
                   <SelectItem value="change_record_status">Change Record Status</SelectItem>
                   <SelectItem value="create_record">Create Record</SelectItem>
+                  <SelectItem value="create_linked_record">Create Linked Record</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -810,6 +834,204 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                       : (localConfig.fieldValues?.length || 0) > 0 
                         ? ` with ${localConfig.fieldValues.length} field value${localConfig.fieldValues.length > 1 ? 's' : ''}`
                         : ' with empty/default values'}
+                    {' | Status: '}{localConfig.initialStatus || 'pending'}
+                    {' | By: '}{
+                      localConfig.setSubmittedBy === 'system' 
+                        ? 'System' 
+                        : localConfig.setSubmittedBy === 'specific_user'
+                          ? (organizationUsers.find(u => u.id === localConfig.specificSubmitterId)?.email || 'Selected User')
+                          : 'Trigger Submitter'
+                    }
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Create Linked Record Configuration */}
+            {localConfig?.actionType === 'create_linked_record' && (
+              <div className="space-y-4 border-t pt-4">
+                <div className="text-xs text-violet-700 bg-violet-50 p-3 rounded border border-violet-200 mb-4">
+                  <strong>Create Linked Record</strong> creates a new record in a child form and automatically links it back to the parent form's cross-reference field.
+                </div>
+
+                <div>
+                  <Label>Cross-Reference Field (from Trigger Form) *</Label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Select the cross-reference field that points to the child form
+                  </p>
+                  <FormFieldSelector
+                    formId={triggerFormId || ''}
+                    value={localConfig?.crossReferenceFieldId || ''}
+                    onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
+                      // When a cross-reference field is selected, auto-detect the target form
+                      const targetFormId = customConfig?.targetFormId;
+                      const targetFormName = customConfig?.targetFormName;
+                      
+                      handleFullConfigUpdate({
+                        ...localConfig,
+                        crossReferenceFieldId: fieldId,
+                        crossReferenceFieldName: fieldName,
+                        targetFormId: targetFormId || localConfig?.targetFormId,
+                        targetFormName: targetFormName || localConfig?.targetFormName
+                      });
+                    }}
+                    placeholder="Select cross-reference field"
+                    filterTypes={['cross-reference']}
+                  />
+                </div>
+
+                {localConfig?.crossReferenceFieldId && (
+                  <>
+                    <div>
+                      <Label>Target Form (Child Form)</Label>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        {localConfig?.targetFormId 
+                          ? `Auto-detected from cross-reference: ${localConfig.targetFormName || 'Unknown'}`
+                          : 'Will be auto-detected from cross-reference field'
+                        }
+                      </p>
+                      {!localConfig?.targetFormId && (
+                        <FormSelector
+                          value={localConfig?.targetFormId || ''}
+                          onValueChange={(formId, formName) => {
+                            handleFullConfigUpdate({ 
+                              ...localConfig, 
+                              targetFormId: formId,
+                              targetFormName: formName
+                            });
+                          }}
+                          placeholder="Select target form (if not auto-detected)"
+                          projectId={projectId}
+                        />
+                      )}
+                      {localConfig?.targetFormId && (
+                        <div className="text-sm p-2 bg-muted rounded">
+                          {localConfig.targetFormName || localConfig.targetFormId}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label>Initial Status</Label>
+                      <Select
+                        value={localConfig?.initialStatus || 'pending'}
+                        onValueChange={(value) => handleConfigUpdate('initialStatus', value)}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select initial status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="approved">Approved</SelectItem>
+                          <SelectItem value="rejected">Rejected</SelectItem>
+                          <SelectItem value="in_review">In Review</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label>Submitted By</Label>
+                      <Select
+                        value={localConfig?.setSubmittedBy || 'trigger_submitter'}
+                        onValueChange={(value) => {
+                          handleConfigUpdate('setSubmittedBy', value);
+                          if (value !== 'specific_user') {
+                            handleConfigUpdate('specificSubmitterId', undefined);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select submitter" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="trigger_submitter">Trigger Form Submitter</SelectItem>
+                          <SelectItem value="specific_user">Specific User</SelectItem>
+                          <SelectItem value="system">System (No User)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {localConfig?.setSubmittedBy === 'specific_user' && (
+                      <div>
+                        <Label>Select User *</Label>
+                        <Select
+                          value={localConfig?.specificSubmitterId || ''}
+                          onValueChange={(value) => handleConfigUpdate('specificSubmitterId', value)}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder={loadingUsers ? "Loading users..." : "Select a user"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {organizationUsers.map((user) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.first_name && user.last_name 
+                                  ? `${user.first_name} ${user.last_name} (${user.email})`
+                                  : user.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    <div>
+                      <Label>Field Configuration (Optional)</Label>
+                      <Select
+                        value={localConfig?.fieldConfigMode || 'none'}
+                        onValueChange={(value) => {
+                          handleConfigUpdate('fieldConfigMode', value);
+                          if (value === 'none') {
+                            handleConfigUpdate('fieldValues', []);
+                            handleConfigUpdate('fieldMappings', []);
+                          } else if (value === 'field_values') {
+                            handleConfigUpdate('fieldMappings', []);
+                          } else {
+                            handleConfigUpdate('fieldValues', []);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select configuration mode" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No Additional Fields</SelectItem>
+                          <SelectItem value="field_values">Set Field Values</SelectItem>
+                          <SelectItem value="field_mapping">Map Fields from Trigger Form</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Optionally set additional field values for the new linked record
+                      </p>
+                    </div>
+
+                    {localConfig?.fieldConfigMode === 'field_mapping' && localConfig?.targetFormId && (
+                      <FieldMappingConfig
+                        triggerFormId={triggerFormId}
+                        targetFormId={localConfig.targetFormId}
+                        fieldMappings={localConfig?.fieldMappings || []}
+                        onFieldMappingsChange={(mappings) => handleConfigUpdate('fieldMappings', mappings)}
+                      />
+                    )}
+
+                    {localConfig?.fieldConfigMode === 'field_values' && localConfig?.targetFormId && (
+                      <CreateRecordFieldsConfig
+                        targetFormId={localConfig.targetFormId}
+                        triggerFormId={triggerFormId}
+                        fieldValues={localConfig?.fieldValues || []}
+                        onFieldValuesChange={(values) => handleConfigUpdate('fieldValues', values)}
+                      />
+                    )}
+                  </>
+                )}
+
+                {localConfig?.crossReferenceFieldId && localConfig?.targetFormId && (
+                  <div className="text-xs text-violet-700 bg-violet-50 p-3 rounded border border-violet-200">
+                    <strong>Summary:</strong> Will create a linked record in "{localConfig.targetFormName}" and update the "{localConfig.crossReferenceFieldName}" field in the parent form
+                    {localConfig.fieldConfigMode === 'field_mapping' 
+                      ? ` (mapping ${localConfig.fieldMappings?.length || 0} field${(localConfig.fieldMappings?.length || 0) !== 1 ? 's' : ''})`
+                      : localConfig.fieldConfigMode === 'field_values' && (localConfig.fieldValues?.length || 0) > 0 
+                        ? ` with ${localConfig.fieldValues.length} field value${localConfig.fieldValues.length > 1 ? 's' : ''}`
+                        : ''}
                     {' | Status: '}{localConfig.initialStatus || 'pending'}
                     {' | By: '}{
                       localConfig.setSubmittedBy === 'system' 

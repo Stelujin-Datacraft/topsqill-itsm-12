@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { Settings, CheckCircle, XCircle, Mail, MessageSquare, Webhook, FileText, Edit, Activity, Bell, RefreshCw, Edit3, FileCheck } from 'lucide-react';
+import { Settings, CheckCircle, XCircle, Mail, MessageSquare, Webhook, FileText, Edit, Activity, Bell, RefreshCw, Edit3, FileCheck, Link2 } from 'lucide-react';
 
 interface ActionNodeProps {
   data: {
@@ -37,6 +37,8 @@ const getActionIcon = (actionType: string) => {
       return FileCheck;
     case 'create_record':
       return FileText;
+    case 'create_linked_record':
+      return Link2;
     default:
       return Settings;
   }
@@ -69,6 +71,8 @@ const getActionColor = (actionType: string) => {
       return 'bg-emerald-100 text-emerald-800 border-emerald-200';
     case 'create_record':
       return 'bg-cyan-100 text-cyan-800 border-cyan-200';
+    case 'create_linked_record':
+      return 'bg-violet-100 text-violet-800 border-violet-200';
     default:
       return 'bg-slate-100 text-slate-800 border-slate-200';
   }
@@ -91,6 +95,7 @@ const getActionLabel = (actionType: string) => {
     case 'change_field_value': return 'Change Field';
     case 'change_record_status': return 'Change Status';
     case 'create_record': return 'Create Record';
+    case 'create_linked_record': return 'Create Linked Record';
     default: return 'Action';
   }
 };
@@ -146,6 +151,12 @@ export const ActionNode = React.memo(function ActionNode({ data }: ActionNodePro
       const count = config.recordCount || 1;
       const fieldCount = config.fieldValues?.length || 0;
       return `Create ${count} record${count > 1 ? 's' : ''} in ${form}${fieldCount > 0 ? ` with ${fieldCount} field${fieldCount > 1 ? 's' : ''}` : ''}`;
+    }
+    
+    if (actionType === 'create_linked_record') {
+      const crossRefField = config.crossReferenceFieldName || 'cross-reference field';
+      const targetForm = config.targetFormName || 'child form';
+      return `Create linked record in ${targetForm} via ${crossRefField}`;
     }
     
     return 'Click to configure';

@@ -621,4 +621,216 @@ export class RecordActionExecutors {
     
     return current;
   }
+
+  static async executeCreateLinkedRecordAction(context: NodeExecutionContext): Promise<ActionExecutionResult> {
+    console.log('🔗 EXECUTING CREATE LINKED RECORD ACTION');
+    console.log('📋 Context:', JSON.stringify(context, null, 2));
+
+    const config = context.config;
+    const actionDetails = {
+      actionType: 'create_linked_record',
+      crossReferenceFieldId: config.crossReferenceFieldId,
+      targetFormId: config.targetFormId,
+      timestamp: new Date().toISOString()
+    };
+
+    try {
+      // Validate configuration
+      if (!config.crossReferenceFieldId) {
+        return {
+          success: false,
+          error: 'Missing cross-reference field selection',
+          actionDetails
+        };
+      }
+
+      if (!config.targetFormId) {
+        return {
+          success: false,
+          error: 'Missing target form ID for linked record creation',
+          actionDetails
+        };
+      }
+
+      // Get trigger data
+      const triggerSubmissionData = context.triggerData?.submissionData || context.triggerData || {};
+      const triggerSubmissionId = context.submissionId;
+      const triggerFormId = context.triggerData?.formId;
+
+      console.log('📋 Trigger data:', { triggerSubmissionId, triggerFormId });
+
+      // Determine submitter
+      let submittedBy: string | null = null;
+      if (config.setSubmittedBy === 'trigger_submitter' || !config.setSubmittedBy) {
+        submittedBy = context.submitterId || null;
+      } else if (config.setSubmittedBy === 'specific_user' && config.specificSubmitterId) {
+        submittedBy = config.specificSubmitterId;
+      }
+
+      // Determine initial status
+      const initialStatus = config.initialStatus || 'pending';
+
+      // Build submission data for the new child record
+      const childSubmissionData: Record<string, any> = {};
+
+      // Apply field values if configured
+      if (config.fieldConfigMode === 'field_mapping' && config.fieldMappings) {
+        for (const mapping of config.fieldMappings) {
+          if (mapping.sourceFieldId && mapping.targetFieldId) {
+            const sourceValue = triggerSubmissionData[mapping.sourceFieldId];
+            if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
+              childSubmissionData[mapping.targetFieldId] = sourceValue;
+            }
+          }
+        }
+      } else if (config.fieldValues && config.fieldValues.length > 0) {
+        for (const fieldValue of config.fieldValues) {
+          if (!fieldValue.fieldId) continue;
+
+          let value: any;
+          if (fieldValue.valueType === 'static') {
+            value = fieldValue.staticValue;
+          } else if (fieldValue.valueType === 'dynamic') {
+            const dynamicPath = fieldValue.dynamicValuePath;
+            if (dynamicPath && dynamicPath in triggerSubmissionData) {
+              value = triggerSubmissionData[dynamicPath];
+            }
+          }
+
+          if (value !== undefined && value !== null && value !== '') {
+            childSubmissionData[fieldValue.fieldId] = value;
+          }
+        }
+      }
+
+      console.log('📝 Child submission data:', childSubmissionData);
+
+      // Create the new child record in the target form
+      const { data: newSubmission, error: createError } = await supabase
+        .from('form_submissions')
+        .insert({
+          form_id: config.targetFormId,
+          submission_data: childSubmissionData,
+          submitted_by: submittedBy,
+          approval_status: initialStatus
+        })
+        .select('id, submission_ref_id')
+        .single();
+
+      if (createError || !newSubmission) {
+        console.error('❌ Error creating child record:', createError);
+        return {
+          success: false,
+          error: `Failed to create linked record: ${createError?.message || 'Unknown error'}`,
+          actionDetails
+        };
+      }
+
+      console.log('✅ Child record created:', newSubmission);
+
+      // Now update the parent (trigger) submission's cross-reference field
+      // to include the new child record's submission_ref_id
+      if (triggerSubmissionId && newSubmission.submission_ref_id) {
+        // Fetch current parent submission data
+        const { data: parentSubmission, error: fetchError } = await supabase
+          .from('form_submissions')
+          .select('submission_data')
+          .eq('id', triggerSubmissionId)
+          .single();
+
+        if (fetchError || !parentSubmission) {
+          console.error('⚠️ Could not fetch parent submission to update cross-reference:', fetchError);
+          // The child record was created, but we couldn't link it back
+          return {
+            success: true,
+            output: {
+              childRecordId: newSubmission.id,
+              childSubmissionRefId: newSubmission.submission_ref_id,
+              parentUpdated: false,
+              warning: 'Child record created but could not update parent cross-reference field'
+            },
+            actionDetails
+          };
+        }
+
+        // Get the current value of the cross-reference field
+        const currentData = parentSubmission.submission_data || {};
+        const currentCrossRefValue = (currentData as any)[config.crossReferenceFieldId];
+
+        // Cross-reference fields typically store an array of submission_ref_ids
+        let updatedCrossRefValue: string[];
+        if (Array.isArray(currentCrossRefValue)) {
+          // Add the new submission_ref_id to the existing array
+          updatedCrossRefValue = [...currentCrossRefValue, newSubmission.submission_ref_id];
+        } else if (typeof currentCrossRefValue === 'string' && currentCrossRefValue) {
+          // Convert single value to array and add new one
+          updatedCrossRefValue = [currentCrossRefValue, newSubmission.submission_ref_id];
+        } else {
+          // Start fresh array
+          updatedCrossRefValue = [newSubmission.submission_ref_id];
+        }
+
+        // Update the parent submission with the new cross-reference value
+        const updatedData = {
+          ...(typeof currentData === 'object' ? currentData : {}),
+          [config.crossReferenceFieldId]: updatedCrossRefValue
+        };
+
+        const { error: updateError } = await supabase
+          .from('form_submissions')
+          .update({ submission_data: updatedData })
+          .eq('id', triggerSubmissionId);
+
+        if (updateError) {
+          console.error('⚠️ Error updating parent cross-reference field:', updateError);
+          return {
+            success: true,
+            output: {
+              childRecordId: newSubmission.id,
+              childSubmissionRefId: newSubmission.submission_ref_id,
+              parentUpdated: false,
+              warning: `Child record created but failed to update parent: ${updateError.message}`
+            },
+            actionDetails
+          };
+        }
+
+        console.log('✅ Parent cross-reference field updated with new child ref:', newSubmission.submission_ref_id);
+
+        return {
+          success: true,
+          output: {
+            childRecordId: newSubmission.id,
+            childSubmissionRefId: newSubmission.submission_ref_id,
+            parentSubmissionId: triggerSubmissionId,
+            crossReferenceFieldId: config.crossReferenceFieldId,
+            crossReferenceValue: updatedCrossRefValue,
+            parentUpdated: true,
+            linkedAt: new Date().toISOString()
+          },
+          actionDetails
+        };
+      }
+
+      // If no trigger submission to update, just return the created child
+      return {
+        success: true,
+        output: {
+          childRecordId: newSubmission.id,
+          childSubmissionRefId: newSubmission.submission_ref_id,
+          parentUpdated: false,
+          note: 'No parent submission to update'
+        },
+        actionDetails
+      };
+
+    } catch (error) {
+      console.error('❌ Error in create linked record action:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        actionDetails
+      };
+    }
+  }
 }
