@@ -233,8 +233,10 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
   };
 
   const displayFields = useMemo(() => {
-    // Filter out fields without valid IDs
-    const validFields = formFields.filter(field => field && field.id);
+    // Filter out fields without valid IDs and exclude signature-pad fields (contain base64 data)
+    const validFields = formFields.filter(field => 
+      field && field.id && field.field_type !== 'signature-pad'
+    );
     
     if (config.selectedColumns?.length > 0) {
       return validFields.filter(field => config.selectedColumns.includes(field.id));
