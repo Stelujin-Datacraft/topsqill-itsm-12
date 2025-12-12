@@ -172,6 +172,20 @@ const WorkflowDesignerPage = () => {
       title={`Workflow Designer${currentWorkflow ? ` - ${currentWorkflow.name}` : ''}`}
       actions={
         <div className="flex space-x-2">
+          {isManualTrigger && (
+            <Button 
+              variant="default" 
+              onClick={handleRunWorkflow}
+              disabled={running}
+            >
+              {running ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4 mr-2" />
+              )}
+              {running ? 'Running...' : 'Run Workflow'}
+            </Button>
+          )}
           <Button variant="outline" onClick={handleBackToList}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Workflows
