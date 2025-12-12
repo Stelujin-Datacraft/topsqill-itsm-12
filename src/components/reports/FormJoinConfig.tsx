@@ -38,10 +38,23 @@ export function FormJoinConfig({
 }: FormJoinConfigProps) {
   const secondaryForm = availableForms.find(f => f.id === joinConfig.secondaryFormId);
   
+  // Get field type supporting both .type and .field_type
+  const getFieldType = (field: any): string => {
+    return field?.field_type || field?.type || '';
+  };
+
   const getJoinableFields = (form1Fields: FormField[], form2Fields: FormField[]) => {
-    return form1Fields.filter(field1 => 
-      form2Fields.some(field2 => canFieldsBeJoined(field1, field2))
-    );
+    // Return all fields from form1 that have at least one compatible field in form2
+    return form1Fields.filter(field1 => {
+      const type1 = getFieldType(field1);
+      return form2Fields.some(field2 => {
+        const type2 = getFieldType(field2);
+        return canFieldsBeJoined(
+          { ...field1, type: type1 } as FormField,
+          { ...field2, type: type2 } as FormField
+        );
+      });
+    });
   };
 
   const getCompatibleSecondaryFields = (primaryFieldId: string) => {
@@ -50,9 +63,14 @@ export function FormJoinConfig({
     const primaryField = primaryForm.fields.find(f => f.id === primaryFieldId);
     if (!primaryField) return [];
     
-    return secondaryForm.fields.filter(field => 
-      canFieldsBeJoined(primaryField, field)
-    );
+    const primaryType = getFieldType(primaryField);
+    return secondaryForm.fields.filter(field => {
+      const secondaryType = getFieldType(field);
+      return canFieldsBeJoined(
+        { ...primaryField, type: primaryType } as FormField,
+        { ...field, type: secondaryType } as FormField
+      );
+    });
   };
 
   return (
@@ -168,21 +186,24 @@ export function FormJoinConfig({
                   </SelectTrigger>
                   <SelectContent>
                     {(() => {
-                      console.log('Primary form fields for join:', primaryForm.fields?.length || 0);
-                      return getJoinableFields(primaryForm.fields || [], secondaryForm?.fields || [])
-                        .map((field) => {
-                          console.log('Joinable primary field:', field.label, field.type);
-                          return (
-                            <SelectItem key={field.id} value={field.id}>
-                              <div className="flex items-center justify-between w-full">
-                                <span>{field.label}</span>
-                                <Badge variant="outline" className="ml-2 text-xs">
-                                  {field.type}
-                                </Badge>
-                              </div>
-                            </SelectItem>
-                          );
-                        });
+                      const joinableFields = getJoinableFields(primaryForm.fields || [], secondaryForm?.fields || []);
+                      console.log('Primary form joinable fields:', joinableFields.length);
+                      
+                      // If no joinable fields found via compatibility, show all fields
+                      const fieldsToShow = joinableFields.length > 0 
+                        ? joinableFields 
+                        : (primaryForm.fields || []);
+                      
+                      return fieldsToShow.map((field) => (
+                        <SelectItem key={field.id} value={field.id}>
+                          <div className="flex items-center justify-between w-full">
+                            <span>{field.label}</span>
+                            <Badge variant="outline" className="ml-2 text-xs">
+                              {getFieldType(field)}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ));
                     })()}
                   </SelectContent>
                 </Select>
@@ -203,21 +224,24 @@ export function FormJoinConfig({
                   </SelectTrigger>
                   <SelectContent>
                     {(() => {
-                      console.log('Secondary form fields for join:', secondaryForm?.fields?.length || 0);
-                      return getCompatibleSecondaryFields(joinConfig.primaryFieldId)
-                        .map((field) => {
-                          console.log('Compatible secondary field:', field.label, field.type);
-                          return (
-                            <SelectItem key={field.id} value={field.id}>
-                              <div className="flex items-center justify-between w-full">
-                                <span>{field.label}</span>
-                                <Badge variant="outline" className="ml-2 text-xs">
-                                  {field.type}
-                                </Badge>
-                              </div>
-                            </SelectItem>
-                          );
-                        });
+                      const compatibleFields = getCompatibleSecondaryFields(joinConfig.primaryFieldId);
+                      console.log('Secondary form compatible fields:', compatibleFields.length);
+                      
+                      // If no compatible fields found, show all secondary form fields
+                      const fieldsToShow = compatibleFields.length > 0 
+                        ? compatibleFields 
+                        : (secondaryForm?.fields || []);
+                      
+                      return fieldsToShow.map((field) => (
+                        <SelectItem key={field.id} value={field.id}>
+                          <div className="flex items-center justify-between w-full">
+                            <span>{field.label}</span>
+                            <Badge variant="outline" className="ml-2 text-xs">
+                              {getFieldType(field)}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ));
                     })()}
                   </SelectContent>
                 </Select>
