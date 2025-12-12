@@ -200,13 +200,16 @@ export function MetricsSelector({
             <SelectContent>
               <SelectItem value="__none__">No grouping</SelectItem>
               {allFields
-                .filter(field => ['text', 'select', 'radio', 'date', 'email'].includes(field.type))
+                .filter(field => {
+                  const fieldType = (field as any)?.field_type || field?.type || '';
+                  return ['text', 'select', 'radio', 'date', 'email', 'dropdown', 'status'].includes(fieldType);
+                })
                 .map((field) => (
                   <SelectItem key={field.id} value={field.id}>
                     <div className="flex items-center gap-2">
                       <span>{field.label}</span>
                       <Badge variant="outline" className="text-xs">
-                        {field.type}
+                        {(field as any)?.field_type || field?.type}
                       </Badge>
                     </div>
                   </SelectItem>
