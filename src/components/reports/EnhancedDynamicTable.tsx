@@ -62,12 +62,13 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
     return filters;
   }, [externalDrilldownState?.values, config.drilldownConfig?.drilldownLevels, drilldownState.activeColumnFilters]);
 
-  // Use the updated useTableData hook with drilldown filters
+  // Use the updated useTableData hook with drilldown filters and join config
   const { data, loading, totalCount, currentPage, setCurrentPage, refetch } = useTableData(
     config.formId, 
     [], 
     50,
-    drilldownFiltersForQuery
+    drilldownFiltersForQuery,
+    config.joinConfig
   );
 
 
@@ -86,22 +87,31 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
       
       let allFields = fields || [];
 
-      // Load secondary form fields if join is enabled
-      if (config.joinConfig?.enabled && config.joinConfig.secondaryFormId) {
-        const { data: secondaryFields, error: secondaryError } = await supabase
-          .from('form_fields')
-          .select('*')
-          .eq('form_id', config.joinConfig.secondaryFormId)
-          .order('field_order', { ascending: true });
+      // Load fields from all joined forms
+      if (config.joinConfig?.enabled && config.joinConfig.joins?.length > 0) {
+        for (const join of config.joinConfig.joins) {
+          if (!join.secondaryFormId) continue;
 
-        if (!secondaryError && secondaryFields) {
-          // Add secondary fields with prefixed IDs
-          const prefixedSecondaryFields = secondaryFields.map(field => ({
-            ...field,
-            id: `secondary_${field.id}`,
-            label: `[Joined] ${field.label}`
-          }));
-          allFields = [...allFields, ...prefixedSecondaryFields];
+          const { data: secondaryFields, error: secondaryError } = await supabase
+            .from('form_fields')
+            .select('*')
+            .eq('form_id', join.secondaryFormId)
+            .order('field_order', { ascending: true });
+
+          if (!secondaryError && secondaryFields) {
+            // Get the form name for labeling
+            const form = forms.find(f => f.id === join.secondaryFormId);
+            const formLabel = join.alias || form?.name || 'Joined';
+            
+            // Add secondary fields with prefixed IDs matching the join data format
+            const prefixedSecondaryFields = secondaryFields.map(field => ({
+              ...field,
+              id: `${join.secondaryFormId}.${field.id}`,
+              label: `[${formLabel}] ${field.label}`,
+              sourceFormId: join.secondaryFormId
+            }));
+            allFields = [...allFields, ...prefixedSecondaryFields];
+          }
         }
       }
 
@@ -109,7 +119,7 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
     } catch (error) {
       console.error('Error loading form fields:', error);
     }
-  }, [config.formId, config.joinConfig]);
+  }, [config.formId, config.joinConfig, forms]);
 
   // Helper function to perform joins
   const performJoin = (primaryData: any[], secondaryData: any[], joinConfig: any) => {
@@ -149,8 +159,8 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
     // Handle null/undefined fieldId
     if (!fieldId) return 'N/A';
     
-    // Handle secondary form fields (prefixed with secondary_)
-    if (fieldId.startsWith('secondary_')) {
+    // Handle joined form fields (format: formId.fieldId)
+    if (fieldId.includes('.')) {
       return row.submission_data?.[fieldId] || 'N/A';
     }
     return row.submission_data?.[fieldId] || 'N/A';
