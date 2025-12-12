@@ -614,6 +614,20 @@ export function ChartPreview({
         </div>;
     }
 
+    // Sanitize chart data - ensure all numeric values are valid numbers (not NaN/undefined)
+    const sanitizedChartData = chartData.map(item => {
+      const sanitized: any = { name: item.name || 'Unknown' };
+      Object.keys(item).forEach(key => {
+        if (key === 'name' || key === '_drilldownData') {
+          sanitized[key] = item[key];
+        } else {
+          const val = Number(item[key]);
+          sanitized[key] = isNaN(val) ? 0 : val;
+        }
+      });
+      return sanitized;
+    });
+
     // Determine the primary metric to display
     let primaryMetric = 'value'; // Default fallback
 
@@ -626,9 +640,9 @@ export function ChartPreview({
     }
 
     // Ensure the primary metric exists in the data
-    if (chartData.length > 0 && !chartData[0].hasOwnProperty(primaryMetric)) {
+    if (sanitizedChartData.length > 0 && !sanitizedChartData[0].hasOwnProperty(primaryMetric)) {
       // Fallback to available keys
-      const availableKeys = Object.keys(chartData[0]).filter(key => key !== 'name' && typeof chartData[0][key] === 'number');
+      const availableKeys = Object.keys(sanitizedChartData[0]).filter(key => key !== 'name' && key !== '_drilldownData' && typeof sanitizedChartData[0][key] === 'number');
       if (availableKeys.length > 0) {
         primaryMetric = availableKeys[0];
       }
@@ -637,13 +651,13 @@ export function ChartPreview({
     console.log('Chart rendering config:', {
       chartType,
       primaryMetric,
-      dataKeys: chartData.length > 0 ? Object.keys(chartData[0]) : [],
-      sampleData: chartData[0],
-      totalRecords: chartData.length
+      dataKeys: sanitizedChartData.length > 0 ? Object.keys(sanitizedChartData[0]) : [],
+      sampleData: sanitizedChartData[0],
+      totalRecords: sanitizedChartData.length
     });
 
     // Get all dimension-based data keys (for multi-dimensional charts OR grouped charts)
-    let dimensionKeys = chartData.length > 0 ? Object.keys(chartData[0]).filter(key => key !== 'name' && key !== '_drilldownData' && typeof chartData[0][key] === 'number') : [];
+    let dimensionKeys = sanitizedChartData.length > 0 ? Object.keys(sanitizedChartData[0]).filter(key => key !== 'name' && key !== '_drilldownData' && typeof sanitizedChartData[0][key] === 'number') : [];
     const isMultiDimensional = (config.dimensions && config.dimensions.length > 1) || (config.groupByField && dimensionKeys.length > 1);
     
     console.log('📊 Chart rendering - dimensionKeys:', dimensionKeys);
@@ -655,7 +669,7 @@ export function ChartPreview({
       // Sort by total value and take top 8 series
       const seriesValues = dimensionKeys.map(key => ({
         key,
-        total: chartData.reduce((sum, item) => sum + (item[key] || 0), 0)
+        total: sanitizedChartData.reduce((sum, item) => sum + (item[key] || 0), 0)
       }));
       seriesValues.sort((a, b) => b.total - a.total);
       dimensionKeys = seriesValues.slice(0, 8).map(s => s.key);
@@ -670,7 +684,7 @@ export function ChartPreview({
             bottom: '40px'
           }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{
+                <BarChart data={sanitizedChartData} margin={{
                 top: 20,
                 right: 30,
                 left: 40,
@@ -729,7 +743,7 @@ export function ChartPreview({
             bottom: '40px'
           }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} layout="horizontal" margin={{
+                <BarChart data={sanitizedChartData} layout="horizontal" margin={{
                 top: 20,
                 right: 30,
                 left: 120,
@@ -745,7 +759,7 @@ export function ChartPreview({
                   <YAxis dataKey="name" type="category" width={120} tick={{
                   fontSize: 11
                 }} />
-                  <Tooltip formatter={(value, name, props) => [`${getFormFieldName(name.toString())}: ${value}`, `Category: ${props.payload?.name || 'N/A'}`, `Total Records: ${chartData.length}`]} labelFormatter={label => `Category: ${label}`} contentStyle={{
+                  <Tooltip formatter={(value, name, props) => [`${getFormFieldName(name.toString())}: ${value}`, `Category: ${props.payload?.name || 'N/A'}`, `Total Records: ${sanitizedChartData.length}`]} labelFormatter={label => `Category: ${label}`} contentStyle={{
                   backgroundColor: 'hsl(var(--popover))',
                   border: '1px solid hsl(var(--border))',
                   borderRadius: 'var(--radius)',
@@ -768,20 +782,20 @@ export function ChartPreview({
           }}>
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPieChart>
-                  <Pie data={chartData} cx="50%" cy="50%" outerRadius={120} fill="#8884d8" dataKey={primaryMetric} label={({
+                  <Pie data={sanitizedChartData} cx="50%" cy="50%" outerRadius={120} fill="#8884d8" dataKey={primaryMetric} label={({
                   name,
                   value,
                   percent
                 }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`} style={{
                   cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default'
                 }} onClick={config.drilldownConfig?.enabled ? handlePieClick : undefined}>
-                    {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={colors[index % colors.length]} style={{
+                    {sanitizedChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={colors[index % colors.length]} style={{
                     cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default'
                   }} />)}
                   </Pie>
                   <Tooltip formatter={(value, name, props) => {
                   const numValue = Number(value) || 0;
-                  const total = chartData.reduce((sum, item) => sum + (Number(item[primaryMetric]) || 0), 0);
+                  const total = sanitizedChartData.reduce((sum, item) => sum + (Number(item[primaryMetric]) || 0), 0);
                   return [`${props.payload?.name || 'Unknown'}: ${numValue}`, `Percentage: ${total > 0 ? (numValue / total * 100).toFixed(1) : 0}%`];
                 }} contentStyle={{
                   backgroundColor: 'hsl(var(--popover))',
@@ -804,12 +818,12 @@ export function ChartPreview({
           }}>
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPieChart>
-                  <Pie data={chartData} cx="50%" cy="50%" innerRadius={config.innerRadius || 60} outerRadius={120} fill="#8884d8" dataKey={primaryMetric} label={({
+                  <Pie data={sanitizedChartData} cx="50%" cy="50%" innerRadius={config.innerRadius || 60} outerRadius={120} fill="#8884d8" dataKey={primaryMetric} label={({
                   name,
                   value,
                   percent
                 }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}>
-                    {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />)}
+                    {sanitizedChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />)}
                   </Pie>
                    <Tooltip formatter={(value, name) => [value, name]} />
                    {showLegend && <Legend />}
@@ -826,7 +840,7 @@ export function ChartPreview({
             bottom: '40px'
           }}>
               <ResponsiveContainer width="100%" height="100%">
-                <RechartsLineChart data={chartData} margin={{
+                <RechartsLineChart data={sanitizedChartData} margin={{
                 top: 20,
                 right: 30,
                 left: 40,
@@ -895,7 +909,7 @@ export function ChartPreview({
             bottom: '40px'
           }}>
               <ResponsiveContainer width="100%" height="100%">
-                <RechartsAreaChart data={chartData} margin={{
+                <RechartsAreaChart data={sanitizedChartData} margin={{
                 top: 20,
                 right: 30,
                 left: 40,
@@ -940,7 +954,7 @@ export function ChartPreview({
             bottom: '40px'
           }}>
               <ResponsiveContainer width="100%" height="100%">
-                <RechartsScatterChart data={chartData} margin={{
+                <RechartsScatterChart data={sanitizedChartData} margin={{
                 top: 20,
                 right: 30,
                 left: 20,
@@ -974,7 +988,7 @@ export function ChartPreview({
       case 'bubble':
         // For bubble chart, use multiple scatter components with different sizes
         const sizeField = config.sizeField || primaryMetric;
-        const bubbleData = chartData.map(item => ({
+        const bubbleData = sanitizedChartData.map(item => ({
           ...item,
           size: item[sizeField] || 10
         }));
@@ -997,7 +1011,7 @@ export function ChartPreview({
           </div>;
       case 'heatmap':
         // Generate heatmap data grid
-        const heatmapData = chartData.map((item, index) => ({
+        const heatmapData = sanitizedChartData.map((item, index) => ({
           ...item,
           x: index % (config.gridColumns || 5),
           y: Math.floor(index / (config.gridColumns || 5)),
@@ -1030,7 +1044,7 @@ export function ChartPreview({
                 </tr>
               </thead>
               <tbody className="bg-background divide-y divide-border">
-                {chartData.map((row, index) => <tr key={index} className="hover:bg-muted/50">
+                {sanitizedChartData.map((row, index) => <tr key={index} className="hover:bg-muted/50">
                     <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">
                       {row.name}
                     </td>
