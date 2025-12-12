@@ -137,7 +137,7 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
         Object.values(submission.submission_data || {}).some(value => 
           String(value).toLowerCase().includes(searchTerm.toLowerCase())
         ) ||
-        submission.submitted_by.toLowerCase().includes(searchTerm.toLowerCase());
+        (submission.submitted_by || '').toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesApprovalFilter = approvalFilter === 'all' || 
                                    submission.approval_status === approvalFilter;
