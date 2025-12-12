@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface SubmissionRow {
@@ -54,8 +54,18 @@ export function useTableData(
   const [loading, setLoading] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // Use refs to track stable versions of filters/config
+  const filtersRef = useRef(JSON.stringify(filters));
+  const drilldownFiltersRef = useRef(JSON.stringify(drilldownFilters));
+  const joinConfigRef = useRef(JSON.stringify(joinConfig));
+  const hasInitialLoad = useRef(false);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (
+    currentFilters: FilterGroup[],
+    currentDrilldownFilters: DrilldownFilter[],
+    currentJoinConfig?: JoinConfig
+  ) => {
     if (!formId) {
       setData([]);
       setTotalCount(0);
@@ -64,7 +74,6 @@ export function useTableData(
 
     try {
       setLoading(true);
-      console.log('Loading table data for form:', formId, 'with drilldown filters:', drilldownFilters);
 
       // Get total count first - simple query
       const countResult = await supabase
@@ -115,9 +124,7 @@ export function useTableData(
       }));
 
       // Apply configured filters (from builder / Add Table UI)
-      if (filters && filters.length > 0) {
-        console.log('Applying configured filters:', filters);
-
+      if (currentFilters && currentFilters.length > 0) {
         const matchesCondition = (row: SubmissionRow, condition: FilterCondition): boolean => {
           if (!condition.field) return true;
 
@@ -163,24 +170,21 @@ export function useTableData(
         };
 
         transformedData = transformedData.filter(row =>
-          filters.every(group =>
+          currentFilters.every(group =>
             (group.conditions || []).every(cond => matchesCondition(row, cond))
           )
         );
       }
 
       // Apply joins if configured
-      if (joinConfig?.enabled && joinConfig.joins?.length > 0) {
-        console.log('Applying joins:', joinConfig.joins);
-        transformedData = await applyJoins(transformedData, joinConfig.joins);
+      if (currentJoinConfig?.enabled && currentJoinConfig.joins?.length > 0) {
+        transformedData = await applyJoins(transformedData, currentJoinConfig.joins);
       }
 
       // Apply drilldown filters client-side
-      if (drilldownFilters && drilldownFilters.length > 0) {
-        console.log('Applying client-side drilldown filters:', drilldownFilters);
-        drilldownFilters.forEach((filter) => {
+      if (currentDrilldownFilters && currentDrilldownFilters.length > 0) {
+        currentDrilldownFilters.forEach((filter) => {
           if (filter.field && filter.value !== null && filter.value !== undefined) {
-            console.log(`Filtering by ${filter.field} = ${filter.value}`);
             transformedData = transformedData.filter(row => {
               const fieldValue = row.submission_data[filter.field];
               return fieldValue && fieldValue.toString() === filter.value;
@@ -198,7 +202,7 @@ export function useTableData(
     } finally {
       setLoading(false);
     }
-  }, [formId, currentPage, pageSize, filters, drilldownFilters, joinConfig]);
+  }, [formId, currentPage, pageSize]);
 
   // Helper function to apply joins
   const applyJoins = async (primaryData: SubmissionRow[], joins: JoinDefinition[]): Promise<SubmissionRow[]> => {
@@ -371,20 +375,39 @@ export function useTableData(
         return acc;
       }, {} as Record<string, any>)
     };
-
     return {
       ...primaryRow,
       submission_data: mergedSubmissionData
     };
   };
 
-  // Force reload when drilldown filters or joinConfig change
+  // Create a stable refetch function that uses current values
+  const refetch = useCallback(() => {
+    loadData(filters, drilldownFilters, joinConfig);
+  }, [loadData, filters, drilldownFilters, joinConfig]);
+
+  // Only reload when formId, page, or pageSize changes, or when filters/config actually changed
   useEffect(() => {
-    if (formId) {
-      console.log('Filters/joins changed, reloading data');
-      loadData();
+    if (!formId) return;
+    
+    const newFiltersStr = JSON.stringify(filters);
+    const newDrilldownStr = JSON.stringify(drilldownFilters);
+    const newJoinConfigStr = JSON.stringify(joinConfig);
+    
+    // Check if anything actually changed
+    const filtersChanged = filtersRef.current !== newFiltersStr;
+    const drilldownChanged = drilldownFiltersRef.current !== newDrilldownStr;
+    const joinConfigChanged = joinConfigRef.current !== newJoinConfigStr;
+    
+    if (!hasInitialLoad.current || filtersChanged || drilldownChanged || joinConfigChanged) {
+      hasInitialLoad.current = true;
+      filtersRef.current = newFiltersStr;
+      drilldownFiltersRef.current = newDrilldownStr;
+      joinConfigRef.current = newJoinConfigStr;
+      
+      loadData(filters, drilldownFilters, joinConfig);
     }
-  }, [drilldownFilters, formId, loadData, joinConfig?.enabled, JSON.stringify(joinConfig?.joins)]);
+  }, [formId, currentPage, pageSize, filters, drilldownFilters, joinConfig, loadData]);
 
   return {
     data,
@@ -392,6 +415,6 @@ export function useTableData(
     totalCount,
     currentPage,
     setCurrentPage,
-    refetch: loadData
+    refetch
   };
 }
