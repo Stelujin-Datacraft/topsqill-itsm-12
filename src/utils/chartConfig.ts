@@ -44,11 +44,19 @@ export const CHART_TYPES: ChartTypeOption[] = [
 
 export function canFieldsBeJoined(field1: FormField, field2: FormField): boolean {
   // Fields can be joined if they have compatible types
+  // Support both .type and .field_type properties for flexibility
+  const getFieldType = (field: FormField): string => {
+    return (field as any).field_type || field.type || '';
+  };
+
+  const type1 = getFieldType(field1);
+  const type2 = getFieldType(field2);
+
   const compatibleTypes = [
-    ['text', 'email', 'url', 'tel'],
+    ['text', 'email', 'url', 'tel', 'header'],
     ['number', 'currency', 'rating'],
-    ['select', 'radio'],
-    ['checkbox'],
+    ['select', 'radio', 'dropdown'],
+    ['checkbox', 'multi-select'],
     ['date', 'datetime'],
     ['file'],
     ['textarea']
@@ -56,9 +64,14 @@ export function canFieldsBeJoined(field1: FormField, field2: FormField): boolean
 
   // Check if both fields are in the same compatibility group
   for (const group of compatibleTypes) {
-    if (group.includes(field1.type) && group.includes(field2.type)) {
+    if (group.includes(type1) && group.includes(type2)) {
       return true;
     }
+  }
+
+  // Also allow same-type matching
+  if (type1 === type2) {
+    return true;
   }
 
   return false;
@@ -75,21 +88,27 @@ export function categorizeFields(fields: FormField[]): { [category: string]: Cha
     other: []
   };
 
+  // Helper to get field type supporting both .type and .field_type
+  const getFieldType = (field: FormField): string => {
+    return (field as any).field_type || field.type || '';
+  };
+
   fields.forEach(field => {
+    const fieldType = getFieldType(field);
     const option: ChartFieldOption = {
       id: field.id,
       label: field.label,
-      type: field.type,
+      type: fieldType,
       category: ''
     };
 
     // Dimensions: Categorical data that can be used for grouping
-    if (['text', 'select', 'radio', 'checkbox', 'date', 'datetime', 'email', 'url', 'tel'].includes(field.type)) {
+    if (['text', 'select', 'radio', 'checkbox', 'date', 'datetime', 'email', 'url', 'tel', 'dropdown', 'multi-select'].includes(fieldType)) {
       option.category = 'dimensions';
       categories.dimensions.push(option);
     } 
     // Metrics: Numeric data that can be measured and aggregated
-    else if (['number', 'currency', 'rating', 'slider'].includes(field.type)) {
+    else if (['number', 'currency', 'rating', 'slider'].includes(fieldType)) {
       option.category = 'metrics';
       categories.metrics.push(option);
     } 

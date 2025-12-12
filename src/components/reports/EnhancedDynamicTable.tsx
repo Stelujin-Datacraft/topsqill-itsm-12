@@ -56,13 +56,30 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
     }));
   }, [drilldownFilters]);
 
+  // Convert joinConfig to the format expected by useTableData
+  const joinConfigForQuery = useMemo(() => {
+    if (!config.joinConfig?.secondaryFormId) return undefined;
+    
+    return {
+      enabled: true,
+      joins: [{
+        id: 'join-1',
+        secondaryFormId: config.joinConfig.secondaryFormId,
+        joinType: config.joinConfig.joinType || 'inner',
+        primaryFieldId: config.joinConfig.primaryFieldId,
+        secondaryFieldId: config.joinConfig.secondaryFieldId,
+        alias: config.joinConfig.alias
+      }]
+    };
+  }, [config.joinConfig]);
+
   // Use the useTableData hook with drilldown filters and join config
   const { data, loading, totalCount, refetch } = useTableData(
     config.formId, 
     [], 
     50,
     drilldownFiltersForQuery,
-    config.joinConfig
+    joinConfigForQuery
   );
 
   const loadFormFields = useCallback(async () => {
