@@ -6,9 +6,11 @@ import { WorkflowDesigner } from '@/components/workflows/WorkflowDesigner';
 import { WorkflowInstances } from '@/components/workflows/WorkflowInstances';
 
 import { useWorkflowData } from '@/hooks/useWorkflowData';
+import { useAuth } from '@/contexts/AuthContext';
+import { TriggerService } from '@/services/triggerService';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Save, ArrowLeft, Activity } from 'lucide-react';
+import { Save, ArrowLeft, Activity, Play, Loader2 } from 'lucide-react';
 import { WorkflowNode, WorkflowConnection } from '@/types/workflow';
 import { useToast } from '@/hooks/use-toast';
 
@@ -16,6 +18,7 @@ const WorkflowDesignerPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { loadWorkflowNodes, saveWorkflowNodes, workflows } = useWorkflowData();
+  const { user } = useAuth();
   const { toast } = useToast();
   
   // Simple local state for workflow data
@@ -28,12 +31,47 @@ const WorkflowDesignerPage = () => {
   });
   
   const [loading, setLoading] = useState(true);
-  
   const [saving, setSaving] = useState(false);
+  const [running, setRunning] = useState(false);
   const [activeTab, setActiveTab] = useState('designer');
 
   // Get current workflow info
   const currentWorkflow = workflows.find(w => w.id === id);
+
+  // Check if workflow has manual trigger
+  const isManualTrigger = workflowData.nodes.some(
+    node => node.type === 'start' && node.data?.config?.triggerType === 'manual'
+  );
+
+  // Run workflow manually
+  const handleRunWorkflow = async () => {
+    if (!id || !user?.id) return;
+    
+    setRunning(true);
+    try {
+      const executionId = await TriggerService.handleManualTrigger(id, {
+        triggeredAt: new Date().toISOString(),
+        triggeredFrom: 'workflow_designer'
+      }, user.id);
+      
+      toast({
+        title: "Workflow Started",
+        description: `Workflow execution started. ID: ${executionId?.slice(0, 8)}...`,
+      });
+      
+      // Switch to execution history tab
+      setActiveTab('instances');
+    } catch (error) {
+      console.error('Error running workflow:', error);
+      toast({
+        title: "Failed to run workflow",
+        description: "Could not start workflow execution. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setRunning(false);
+    }
+  };
 
   // Load workflow data only once on mount
   useEffect(() => {

@@ -18,6 +18,7 @@ import { FormFieldSelector } from './FormFieldSelector';
 import { DynamicFieldSelector } from './DynamicFieldSelector';
 import { WorkflowEmailTemplateSelector } from './WorkflowEmailTemplateSelector';
 import { EnhancedConditionBuilder } from './conditions/EnhancedConditionBuilder';
+import { FormRuleSelector } from './FormRuleSelector';
 import { DynamicValueInput } from './conditions/DynamicValueInput';
 import { CreateRecordFieldsConfig } from './CreateRecordFieldsConfig';
 import { FieldMappingConfig } from './FieldMappingConfig';
@@ -306,6 +307,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                 </SelectContent>
               </Select>
             </div>
+            {/* Form submission and completion triggers */}
             {(!localConfig?.triggerType || localConfig?.triggerType === 'form_submission' || localConfig?.triggerType === 'form_completion') && (
               <div>
                 <Label htmlFor="triggerForm">Select Form</Label>
@@ -320,6 +322,63 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                     ✓ Trigger will be automatically created for this form
                   </p>
                 )}
+              </div>
+            )}
+
+            {/* Rule Success / Rule Failure triggers */}
+            {(localConfig?.triggerType === 'rule_success' || localConfig?.triggerType === 'rule_failure') && (
+              <>
+                <div>
+                  <Label htmlFor="triggerForm">Select Form</Label>
+                  <FormSelector
+                    value={localConfig?.triggerFormId || ''}
+                    onValueChange={(formId, formName) => {
+                      handleFullConfigUpdate({ 
+                        ...localConfig, 
+                        triggerFormId: formId,
+                        triggerFormName: formName,
+                        ruleId: '', // Reset rule when form changes
+                        ruleName: ''
+                      });
+                    }}
+                    placeholder="Select a form with rules"
+                    projectId={projectId}
+                  />
+                </div>
+                {localConfig?.triggerFormId && (
+                  <div>
+                    <Label htmlFor="ruleId">Select Rule</Label>
+                    <FormRuleSelector
+                      formId={localConfig.triggerFormId}
+                      value={localConfig?.ruleId || ''}
+                      onValueChange={(ruleId, ruleName) => {
+                        handleFullConfigUpdate({
+                          ...localConfig,
+                          ruleId,
+                          ruleName
+                        });
+                      }}
+                      placeholder={localConfig?.triggerType === 'rule_success' ? "Select rule to trigger on success" : "Select rule to trigger on failure"}
+                    />
+                    {localConfig?.ruleId && (
+                      <p className="text-xs text-green-600 mt-2">
+                        ✓ Workflow will trigger when "{localConfig.ruleName}" {localConfig.triggerType === 'rule_success' ? 'passes' : 'fails'}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Manual trigger */}
+            {localConfig?.triggerType === 'manual' && (
+              <div className="p-3 bg-blue-50 rounded-md">
+                <p className="text-sm text-blue-700">
+                  <strong>Manual Trigger</strong>
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  This workflow will be triggered manually using the "Run Workflow" button in the workflow designer.
+                </p>
               </div>
             )}
           </div>
