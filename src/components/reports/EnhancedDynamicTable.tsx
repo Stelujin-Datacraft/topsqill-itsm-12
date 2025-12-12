@@ -412,7 +412,11 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                         <TableCell key={field.id}>
                           {canDrilldown ? (
                             <button
-                              onClick={() => handleCellDrilldown(field.id, fieldValue.toString(), field.label)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                handleCellDrilldown(field.id, fieldValue.toString(), field.label);
+                              }}
                               className={`text-left hover:underline hover:text-primary transition-colors ${isCurrentlyFiltered ? 'font-semibold text-primary' : ''}`}
                               title={`Click to filter by "${fieldValue}"`}
                             >
