@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/select';
 import { useReports } from '@/hooks/useReports';
 import { useFormSubmissionData } from '@/hooks/useFormSubmissionData';
+import { supabase } from '@/integrations/supabase/client';
 
 interface FormSubmissionsTableConfig {
   title?: string;
@@ -51,18 +52,55 @@ interface FormSubmissionsTableProps {
   onEdit?: () => void;
 }
 
+interface FormField {
+  id: string;
+  label: string;
+  field_type: string;
+}
+
 export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit }: FormSubmissionsTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [approvalFilter, setApprovalFilter] = useState<string>('all');
+  const [formFields, setFormFields] = useState<FormField[]>([]);
   
-  const { forms, getFormFields } = useReports();
+  const { forms } = useReports();
   const { submissions, loading } = useFormSubmissionData(config.formId);
+
+  // Fetch form fields directly from database
+  useEffect(() => {
+    const fetchFormFields = async () => {
+      if (!config.formId) {
+        setFormFields([]);
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('form_fields')
+          .select('id, label, field_type')
+          .eq('form_id', config.formId)
+          .order('field_order', { ascending: true });
+          
+        if (error) {
+          console.error('Error fetching form fields:', error);
+          setFormFields([]);
+          return;
+        }
+        
+        setFormFields(data || []);
+      } catch (err) {
+        console.error('Error fetching form fields:', err);
+        setFormFields([]);
+      }
+    };
+    
+    fetchFormFields();
+  }, [config.formId]);
 
   const getAvailableFields = () => {
     if (!config.formId) return [];
-    const fields = getFormFields(config.formId);
     return [
       { id: 'submitted_at', label: 'Submitted At', type: 'date' },
       { id: 'submitted_by', label: 'Submitted By', type: 'text' },
@@ -71,10 +109,10 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
         { id: 'approved_by', label: 'Approved By', type: 'text' },
         { id: 'approval_timestamp', label: 'Approval Date', type: 'date' }
       ] : []),
-      ...fields.map(field => ({
+      ...formFields.map(field => ({
         id: field.id,
         label: field.label,
-        type: field.type || 'text'
+        type: field.field_type || 'text'
       }))
     ];
   };
