@@ -35,6 +35,7 @@ export function ReportEditor({
   const [loading, setLoading] = useState(true);
   const [selectedComponent, setSelectedComponent] = useState<ReportComponent | null>(null);
   const [isPropertiesPaneOpen, setIsPropertiesPaneOpen] = useState(false);
+  const [isPropertiesPaneExpanded, setIsPropertiesPaneExpanded] = useState(false);
   const [isDragEnabled, setIsDragEnabled] = useState(true);
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempReportName, setTempReportName] = useState(reportName);
@@ -282,6 +283,7 @@ export function ReportEditor({
   const handlePropertiesPaneClose = () => {
     setIsPropertiesPaneOpen(false);
     setSelectedComponent(null);
+    setIsPropertiesPaneExpanded(false);
   };
   const toggleDragMode = () => {
     setIsDragEnabled(!isDragEnabled);
@@ -543,7 +545,7 @@ export function ReportEditor({
         </div>}
 
       {/* Grid Layout */}
-      <div className={`transition-all duration-300 ${isPropertiesPaneOpen ? 'mr-80' : 'mr-0'}`}>
+      <div className={`transition-all duration-300 ${isPropertiesPaneOpen ? (isPropertiesPaneExpanded ? 'mr-[50vw]' : 'mr-80') : 'mr-0'}`}>
         {components.length > 0 ? <ResponsiveGridLayout className="layout" layouts={{
         lg: gridItems
       }} breakpoints={{
@@ -594,6 +596,7 @@ export function ReportEditor({
         onApplyFilter={handleApplyFilter} 
         onApplyDrilldown={handleApplyDrilldown} 
         onChangeTheme={handleChangeTheme} 
+        onExpandedChange={setIsPropertiesPaneExpanded}
         onUpdateComponent={async (componentId, updates) => {
           try {
             const component = components.find(c => c.id === componentId);

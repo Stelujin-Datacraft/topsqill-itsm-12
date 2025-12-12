@@ -20,7 +20,9 @@ import {
   Type,
   BarChart3,
   X,
-  Settings
+  Settings,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 
 interface ChartPropertiesPaneProps {
@@ -34,6 +36,7 @@ interface ChartPropertiesPaneProps {
   onApplyDrilldown: (componentId: string) => void;
   onChangeTheme: (componentId: string, theme: any) => void;
   onUpdateComponent: (componentId: string, updates: Partial<ReportComponent>) => void;
+  onExpandedChange?: (expanded: boolean) => void;
   formFields: FormField[];
 }
 
@@ -48,15 +51,24 @@ export function ChartPropertiesPane({
   onApplyDrilldown,
   onChangeTheme,
   onUpdateComponent,
+  onExpandedChange,
   formFields
 }: ChartPropertiesPaneProps) {
   const [componentName, setComponentName] = React.useState('');
+  const [isExpanded, setIsExpanded] = React.useState(false);
 
   React.useEffect(() => {
     if (component) {
       setComponentName(component.config?.title || component.config?.name || `${component.type} Component`);
     }
   }, [component]);
+
+  // Reset expanded state when panel closes
+  React.useEffect(() => {
+    if (!isOpen) {
+      setIsExpanded(false);
+    }
+  }, [isOpen]);
 
   if (!isOpen || !component) {
     return null;
@@ -84,7 +96,7 @@ export function ChartPropertiesPane({
   };
 
   return (
-    <div className={`fixed top-0 right-0 h-full w-80 bg-background border-l shadow-lg z-50 transform transition-transform duration-300 ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+    <div className={`fixed top-0 right-0 h-full bg-background border-l shadow-lg z-50 transform transition-all duration-300 ${isOpen ? 'translate-x-0' : 'translate-x-full'} ${isExpanded ? 'w-[50vw]' : 'w-80'}`}>
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="p-4 border-b flex items-center justify-between">
@@ -92,13 +104,27 @@ export function ChartPropertiesPane({
             {getComponentIcon(component.type)}
             <h3 className="text-lg font-semibold">Properties</h3>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const newExpanded = !isExpanded;
+                setIsExpanded(newExpanded);
+                onExpandedChange?.(newExpanded);
+              }}
+              title={isExpanded ? 'Collapse panel' : 'Expand panel'}
+            >
+              {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         <ScrollArea className="flex-1">
