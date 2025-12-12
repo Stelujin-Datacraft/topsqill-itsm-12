@@ -75,7 +75,12 @@ export function FormRuleSelector({ formId, value, onValueChange, placeholder = "
 
   if (rules.length === 0) {
     return (
-      <p className="text-xs text-amber-600">No active rules found for this form. Create rules in the Form Builder.</p>
+      <div className="p-3 bg-amber-50 rounded-md border border-amber-200">
+        <p className="text-sm text-amber-700 font-medium">No active rules found</p>
+        <p className="text-xs text-amber-600 mt-1">
+          This form doesn't have any active rules. Go to Form Builder → Rules tab to create rules first.
+        </p>
+      </div>
     );
   }
 
