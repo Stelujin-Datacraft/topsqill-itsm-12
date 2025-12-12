@@ -2,6 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { WorkflowExecutionService } from '@/services/workflowExecution';
+import { FormRuleWorkflowTrigger } from '@/services/formRuleWorkflowTrigger';
 import { useAuth } from '@/contexts/AuthContext';
 import { Form } from '@/types/form';
 
@@ -150,6 +151,7 @@ export function useFormSubmissionHandler(formId: string | undefined, form?: Form
         });
         
         try {
+          // Trigger form submission workflows
           const triggeredWorkflows = await WorkflowExecutionService.triggerWorkflowsForFormSubmission(
             formId,
             enhancedFormData,
@@ -161,6 +163,16 @@ export function useFormSubmissionHandler(formId: string | undefined, form?: Form
             triggeredCount: triggeredWorkflows.length,
             workflows: triggeredWorkflows
           });
+
+          // Evaluate form rules and trigger rule-based workflows
+          console.log('🔍 Evaluating form rules for workflow triggers...');
+          await FormRuleWorkflowTrigger.evaluateAndTriggerWorkflows(
+            formId,
+            enhancedFormData,
+            submission.id,
+            userProfile.id
+          );
+          console.log('✅ Form rule workflow evaluation completed');
           
           if (triggeredWorkflows.length > 0) {
             toast({
