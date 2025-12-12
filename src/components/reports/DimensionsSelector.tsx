@@ -45,7 +45,8 @@ export function DimensionsSelector({
 
   const getFieldType = (fieldId: string) => {
     const field = formFields.find(f => f.id === fieldId);
-    return field?.type || 'unknown';
+    // Support both .type and .field_type
+    return (field as any)?.field_type || field?.type || 'unknown';
   };
 
   const availableFields = dimensionCompatibleFields.filter(field => !selectedDimensions.includes(field.id));

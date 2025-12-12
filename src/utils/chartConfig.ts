@@ -123,15 +123,19 @@ export function categorizeFields(fields: FormField[]): { [category: string]: Cha
 }
 
 export function getMetricCompatibleFields(fields: FormField[]): FormField[] {
-  return fields.filter(field => 
-    ['number', 'currency', 'rating', 'slider'].includes(field.type)
-  );
+  return fields.filter(field => {
+    // Support both .type and .field_type
+    const fieldType = (field as any).field_type || field.type || '';
+    return ['number', 'currency', 'rating', 'slider'].includes(fieldType);
+  });
 }
 
 export function getDimensionCompatibleFields(fields: FormField[]): FormField[] {
-  return fields.filter(field => 
-    ['text', 'select', 'radio', 'checkbox', 'date', 'datetime', 'email', 'url', 'tel'].includes(field.type)
-  );
+  return fields.filter(field => {
+    // Support both .type and .field_type
+    const fieldType = (field as any).field_type || field.type || '';
+    return ['text', 'select', 'radio', 'checkbox', 'date', 'datetime', 'email', 'url', 'tel', 'dropdown', 'multi-select'].includes(fieldType);
+  });
 }
 
 export function getCompatibleAggregations(fieldType: string): AggregationOption[] {
