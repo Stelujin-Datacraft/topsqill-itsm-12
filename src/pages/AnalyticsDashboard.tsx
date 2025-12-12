@@ -8,9 +8,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, BarChart3, TrendingUp, Users, Activity, PieChart, FileText } from 'lucide-react';
+import { ArrowLeft, BarChart3, TrendingUp, Activity, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Legend } from 'recharts';
+import { supabase } from '@/integrations/supabase/client';
+
+interface FormField {
+  id: string;
+  label: string;
+  field_type: string;
+}
 
 const AnalyticsDashboard = () => {
   const navigate = useNavigate();
@@ -22,14 +29,46 @@ const AnalyticsDashboard = () => {
   const [submissionData, setSubmissionData] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>({});
   const [loading, setLoading] = useState(false);
+  const [formFields, setFormFields] = useState<FormField[]>([]);
 
   const selectedForm = forms.find(f => f.id === selectedFormId);
 
+  // Fetch form fields directly from Supabase
   useEffect(() => {
-    if (selectedFormId) {
+    const fetchFormFields = async () => {
+      if (!selectedFormId) {
+        setFormFields([]);
+        return;
+      }
+
+      try {
+        const { data: fields, error } = await supabase
+          .from('form_fields')
+          .select('id, label, field_type')
+          .eq('form_id', selectedFormId)
+          .order('field_order', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching form fields:', error);
+          setFormFields([]);
+          return;
+        }
+
+        setFormFields(fields || []);
+      } catch (err) {
+        console.error('Error in fetchFormFields:', err);
+        setFormFields([]);
+      }
+    };
+
+    fetchFormFields();
+  }, [selectedFormId]);
+
+  useEffect(() => {
+    if (selectedFormId && formFields.length >= 0) {
       loadAnalytics();
     }
-  }, [selectedFormId]);
+  }, [selectedFormId, formFields]);
 
   const loadAnalytics = async () => {
     if (!selectedFormId) return;
@@ -39,10 +78,10 @@ const AnalyticsDashboard = () => {
       const submissions = await getFormSubmissionData(selectedFormId);
       setSubmissionData(submissions);
       
-      // Calculate analytics
+      // Calculate analytics using fetched formFields
       const totalSubmissions = submissions.length;
       const submissionsByDate = calculateSubmissionsByDate(submissions);
-      const fieldAnalytics = calculateFieldAnalytics(submissions, selectedForm?.fields || []);
+      const fieldAnalytics = calculateFieldAnalytics(submissions, formFields);
       const averageSubmissionsPerDay = calculateAverageSubmissions(submissions);
       const recentSubmissions = submissions.slice(0, 10);
       
@@ -51,7 +90,8 @@ const AnalyticsDashboard = () => {
         submissionsByDate,
         fieldAnalytics,
         averageSubmissionsPerDay,
-        recentSubmissions
+        recentSubmissions,
+        fieldCount: formFields.length
       });
     } catch (error) {
       console.error('Error loading analytics:', error);
@@ -77,33 +117,72 @@ const AnalyticsDashboard = () => {
       .slice(-7); // Last 7 days
   };
 
-  const calculateFieldAnalytics = (submissions: any[], fields: any[]) => {
+  const calculateFieldAnalytics = (submissions: any[], fields: FormField[]) => {
     const fieldStats: Record<string, any> = {};
     
+    if (submissions.length === 0) return fieldStats;
+    
     fields.forEach(field => {
+      // Try to get value by field.id or field.label (case insensitive)
       const responses = submissions
-        .map(s => s.submission_data[field.id])
+        .map(s => {
+          const data = s.submission_data || {};
+          // Try exact id match
+          if (data[field.id] !== undefined) return data[field.id];
+          // Try label match
+          if (data[field.label] !== undefined) return data[field.label];
+          // Try case-insensitive label match
+          const labelLower = field.label.toLowerCase();
+          const matchingKey = Object.keys(data).find(k => k.toLowerCase() === labelLower);
+          if (matchingKey) return data[matchingKey];
+          return undefined;
+        })
         .filter(value => value !== undefined && value !== null && value !== '');
       
-      const responseRate = (responses.length / submissions.length) * 100;
-      const uniqueValues = [...new Set(responses)];
+      const responseRate = submissions.length > 0 ? (responses.length / submissions.length) * 100 : 0;
       const valueCounts: Record<string, number> = {};
       
       responses.forEach(value => {
-        const stringValue = String(value);
+        // Handle arrays and objects
+        let stringValue: string;
+        if (Array.isArray(value)) {
+          stringValue = value.join(', ');
+        } else if (typeof value === 'object') {
+          stringValue = JSON.stringify(value);
+        } else {
+          stringValue = String(value);
+        }
         valueCounts[stringValue] = (valueCounts[stringValue] || 0) + 1;
       });
       
+      const uniqueValues = Object.keys(valueCounts).length;
+      
+      // Create pie chart data for this field
+      const pieChartData = Object.entries(valueCounts)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 5)
+        .map(([value, count]) => ({
+          name: value.length > 20 ? value.substring(0, 20) + '...' : value,
+          fullName: value,
+          value: count,
+          percentage: ((count / responses.length) * 100).toFixed(1)
+        }));
+      
       fieldStats[field.id] = {
         label: field.label,
-        type: field.type,
+        type: field.field_type,
         responseRate: responseRate.toFixed(1),
         totalResponses: responses.length,
-        uniqueValues: uniqueValues.length,
+        uniqueValues,
+        pieChartData,
         mostCommon: Object.entries(valueCounts)
           .sort(([,a], [,b]) => b - a)
-          .slice(0, 3)
-          .map(([value, count]) => ({ value, count, percentage: ((count / responses.length) * 100).toFixed(1) }))
+          .slice(0, 5)
+          .map(([value, count]) => ({ 
+            value: value.length > 50 ? value.substring(0, 50) + '...' : value, 
+            count, 
+            percentage: ((count / responses.length) * 100).toFixed(1) 
+          }))
       };
     });
     
@@ -193,7 +272,7 @@ const AnalyticsDashboard = () => {
                   <div className="flex items-center justify-between">
                     <div className="space-y-2">
                       <p className="text-sm font-medium text-muted-foreground">Form Fields</p>
-                      <p className="text-3xl font-bold">{selectedForm.fields.length}</p>
+                      <p className="text-3xl font-bold">{formFields.length}</p>
                     </div>
                     <div className="p-3 rounded-full bg-purple-50">
                       <BarChart3 className="h-6 w-6 text-purple-600" />
@@ -245,57 +324,102 @@ const AnalyticsDashboard = () => {
                 <CardTitle>Field-Level Analytics</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6">
-                  {Object.entries(analytics.fieldAnalytics).map(([fieldId, stats]: [string, any]) => (
-                    <div key={fieldId} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-medium">{stats.label}</h4>
-                        <Badge variant="outline">{stats.type}</Badge>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                        <div>
-                          <p className="text-sm text-muted-foreground">Response Rate</p>
-                          <p className="font-semibold">{stats.responseRate}%</p>
+                {Object.keys(analytics.fieldAnalytics || {}).length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No field analytics available. Make sure the form has submissions with field data.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {Object.entries(analytics.fieldAnalytics).map(([fieldId, stats]: [string, any]) => (
+                      <div key={fieldId} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-medium">{stats.label}</h4>
+                          <Badge variant="outline">{stats.type}</Badge>
                         </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Total Responses</p>
-                          <p className="font-semibold">{stats.totalResponses}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Unique Values</p>
-                          <p className="font-semibold">{stats.uniqueValues}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Most Common</p>
-                          <p className="font-semibold text-sm">
-                            {stats.mostCommon[0]?.value || 'N/A'}
-                          </p>
-                        </div>
-                      </div>
-
-                      {stats.mostCommon.length > 0 && (
-                        <div>
-                          <p className="text-sm text-muted-foreground mb-2">Top Responses:</p>
-                          <div className="space-y-1">
-                            {stats.mostCommon.map((item: any, index: number) => (
-                              <div key={index} className="flex items-center justify-between text-sm">
-                                <span className="truncate max-w-xs">{item.value}</span>
-                                <div className="flex items-center gap-2">
-                                  <span>{item.count} ({item.percentage}%)</span>
-                                  <div 
-                                    className="h-2 bg-blue-500 rounded"
-                                    style={{ width: `${Math.min(item.percentage, 100)}px` }}
-                                  />
-                                </div>
-                              </div>
-                            ))}
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                          <div>
+                            <p className="text-sm text-muted-foreground">Response Rate</p>
+                            <p className="font-semibold">{stats.responseRate}%</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Total Responses</p>
+                            <p className="font-semibold">{stats.totalResponses}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Unique Values</p>
+                            <p className="font-semibold">{stats.uniqueValues}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Most Common</p>
+                            <p className="font-semibold text-sm truncate">
+                              {stats.mostCommon[0]?.value || 'N/A'}
+                            </p>
                           </div>
                         </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+
+                        {/* Pie Chart for Field Distribution */}
+                        {stats.pieChartData && stats.pieChartData.length > 0 && stats.uniqueValues <= 10 && (
+                          <div className="mb-4">
+                            <p className="text-sm text-muted-foreground mb-2">Value Distribution:</p>
+                            <div className="h-48">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <RechartsPieChart>
+                                  <Pie
+                                    data={stats.pieChartData}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    outerRadius={60}
+                                    fill="#8884d8"
+                                    dataKey="value"
+                                    label={({ name, percentage }) => `${name} (${percentage}%)`}
+                                  >
+                                    {stats.pieChartData.map((entry: any, index: number) => (
+                                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                  </Pie>
+                                  <Tooltip 
+                                    formatter={(value: any, name: any, props: any) => [
+                                      `${value} (${props.payload.percentage}%)`,
+                                      props.payload.fullName
+                                    ]}
+                                  />
+                                  <Legend />
+                                </RechartsPieChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Top Responses List */}
+                        {stats.mostCommon.length > 0 && (
+                          <div>
+                            <p className="text-sm text-muted-foreground mb-2">Top Responses:</p>
+                            <div className="space-y-2">
+                              {stats.mostCommon.map((item: any, index: number) => (
+                                <div key={index} className="flex items-center justify-between text-sm gap-4">
+                                  <span className="truncate flex-1" title={item.value}>{item.value}</span>
+                                  <div className="flex items-center gap-2 flex-shrink-0">
+                                    <span className="text-muted-foreground">{item.count} ({item.percentage}%)</span>
+                                    <div 
+                                      className="h-2 rounded"
+                                      style={{ 
+                                        width: `${Math.min(parseFloat(item.percentage), 100)}px`,
+                                        backgroundColor: COLORS[index % COLORS.length]
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </>
