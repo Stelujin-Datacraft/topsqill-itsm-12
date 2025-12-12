@@ -36,6 +36,7 @@ const AnalyticsDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>([]);
+  const [selectedAggregations, setSelectedAggregations] = useState<Record<string, string>>({});
 
   const selectedForm = forms.find(f => f.id === selectedFormId);
 
@@ -519,100 +520,101 @@ const AnalyticsDashboard = () => {
                           </div>
                         </div>
 
-                        {/* Aggregation Calculations */}
+                        {/* Aggregation Selector and Result */}
                         {stats.aggregations && (
                           <div className="border-t pt-4">
-                            <div className="flex items-center gap-2 mb-3">
-                              {stats.aggregations.type === 'numeric' && <Hash className="h-4 w-4 text-blue-500" />}
-                              {stats.aggregations.type === 'text' && <Type className="h-4 w-4 text-green-500" />}
-                              {stats.aggregations.type === 'date' && <Calendar className="h-4 w-4 text-purple-500" />}
-                              {stats.aggregations.type === 'categorical' && <ToggleLeft className="h-4 w-4 text-orange-500" />}
-                              <p className="text-sm font-medium">Aggregations</p>
+                            <div className="flex items-center gap-3 mb-3">
+                              <p className="text-sm font-medium">Calculate:</p>
+                              <Select
+                                value={selectedAggregations[fieldId] || ''}
+                                onValueChange={(value) => setSelectedAggregations(prev => ({ ...prev, [fieldId]: value }))}
+                              >
+                                <SelectTrigger className="w-40">
+                                  <SelectValue placeholder="Select..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {stats.aggregations.type === 'numeric' && (
+                                    <>
+                                      <SelectItem value="sum">Sum</SelectItem>
+                                      <SelectItem value="average">Average</SelectItem>
+                                      <SelectItem value="min">Min</SelectItem>
+                                      <SelectItem value="max">Max</SelectItem>
+                                      <SelectItem value="median">Median</SelectItem>
+                                      <SelectItem value="range">Range</SelectItem>
+                                      <SelectItem value="count">Count</SelectItem>
+                                    </>
+                                  )}
+                                  {stats.aggregations.type === 'text' && (
+                                    <>
+                                      <SelectItem value="count">Count</SelectItem>
+                                      <SelectItem value="avgLength">Avg Length</SelectItem>
+                                      <SelectItem value="minLength">Min Length</SelectItem>
+                                      <SelectItem value="maxLength">Max Length</SelectItem>
+                                    </>
+                                  )}
+                                  {stats.aggregations.type === 'date' && (
+                                    <>
+                                      <SelectItem value="count">Count</SelectItem>
+                                      <SelectItem value="earliest">Earliest</SelectItem>
+                                      <SelectItem value="latest">Latest</SelectItem>
+                                      <SelectItem value="daySpan">Day Span</SelectItem>
+                                    </>
+                                  )}
+                                  {stats.aggregations.type === 'categorical' && (
+                                    <>
+                                      <SelectItem value="count">Count</SelectItem>
+                                      <SelectItem value="unique">Unique Values</SelectItem>
+                                      <SelectItem value="mostCommon">Most Common</SelectItem>
+                                      <SelectItem value="leastCommon">Least Common</SelectItem>
+                                    </>
+                                  )}
+                                </SelectContent>
+                              </Select>
                             </div>
                             
-                            {stats.aggregations.type === 'numeric' && (
-                              <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-                                <div className="text-center p-2 bg-blue-50 dark:bg-blue-950/30 rounded">
-                                  <p className="text-xs text-muted-foreground">Sum</p>
-                                  <p className="font-semibold text-blue-600">{stats.aggregations.sum}</p>
-                                </div>
-                                <div className="text-center p-2 bg-green-50 dark:bg-green-950/30 rounded">
-                                  <p className="text-xs text-muted-foreground">Average</p>
-                                  <p className="font-semibold text-green-600">{stats.aggregations.average}</p>
-                                </div>
-                                <div className="text-center p-2 bg-purple-50 dark:bg-purple-950/30 rounded">
-                                  <p className="text-xs text-muted-foreground">Median</p>
-                                  <p className="font-semibold text-purple-600">{stats.aggregations.median}</p>
-                                </div>
-                                <div className="text-center p-2 bg-orange-50 dark:bg-orange-950/30 rounded">
-                                  <p className="text-xs text-muted-foreground">Min</p>
-                                  <p className="font-semibold text-orange-600">{stats.aggregations.min}</p>
-                                </div>
-                                <div className="text-center p-2 bg-red-50 dark:bg-red-950/30 rounded">
-                                  <p className="text-xs text-muted-foreground">Max</p>
-                                  <p className="font-semibold text-red-600">{stats.aggregations.max}</p>
-                                </div>
-                                <div className="text-center p-2 bg-indigo-50 dark:bg-indigo-950/30 rounded">
-                                  <p className="text-xs text-muted-foreground">Range</p>
-                                  <p className="font-semibold text-indigo-600">{stats.aggregations.range}</p>
-                                </div>
-                              </div>
-                            )}
-                            
-                            {stats.aggregations.type === 'text' && (
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                <div className="text-center p-2 bg-green-50 dark:bg-green-950/30 rounded">
-                                  <p className="text-xs text-muted-foreground">Avg Length</p>
-                                  <p className="font-semibold text-green-600">{stats.aggregations.avgLength} chars</p>
-                                </div>
-                                <div className="text-center p-2 bg-blue-50 dark:bg-blue-950/30 rounded">
-                                  <p className="text-xs text-muted-foreground">Min Length</p>
-                                  <p className="font-semibold text-blue-600">{stats.aggregations.minLength} chars</p>
-                                </div>
-                                <div className="text-center p-2 bg-purple-50 dark:bg-purple-950/30 rounded">
-                                  <p className="text-xs text-muted-foreground">Max Length</p>
-                                  <p className="font-semibold text-purple-600">{stats.aggregations.maxLength} chars</p>
-                                </div>
-                                <div className="text-center p-2 bg-orange-50 dark:bg-orange-950/30 rounded">
-                                  <p className="text-xs text-muted-foreground">Total Chars</p>
-                                  <p className="font-semibold text-orange-600">{stats.aggregations.totalCharacters}</p>
-                                </div>
-                              </div>
-                            )}
-                            
-                            {stats.aggregations.type === 'date' && (
-                              <div className="grid grid-cols-3 gap-3">
-                                <div className="text-center p-2 bg-purple-50 dark:bg-purple-950/30 rounded">
-                                  <p className="text-xs text-muted-foreground">Earliest</p>
-                                  <p className="font-semibold text-purple-600 text-sm">{stats.aggregations.earliest}</p>
-                                </div>
-                                <div className="text-center p-2 bg-blue-50 dark:bg-blue-950/30 rounded">
-                                  <p className="text-xs text-muted-foreground">Latest</p>
-                                  <p className="font-semibold text-blue-600 text-sm">{stats.aggregations.latest}</p>
-                                </div>
-                                <div className="text-center p-2 bg-green-50 dark:bg-green-950/30 rounded">
-                                  <p className="text-xs text-muted-foreground">Day Span</p>
-                                  <p className="font-semibold text-green-600">{stats.aggregations.daySpan} days</p>
-                                </div>
-                              </div>
-                            )}
-                            
-                            {stats.aggregations.type === 'categorical' && (
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="p-2 bg-green-50 dark:bg-green-950/30 rounded">
-                                  <p className="text-xs text-muted-foreground">Most Common</p>
-                                  <p className="font-semibold text-green-600 text-sm truncate" title={stats.aggregations.mostCommon}>
-                                    {stats.aggregations.mostCommon}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">{stats.aggregations.mostCommonCount} responses</p>
-                                </div>
-                                <div className="p-2 bg-orange-50 dark:bg-orange-950/30 rounded">
-                                  <p className="text-xs text-muted-foreground">Least Common</p>
-                                  <p className="font-semibold text-orange-600 text-sm truncate" title={stats.aggregations.leastCommon}>
-                                    {stats.aggregations.leastCommon}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">{stats.aggregations.leastCommonCount} responses</p>
-                                </div>
+                            {/* Display Selected Aggregation Result */}
+                            {selectedAggregations[fieldId] && (
+                              <div className="bg-primary/10 rounded-lg p-4 text-center">
+                                <p className="text-xs text-muted-foreground mb-1 capitalize">
+                                  {selectedAggregations[fieldId].replace(/([A-Z])/g, ' $1').trim()}
+                                </p>
+                                <p className="text-2xl font-bold text-primary">
+                                  {(() => {
+                                    const agg = selectedAggregations[fieldId];
+                                    const data = stats.aggregations;
+                                    
+                                    if (agg === 'count') return stats.totalResponses;
+                                    if (agg === 'unique') return stats.uniqueValues;
+                                    
+                                    if (data.type === 'numeric') {
+                                      if (agg === 'sum') return data.sum;
+                                      if (agg === 'average') return data.average;
+                                      if (agg === 'min') return data.min;
+                                      if (agg === 'max') return data.max;
+                                      if (agg === 'median') return data.median;
+                                      if (agg === 'range') return data.range;
+                                    }
+                                    
+                                    if (data.type === 'text') {
+                                      if (agg === 'avgLength') return `${data.avgLength} chars`;
+                                      if (agg === 'minLength') return `${data.minLength} chars`;
+                                      if (agg === 'maxLength') return `${data.maxLength} chars`;
+                                    }
+                                    
+                                    if (data.type === 'date') {
+                                      if (agg === 'earliest') return data.earliest;
+                                      if (agg === 'latest') return data.latest;
+                                      if (agg === 'daySpan') return `${data.daySpan} days`;
+                                    }
+                                    
+                                    if (data.type === 'categorical') {
+                                      if (agg === 'mostCommon') return data.mostCommon;
+                                      if (agg === 'leastCommon') return data.leastCommon;
+                                    }
+                                    
+                                    return 'N/A';
+                                  })()}
+                                </p>
                               </div>
                             )}
                           </div>
