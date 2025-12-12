@@ -5,6 +5,7 @@ import { Play, GitBranch, Clock, Square, Settings, FileCheck } from 'lucide-reac
 
 interface NodePaletteProps {
   onAddNode: (nodeType: string, position: { x: number; y: number }) => void;
+  getViewportCenter?: () => { x: number; y: number };
 }
 
 const nodeDefinitions = [
@@ -52,17 +53,19 @@ const nodeDefinitions = [
   },
 ];
 
-export function NodePalette({ onAddNode }: NodePaletteProps) {
+export function NodePalette({ onAddNode, getViewportCenter }: NodePaletteProps) {
   const handleDragStart = (event: React.DragEvent, nodeType: string) => {
     event.dataTransfer.setData('application/reactflow', nodeType);
     event.dataTransfer.effectAllowed = 'move';
   };
 
   const handleAddNode = (nodeType: string) => {
-    // Add node at a random position in the center area
+    // Get viewport center if available, otherwise use default position
+    const center = getViewportCenter?.() ?? { x: 300, y: 200 };
+    // Add small random offset to avoid overlapping when adding multiple nodes
     const position = { 
-      x: Math.random() * 200 + 200, 
-      y: Math.random() * 200 + 200 
+      x: center.x + (Math.random() - 0.5) * 50, 
+      y: center.y + (Math.random() - 0.5) * 50 
     };
     onAddNode(nodeType, position);
   };

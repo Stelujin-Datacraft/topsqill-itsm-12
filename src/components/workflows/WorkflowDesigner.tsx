@@ -14,6 +14,8 @@ import {
   EdgeTypes,
   BackgroundVariant,
   OnSelectionChangeParams,
+  useReactFlow,
+  ReactFlowProvider,
 } from '@xyflow/react';
 import { useAuth } from '@/contexts/AuthContext';
 import { LabeledEdge } from './edges/LabeledEdge';
@@ -62,7 +64,9 @@ interface WorkflowDesignerProps {
   onSave: (nodes: WorkflowNode[], connections: WorkflowConnection[]) => void;
 }
 
-export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialConnections, onSave }: WorkflowDesignerProps) {
+// Inner component that can use useReactFlow
+function WorkflowDesignerInner({ workflowId, projectId, initialNodes, initialConnections, onSave }: WorkflowDesignerProps) {
+  const reactFlowInstance = useReactFlow();
   const [reactFlowNodes, setReactFlowNodes, onNodesChange] = useNodesState([]);
   const [reactFlowEdges, setReactFlowEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -527,9 +531,24 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
     setHasUnsavedChanges(false);
   }, [handleSave]);
 
+  // Get the center of the current viewport
+  const getViewportCenter = useCallback(() => {
+    const { x, y, zoom } = reactFlowInstance.getViewport();
+    // Get the container dimensions
+    const container = document.querySelector('.react-flow');
+    const width = container?.clientWidth ?? 800;
+    const height = container?.clientHeight ?? 600;
+    
+    // Calculate center in flow coordinates
+    return {
+      x: (-x + width / 2) / zoom,
+      y: (-y + height / 2) / zoom,
+    };
+  }, [reactFlowInstance]);
+
   return (
     <div className="h-full flex">
-      <NodePalette onAddNode={addNodeToWorkflow} />
+      <NodePalette onAddNode={addNodeToWorkflow} getViewportCenter={getViewportCenter} />
       
       <div className="flex-1 relative">
         {/* Save Workflow Button */}
@@ -598,5 +617,14 @@ export function WorkflowDesigner({ workflowId, projectId, initialNodes, initialC
         onDelete={handleDeleteEdge}
       />
     </div>
+  );
+}
+
+// Wrapper component with ReactFlowProvider
+export function WorkflowDesigner(props: WorkflowDesignerProps) {
+  return (
+    <ReactFlowProvider>
+      <WorkflowDesignerInner {...props} />
+    </ReactFlowProvider>
   );
 }
