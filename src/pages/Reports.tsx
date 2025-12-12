@@ -1,4 +1,3 @@
-
 import React from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { ReportsList } from '@/components/reports/ReportsList';
@@ -70,16 +69,9 @@ const Reports = () => {
   // Filter reports based on user's permissions
   const visibleReports = getVisibleResources('reports', reports);
 
-  const canCreateReport = hasPermission('reports', 'create');
-
   return (
     <DashboardLayout title="Reports">
       <div className="space-y-6">
-        {canCreateReport && (
-          <div className="flex justify-end">
-            <CreateReportDialog />
-          </div>
-        )}
         <ReportsList
           reports={visibleReports}
           onView={handleViewReport}
