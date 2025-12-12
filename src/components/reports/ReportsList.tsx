@@ -121,6 +121,17 @@ export function ReportsList({
       <Plus className="h-4 w-4 mr-2" />
       Create Your First Report
     </Button>;
+
+  const CreateReportButton = () => (
+    <Button 
+      onClick={createButtonState.disabled ? () => checkPermissionWithAlert('reports', 'create') : onCreate} 
+      disabled={createButtonState.disabled}
+    >
+      <Plus className="h-4 w-4 mr-2" />
+      Create Report
+    </Button>
+  );
+
   return <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -136,7 +147,8 @@ export function ReportsList({
           <Button variant="outline" onClick={() => navigate('/analytics-dashboard')}>
             Form Analysis
           </Button>
-          {/* {createButtonState.disabled ? <TooltipProvider>
+          {createButtonState.disabled ? (
+            <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
@@ -146,8 +158,11 @@ export function ReportsList({
                 <TooltipContent>
                   <p>{createButtonState.tooltip}</p>
                 </TooltipContent>
-                </Tooltip>
-              </TooltipProvider> : <CreateReportButton />} */}
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <CreateReportButton />
+          )}
         </div>
       </div>
 

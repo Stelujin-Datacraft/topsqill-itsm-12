@@ -69,7 +69,8 @@ export interface ChartConfig {
   // Drilldown configuration
   drilldownConfig?: {
     enabled: boolean;
-    drilldownLevels: string[];
+    drilldownLevels?: string[];
+    levels?: string[]; // Legacy property name - kept for backwards compatibility
   };
   drilldownEnabled?: boolean;
   drilldownLevels?: string[];

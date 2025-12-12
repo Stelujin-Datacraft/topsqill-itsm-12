@@ -1087,12 +1087,13 @@ export function ComponentConfigDialog({
                   enabled 
                 } 
               })}
-              drilldownLevels={config.drilldownConfig?.levels || []}
+              drilldownLevels={config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels || []}
               onDrilldownLevelsChange={(levels) => setConfig({ 
                 ...config, 
                 drilldownConfig: { 
                   ...config.drilldownConfig, 
-                  levels 
+                  drilldownLevels: levels,
+                  levels: levels // Keep both for backwards compatibility
                 } 
               })}
             />
