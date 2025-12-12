@@ -8,12 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, BarChart3, TrendingUp, Activity, FileText, Check } from 'lucide-react';
+import { ArrowLeft, BarChart3, TrendingUp, Activity, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Legend } from 'recharts';
+import { Progress } from '@/components/ui/progress';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 
 interface FormField {
@@ -162,33 +163,31 @@ const AnalyticsDashboard = () => {
       });
       
       const uniqueValues = Object.keys(valueCounts).length;
+      const emptyResponses = submissions.length - responses.length;
       
-      // Create pie chart data for this field
-      const pieChartData = Object.entries(valueCounts)
+      // Data quality score based on response rate and uniqueness
+      const dataQuality = responseRate >= 80 ? 'excellent' : responseRate >= 50 ? 'good' : responseRate >= 20 ? 'fair' : 'poor';
+      
+      // Top values with horizontal bar data
+      const topValues = Object.entries(valueCounts)
         .sort(([,a], [,b]) => b - a)
         .slice(0, 5)
-        .map(([value, count]) => ({
-          name: value.length > 20 ? value.substring(0, 20) + '...' : value,
-          fullName: value,
-          value: count,
-          percentage: ((count / responses.length) * 100).toFixed(1)
+        .map(([value, count]) => ({ 
+          value: value.length > 30 ? value.substring(0, 30) + '...' : value,
+          fullValue: value,
+          count, 
+          percentage: parseFloat(((count / responses.length) * 100).toFixed(1))
         }));
       
       fieldStats[field.id] = {
         label: field.label,
         type: field.field_type,
-        responseRate: responseRate.toFixed(1),
+        responseRate: parseFloat(responseRate.toFixed(1)),
         totalResponses: responses.length,
+        emptyResponses,
         uniqueValues,
-        pieChartData,
-        mostCommon: Object.entries(valueCounts)
-          .sort(([,a], [,b]) => b - a)
-          .slice(0, 5)
-          .map(([value, count]) => ({ 
-            value: value.length > 50 ? value.substring(0, 50) + '...' : value, 
-            count, 
-            percentage: ((count / responses.length) * 100).toFixed(1) 
-          }))
+        dataQuality,
+        topValues
       };
     });
     
@@ -205,7 +204,22 @@ const AnalyticsDashboard = () => {
     return daysDiff > 0 ? (submissions.length / daysDiff).toFixed(1) : submissions.length.toString();
   };
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+  const getQualityColor = (quality: string) => {
+    switch (quality) {
+      case 'excellent': return 'text-green-600';
+      case 'good': return 'text-blue-600';
+      case 'fair': return 'text-yellow-600';
+      case 'poor': return 'text-red-600';
+      default: return 'text-muted-foreground';
+    }
+  };
+
+  const getQualityIcon = (quality: string) => {
+    if (quality === 'excellent' || quality === 'good') {
+      return <CheckCircle2 className={`h-4 w-4 ${getQualityColor(quality)}`} />;
+    }
+    return <AlertCircle className={`h-4 w-4 ${getQualityColor(quality)}`} />;
+  };
 
   return (
     <DashboardLayout title="Analytics Dashboard">
@@ -413,81 +427,72 @@ const AnalyticsDashboard = () => {
                           <Badge variant="outline">{stats.type}</Badge>
                         </div>
                         
+                        {/* Response Rate Visual */}
+                        <div className="mb-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm text-muted-foreground">Response Rate</span>
+                            <span className="text-sm font-medium">{stats.responseRate}%</span>
+                          </div>
+                          <Progress value={stats.responseRate} className="h-2" />
+                        </div>
+
+                        {/* Key Metrics Grid */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                          <div>
-                            <p className="text-sm text-muted-foreground">Response Rate</p>
-                            <p className="font-semibold">{stats.responseRate}%</p>
+                          <div className="bg-muted/50 rounded-lg p-3">
+                            <p className="text-xs text-muted-foreground">Responses</p>
+                            <p className="text-lg font-semibold">{stats.totalResponses}</p>
                           </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Total Responses</p>
-                            <p className="font-semibold">{stats.totalResponses}</p>
+                          <div className="bg-muted/50 rounded-lg p-3">
+                            <p className="text-xs text-muted-foreground">Empty</p>
+                            <p className="text-lg font-semibold">{stats.emptyResponses}</p>
                           </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Unique Values</p>
-                            <p className="font-semibold">{stats.uniqueValues}</p>
+                          <div className="bg-muted/50 rounded-lg p-3">
+                            <p className="text-xs text-muted-foreground">Unique Values</p>
+                            <p className="text-lg font-semibold">{stats.uniqueValues}</p>
                           </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Most Common</p>
-                            <p className="font-semibold text-sm truncate">
-                              {stats.mostCommon[0]?.value || 'N/A'}
+                          <div className="bg-muted/50 rounded-lg p-3">
+                            <div className="flex items-center gap-1">
+                              <p className="text-xs text-muted-foreground">Data Quality</p>
+                              {getQualityIcon(stats.dataQuality)}
+                            </div>
+                            <p className={`text-lg font-semibold capitalize ${getQualityColor(stats.dataQuality)}`}>
+                              {stats.dataQuality}
                             </p>
                           </div>
                         </div>
 
-                        {/* Pie Chart for Field Distribution */}
-                        {stats.pieChartData && stats.pieChartData.length > 0 && stats.uniqueValues <= 10 && (
-                          <div className="mb-4">
-                            <p className="text-sm text-muted-foreground mb-2">Value Distribution:</p>
-                            <div className="h-48">
+                        {/* Value Distribution Bar Chart */}
+                        {stats.topValues && stats.topValues.length > 0 && (
+                          <div>
+                            <p className="text-sm text-muted-foreground mb-3">Top Values Distribution</p>
+                            <div className="h-40">
                               <ResponsiveContainer width="100%" height="100%">
-                                <RechartsPieChart>
-                                  <Pie
-                                    data={stats.pieChartData}
-                                    cx="50%"
-                                    cy="50%"
-                                    labelLine={false}
-                                    outerRadius={60}
-                                    fill="#8884d8"
-                                    dataKey="value"
-                                    label={({ name, percentage }) => `${name} (${percentage}%)`}
-                                  >
-                                    {stats.pieChartData.map((entry: any, index: number) => (
-                                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                  </Pie>
+                                <BarChart
+                                  data={stats.topValues}
+                                  layout="vertical"
+                                  margin={{ top: 0, right: 30, left: 0, bottom: 0 }}
+                                >
+                                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                                  <XAxis type="number" tickFormatter={(v) => `${v}%`} domain={[0, 100]} />
+                                  <YAxis 
+                                    type="category" 
+                                    dataKey="value" 
+                                    width={100}
+                                    tick={{ fontSize: 12 }}
+                                  />
                                   <Tooltip 
                                     formatter={(value: any, name: any, props: any) => [
-                                      `${value} (${props.payload.percentage}%)`,
-                                      props.payload.fullName
+                                      `${props.payload.count} responses (${value}%)`,
+                                      props.payload.fullValue
                                     ]}
                                   />
-                                  <Legend />
-                                </RechartsPieChart>
+                                  <Bar 
+                                    dataKey="percentage" 
+                                    fill="hsl(var(--primary))" 
+                                    radius={[0, 4, 4, 0]}
+                                  />
+                                </BarChart>
                               </ResponsiveContainer>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Top Responses List */}
-                        {stats.mostCommon.length > 0 && (
-                          <div>
-                            <p className="text-sm text-muted-foreground mb-2">Top Responses:</p>
-                            <div className="space-y-2">
-                              {stats.mostCommon.map((item: any, index: number) => (
-                                <div key={index} className="flex items-center justify-between text-sm gap-4">
-                                  <span className="truncate flex-1" title={item.value}>{item.value}</span>
-                                  <div className="flex items-center gap-2 flex-shrink-0">
-                                    <span className="text-muted-foreground">{item.count} ({item.percentage}%)</span>
-                                    <div 
-                                      className="h-2 rounded"
-                                      style={{ 
-                                        width: `${Math.min(parseFloat(item.percentage), 100)}px`,
-                                        backgroundColor: COLORS[index % COLORS.length]
-                                      }}
-                                    />
-                                  </div>
-                                </div>
-                              ))}
                             </div>
                           </div>
                         )}
