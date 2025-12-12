@@ -87,7 +87,8 @@ export function MetricsSelector({
 
   const getFieldType = (fieldId: string) => {
     const field = formFields.find(f => f.id === fieldId);
-    return field?.type || 'unknown';
+    // Support both .type and .field_type
+    return (field as any)?.field_type || field?.type || 'unknown';
   };
 
   const availableFields = metricCompatibleFields.filter(field => !selectedMetrics.includes(field.id));
