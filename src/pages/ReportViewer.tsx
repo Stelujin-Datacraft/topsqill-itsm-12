@@ -23,6 +23,8 @@ import { format } from 'date-fns';
 import { ChartPreview } from '@/components/reports/ChartPreview';
 import { MetricCard } from '@/components/reports/MetricCard';
 import { DynamicTable } from '@/components/reports/DynamicTable';
+import { FormSubmissionsTable } from '@/components/reports/FormSubmissionsTable';
+import { EnhancedDynamicTable } from '@/components/reports/EnhancedDynamicTable';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -141,9 +143,10 @@ const ReportViewerPage = () => {
       
       case 'form-submissions':
         return (
-          <div key={component.id} className="h-full flex items-center justify-center">
-            <p className="text-sm text-muted-foreground">Form submissions table coming soon</p>
-          </div>
+          <FormSubmissionsTable 
+            key={component.id}
+            config={component.config as any}
+          />
         );
       
       case 'text':
