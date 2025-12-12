@@ -672,6 +672,22 @@ export function ChartPreview({
         </div>;
       }
     }
+
+    // Final safety check: ensure we actually have some non-zero numeric data for the primary metric
+    const hasValidNumericData = sanitizedChartData.some(item => {
+      const val = Number(item[primaryMetric]);
+      return !isNaN(val) && isFinite(val) && val !== 0;
+    });
+
+    if (!hasValidNumericData) {
+      return <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="text-muted-foreground mb-2">No numeric data available</div>
+          <div className="text-sm text-muted-foreground">Current configuration does not produce any numeric values to chart.</div>
+        </div>
+      </div>;
+    }
+
     const chartType = config.type || config.chartType || 'bar';
     console.log('Chart rendering config:', {
       chartType,
