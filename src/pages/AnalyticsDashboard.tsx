@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Hash, Type, Calendar, ToggleLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface FormField {
@@ -134,11 +135,8 @@ const AnalyticsDashboard = () => {
       const responses = submissions
         .map(s => {
           const data = s.submission_data || {};
-          // Try exact id match
           if (data[field.id] !== undefined) return data[field.id];
-          // Try label match
           if (data[field.label] !== undefined) return data[field.label];
-          // Try case-insensitive label match
           const labelLower = field.label.toLowerCase();
           const matchingKey = Object.keys(data).find(k => k.toLowerCase() === labelLower);
           if (matchingKey) return data[matchingKey];
@@ -150,7 +148,6 @@ const AnalyticsDashboard = () => {
       const valueCounts: Record<string, number> = {};
       
       responses.forEach(value => {
-        // Handle arrays and objects
         let stringValue: string;
         if (Array.isArray(value)) {
           stringValue = value.join(', ');
@@ -164,20 +161,71 @@ const AnalyticsDashboard = () => {
       
       const uniqueValues = Object.keys(valueCounts).length;
       const emptyResponses = submissions.length - responses.length;
-      
-      // Data quality score based on response rate and uniqueness
       const dataQuality = responseRate >= 80 ? 'excellent' : responseRate >= 50 ? 'good' : responseRate >= 20 ? 'fair' : 'poor';
       
-      // Top values with horizontal bar data
-      const topValues = Object.entries(valueCounts)
-        .sort(([,a], [,b]) => b - a)
-        .slice(0, 5)
-        .map(([value, count]) => ({ 
-          value: value.length > 30 ? value.substring(0, 30) + '...' : value,
-          fullValue: value,
-          count, 
-          percentage: parseFloat(((count / responses.length) * 100).toFixed(1))
-        }));
+      // Calculate aggregations based on field type
+      let aggregations: Record<string, any> = {};
+      const isNumericField = ['number', 'currency', 'slider', 'rating', 'star-rating'].includes(field.field_type);
+      const isDateField = ['date', 'datetime', 'time'].includes(field.field_type);
+      const isTextLikeField = ['text', 'textarea', 'email', 'url', 'phone'].includes(field.field_type);
+      
+      if (isNumericField && responses.length > 0) {
+        const numericValues = responses.map(v => parseFloat(String(v))).filter(n => !isNaN(n));
+        if (numericValues.length > 0) {
+          const sum = numericValues.reduce((a, b) => a + b, 0);
+          const avg = sum / numericValues.length;
+          const sorted = [...numericValues].sort((a, b) => a - b);
+          const median = sorted.length % 2 === 0
+            ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+            : sorted[Math.floor(sorted.length / 2)];
+          
+          aggregations = {
+            type: 'numeric',
+            sum: parseFloat(sum.toFixed(2)),
+            average: parseFloat(avg.toFixed(2)),
+            min: Math.min(...numericValues),
+            max: Math.max(...numericValues),
+            median: parseFloat(median.toFixed(2)),
+            range: parseFloat((Math.max(...numericValues) - Math.min(...numericValues)).toFixed(2))
+          };
+        }
+      } else if (isDateField && responses.length > 0) {
+        const dateValues = responses.map(v => new Date(v)).filter(d => !isNaN(d.getTime()));
+        if (dateValues.length > 0) {
+          const timestamps = dateValues.map(d => d.getTime());
+          const earliest = new Date(Math.min(...timestamps));
+          const latest = new Date(Math.max(...timestamps));
+          const daySpan = Math.ceil((latest.getTime() - earliest.getTime()) / (1000 * 60 * 60 * 24));
+          
+          aggregations = {
+            type: 'date',
+            earliest: earliest.toLocaleDateString(),
+            latest: latest.toLocaleDateString(),
+            daySpan
+          };
+        }
+      } else if (isTextLikeField && responses.length > 0) {
+        const lengths = responses.map(v => String(v).length);
+        const avgLength = lengths.reduce((a, b) => a + b, 0) / lengths.length;
+        
+        aggregations = {
+          type: 'text',
+          avgLength: Math.round(avgLength),
+          minLength: Math.min(...lengths),
+          maxLength: Math.max(...lengths),
+          totalCharacters: lengths.reduce((a, b) => a + b, 0)
+        };
+      } else {
+        // For categorical fields (select, radio, checkbox, etc.)
+        const sortedValues = Object.entries(valueCounts).sort(([,a], [,b]) => b - a);
+        aggregations = {
+          type: 'categorical',
+          mostCommon: sortedValues[0]?.[0] || 'N/A',
+          mostCommonCount: sortedValues[0]?.[1] || 0,
+          leastCommon: sortedValues[sortedValues.length - 1]?.[0] || 'N/A',
+          leastCommonCount: sortedValues[sortedValues.length - 1]?.[1] || 0
+        };
+      }
       
       fieldStats[field.id] = {
         label: field.label,
@@ -187,7 +235,7 @@ const AnalyticsDashboard = () => {
         emptyResponses,
         uniqueValues,
         dataQuality,
-        topValues
+        aggregations
       };
     });
     
@@ -461,39 +509,102 @@ const AnalyticsDashboard = () => {
                           </div>
                         </div>
 
-                        {/* Value Distribution Bar Chart */}
-                        {stats.topValues && stats.topValues.length > 0 && (
-                          <div>
-                            <p className="text-sm text-muted-foreground mb-3">Top Values Distribution</p>
-                            <div className="h-40">
-                              <ResponsiveContainer width="100%" height="100%">
-                                <BarChart
-                                  data={stats.topValues}
-                                  layout="vertical"
-                                  margin={{ top: 0, right: 30, left: 0, bottom: 0 }}
-                                >
-                                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                                  <XAxis type="number" tickFormatter={(v) => `${v}%`} domain={[0, 100]} />
-                                  <YAxis 
-                                    type="category" 
-                                    dataKey="value" 
-                                    width={100}
-                                    tick={{ fontSize: 12 }}
-                                  />
-                                  <Tooltip 
-                                    formatter={(value: any, name: any, props: any) => [
-                                      `${props.payload.count} responses (${value}%)`,
-                                      props.payload.fullValue
-                                    ]}
-                                  />
-                                  <Bar 
-                                    dataKey="percentage" 
-                                    fill="hsl(var(--primary))" 
-                                    radius={[0, 4, 4, 0]}
-                                  />
-                                </BarChart>
-                              </ResponsiveContainer>
+                        {/* Aggregation Calculations */}
+                        {stats.aggregations && (
+                          <div className="border-t pt-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              {stats.aggregations.type === 'numeric' && <Hash className="h-4 w-4 text-blue-500" />}
+                              {stats.aggregations.type === 'text' && <Type className="h-4 w-4 text-green-500" />}
+                              {stats.aggregations.type === 'date' && <Calendar className="h-4 w-4 text-purple-500" />}
+                              {stats.aggregations.type === 'categorical' && <ToggleLeft className="h-4 w-4 text-orange-500" />}
+                              <p className="text-sm font-medium">Aggregations</p>
                             </div>
+                            
+                            {stats.aggregations.type === 'numeric' && (
+                              <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                                <div className="text-center p-2 bg-blue-50 dark:bg-blue-950/30 rounded">
+                                  <p className="text-xs text-muted-foreground">Sum</p>
+                                  <p className="font-semibold text-blue-600">{stats.aggregations.sum}</p>
+                                </div>
+                                <div className="text-center p-2 bg-green-50 dark:bg-green-950/30 rounded">
+                                  <p className="text-xs text-muted-foreground">Average</p>
+                                  <p className="font-semibold text-green-600">{stats.aggregations.average}</p>
+                                </div>
+                                <div className="text-center p-2 bg-purple-50 dark:bg-purple-950/30 rounded">
+                                  <p className="text-xs text-muted-foreground">Median</p>
+                                  <p className="font-semibold text-purple-600">{stats.aggregations.median}</p>
+                                </div>
+                                <div className="text-center p-2 bg-orange-50 dark:bg-orange-950/30 rounded">
+                                  <p className="text-xs text-muted-foreground">Min</p>
+                                  <p className="font-semibold text-orange-600">{stats.aggregations.min}</p>
+                                </div>
+                                <div className="text-center p-2 bg-red-50 dark:bg-red-950/30 rounded">
+                                  <p className="text-xs text-muted-foreground">Max</p>
+                                  <p className="font-semibold text-red-600">{stats.aggregations.max}</p>
+                                </div>
+                                <div className="text-center p-2 bg-indigo-50 dark:bg-indigo-950/30 rounded">
+                                  <p className="text-xs text-muted-foreground">Range</p>
+                                  <p className="font-semibold text-indigo-600">{stats.aggregations.range}</p>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {stats.aggregations.type === 'text' && (
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div className="text-center p-2 bg-green-50 dark:bg-green-950/30 rounded">
+                                  <p className="text-xs text-muted-foreground">Avg Length</p>
+                                  <p className="font-semibold text-green-600">{stats.aggregations.avgLength} chars</p>
+                                </div>
+                                <div className="text-center p-2 bg-blue-50 dark:bg-blue-950/30 rounded">
+                                  <p className="text-xs text-muted-foreground">Min Length</p>
+                                  <p className="font-semibold text-blue-600">{stats.aggregations.minLength} chars</p>
+                                </div>
+                                <div className="text-center p-2 bg-purple-50 dark:bg-purple-950/30 rounded">
+                                  <p className="text-xs text-muted-foreground">Max Length</p>
+                                  <p className="font-semibold text-purple-600">{stats.aggregations.maxLength} chars</p>
+                                </div>
+                                <div className="text-center p-2 bg-orange-50 dark:bg-orange-950/30 rounded">
+                                  <p className="text-xs text-muted-foreground">Total Chars</p>
+                                  <p className="font-semibold text-orange-600">{stats.aggregations.totalCharacters}</p>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {stats.aggregations.type === 'date' && (
+                              <div className="grid grid-cols-3 gap-3">
+                                <div className="text-center p-2 bg-purple-50 dark:bg-purple-950/30 rounded">
+                                  <p className="text-xs text-muted-foreground">Earliest</p>
+                                  <p className="font-semibold text-purple-600 text-sm">{stats.aggregations.earliest}</p>
+                                </div>
+                                <div className="text-center p-2 bg-blue-50 dark:bg-blue-950/30 rounded">
+                                  <p className="text-xs text-muted-foreground">Latest</p>
+                                  <p className="font-semibold text-blue-600 text-sm">{stats.aggregations.latest}</p>
+                                </div>
+                                <div className="text-center p-2 bg-green-50 dark:bg-green-950/30 rounded">
+                                  <p className="text-xs text-muted-foreground">Day Span</p>
+                                  <p className="font-semibold text-green-600">{stats.aggregations.daySpan} days</p>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {stats.aggregations.type === 'categorical' && (
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="p-2 bg-green-50 dark:bg-green-950/30 rounded">
+                                  <p className="text-xs text-muted-foreground">Most Common</p>
+                                  <p className="font-semibold text-green-600 text-sm truncate" title={stats.aggregations.mostCommon}>
+                                    {stats.aggregations.mostCommon}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">{stats.aggregations.mostCommonCount} responses</p>
+                                </div>
+                                <div className="p-2 bg-orange-50 dark:bg-orange-950/30 rounded">
+                                  <p className="text-xs text-muted-foreground">Least Common</p>
+                                  <p className="font-semibold text-orange-600 text-sm truncate" title={stats.aggregations.leastCommon}>
+                                    {stats.aggregations.leastCommon}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">{stats.aggregations.leastCommonCount} responses</p>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
