@@ -146,11 +146,12 @@ export function ChartPreview({
               // Server returned data with nested groups: { name: "dim", groups: { "g1": v1, "g2": v2 } }
               console.log('📊 Using server-provided groups structure');
               chartData = serverData.map((item: any) => {
-                const dataPoint: any = { name: item.name };
+                const dataPoint: any = { name: item.name || 'Unknown' };
                 
                 if (item.groups) {
                   Object.entries(item.groups).forEach(([groupKey, groupValue]) => {
-                    dataPoint[groupKey] = Number(groupValue);
+                    const numVal = Number(groupValue);
+                    dataPoint[groupKey] = isNaN(numVal) ? 0 : numVal;
                   });
                 }
                 
@@ -165,7 +166,8 @@ export function ChartPreview({
                   if (key === 'name') {
                     dataPoint.name = value;
                   } else if (key !== 'additional_data' && typeof value === 'number') {
-                    dataPoint[key] = Number(value);
+                    const numVal = Number(value);
+                    dataPoint[key] = isNaN(numVal) ? 0 : numVal;
                   }
                 });
                 return dataPoint;
@@ -174,25 +176,33 @@ export function ChartPreview({
               // Server returned simple structure, needs client-side grouping via RPC with groupBy
               // This means the server-side RPC should have handled it but didn't
               console.log('📊 Server did not group data, falling back to simple structure');
-              chartData = serverData.map((item: any) => ({
-                name: item.name,
-                value: Number(item.value),
-                count: Number(item.value),
-                [config.metrics?.[0] || 'count']: Number(item.value),
-                _drilldownData: item.additional_data
-              }));
+              chartData = serverData.map((item: any) => {
+                const numValue = Number(item.value);
+                const safeValue = isNaN(numValue) ? 0 : numValue;
+                return {
+                  name: item.name || 'Unknown',
+                  value: safeValue,
+                  count: safeValue,
+                  [config.metrics?.[0] || 'count']: safeValue,
+                  _drilldownData: item.additional_data
+                };
+              });
             }
             
             console.log('📊 Transformed grouped chart data:', chartData);
           } else {
             // Non-grouped data structure: { name: "dimension_value", value: number }
-            chartData = serverData.map((item: any) => ({
-              name: item.name,
-              value: Number(item.value),
-              count: Number(item.value),
-              [config.metrics?.[0] || 'count']: Number(item.value),
-              _drilldownData: item.additional_data
-            }));
+            chartData = serverData.map((item: any) => {
+              const numValue = Number(item.value);
+              const safeValue = isNaN(numValue) ? 0 : numValue;
+              return {
+                name: item.name || 'Unknown',
+                value: safeValue,
+                count: safeValue,
+                [config.metrics?.[0] || 'count']: safeValue,
+                _drilldownData: item.additional_data
+              };
+            });
           }
           console.log('✅ Processed drilldown chart data:', {
             totalItems: chartData.length,
