@@ -219,13 +219,28 @@ function WorkflowDesignerInner({ workflowId, projectId, initialNodes, initialCon
     }
   }, [initialNodes, initialConnections, syncToReactFlow, setReactFlowNodes, setReactFlowEdges]);
 
+  // Track last added node position for sequential placement
+  const lastAddedPositionRef = useRef<{ x: number; y: number } | null>(null);
+
   // Add node
   const addNodeToWorkflow = useCallback((nodeType: string, position: { x: number; y: number }) => {
+    // If we have a last added position, place the new node below it
+    let finalPosition = position;
+    if (lastAddedPositionRef.current) {
+      finalPosition = {
+        x: lastAddedPositionRef.current.x + (Math.random() - 0.5) * 30, // Small horizontal offset
+        y: lastAddedPositionRef.current.y + 120, // 120px below the last node
+      };
+    }
+    
+    // Update the last added position
+    lastAddedPositionRef.current = finalPosition;
+
     const newNode: WorkflowNode = {
       id: generateUUID(),
       type: nodeType as any,
       label: `${nodeType.charAt(0).toUpperCase() + nodeType.slice(1).replace('-', ' ')} Node`,
-      position,
+      position: finalPosition,
       data: { config: {} },
     };
 
