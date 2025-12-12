@@ -4,11 +4,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
 import { WorkflowDesigner } from '@/components/workflows/WorkflowDesigner';
 import { WorkflowInstances } from '@/components/workflows/WorkflowInstances';
-import { DemoWorkflowCreator } from '@/components/workflows/DemoWorkflowCreator';
+
 import { useWorkflowData } from '@/hooks/useWorkflowData';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Save, ArrowLeft, Zap, Activity } from 'lucide-react';
+import { Save, ArrowLeft, Activity } from 'lucide-react';
 import { WorkflowNode, WorkflowConnection } from '@/types/workflow';
 import { useToast } from '@/hooks/use-toast';
 
@@ -28,7 +28,7 @@ const WorkflowDesignerPage = () => {
   });
   
   const [loading, setLoading] = useState(true);
-  const [showDemoCreator, setShowDemoCreator] = useState(false);
+  
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('designer');
 
@@ -118,10 +118,6 @@ const WorkflowDesignerPage = () => {
     navigate('/workflows');
   };
 
-  const handleDemoWorkflowCreated = (workflowId: string) => {
-    setShowDemoCreator(false);
-    navigate(`/workflow-designer/${workflowId}`);
-  };
 
   if (loading) {
     return (
@@ -138,10 +134,6 @@ const WorkflowDesignerPage = () => {
       title={`Workflow Designer${currentWorkflow ? ` - ${currentWorkflow.name}` : ''}`}
       actions={
         <div className="flex space-x-2">
-          <Button variant="outline" onClick={() => setShowDemoCreator(!showDemoCreator)}>
-            <Zap className="h-4 w-4 mr-2" />
-            Demo Workflow
-          </Button>
           <Button variant="outline" onClick={handleBackToList}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Workflows
@@ -150,11 +142,6 @@ const WorkflowDesignerPage = () => {
       }
     >
       <div className="h-[calc(100vh-140px)] flex flex-col">
-        {showDemoCreator && (
-          <div className="mb-4">
-            <DemoWorkflowCreator onWorkflowCreated={handleDemoWorkflowCreated} />
-          </div>
-        )}
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
           <TabsList className="grid w-full grid-cols-2 mb-4">
