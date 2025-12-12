@@ -14,6 +14,39 @@ interface DisplayField {
   type: string;
 }
 
+// Helper function to safely format cell values for display
+const formatCellValue = (value: any, fieldType?: string): string => {
+  if (value === null || value === undefined) return '-';
+  
+  // Handle arrays (multi-select, tags, etc.)
+  if (Array.isArray(value)) {
+    return value.map(v => typeof v === 'object' ? JSON.stringify(v) : String(v)).join(', ');
+  }
+  
+  // Handle objects (address, submission-access, etc.)
+  if (typeof value === 'object') {
+    // Address field
+    if ('street' in value || 'city' in value || 'state' in value) {
+      const parts = [value.street, value.city, value.state, value.postal, value.country].filter(Boolean);
+      return parts.join(', ') || '-';
+    }
+    
+    // Submission-access field
+    if ('users' in value || 'groups' in value) {
+      const users = Array.isArray(value.users) ? value.users : [];
+      const groups = Array.isArray(value.groups) ? value.groups : [];
+      const parts = [...users, ...groups.map((g: string) => `[${g}]`)];
+      return parts.join(', ') || '-';
+    }
+    
+    // Generic object - stringify
+    return JSON.stringify(value);
+  }
+  
+  // Handle primitives
+  return String(value);
+};
+
 interface FilterGroup {
   conditions: Array<{
     field: string;
@@ -258,16 +291,25 @@ export function SimpleTablePreview({
                 ) : (
                   filteredData.map((row) => (
                     <TableRow key={row.id}>
-                      {displayFields.map(field => (
-                        <TableCell key={field.id} className="whitespace-nowrap">
-                          {field.type === 'metadata' 
-                            ? (field.id === 'submitted_at' 
-                                ? new Date(row[field.id as keyof typeof row] as string).toLocaleDateString()
-                                : row[field.id as keyof typeof row] || '-')
-                            : row.submission_data?.[field.id] || '-'
+                      {displayFields.map(field => {
+                        let displayValue: string;
+                        
+                        if (field.type === 'metadata') {
+                          if (field.id === 'submitted_at') {
+                            displayValue = new Date(row[field.id as keyof typeof row] as string).toLocaleDateString();
+                          } else {
+                            displayValue = String(row[field.id as keyof typeof row] || '-');
                           }
-                        </TableCell>
-                      ))}
+                        } else {
+                          displayValue = formatCellValue(row.submission_data?.[field.id], field.type);
+                        }
+                        
+                        return (
+                          <TableCell key={field.id} className="whitespace-nowrap max-w-xs truncate" title={displayValue}>
+                            {displayValue}
+                          </TableCell>
+                        );
+                      })}
                     </TableRow>
                   ))
                 )}
