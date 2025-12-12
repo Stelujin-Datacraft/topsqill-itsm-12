@@ -366,14 +366,17 @@ export function ReportEditor({
       };
       const component = components.find(c => c.id === componentId);
       const config = component?.config as any;
-      if (!config?.drilldownConfig?.drilldownLevels) return prev;
+      
+      // Support both drilldownLevels and levels for backward compatibility
+      const drilldownLevels = config?.drilldownConfig?.drilldownLevels || config?.drilldownConfig?.levels || [];
+      if (drilldownLevels.length === 0) return prev;
 
       // Find the current level
       const currentLevel = currentState.values.length;
 
       // If we're at the same level, replace the value; if going deeper, add the value
       const newValues = [...currentState.values];
-      if (currentLevel < config.drilldownConfig.drilldownLevels.length) {
+      if (currentLevel < drilldownLevels.length) {
         newValues[currentLevel] = drilldownValue;
         // Remove any values beyond the current level
         newValues.splice(currentLevel + 1);
@@ -381,7 +384,7 @@ export function ReportEditor({
       return {
         ...prev,
         [componentId]: {
-          path: config.drilldownConfig.drilldownLevels.slice(0, newValues.length),
+          path: drilldownLevels.slice(0, newValues.length),
           values: newValues
         }
       };
