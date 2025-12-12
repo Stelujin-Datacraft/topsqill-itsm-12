@@ -61,7 +61,7 @@ export function WorkflowInstances({ workflowId }: WorkflowInstancesProps) {
     }
   };
 
-  const handleViewDetails = (executionId: string) => {
+  const handleViewDetails = (executionId: string | null) => {
     setSelectedExecution(executionId);
   };
 
@@ -145,40 +145,59 @@ export function WorkflowInstances({ workflowId }: WorkflowInstancesProps) {
               </TableHeader>
               <TableBody>
                 {executions.map((execution) => (
-                  <TableRow key={execution.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getStatusIcon(execution.status)}
-                        <Badge className={getStatusColor(execution.status)}>
-                          {execution.status}
-                        </Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(execution.started_at).toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      {formatDuration(execution.started_at, execution.completed_at)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-xs text-gray-500">
-                        {execution.trigger_data?.triggerType || 'Unknown'}
-                        {execution.trigger_data?.formId && (
-                          <div>Form: {execution.trigger_data.formId}</div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleViewDetails(execution.id)}
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        View Details
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+                  <React.Fragment key={execution.id}>
+                    <TableRow 
+                      className={selectedExecution === execution.id ? 'bg-muted/50' : ''}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {getStatusIcon(execution.status)}
+                          <Badge className={getStatusColor(execution.status)}>
+                            {execution.status}
+                          </Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(execution.started_at).toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        {formatDuration(execution.started_at, execution.completed_at)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-xs text-gray-500">
+                          {execution.trigger_data?.triggerType || 'Unknown'}
+                          {execution.trigger_data?.formId && (
+                            <div>Form: {execution.trigger_data.formId}</div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          variant={selectedExecution === execution.id ? "default" : "outline"}
+                          onClick={() => handleViewDetails(
+                            selectedExecution === execution.id ? null : execution.id
+                          )}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          {selectedExecution === execution.id ? 'Hide Details' : 'View Details'}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                    {selectedExecution === execution.id && workflowId && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="p-0 border-b-2 border-primary/20">
+                          <div className="p-4 bg-muted/30">
+                            <ExecutionNodeAccordion
+                              executionId={execution.id}
+                              workflowId={workflowId}
+                              currentNodeId={execution.current_node_id}
+                            />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
                 ))}
               </TableBody>
             </Table>
@@ -186,13 +205,6 @@ export function WorkflowInstances({ workflowId }: WorkflowInstancesProps) {
         </CardContent>
       </Card>
 
-      {selectedExecution && workflowId && (
-        <ExecutionNodeAccordion
-          executionId={selectedExecution}
-          workflowId={workflowId}
-          currentNodeId={executions.find(e => e.id === selectedExecution)?.current_node_id}
-        />
-      )}
     </div>
   );
 }
