@@ -451,42 +451,67 @@ function WorkflowDesignerInner({ workflowId, projectId, initialNodes, initialCon
     const startNode = nodes.find(n => n.type === 'start');
     const startConfig = startNode?.data?.config;
     
-    if (!startConfig?.triggerFormId || !startConfig?.triggerType) {
-      console.log('⚠️ No trigger form or type configured in start node');
+    // Manual triggers don't need to be synced to workflow_triggers table
+    if (!startConfig?.triggerType || startConfig.triggerType === 'manual') {
+      console.log('⚠️ Manual trigger or no trigger type - skipping sync');
+      return;
+    }
+
+    // For rule triggers, we need both formId and ruleId
+    if ((startConfig.triggerType === 'rule_success' || startConfig.triggerType === 'rule_failure') 
+        && (!startConfig.triggerFormId || !startConfig.ruleId)) {
+      console.log('⚠️ Rule trigger requires both form and rule to be selected');
+      return;
+    }
+
+    // For form-based triggers, we need the formId
+    if (!startConfig.triggerFormId && startConfig.triggerType !== 'manual') {
+      console.log('⚠️ No trigger form configured in start node');
       return;
     }
 
     const triggerTypeMap: Record<string, string> = {
-      'form_submission': 'onFormSubmit',
-      'form_completion': 'onFormCompletion',
-      'form_approval': 'onFormApproval',
-      'form_rejection': 'onFormRejection'
+      'form_submission': 'form_submission',
+      'form_completion': 'form_completion',
+      'form_approval': 'form_approval',
+      'form_rejection': 'form_rejection',
+      'rule_success': 'rule_success',
+      'rule_failure': 'rule_failure'
     };
 
     const dbTriggerType = triggerTypeMap[startConfig.triggerType];
     if (!dbTriggerType) return;
+
+    // Build trigger ID including rule ID for rule triggers
+    const triggerId = startConfig.ruleId 
+      ? `${workflowId}_${dbTriggerType}_${startConfig.triggerFormId}_${startConfig.ruleId}`
+      : `${workflowId}_${dbTriggerType}_${startConfig.triggerFormId}`;
 
     // Check if trigger already exists
     const { data: existingTriggers } = await supabase
       .from('workflow_triggers')
       .select('id')
       .eq('target_workflow_id', workflowId)
-      .eq('source_form_id', startConfig.triggerFormId)
-      .eq('trigger_type', dbTriggerType);
+      .eq('trigger_id', triggerId);
 
     if (existingTriggers && existingTriggers.length > 0) {
       console.log('✅ Trigger already exists');
       return;
     }
 
-    // Create trigger
+    // Create trigger with rule information in metadata
     const triggerPayload = {
       organization_id: userProfile.organization_id,
-      trigger_id: `${workflowId}_${dbTriggerType}_${startConfig.triggerFormId}`,
+      trigger_id: triggerId,
       target_workflow_id: workflowId,
       trigger_type: dbTriggerType,
       source_form_id: startConfig.triggerFormId,
-      metadata: { nodeId: startNode?.id, nodeType: startNode?.type },
+      metadata: { 
+        nodeId: startNode?.id, 
+        nodeType: startNode?.type,
+        ruleId: startConfig.ruleId || null,
+        ruleName: startConfig.ruleName || null
+      },
       created_by: userProfile.id
     };
 
@@ -498,7 +523,7 @@ function WorkflowDesignerInner({ workflowId, projectId, initialNodes, initialCon
       console.error('❌ Error creating trigger:', error);
       toast.error('Failed to create workflow trigger');
     } else {
-      console.log('✅ Created workflow trigger');
+      console.log('✅ Created workflow trigger:', { triggerType: dbTriggerType, ruleId: startConfig.ruleId });
       toast.success('Workflow trigger created');
     }
   }, [workflowId, userProfile?.organization_id, userProfile?.id]);

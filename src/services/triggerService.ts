@@ -171,4 +171,123 @@ export class TriggerService {
       throw error;
     }
   }
+
+  static async handleRuleTrigger(
+    formId: string, 
+    ruleId: string, 
+    ruleName: string, 
+    success: boolean, 
+    submissionData: any, 
+    submissionId?: string, 
+    userId?: string
+  ) {
+    const triggerType = success ? 'rule_success' : 'rule_failure';
+    console.log(`📋 Handling ${triggerType} trigger:`, { formId, ruleId, ruleName, submissionId });
+
+    try {
+      // Find workflows triggered by this specific rule
+      const { data: workflows, error: workflowError } = await supabase
+        .from('workflows')
+        .select('id, name')
+        .eq('status', 'active');
+
+      if (workflowError) {
+        console.error('❌ Error fetching workflows for rule trigger:', workflowError);
+        return [];
+      }
+
+      if (!workflows || workflows.length === 0) {
+        console.log('📝 No active workflows found');
+        return [];
+      }
+
+      const executionResults = [];
+
+      // Check each workflow for matching start nodes
+      for (const workflow of workflows) {
+        const { data: nodes, error: nodesError } = await supabase
+          .from('workflow_nodes')
+          .select('*')
+          .eq('workflow_id', workflow.id)
+          .eq('node_type', 'start');
+
+        if (nodesError || !nodes) continue;
+
+        // Find start node that matches this rule trigger
+        const matchingNode = nodes.find(node => {
+          let config: any = {};
+          try {
+            config = typeof node.config === 'string' ? JSON.parse(node.config) : node.config;
+          } catch (e) {
+            config = node.config || {};
+          }
+
+          const nodeFormId = config.triggerFormId || config.formId || config.sourceFormId;
+          const nodeRuleId = config.ruleId;
+          const nodeTriggerType = config.triggerType;
+
+          return nodeTriggerType === triggerType && 
+                 nodeFormId === formId && 
+                 nodeRuleId === ruleId;
+        });
+
+        if (matchingNode) {
+          console.log(`🎯 Found matching workflow for rule trigger: ${workflow.name}`);
+
+          const triggerData = {
+            triggerType,
+            formId,
+            ruleId,
+            ruleName,
+            ruleSuccess: success,
+            submissionId,
+            submissionData,
+            triggeredBy: userId,
+            timestamp: new Date().toISOString()
+          };
+
+          try {
+            const executionId = await WorkflowExecutor.executeWorkflow(
+              workflow.id,
+              triggerData,
+              submissionId,
+              userId
+            );
+
+            if (executionId) {
+              console.log(`✅ Rule-triggered workflow execution started:`, {
+                workflowName: workflow.name,
+                executionId
+              });
+              executionResults.push({
+                workflowId: workflow.id,
+                workflowName: workflow.name,
+                executionId,
+                success: true
+              });
+            }
+          } catch (execError) {
+            console.error(`❌ Error executing workflow ${workflow.name}:`, execError);
+            executionResults.push({
+              workflowId: workflow.id,
+              workflowName: workflow.name,
+              success: false,
+              error: execError instanceof Error ? execError.message : 'Unknown error'
+            });
+          }
+        }
+      }
+
+      console.log(`📊 Rule trigger results:`, {
+        triggerType,
+        ruleName,
+        workflowsTriggered: executionResults.length
+      });
+
+      return executionResults;
+    } catch (error) {
+      console.error('❌ Error in rule trigger handler:', error);
+      return [];
+    }
+  }
 }
