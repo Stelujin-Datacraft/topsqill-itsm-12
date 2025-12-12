@@ -629,11 +629,20 @@ export function ChartPreview({
     });
 
     // Calculate safe domain for Y axis to prevent NaN errors
-    const getYAxisDomain = (data: any[], metricKey: string): [number, number | 'auto'] => {
-      const values = data.map(item => Number(item[metricKey]) || 0).filter(v => isFinite(v));
-      if (values.length === 0) return [0, 'auto'];
-      const maxVal = Math.max(...values);
-      return [0, isFinite(maxVal) && maxVal > 0 ? maxVal : 'auto'];
+    const getYAxisDomain = (data: any[], metricKey: string): [number, number] => {
+      if (!data || data.length === 0) return [0, 100]; // Safe default
+      const values = data.map(item => {
+        const val = Number(item[metricKey]);
+        return isNaN(val) || !isFinite(val) ? 0 : val;
+      }).filter(v => isFinite(v));
+      if (values.length === 0) return [0, 100]; // Safe default
+      const maxVal = Math.max(...values, 0);
+      const minVal = Math.min(...values, 0);
+      // Return safe default if all values are 0 or invalid
+      if (!isFinite(maxVal) || (maxVal === 0 && minVal === 0)) return [0, 100];
+      // Ensure we have a valid range (max > min)
+      const safeMax = Math.max(maxVal * 1.1, 1);
+      return [Math.min(0, minVal), safeMax];
     };
 
     // Determine the primary metric to display
@@ -653,6 +662,14 @@ export function ChartPreview({
       const availableKeys = Object.keys(sanitizedChartData[0]).filter(key => key !== 'name' && key !== '_drilldownData' && typeof sanitizedChartData[0][key] === 'number');
       if (availableKeys.length > 0) {
         primaryMetric = availableKeys[0];
+      } else {
+        // No valid numeric keys found - show no data message
+        return <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="text-muted-foreground mb-2">No numeric data available</div>
+            <div className="text-sm text-muted-foreground">Configure the chart with valid numeric metrics</div>
+          </div>
+        </div>;
       }
     }
     const chartType = config.type || config.chartType || 'bar';
@@ -981,7 +998,7 @@ export function ChartPreview({
                   value: config.yAxisLabel || getFormFieldName(primaryMetric),
                   angle: -90,
                   position: 'insideLeft'
-                }} />
+                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} />
                   <Tooltip formatter={(value, name) => [value, name]} labelFormatter={label => `Category: ${label}`} contentStyle={{
                   backgroundColor: 'hsl(var(--popover))',
                   border: '1px solid hsl(var(--border))',
@@ -1010,7 +1027,7 @@ export function ChartPreview({
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsScatterChart data={bubbleData}>
                     <XAxis dataKey="name" />
-                    <YAxis dataKey={primaryMetric} />
+                    <YAxis dataKey={primaryMetric} domain={getYAxisDomain(bubbleData, primaryMetric)} />
                     <Tooltip formatter={(value, name, props) => [`${name}: ${value}`, `Size: ${props.payload.size}`]} />
                     {bubbleData.map((entry, index) => <Scatter key={index} data={[entry]} fill={colors[index % colors.length]} r={Math.max(5, Math.min(20, entry.size / 2))} />)}
                 </RechartsScatterChart>
@@ -1018,24 +1035,33 @@ export function ChartPreview({
             </div>
           </div>;
       case 'heatmap':
-        // Generate heatmap data grid
-        const heatmapData = sanitizedChartData.map((item, index) => ({
-          ...item,
-          x: index % (config.gridColumns || 5),
-          y: Math.floor(index / (config.gridColumns || 5)),
-          value: item[config.heatmapIntensityField || primaryMetric]
-        }));
+        // Generate heatmap data grid with safe values
+        const heatmapData = sanitizedChartData.map((item, index) => {
+          const rawValue = item[config.heatmapIntensityField || primaryMetric];
+          const safeValue = typeof rawValue === 'number' && isFinite(rawValue) ? rawValue : 0;
+          return {
+            ...item,
+            x: index % (config.gridColumns || 5),
+            y: Math.floor(index / (config.gridColumns || 5)),
+            value: safeValue
+          };
+        });
+        const heatmapMaxValue = Math.max(...heatmapData.map(d => d.value), 1); // Ensure minimum of 1 to prevent division by zero
         return <div className="relative">
             <div className="grid gap-1" style={{
             gridTemplateColumns: `repeat(${config.gridColumns || 5}, 1fr)`,
             maxWidth: '100%'
           }}>
-              {heatmapData.map((cell, index) => <div key={index} className="aspect-square rounded-sm flex items-center justify-center text-xs font-medium" style={{
-              backgroundColor: colors[Math.floor(cell.value / Math.max(...heatmapData.map(d => d.value)) * (colors.length - 1))],
-              color: cell.value > Math.max(...heatmapData.map(d => d.value)) / 2 ? 'white' : 'black'
-            }} title={`${cell.name}: ${cell.value}`}>
+              {heatmapData.map((cell, index) => {
+                const colorIndex = Math.floor((cell.value / heatmapMaxValue) * (colors.length - 1));
+                const safeColorIndex = Math.max(0, Math.min(colors.length - 1, isNaN(colorIndex) ? 0 : colorIndex));
+                return <div key={index} className="aspect-square rounded-sm flex items-center justify-center text-xs font-medium" style={{
+                  backgroundColor: colors[safeColorIndex],
+                  color: cell.value > heatmapMaxValue / 2 ? 'white' : 'black'
+                }} title={`${cell.name}: ${cell.value}`}>
                   {cell.value}
-                </div>)}
+                </div>;
+              })}
             </div>
           </div>;
       case 'table':
