@@ -7,9 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus, ArrowDown, ArrowRight } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Trash2, Plus, ArrowDown, ArrowRight, CheckSquare, Square } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { FormField } from '@/types/form';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface JoinConfiguration {
   enabled: boolean;
@@ -25,11 +27,7 @@ interface JoinConfiguration {
 
 interface DrilldownConfiguration {
   enabled: boolean;
-  levels: Array<{
-    field: string;
-    label: string;
-    sortOrder?: 'asc' | 'desc';
-  }>;
+  fields: string[]; // Fields that can be used for drilling down
 }
 
 interface EnhancedTableConfigProps {
@@ -40,8 +38,8 @@ interface EnhancedTableConfigProps {
 
 const JOIN_TYPES = [
   { value: 'inner', label: 'Inner Join', description: 'Only matching records' },
-  { value: 'left', label: 'Left Join', description: 'All from first form' },
-  { value: 'right', label: 'Right Join', description: 'All from second form' },
+  { value: 'left', label: 'Left Join', description: 'All from primary + matched secondary' },
+  { value: 'right', label: 'Right Join', description: 'All from secondary + matched primary' },
   { value: 'full', label: 'Full Join', description: 'All records from both forms' }
 ];
 
@@ -52,7 +50,7 @@ export function EnhancedTableConfig({ config, forms, onConfigChange }: EnhancedT
     config.joinConfig || { enabled: false, joins: [] }
   );
   const [drilldownConfig, setDrilldownConfig] = useState<DrilldownConfiguration>(
-    config.drilldownConfig || { enabled: false, levels: [] }
+    config.drilldownConfig || { enabled: false, fields: [] }
   );
 
   // Fetch form fields
@@ -64,6 +62,7 @@ export function EnhancedTableConfig({ config, forms, onConfigChange }: EnhancedT
         .from('form_fields')
         .select('*')
         .eq('form_id', formId)
+        .neq('field_type', 'signature-pad') // Exclude signature fields
         .order('field_order', { ascending: true });
 
       if (error) {
@@ -119,22 +118,24 @@ export function EnhancedTableConfig({ config, forms, onConfigChange }: EnhancedT
 
   // Get all available fields (primary + joined)
   const getAllAvailableFields = () => {
-    let allFields = [...primaryFormFields];
+    let allFields: (FormField & { sourceForm?: string })[] = [...primaryFormFields];
     
-    joinConfig.joins.forEach(join => {
-      const secondaryFields = joinFormFields[join.secondaryFormId] || [];
-      const formName = forms.find(f => f.id === join.secondaryFormId)?.name || 'Unknown';
-      
-      allFields = [
-        ...allFields,
-        ...secondaryFields.map(field => ({
-          ...field,
-          id: `${join.secondaryFormId}.${field.id}`,
-          label: `${formName}.${field.label}`,
-          sourceForm: join.secondaryFormId
-        } as FormField & { sourceForm: string }))
-      ];
-    });
+    if (joinConfig.enabled) {
+      joinConfig.joins.forEach(join => {
+        const secondaryFields = joinFormFields[join.secondaryFormId] || [];
+        const formName = join.alias || forms.find(f => f.id === join.secondaryFormId)?.name || 'Joined';
+        
+        allFields = [
+          ...allFields,
+          ...secondaryFields.map(field => ({
+            ...field,
+            id: `${join.secondaryFormId}.${field.id}`,
+            label: `[${formName}] ${field.label}`,
+            sourceForm: join.secondaryFormId
+          }))
+        ];
+      });
+    }
     
     return allFields;
   };
@@ -162,7 +163,7 @@ export function EnhancedTableConfig({ config, forms, onConfigChange }: EnhancedT
     const newJoin = {
       id: Math.random().toString(36).substr(2, 9),
       secondaryFormId: '',
-      joinType: 'inner' as const,
+      joinType: 'left' as const,
       primaryFieldId: '',
       secondaryFieldId: '',
       alias: ''
@@ -190,43 +191,47 @@ export function EnhancedTableConfig({ config, forms, onConfigChange }: EnhancedT
     });
   };
 
-  // Add drilldown level
-  const addDrilldownLevel = () => {
-    updateDrilldownConfig({
-      ...drilldownConfig,
-      levels: [
-        ...drilldownConfig.levels,
-        { field: '', label: '', sortOrder: 'asc' }
-      ]
-    });
+  // Column selection handlers
+  const allFields = getAllAvailableFields();
+  const selectedColumns = config.selectedColumns || [];
+  const allSelected = allFields.length > 0 && selectedColumns.length === allFields.length;
+  const someSelected = selectedColumns.length > 0 && selectedColumns.length < allFields.length;
+
+  const handleSelectAll = () => {
+    if (allSelected) {
+      // Deselect all
+      onConfigChange({ ...config, selectedColumns: [] });
+    } else {
+      // Select all
+      onConfigChange({ ...config, selectedColumns: allFields.map(f => f.id) });
+    }
   };
 
-  // Remove drilldown level
-  const removeDrilldownLevel = (index: number) => {
-    updateDrilldownConfig({
-      ...drilldownConfig,
-      levels: drilldownConfig.levels.filter((_, i) => i !== index)
-    });
+  const handleColumnToggle = (fieldId: string, checked: boolean) => {
+    const newColumns = checked
+      ? [...selectedColumns, fieldId]
+      : selectedColumns.filter((col: string) => col !== fieldId);
+    onConfigChange({ ...config, selectedColumns: newColumns });
   };
 
-  // Update drilldown level
-  const updateDrilldownLevel = (index: number, updates: Partial<typeof drilldownConfig.levels[0]>) => {
-    updateDrilldownConfig({
-      ...drilldownConfig,
-      levels: drilldownConfig.levels.map((level, i) => i === index ? { ...level, ...updates } : level)
-    });
+  // Drilldown field toggle
+  const handleDrilldownFieldToggle = (fieldId: string, checked: boolean) => {
+    const newFields = checked
+      ? [...(drilldownConfig.fields || []), fieldId]
+      : (drilldownConfig.fields || []).filter(f => f !== fieldId);
+    updateDrilldownConfig({ ...drilldownConfig, fields: newFields });
   };
 
   return (
     <Tabs defaultValue="basic" className="w-full">
-      <TabsList className="grid w-full grid-cols-4">
-        <TabsTrigger value="basic">Basic</TabsTrigger>
+      <TabsList className="grid w-full grid-cols-3">
+        <TabsTrigger value="basic">Basic & Columns</TabsTrigger>
         <TabsTrigger value="joins">Table Joins</TabsTrigger>
         <TabsTrigger value="drilldown">Drilldown</TabsTrigger>
-        <TabsTrigger value="columns">Columns</TabsTrigger>
       </TabsList>
 
       <TabsContent value="basic" className="space-y-4">
+        {/* Title */}
         <div>
           <Label htmlFor="title">Table Title</Label>
           <Input
@@ -237,6 +242,7 @@ export function EnhancedTableConfig({ config, forms, onConfigChange }: EnhancedT
           />
         </div>
 
+        {/* Options */}
         <div className="grid grid-cols-2 gap-4">
           <div className="flex items-center space-x-2">
             <Switch
@@ -270,13 +276,74 @@ export function EnhancedTableConfig({ config, forms, onConfigChange }: EnhancedT
             <Label>Enable Search</Label>
           </div>
         </div>
+
+        {/* Column Selection */}
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm">Column Selection</CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSelectAll}
+                className="h-8"
+              >
+                {allSelected ? (
+                  <>
+                    <Square className="h-4 w-4 mr-2" />
+                    Deselect All
+                  </>
+                ) : (
+                  <>
+                    <CheckSquare className="h-4 w-4 mr-2" />
+                    Select All
+                  </>
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {selectedColumns.length} of {allFields.length} columns selected
+            </p>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-48">
+              <div className="grid grid-cols-2 gap-2">
+                {allFields.map(field => (
+                  <div key={field.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`col-${field.id}`}
+                      checked={selectedColumns.includes(field.id)}
+                      onCheckedChange={(checked) => handleColumnToggle(field.id, checked === true)}
+                    />
+                    <Label htmlFor={`col-${field.id}`} className="text-sm cursor-pointer flex items-center gap-1">
+                      {field.label}
+                      {field.sourceForm && (
+                        <Badge variant="secondary" className="text-xs">Joined</Badge>
+                      )}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              {allFields.length === 0 && (
+                <div className="text-center py-4 text-muted-foreground text-sm">
+                  No fields available. Please select a form first.
+                </div>
+              )}
+            </ScrollArea>
+          </CardContent>
+        </Card>
       </TabsContent>
 
       <TabsContent value="joins" className="space-y-4">
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Table Join Configuration</CardTitle>
+              <div>
+                <CardTitle>Table Joins</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Combine data from multiple forms into a single table
+                </p>
+              </div>
               <Switch
                 checked={joinConfig.enabled}
                 onCheckedChange={(enabled) => updateJoinConfig({ ...joinConfig, enabled })}
@@ -286,10 +353,7 @@ export function EnhancedTableConfig({ config, forms, onConfigChange }: EnhancedT
 
           {joinConfig.enabled && (
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  Join multiple forms to create comprehensive data views
-                </p>
+              <div className="flex justify-end">
                 <Button onClick={addJoin} size="sm">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Join
@@ -297,7 +361,7 @@ export function EnhancedTableConfig({ config, forms, onConfigChange }: EnhancedT
               </div>
 
               {joinConfig.joins.map((join, index) => (
-                <Card key={join.id} className="p-4">
+                <Card key={join.id} className="p-4 border-dashed">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <Badge variant="outline">Join #{index + 1}</Badge>
@@ -315,7 +379,7 @@ export function EnhancedTableConfig({ config, forms, onConfigChange }: EnhancedT
                         <Label>Secondary Form</Label>
                         <Select
                           value={join.secondaryFormId}
-                          onValueChange={(value) => updateJoin(join.id, { secondaryFormId: value })}
+                          onValueChange={(value) => updateJoin(join.id, { secondaryFormId: value, secondaryFieldId: '' })}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select form to join" />
@@ -355,13 +419,13 @@ export function EnhancedTableConfig({ config, forms, onConfigChange }: EnhancedT
                       </div>
 
                       <div>
-                        <Label>Primary Form Field</Label>
+                        <Label>Primary Field (Match On)</Label>
                         <Select
                           value={join.primaryFieldId}
                           onValueChange={(value) => updateJoin(join.id, { primaryFieldId: value })}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Select field" />
+                            <SelectValue placeholder="Select primary field" />
                           </SelectTrigger>
                           <SelectContent>
                             {primaryFormFields.map(field => (
@@ -374,14 +438,14 @@ export function EnhancedTableConfig({ config, forms, onConfigChange }: EnhancedT
                       </div>
 
                       <div>
-                        <Label>Secondary Form Field</Label>
+                        <Label>Secondary Field (Match On)</Label>
                         <Select
                           value={join.secondaryFieldId}
                           onValueChange={(value) => updateJoin(join.id, { secondaryFieldId: value })}
                           disabled={!join.secondaryFormId}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Select field" />
+                            <SelectValue placeholder="Select secondary field" />
                           </SelectTrigger>
                           <SelectContent>
                             {(joinFormFields[join.secondaryFormId] || []).map(field => (
@@ -395,11 +459,11 @@ export function EnhancedTableConfig({ config, forms, onConfigChange }: EnhancedT
                     </div>
 
                     <div>
-                      <Label>Table Alias (Optional)</Label>
+                      <Label>Column Prefix (Optional)</Label>
                       <Input
                         value={join.alias || ''}
                         onChange={(e) => updateJoin(join.id, { alias: e.target.value })}
-                        placeholder="Optional alias for this join"
+                        placeholder="Prefix for joined columns (e.g., 'Order')"
                       />
                     </div>
                   </div>
@@ -407,9 +471,9 @@ export function EnhancedTableConfig({ config, forms, onConfigChange }: EnhancedT
               ))}
 
               {joinConfig.joins.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No joins configured yet</p>
-                  <p className="text-sm">Click "Add Join" to start joining tables</p>
+                <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                  <p>No joins configured</p>
+                  <p className="text-sm">Click "Add Join" to combine data from another form</p>
                 </div>
               )}
             </CardContent>
@@ -421,7 +485,12 @@ export function EnhancedTableConfig({ config, forms, onConfigChange }: EnhancedT
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Drilldown Configuration</CardTitle>
+              <div>
+                <CardTitle>Drilldown</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Click on cell values to filter the table by that value
+                </p>
+              </div>
               <Switch
                 checked={drilldownConfig.enabled}
                 onCheckedChange={(enabled) => updateDrilldownConfig({ ...drilldownConfig, enabled })}
@@ -431,162 +500,60 @@ export function EnhancedTableConfig({ config, forms, onConfigChange }: EnhancedT
 
           {drilldownConfig.enabled && (
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Configure hierarchical data exploration like PowerBI
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Users can click on data points to drill down into more detail
-                  </p>
-                </div>
-                <Button onClick={addDrilldownLevel} size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Level
-                </Button>
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <h4 className="font-medium text-sm mb-2">How Drilldown Works:</h4>
+                <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                  <li>Select fields below that can be used for drilling down</li>
+                  <li>In the table, click on any cell value in those columns</li>
+                  <li>The table will filter to show only rows with that value</li>
+                  <li>Click "Reset Filters" to clear all drilldown filters</li>
+                </ol>
               </div>
 
-              {drilldownConfig.levels.map((level, index) => (
-                <Card key={index} className="p-4">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">Level {index + 1}</Badge>
-                        {index > 0 && <ArrowRight className="h-4 w-4 text-muted-foreground" />}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeDrilldownLevel(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <Label>Field</Label>
-                        <Select
-                          value={level.field}
-                          onValueChange={(value) => updateDrilldownLevel(index, { field: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select field" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getAllAvailableFields().map(field => (
-                              <SelectItem key={field.id} value={field.id}>
-                                {field.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label>Display Label</Label>
-                        <Input
-                          value={level.label}
-                          onChange={(e) => updateDrilldownLevel(index, { label: e.target.value })}
-                          placeholder="Enter display label"
+              <div>
+                <Label className="mb-2 block">Drilldown-Enabled Fields</Label>
+                <ScrollArea className="h-48 border rounded-lg p-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    {allFields.map(field => (
+                      <div key={field.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`drill-${field.id}`}
+                          checked={(drilldownConfig.fields || []).includes(field.id)}
+                          onCheckedChange={(checked) => handleDrilldownFieldToggle(field.id, checked === true)}
                         />
+                        <Label htmlFor={`drill-${field.id}`} className="text-sm cursor-pointer">
+                          {field.label}
+                        </Label>
                       </div>
-
-                      <div>
-                        <Label>Sort Order</Label>
-                        <Select
-                          value={level.sortOrder || 'asc'}
-                          onValueChange={(value: 'asc' | 'desc') => updateDrilldownLevel(index, { sortOrder: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="asc">Ascending</SelectItem>
-                            <SelectItem value="desc">Descending</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-
-              {drilldownConfig.levels.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No drilldown levels configured yet</p>
-                  <p className="text-sm">Click "Add Level" to start building your drilldown hierarchy</p>
-                </div>
-              )}
-
-              {drilldownConfig.levels.length > 0 && (
-                <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
-                  <h4 className="font-medium text-sm mb-2">Drilldown Path:</h4>
-                  <div className="flex items-center gap-2 text-sm">
-                    {drilldownConfig.levels.map((level, index) => (
-                      <React.Fragment key={index}>
-                        <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded">
-                          {level.label || level.field || `Level ${index + 1}`}
-                        </span>
-                        {index < drilldownConfig.levels.length - 1 && (
-                          <ArrowDown className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </React.Fragment>
                     ))}
+                  </div>
+                  {allFields.length === 0 && (
+                    <div className="text-center py-4 text-muted-foreground text-sm">
+                      No fields available. Please select a form first.
+                    </div>
+                  )}
+                </ScrollArea>
+              </div>
+
+              {(drilldownConfig.fields || []).length > 0 && (
+                <div className="bg-primary/10 p-3 rounded-lg">
+                  <p className="text-sm font-medium mb-2">
+                    {drilldownConfig.fields.length} field(s) enabled for drilldown:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {drilldownConfig.fields.map(fieldId => {
+                      const field = allFields.find(f => f.id === fieldId);
+                      return (
+                        <Badge key={fieldId} variant="secondary">
+                          {field?.label || fieldId}
+                        </Badge>
+                      );
+                    })}
                   </div>
                 </div>
               )}
             </CardContent>
           )}
-        </Card>
-      </TabsContent>
-
-      <TabsContent value="columns" className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Column Selection</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Select which columns to display in your table. Columns from joined forms will be available after configuring joins.
-              </p>
-              
-              <div className="grid grid-cols-2 gap-4">
-                {getAllAvailableFields().map(field => (
-                  <div key={field.id} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id={field.id}
-                      checked={(config.selectedColumns || []).includes(field.id)}
-                      onChange={(e) => {
-                        const selectedColumns = config.selectedColumns || [];
-                        const newColumns = e.target.checked
-                          ? [...selectedColumns, field.id]
-                          : selectedColumns.filter((col: string) => col !== field.id);
-                        onConfigChange({ ...config, selectedColumns: newColumns });
-                      }}
-                    />
-                    <Label htmlFor={field.id} className="text-sm">
-                      {field.label}
-                      {(field as any).sourceForm && (
-                        <Badge variant="secondary" className="ml-2 text-xs">
-                          Joined
-                        </Badge>
-                      )}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-
-              {getAllAvailableFields().length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No fields available</p>
-                  <p className="text-sm">Please select a form first</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
         </Card>
       </TabsContent>
     </Tabs>
