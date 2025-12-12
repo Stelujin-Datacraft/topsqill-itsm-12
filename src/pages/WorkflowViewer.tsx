@@ -1,25 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import {
+  ReactFlow,
+  MiniMap,
+  Controls,
+  Background,
+  BackgroundVariant,
+  Node,
+  Edge,
+  NodeTypes,
+  EdgeTypes,
+  ReactFlowProvider,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useWorkflowData } from '@/hooks/useWorkflowData';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
   ArrowLeft, 
-  Share2, 
   Calendar, 
-  User, 
-  Eye,
   Copy,
   Edit,
-  Play,
-  Circle,
-  Square,
-  Diamond,
-  CheckCircle,
-  XCircle,
-  Clock,
+  Eye,
   Activity
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +31,26 @@ import { format } from 'date-fns';
 import { Workflow, WorkflowNode, WorkflowConnection } from '@/types/workflow';
 import { WorkflowInstances } from '@/components/workflows/WorkflowInstances';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { StartNode } from '@/components/workflows/nodes/StartNode';
+import { ConditionNode } from '@/components/workflows/nodes/ConditionNode';
+import { WaitNode } from '@/components/workflows/nodes/WaitNode';
+import { EndNode } from '@/components/workflows/nodes/EndNode';
+import { ActionNode } from '@/components/workflows/nodes/ActionNode';
+import { ApprovalNode } from '@/components/workflows/nodes/ApprovalNode';
+import { LabeledEdge } from '@/components/workflows/edges/LabeledEdge';
+
+const nodeTypes: NodeTypes = {
+  'start': StartNode,
+  'action': ActionNode,
+  'approval': ApprovalNode,
+  'condition': ConditionNode,
+  'wait': WaitNode,
+  'end': EndNode,
+};
+
+const edgeTypes: EdgeTypes = {
+  labeled: LabeledEdge,
+};
 
 const WorkflowViewerPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -39,6 +63,9 @@ const WorkflowViewerPage = () => {
   const [connections, setConnections] = useState<WorkflowConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Empty ref for read-only mode (nodes won't be selectable)
+  const emptySelectRef = useRef(() => {});
 
   useEffect(() => {
     if (id) {
@@ -80,22 +107,36 @@ const WorkflowViewerPage = () => {
     });
   };
 
-  const getNodeIcon = (nodeType: string) => {
-    switch (nodeType) {
-      case 'start':
-        return <Circle className="h-4 w-4 text-green-500" />;
-      case 'action':
-        return <Square className="h-4 w-4 text-blue-500" />;
-      case 'condition':
-        return <Diamond className="h-4 w-4 text-yellow-500" />;
-      case 'end':
-        return <CheckCircle className="h-4 w-4 text-red-500" />;
-      case 'approval':
-        return <CheckCircle className="h-4 w-4 text-purple-500" />;
-      default:
-        return <Circle className="h-4 w-4" />;
-    }
-  };
+  // Convert workflow nodes to React Flow format
+  const reactFlowNodes: Node[] = useMemo(() => {
+    return nodes.map(node => ({
+      id: node.id,
+      type: node.type,
+      position: { x: node.position.x, y: node.position.y },
+      data: {
+        label: node.label,
+        config: node.data?.config || {},
+        nodeId: node.id,
+        onSelect: emptySelectRef,
+      },
+      draggable: false,
+      selectable: false,
+      connectable: false,
+    }));
+  }, [nodes]);
+
+  // Convert workflow connections to React Flow edges
+  const reactFlowEdges: Edge[] = useMemo(() => {
+    return connections.map(conn => ({
+      id: conn.id,
+      source: conn.source,
+      target: conn.target,
+      sourceHandle: conn.sourceHandle,
+      targetHandle: conn.targetHandle,
+      type: 'labeled',
+      data: { label: conn.label || '' },
+    }));
+  }, [connections]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -216,53 +257,49 @@ const WorkflowViewerPage = () => {
               </Card>
             </div>
 
-            {/* Workflow Nodes */}
+            {/* Workflow Canvas - Read-only React Flow */}
             <Card>
               <CardHeader>
-                <CardTitle>Workflow Nodes</CardTitle>
-                <CardDescription>Visual representation of workflow steps</CardDescription>
+                <CardTitle>Workflow Diagram</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-0">
                 {nodes.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     No nodes configured in this workflow
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {nodes.map((node, index) => (
-                      <div 
-                        key={node.id} 
-                        className="flex items-center gap-4 p-4 border rounded-lg bg-muted/30"
+                  <div className="h-[500px] w-full border-t">
+                    <ReactFlowProvider>
+                      <ReactFlow
+                        nodes={reactFlowNodes}
+                        edges={reactFlowEdges}
+                        nodeTypes={nodeTypes}
+                        edgeTypes={edgeTypes}
+                        fitView
+                        fitViewOptions={{ padding: 0.2 }}
+                        nodesDraggable={false}
+                        nodesConnectable={false}
+                        elementsSelectable={false}
+                        panOnDrag={true}
+                        zoomOnScroll={true}
+                        preventScrolling={false}
                       >
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-background border">
-                          {getNodeIcon(node.type)}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{node.label}</span>
-                            <Badge variant="outline" className="text-xs capitalize">
-                              {node.type}
-                            </Badge>
-                          </div>
-                          {node.data && (
-                            <div className="text-sm text-muted-foreground mt-1">
-                              {node.type === 'start' && node.data.triggerType && (
-                                <span>Trigger: {node.data.triggerType}</span>
-                              )}
-                              {node.type === 'action' && node.data.actionType && (
-                                <span>Action: {node.data.actionType.replace(/_/g, ' ')}</span>
-                              )}
-                              {node.type === 'condition' && (
-                                <span>Condition evaluation</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        {index < nodes.length - 1 && (
-                          <div className="text-muted-foreground">→</div>
-                        )}
-                      </div>
-                    ))}
+                        <Controls showInteractive={false} />
+                        <MiniMap 
+                          nodeColor={(node) => {
+                            switch (node.type) {
+                              case 'start': return '#22c55e';
+                              case 'action': return '#3b82f6';
+                              case 'condition': return '#eab308';
+                              case 'end': return '#ef4444';
+                              case 'approval': return '#a855f7';
+                              default: return '#6b7280';
+                            }
+                          }}
+                        />
+                        <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+                      </ReactFlow>
+                    </ReactFlowProvider>
                   </div>
                 )}
               </CardContent>
