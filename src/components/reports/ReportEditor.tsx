@@ -495,7 +495,10 @@ export function ReportEditor({
             <TableIcon className="h-4 w-4 mr-2" />
             Add Table
           </Button>
-          
+          <Button variant="outline" onClick={() => handleAddComponent('form-submissions')}>
+            <FileText className="h-4 w-4 mr-2" />
+            Form Submissions
+          </Button>
           <Button variant="outline" onClick={() => handleAddComponent('metric-card')}>
             <Hash className="h-4 w-4 mr-2" />
             Add Metric

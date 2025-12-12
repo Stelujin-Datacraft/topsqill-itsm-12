@@ -106,13 +106,16 @@ export function ChartPreview({
       try {
         console.log('Fetching chart data for form:', config.formId);
 
+        // Get drilldown levels - support both property names for compatibility
+        const drilldownLevels = config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels || [];
+
         // Use server-side RPC function for drilldown-enabled charts
-        if (config.drilldownConfig?.enabled && config.drilldownConfig?.drilldownLevels?.length > 0) {
+        if (config.drilldownConfig?.enabled && drilldownLevels.length > 0) {
           console.log('Using drilldown-enabled chart data fetch');
 
           // Determine the current dimension based on drilldown state
           const currentDrilldownLevel = drilldownState?.values?.length || 0;
-          const currentDimension = config.drilldownConfig.drilldownLevels[currentDrilldownLevel] || config.drilldownConfig.drilldownLevels[0];
+          const currentDimension = drilldownLevels[currentDrilldownLevel] || drilldownLevels[0];
 
           // Use the current dimension for the chart - show the NEXT level after current drilldown
           const chartDimensions = [currentDimension];
@@ -120,10 +123,10 @@ export function ChartPreview({
             currentLevel: currentDrilldownLevel,
             currentDimension,
             drilldownValues: drilldownState?.values || [],
-            allLevels: config.drilldownConfig.drilldownLevels,
+            allLevels: drilldownLevels,
             dimensionForChart: chartDimensions
           });
-          const serverData: any[] = await getChartData(config.formId, chartDimensions, config.metrics || [], config.aggregation || 'count', config.filters || [], config.drilldownConfig?.drilldownLevels || [], drilldownState?.values || [], config.metricAggregations || [], config.groupByField);
+          const serverData: any[] = await getChartData(config.formId, chartDimensions, config.metrics || [], config.aggregation || 'count', config.filters || [], drilldownLevels, drilldownState?.values || [], config.metricAggregations || [], config.groupByField);
 
           console.log('📊 Raw server data for grouped chart:', serverData);
           console.log('📊 Group by field:', config.groupByField);
@@ -230,11 +233,12 @@ export function ChartPreview({
     console.log('Processing submissions:', submissions.length);
     console.log('🔍 Group by field:', config.groupByField);
 
-    // Get dimension fields
+    // Get dimension fields - support both drilldownLevels and levels for compatibility
+    const drilldownLevelsLocal = config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels || [];
     let dimensionFields: string[] = [];
-    if (config.drilldownConfig?.enabled && config.drilldownConfig?.drilldownLevels?.length > 0) {
+    if (config.drilldownConfig?.enabled && drilldownLevelsLocal.length > 0) {
       const currentDrilldownLevel = drilldownState?.values?.length || 0;
-      const currentDimension = config.drilldownConfig.drilldownLevels[currentDrilldownLevel] || config.drilldownConfig.drilldownLevels[0];
+      const currentDimension = drilldownLevelsLocal[currentDrilldownLevel] || drilldownLevelsLocal[0];
       dimensionFields = [currentDimension];
     } else {
       dimensionFields = config.dimensions && config.dimensions.length > 0 ? config.dimensions : config.xAxis ? [config.xAxis] : [];
@@ -496,12 +500,18 @@ export function ChartPreview({
   };
   const colors = colorSchemes[config.colorTheme || 'default'];
 
+  // Helper to get drilldown levels (supports both property names for compatibility)
+  const getDrilldownLevels = (): string[] => {
+    return config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels || [];
+  };
+
   // Get available values for the current drilldown level
   const getAvailableValuesForLevel = (levelIndex: number) => {
-    if (!config.drilldownConfig?.enabled || !config.drilldownConfig?.drilldownLevels || !Array.isArray(config.drilldownConfig.drilldownLevels) || !chartData.length) {
+    const drilldownLevels = getDrilldownLevels();
+    if (!config.drilldownConfig?.enabled || drilldownLevels.length === 0 || !chartData.length) {
       return [];
     }
-    const currentDimension = config.drilldownConfig.drilldownLevels[levelIndex];
+    const currentDimension = drilldownLevels[levelIndex];
     if (!currentDimension) return [];
 
     // Extract unique values from chart data
@@ -509,11 +519,12 @@ export function ChartPreview({
     return values;
   };
   const handleDrilldownSelect = (value: string) => {
-    if (!config.drilldownConfig?.enabled || !config.drilldownConfig?.drilldownLevels || !Array.isArray(config.drilldownConfig.drilldownLevels) || !onDrilldown) {
+    const drilldownLevels = getDrilldownLevels();
+    if (!config.drilldownConfig?.enabled || drilldownLevels.length === 0 || !onDrilldown) {
       return;
     }
     const currentLevel = drilldownState?.values?.length || 0;
-    const nextLevel = config.drilldownConfig.drilldownLevels[currentLevel];
+    const nextLevel = drilldownLevels[currentLevel];
     if (nextLevel && value) {
       console.log('🔍 Drilldown select:', {
         nextLevel,
@@ -533,29 +544,31 @@ export function ChartPreview({
 
   // Get the current level info for the drilldown selector
   const getCurrentLevelInfo = () => {
-    if (!config.drilldownConfig?.enabled || !config.drilldownConfig?.drilldownLevels || !Array.isArray(config.drilldownConfig.drilldownLevels)) {
+    const drilldownLevels = getDrilldownLevels();
+    if (!config.drilldownConfig?.enabled || drilldownLevels.length === 0) {
       return null;
     }
     const currentLevel = drilldownState?.values?.length || 0;
-    const nextDimension = config.drilldownConfig.drilldownLevels[currentLevel];
+    const nextDimension = drilldownLevels[currentLevel];
     if (!nextDimension) return null;
     return {
       levelIndex: currentLevel,
       fieldId: nextDimension,
       fieldName: getFormFieldName(nextDimension),
       availableValues: getAvailableValuesForLevel(currentLevel),
-      canDrillFurther: currentLevel < (config.drilldownConfig.drilldownLevels?.length || 0)
+      canDrillFurther: currentLevel < drilldownLevels.length
     };
   };
   const currentLevelInfo = getCurrentLevelInfo();
   const handlePieClick = (data: any, index?: number, event?: any) => {
-    if (!config.drilldownConfig?.enabled || !onDrilldown || !config.drilldownConfig?.drilldownLevels?.length) return;
+    const drilldownLevels = getDrilldownLevels();
+    if (!config.drilldownConfig?.enabled || !onDrilldown || drilldownLevels.length === 0) return;
     if (event) {
       event.stopPropagation();
     }
     const currentLevel = drilldownState?.values?.length || 0;
-    if (currentLevel >= config.drilldownConfig.drilldownLevels.length) return;
-    const nextLevel = config.drilldownConfig.drilldownLevels[currentLevel];
+    if (currentLevel >= drilldownLevels.length) return;
+    const nextLevel = drilldownLevels[currentLevel];
     const clickedValue = data?.name || data;
     if (nextLevel && clickedValue && clickedValue !== 'Not Specified') {
       console.log('🥧 Pie click drilldown:', {
@@ -563,7 +576,7 @@ export function ChartPreview({
         clickedValue,
         currentLevel,
         fieldName: getFormFieldName(nextLevel),
-        totalLevels: config.drilldownConfig.drilldownLevels.length
+        totalLevels: drilldownLevels.length
       });
       onDrilldown(nextLevel, clickedValue);
     }

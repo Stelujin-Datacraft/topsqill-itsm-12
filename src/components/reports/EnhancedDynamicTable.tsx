@@ -246,9 +246,11 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
     let filtered = data;
 
     // Apply external drilldown filters (from report editor)
-    if (externalDrilldownState?.values?.length > 0 && config.drilldownConfig?.levels) {
+    // Support both 'levels' and 'drilldownLevels' property names for compatibility
+    const drilldownLevels = config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels;
+    if (externalDrilldownState?.values?.length > 0 && drilldownLevels) {
       externalDrilldownState.values.forEach((value, index) => {
-        const fieldId = config.drilldownConfig.levels[index];
+        const fieldId = drilldownLevels[index];
         if (fieldId && value) {
           filtered = filtered.filter(row => {
             const fieldValue = getFieldValue(row, fieldId);
@@ -379,14 +381,15 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
         )}
 
         {/* External drilldown breadcrumb navigation */}
-        {externalDrilldownState?.values?.length > 0 && config.drilldownConfig?.levels && (
+        {externalDrilldownState?.values?.length > 0 && (config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels) && (
           <div className="flex items-center gap-2 pt-2 border-t">
             <span className="text-sm font-medium">Drilldown:</span>
             {externalDrilldownState.values.map((value, index) => {
-              const fieldId = config.drilldownConfig.levels[index];
+              const drilldownLevels = config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels;
+              const fieldId = drilldownLevels?.[index];
               const field = formFields.find(f => f.id === fieldId);
               return (
-                <React.Fragment key={fieldId}>
+                <React.Fragment key={fieldId || index}>
                   {index > 0 && <ChevronRight className="h-4 w-4" />}
                   <div className="flex items-center gap-1">
                     <span className="text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded">
@@ -398,7 +401,7 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
             })}
             <Button 
               variant="ghost" 
-              size="sm" 
+              size="sm"
               onClick={() => onDrilldown && onDrilldown('', '')}
               className="ml-2"
             >
@@ -441,8 +444,9 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
             <TableHeader>
               <TableRow>
                  {displayFields.map(field => {
+                   const drilldownLevels = config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels;
                    const isDrilldownField = config.drilldownConfig?.enabled && 
-                     config.drilldownConfig?.levels?.includes(field.id);
+                     drilldownLevels?.includes(field.id);
                    const isColumnDrilldownActive = drilldownState.drilldownColumns.has(field.id);
                    const hasActiveFilter = drilldownState.activeColumnFilters.some(f => f.fieldId === field.id);
                   

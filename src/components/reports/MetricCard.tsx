@@ -49,10 +49,16 @@ export function MetricCard({ config, isEditing, onConfigChange, onEdit }: Metric
 
   useEffect(() => {
     loadMetricData();
-  }, [config.formId, config.field, config.aggregation, config.filters]);
+  }, [config.formId, config.field, config.aggregation, JSON.stringify(config.filters)]);
 
   const loadMetricData = async () => {
-    if (!config.formId || !config.field || !config.aggregation) {
+    if (!config.formId) {
+      setLoading(false);
+      return;
+    }
+
+    // For count aggregation, field is not required
+    if (config.aggregation !== 'count' && !config.field) {
       setLoading(false);
       return;
     }
@@ -129,13 +135,22 @@ export function MetricCard({ config, isEditing, onConfigChange, onEdit }: Metric
   const getAvailableFields = () => {
     if (!config.formId) return [];
     const fields = getFormFields(config.formId);
+    // For count aggregation, we don't need to filter by field type
+    // For other aggregations, filter to numeric-compatible fields
+    if (config.aggregation === 'count') {
+      return fields.map(field => ({
+        id: field.id,
+        label: field.label,
+        type: getFieldType(field.type)
+      }));
+    }
     return fields.filter(field => {
-      const fieldType = getFieldType(field.type); // Fixed: using 'type' instead of 'field_type'
-      return fieldType === 'number' || fieldType === 'text' || fieldType === 'email';
+      const fieldType = getFieldType(field.type);
+      return fieldType === 'number' || fieldType === 'text' || fieldType === 'email' || fieldType === 'currency' || fieldType === 'slider' || fieldType === 'rating';
     }).map(field => ({
       id: field.id,
       label: field.label,
-      type: getFieldType(field.type) // Fixed: using 'type' instead of 'field_type'
+      type: getFieldType(field.type)
     }));
   };
 
