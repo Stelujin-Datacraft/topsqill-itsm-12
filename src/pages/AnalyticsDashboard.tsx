@@ -8,7 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, BarChart3, TrendingUp, Activity, FileText } from 'lucide-react';
+import { ArrowLeft, BarChart3, TrendingUp, Activity, FileText, Check } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Legend } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,6 +33,7 @@ const AnalyticsDashboard = () => {
   const [analytics, setAnalytics] = useState<any>({});
   const [loading, setLoading] = useState(false);
   const [formFields, setFormFields] = useState<FormField[]>([]);
+  const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>([]);
 
   const selectedForm = forms.find(f => f.id === selectedFormId);
 
@@ -55,6 +59,8 @@ const AnalyticsDashboard = () => {
         }
 
         setFormFields(fields || []);
+        // Reset selected fields when form changes
+        setSelectedFieldIds([]);
       } catch (err) {
         console.error('Error in fetchFormFields:', err);
         setFormFields([]);
@@ -320,8 +326,70 @@ const AnalyticsDashboard = () => {
 
             {/* Field Analytics */}
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Field-Level Analytics</CardTitle>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <BarChart3 className="h-4 w-4 mr-2" />
+                      Select Fields ({selectedFieldIds.length === 0 ? 'All' : selectedFieldIds.length})
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72" align="end">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium">Choose Fields to Analyze</p>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setSelectedFieldIds([])}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                      <ScrollArea className="h-64">
+                        <div className="space-y-2">
+                          {formFields.map(field => (
+                            <div 
+                              key={field.id} 
+                              className="flex items-center space-x-2 p-2 hover:bg-muted rounded cursor-pointer"
+                              onClick={() => {
+                                setSelectedFieldIds(prev => 
+                                  prev.includes(field.id)
+                                    ? prev.filter(id => id !== field.id)
+                                    : [...prev, field.id]
+                                );
+                              }}
+                            >
+                              <Checkbox 
+                                checked={selectedFieldIds.includes(field.id)}
+                                onCheckedChange={(checked) => {
+                                  setSelectedFieldIds(prev => 
+                                    checked
+                                      ? [...prev, field.id]
+                                      : prev.filter(id => id !== field.id)
+                                  );
+                                }}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm truncate">{field.label}</p>
+                                <p className="text-xs text-muted-foreground">{field.field_type}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                      <Button 
+                        variant="secondary" 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => setSelectedFieldIds(formFields.map(f => f.id))}
+                      >
+                        Select All
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </CardHeader>
               <CardContent>
                 {Object.keys(analytics.fieldAnalytics || {}).length === 0 ? (
@@ -331,7 +399,9 @@ const AnalyticsDashboard = () => {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {Object.entries(analytics.fieldAnalytics).map(([fieldId, stats]: [string, any]) => (
+                    {Object.entries(analytics.fieldAnalytics)
+                      .filter(([fieldId]) => selectedFieldIds.length === 0 || selectedFieldIds.includes(fieldId))
+                      .map(([fieldId, stats]: [string, any]) => (
                       <div key={fieldId} className="border rounded-lg p-4">
                         <div className="flex items-center justify-between mb-3">
                           <h4 className="font-medium">{stats.label}</h4>
