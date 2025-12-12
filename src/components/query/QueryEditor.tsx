@@ -160,7 +160,7 @@ export const QueryEditor = forwardRef<QueryEditorRef, QueryEditorProps>(({
   const isValid = parseResult.sql && parseResult.errors.length === 0;
 
   return (
-    <div className="h-full flex flex-col bg-background">
+    <div className="h-full flex flex-col bg-background overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border bg-muted/20 py-[9px]">
         <div className="flex items-center gap-2">
@@ -221,11 +221,11 @@ export const QueryEditor = forwardRef<QueryEditorRef, QueryEditorProps>(({
       <ResizablePanelGroup direction="vertical" className="flex-1">
         {/* Editor Panel */}
         <ResizablePanel defaultSize={60} minSize={30}>
-          <div className="h-full overflow-x-auto overflow-y-auto border border-border rounded-md m-4">
+          <div className="h-full overflow-hidden border border-border rounded-md m-4">
             <CodeMirror 
               value={value} 
               height="100%" 
-              extensions={[sql()]} 
+              extensions={[sql(), EditorView.lineWrapping]} 
               onChange={val => onChange(val)}
               onCreateEditor={(view) => {
                 editorViewRef.current = view;
@@ -243,7 +243,8 @@ export const QueryEditor = forwardRef<QueryEditorRef, QueryEditorProps>(({
               style={{
                 fontSize: '14px',
                 fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
-                minWidth: '100%'
+                width: '100%',
+                overflow: 'auto'
               }}
             />
           </div>
