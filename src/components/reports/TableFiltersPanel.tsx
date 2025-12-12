@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { SaveFilterDialog } from './SaveFilterDialog';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface FilterCondition {
   id: string;
@@ -34,6 +35,12 @@ interface TableFiltersPanelProps {
   onFiltersChange: (filters: FilterGroup[]) => void;
   forms: Form[];
   primaryFormId: string;
+}
+
+interface FieldOption {
+  id: string;
+  label: string;
+  type: string;
 }
 
 const OPERATORS = [
@@ -60,24 +67,56 @@ export function TableFiltersPanel({
   const { saveFilter } = useSavedFilters(primaryFormId);
   const { toast } = useToast();
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [availableFields, setAvailableFields] = useState<FieldOption[]>([]);
+  const [loadingFields, setLoadingFields] = useState(false);
 
-  const getAvailableFields = () => {
-    if (!selectedForm) return [];
-    
-    const baseFields = [
-      { id: 'submitted_at', label: 'Submitted At', type: 'datetime' },
-      { id: 'submitted_by', label: 'Submitted By', type: 'text' },
-      { id: 'submission_ref_id', label: 'Reference ID', type: 'text' }
-    ];
-    
-    const formFields = selectedForm.fields.map(field => ({
-      id: field.id,
-      label: field.label,
-      type: field.type
-    }));
-    
-    return [...baseFields, ...formFields];
-  };
+  // Fetch fields directly from Supabase when primaryFormId changes
+  useEffect(() => {
+    const fetchFields = async () => {
+      if (!primaryFormId) {
+        setAvailableFields([]);
+        return;
+      }
+
+      setLoadingFields(true);
+      try {
+        const { data: fields, error } = await supabase
+          .from('form_fields')
+          .select('id, label, field_type')
+          .eq('form_id', primaryFormId)
+          .order('field_order', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching form fields:', error);
+          setAvailableFields([]);
+          return;
+        }
+
+        const baseFields: FieldOption[] = [
+          { id: 'submitted_at', label: 'Submitted At', type: 'datetime' },
+          { id: 'submitted_by', label: 'Submitted By', type: 'text' },
+          { id: 'submission_ref_id', label: 'Reference ID', type: 'text' }
+        ];
+
+        const formFields: FieldOption[] = (fields || []).map(field => ({
+          id: field.id,
+          label: field.label,
+          type: field.field_type
+        }));
+
+        setAvailableFields([...baseFields, ...formFields]);
+      } catch (err) {
+        console.error('Error in fetchFields:', err);
+        setAvailableFields([]);
+      } finally {
+        setLoadingFields(false);
+      }
+    };
+
+    fetchFields();
+  }, [primaryFormId]);
+
+  const getAvailableFields = () => availableFields;
 
   const addFilterGroup = () => {
     const newGroup: FilterGroup = {
