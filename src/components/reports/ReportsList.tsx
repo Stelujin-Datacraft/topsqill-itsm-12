@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { FileText, Calendar, Eye, Edit, Trash2, Shield } from 'lucide-react';
+import { FileText, Calendar, Eye, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { LoadingScreen } from '@/components/LoadingScreen';
@@ -41,9 +41,6 @@ export function ReportsList({
     getButtonState,
     checkPermissionWithAlert
   } = useUnifiedAccessControl();
-  const handleAccessManagement = (report: Report) => {
-    navigate(`/report/${report.id}/access`);
-  };
   const handleEditClick = (report: Report) => {
     if (!checkPermissionWithAlert('reports', 'update', report.id)) {
       return;
@@ -210,9 +207,6 @@ export function ReportsList({
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-                      <Button variant="ghost" size="sm" onClick={() => handleAccessManagement(report)} title="Manage Access">
-                        <Shield className="h-4 w-4" />
-                      </Button>
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>

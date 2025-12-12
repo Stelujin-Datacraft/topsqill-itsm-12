@@ -11,7 +11,7 @@ import { EnhancedDynamicTable } from './EnhancedDynamicTable';
 import { FormSubmissionsTable } from './FormSubmissionsTable';
 import { ChartPreview } from './ChartPreview';
 import { MetricCard } from './MetricCard';
-import { Plus, Save, BarChart3, Table as TableIcon, Hash, Type, FileText, Shield, Move, MousePointer, Edit2, Check, X } from 'lucide-react';
+import { Plus, Save, BarChart3, Table as TableIcon, Hash, Type, FileText, Move, MousePointer, Edit2, Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { useNavigate } from 'react-router-dom';
@@ -91,9 +91,6 @@ export function ReportEditor({
     } finally {
       setLoading(false);
     }
-  };
-  const handleAccessManagement = () => {
-    navigate(`/report-access/${reportId}`);
   };
 
   const handleStartEditingName = () => {
@@ -525,10 +522,6 @@ export function ReportEditor({
           <Button variant="outline" onClick={() => handleAddComponent('text')}>
             <Type className="h-4 w-4 mr-2" />
             Add Text
-          </Button>
-          <Button variant="outline" onClick={handleAccessManagement}>
-            <Shield className="h-4 w-4 mr-2" />
-            Access Control
           </Button>
           <Button onClick={onSave}>
             <Save className="h-4 w-4 mr-2" />

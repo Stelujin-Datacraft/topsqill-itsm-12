@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Plus, FileText, Calendar, User, Eye, Edit, Trash2, Play, Shield } from 'lucide-react';
+import { Plus, FileText, Calendar, User, Eye, Edit, Trash2, Play } from 'lucide-react';
 import { format } from 'date-fns';
 import { CreateWorkflowDialog } from './CreateWorkflowDialog';
 import { useToast } from '@/hooks/use-toast';
@@ -75,9 +75,6 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
     }
   };
 
-  const handleAccessManagement = (workflow: Workflow) => {
-    navigate(`/workflow-access/${workflow.id}`);
-  };
 
   const handleEditClick = (workflow: Workflow) => {
     if (!checkPermissionWithAlert('workflows', 'update', workflow.id)) {
@@ -194,14 +191,6 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleAccessManagement(workflow)}
-                        title="Manage Access"
-                      >
-                        <Shield className="h-4 w-4" />
-                      </Button>
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
