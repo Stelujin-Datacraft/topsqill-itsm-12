@@ -35,6 +35,7 @@ import {
 import { useReports } from '@/hooks/useReports';
 import { useFormSubmissionData } from '@/hooks/useFormSubmissionData';
 import { supabase } from '@/integrations/supabase/client';
+import { FormDataCell } from './FormDataCell';
 
 interface FormSubmissionsTableConfig {
   title?: string;
@@ -56,6 +57,7 @@ interface FormField {
   id: string;
   label: string;
   field_type: string;
+  custom_config?: any;
 }
 
 export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit }: FormSubmissionsTableProps) {
@@ -79,7 +81,7 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
       try {
         const { data, error } = await supabase
           .from('form_fields')
-          .select('id, label, field_type')
+          .select('id, label, field_type, custom_config')
           .eq('form_id', config.formId)
           .order('field_order', { ascending: true });
           
@@ -221,22 +223,38 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
 
     if (value === null || value === undefined) return '--';
     
-    switch (type) {
-      case 'date':
-        return <span className="text-sm">{new Date(value).toLocaleDateString()}</span>;
-      case 'number':
-        return <span className="font-mono text-sm">{Number(value).toLocaleString()}</span>;
-      case 'email':
-        return <span className="text-violet-600 text-sm">{value}</span>;
-      default:
-        if (fieldId === 'approval_status') {
-          return getApprovalBadge(value);
-        }
-        if (typeof value === 'object') {
-          return <span className="text-xs text-gray-500">{JSON.stringify(value)}</span>;
-        }
-        return <span className="text-sm">{String(value)}</span>;
+    // For approval status, use the badge
+    if (fieldId === 'approval_status') {
+      return getApprovalBadge(value);
     }
+
+    // For system fields (dates), render simply
+    if (fieldId === 'submitted_at' || fieldId === 'approval_timestamp') {
+      return <span className="text-sm">{new Date(value).toLocaleDateString()}</span>;
+    }
+
+    // For submitted_by and approved_by, render as text
+    if (fieldId === 'submitted_by' || fieldId === 'approved_by') {
+      return <span className="text-sm">{String(value)}</span>;
+    }
+
+    // For form fields, use FormDataCell for proper rendering
+    const formField = formFields.find(f => f.id === fieldId);
+    if (formField) {
+      return (
+        <FormDataCell 
+          value={value} 
+          fieldType={formField.field_type || type} 
+          field={formField}
+        />
+      );
+    }
+
+    // Fallback for unknown fields
+    if (typeof value === 'object') {
+      return <span className="text-xs text-muted-foreground">{JSON.stringify(value)}</span>;
+    }
+    return <span className="text-sm">{String(value)}</span>;
   };
 
   const handleExport = () => {
