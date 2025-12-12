@@ -194,17 +194,32 @@ export function ComponentConfigDialog({
   useEffect(() => {
     if (open) {
       if (initialConfig) {
-        setConfig(initialConfig);
-        setJoinEnabled(!!initialConfig.joinConfig?.enabled);
+        // Normalize join config for tables so join toggle stays enabled
+        const normalizedConfig = {
+          ...initialConfig,
+          ...(initialConfig.joinConfig
+            ? {
+                joinConfig: {
+                  enabled: initialConfig.joinConfig.enabled ?? true,
+                  ...initialConfig.joinConfig,
+                },
+              }
+            : {}),
+        };
+
+        setConfig(normalizedConfig);
+        setJoinEnabled(
+          !!normalizedConfig.joinConfig && normalizedConfig.joinConfig.enabled !== false
+        );
         
         // Fetch fields for initially selected form
-        if (initialConfig.formId) {
-          fetchFormFields(initialConfig.formId);
+        if (normalizedConfig.formId) {
+          fetchFormFields(normalizedConfig.formId);
         }
         
         // Fetch fields for initially selected secondary form
-        if (initialConfig.joinConfig?.secondaryFormId) {
-          fetchSecondaryFormFields(initialConfig.joinConfig.secondaryFormId);
+        if (normalizedConfig.joinConfig?.secondaryFormId) {
+          fetchSecondaryFormFields(normalizedConfig.joinConfig.secondaryFormId);
         }
       } else {
         // Set default config based on component type
@@ -1120,8 +1135,21 @@ export function ComponentConfigDialog({
               enabled={joinEnabled}
               onEnabledChange={(enabled) => {
                 setJoinEnabled(enabled);
+                setConfig((prev) =>
+                  enabled
+                    ? {
+                        ...prev,
+                        joinConfig: {
+                          enabled: true,
+                          ...(prev.joinConfig || {}),
+                        },
+                      }
+                    : {
+                        ...prev,
+                        joinConfig: undefined,
+                      }
+                );
                 if (!enabled) {
-                  setConfig(prev => ({ ...prev, joinConfig: undefined }));
                   setSecondaryFormFields([]);
                 }
               }}
@@ -1136,13 +1164,20 @@ export function ComponentConfigDialog({
                 fields: form.id === config.joinConfig?.secondaryFormId ? secondaryFormFields : (form.fields || [])
               }))}
               joinConfig={config.joinConfig || {
+                enabled: false,
                 secondaryFormId: '',
                 joinType: 'inner',
                 primaryFieldId: '',
                 secondaryFieldId: ''
               }}
               onJoinConfigChange={(joinConfig) => {
-                setConfig({ ...config, joinConfig });
+                setConfig(prev => ({
+                  ...prev,
+                  joinConfig: {
+                    enabled: prev.joinConfig?.enabled ?? true,
+                    ...joinConfig,
+                  },
+                }));
                 if (joinConfig.secondaryFormId && joinConfig.secondaryFormId !== config.joinConfig?.secondaryFormId) {
                   handleSecondaryFormChange(joinConfig.secondaryFormId);
                 }
