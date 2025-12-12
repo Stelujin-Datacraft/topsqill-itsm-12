@@ -91,12 +91,6 @@ export default function FormSubmissionsTable() {
                 <Save className="h-4 w-4 mr-2" />
                 Save as Report
               </Button>
-              <Button variant="outline" onClick={() => {
-        window.open(`/report-editor/new?formId=${selectedFormId}`, '_blank');
-      }} disabled={!selectedFormId}>
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Create Chart
-              </Button>
             </>}
           <Button variant="ghost" onClick={handleBack}>
             <ArrowLeft className="h-4 w-4 mr-2" />
