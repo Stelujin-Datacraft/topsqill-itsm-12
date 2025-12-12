@@ -622,11 +622,19 @@ export function ChartPreview({
           sanitized[key] = item[key];
         } else {
           const val = Number(item[key]);
-          sanitized[key] = isNaN(val) ? 0 : val;
+          sanitized[key] = isNaN(val) || !isFinite(val) ? 0 : val;
         }
       });
       return sanitized;
     });
+
+    // Calculate safe domain for Y axis to prevent NaN errors
+    const getYAxisDomain = (data: any[], metricKey: string): [number, number | 'auto'] => {
+      const values = data.map(item => Number(item[metricKey]) || 0).filter(v => isFinite(v));
+      if (values.length === 0) return [0, 'auto'];
+      const maxVal = Math.max(...values);
+      return [0, isFinite(maxVal) && maxVal > 0 ? maxVal : 'auto'];
+    };
 
     // Determine the primary metric to display
     let primaryMetric = 'value'; // Default fallback
@@ -703,7 +711,7 @@ export function ChartPreview({
                   value: config.yAxisLabel || getFormFieldName(primaryMetric),
                   angle: -90,
                   position: 'insideLeft'
-                }} domain={[0, 'dataMax']} />
+                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                    <Tooltip formatter={(value, name, props) => {
                   // For multi-dimensional charts, name is already "Field Name: Value"
                   // For single-dimensional charts, name is the field ID, so get field name
@@ -755,7 +763,7 @@ export function ChartPreview({
                   value: getFormFieldName(primaryMetric),
                   position: 'insideBottom',
                   offset: -5
-                }} domain={[0, 'dataMax']} />
+                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <YAxis dataKey="name" type="category" width={120} tick={{
                   fontSize: 11
                 }} />
@@ -859,7 +867,7 @@ export function ChartPreview({
                   value: config.yAxisLabel || getFormFieldName(primaryMetric),
                   angle: -90,
                   position: 'insideLeft'
-                }} domain={[0, 'dataMax']} />
+                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip formatter={(value, name, props) => {
                   const displayName = isMultiDimensional ? name : getFormFieldName(name.toString());
                   return [`${displayName}: ${value}`, `Category: ${props.payload?.name || 'N/A'}`];
@@ -928,7 +936,7 @@ export function ChartPreview({
                   value: config.yAxisLabel || getFormFieldName(primaryMetric),
                   angle: -90,
                   position: 'insideLeft'
-                }} domain={[0, 'dataMax']} />
+                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip formatter={(value, name, props) => {
                   const displayName = getFormFieldName(name.toString());
                   return [`${displayName}: ${value}`, `Category: ${props.payload?.name || 'N/A'}`];
