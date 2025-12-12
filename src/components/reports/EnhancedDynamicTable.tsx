@@ -239,7 +239,8 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
     if (config.selectedColumns?.length > 0) {
       return validFields.filter(field => config.selectedColumns.includes(field.id));
     }
-    return validFields.slice(0, 10);
+    // Show all columns when none are selected
+    return validFields;
   }, [formFields, config.selectedColumns]);
 
   const filteredData = useMemo(() => {
