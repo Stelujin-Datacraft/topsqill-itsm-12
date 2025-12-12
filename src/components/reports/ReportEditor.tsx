@@ -255,9 +255,23 @@ export function ReportEditor({
                                    target.classList.contains('recharts-line') ||
                                    target.classList.contains('recharts-area');
       
+      // Check if the click originated from a button (for table drilldown, sorting, filtering)
+      const isButtonClick = target.closest('button') || target.tagName === 'BUTTON';
+      
+      // Check if the click originated from an input (for search)
+      const isInputClick = target.closest('input') || target.tagName === 'INPUT';
+      
+      // Check if the click originated from a badge (drilldown active indicators)
+      const isBadgeClick = target.closest('[data-slot="badge"]') || target.classList.contains('badge');
+      
       // If it's a chart drilldown click and the component supports drilldown, don't open properties
       if (isChartDrilldownClick && component.config && (component.config as any).drilldownConfig?.enabled) {
         return; // Let the chart handle the drilldown
+      }
+      
+      // If it's a button, input, or badge click within a table component, don't open properties
+      if ((isButtonClick || isInputClick || isBadgeClick) && component.type === 'table') {
+        return; // Let the table handle the interaction
       }
       
       event.stopPropagation();
