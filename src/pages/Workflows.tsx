@@ -40,7 +40,7 @@ const Workflows = () => {
   }
 
   const handleViewWorkflow = (workflow: Workflow) => {
-    navigate(`/workflow-designer/${workflow.id}`);
+    navigate(`/workflow-view/${workflow.id}`);
   };
 
   const handleEditWorkflow = (workflow: Workflow) => {

@@ -29,6 +29,7 @@ import SubmissionView from "./pages/SubmissionView";
 import FormSubmissionsTable from "./pages/FormSubmissionsTable";
 import Workflows from "./pages/Workflows";
 import WorkflowDesignerPage from "./pages/WorkflowDesignerPage";
+import WorkflowViewerPage from "./pages/WorkflowViewer";
 import WorkflowAccessManagement from "./pages/WorkflowAccessManagement";
 import Reports from "./pages/Reports";
 import ReportEditor from "./pages/ReportEditor";
@@ -83,6 +84,7 @@ const App = () => (
                     <Route path="/submission/:submissionId" element={<ProtectedRoute><SubmissionView /></ProtectedRoute>} />
                     <Route path="/form-submissions" element={<ProtectedRoute><FormSubmissionsTable /></ProtectedRoute>} />
                     <Route path="/workflows" element={<ProtectedRoute><Workflows /></ProtectedRoute>} />
+                    <Route path="/workflow-view/:id" element={<ProtectedRoute><WorkflowViewerPage /></ProtectedRoute>} />
                     <Route path="/workflow-designer/:id" element={<ProtectedRoute><WorkflowDesignerPage /></ProtectedRoute>} />
                     <Route path="/workflow/:id/access" element={<ProtectedRoute><WorkflowAccessManagement /></ProtectedRoute>} />
                      <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
