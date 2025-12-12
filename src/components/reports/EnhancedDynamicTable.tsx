@@ -9,7 +9,7 @@ import { ChevronRight, ChevronDown, Search, ArrowUp, ArrowDown, Eye, Database } 
 import { supabase } from '@/integrations/supabase/client';
 import { useReports } from '@/hooks/useReports';
 import { useTableData } from '@/hooks/useTableData';
-
+import { FormDataCell } from './FormDataCell';
 interface EnhancedTableConfig {
   title: string;
   formId: string;
@@ -588,10 +588,11 @@ export function EnhancedDynamicTable({ config, onEdit, onDrilldown, drilldownSta
                         <TableCell key={field.id}>
                            <div className="flex items-center gap-2">
                              <span className={`${isFilteredValue || isExternalFiltered ? 'font-semibold text-blue-600' : ''}`}>
-                              {typeof fieldValue === 'object' ? 
-                                JSON.stringify(fieldValue) : 
-                                fieldValue
-                              }
+                              <FormDataCell 
+                                value={fieldValue} 
+                                fieldType={field.field_type} 
+                                field={field}
+                              />
                             </span>
                              
                               {/* Show drilldown button only when column drilldown is active and not already filtered */}
