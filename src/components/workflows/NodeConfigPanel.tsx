@@ -876,41 +876,22 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                         formId={triggerFormId}
                         value={localConfig?.crossReferenceFieldId || ''}
                         onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
-                          console.log('🔗 Cross-reference field selected:', { fieldId, fieldName, customConfig });
-                          // Auto-detect target form from cross-reference field's custom_config
+                          // When a cross-reference field is selected, auto-detect the target form
                           const targetFormId = customConfig?.targetFormId;
                           const targetFormName = customConfig?.targetFormName;
-                          
-                          console.log('🎯 Auto-detected target form:', { targetFormId, targetFormName });
                           
                           handleFullConfigUpdate({
                             ...localConfig,
                             crossReferenceFieldId: fieldId,
                             crossReferenceFieldName: fieldName,
-                            targetFormId: targetFormId || '',
-                            targetFormName: targetFormName || ''
+                            targetFormId: targetFormId || localConfig?.targetFormId,
+                            targetFormName: targetFormName || localConfig?.targetFormName
                           });
                         }}
                         placeholder="Select cross-reference field"
                         filterTypes={['cross-reference']}
                       />
                     </div>
-
-                    {localConfig?.crossReferenceFieldId && (
-                      <div className="p-3 bg-muted/50 rounded-md border">
-                        <Label className="text-sm font-medium">Target Form (Child Form)</Label>
-                        {localConfig?.targetFormId ? (
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-sm text-green-600">✓ Auto-detected:</span>
-                            <span className="text-sm font-medium">{localConfig.targetFormName || localConfig.targetFormId}</span>
-                          </div>
-                        ) : (
-                          <p className="text-xs text-amber-600 mt-1">
-                            No target form configured in this cross-reference field. Please configure the cross-reference field in the form builder first.
-                          </p>
-                        )}
-                      </div>
-                    )}
 
                     <div>
                       <Label>Number of Records *</Label>
@@ -930,8 +911,37 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                       </p>
                     </div>
 
-                    {localConfig?.crossReferenceFieldId && localConfig?.targetFormId && (
+                    {localConfig?.crossReferenceFieldId && (
                       <>
+                        <div>
+                          <Label>Target Form (Child Form)</Label>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            {localConfig?.targetFormId 
+                              ? `Auto-detected from cross-reference: ${localConfig.targetFormName || 'Unknown'}`
+                              : 'Will be auto-detected from cross-reference field'
+                            }
+                          </p>
+                          {!localConfig?.targetFormId && (
+                            <FormSelector
+                              value={localConfig?.targetFormId || ''}
+                              onValueChange={(formId, formName) => {
+                                handleFullConfigUpdate({ 
+                                  ...localConfig, 
+                                  targetFormId: formId,
+                                  targetFormName: formName
+                                });
+                              }}
+                              placeholder="Select target form (if not auto-detected)"
+                              projectId={projectId}
+                            />
+                          )}
+                          {localConfig?.targetFormId && (
+                            <div className="text-sm p-2 bg-muted rounded">
+                              {localConfig.targetFormName || localConfig.targetFormId}
+                            </div>
+                          )}
+                        </div>
+
                     <div>
                       <Label>Initial Status</Label>
                       <Select
@@ -1042,8 +1052,8 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                         onFieldValuesChange={(values) => handleConfigUpdate('fieldValues', values)}
                       />
                     )}
-                      </>
-                    )}
+                  </>
+                )}
 
                 {localConfig?.crossReferenceFieldId && localConfig?.targetFormId && (
                   <div className="text-xs text-violet-700 bg-violet-50 p-3 rounded border border-violet-200">
