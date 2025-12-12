@@ -80,7 +80,7 @@ export function useTableData(
       const totalRecords = countResult.count || 0;
       setTotalCount(totalRecords);
 
-      // Get paginated data with drilldown filters
+      // Get paginated data
       const from = (currentPage - 1) * pageSize;
       const to = from + pageSize - 1;
 
@@ -114,6 +114,61 @@ export function useTableData(
         approval_timestamp: row.approval_timestamp || ''
       }));
 
+      // Apply configured filters (from builder / Add Table UI)
+      if (filters && filters.length > 0) {
+        console.log('Applying configured filters:', filters);
+
+        const matchesCondition = (row: SubmissionRow, condition: FilterCondition): boolean => {
+          if (!condition.field) return true;
+
+          const rawValue = row.submission_data?.[condition.field];
+          const valueStr = rawValue !== undefined && rawValue !== null ? rawValue.toString() : '';
+          const target = condition.value;
+          const targetStr = target !== undefined && target !== null ? target.toString() : '';
+
+          switch (condition.operator) {
+            case 'equals':
+              return valueStr === targetStr;
+            case 'not_equals':
+              return valueStr !== targetStr;
+            case 'contains':
+              return valueStr.toLowerCase().includes(targetStr.toLowerCase());
+            case 'starts_with':
+              return valueStr.startsWith(targetStr);
+            case 'ends_with':
+              return valueStr.endsWith(targetStr);
+            case 'greater_than':
+              return parseFloat(valueStr) > parseFloat(targetStr);
+            case 'less_than':
+              return parseFloat(valueStr) < parseFloat(targetStr);
+            case 'greater_equal':
+              return parseFloat(valueStr) >= parseFloat(targetStr);
+            case 'less_equal':
+              return parseFloat(valueStr) <= parseFloat(targetStr);
+            case 'is_empty':
+              return valueStr === '' || valueStr === undefined;
+            case 'is_not_empty':
+              return valueStr !== '' && valueStr !== undefined;
+            case 'in': {
+              const parts = targetStr.split(',').map(p => p.trim()).filter(Boolean);
+              return parts.length === 0 ? true : parts.includes(valueStr);
+            }
+            case 'not_in': {
+              const parts = targetStr.split(',').map(p => p.trim()).filter(Boolean);
+              return parts.length === 0 ? true : !parts.includes(valueStr);
+            }
+            default:
+              return true;
+          }
+        };
+
+        transformedData = transformedData.filter(row =>
+          filters.every(group =>
+            (group.conditions || []).every(cond => matchesCondition(row, cond))
+          )
+        );
+      }
+
       // Apply joins if configured
       if (joinConfig?.enabled && joinConfig.joins?.length > 0) {
         console.log('Applying joins:', joinConfig.joins);
@@ -143,7 +198,7 @@ export function useTableData(
     } finally {
       setLoading(false);
     }
-  }, [formId, currentPage, pageSize, drilldownFilters, joinConfig]);
+  }, [formId, currentPage, pageSize, filters, drilldownFilters, joinConfig]);
 
   // Helper function to apply joins
   const applyJoins = async (primaryData: SubmissionRow[], joins: JoinDefinition[]): Promise<SubmissionRow[]> => {

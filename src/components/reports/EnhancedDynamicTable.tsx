@@ -73,10 +73,24 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
     };
   }, [config.joinConfig]);
 
-  // Use the useTableData hook with drilldown filters and join config
+  // Use the useTableData hook with filters, drilldown filters and join config
+  const filterGroups = useMemo(() => {
+    const flatFilters = (config as any).filters as { field: string; operator: string; value: any }[] | undefined;
+    if (!flatFilters || flatFilters.length === 0) return [] as { conditions: { field: string; operator: string; value: any }[] }[];
+    return [
+      {
+        conditions: flatFilters.map(f => ({
+          field: f.field,
+          operator: f.operator,
+          value: f.value
+        }))
+      }
+    ];
+  }, [config]);
+
   const { data, loading, totalCount, refetch } = useTableData(
-    config.formId, 
-    [], 
+    config.formId,
+    filterGroups,
     50,
     drilldownFiltersForQuery,
     joinConfigForQuery
@@ -98,30 +112,26 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
       
       let allFields = fields || [];
 
-      // Load fields from all joined forms
-      if (config.joinConfig?.enabled && config.joinConfig.joins?.length > 0) {
-        for (const join of config.joinConfig.joins) {
-          if (!join.secondaryFormId) continue;
+      // Load fields from joined form when join is enabled
+      if (config.joinConfig?.enabled && config.joinConfig.secondaryFormId) {
+        const { data: secondaryFields, error: secondaryError } = await supabase
+          .from('form_fields')
+          .select('*')
+          .eq('form_id', config.joinConfig.secondaryFormId)
+          .neq('field_type', 'signature-pad')
+          .order('field_order', { ascending: true });
 
-          const { data: secondaryFields, error: secondaryError } = await supabase
-            .from('form_fields')
-            .select('*')
-            .eq('form_id', join.secondaryFormId)
-            .neq('field_type', 'signature-pad')
-            .order('field_order', { ascending: true });
+        if (!secondaryError && secondaryFields) {
+          const form = forms.find(f => f.id === config.joinConfig.secondaryFormId);
+          const formLabel = config.joinConfig.alias || form?.name || 'Joined';
 
-          if (!secondaryError && secondaryFields) {
-            const form = forms.find(f => f.id === join.secondaryFormId);
-            const formLabel = join.alias || form?.name || 'Joined';
-            
-            const prefixedSecondaryFields = secondaryFields.map(field => ({
-              ...field,
-              id: `${join.secondaryFormId}.${field.id}`,
-              label: `[${formLabel}] ${field.label}`,
-              sourceFormId: join.secondaryFormId
-            }));
-            allFields = [...allFields, ...prefixedSecondaryFields];
-          }
+          const prefixedSecondaryFields = secondaryFields.map(field => ({
+            ...field,
+            id: `${config.joinConfig.secondaryFormId}.${field.id}`,
+            label: `[${formLabel}] ${field.label}`,
+            sourceFormId: config.joinConfig.secondaryFormId
+          }));
+          allFields = [...allFields, ...prefixedSecondaryFields];
         }
       }
 
