@@ -227,6 +227,15 @@ const AnalyticsDashboard = () => {
         };
       }
       
+      // Store all values with counts for display
+      const valuesList = Object.entries(valueCounts)
+        .sort(([,a], [,b]) => b - a)
+        .map(([value, count]) => ({
+          value: value.length > 50 ? value.substring(0, 50) + '...' : value,
+          fullValue: value,
+          count
+        }));
+      
       fieldStats[field.id] = {
         label: field.label,
         type: field.field_type,
@@ -235,7 +244,8 @@ const AnalyticsDashboard = () => {
         emptyResponses,
         uniqueValues,
         dataQuality,
-        aggregations
+        aggregations,
+        valuesList
       };
     });
     
@@ -605,6 +615,31 @@ const AnalyticsDashboard = () => {
                                 </div>
                               </div>
                             )}
+                          </div>
+                        )}
+
+                        {/* Field Values List */}
+                        {stats.valuesList && stats.valuesList.length > 0 && (
+                          <div className="border-t pt-4 mt-4">
+                            <p className="text-sm font-medium mb-3">All Values</p>
+                            <div className="max-h-40 overflow-y-auto">
+                              <table className="w-full text-sm">
+                                <thead className="bg-muted/50 sticky top-0">
+                                  <tr>
+                                    <th className="text-left p-2 font-medium">Value</th>
+                                    <th className="text-right p-2 font-medium w-20">Count</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {stats.valuesList.map((item: any, index: number) => (
+                                    <tr key={index} className="border-b border-muted/30">
+                                      <td className="p-2 truncate" title={item.fullValue}>{item.value}</td>
+                                      <td className="p-2 text-right font-medium">{item.count}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
                           </div>
                         )}
                       </div>
