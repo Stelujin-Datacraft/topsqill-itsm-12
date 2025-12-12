@@ -37,7 +37,14 @@ export function QueryResultChart({ result, chartType, colorful = true }: QueryRe
       result.columns.forEach((col, idx) => {
         const value = row[idx];
         const numericValue = typeof value === 'string' ? parseFloat(value) : value;
-        obj[col] = !isNaN(numericValue) && typeof numericValue === 'number' ? numericValue : value;
+        // Ensure NaN values are replaced with 0 to prevent Recharts crash
+        if (typeof numericValue === 'number' && !isNaN(numericValue)) {
+          obj[col] = numericValue;
+        } else if (typeof value === 'string') {
+          obj[col] = value;
+        } else {
+          obj[col] = 0;
+        }
       });
       return obj;
     });
@@ -45,10 +52,16 @@ export function QueryResultChart({ result, chartType, colorful = true }: QueryRe
 
   // Pie chart data
   const pieChartData = useMemo(() => {
-    return chartData.map((item, index) => ({
-      name: String(item[firstColumn] || `Item ${index + 1}`),
-      value: typeof item[secondColumn] === 'number' ? item[secondColumn] : parseFloat(item[secondColumn]) || 0
-    })).filter(item => item.value > 0);
+    return chartData.map((item, index) => {
+      const rawValue = item[secondColumn];
+      let numValue = typeof rawValue === 'number' ? rawValue : parseFloat(rawValue);
+      // Ensure NaN values become 0
+      if (isNaN(numValue)) numValue = 0;
+      return {
+        name: String(item[firstColumn] || `Item ${index + 1}`),
+        value: numValue
+      };
+    }).filter(item => item.value > 0);
   }, [chartData, firstColumn, secondColumn]);
 
   if (chartType === 'bar') {
