@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
-import { useReports } from '@/hooks/useReports';
 import { Report } from '@/types/reports';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Plus, FileText, Calendar, User, Eye, Edit, Trash2, Shield } from 'lucide-react';
+import { FileText, Calendar, Eye, Edit, Trash2, Shield } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { useToast } from '@/hooks/use-toast';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { supabase } from '@/integrations/supabase/client';
+import { CreateReportDialog } from '@/components/reports/CreateReportDialog';
 export interface ReportsListProps {
   reports: Report[];
   onView: (report: Report) => void;
@@ -108,28 +108,21 @@ export function ReportsList({
   if (loading) {
     return <LoadingScreen message="Loading reports..." />;
   }
-  // const CreateReportButton = () => (
-  //   <Button 
-  //     onClick={createButtonState.disabled ? () => checkPermissionWithAlert('reports', 'create') : onCreate} 
-  //     disabled={createButtonState.disabled}
-  //   >
-  //     <Plus className="h-4 w-4 mr-2" />
-  //     Create Report new
-  //   </Button> 
-  // );
-  const CreateFirstReportButton = () => <Button onClick={createButtonState.disabled ? () => checkPermissionWithAlert('reports', 'create') : onCreate} disabled={createButtonState.disabled}>
-      <Plus className="h-4 w-4 mr-2" />
-      Create Your First Report
-    </Button>;
 
   const CreateReportButton = () => (
-    <Button 
-      onClick={createButtonState.disabled ? () => checkPermissionWithAlert('reports', 'create') : onCreate} 
-      disabled={createButtonState.disabled}
-    >
-      <Plus className="h-4 w-4 mr-2" />
-      Create Report
-    </Button>
+    <CreateReportDialog>
+      <Button disabled={createButtonState.disabled}>
+        Create Report
+      </Button>
+    </CreateReportDialog>
+  );
+
+  const CreateFirstReportButton = () => (
+    <CreateReportDialog>
+      <Button disabled={createButtonState.disabled}>
+        Create Your First Report
+      </Button>
+    </CreateReportDialog>
   );
 
   return <div className="space-y-6">
