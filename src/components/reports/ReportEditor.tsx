@@ -546,21 +546,30 @@ export function ReportEditor({
 
       {/* Grid Layout */}
       <div className={`transition-all duration-300 ${isPropertiesPaneOpen ? (isPropertiesPaneExpanded ? 'mr-[50vw]' : 'mr-80') : 'mr-0'}`}>
-        {components.length > 0 ? <ResponsiveGridLayout className="layout" layouts={{
-        lg: gridItems
-      }} breakpoints={{
-        lg: 1200,
-        md: 996,
-        sm: 768,
-        xs: 480,
-        xxs: 0
-      }} cols={{
-        lg: 12,
-        md: 10,
-        sm: 6,
-        xs: 4,
-        xxs: 2
-      }} rowHeight={60} isDraggable={isDragEnabled} isResizable={isDragEnabled} onLayoutChange={isDragEnabled ? handleLayoutChange : undefined}>
+        {components.length > 0 ? <ResponsiveGridLayout 
+        className="layout" 
+        layouts={{
+          lg: gridItems
+        }} 
+        breakpoints={{
+          lg: 1200,
+          md: 996,
+          sm: 768,
+          xs: 480,
+          xxs: 0
+        }} 
+        cols={{
+          lg: 12,
+          md: 10,
+          sm: 6,
+          xs: 4,
+          xxs: 2
+        }} 
+        rowHeight={60} 
+        isDraggable={isDragEnabled} 
+        isResizable={isDragEnabled} 
+        draggableCancel="button, input, select, textarea, a, [role='button'], .recharts-wrapper, .no-drag"
+        onLayoutChange={isDragEnabled ? handleLayoutChange : undefined}>
             {components.map(component => <div key={component.id} className="relative group">
                 <Card className={`h-full overflow-hidden transition-all ${!isDragEnabled ? 'cursor-pointer' : 'cursor-move'} ${selectedComponent?.id === component.id ? 'ring-2 ring-primary shadow-lg' : !isDragEnabled ? 'hover:shadow-md hover:ring-1 hover:ring-muted-foreground/20' : ''}`} onClick={e => handleComponentClick(component, e)}>
                   <CardContent className="p-4 h-full relative">
