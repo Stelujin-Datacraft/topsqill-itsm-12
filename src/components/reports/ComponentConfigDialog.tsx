@@ -972,13 +972,45 @@ export function ComponentConfigDialog({
   };
 
   const renderTableConfig = () => {
+    const allFields = joinEnabled ? [...formFields, ...secondaryFormFields] : formFields;
+    const selectedColumns = config.selectedColumns || [];
+    const allSelected = allFields.length > 0 && selectedColumns.length === allFields.length;
+
+    const handleSelectAllColumns = () => {
+      if (allSelected) {
+        setConfig({ ...config, selectedColumns: [] });
+      } else {
+        setConfig({ ...config, selectedColumns: allFields.map(f => f.id) });
+      }
+    };
+
+    const handleColumnToggle = (fieldId: string, checked: boolean) => {
+      const newColumns = checked
+        ? [...selectedColumns, fieldId]
+        : selectedColumns.filter((col: string) => col !== fieldId);
+      setConfig({ ...config, selectedColumns: newColumns });
+    };
+
+    const handleDrilldownFieldToggle = (fieldId: string, checked: boolean) => {
+      const currentFields = config.drilldownConfig?.fields || [];
+      const newFields = checked
+        ? [...currentFields, fieldId]
+        : currentFields.filter((f: string) => f !== fieldId);
+      setConfig({ 
+        ...config, 
+        drilldownConfig: { 
+          ...config.drilldownConfig, 
+          fields: newFields 
+        } 
+      });
+    };
+
     return (
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="basic">Basic</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="basic">Basic & Columns</TabsTrigger>
           <TabsTrigger value="joins">Joins</TabsTrigger>
           <TabsTrigger value="drilldown">Drilldown</TabsTrigger>
-          <TabsTrigger value="columns">Columns</TabsTrigger>
           <TabsTrigger value="filters">Filters</TabsTrigger>
         </TabsList>
 
@@ -1032,6 +1064,54 @@ export function ComponentConfigDialog({
               <Label htmlFor="enableSearch">Enable search</Label>
             </div>
           </div>
+
+          {/* Column Selection */}
+          {config.formId && allFields.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm">Column Selection</CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSelectAllColumns}
+                    className="h-8"
+                  >
+                    {allSelected ? 'Deselect All' : 'Select All'}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {selectedColumns.length} of {allFields.length} columns selected
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="max-h-48 overflow-y-auto">
+                  <div className="grid grid-cols-2 gap-2">
+                    {allFields.map(field => (
+                      <div key={field.id} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`col-${field.id}`}
+                          checked={selectedColumns.includes(field.id)}
+                          onChange={(e) => handleColumnToggle(field.id, e.target.checked)}
+                          className="rounded border-gray-300"
+                        />
+                        <Label htmlFor={`col-${field.id}`} className="text-sm cursor-pointer">
+                          {field.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {config.formId && allFields.length === 0 && !loadingFields && (
+            <div className="p-4 text-center text-muted-foreground">
+              The selected form has no fields configured yet.
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="joins" className="space-y-4">
@@ -1076,58 +1156,74 @@ export function ComponentConfigDialog({
         </TabsContent>
 
         <TabsContent value="drilldown" className="space-y-4">
-          {config.formId && formFields.length > 0 ? (
-            <DrilldownConfig
-              formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-              enabled={config.drilldownConfig?.enabled || false}
-              onEnabledChange={(enabled) => setConfig({ 
-                ...config, 
-                drilldownConfig: { 
-                  ...config.drilldownConfig, 
-                  enabled 
-                } 
-              })}
-              drilldownLevels={config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels || []}
-              onDrilldownLevelsChange={(levels) => setConfig({ 
-                ...config, 
-                drilldownConfig: { 
-                  ...config.drilldownConfig, 
-                  drilldownLevels: levels,
-                  levels: levels // Keep both for backwards compatibility
-                } 
-              })}
-            />
-          ) : (
-            <div className="p-4 text-center text-muted-foreground">
-              Please select a form first to configure drilldown.
-            </div>
-          )}
-        </TabsContent>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm">Drilldown</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Click on cell values to filter the table
+                  </p>
+                </div>
+                <Switch
+                  checked={config.drilldownConfig?.enabled || false}
+                  onCheckedChange={(enabled) => setConfig({ 
+                    ...config, 
+                    drilldownConfig: { 
+                      ...config.drilldownConfig, 
+                      enabled 
+                    } 
+                  })}
+                />
+              </div>
+            </CardHeader>
 
-        <TabsContent value="columns" className="space-y-4">
-          {config.formId && (joinEnabled ? (config.joinConfig?.secondaryFormId && secondaryFormFields.length > 0) : formFields.length > 0) && (
-            <GenericFieldSelector
-              formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-              selectedFields={config.selectedColumns || []}
-              onFieldsChange={(fields) => setConfig({ ...config, selectedColumns: fields })}
-              label="Table Columns"
-              description="Select which columns to display in the table (from joined forms)"
-              selectionType="checkbox"
-              maxHeight="400px"
-            />
-          )}
+            {config.drilldownConfig?.enabled && config.formId && allFields.length > 0 && (
+              <CardContent className="space-y-4">
+                <div className="bg-muted/50 p-3 rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    Select which fields can be clicked to filter. When you click a cell value in the table, 
+                    it will filter to show only rows with that value.
+                  </p>
+                </div>
 
-          {config.formId && formFields.length === 0 && !loadingFields && (
-            <div className="p-4 text-center text-muted-foreground">
-              The selected form has no fields configured yet.
-            </div>
-          )}
+                <div className="max-h-48 overflow-y-auto border rounded-lg p-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    {allFields.map(field => (
+                      <div key={field.id} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`drill-${field.id}`}
+                          checked={(config.drilldownConfig?.fields || []).includes(field.id)}
+                          onChange={(e) => handleDrilldownFieldToggle(field.id, e.target.checked)}
+                          className="rounded border-gray-300"
+                        />
+                        <Label htmlFor={`drill-${field.id}`} className="text-sm cursor-pointer">
+                          {field.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-          {!config.formId && (
-            <div className="p-4 text-center text-muted-foreground">
-              Please select a form to configure table columns.
-            </div>
-          )}
+                {(config.drilldownConfig?.fields || []).length > 0 && (
+                  <div className="bg-primary/10 p-3 rounded-lg">
+                    <p className="text-sm font-medium">
+                      {config.drilldownConfig.fields.length} field(s) enabled for drilldown
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            )}
+
+            {config.drilldownConfig?.enabled && (!config.formId || allFields.length === 0) && (
+              <CardContent>
+                <div className="p-4 text-center text-muted-foreground">
+                  Please select a form first to configure drilldown.
+                </div>
+              </CardContent>
+            )}
+          </Card>
         </TabsContent>
 
         <TabsContent value="filters" className="space-y-4">
