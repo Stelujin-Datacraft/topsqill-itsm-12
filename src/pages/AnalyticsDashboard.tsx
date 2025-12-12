@@ -392,7 +392,12 @@ const AnalyticsDashboard = () => {
                 </Popover>
               </CardHeader>
               <CardContent>
-                {Object.keys(analytics.fieldAnalytics || {}).length === 0 ? (
+                {selectedFieldIds.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Select fields above to view their analytics.</p>
+                  </div>
+                ) : Object.keys(analytics.fieldAnalytics || {}).length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>No field analytics available. Make sure the form has submissions with field data.</p>
@@ -400,7 +405,7 @@ const AnalyticsDashboard = () => {
                 ) : (
                   <div className="space-y-6">
                     {Object.entries(analytics.fieldAnalytics)
-                      .filter(([fieldId]) => selectedFieldIds.length === 0 || selectedFieldIds.includes(fieldId))
+                      .filter(([fieldId]) => selectedFieldIds.includes(fieldId))
                       .map(([fieldId, stats]: [string, any]) => (
                       <div key={fieldId} className="border rounded-lg p-4">
                         <div className="flex items-center justify-between mb-3">
