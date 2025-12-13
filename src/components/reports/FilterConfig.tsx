@@ -85,19 +85,29 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
     const field = formFields.find(f => f.id === fieldId);
     if (!field) return 'text';
     
-    switch (field.type) {
+    // Support both .type and .field_type for compatibility
+    const fieldType = (field as any)?.field_type || field?.type || '';
+    
+    switch (fieldType) {
       case 'number':
       case 'currency':
+      case 'rating':
+      case 'slider':
         return 'number';
       case 'date':
       case 'datetime':
+      case 'time':
         return 'date';
       case 'select':
       case 'radio':
       case 'multi-select':
+      case 'dropdown':
+      case 'status':
         return 'select';
       case 'checkbox':
       case 'toggle-switch':
+      case 'toggle':
+      case 'yes-no':
         return 'boolean';
       default:
         return 'text';
@@ -117,7 +127,21 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
       return null;
     }
 
-    if (fieldType === 'select' && field?.options) {
+    // Get field options - support both field.options and custom_config.options
+    const getFieldOptions = () => {
+      if (field?.options && field.options.length > 0) {
+        return field.options;
+      }
+      const customConfig = (field as any)?.custom_config;
+      if (customConfig?.options && Array.isArray(customConfig.options)) {
+        return customConfig.options;
+      }
+      return [];
+    };
+
+    const fieldOptions = getFieldOptions();
+
+    if (fieldType === 'select' && fieldOptions.length > 0) {
       if (filter.operator === 'in' || filter.operator === 'not_in') {
         return (
           <div className="space-y-2">
@@ -141,11 +165,20 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
                 <SelectValue placeholder="Select value" />
               </SelectTrigger>
               <SelectContent>
-                {field.options.filter(option => option.value && option.value.trim() !== '').map((option) => (
-                  <SelectItem key={option.id} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
+                {fieldOptions
+                  .filter((option: any) => {
+                    const val = option.value || option;
+                    return val && String(val).trim() !== '';
+                  })
+                  .map((option: any, optIndex: number) => {
+                    const val = option.value || option;
+                    const label = option.label || option.value || option;
+                    return (
+                      <SelectItem key={option.id || optIndex} value={String(val)}>
+                        {label}
+                      </SelectItem>
+                    );
+                  })}
               </SelectContent>
             </Select>
           </div>

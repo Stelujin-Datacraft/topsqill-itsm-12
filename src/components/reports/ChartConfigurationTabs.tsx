@@ -6,14 +6,11 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
 import { ChartConfig } from '@/types/reports';
 import { FormField } from '@/types/form';
 import { ChartTypeSelector } from './ChartTypeSelector';
 import { ChartPreview } from './ChartPreview';
-import { GenericFieldSelector } from './GenericFieldSelector';
-import { MetricsSelector } from './MetricsSelector';
-import { DimensionsSelector } from './DimensionsSelector';
+import { ChartDataSection } from './ChartDataSection';
 import { ChartExamples } from './ChartExamples';
 import { Database, Sparkles, Lightbulb } from 'lucide-react';
 import { getChartMetricCapabilities } from '@/utils/chartConfig';
@@ -236,80 +233,11 @@ export function ChartConfigurationTabs({
       </TabsContent>
 
       <TabsContent value="data" className="space-y-6">
-        {formFields.length > 0 ? (
-          <>
-            {/* Metrics Configuration */}
-            <MetricsSelector
-              formFields={formFields}
-              selectedMetrics={config.metrics || []}
-              onMetricsChange={(metrics) => handleConfigUpdate({ metrics })}
-              aggregationEnabled={config.aggregationEnabled || false}
-              onAggregationEnabledChange={(enabled) => handleConfigUpdate({ aggregationEnabled: enabled })}
-              metricAggregations={config.metricAggregations || []}
-              onMetricAggregationsChange={(aggregations) => handleConfigUpdate({ metricAggregations: aggregations })}
-              groupByField={config.groupByField}
-              onGroupByFieldChange={(field) => handleConfigUpdate({ groupByField: field })}
-              maxMetrics={getChartMetricCapabilities(config.chartType || 'bar').maxMetrics}
-              label="Metrics (How much?)"
-              description="Select numeric fields to measure and analyze"
-            />
-
-            {/* Dimensions Configuration */}
-            <DimensionsSelector
-              formFields={formFields}
-              selectedDimensions={config.dimensions || []}
-              onDimensionsChange={(dimensions) => handleConfigUpdate({ dimensions })}
-              maxDimensions={getChartMetricCapabilities(config.chartType || 'bar').maxDimensions}
-              label="Dimensions (By what?)"
-              description="Select categorical fields to group and categorize data"
-            />
-
-            {/* Legacy Aggregation Type (for backward compatibility) */}
-            {!config.aggregationEnabled && (config.metrics || []).length > 0 && (
-              <div>
-                <Label>Basic Aggregation Function</Label>
-                <Select 
-                  value={config.aggregationType || 'count'} 
-                  onValueChange={(value) => handleConfigUpdate({ aggregationType: value as any })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="count">Count</SelectItem>
-                    <SelectItem value="sum">Sum</SelectItem>
-                    <SelectItem value="avg">Average</SelectItem>
-                    <SelectItem value="min">Minimum</SelectItem>
-                    <SelectItem value="max">Maximum</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* Chart Type Capability Info */}
-            <div className="p-3 bg-muted/30 rounded-lg border">
-              <div className="text-sm font-medium mb-2">Chart Capabilities</div>
-              <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                <div>Max Metrics: {getChartMetricCapabilities(config.chartType || 'bar').maxMetrics}</div>
-                <div>Max Dimensions: {getChartMetricCapabilities(config.chartType || 'bar').maxDimensions}</div>
-              </div>
-              <div className="text-xs text-muted-foreground mt-2">
-                <strong>{config.chartType || 'bar'} chart:</strong> {
-                  config.chartType === 'bar' ? 'Great for comparing values across categories with multiple metrics' :
-                  config.chartType === 'line' ? 'Perfect for showing trends over time with multiple data series' :
-                  config.chartType === 'pie' ? 'Shows parts of a whole - best with single metric' :
-                  config.chartType === 'scatter' ? 'Shows correlation between two metrics' :
-                  config.chartType === 'bubble' ? 'Adds a third metric as bubble size to scatter plot' :
-                  'Suitable for the selected data configuration'
-                }
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="p-4 text-center text-muted-foreground">
-            Please select a form to configure data fields.
-          </div>
-        )}
+        <ChartDataSection
+          config={config}
+          formFields={formFields}
+          onConfigChange={handleConfigUpdate}
+        />
       </TabsContent>
 
       <TabsContent value="examples" className="space-y-4">
