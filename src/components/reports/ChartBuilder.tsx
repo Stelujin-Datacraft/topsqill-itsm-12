@@ -28,15 +28,21 @@ export function ChartBuilder({ config, onConfigChange, hideControls = false }: C
     loadForms();
   }, []);
 
+  // Sync local config with external config changes
+  useEffect(() => {
+    setLocalConfig(config);
+    // Also load fields if formId changed from external config
+    if (config.formId && config.formId !== localConfig.formId) {
+      loadFormFields(config.formId);
+    }
+  }, [config]);
+
+  // Load fields when formId changes in local config
   useEffect(() => {
     if (localConfig.formId) {
       loadFormFields(localConfig.formId);
     }
   }, [localConfig.formId]);
-
-  useEffect(() => {
-    setLocalConfig(config);
-  }, [config]);
 
   const loadForms = async () => {
     try {
