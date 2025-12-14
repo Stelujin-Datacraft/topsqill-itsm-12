@@ -46,6 +46,10 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
 
   // Determine initial mode based on config - only used for initial state
   const getInitialMode = (): ChartMode => {
+    // Check for explicit compareMode flag first
+    if (config.compareMode) {
+      return 'compare';
+    }
     if (config.aggregationEnabled && selectedMetrics.length > 0) {
       return 'calculate';
     }
@@ -67,18 +71,21 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
     if (newMode === 'count') {
       onConfigChange({
         aggregationEnabled: false,
+        compareMode: false,
         metrics: [],
         metricAggregations: []
       });
     } else if (newMode === 'calculate') {
       onConfigChange({
         aggregationEnabled: true,
+        compareMode: false,
         metrics: selectedMetrics.slice(0, 1),
         metricAggregations: metricAggregations.slice(0, 1)
       });
     } else if (newMode === 'compare') {
       onConfigChange({
         aggregationEnabled: false,
+        compareMode: true,
         metrics: selectedMetrics.slice(0, 2),
         metricAggregations: []
       });

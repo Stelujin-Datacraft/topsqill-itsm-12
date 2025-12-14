@@ -41,6 +41,7 @@ export interface ChartConfig {
   metrics?: string[];
   aggregationType?: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'median' | 'stddev';
   aggregationEnabled?: boolean;
+  compareMode?: boolean; // When true, show raw values of two fields side-by-side without aggregation
   groupByField?: string;
   colorTheme: 'default' | 'vibrant' | 'pastel' | 'monochrome' | 'custom';
   customColors?: string[];
