@@ -308,6 +308,7 @@ export function ChartPreview({
       .map((submission, index) => {
         const submissionData = submission.submission_data;
         const rawXValue = submissionData[metricField1] ?? submissionData[config.yAxis];
+        const rawYValue = submissionData[metricField2] ?? submissionData[config.yAxis];
         const xValue = getRawMetricValue(submissionData, metricField1);
         const yValue = getRawMetricValue(submissionData, metricField2);
 
@@ -320,8 +321,9 @@ export function ChartPreview({
           x: xValue,
           y: yValue,
           name: dimensionLabel,
-          // Preserve original X field display value for text metrics (used in bar charts / tooltips)
+          // Preserve original X/Y field display values for tooltips / labels
           xDisplay: rawXValue ?? xValue,
+          yDisplay: rawYValue ?? yValue,
           // Store field names for tooltip
           xFieldName: field1Name,
           yFieldName: field2Name,
@@ -1002,17 +1004,19 @@ export function ChartPreview({
             if (!payload || payload.length === 0) return null;
             const data = payload[0]?.payload;
             if (!data) return null;
+            const xDisplay = data.xDisplay ?? data.x;
+            const yDisplay = data.yDisplay ?? data.y;
             return (
               <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
                 <div className="font-medium mb-2">{data.name}</div>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between gap-4">
                     <span className="text-muted-foreground">{data.xFieldName || field1Name}:</span>
-                    <span className="font-semibold">{data.x}</span>
+                    <span className="font-semibold">{String(xDisplay)}</span>
                   </div>
                   <div className="flex justify-between gap-4">
                     <span className="text-muted-foreground">{data.yFieldName || field2Name}:</span>
-                    <span className="font-semibold">{data.y}</span>
+                    <span className="font-semibold">{String(yDisplay)}</span>
                   </div>
                 </div>
               </div>
