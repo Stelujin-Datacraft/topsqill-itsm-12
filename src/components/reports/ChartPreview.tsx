@@ -292,58 +292,41 @@ export function ChartPreview({
     }
   };
 
-  // Process compare mode - show raw values of two fields side-by-side (no counting logic)
+  // Process compare mode - X/Y scatter format (Field 1 on X, Field 2 on Y)
   const processCompareData = (submissions: any[], dimensionFields: string[], metricFields: string[]) => {
-    console.log('📊 Processing compare mode data with fields:', metricFields);
+    console.log('📊 Processing compare mode (scatter) with fields:', metricFields);
 
-    const hasDimension = dimensionFields.length > 0 && dimensionFields[0] !== '_default';
     const [metricField1, metricField2] = metricFields;
-
     const field1Name = getFormFieldName(metricField1);
     const field2Name = getFormFieldName(metricField2);
 
-    if (hasDimension) {
-      // Group by dimension and show both field values per dimension
-      const groupedData: { [key: string]: { values1: number[]; values2: number[] } } = {};
+    const hasDimension = dimensionFields.length > 0 && dimensionFields[0] !== '_default';
 
-      submissions.forEach(submission => {
-        const submissionData = submission.submission_data;
-        if (!passesFilters(submissionData)) return;
-
-        const dimensionKey = getDimensionKey(submissionData, dimensionFields);
-        if (!groupedData[dimensionKey]) {
-          groupedData[dimensionKey] = { values1: [], values2: [] };
-        }
-
-        const value1 = getRawMetricValue(submissionData, metricField1);
-        const value2 = getRawMetricValue(submissionData, metricField2);
-
-        groupedData[dimensionKey].values1.push(value1);
-        groupedData[dimensionKey].values2.push(value2);
-      });
-
-      // Convert to chart format - sum values per dimension for comparison
-      return Object.entries(groupedData).map(([dimension, data]) => ({
-        name: dimension,
-        [field1Name]: data.values1.reduce((a, b) => a + b, 0),
-        [field2Name]: data.values2.reduce((a, b) => a + b, 0),
-      }));
-    }
-
-    // No dimension - show each record as a separate data point
-    return submissions
+    // Each submission becomes a point: x = field1 value, y = field2 value
+    const points = submissions
       .filter(submission => passesFilters(submission.submission_data))
       .map((submission, index) => {
         const submissionData = submission.submission_data;
-        const value1 = getRawMetricValue(submissionData, metricField1);
-        const value2 = getRawMetricValue(submissionData, metricField2);
+        const xValue = getRawMetricValue(submissionData, metricField1);
+        const yValue = getRawMetricValue(submissionData, metricField2);
+
+        // Get dimension label if available
+        const dimensionLabel = hasDimension
+          ? getDimensionKey(submissionData, dimensionFields)
+          : `Record ${index + 1}`;
 
         return {
-          name: `Record ${index + 1}`,
-          [field1Name]: value1,
-          [field2Name]: value2,
+          x: xValue,
+          y: yValue,
+          name: dimensionLabel,
+          // Store field names for tooltip
+          xFieldName: field1Name,
+          yFieldName: field2Name,
         };
       });
+
+    console.log('📊 Compare scatter data:', points);
+    return points;
   };
   
   const processGroupedData = (submissions: any[], dimensionFields: string[], metricFields: string[], groupByField: string) => {
@@ -974,9 +957,9 @@ export function ChartPreview({
     });
 
     // Get all dimension-based data keys (for multi-dimensional charts OR grouped charts OR compare mode)
-    let dimensionKeys = sanitizedChartData.length > 0 ? Object.keys(sanitizedChartData[0]).filter(key => key !== 'name' && key !== '_drilldownData' && typeof sanitizedChartData[0][key] === 'number') : [];
+    let dimensionKeys = sanitizedChartData.length > 0 ? Object.keys(sanitizedChartData[0]).filter(key => key !== 'name' && key !== '_drilldownData' && key !== 'x' && key !== 'y' && key !== 'xFieldName' && key !== 'yFieldName' && typeof sanitizedChartData[0][key] === 'number') : [];
     const isCompareMode = config.compareMode && config.metrics && config.metrics.length === 2;
-    const isMultiDimensional = (config.dimensions && config.dimensions.length > 1) || (config.groupByField && dimensionKeys.length > 1) || isCompareMode;
+    const isMultiDimensional = (config.dimensions && config.dimensions.length > 1) || (config.groupByField && dimensionKeys.length > 1);
     
     console.log('📊 Chart rendering - dimensionKeys:', dimensionKeys);
     console.log('📊 Chart rendering - isMultiDimensional:', isMultiDimensional);
@@ -993,6 +976,75 @@ export function ChartPreview({
       seriesValues.sort((a, b) => b.total - a.total);
       dimensionKeys = seriesValues.slice(0, 8).map(s => s.key);
     }
+
+    // Compare mode: render as scatter chart (X/Y axis format)
+    if (isCompareMode) {
+      const field1Name = config.metrics ? getFormFieldName(config.metrics[0]) : 'Field 1';
+      const field2Name = config.metrics ? getFormFieldName(config.metrics[1]) : 'Field 2';
+
+      // Calculate safe domains for X and Y axes
+      const xValues = sanitizedChartData.map(d => Number(d.x)).filter(v => isFinite(v));
+      const yValues = sanitizedChartData.map(d => Number(d.y)).filter(v => isFinite(v));
+      const xMax = xValues.length > 0 ? Math.max(...xValues) : 10;
+      const yMax = yValues.length > 0 ? Math.max(...yValues) : 10;
+      const xDomain: [number, number] = [0, Math.ceil(xMax * 1.1) || 10];
+      const yDomain: [number, number] = [0, Math.ceil(yMax * 1.1) || 10];
+
+      return (
+        <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
+          <div className="absolute inset-0" style={{ bottom: '40px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <RechartsScatterChart margin={{ top: 20, right: 30, left: 60, bottom: 60 }}>
+                <XAxis 
+                  type="number" 
+                  dataKey="x" 
+                  name={field1Name}
+                  tick={{ fontSize: 11 }}
+                  domain={xDomain}
+                  label={{ value: field1Name, position: 'insideBottom', offset: -5 }}
+                />
+                <YAxis 
+                  type="number" 
+                  dataKey="y" 
+                  name={field2Name}
+                  tick={{ fontSize: 11 }}
+                  domain={yDomain}
+                  label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
+                />
+                <Tooltip 
+                  content={({ payload }) => {
+                    if (!payload || payload.length === 0) return null;
+                    const data = payload[0]?.payload;
+                    if (!data) return null;
+                    return (
+                      <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
+                        <div className="font-medium mb-2">{data.name}</div>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground">{data.xFieldName || field1Name}:</span>
+                            <span className="font-semibold">{data.x}</span>
+                          </div>
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground">{data.yFieldName || field2Name}:</span>
+                            <span className="font-semibold">{data.y}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
+                <Scatter 
+                  data={sanitizedChartData} 
+                  fill={colors[0]}
+                  shape="circle"
+                />
+              </RechartsScatterChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      );
+    }
+
     switch (chartType) {
       case 'bar':
         return <div className="relative w-full" style={{
