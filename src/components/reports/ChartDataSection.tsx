@@ -44,26 +44,18 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
   const selectedDimensions = config.dimensions || [];
   const metricAggregations = config.metricAggregations || [];
 
-  // Determine current mode based on config
-  const getCurrentMode = (): ChartMode => {
-    if (selectedMetrics.length === 0 && !config.aggregationEnabled) {
-      return 'count';
+  // Determine initial mode based on config - only used for initial state
+  const getInitialMode = (): ChartMode => {
+    if (config.aggregationEnabled && selectedMetrics.length > 0) {
+      return 'calculate';
     }
     if (selectedMetrics.length === 2 && !config.aggregationEnabled) {
       return 'compare';
     }
-    if (config.aggregationEnabled && selectedMetrics.length > 0) {
-      return 'calculate';
-    }
     return 'count';
   };
 
-  const [mode, setMode] = useState<ChartMode>(getCurrentMode);
-
-  // Sync mode with config changes
-  useEffect(() => {
-    setMode(getCurrentMode());
-  }, [config.aggregationEnabled, selectedMetrics.length]);
+  const [mode, setMode] = useState<ChartMode>(getInitialMode);
 
   const numericFields = getNumericFields(formFields);
   const categoryFields = getCategoryFields(formFields);
@@ -236,8 +228,8 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
             className="grid gap-3"
           >
             {/* Count Records Option */}
-            <label 
-              htmlFor="mode-count"
+            <div 
+              onClick={() => handleModeChange('count')}
               className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
                 mode === 'count' 
                   ? 'border-primary bg-primary/5 shadow-sm' 
@@ -256,11 +248,11 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                   <span className="text-muted-foreground/70 italic">Example: "How many orders per status?" or "Users by country"</span>
                 </p>
               </div>
-            </label>
+            </div>
             
             {/* Calculate Values Option */}
-            <label 
-              htmlFor="mode-calculate"
+            <div 
+              onClick={() => handleModeChange('calculate')}
               className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
                 mode === 'calculate' 
                   ? 'border-primary bg-primary/5 shadow-sm' 
@@ -279,11 +271,11 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                   <span className="text-muted-foreground/70 italic">Example: "Total sales by region" or "Average rating by product"</span>
                 </p>
               </div>
-            </label>
+            </div>
             
             {/* Compare Two Fields Option */}
-            <label 
-              htmlFor="mode-compare"
+            <div 
+              onClick={() => handleModeChange('compare')}
               className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
                 mode === 'compare' 
                   ? 'border-primary bg-primary/5 shadow-sm' 
@@ -302,7 +294,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                   <span className="text-muted-foreground/70 italic">Example: "Budget vs Actual" or "Revenue vs Expenses"</span>
                 </p>
               </div>
-            </label>
+            </div>
           </RadioGroup>
         </CardContent>
       </Card>
