@@ -516,47 +516,6 @@ export function ComponentConfigDialog({
         <TabsContent value="filters" className="space-y-4">
           {config.formId && formFields.length > 0 ? (
             <div className="space-y-6">
-              {/* Aggregation Toggle */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Database className="h-4 w-4" />
-                    Data Aggregation
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="enableAggregation"
-                      checked={config.aggregationEnabled !== false}
-                      onCheckedChange={(checked) => setConfig({ ...config, aggregationEnabled: checked })}
-                    />
-                    <Label htmlFor="enableAggregation">Enable data aggregation</Label>
-                  </div>
-                  
-                  {config.aggregationEnabled !== false && (
-                    <div>
-                      <Label>Aggregation Function</Label>
-                      <Select 
-                        value={config.aggregation || 'count'} 
-                        onValueChange={(value) => setConfig({ ...config, aggregation: value })}
-                      >
-                        <SelectTrigger className="bg-background">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-background border shadow-lg z-50">
-                          {AGGREGATION_FUNCTIONS.map(agg => (
-                            <SelectItem key={agg.value} value={agg.value}>
-                              {agg.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
               {/* Filters */}
               <FilterConfig
                 formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
