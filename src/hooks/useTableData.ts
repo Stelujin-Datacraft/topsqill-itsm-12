@@ -267,6 +267,22 @@ export function useTableData(
     return result;
   };
 
+  // Helper to normalize join values for comparison
+  const normalizeJoinValue = (value: any): string | null => {
+    if (value === null || value === undefined) return null;
+    
+    // Handle objects (like submission-access fields or arrays)
+    if (typeof value === 'object') {
+      try {
+        return JSON.stringify(value).toLowerCase().trim();
+      } catch {
+        return String(value).toLowerCase().trim();
+      }
+    }
+    
+    return String(value).toLowerCase().trim();
+  };
+
   // Perform join operation based on type
   const performJoin = (
     primaryData: SubmissionRow[], 
@@ -285,14 +301,10 @@ export function useTableData(
         return primaryData
           .map(primaryRow => {
             const primaryValueRaw = primaryRow.submission_data?.[primaryFieldId];
-            const primaryValue = primaryValueRaw === null || primaryValueRaw === undefined
-              ? null
-              : String(primaryValueRaw).trim();
+            const primaryValue = normalizeJoinValue(primaryValueRaw);
             const matchingSecondary = secondaryData.find(secondaryRow => {
               const secondaryValueRaw = secondaryRow.submission_data?.[secondaryFieldId];
-              const secondaryValue = secondaryValueRaw === null || secondaryValueRaw === undefined
-                ? null
-                : String(secondaryValueRaw).trim();
+              const secondaryValue = normalizeJoinValue(secondaryValueRaw);
               console.log(`Comparing primary[${primaryFieldId}]="${primaryValue}" with secondary[${secondaryFieldId}]="${secondaryValue}"`);
               return primaryValue !== null && secondaryValue !== null && secondaryValue === primaryValue;
             });
@@ -310,14 +322,10 @@ export function useTableData(
         console.log('Performing LEFT join');
         return primaryData.map(primaryRow => {
           const primaryValueRaw = primaryRow.submission_data?.[primaryFieldId];
-          const primaryValue = primaryValueRaw === null || primaryValueRaw === undefined
-            ? null
-            : String(primaryValueRaw).trim();
+          const primaryValue = normalizeJoinValue(primaryValueRaw);
           const matchingSecondary = secondaryData.find(secondaryRow => {
             const secondaryValueRaw = secondaryRow.submission_data?.[secondaryFieldId];
-            const secondaryValue = secondaryValueRaw === null || secondaryValueRaw === undefined
-              ? null
-              : String(secondaryValueRaw).trim();
+            const secondaryValue = normalizeJoinValue(secondaryValueRaw);
             return primaryValue !== null && secondaryValue !== null && secondaryValue === primaryValue;
           });
 
@@ -336,14 +344,10 @@ export function useTableData(
 
         secondaryData.forEach(secondaryRow => {
           const secondaryValueRaw = secondaryRow.submission_data?.[secondaryFieldId];
-          const secondaryValue = secondaryValueRaw === null || secondaryValueRaw === undefined
-            ? null
-            : String(secondaryValueRaw).trim();
+          const secondaryValue = normalizeJoinValue(secondaryValueRaw);
           const matchingPrimary = primaryData.find(primaryRow => {
             const primaryValueRaw = primaryRow.submission_data?.[primaryFieldId];
-            const primaryValue = primaryValueRaw === null || primaryValueRaw === undefined
-              ? null
-              : String(primaryValueRaw).trim();
+            const primaryValue = normalizeJoinValue(primaryValueRaw);
             return primaryValue !== null && secondaryValue !== null && primaryValue === secondaryValue;
           });
 
@@ -375,10 +379,13 @@ export function useTableData(
 
         // First, process all primary records
         primaryData.forEach(primaryRow => {
-          const primaryValue = primaryRow.submission_data?.[primaryFieldId];
-          const matchingSecondary = secondaryData.find(secondaryRow => 
-            secondaryRow.submission_data?.[secondaryFieldId] === primaryValue
-          );
+          const primaryValueRaw = primaryRow.submission_data?.[primaryFieldId];
+          const primaryValue = normalizeJoinValue(primaryValueRaw);
+          const matchingSecondary = secondaryData.find(secondaryRow => {
+            const secondaryValueRaw = secondaryRow.submission_data?.[secondaryFieldId];
+            const secondaryValue = normalizeJoinValue(secondaryValueRaw);
+            return primaryValue !== null && secondaryValue !== null && primaryValue === secondaryValue;
+          });
 
           if (matchingSecondary) {
             matchedSecondaryIds.add(matchingSecondary.id);
