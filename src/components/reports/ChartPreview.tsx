@@ -693,7 +693,15 @@ export function ChartPreview({
     console.log('Chart clicked, use drilldown controls instead');
   };
   // Generate chart info summary for context
-  const getChartInfoSummary = (): { title: string; description: string } => {
+  const getChartInfoSummary = (): { 
+    title: string; 
+    formName: string;
+    dimensionName: string | null;
+    metricName: string;
+    aggregation: string;
+    groupByName: string | null;
+    chartType: string;
+  } => {
     const formName = config.formId ? getFormName(config.formId) : 'Form';
     const dimensionField = config.dimensions?.[0] || config.xAxis;
     const dimensionName = dimensionField ? getFormFieldName(dimensionField) : null;
@@ -701,31 +709,21 @@ export function ChartPreview({
     const metricName = metricField ? getFormFieldName(metricField) : 'Records';
     const aggregation = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
     const groupByName = config.groupByField ? getFormFieldName(config.groupByField) : null;
+    const chartType = config.type || config.chartType || 'bar';
     
     let title = '';
-    let description = '';
     
     // Build title based on aggregation mode
     if (aggregation === 'count') {
       title = dimensionName ? `Count of Records by ${dimensionName}` : 'Count of Records';
-      description = `Showing the number of submissions from "${formName}"`;
     } else {
       const aggLabel = aggregation.charAt(0).toUpperCase() + aggregation.slice(1);
       title = dimensionName 
         ? `${aggLabel} of ${metricName} by ${dimensionName}` 
         : `${aggLabel} of ${metricName}`;
-      description = `Calculating ${aggregation} of "${metricName}" from "${formName}"`;
     }
     
-    if (dimensionName) {
-      description += `, grouped by "${dimensionName}"`;
-    }
-    
-    if (groupByName) {
-      description += `, further segmented by "${groupByName}"`;
-    }
-    
-    return { title, description };
+    return { title, formName, dimensionName, metricName, aggregation, groupByName, chartType };
   };
 
   // Generate enhanced tooltip content
@@ -1295,12 +1293,9 @@ export function ChartPreview({
   
   return <div className="h-full flex flex-col overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
       {/* Chart Info Header - Always visible for context */}
-      <div className="mb-4 p-3 bg-muted/30 rounded-lg border border-border flex-shrink-0">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <h4 className="font-semibold text-foreground">{config.title || chartInfo.title}</h4>
-            <p className="text-sm text-muted-foreground mt-1">{config.description || chartInfo.description}</p>
-          </div>
+      <div className="mb-4 p-4 bg-gradient-to-r from-muted/50 to-muted/30 rounded-lg border border-border flex-shrink-0">
+        <div className="flex items-start justify-between mb-3">
+          <h4 className="font-semibold text-lg text-foreground">{config.title || chartInfo.title}</h4>
           {canDrillUp && <Button variant="outline" size="sm" onClick={() => {
             if (onDrilldown && drilldownState?.values) {
               const newValues = [...drilldownState.values];
@@ -1314,7 +1309,42 @@ export function ChartPreview({
             Back
           </Button>}
         </div>
-        {drilldownState?.values && drilldownState.values.length > 0 && <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700 mt-2">
+        
+        {/* Info Badges */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Chart Type Badge */}
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+            {chartInfo.chartType.charAt(0).toUpperCase() + chartInfo.chartType.slice(1)} Chart
+          </span>
+          
+          {/* Aggregation Badge */}
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            {chartInfo.aggregation === 'count' ? 'Count' : chartInfo.aggregation.charAt(0).toUpperCase() + chartInfo.aggregation.slice(1)}
+            {chartInfo.aggregation !== 'count' && `: ${chartInfo.metricName}`}
+          </span>
+          
+          {/* Form Badge */}
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+            Form: {chartInfo.formName}
+          </span>
+          
+          {/* Dimension Badge */}
+          {chartInfo.dimensionName && (
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+              Grouped by: {chartInfo.dimensionName}
+            </span>
+          )}
+          
+          {/* Segmented By Badge */}
+          {chartInfo.groupByName && (
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
+              Segmented by: {chartInfo.groupByName}
+            </span>
+          )}
+        </div>
+        
+        {/* Drilldown Active Filter */}
+        {drilldownState?.values && drilldownState.values.length > 0 && <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700 mt-3">
             <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Filtered by:</span>
             <div className="flex items-center gap-1 flex-wrap">
               {drilldownState.values.map((value, index) => {
