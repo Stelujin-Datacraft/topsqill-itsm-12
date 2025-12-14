@@ -418,7 +418,7 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
       );
     }
 
-    // Handle currency field type
+    // Handle currency field type - code + amount
     if (rawFieldType === 'currency') {
       const currencies = [
         { code: 'USD', name: 'US Dollar', symbol: '$' },
@@ -462,29 +462,67 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
         { code: 'QAR', name: 'Qatari Riyal', symbol: '﷼' },
         { code: 'KWD', name: 'Kuwaiti Dinar', symbol: 'د.ك' }
       ];
+      
+      // Parse existing value (format: "CODE:amount" or just "CODE" or just amount)
+      const parseValue = () => {
+        if (!filter.value) return { code: '', amount: '' };
+        if (filter.value.includes(':')) {
+          const [code, amount] = filter.value.split(':');
+          return { code, amount };
+        }
+        // Check if it's a currency code
+        if (currencies.some(c => c.code === filter.value)) {
+          return { code: filter.value, amount: '' };
+        }
+        return { code: '', amount: filter.value };
+      };
+      
+      const { code: currencyCode, amount: currencyAmount } = parseValue();
+      
+      const updateCurrencyValue = (code: string, amount: string) => {
+        if (code && amount) {
+          updateFilter(index, { value: `${code}:${amount}` });
+        } else if (code) {
+          updateFilter(index, { value: code });
+        } else if (amount) {
+          updateFilter(index, { value: amount });
+        } else {
+          updateFilter(index, { value: '' });
+        }
+      };
+      
       return (
         <div className="space-y-2">
-          <Label>Value</Label>
-          <Select
-            value={filter.value}
-            onValueChange={(value) => updateFilter(index, { value })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select currency" />
-            </SelectTrigger>
-            <SelectContent className="bg-background border shadow-lg z-50 max-h-60">
-              {currencies.map((currency) => (
-                <SelectItem key={currency.code} value={currency.code}>
-                  {currency.symbol} {currency.name} ({currency.code})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label>Currency & Amount</Label>
+          <div className="flex gap-2">
+            <Select
+              value={currencyCode}
+              onValueChange={(code) => updateCurrencyValue(code, currencyAmount)}
+            >
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="Code" />
+              </SelectTrigger>
+              <SelectContent className="bg-background border shadow-lg z-50 max-h-60">
+                {currencies.map((currency) => (
+                  <SelectItem key={currency.code} value={currency.code}>
+                    {currency.symbol} {currency.code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              type="number"
+              value={currencyAmount}
+              onChange={(e) => updateCurrencyValue(currencyCode, e.target.value)}
+              placeholder="Amount"
+              className="flex-1"
+            />
+          </div>
         </div>
       );
     }
 
-    // Handle phone field type - show country codes
+    // Handle phone field type - country code + number
     if (rawFieldType === 'phone' || rawFieldType === 'phone-number') {
       const phoneCodes = [
         { code: '+1', country: 'US/Canada' },
@@ -538,24 +576,69 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
         { code: '+961', country: 'Lebanon' },
         { code: '+64', country: 'New Zealand' }
       ];
+      
+      // Parse existing value (format: "code number" or just code or just number)
+      const parsePhoneValue = () => {
+        if (!filter.value) return { code: '', number: '' };
+        // Check if starts with + (country code)
+        if (filter.value.startsWith('+')) {
+          // Find the matching country code
+          const matchedCode = phoneCodes.find(p => filter.value.startsWith(p.code + ' ') || filter.value === p.code);
+          if (matchedCode) {
+            const number = filter.value.replace(matchedCode.code, '').trim();
+            return { code: matchedCode.code, number };
+          }
+          // Try to extract code manually
+          const spaceIndex = filter.value.indexOf(' ');
+          if (spaceIndex > 0) {
+            return { code: filter.value.substring(0, spaceIndex), number: filter.value.substring(spaceIndex + 1) };
+          }
+          return { code: filter.value, number: '' };
+        }
+        return { code: '', number: filter.value };
+      };
+      
+      const { code: phoneCode, number: phoneNumber } = parsePhoneValue();
+      
+      const updatePhoneValue = (code: string, number: string) => {
+        if (code && number) {
+          updateFilter(index, { value: `${code} ${number}` });
+        } else if (code) {
+          updateFilter(index, { value: code });
+        } else if (number) {
+          updateFilter(index, { value: number });
+        } else {
+          updateFilter(index, { value: '' });
+        }
+      };
+      
       return (
         <div className="space-y-2">
-          <Label>Value (Country Code)</Label>
-          <Select
-            value={filter.value}
-            onValueChange={(value) => updateFilter(index, { value })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select country code" />
-            </SelectTrigger>
-            <SelectContent className="bg-background border shadow-lg z-50 max-h-60">
-              {phoneCodes.map((phone) => (
-                <SelectItem key={phone.code} value={phone.code}>
-                  {phone.code} ({phone.country})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label>Phone Number</Label>
+          <div className="flex gap-2">
+            <Select
+              value={phoneCode}
+              onValueChange={(code) => updatePhoneValue(code, phoneNumber)}
+            >
+              <SelectTrigger className="w-28">
+                <SelectValue placeholder="Code" />
+              </SelectTrigger>
+              <SelectContent className="bg-background border shadow-lg z-50 max-h-60">
+                {phoneCodes.map((phone) => (
+                  <SelectItem key={phone.code} value={phone.code}>
+                    {phone.code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              type="tel"
+              value={phoneNumber}
+              onChange={(e) => updatePhoneValue(phoneCode, e.target.value)}
+              placeholder="Phone number"
+              className="flex-1"
+            />
+          </div>
         </div>
       );
     }
