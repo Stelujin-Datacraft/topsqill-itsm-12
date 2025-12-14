@@ -25,7 +25,7 @@ const getFieldType = (field: FormField): string => {
 const getNumericFields = (fields: FormField[]) => {
   return fields.filter(f => {
     const type = getFieldType(f);
-    return ['number', 'currency', 'slider', 'rating'].includes(type);
+    return ['number', 'currency', 'slider', 'rating', 'calculated'].includes(type);
   });
 };
 
