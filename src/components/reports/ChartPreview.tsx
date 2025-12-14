@@ -28,7 +28,7 @@ export function ChartPreview({
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showFormFields, setShowFormFields] = useState(false);
-  const [showLegend, setShowLegend] = useState(false);
+  const [showLegend] = useState(true); // Always show legend when applicable
   const [showDrilldownPanel, setShowDrilldownPanel] = useState(false);
   
   const [cellSubmissionsDialog, setCellSubmissionsDialog] = useState<{
@@ -1394,9 +1394,6 @@ export function ChartPreview({
         
       {/* Chart Controls */}
       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mb-4">
-        <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setShowLegend(!showLegend)}>
-          {showLegend ? 'Hide' : 'Show'} Legend
-        </Button>
         
         <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setShowFormFields(!showFormFields)}>
           {showFormFields ? 'Hide' : 'Show'} Form Details ({getFormName(config.formId)})
