@@ -76,6 +76,15 @@ export interface ChartConfig {
   drilldownEnabled?: boolean;
   drilldownLevels?: string[];
   
+  // Join configuration for combining data from multiple forms
+  joinConfig?: {
+    enabled: boolean;
+    secondaryFormId: string;
+    joinType: 'inner' | 'left' | 'right' | 'full';
+    primaryFieldId: string;
+    secondaryFieldId: string;
+  };
+  
   [key: string]: any;
 }
 

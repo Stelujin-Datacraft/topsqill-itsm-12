@@ -86,6 +86,142 @@ export function ChartPreview({
   const getFieldName = (fieldId: string): string => {
     return getFormFieldName(fieldId);
   };
+
+  // Apply join to chart data - merges data from secondary form
+  const applyChartJoin = async (
+    primaryData: any[],
+    joinConfig: {
+      enabled: boolean;
+      secondaryFormId: string;
+      joinType: 'inner' | 'left' | 'right' | 'full';
+      primaryFieldId: string;
+      secondaryFieldId: string;
+    }
+  ): Promise<any[]> => {
+    if (!joinConfig.secondaryFormId || !joinConfig.primaryFieldId || !joinConfig.secondaryFieldId) {
+      console.warn('Incomplete join configuration, skipping join');
+      return primaryData;
+    }
+
+    try {
+      // Fetch secondary form data
+      const secondaryData = await getFormSubmissionData(joinConfig.secondaryFormId);
+      console.log(`📊 Loaded ${secondaryData?.length || 0} records from secondary form for chart join`);
+
+      if (!secondaryData || secondaryData.length === 0) {
+        console.log('📊 No secondary data found, returning primary data only');
+        return primaryData;
+      }
+
+      const { joinType, primaryFieldId, secondaryFieldId, secondaryFormId } = joinConfig;
+      const prefix = `[${getFormName(secondaryFormId)}].`;
+
+      // Helper to merge rows
+      const mergeRows = (primary: any, secondary: any): any => {
+        const merged = { ...primary };
+        const mergedData = { ...primary.submission_data };
+        
+        if (secondary?.submission_data) {
+          Object.keys(secondary.submission_data).forEach(key => {
+            mergedData[`${prefix}${key}`] = secondary.submission_data[key];
+          });
+        }
+        
+        merged.submission_data = mergedData;
+        return merged;
+      };
+
+      switch (joinType) {
+        case 'inner':
+          return primaryData
+            .map(primaryRow => {
+              const primaryValue = primaryRow.submission_data?.[primaryFieldId];
+              const matchingSecondary = secondaryData.find(secondaryRow => 
+                secondaryRow.submission_data?.[secondaryFieldId] === primaryValue
+              );
+              if (matchingSecondary) {
+                return mergeRows(primaryRow, matchingSecondary);
+              }
+              return null;
+            })
+            .filter((row): row is any => row !== null);
+
+        case 'left':
+          return primaryData.map(primaryRow => {
+            const primaryValue = primaryRow.submission_data?.[primaryFieldId];
+            const matchingSecondary = secondaryData.find(secondaryRow => 
+              secondaryRow.submission_data?.[secondaryFieldId] === primaryValue
+            );
+            if (matchingSecondary) {
+              return mergeRows(primaryRow, matchingSecondary);
+            }
+            return primaryRow;
+          });
+
+        case 'right':
+          const rightResult: any[] = [];
+          secondaryData.forEach(secondaryRow => {
+            const secondaryValue = secondaryRow.submission_data?.[secondaryFieldId];
+            const matchingPrimary = primaryData.find(primaryRow => 
+              primaryRow.submission_data?.[primaryFieldId] === secondaryValue
+            );
+            if (matchingPrimary) {
+              rightResult.push(mergeRows(matchingPrimary, secondaryRow));
+            } else {
+              // Create a row with just secondary data (prefixed)
+              const newRow = {
+                ...secondaryRow,
+                submission_data: Object.keys(secondaryRow.submission_data || {}).reduce((acc: Record<string, any>, key) => {
+                  acc[`${prefix}${key}`] = secondaryRow.submission_data[key];
+                  return acc;
+                }, {} as Record<string, any>)
+              };
+              rightResult.push(newRow);
+            }
+          });
+          return rightResult;
+
+        case 'full':
+          const fullResult: any[] = [];
+          const matchedSecondaryIds = new Set<string>();
+
+          primaryData.forEach(primaryRow => {
+            const primaryValue = primaryRow.submission_data?.[primaryFieldId];
+            const matchingSecondary = secondaryData.find(secondaryRow => 
+              secondaryRow.submission_data?.[secondaryFieldId] === primaryValue
+            );
+            if (matchingSecondary) {
+              matchedSecondaryIds.add(matchingSecondary.id);
+              fullResult.push(mergeRows(primaryRow, matchingSecondary));
+            } else {
+              fullResult.push(primaryRow);
+            }
+          });
+
+          // Add unmatched secondary records
+          secondaryData.forEach(secondaryRow => {
+            if (!matchedSecondaryIds.has(secondaryRow.id)) {
+              const newRow = {
+                ...secondaryRow,
+                submission_data: Object.keys(secondaryRow.submission_data || {}).reduce((acc: Record<string, any>, key) => {
+                  acc[`${prefix}${key}`] = secondaryRow.submission_data[key];
+                  return acc;
+                }, {} as Record<string, any>)
+              };
+              fullResult.push(newRow);
+            }
+          });
+          return fullResult;
+
+        default:
+          return primaryData;
+      }
+    } catch (error) {
+      console.error('Error applying chart join:', error);
+      return primaryData;
+    }
+  };
+
   useEffect(() => {
     const loadChartData = async () => {
       // Use sample data if provided, otherwise fetch from form
@@ -216,8 +352,16 @@ export function ChartPreview({
           setChartData(chartData);
         } else {
           // Fallback to client-side processing for non-drilldown charts
-          const submissions = await getFormSubmissionData(config.formId);
+          let submissions = await getFormSubmissionData(config.formId);
           console.log('Received submissions:', submissions?.length || 0);
+          
+          // Apply joins if configured
+          if (config.joinConfig?.enabled && config.joinConfig?.secondaryFormId) {
+            console.log('📊 Applying join with secondary form:', config.joinConfig.secondaryFormId);
+            submissions = await applyChartJoin(submissions, config.joinConfig);
+            console.log('📊 After join - submissions:', submissions?.length || 0);
+          }
+          
           if (!submissions || submissions.length === 0) {
             console.log('No submissions found');
             setChartData([]);
@@ -236,7 +380,7 @@ export function ChartPreview({
       }
     };
     loadChartData();
-  }, [config.formId, config.dimensions, config.metrics, config.filters, config.xAxis, config.yAxis, config.aggregation, config.aggregationType, config.groupByField, config.drilldownConfig?.enabled, config.drilldownConfig?.drilldownLevels, drilldownState?.values, (config as any).data, getFormSubmissionData, getChartData]);
+  }, [config.formId, config.dimensions, config.metrics, config.filters, config.xAxis, config.yAxis, config.aggregation, config.aggregationType, config.groupByField, config.drilldownConfig?.enabled, config.drilldownConfig?.drilldownLevels, drilldownState?.values, (config as any).data, config.joinConfig?.enabled, config.joinConfig?.secondaryFormId, getFormSubmissionData, getChartData]);
   const processSubmissionData = (submissions: any[]) => {
     if (!submissions.length) {
       console.log('No submissions to process');
