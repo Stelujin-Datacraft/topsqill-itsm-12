@@ -692,6 +692,82 @@ export function ChartPreview({
     // This will be handled by the drilldown controls instead of direct click
     console.log('Chart clicked, use drilldown controls instead');
   };
+  // Generate chart info summary for context
+  const getChartInfoSummary = (): { title: string; description: string } => {
+    const formName = config.formId ? getFormName(config.formId) : 'Form';
+    const dimensionField = config.dimensions?.[0] || config.xAxis;
+    const dimensionName = dimensionField ? getFormFieldName(dimensionField) : null;
+    const metricField = config.metrics?.[0];
+    const metricName = metricField ? getFormFieldName(metricField) : 'Records';
+    const aggregation = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
+    const groupByName = config.groupByField ? getFormFieldName(config.groupByField) : null;
+    
+    let title = '';
+    let description = '';
+    
+    // Build title based on aggregation mode
+    if (aggregation === 'count') {
+      title = dimensionName ? `Count of Records by ${dimensionName}` : 'Count of Records';
+      description = `Showing the number of submissions from "${formName}"`;
+    } else {
+      const aggLabel = aggregation.charAt(0).toUpperCase() + aggregation.slice(1);
+      title = dimensionName 
+        ? `${aggLabel} of ${metricName} by ${dimensionName}` 
+        : `${aggLabel} of ${metricName}`;
+      description = `Calculating ${aggregation} of "${metricName}" from "${formName}"`;
+    }
+    
+    if (dimensionName) {
+      description += `, grouped by "${dimensionName}"`;
+    }
+    
+    if (groupByName) {
+      description += `, further segmented by "${groupByName}"`;
+    }
+    
+    return { title, description };
+  };
+
+  // Generate enhanced tooltip content
+  const getEnhancedTooltipContent = (payload: any, label: string): React.ReactNode => {
+    if (!payload || payload.length === 0) return null;
+    
+    const formName = config.formId ? getFormName(config.formId) : 'Form';
+    const dimensionField = config.dimensions?.[0] || config.xAxis;
+    const dimensionName = dimensionField ? getFormFieldName(dimensionField) : 'Category';
+    const aggregation = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
+    const aggLabel = aggregation === 'count' ? 'Count' : aggregation.charAt(0).toUpperCase() + aggregation.slice(1);
+    
+    return (
+      <div className="p-2">
+        <div className="font-medium text-foreground mb-1">{dimensionName}: {label}</div>
+        <div className="text-xs text-muted-foreground mb-2">Source: {formName}</div>
+        <div className="space-y-1">
+          {payload.map((entry: any, idx: number) => {
+            const metricName = entry.name || entry.dataKey;
+            const displayName = typeof metricName === 'string' && metricName !== 'value' 
+              ? getFormFieldName(metricName) 
+              : aggLabel;
+            return (
+              <div key={idx} className="flex items-center gap-2">
+                <div 
+                  className="w-3 h-3 rounded-sm" 
+                  style={{ backgroundColor: entry.color || entry.fill }} 
+                />
+                <span className="text-sm">
+                  {displayName}: <span className="font-medium">{entry.value}</span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="text-xs text-muted-foreground mt-2 pt-1 border-t border-border">
+          Click bar to view records
+        </div>
+      </div>
+    );
+  };
+
   const renderChart = () => {
     if (loading) {
       return <div className="flex items-center justify-center h-64">
@@ -849,17 +925,16 @@ export function ChartPreview({
                   angle: -90,
                   position: 'insideLeft'
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
-                   <Tooltip formatter={(value, name, props) => {
-                  // For multi-dimensional charts, name is already "Field Name: Value"
-                  // For single-dimensional charts, name is the field ID, so get field name
-                  const displayName = isMultiDimensional ? name : getFormFieldName(name.toString());
-                  return [`${displayName}: ${value}`, `Category: ${props.payload?.name || 'N/A'}`];
-                }} labelFormatter={label => `Category: ${label}`} contentStyle={{
-                  backgroundColor: 'hsl(var(--popover))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: 'var(--radius)',
-                  fontSize: '12px'
-                }} />
+                   <Tooltip 
+                    content={({ payload, label }) => getEnhancedTooltipContent(payload, label)}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--popover))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: 'var(--radius)',
+                      fontSize: '12px',
+                      padding: 0
+                    }} 
+                  />
                    {showLegend && <Legend formatter={value => isMultiDimensional ? value : getFormFieldName(value.toString())} iconType="rect" />}
                    {isMultiDimensional ?
                 // Render separate bars for each dimension value
@@ -1216,69 +1291,71 @@ export function ChartPreview({
     }
   };
   const canDrillUp = drilldownState?.values && drilldownState.values.length > 0;
+  const chartInfo = getChartInfoSummary();
+  
   return <div className="h-full flex flex-col overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
-      {/* Chart Header with Controls */}
-      <div className="flex items-center justify-between flex-shrink-0">
-        {config.title && <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <h3 className="text-lg font-semibold">{config.title}</h3>
-              {canDrillUp && <Button variant="outline" size="sm" onClick={() => {
+      {/* Chart Info Header - Always visible for context */}
+      <div className="mb-4 p-3 bg-muted/30 rounded-lg border border-border flex-shrink-0">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <h4 className="font-semibold text-foreground">{config.title || chartInfo.title}</h4>
+            <p className="text-sm text-muted-foreground mt-1">{config.description || chartInfo.description}</p>
+          </div>
+          {canDrillUp && <Button variant="outline" size="sm" onClick={() => {
             if (onDrilldown && drilldownState?.values) {
               const newValues = [...drilldownState.values];
-              newValues.pop(); // Remove last value to go up one level
-              // Trigger drilldown with reduced values
+              newValues.pop();
               const lastLevel = config.drilldownConfig?.drilldownLevels?.[newValues.length - 1] || '';
               const lastValue = newValues[newValues.length - 1] || '';
               onDrilldown(lastLevel, lastValue);
             }
           }}>
-                  <ArrowLeft className="h-4 w-4 mr-1" />
-                  Back
-                </Button>}
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Back
+          </Button>}
+        </div>
+        {drilldownState?.values && drilldownState.values.length > 0 && <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700 mt-2">
+            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Filtered by:</span>
+            <div className="flex items-center gap-1 flex-wrap">
+              {drilldownState.values.map((value, index) => {
+                const fieldName = getFormFieldName(config.drilldownConfig?.drilldownLevels?.[index] || '');
+                return <React.Fragment key={index}>
+                    {index > 0 && <ChevronRight className="h-4 w-4 text-blue-500" />}
+                    <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-2 py-1 rounded border">
+                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{fieldName}:</span>
+                      <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">{value}</span>
+                    </div>
+                  </React.Fragment>;
+              })}
             </div>
-            {config.description && <p className="text-sm text-muted-foreground">{config.description}</p>}
-            {drilldownState?.values && drilldownState.values.length > 0 && <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700 mt-2">
-                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Filtered by:</span>
-                <div className="flex items-center gap-1 flex-wrap">
-                  {drilldownState.values.map((value, index) => {
-              const fieldName = getFormFieldName(config.drilldownConfig?.drilldownLevels?.[index] || '');
-              return <React.Fragment key={index}>
-                        {index > 0 && <ChevronRight className="h-4 w-4 text-blue-500" />}
-                        <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-2 py-1 rounded border">
-                          <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{fieldName}:</span>
-                          <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">{value}</span>
-                        </div>
-                      </React.Fragment>;
-            })}
-                </div>
-              </div>}
-            {config.drilldownConfig?.enabled && (!drilldownState?.values || drilldownState.values.length === 0)}
           </div>}
+      </div>
         
-        {/* Chart Controls */}
-         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setShowLegend(!showLegend)}>
-            {showLegend ? 'Hide' : 'Show'} Legend
-          </Button>
+      {/* Chart Controls */}
+      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mb-4">
+        <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setShowLegend(!showLegend)}>
+          {showLegend ? 'Hide' : 'Show'} Legend
+        </Button>
+        
+        <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setShowFormFields(!showFormFields)}>
+          {showFormFields ? 'Hide' : 'Show'} Form Details ({getFormName(config.formId)})
+        </Button>
+        
+        {config.drilldownConfig?.enabled && <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setShowDrilldownPanel(!showDrilldownPanel)}>
+            {showDrilldownPanel ? 'Hide' : 'Show'} Drilldown
+          </Button>}
+        
+        {onEdit && <Button size="sm" variant="outline" className="h-8 px-2" onClick={onEdit}>
+            <Edit className="h-3 w-3 mr-1" />
+            Edit
+          </Button>}
+        
+        {config.filters && config.filters.length > 0 && <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => {/* TODO: Open filter panel */}}>
+            Filter ({config.filters.length})
+          </Button>}
+      </div>
           
-          <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setShowFormFields(!showFormFields)}>
-            {showFormFields ? 'Hide' : 'Show'} Form Details ({getFormName(config.formId)})
-          </Button>
-          
-          {config.drilldownConfig?.enabled && <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setShowDrilldownPanel(!showDrilldownPanel)}>
-              {showDrilldownPanel ? 'Hide' : 'Show'} Drilldown
-            </Button>}
-          
-          {onEdit && <Button size="sm" variant="outline" className="h-8 px-2" onClick={onEdit}>
-              <Edit className="h-3 w-3 mr-1" />
-              Edit
-            </Button>}
-          
-          {config.filters && config.filters.length > 0 && <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => {/* TODO: Open filter panel */}}>
-              Filter ({config.filters.length})
-            </Button>}
-          
-          {config.drilldownConfig?.enabled && showDrilldownPanel && <div className="mb-4 p-3 bg-muted/30 rounded-lg border">
+      {config.drilldownConfig?.enabled && showDrilldownPanel && <div className="mb-4 p-3 bg-muted/30 rounded-lg border flex-shrink-0">
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-2">
                   <Filter className="h-4 w-4 text-muted-foreground" />
@@ -1326,25 +1403,20 @@ export function ChartPreview({
               </div>
             </div>}
           
-          {config.drilldownConfig?.enabled && !showDrilldownPanel && <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              
-              {/* Debug info */}
-              
-              
-              {/* Drilldown Path Breadcrumb */}
-              <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                <span className="font-medium">All Records</span>
-                {drilldownState?.path?.map((level, index) => <React.Fragment key={index}>
-                    <ChevronRight className="h-3 w-3" />
-                    <span className="font-medium">
-                      {getFormFieldName(level)}: {drilldownState.values?.[index] || ''}
-                    </span>
-                  </React.Fragment>)}
-              </div>
-            </div>}
-        </div>
-      </div>
+      {config.drilldownConfig?.enabled && !showDrilldownPanel && <div className="flex items-center gap-2 flex-shrink-0 mb-4">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          
+          {/* Drilldown Path Breadcrumb */}
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+            <span className="font-medium">All Records</span>
+            {drilldownState?.path?.map((level, index) => <React.Fragment key={index}>
+                <ChevronRight className="h-3 w-3" />
+                <span className="font-medium">
+                  {getFormFieldName(level)}: {drilldownState.values?.[index] || ''}
+                </span>
+              </React.Fragment>)}
+          </div>
+        </div>}
 
       {/* Form Fields Display */}
       {showFormFields && <div className="p-4 bg-muted/30 rounded-lg border flex-shrink-0">
