@@ -737,9 +737,13 @@ export function ChartPreview({
     const aggLabel = aggregation === 'count' ? 'Count' : aggregation.charAt(0).toUpperCase() + aggregation.slice(1);
     
     return (
-      <div className="p-2">
-        <div className="font-medium text-foreground mb-1">{dimensionName}: {label}</div>
-        <div className="text-xs text-muted-foreground mb-2">Source: {formName}</div>
+      <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[220px]">
+        <div className="font-medium mb-1">
+          {dimensionName}: {label}
+        </div>
+        <div className="text-xs text-muted-foreground mb-2">
+          Source: {formName} • {aggLabel}
+        </div>
         <div className="space-y-1">
           {payload.map((entry: any, idx: number) => {
             const metricName = entry.name || entry.dataKey;
@@ -747,19 +751,19 @@ export function ChartPreview({
               ? getFormFieldName(metricName) 
               : aggLabel;
             return (
-              <div key={idx} className="flex items-center gap-2">
+              <div key={idx} className="flex items-center gap-2 text-sm">
                 <div 
                   className="w-3 h-3 rounded-sm" 
                   style={{ backgroundColor: entry.color || entry.fill }} 
                 />
-                <span className="text-sm">
+                <span>
                   {displayName}: <span className="font-medium">{entry.value}</span>
                 </span>
               </div>
             );
           })}
         </div>
-        <div className="text-xs text-muted-foreground mt-2 pt-1 border-t border-border">
+        <div className="text-[11px] text-muted-foreground mt-2 pt-1 border-t border-border">
           Click bar to view records
         </div>
       </div>
@@ -926,11 +930,11 @@ export function ChartPreview({
                    <Tooltip 
                     content={({ payload, label }) => getEnhancedTooltipContent(payload, label)}
                     contentStyle={{
-                      backgroundColor: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--border))',
+                      backgroundColor: 'transparent',
+                      border: 'none',
                       borderRadius: 'var(--radius)',
                       fontSize: '12px',
-                      padding: 0
+                      padding: 0,
                     }} 
                   />
                    {showLegend && <Legend formatter={value => isMultiDimensional ? value : getFormFieldName(value.toString())} iconType="rect" />}
