@@ -267,11 +267,17 @@ export function useTableData(
         // Only return records that have matches in both tables
         return primaryData
           .map(primaryRow => {
-            const primaryValue = primaryRow.submission_data?.[primaryFieldId];
+            const primaryValueRaw = primaryRow.submission_data?.[primaryFieldId];
+            const primaryValue = primaryValueRaw === null || primaryValueRaw === undefined
+              ? null
+              : String(primaryValueRaw).trim();
             const matchingSecondary = secondaryData.find(secondaryRow => {
-              const secondaryValue = secondaryRow.submission_data?.[secondaryFieldId];
+              const secondaryValueRaw = secondaryRow.submission_data?.[secondaryFieldId];
+              const secondaryValue = secondaryValueRaw === null || secondaryValueRaw === undefined
+                ? null
+                : String(secondaryValueRaw).trim();
               console.log(`Comparing primary[${primaryFieldId}]="${primaryValue}" with secondary[${secondaryFieldId}]="${secondaryValue}"`);
-              return secondaryValue === primaryValue;
+              return primaryValue !== null && secondaryValue !== null && secondaryValue === primaryValue;
             });
 
             if (matchingSecondary) {
@@ -284,13 +290,18 @@ export function useTableData(
           .filter((row): row is SubmissionRow => row !== null);
 
       case 'left':
-        // Return all primary records, with secondary data where matches exist
         console.log('Performing LEFT join');
         return primaryData.map(primaryRow => {
-          const primaryValue = primaryRow.submission_data?.[primaryFieldId];
+          const primaryValueRaw = primaryRow.submission_data?.[primaryFieldId];
+          const primaryValue = primaryValueRaw === null || primaryValueRaw === undefined
+            ? null
+            : String(primaryValueRaw).trim();
           const matchingSecondary = secondaryData.find(secondaryRow => {
-            const secondaryValue = secondaryRow.submission_data?.[secondaryFieldId];
-            return secondaryValue === primaryValue;
+            const secondaryValueRaw = secondaryRow.submission_data?.[secondaryFieldId];
+            const secondaryValue = secondaryValueRaw === null || secondaryValueRaw === undefined
+              ? null
+              : String(secondaryValueRaw).trim();
+            return primaryValue !== null && secondaryValue !== null && secondaryValue === primaryValue;
           });
 
           if (matchingSecondary) {
@@ -307,10 +318,17 @@ export function useTableData(
         const matchedPrimaryIds = new Set<string>();
 
         secondaryData.forEach(secondaryRow => {
-          const secondaryValue = secondaryRow.submission_data?.[secondaryFieldId];
-          const matchingPrimary = primaryData.find(primaryRow => 
-            primaryRow.submission_data?.[primaryFieldId] === secondaryValue
-          );
+          const secondaryValueRaw = secondaryRow.submission_data?.[secondaryFieldId];
+          const secondaryValue = secondaryValueRaw === null || secondaryValueRaw === undefined
+            ? null
+            : String(secondaryValueRaw).trim();
+          const matchingPrimary = primaryData.find(primaryRow => {
+            const primaryValueRaw = primaryRow.submission_data?.[primaryFieldId];
+            const primaryValue = primaryValueRaw === null || primaryValueRaw === undefined
+              ? null
+              : String(primaryValueRaw).trim();
+            return primaryValue !== null && secondaryValue !== null && primaryValue === secondaryValue;
+          });
 
           if (matchingPrimary) {
             matchedPrimaryIds.add(matchingPrimary.id);
