@@ -936,18 +936,45 @@ export function ChartPreview({
                    {showLegend && <Legend formatter={value => isMultiDimensional ? value : getFormFieldName(value.toString())} iconType="rect" />}
                    {isMultiDimensional ?
                 // Render separate bars for each dimension value
-                dimensionKeys.map((key, index) => <Bar key={key} dataKey={key} fill={colors[index % colors.length]} name={key} style={{
-                  cursor: 'pointer'
-                }} onClick={(data, idx) => handleBarClick(data, idx)} />) :
+                dimensionKeys.map((key, index) => {
+                  const barColor = colors[index % colors.length];
+                  return (
+                    <Bar 
+                      key={key} 
+                      dataKey={key} 
+                      fill={barColor} 
+                      name={key} 
+                      style={{ cursor: 'pointer' }} 
+                      onClick={(data, idx) => handleBarClick(data, idx)}
+                      activeBar={{ fill: barColor, fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
+                    />
+                  );
+                }) :
                 // Single dimension - render primary metric and additional metrics if any
                 <>
-                         <Bar dataKey={primaryMetric} fill={colors[0]} name={getFormFieldName(primaryMetric)} style={{
-                    cursor: 'pointer'
-                  }} onClick={(data, idx) => handleBarClick(data, idx)} />
-                         {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => <Bar key={metric} dataKey={metric} fill={colors[(index + 1) % colors.length]} name={getFormFieldName(metric)} style={{
-                    cursor: 'pointer'
-                  }} onClick={(data, idx) => handleBarClick(data, idx)} />)}
-                     </>}
+                  <Bar 
+                    dataKey={primaryMetric} 
+                    fill={colors[0]} 
+                    name={getFormFieldName(primaryMetric)} 
+                    style={{ cursor: 'pointer' }} 
+                    onClick={(data, idx) => handleBarClick(data, idx)}
+                    activeBar={{ fill: colors[0], fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
+                  />
+                  {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => {
+                    const barColor = colors[(index + 1) % colors.length];
+                    return (
+                      <Bar 
+                        key={metric} 
+                        dataKey={metric} 
+                        fill={barColor} 
+                        name={getFormFieldName(metric)} 
+                        style={{ cursor: 'pointer' }} 
+                        onClick={(data, idx) => handleBarClick(data, idx)}
+                        activeBar={{ fill: barColor, fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
+                      />
+                    );
+                  })}
+                </>}
                 </BarChart>
               </ResponsiveContainer>
             </div>
