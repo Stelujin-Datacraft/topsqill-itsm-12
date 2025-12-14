@@ -326,6 +326,240 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
       );
     }
 
+    // Handle country field type
+    if (rawFieldType === 'country') {
+      const countries = [
+        { code: 'AF', name: 'Afghanistan' }, { code: 'AL', name: 'Albania' }, { code: 'DZ', name: 'Algeria' },
+        { code: 'AD', name: 'Andorra' }, { code: 'AO', name: 'Angola' }, { code: 'AR', name: 'Argentina' },
+        { code: 'AM', name: 'Armenia' }, { code: 'AU', name: 'Australia' }, { code: 'AT', name: 'Austria' },
+        { code: 'AZ', name: 'Azerbaijan' }, { code: 'BS', name: 'Bahamas' }, { code: 'BH', name: 'Bahrain' },
+        { code: 'BD', name: 'Bangladesh' }, { code: 'BB', name: 'Barbados' }, { code: 'BY', name: 'Belarus' },
+        { code: 'BE', name: 'Belgium' }, { code: 'BZ', name: 'Belize' }, { code: 'BJ', name: 'Benin' },
+        { code: 'BT', name: 'Bhutan' }, { code: 'BO', name: 'Bolivia' }, { code: 'BA', name: 'Bosnia and Herzegovina' },
+        { code: 'BW', name: 'Botswana' }, { code: 'BR', name: 'Brazil' }, { code: 'BN', name: 'Brunei' },
+        { code: 'BG', name: 'Bulgaria' }, { code: 'BF', name: 'Burkina Faso' }, { code: 'BI', name: 'Burundi' },
+        { code: 'KH', name: 'Cambodia' }, { code: 'CM', name: 'Cameroon' }, { code: 'CA', name: 'Canada' },
+        { code: 'CV', name: 'Cape Verde' }, { code: 'CF', name: 'Central African Republic' }, { code: 'TD', name: 'Chad' },
+        { code: 'CL', name: 'Chile' }, { code: 'CN', name: 'China' }, { code: 'CO', name: 'Colombia' },
+        { code: 'KM', name: 'Comoros' }, { code: 'CG', name: 'Congo' }, { code: 'CR', name: 'Costa Rica' },
+        { code: 'HR', name: 'Croatia' }, { code: 'CU', name: 'Cuba' }, { code: 'CY', name: 'Cyprus' },
+        { code: 'CZ', name: 'Czech Republic' }, { code: 'DK', name: 'Denmark' }, { code: 'DJ', name: 'Djibouti' },
+        { code: 'DM', name: 'Dominica' }, { code: 'DO', name: 'Dominican Republic' }, { code: 'EC', name: 'Ecuador' },
+        { code: 'EG', name: 'Egypt' }, { code: 'SV', name: 'El Salvador' }, { code: 'GQ', name: 'Equatorial Guinea' },
+        { code: 'ER', name: 'Eritrea' }, { code: 'EE', name: 'Estonia' }, { code: 'ET', name: 'Ethiopia' },
+        { code: 'FJ', name: 'Fiji' }, { code: 'FI', name: 'Finland' }, { code: 'FR', name: 'France' },
+        { code: 'GA', name: 'Gabon' }, { code: 'GM', name: 'Gambia' }, { code: 'GE', name: 'Georgia' },
+        { code: 'DE', name: 'Germany' }, { code: 'GH', name: 'Ghana' }, { code: 'GR', name: 'Greece' },
+        { code: 'GD', name: 'Grenada' }, { code: 'GT', name: 'Guatemala' }, { code: 'GN', name: 'Guinea' },
+        { code: 'GW', name: 'Guinea-Bissau' }, { code: 'GY', name: 'Guyana' }, { code: 'HT', name: 'Haiti' },
+        { code: 'HN', name: 'Honduras' }, { code: 'HU', name: 'Hungary' }, { code: 'IS', name: 'Iceland' },
+        { code: 'IN', name: 'India' }, { code: 'ID', name: 'Indonesia' }, { code: 'IR', name: 'Iran' },
+        { code: 'IQ', name: 'Iraq' }, { code: 'IE', name: 'Ireland' }, { code: 'IL', name: 'Israel' },
+        { code: 'IT', name: 'Italy' }, { code: 'JM', name: 'Jamaica' }, { code: 'JP', name: 'Japan' },
+        { code: 'JO', name: 'Jordan' }, { code: 'KZ', name: 'Kazakhstan' }, { code: 'KE', name: 'Kenya' },
+        { code: 'KI', name: 'Kiribati' }, { code: 'KP', name: 'North Korea' }, { code: 'KR', name: 'South Korea' },
+        { code: 'KW', name: 'Kuwait' }, { code: 'KG', name: 'Kyrgyzstan' }, { code: 'LA', name: 'Laos' },
+        { code: 'LV', name: 'Latvia' }, { code: 'LB', name: 'Lebanon' }, { code: 'LS', name: 'Lesotho' },
+        { code: 'LR', name: 'Liberia' }, { code: 'LY', name: 'Libya' }, { code: 'LI', name: 'Liechtenstein' },
+        { code: 'LT', name: 'Lithuania' }, { code: 'LU', name: 'Luxembourg' }, { code: 'MK', name: 'North Macedonia' },
+        { code: 'MG', name: 'Madagascar' }, { code: 'MW', name: 'Malawi' }, { code: 'MY', name: 'Malaysia' },
+        { code: 'MV', name: 'Maldives' }, { code: 'ML', name: 'Mali' }, { code: 'MT', name: 'Malta' },
+        { code: 'MH', name: 'Marshall Islands' }, { code: 'MR', name: 'Mauritania' }, { code: 'MU', name: 'Mauritius' },
+        { code: 'MX', name: 'Mexico' }, { code: 'FM', name: 'Micronesia' }, { code: 'MD', name: 'Moldova' },
+        { code: 'MC', name: 'Monaco' }, { code: 'MN', name: 'Mongolia' }, { code: 'ME', name: 'Montenegro' },
+        { code: 'MA', name: 'Morocco' }, { code: 'MZ', name: 'Mozambique' }, { code: 'MM', name: 'Myanmar' },
+        { code: 'NA', name: 'Namibia' }, { code: 'NR', name: 'Nauru' }, { code: 'NP', name: 'Nepal' },
+        { code: 'NL', name: 'Netherlands' }, { code: 'NZ', name: 'New Zealand' }, { code: 'NI', name: 'Nicaragua' },
+        { code: 'NE', name: 'Niger' }, { code: 'NG', name: 'Nigeria' }, { code: 'NO', name: 'Norway' },
+        { code: 'OM', name: 'Oman' }, { code: 'PK', name: 'Pakistan' }, { code: 'PW', name: 'Palau' },
+        { code: 'PS', name: 'Palestine' }, { code: 'PA', name: 'Panama' }, { code: 'PG', name: 'Papua New Guinea' },
+        { code: 'PY', name: 'Paraguay' }, { code: 'PE', name: 'Peru' }, { code: 'PH', name: 'Philippines' },
+        { code: 'PL', name: 'Poland' }, { code: 'PT', name: 'Portugal' }, { code: 'QA', name: 'Qatar' },
+        { code: 'RO', name: 'Romania' }, { code: 'RU', name: 'Russia' }, { code: 'RW', name: 'Rwanda' },
+        { code: 'KN', name: 'Saint Kitts and Nevis' }, { code: 'LC', name: 'Saint Lucia' },
+        { code: 'VC', name: 'Saint Vincent and the Grenadines' }, { code: 'WS', name: 'Samoa' },
+        { code: 'SM', name: 'San Marino' }, { code: 'ST', name: 'Sao Tome and Principe' },
+        { code: 'SA', name: 'Saudi Arabia' }, { code: 'SN', name: 'Senegal' }, { code: 'RS', name: 'Serbia' },
+        { code: 'SC', name: 'Seychelles' }, { code: 'SL', name: 'Sierra Leone' }, { code: 'SG', name: 'Singapore' },
+        { code: 'SK', name: 'Slovakia' }, { code: 'SI', name: 'Slovenia' }, { code: 'SB', name: 'Solomon Islands' },
+        { code: 'SO', name: 'Somalia' }, { code: 'ZA', name: 'South Africa' }, { code: 'SS', name: 'South Sudan' },
+        { code: 'ES', name: 'Spain' }, { code: 'LK', name: 'Sri Lanka' }, { code: 'SD', name: 'Sudan' },
+        { code: 'SR', name: 'Suriname' }, { code: 'SZ', name: 'Eswatini' }, { code: 'SE', name: 'Sweden' },
+        { code: 'CH', name: 'Switzerland' }, { code: 'SY', name: 'Syria' }, { code: 'TW', name: 'Taiwan' },
+        { code: 'TJ', name: 'Tajikistan' }, { code: 'TZ', name: 'Tanzania' }, { code: 'TH', name: 'Thailand' },
+        { code: 'TL', name: 'Timor-Leste' }, { code: 'TG', name: 'Togo' }, { code: 'TO', name: 'Tonga' },
+        { code: 'TT', name: 'Trinidad and Tobago' }, { code: 'TN', name: 'Tunisia' }, { code: 'TR', name: 'Turkey' },
+        { code: 'TM', name: 'Turkmenistan' }, { code: 'TV', name: 'Tuvalu' }, { code: 'UG', name: 'Uganda' },
+        { code: 'UA', name: 'Ukraine' }, { code: 'AE', name: 'United Arab Emirates' }, { code: 'GB', name: 'United Kingdom' },
+        { code: 'US', name: 'United States' }, { code: 'UY', name: 'Uruguay' }, { code: 'UZ', name: 'Uzbekistan' },
+        { code: 'VU', name: 'Vanuatu' }, { code: 'VA', name: 'Vatican City' }, { code: 'VE', name: 'Venezuela' },
+        { code: 'VN', name: 'Vietnam' }, { code: 'YE', name: 'Yemen' }, { code: 'ZM', name: 'Zambia' },
+        { code: 'ZW', name: 'Zimbabwe' }
+      ];
+      return (
+        <div className="space-y-2">
+          <Label>Value</Label>
+          <Select
+            value={filter.value}
+            onValueChange={(value) => updateFilter(index, { value })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select country" />
+            </SelectTrigger>
+            <SelectContent className="bg-background border shadow-lg z-50 max-h-60">
+              {countries.map((country) => (
+                <SelectItem key={country.code} value={country.code}>
+                  {country.name} ({country.code})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+
+    // Handle currency field type
+    if (rawFieldType === 'currency') {
+      const currencies = [
+        { code: 'USD', name: 'US Dollar', symbol: '$' },
+        { code: 'EUR', name: 'Euro', symbol: '€' },
+        { code: 'GBP', name: 'British Pound', symbol: '£' },
+        { code: 'JPY', name: 'Japanese Yen', symbol: '¥' },
+        { code: 'CNY', name: 'Chinese Yuan', symbol: '¥' },
+        { code: 'INR', name: 'Indian Rupee', symbol: '₹' },
+        { code: 'AUD', name: 'Australian Dollar', symbol: 'A$' },
+        { code: 'CAD', name: 'Canadian Dollar', symbol: 'C$' },
+        { code: 'CHF', name: 'Swiss Franc', symbol: 'CHF' },
+        { code: 'HKD', name: 'Hong Kong Dollar', symbol: 'HK$' },
+        { code: 'SGD', name: 'Singapore Dollar', symbol: 'S$' },
+        { code: 'SEK', name: 'Swedish Krona', symbol: 'kr' },
+        { code: 'KRW', name: 'South Korean Won', symbol: '₩' },
+        { code: 'NOK', name: 'Norwegian Krone', symbol: 'kr' },
+        { code: 'NZD', name: 'New Zealand Dollar', symbol: 'NZ$' },
+        { code: 'MXN', name: 'Mexican Peso', symbol: '$' },
+        { code: 'BRL', name: 'Brazilian Real', symbol: 'R$' },
+        { code: 'ZAR', name: 'South African Rand', symbol: 'R' },
+        { code: 'RUB', name: 'Russian Ruble', symbol: '₽' },
+        { code: 'TRY', name: 'Turkish Lira', symbol: '₺' },
+        { code: 'PLN', name: 'Polish Zloty', symbol: 'zł' },
+        { code: 'THB', name: 'Thai Baht', symbol: '฿' },
+        { code: 'IDR', name: 'Indonesian Rupiah', symbol: 'Rp' },
+        { code: 'MYR', name: 'Malaysian Ringgit', symbol: 'RM' },
+        { code: 'PHP', name: 'Philippine Peso', symbol: '₱' },
+        { code: 'CZK', name: 'Czech Koruna', symbol: 'Kč' },
+        { code: 'ILS', name: 'Israeli Shekel', symbol: '₪' },
+        { code: 'CLP', name: 'Chilean Peso', symbol: '$' },
+        { code: 'PKR', name: 'Pakistani Rupee', symbol: '₨' },
+        { code: 'EGP', name: 'Egyptian Pound', symbol: 'E£' },
+        { code: 'AED', name: 'UAE Dirham', symbol: 'د.إ' },
+        { code: 'SAR', name: 'Saudi Riyal', symbol: '﷼' },
+        { code: 'TWD', name: 'Taiwan Dollar', symbol: 'NT$' },
+        { code: 'DKK', name: 'Danish Krone', symbol: 'kr' },
+        { code: 'COP', name: 'Colombian Peso', symbol: '$' },
+        { code: 'ARS', name: 'Argentine Peso', symbol: '$' },
+        { code: 'VND', name: 'Vietnamese Dong', symbol: '₫' },
+        { code: 'BDT', name: 'Bangladeshi Taka', symbol: '৳' },
+        { code: 'QAR', name: 'Qatari Riyal', symbol: '﷼' },
+        { code: 'KWD', name: 'Kuwaiti Dinar', symbol: 'د.ك' }
+      ];
+      return (
+        <div className="space-y-2">
+          <Label>Value</Label>
+          <Select
+            value={filter.value}
+            onValueChange={(value) => updateFilter(index, { value })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select currency" />
+            </SelectTrigger>
+            <SelectContent className="bg-background border shadow-lg z-50 max-h-60">
+              {currencies.map((currency) => (
+                <SelectItem key={currency.code} value={currency.code}>
+                  {currency.symbol} {currency.name} ({currency.code})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+
+    // Handle phone field type - show country codes
+    if (rawFieldType === 'phone' || rawFieldType === 'phone-number') {
+      const phoneCodes = [
+        { code: '+1', country: 'US/Canada' },
+        { code: '+44', country: 'UK' },
+        { code: '+91', country: 'India' },
+        { code: '+86', country: 'China' },
+        { code: '+81', country: 'Japan' },
+        { code: '+49', country: 'Germany' },
+        { code: '+33', country: 'France' },
+        { code: '+39', country: 'Italy' },
+        { code: '+34', country: 'Spain' },
+        { code: '+7', country: 'Russia' },
+        { code: '+55', country: 'Brazil' },
+        { code: '+52', country: 'Mexico' },
+        { code: '+61', country: 'Australia' },
+        { code: '+82', country: 'South Korea' },
+        { code: '+31', country: 'Netherlands' },
+        { code: '+46', country: 'Sweden' },
+        { code: '+41', country: 'Switzerland' },
+        { code: '+48', country: 'Poland' },
+        { code: '+32', country: 'Belgium' },
+        { code: '+43', country: 'Austria' },
+        { code: '+47', country: 'Norway' },
+        { code: '+45', country: 'Denmark' },
+        { code: '+358', country: 'Finland' },
+        { code: '+353', country: 'Ireland' },
+        { code: '+351', country: 'Portugal' },
+        { code: '+30', country: 'Greece' },
+        { code: '+90', country: 'Turkey' },
+        { code: '+20', country: 'Egypt' },
+        { code: '+27', country: 'South Africa' },
+        { code: '+234', country: 'Nigeria' },
+        { code: '+254', country: 'Kenya' },
+        { code: '+62', country: 'Indonesia' },
+        { code: '+60', country: 'Malaysia' },
+        { code: '+65', country: 'Singapore' },
+        { code: '+66', country: 'Thailand' },
+        { code: '+84', country: 'Vietnam' },
+        { code: '+63', country: 'Philippines' },
+        { code: '+92', country: 'Pakistan' },
+        { code: '+880', country: 'Bangladesh' },
+        { code: '+94', country: 'Sri Lanka' },
+        { code: '+971', country: 'UAE' },
+        { code: '+966', country: 'Saudi Arabia' },
+        { code: '+974', country: 'Qatar' },
+        { code: '+965', country: 'Kuwait' },
+        { code: '+973', country: 'Bahrain' },
+        { code: '+968', country: 'Oman' },
+        { code: '+972', country: 'Israel' },
+        { code: '+962', country: 'Jordan' },
+        { code: '+961', country: 'Lebanon' },
+        { code: '+64', country: 'New Zealand' }
+      ];
+      return (
+        <div className="space-y-2">
+          <Label>Value (Country Code)</Label>
+          <Select
+            value={filter.value}
+            onValueChange={(value) => updateFilter(index, { value })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select country code" />
+            </SelectTrigger>
+            <SelectContent className="bg-background border shadow-lg z-50 max-h-60">
+              {phoneCodes.map((phone) => (
+                <SelectItem key={phone.code} value={phone.code}>
+                  {phone.code} ({phone.country})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+
     // Handle submission-access field type - show configured users/groups
     if (rawFieldType === 'submission-access') {
       const customConfig = (field as any)?.custom_config || (field as any)?.customConfig;
