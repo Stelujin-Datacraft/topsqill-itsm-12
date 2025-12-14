@@ -1111,13 +1111,14 @@ export function ChartPreview({
                       if (!payload || payload.length === 0) return null;
                       const data = payload[0]?.payload;
                       if (!data) return null;
+                      const xDisplay = data.xDisplay ?? data.xLabel ?? data.x;
                       return (
                         <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
                           <div className="font-medium mb-2">{data.name}</div>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{field1Name} (X):</span>
-                              <span className="font-semibold">{data.x}</span>
+                              <span className="font-semibold">{String(xDisplay)}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{field2Name} (Y):</span>
