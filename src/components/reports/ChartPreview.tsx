@@ -307,6 +307,7 @@ export function ChartPreview({
       .filter(submission => passesFilters(submission.submission_data))
       .map((submission, index) => {
         const submissionData = submission.submission_data;
+        const rawXValue = submissionData[metricField1] ?? submissionData[config.yAxis];
         const xValue = getRawMetricValue(submissionData, metricField1);
         const yValue = getRawMetricValue(submissionData, metricField2);
 
@@ -319,6 +320,8 @@ export function ChartPreview({
           x: xValue,
           y: yValue,
           name: dimensionLabel,
+          // Preserve original X field display value for text metrics (used in bar charts / tooltips)
+          xDisplay: rawXValue ?? xValue,
           // Store field names for tooltip
           xFieldName: field1Name,
           yFieldName: field2Name,
@@ -1078,10 +1081,12 @@ export function ChartPreview({
       }
 
       if (chartType === 'bar' || chartType === 'column') {
-        // Transform data: use Field 1 value as category (X-axis), Field 2 value as bar height (Y-axis)
         const barData = sortedData.map((item, idx) => ({
           ...item,
-          xLabel: String(item.x), // Use x value as category label
+          // Prefer original X field display value when available (e.g. single-line text)
+          xLabel: item.xDisplay !== undefined && item.xDisplay !== null
+            ? String(item.xDisplay)
+            : String(item.x),
         }));
 
         return (
