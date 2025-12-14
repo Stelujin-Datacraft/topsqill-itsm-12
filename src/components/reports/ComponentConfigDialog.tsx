@@ -120,6 +120,21 @@ export function ComponentConfigDialog({
 
       console.log('Fetched form fields:', fields);
       
+      // Helper to parse options from various formats (JSON string, array, or null)
+      const parseOptions = (options: any): Array<{ id: string; value: string; label: string }> => {
+        if (!options) return [];
+        if (Array.isArray(options)) return options;
+        if (typeof options === 'string') {
+          try {
+            const parsed = JSON.parse(options);
+            if (Array.isArray(parsed)) return parsed;
+          } catch (e) {
+            // Not valid JSON
+          }
+        }
+        return [];
+      };
+
       // Transform fields to match FormField interface with proper type casting
       const transformedFields: FormField[] = (fields || []).map(field => ({
         id: field.id,
@@ -127,7 +142,7 @@ export function ComponentConfigDialog({
         label: field.label,
         placeholder: field.placeholder || '',
         required: field.required || false,
-        options: Array.isArray(field.options) ? field.options as Array<{ id: string; value: string; label: string }> : [],
+        options: parseOptions(field.options),
         validation: typeof field.validation === 'object' && field.validation !== null ? field.validation as Record<string, any> : {},
         customConfig: typeof field.custom_config === 'object' && field.custom_config !== null ? field.custom_config as Record<string, any> : {},
         tooltip: field.tooltip || '',
@@ -171,6 +186,21 @@ export function ComponentConfigDialog({
 
       console.log('Fetched secondary form fields:', fields);
       
+      // Helper to parse options from various formats (JSON string, array, or null)
+      const parseOptions = (options: any): Array<{ id: string; value: string; label: string }> => {
+        if (!options) return [];
+        if (Array.isArray(options)) return options;
+        if (typeof options === 'string') {
+          try {
+            const parsed = JSON.parse(options);
+            if (Array.isArray(parsed)) return parsed;
+          } catch (e) {
+            // Not valid JSON
+          }
+        }
+        return [];
+      };
+
       // Transform fields to match FormField interface with proper type casting
       // IMPORTANT: Prefix field IDs with form name to match merged submission data structure
       const transformedFields: FormField[] = (fields || []).map(field => ({
@@ -179,7 +209,7 @@ export function ComponentConfigDialog({
         label: `${formName}: ${field.label}`,  // Prefix label for clarity
         placeholder: field.placeholder || '',
         required: field.required || false,
-        options: Array.isArray(field.options) ? field.options as Array<{ id: string; value: string; label: string }> : [],
+        options: parseOptions(field.options),
         validation: typeof field.validation === 'object' && field.validation !== null ? field.validation as Record<string, any> : {},
         customConfig: typeof field.custom_config === 'object' && field.custom_config !== null ? field.custom_config as Record<string, any> : {},
         tooltip: field.tooltip || '',
