@@ -145,13 +145,18 @@ export function ComponentConfigDialog({
     }
   };
 
-  // Fetch secondary form fields for joins
+  // Fetch secondary form fields for joins - prefix field IDs with form name for proper data lookup
   const fetchSecondaryFormFields = async (formId: string) => {
     if (!formId) return [];
     
     try {
       setLoadingSecondaryFields(true);
       console.log('Fetching secondary form fields for:', formId);
+      
+      // First get the form name
+      const form = forms.find(f => f.id === formId);
+      const formName = form?.name || 'Secondary Form';
+      const prefix = `[${formName}].`;
       
       const { data: fields, error } = await supabase
         .from('form_fields')
@@ -167,10 +172,11 @@ export function ComponentConfigDialog({
       console.log('Fetched secondary form fields:', fields);
       
       // Transform fields to match FormField interface with proper type casting
+      // IMPORTANT: Prefix field IDs with form name to match merged submission data structure
       const transformedFields: FormField[] = (fields || []).map(field => ({
-        id: field.id,
+        id: `${prefix}${field.id}`,  // Prefix field ID to match joined data structure
         type: field.field_type as FormField['type'],
-        label: field.label,
+        label: `${formName}: ${field.label}`,  // Prefix label for clarity
         placeholder: field.placeholder || '',
         required: field.required || false,
         options: Array.isArray(field.options) ? field.options as Array<{ id: string; value: string; label: string }> : [],

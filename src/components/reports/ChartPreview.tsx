@@ -69,13 +69,27 @@ export function ChartPreview({
     return formName;
   };
   const getFormFieldName = (fieldId: string): string => {
+    // Handle prefixed field IDs from joined forms (e.g., "[FormName].fieldId")
+    const prefixMatch = fieldId.match(/^\[(.+?)\]\.(.+)$/);
+    if (prefixMatch) {
+      const [, formName, originalFieldId] = prefixMatch;
+      // Search for the original field ID in forms
+      for (const form of forms) {
+        const field = form.fields?.find((f: any) => f.id === originalFieldId);
+        if (field) {
+          return `${formName}: ${field.label || originalFieldId}`;
+        }
+      }
+      return `${formName}: ${originalFieldId}`;
+    }
+    
     // First try to find field in current form fields
     let field = formFields.find(f => f.id === fieldId);
 
     // If not found and we have forms data, search across all forms
     if (!field && forms.length > 0) {
       for (const form of forms) {
-        field = form.fields?.find(f => f.id === fieldId);
+        field = form.fields?.find((f: any) => f.id === fieldId);
         if (field) break;
       }
     }
