@@ -129,12 +129,12 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
       return null;
     }
 
-    // Get field options - support both field.options and custom_config.options
+    // Get field options - support field.options, custom_config.options, and customConfig.options
     const getFieldOptions = () => {
-      if (field?.options && field.options.length > 0) {
+      if (field?.options && Array.isArray(field.options) && field.options.length > 0) {
         return field.options;
       }
-      const customConfig = (field as any)?.custom_config;
+      const customConfig = (field as any)?.custom_config || (field as any)?.customConfig;
       if (customConfig?.options && Array.isArray(customConfig.options)) {
         return customConfig.options;
       }
@@ -145,7 +145,8 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
 
     // Handle rating field type - show star options
     if (rawFieldType === 'rating' || rawFieldType === 'star-rating') {
-      const maxRating = (field as any)?.custom_config?.maxRating || (field as any)?.validation?.max || 5;
+      const customConfig = (field as any)?.custom_config || (field as any)?.customConfig;
+      const maxRating = customConfig?.maxRating || (field as any)?.validation?.max || 5;
       const ratingOptions = Array.from({ length: maxRating }, (_, i) => i + 1);
       return (
         <div className="space-y-2">
@@ -171,9 +172,10 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
 
     // Handle slider/range field type - show min/max range input
     if (rawFieldType === 'slider' || rawFieldType === 'range') {
-      const min = (field as any)?.validation?.min || (field as any)?.custom_config?.min || 0;
-      const max = (field as any)?.validation?.max || (field as any)?.custom_config?.max || 100;
-      const step = (field as any)?.validation?.step || (field as any)?.custom_config?.step || 1;
+      const customConfig = (field as any)?.custom_config || (field as any)?.customConfig;
+      const min = (field as any)?.validation?.min || customConfig?.min || 0;
+      const max = (field as any)?.validation?.max || customConfig?.max || 100;
+      const step = (field as any)?.validation?.step || customConfig?.step || 1;
       
       // Generate options based on min/max/step
       const sliderOptions: number[] = [];
@@ -258,8 +260,8 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
       );
     }
 
-    // Handle checkbox field type
-    if (rawFieldType === 'checkbox') {
+    // Handle checkbox field type (standalone, not checkbox group with options)
+    if (rawFieldType === 'checkbox' && fieldOptions.length === 0) {
       return (
         <div className="space-y-2">
           <Label>Value</Label>
@@ -279,8 +281,112 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
       );
     }
 
-    // Handle select/dropdown fields with options
-    if (fieldTypeCategory === 'select' && fieldOptions.length > 0) {
+    // Handle time field type
+    if (rawFieldType === 'time') {
+      return (
+        <div className="space-y-2">
+          <Label>Value</Label>
+          <Input
+            type="time"
+            value={filter.value}
+            onChange={(e) => updateFilter(index, { value: e.target.value })}
+            placeholder="Select time"
+          />
+        </div>
+      );
+    }
+
+    // Handle datetime field type
+    if (rawFieldType === 'datetime' || rawFieldType === 'date-time') {
+      return (
+        <div className="space-y-2">
+          <Label>Value</Label>
+          <Input
+            type="datetime-local"
+            value={filter.value}
+            onChange={(e) => updateFilter(index, { value: e.target.value })}
+            placeholder="Select date and time"
+          />
+        </div>
+      );
+    }
+
+    // Handle tags field type - text input for tag values
+    if (rawFieldType === 'tags') {
+      return (
+        <div className="space-y-2">
+          <Label>Value (tag to filter)</Label>
+          <Input
+            type="text"
+            value={filter.value}
+            onChange={(e) => updateFilter(index, { value: e.target.value })}
+            placeholder="Enter tag value"
+          />
+        </div>
+      );
+    }
+
+    // Handle submission-access field type - show configured users/groups
+    if (rawFieldType === 'submission-access') {
+      const customConfig = (field as any)?.custom_config || (field as any)?.customConfig;
+      const allowedUsers = customConfig?.allowedUsers || [];
+      const allowedGroups = customConfig?.allowedGroups || [];
+      
+      const accessOptions = [
+        ...allowedUsers.map((user: any) => ({
+          value: user.id || user.email || user,
+          label: user.name || user.email || user.id || user,
+          type: 'user'
+        })),
+        ...allowedGroups.map((group: any) => ({
+          value: group.id || group.name || group,
+          label: group.name || group.id || group,
+          type: 'group'
+        }))
+      ];
+
+      if (accessOptions.length > 0) {
+        return (
+          <div className="space-y-2">
+            <Label>Value</Label>
+            <Select
+              value={filter.value}
+              onValueChange={(value) => updateFilter(index, { value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select user/group" />
+              </SelectTrigger>
+              <SelectContent>
+                {accessOptions.map((option, optIndex) => (
+                  <SelectItem key={optIndex} value={String(option.value)}>
+                    {option.type === 'group' ? '👥 ' : '👤 '}{option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        );
+      }
+      
+      // Fallback if no configured users/groups
+      return (
+        <div className="space-y-2">
+          <Label>Value (user/group ID or email)</Label>
+          <Input
+            type="text"
+            value={filter.value}
+            onChange={(e) => updateFilter(index, { value: e.target.value })}
+            placeholder="Enter user/group ID or email"
+          />
+        </div>
+      );
+    }
+
+    // Handle multi-select, dropdown, radio, select, checkbox (with options), status fields
+    if ((rawFieldType === 'multi-select' || rawFieldType === 'dropdown' || 
+         rawFieldType === 'radio' || rawFieldType === 'select' || 
+         rawFieldType === 'status' || (rawFieldType === 'checkbox' && fieldOptions.length > 0)) && 
+        fieldOptions.length > 0) {
       if (filter.operator === 'in' || filter.operator === 'not_in') {
         return (
           <div className="space-y-2">
@@ -325,7 +431,7 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
       }
     }
 
-    // Handle boolean field type (generic)
+    // Handle boolean field type (generic fallback)
     if (fieldTypeCategory === 'boolean') {
       return (
         <div className="space-y-2">
@@ -346,15 +452,42 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
       );
     }
 
-    // Default input based on field category
-    const inputType = fieldTypeCategory === 'number' ? 'number' : 
-                     fieldTypeCategory === 'date' ? 'date' : 'text';
+    // Handle date field type
+    if (rawFieldType === 'date') {
+      return (
+        <div className="space-y-2">
+          <Label>Value</Label>
+          <Input
+            type="date"
+            value={filter.value}
+            onChange={(e) => updateFilter(index, { value: e.target.value })}
+            placeholder="Select date"
+          />
+        </div>
+      );
+    }
 
+    // Handle number/currency field types
+    if (rawFieldType === 'number' || rawFieldType === 'currency') {
+      return (
+        <div className="space-y-2">
+          <Label>Value</Label>
+          <Input
+            type="number"
+            value={filter.value}
+            onChange={(e) => updateFilter(index, { value: e.target.value })}
+            placeholder="Enter number"
+          />
+        </div>
+      );
+    }
+
+    // Default text input
     return (
       <div className="space-y-2">
         <Label>Value</Label>
         <Input
-          type={inputType}
+          type="text"
           value={filter.value}
           onChange={(e) => updateFilter(index, { value: e.target.value })}
           placeholder="Enter filter value"
