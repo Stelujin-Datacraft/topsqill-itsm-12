@@ -977,7 +977,7 @@ export function ChartPreview({
       dimensionKeys = seriesValues.slice(0, 8).map(s => s.key);
     }
 
-    // Compare mode: render as scatter chart (X/Y axis format)
+    // Compare mode: render with X/Y axis format using selected chart type
     if (isCompareMode) {
       const field1Name = config.metrics ? getFormFieldName(config.metrics[0]) : 'Field 1';
       const field2Name = config.metrics ? getFormFieldName(config.metrics[1]) : 'Field 2';
@@ -990,6 +990,123 @@ export function ChartPreview({
       const xDomain: [number, number] = [0, Math.ceil(xMax * 1.1) || 10];
       const yDomain: [number, number] = [0, Math.ceil(yMax * 1.1) || 10];
 
+      // Sort data by x value for line/area charts
+      const sortedData = [...sanitizedChartData].sort((a, b) => (a.x || 0) - (b.x || 0));
+
+      const compareTooltip = (
+        <Tooltip 
+          content={({ payload }) => {
+            if (!payload || payload.length === 0) return null;
+            const data = payload[0]?.payload;
+            if (!data) return null;
+            return (
+              <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
+                <div className="font-medium mb-2">{data.name}</div>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">{data.xFieldName || field1Name}:</span>
+                    <span className="font-semibold">{data.x}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">{data.yFieldName || field2Name}:</span>
+                    <span className="font-semibold">{data.y}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          }}
+        />
+      );
+
+      // Render based on selected chart type
+      if (chartType === 'line') {
+        return (
+          <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
+            <div className="absolute inset-0" style={{ bottom: '40px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsLineChart data={sortedData} margin={{ top: 20, right: 30, left: 60, bottom: 60 }}>
+                  <XAxis 
+                    type="number" 
+                    dataKey="x" 
+                    tick={{ fontSize: 11 }}
+                    domain={xDomain}
+                    label={{ value: field1Name, position: 'insideBottom', offset: -5 }}
+                  />
+                  <YAxis 
+                    type="number" 
+                    dataKey="y" 
+                    tick={{ fontSize: 11 }}
+                    domain={yDomain}
+                    label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
+                  />
+                  {compareTooltip}
+                  <Line type="monotone" dataKey="y" stroke={colors[0]} strokeWidth={2} dot={{ fill: colors[0], r: 4 }} />
+                </RechartsLineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+      }
+
+      if (chartType === 'area') {
+        return (
+          <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
+            <div className="absolute inset-0" style={{ bottom: '40px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsAreaChart data={sortedData} margin={{ top: 20, right: 30, left: 60, bottom: 60 }}>
+                  <XAxis 
+                    type="number" 
+                    dataKey="x" 
+                    tick={{ fontSize: 11 }}
+                    domain={xDomain}
+                    label={{ value: field1Name, position: 'insideBottom', offset: -5 }}
+                  />
+                  <YAxis 
+                    type="number" 
+                    dataKey="y" 
+                    tick={{ fontSize: 11 }}
+                    domain={yDomain}
+                    label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
+                  />
+                  {compareTooltip}
+                  <Area type="monotone" dataKey="y" stroke={colors[0]} fill={colors[0]} fillOpacity={0.3} />
+                </RechartsAreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+      }
+
+      if (chartType === 'bar' || chartType === 'column') {
+        return (
+          <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
+            <div className="absolute inset-0" style={{ bottom: '40px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={sortedData} margin={{ top: 20, right: 30, left: 60, bottom: 60 }}>
+                  <XAxis 
+                    type="number" 
+                    dataKey="x" 
+                    tick={{ fontSize: 11 }}
+                    domain={xDomain}
+                    label={{ value: field1Name, position: 'insideBottom', offset: -5 }}
+                  />
+                  <YAxis 
+                    type="number" 
+                    dataKey="y" 
+                    tick={{ fontSize: 11 }}
+                    domain={yDomain}
+                    label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
+                  />
+                  {compareTooltip}
+                  <Bar dataKey="y" fill={colors[0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+      }
+
+      // Default to scatter for other chart types in compare mode
       return (
         <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
           <div className="absolute inset-0" style={{ bottom: '40px' }}>
@@ -1011,28 +1128,7 @@ export function ChartPreview({
                   domain={yDomain}
                   label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                 />
-                <Tooltip 
-                  content={({ payload }) => {
-                    if (!payload || payload.length === 0) return null;
-                    const data = payload[0]?.payload;
-                    if (!data) return null;
-                    return (
-                      <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
-                        <div className="font-medium mb-2">{data.name}</div>
-                        <div className="space-y-1 text-sm">
-                          <div className="flex justify-between gap-4">
-                            <span className="text-muted-foreground">{data.xFieldName || field1Name}:</span>
-                            <span className="font-semibold">{data.x}</span>
-                          </div>
-                          <div className="flex justify-between gap-4">
-                            <span className="text-muted-foreground">{data.yFieldName || field2Name}:</span>
-                            <span className="font-semibold">{data.y}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }}
-                />
+                {compareTooltip}
                 <Scatter 
                   data={sanitizedChartData} 
                   fill={colors[0]}
@@ -1044,7 +1140,6 @@ export function ChartPreview({
         </div>
       );
     }
-
     switch (chartType) {
       case 'bar':
         return <div className="relative w-full" style={{
