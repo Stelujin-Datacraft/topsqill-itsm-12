@@ -208,6 +208,8 @@ export function useTableData(
   const applyJoins = async (primaryData: SubmissionRow[], joins: JoinDefinition[]): Promise<SubmissionRow[]> => {
     let result = [...primaryData];
 
+    console.log('📌 applyJoins - primaryData length:', primaryData.length);
+
     for (const join of joins) {
       if (!join.secondaryFormId || !join.primaryFieldId || !join.secondaryFieldId) {
         console.warn('Incomplete join configuration, skipping:', join);
@@ -237,10 +239,25 @@ export function useTableData(
           submission_ref_id: row.submission_ref_id || ''
         }));
 
-        console.log(`Loaded ${secondarySubmissions.length} records from secondary form for join`);
+        console.log(`📌 applyJoins - loaded ${secondarySubmissions.length} records from secondary form for join`);
+
+        // Debug: show distinct join key values before performing join
+        const primaryKeys = Array.from(
+          new Set(
+            primaryData.map(p => p.submission_data?.[join.primaryFieldId]).filter(v => v !== undefined && v !== null)
+          )
+        );
+        const secondaryKeys = Array.from(
+          new Set(
+            secondarySubmissions.map(s => s.submission_data?.[join.secondaryFieldId]).filter(v => v !== undefined && v !== null)
+          )
+        );
+        console.log('📌 applyJoins - primary join keys:', join.primaryFieldId, primaryKeys);
+        console.log('📌 applyJoins - secondary join keys:', join.secondaryFieldId, secondaryKeys);
 
         // Perform the join based on join type
         result = performJoin(result, secondarySubmissions, join);
+        console.log('📌 applyJoins - result length after join:', result.length);
         
       } catch (err) {
         console.error('Error performing join:', err);
