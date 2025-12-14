@@ -44,6 +44,7 @@ interface ActiveFilter {
   field: string;
   operator: string;
   value: string;
+  logicalOperator: 'AND' | 'OR'; // Logical operator with next filter
 }
 
 export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTableProps) {
@@ -52,7 +53,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
   const [sortConfig, setSortConfig] = useState<{ field: string; direction: 'asc' | 'desc' } | null>(null);
   const [drilldownFilters, setDrilldownFilters] = useState<DrilldownFilter[]>([]);
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
-  const [appliedFilters, setAppliedFilters] = useState<ActiveFilter[]>([]); // Only apply on button click
+  const [appliedFilters, setAppliedFilters] = useState<ActiveFilter[]>([]); // Client-side filters
   const [showFilterPanel, setShowFilterPanel] = useState(false);
 
   const { forms } = useReports();
@@ -85,22 +86,21 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
     };
   }, [config.joinConfig]);
 
-  // Combine configured filters with applied active filters (not activeFilters directly)
+  // Only use configured filters for server-side query (not user active filters)
   const filterGroups = useMemo(() => {
     const configuredFilters = (config as any).filters as { field: string; operator: string; value: any }[] | undefined;
-    const allFilters = [...(configuredFilters || []), ...appliedFilters];
     
-    if (allFilters.length === 0) return [] as { conditions: { field: string; operator: string; value: any }[] }[];
+    if (!configuredFilters || configuredFilters.length === 0) return [] as { conditions: { field: string; operator: string; value: any }[] }[];
     return [
       {
-        conditions: allFilters.map(f => ({
+        conditions: configuredFilters.map(f => ({
           field: f.field,
           operator: f.operator,
           value: f.value
         }))
       }
     ];
-  }, [config, appliedFilters]);
+  }, [config]);
 
   const { data, loading, totalCount, refetch } = useTableData(
     config.formId,
@@ -109,6 +109,57 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
     drilldownFiltersForQuery,
     joinConfigForQuery
   );
+
+  // Client-side filter evaluation
+  const evaluateFilter = useCallback((row: any, filter: ActiveFilter): boolean => {
+    const value = getFieldValue(row, filter.field);
+    const filterValue = filter.value;
+    const strValue = String(value).toLowerCase();
+    const strFilterValue = String(filterValue).toLowerCase();
+
+    switch (filter.operator) {
+      case 'equals':
+        return strValue === strFilterValue;
+      case 'not_equals':
+        return strValue !== strFilterValue;
+      case 'contains':
+        return strValue.includes(strFilterValue);
+      case 'starts_with':
+        return strValue.startsWith(strFilterValue);
+      case 'ends_with':
+        return strValue.endsWith(strFilterValue);
+      case 'greater_than':
+        return parseFloat(String(value)) > parseFloat(filterValue);
+      case 'less_than':
+        return parseFloat(String(value)) < parseFloat(filterValue);
+      case 'is_empty':
+        return !value || strValue === '' || strValue === 'n/a';
+      case 'is_not_empty':
+        return value && strValue !== '' && strValue !== 'n/a';
+      default:
+        return true;
+    }
+  }, []);
+
+  // Evaluate all filters with logical operators
+  const evaluateFilters = useCallback((row: any, filters: ActiveFilter[]): boolean => {
+    if (filters.length === 0) return true;
+    
+    let result = evaluateFilter(row, filters[0]);
+    
+    for (let i = 1; i < filters.length; i++) {
+      const prevFilter = filters[i - 1];
+      const currentResult = evaluateFilter(row, filters[i]);
+      
+      if (prevFilter.logicalOperator === 'OR') {
+        result = result || currentResult;
+      } else {
+        result = result && currentResult;
+      }
+    }
+    
+    return result;
+  }, [evaluateFilter]);
 
   const loadFormFields = useCallback(async () => {
     if (!config.formId) return;
@@ -183,7 +234,8 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
       setActiveFilters(prev => [...prev, {
         field: formFields[0].id,
         operator: 'equals',
-        value: ''
+        value: '',
+        logicalOperator: 'AND' as const
       }]);
     }
   };
@@ -253,9 +305,14 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
     return validFields;
   }, [formFields, config.selectedColumns]);
 
-  // Apply search and sorting
+  // Apply client-side filters, search and sorting
   const filteredData = useMemo(() => {
     let filtered = [...data];
+
+    // Apply client-side active filters
+    if (appliedFilters.length > 0) {
+      filtered = filtered.filter(row => evaluateFilters(row, appliedFilters));
+    }
 
     // Apply search filter
     if (searchTerm && config.enableSearch) {
@@ -290,7 +347,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
     }
 
     return filtered;
-  }, [data, searchTerm, displayFields, config.enableSearch, sortConfig]);
+  }, [data, searchTerm, displayFields, config.enableSearch, sortConfig, appliedFilters, evaluateFilters]);
 
   useEffect(() => {
     loadFormFields();
@@ -430,56 +487,77 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
             {showFilterPanel && (
               <div className="border rounded-lg p-3 bg-muted/30 space-y-2">
                 {activeFilters.map((filter, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <Select
-                      value={filter.field}
-                      onValueChange={(value) => updateActiveFilter(index, { field: value })}
-                    >
-                      <SelectTrigger className="w-[180px] h-8 bg-background">
-                        <SelectValue placeholder="Select field" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background">
-                        {formFields.map(f => (
-                          <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div key={index} className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Select
+                        value={filter.field}
+                        onValueChange={(value) => updateActiveFilter(index, { field: value })}
+                      >
+                        <SelectTrigger className="w-[160px] h-8 bg-background">
+                          <SelectValue placeholder="Select field" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background z-50">
+                          {formFields.map(f => (
+                            <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
 
-                    <Select
-                      value={filter.operator}
-                      onValueChange={(value) => updateActiveFilter(index, { operator: value })}
-                    >
-                      <SelectTrigger className="w-[140px] h-8 bg-background">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background">
-                        <SelectItem value="equals">Equals</SelectItem>
-                        <SelectItem value="not_equals">Not equals</SelectItem>
-                        <SelectItem value="contains">Contains</SelectItem>
-                        <SelectItem value="starts_with">Starts with</SelectItem>
-                        <SelectItem value="ends_with">Ends with</SelectItem>
-                        <SelectItem value="greater_than">Greater than</SelectItem>
-                        <SelectItem value="less_than">Less than</SelectItem>
-                        <SelectItem value="is_empty">Is empty</SelectItem>
-                        <SelectItem value="is_not_empty">Is not empty</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      <Select
+                        value={filter.operator}
+                        onValueChange={(value) => updateActiveFilter(index, { operator: value })}
+                      >
+                        <SelectTrigger className="w-[120px] h-8 bg-background">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background z-50">
+                          <SelectItem value="equals">Equals</SelectItem>
+                          <SelectItem value="not_equals">Not equals</SelectItem>
+                          <SelectItem value="contains">Contains</SelectItem>
+                          <SelectItem value="starts_with">Starts with</SelectItem>
+                          <SelectItem value="ends_with">Ends with</SelectItem>
+                          <SelectItem value="greater_than">Greater than</SelectItem>
+                          <SelectItem value="less_than">Less than</SelectItem>
+                          <SelectItem value="is_empty">Is empty</SelectItem>
+                          <SelectItem value="is_not_empty">Is not empty</SelectItem>
+                        </SelectContent>
+                      </Select>
 
-                    <Input
-                      value={filter.value}
-                      onChange={(e) => updateActiveFilter(index, { value: e.target.value })}
-                      placeholder="Value..."
-                      className="flex-1 h-8"
-                    />
+                      <Input
+                        value={filter.value}
+                        onChange={(e) => updateActiveFilter(index, { value: e.target.value })}
+                        placeholder="Value..."
+                        className="flex-1 h-8"
+                        disabled={filter.operator === 'is_empty' || filter.operator === 'is_not_empty'}
+                      />
 
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeActiveFilter(index)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeActiveFilter(index)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    
+                    {/* Logical operator between filters */}
+                    {index < activeFilters.length - 1 && (
+                      <div className="flex items-center gap-2 pl-2">
+                        <Select
+                          value={filter.logicalOperator}
+                          onValueChange={(value: 'AND' | 'OR') => updateActiveFilter(index, { logicalOperator: value })}
+                        >
+                          <SelectTrigger className="w-[80px] h-7 text-xs bg-background">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background z-50">
+                            <SelectItem value="AND">AND</SelectItem>
+                            <SelectItem value="OR">OR</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                 ))}
 
