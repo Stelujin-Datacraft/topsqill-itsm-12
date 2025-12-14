@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useReports } from '@/hooks/useReports';
-import { getFieldType } from '@/data/fieldTypeMapping';
+
 
 interface MetricCardConfig {
   title?: string;
@@ -51,6 +51,33 @@ export function MetricCard({ config, isEditing, onConfigChange, onEdit }: Metric
     loadMetricData();
   }, [config.formId, config.field, config.aggregation, JSON.stringify(config.filters)]);
 
+  // Extract numeric value from field data based on field type
+  const extractNumericValue = (rawValue: any, fieldType?: string): number => {
+    if (rawValue === null || rawValue === undefined || rawValue === '') {
+      return NaN;
+    }
+
+    // Currency field: stored as "USD:100" or { code: "USD", amount: 100 }
+    if (fieldType === 'currency') {
+      if (typeof rawValue === 'string' && rawValue.includes(':')) {
+        const parts = rawValue.split(':');
+        return parseFloat(parts[1]) || NaN;
+      }
+      if (typeof rawValue === 'object' && rawValue.amount !== undefined) {
+        return parseFloat(rawValue.amount) || NaN;
+      }
+    }
+
+    // Rating/star-rating/slider: direct numeric
+    if (['rating', 'star-rating', 'slider', 'number'].includes(fieldType || '')) {
+      return parseFloat(String(rawValue)) || NaN;
+    }
+
+    // Fallback: try to parse as number
+    const parsed = parseFloat(String(rawValue));
+    return isNaN(parsed) ? NaN : parsed;
+  };
+
   const loadMetricData = async () => {
     if (!config.formId) {
       setLoading(false);
@@ -65,6 +92,12 @@ export function MetricCard({ config, isEditing, onConfigChange, onEdit }: Metric
 
     try {
       const submissions = await getFormSubmissionData(config.formId);
+      const fields = getFormFields(config.formId);
+      
+      // Find the field type for the selected field
+      const selectedField = fields.find(f => f.id === config.field);
+      const fieldType = selectedField ? (selectedField as any).field_type || selectedField.type : undefined;
+      
       const filteredSubmissions = submissions.filter(submission => {
         const submissionData = submission.submission_data;
         return config.filters?.every(filter => {
@@ -92,31 +125,34 @@ export function MetricCard({ config, isEditing, onConfigChange, onEdit }: Metric
         case 'sum':
           value = filteredSubmissions.reduce((acc, submission) => {
             const submissionData = submission.submission_data;
-            const fieldValue = Number(submissionData[config.field]);
-            return acc + (isNaN(fieldValue) ? 0 : fieldValue);
+            const numValue = extractNumericValue(submissionData[config.field!], fieldType);
+            return acc + (isNaN(numValue) ? 0 : numValue);
           }, 0);
           break;
         case 'avg':
-          const sum = filteredSubmissions.reduce((acc, submission) => {
+          const validValues: number[] = [];
+          filteredSubmissions.forEach(submission => {
             const submissionData = submission.submission_data;
-            const fieldValue = Number(submissionData[config.field]);
-            return acc + (isNaN(fieldValue) ? 0 : fieldValue);
-          }, 0);
-          value = filteredSubmissions.length > 0 ? sum / filteredSubmissions.length : 0;
+            const numValue = extractNumericValue(submissionData[config.field!], fieldType);
+            if (!isNaN(numValue)) {
+              validValues.push(numValue);
+            }
+          });
+          value = validValues.length > 0 ? validValues.reduce((a, b) => a + b, 0) / validValues.length : 0;
           break;
         case 'min':
           value = filteredSubmissions.reduce((min, submission) => {
             const submissionData = submission.submission_data;
-            const fieldValue = Number(submissionData[config.field]);
-            return Math.min(min, isNaN(fieldValue) ? Infinity : fieldValue);
+            const numValue = extractNumericValue(submissionData[config.field!], fieldType);
+            return Math.min(min, isNaN(numValue) ? Infinity : numValue);
           }, Infinity);
           value = value === Infinity ? 0 : value;
           break;
         case 'max':
           value = filteredSubmissions.reduce((max, submission) => {
             const submissionData = submission.submission_data;
-            const fieldValue = Number(submissionData[config.field]);
-            return Math.max(max, isNaN(fieldValue) ? -Infinity : fieldValue);
+            const numValue = extractNumericValue(submissionData[config.field!], fieldType);
+            return Math.max(max, isNaN(numValue) ? -Infinity : numValue);
           }, -Infinity);
           value = value === -Infinity ? 0 : value;
           break;
@@ -132,25 +168,30 @@ export function MetricCard({ config, isEditing, onConfigChange, onEdit }: Metric
     }
   };
 
+  // Numeric field types that support aggregation functions (sum, avg, min, max)
+  const NUMERIC_FIELD_TYPES = ['number', 'currency', 'rating', 'star-rating', 'slider'];
+
   const getAvailableFields = () => {
     if (!config.formId) return [];
     const fields = getFormFields(config.formId);
-    // For count aggregation, we don't need to filter by field type
-    // For other aggregations, filter to numeric-compatible fields
+    
+    // For count aggregation, all fields are valid
     if (config.aggregation === 'count') {
       return fields.map(field => ({
         id: field.id,
         label: field.label,
-        type: getFieldType(field.type)
+        type: (field as any).field_type || field.type
       }));
     }
+    
+    // For other aggregations (sum, avg, min, max), only numeric fields
     return fields.filter(field => {
-      const fieldType = getFieldType(field.type);
-      return fieldType === 'number' || fieldType === 'text' || fieldType === 'email' || fieldType === 'currency' || fieldType === 'slider' || fieldType === 'rating';
+      const fieldType = (field as any).field_type || field.type;
+      return NUMERIC_FIELD_TYPES.includes(fieldType);
     }).map(field => ({
       id: field.id,
       label: field.label,
-      type: getFieldType(field.type)
+      type: (field as any).field_type || field.type
     }));
   };
 
