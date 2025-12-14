@@ -121,7 +121,9 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
 
   const renderValueInput = (filter: typeof filters[0], index: number) => {
     const field = formFields.find(f => f.id === filter.field);
-    const fieldType = getFieldType(filter.field);
+    // Support both .type and .field_type
+    const rawFieldType = (field as any)?.field_type || field?.type || '';
+    const fieldTypeCategory = getFieldType(filter.field);
 
     if (filter.operator === 'is_empty' || filter.operator === 'is_not_empty') {
       return null;
@@ -141,7 +143,144 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
 
     const fieldOptions = getFieldOptions();
 
-    if (fieldType === 'select' && fieldOptions.length > 0) {
+    // Handle rating field type - show star options
+    if (rawFieldType === 'rating' || rawFieldType === 'star-rating') {
+      const maxRating = (field as any)?.custom_config?.maxRating || (field as any)?.validation?.max || 5;
+      const ratingOptions = Array.from({ length: maxRating }, (_, i) => i + 1);
+      return (
+        <div className="space-y-2">
+          <Label>Value</Label>
+          <Select
+            value={filter.value}
+            onValueChange={(value) => updateFilter(index, { value })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select rating" />
+            </SelectTrigger>
+            <SelectContent>
+              {ratingOptions.map((rating) => (
+                <SelectItem key={rating} value={String(rating)}>
+                  {'★'.repeat(rating)} ({rating})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+
+    // Handle slider/range field type - show min/max range input
+    if (rawFieldType === 'slider' || rawFieldType === 'range') {
+      const min = (field as any)?.validation?.min || (field as any)?.custom_config?.min || 0;
+      const max = (field as any)?.validation?.max || (field as any)?.custom_config?.max || 100;
+      const step = (field as any)?.validation?.step || (field as any)?.custom_config?.step || 1;
+      
+      // Generate options based on min/max/step
+      const sliderOptions: number[] = [];
+      for (let val = min; val <= max; val += step) {
+        sliderOptions.push(val);
+        if (sliderOptions.length > 50) break; // Limit options
+      }
+      
+      return (
+        <div className="space-y-2">
+          <Label>Value ({min} - {max})</Label>
+          {sliderOptions.length <= 20 ? (
+            <Select
+              value={filter.value}
+              onValueChange={(value) => updateFilter(index, { value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select value" />
+              </SelectTrigger>
+              <SelectContent>
+                {sliderOptions.map((val) => (
+                  <SelectItem key={val} value={String(val)}>
+                    {val}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              type="number"
+              min={min}
+              max={max}
+              step={step}
+              value={filter.value}
+              onChange={(e) => updateFilter(index, { value: e.target.value })}
+              placeholder={`${min} - ${max}`}
+            />
+          )}
+        </div>
+      );
+    }
+
+    // Handle yes-no field type
+    if (rawFieldType === 'yes-no') {
+      return (
+        <div className="space-y-2">
+          <Label>Value</Label>
+          <Select
+            value={filter.value}
+            onValueChange={(value) => updateFilter(index, { value })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select value" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="yes">Yes</SelectItem>
+              <SelectItem value="no">No</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+
+    // Handle toggle/switch field type
+    if (rawFieldType === 'toggle' || rawFieldType === 'toggle-switch') {
+      return (
+        <div className="space-y-2">
+          <Label>Value</Label>
+          <Select
+            value={filter.value}
+            onValueChange={(value) => updateFilter(index, { value })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select value" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="true">On</SelectItem>
+              <SelectItem value="false">Off</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+
+    // Handle checkbox field type
+    if (rawFieldType === 'checkbox') {
+      return (
+        <div className="space-y-2">
+          <Label>Value</Label>
+          <Select
+            value={filter.value}
+            onValueChange={(value) => updateFilter(index, { value })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select value" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="true">Checked</SelectItem>
+              <SelectItem value="false">Unchecked</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+
+    // Handle select/dropdown fields with options
+    if (fieldTypeCategory === 'select' && fieldOptions.length > 0) {
       if (filter.operator === 'in' || filter.operator === 'not_in') {
         return (
           <div className="space-y-2">
@@ -186,7 +325,8 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
       }
     }
 
-    if (fieldType === 'boolean') {
+    // Handle boolean field type (generic)
+    if (fieldTypeCategory === 'boolean') {
       return (
         <div className="space-y-2">
           <Label>Value</Label>
@@ -206,8 +346,9 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
       );
     }
 
-    const inputType = fieldType === 'number' ? 'number' : 
-                     fieldType === 'date' ? 'date' : 'text';
+    // Default input based on field category
+    const inputType = fieldTypeCategory === 'number' ? 'number' : 
+                     fieldTypeCategory === 'date' ? 'date' : 'text';
 
     return (
       <div className="space-y-2">
