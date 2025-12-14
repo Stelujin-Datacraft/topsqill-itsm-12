@@ -1880,14 +1880,6 @@ export function ChartPreview({
                 <div className="flex items-center gap-2">
                   <Filter className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm font-medium">Drilldown Controls</span>
-                  
-                  {/* Debug info */}
-                  <div className="text-xs text-muted-foreground bg-red-100 p-1 rounded">
-                    Debug: enabled={config.drilldownConfig?.enabled?.toString()}, 
-                    levels={config.drilldownConfig?.drilldownLevels?.length || 0}, 
-                    currentLevel={currentLevelInfo?.levelIndex || 'null'},
-                    availableValues={currentLevelInfo?.availableValues?.length || 0}
-                  </div>
                 </div>
                 
                 {/* Drilldown Path Breadcrumb */}
