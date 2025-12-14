@@ -40,7 +40,7 @@ import {
 } from 'lucide-react';
 import { ChartConfigurationTabs } from './ChartConfigurationTabs';
 import { ChartPreview } from './ChartPreview';
-import { ChartExamples } from './ChartExamples';
+import { ChartDataSection } from './ChartDataSection';
 import { MetricsSelector } from './MetricsSelector';
 import { DimensionsSelector } from './DimensionsSelector';
 import { FormField } from '@/types/form';
@@ -435,56 +435,31 @@ export function ComponentConfigDialog({
         </TabsContent>
 
         <TabsContent value="data" className="space-y-4">
-          {config.formId && formFields.length > 0 ? (
-            <>
-              {config.chartType !== 'table' ? (
-                <div className="space-y-6">
-                  <MetricsSelector
-                    formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-                    selectedMetrics={config.metrics || []}
-                    onMetricsChange={(metrics) => setConfig({ ...config, metrics })}
-                    aggregationEnabled={config.aggregationEnabled !== false}
-                    onAggregationEnabledChange={(enabled) => 
-                      setConfig({ ...config, aggregationEnabled: enabled })
-                    }
-                    metricAggregations={config.metricAggregations || []}
-                    onMetricAggregationsChange={(aggregations) => 
-                      setConfig({ ...config, metricAggregations: aggregations })
-                    }
-                    groupByField={config.groupByField}
-                    onGroupByFieldChange={(field) => 
-                      setConfig({ ...config, groupByField: field })
-                    }
-                  />
-                  
-                  <DimensionsSelector
-                    formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-                    selectedDimensions={config.dimensions || []}
-                    onDimensionsChange={(dimensions) => setConfig({ ...config, dimensions })}
-                    maxDimensions={5}
-                    label="Chart Dimensions"
-                    description="Select categorical fields to group your data by (e.g., status, category, date)"
-                  />
-                </div>
-              ) : (
-                <GenericFieldSelector
-                  formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-                  selectedFields={config.selectedColumns || []}
-                  onFieldsChange={(fields) => setConfig({ ...config, selectedColumns: fields })}
-                  label="Table Columns"
-                  description="Select columns to display in the table (from joined forms)"
-                  selectionType="checkbox"
-                  maxHeight="300px"
-                />
-              )}
-            </>
+          {config.chartType !== 'table' ? (
+            <ChartDataSection
+              config={config}
+              formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
+              onConfigChange={(updates) => setConfig({ ...config, ...updates })}
+            />
           ) : (
-            <div className="p-4 text-center text-muted-foreground">
-              {config.formId ? 
-                (loadingFields ? 'Loading form fields...' : 'The selected form has no fields configured yet.') :
-                'Please select a form to configure data fields.'
-              }
-            </div>
+            config.formId && formFields.length > 0 ? (
+              <GenericFieldSelector
+                formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
+                selectedFields={config.selectedColumns || []}
+                onFieldsChange={(fields) => setConfig({ ...config, selectedColumns: fields })}
+                label="Table Columns"
+                description="Select columns to display in the table (from joined forms)"
+                selectionType="checkbox"
+                maxHeight="300px"
+              />
+            ) : (
+              <div className="p-4 text-center text-muted-foreground">
+                {config.formId ? 
+                  (loadingFields ? 'Loading form fields...' : 'The selected form has no fields configured yet.') :
+                  'Please select a form to configure data fields.'
+                }
+              </div>
+            )
           )}
         </TabsContent>
 
