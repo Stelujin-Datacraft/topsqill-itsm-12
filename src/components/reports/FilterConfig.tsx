@@ -129,19 +129,63 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
       return null;
     }
 
-    // Get field options - support field.options, custom_config.options, and customConfig.options
+    // Get field options - support multiple option storage formats
     const getFieldOptions = () => {
-      if (field?.options && Array.isArray(field.options) && field.options.length > 0) {
-        return field.options;
+      // Check field.options first
+      if (field?.options) {
+        if (Array.isArray(field.options) && field.options.length > 0) {
+          return field.options;
+        }
+        // Handle stringified JSON options
+        if (typeof field.options === 'string') {
+          try {
+            const parsed = JSON.parse(field.options);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              return parsed;
+            }
+          } catch (e) {
+            // Not valid JSON
+          }
+        }
       }
+      
+      // Check custom_config.options
       const customConfig = (field as any)?.custom_config || (field as any)?.customConfig;
-      if (customConfig?.options && Array.isArray(customConfig.options)) {
-        return customConfig.options;
+      if (customConfig?.options) {
+        if (Array.isArray(customConfig.options) && customConfig.options.length > 0) {
+          return customConfig.options;
+        }
+        // Handle stringified JSON options
+        if (typeof customConfig.options === 'string') {
+          try {
+            const parsed = JSON.parse(customConfig.options);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              return parsed;
+            }
+          } catch (e) {
+            // Not valid JSON
+          }
+        }
       }
+      
+      // Check for choices array (alternative naming)
+      if (customConfig?.choices && Array.isArray(customConfig.choices) && customConfig.choices.length > 0) {
+        return customConfig.choices;
+      }
+      
       return [];
     };
 
     const fieldOptions = getFieldOptions();
+    
+    // Debug log to help troubleshoot
+    if (rawFieldType === 'multi-select' || rawFieldType === 'dropdown' || rawFieldType === 'radio' || rawFieldType === 'select') {
+      console.log(`Filter field "${field?.label}" (${rawFieldType}):`, {
+        options: field?.options,
+        customConfig: (field as any)?.custom_config || (field as any)?.customConfig,
+        parsedOptions: fieldOptions
+      });
+    }
 
     // Handle rating field type - show star options
     if (rawFieldType === 'rating' || rawFieldType === 'star-rating') {
@@ -700,52 +744,71 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
     }
 
     // Handle multi-select, dropdown, radio, select, checkbox (with options), status fields
-    if ((rawFieldType === 'multi-select' || rawFieldType === 'dropdown' || 
-         rawFieldType === 'radio' || rawFieldType === 'select' || 
-         rawFieldType === 'status' || (rawFieldType === 'checkbox' && fieldOptions.length > 0)) && 
-        fieldOptions.length > 0) {
-      if (filter.operator === 'in' || filter.operator === 'not_in') {
-        return (
-          <div className="space-y-2">
-            <Label>Values (comma-separated)</Label>
-            <Input
-              value={filter.value}
-              onChange={(e) => updateFilter(index, { value: e.target.value })}
-              placeholder="value1, value2, value3"
-            />
-          </div>
-        );
-      } else {
-        return (
-          <div className="space-y-2">
-            <Label>Value</Label>
-            <Select
-              value={filter.value}
-              onValueChange={(value) => updateFilter(index, { value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select value" />
-              </SelectTrigger>
-              <SelectContent className="bg-background border shadow-lg z-50">
-                {fieldOptions
-                  .filter((option: any) => {
-                    const val = option.value || option;
-                    return val && String(val).trim() !== '';
-                  })
-                  .map((option: any, optIndex: number) => {
-                    const val = option.value || option;
-                    const label = option.label || option.value || option;
-                    return (
-                      <SelectItem key={option.id || optIndex} value={String(val)}>
-                        {label}
-                      </SelectItem>
-                    );
-                  })}
-              </SelectContent>
-            </Select>
-          </div>
-        );
+    if (rawFieldType === 'multi-select' || rawFieldType === 'dropdown' || 
+        rawFieldType === 'radio' || rawFieldType === 'select' || 
+        rawFieldType === 'status' || (rawFieldType === 'checkbox' && fieldOptions.length > 0)) {
+      
+      // If options exist, show dropdown
+      if (fieldOptions.length > 0) {
+        if (filter.operator === 'in' || filter.operator === 'not_in') {
+          return (
+            <div className="space-y-2">
+              <Label>Values (comma-separated)</Label>
+              <Input
+                value={filter.value}
+                onChange={(e) => updateFilter(index, { value: e.target.value })}
+                placeholder="value1, value2, value3"
+              />
+            </div>
+          );
+        } else {
+          return (
+            <div className="space-y-2">
+              <Label>Value</Label>
+              <Select
+                value={filter.value}
+                onValueChange={(value) => updateFilter(index, { value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select value" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50 max-h-60">
+                  {fieldOptions
+                    .filter((option: any) => {
+                      const val = option.value || option;
+                      return val && String(val).trim() !== '';
+                    })
+                    .map((option: any, optIndex: number) => {
+                      const val = option.value || option;
+                      const label = option.label || option.value || option;
+                      return (
+                        <SelectItem key={option.id || optIndex} value={String(val)}>
+                          {label}
+                        </SelectItem>
+                      );
+                    })}
+                </SelectContent>
+              </Select>
+            </div>
+          );
+        }
       }
+      
+      // Fallback: no options found for this select-type field, show text input
+      return (
+        <div className="space-y-2">
+          <Label>Value</Label>
+          <Input
+            type="text"
+            value={filter.value}
+            onChange={(e) => updateFilter(index, { value: e.target.value })}
+            placeholder={`Enter ${rawFieldType} value`}
+          />
+          <p className="text-xs text-muted-foreground">
+            No predefined options found for this field
+          </p>
+        </div>
+      );
     }
 
     // Handle boolean field type (generic fallback)
