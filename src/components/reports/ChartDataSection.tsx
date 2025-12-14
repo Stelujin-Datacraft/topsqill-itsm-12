@@ -183,16 +183,19 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
     );
   }
 
-  // Check if configuration is complete
+  // Check if configuration is complete - Group By is now optional
   const isConfigComplete = () => {
     if (mode === 'count') {
-      return selectedDimensions.length > 0;
+      // Count mode can work without grouping (shows total count) or with grouping
+      return true;
     }
     if (mode === 'calculate') {
-      return selectedMetrics.length > 0 && selectedDimensions.length > 0;
+      // Calculate mode requires at least one metric selected
+      return selectedMetrics.length > 0;
     }
     if (mode === 'compare') {
-      return selectedMetrics.length === 2 && selectedDimensions.length > 0;
+      // Compare mode requires exactly two fields selected
+      return selectedMetrics.length === 2;
     }
     return false;
   };
@@ -290,7 +293,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                   <span className="font-semibold">Compare Two Fields</span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Show two numeric values side by side for comparison.
+                  Show two values side by side for comparison.
                   <br />
                   <span className="text-muted-foreground/70 italic">Example: "Budget vs Actual" or "Revenue vs Expenses"</span>
                 </p>
@@ -315,7 +318,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                 <CardDescription className="text-xs mt-0.5">
                   {mode === 'calculate' 
                     ? 'Choose a numeric field and how to calculate it' 
-                    : 'Pick two numeric fields to show side by side'
+                    : 'Pick two fields to show side by side'
                   }
                 </CardDescription>
               </div>
@@ -503,9 +506,9 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
               {mode === 'count' ? '2' : '3'}
             </div>
             <div>
-              <CardTitle className="text-base">Group data by</CardTitle>
+              <CardTitle className="text-base">Group data by (Optional)</CardTitle>
               <CardDescription className="text-xs mt-0.5">
-                Choose how to categorize and display your data
+                Choose how to categorize your data. Leave empty to show aggregated totals.
               </CardDescription>
             </div>
           </div>
@@ -545,7 +548,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                       <Plus className="h-4 w-4" />
                       <span>
                         {selectedDimensions.length === 0 
-                          ? 'Select a category field (required)...' 
+                          ? 'Select a category field to group data...' 
                           : 'Add secondary grouping (optional)...'
                         }
                       </span>
@@ -596,21 +599,21 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                 {mode === 'count' && (
                   selectedDimensions.length > 0 
                     ? `Your chart will count records grouped by "${getFieldLabel(selectedDimensions[0])}".`
-                    : 'Select a category field to group and count your records.'
+                    : 'Your chart will show the total record count. Add a group field to see counts per category.'
                 )}
                 {mode === 'calculate' && (
-                  selectedMetrics.length > 0 && selectedDimensions.length > 0
-                    ? `Your chart will show the ${metricAggregations[0]?.aggregation || 'sum'} of "${getFieldLabel(selectedMetrics[0])}" grouped by "${getFieldLabel(selectedDimensions[0])}".`
-                    : selectedMetrics.length === 0 
-                      ? 'Select a numeric field to calculate.'
-                      : 'Select a category field to group your data.'
+                  selectedMetrics.length > 0
+                    ? selectedDimensions.length > 0
+                      ? `Your chart will show the ${metricAggregations[0]?.aggregation || 'sum'} of "${getFieldLabel(selectedMetrics[0])}" grouped by "${getFieldLabel(selectedDimensions[0])}".`
+                      : `Your chart will show the ${metricAggregations[0]?.aggregation || 'sum'} of "${getFieldLabel(selectedMetrics[0])}". Add a group field to break down by category.`
+                    : 'Select a numeric field to calculate.'
                 )}
                 {mode === 'compare' && (
-                  selectedMetrics.length === 2 && selectedDimensions.length > 0
-                    ? `Your chart will compare "${getFieldLabel(selectedMetrics[0])}" vs "${getFieldLabel(selectedMetrics[1])}" grouped by "${getFieldLabel(selectedDimensions[0])}".`
-                    : selectedMetrics.length < 2 
-                      ? 'Select two numeric fields to compare.'
-                      : 'Select a category field to group your comparison.'
+                  selectedMetrics.length === 2 
+                    ? selectedDimensions.length > 0
+                      ? `Your chart will compare "${getFieldLabel(selectedMetrics[0])}" vs "${getFieldLabel(selectedMetrics[1])}" grouped by "${getFieldLabel(selectedDimensions[0])}".`
+                      : `Your chart will compare "${getFieldLabel(selectedMetrics[0])}" vs "${getFieldLabel(selectedMetrics[1])}". Add a group field to see comparisons per category.`
+                    : 'Select two fields to compare.'
                 )}
               </p>
             </div>
