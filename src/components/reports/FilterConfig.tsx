@@ -158,7 +158,7 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
             <SelectTrigger>
               <SelectValue placeholder="Select rating" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-background border shadow-lg z-50">
               {ratingOptions.map((rating) => (
                 <SelectItem key={rating} value={String(rating)}>
                   {'★'.repeat(rating)} ({rating})
@@ -195,7 +195,7 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
               <SelectTrigger>
                 <SelectValue placeholder="Select value" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-background border shadow-lg z-50">
                 {sliderOptions.map((val) => (
                   <SelectItem key={val} value={String(val)}>
                     {val}
@@ -230,7 +230,7 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
             <SelectTrigger>
               <SelectValue placeholder="Select value" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-background border shadow-lg z-50">
               <SelectItem value="yes">Yes</SelectItem>
               <SelectItem value="no">No</SelectItem>
             </SelectContent>
@@ -251,7 +251,7 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
             <SelectTrigger>
               <SelectValue placeholder="Select value" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-background border shadow-lg z-50">
               <SelectItem value="true">On</SelectItem>
               <SelectItem value="false">Off</SelectItem>
             </SelectContent>
@@ -272,7 +272,7 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
             <SelectTrigger>
               <SelectValue placeholder="Select value" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-background border shadow-lg z-50">
               <SelectItem value="true">Checked</SelectItem>
               <SelectItem value="false">Unchecked</SelectItem>
             </SelectContent>
@@ -356,7 +356,7 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
               <SelectTrigger>
                 <SelectValue placeholder="Select user/group" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-background border shadow-lg z-50">
                 {accessOptions.map((option, optIndex) => (
                   <SelectItem key={optIndex} value={String(option.value)}>
                     {option.type === 'group' ? '👥 ' : '👤 '}{option.label}
@@ -409,7 +409,7 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
               <SelectTrigger>
                 <SelectValue placeholder="Select value" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-background border shadow-lg z-50">
                 {fieldOptions
                   .filter((option: any) => {
                     const val = option.value || option;
@@ -443,7 +443,7 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
             <SelectTrigger>
               <SelectValue placeholder="Select value" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-background border shadow-lg z-50">
               <SelectItem value="true">True</SelectItem>
               <SelectItem value="false">False</SelectItem>
             </SelectContent>
