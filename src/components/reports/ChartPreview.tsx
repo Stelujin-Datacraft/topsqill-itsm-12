@@ -28,7 +28,7 @@ export function ChartPreview({
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showFormFields, setShowFormFields] = useState(false);
-  const [showLegend, setShowLegend] = useState(true);
+  const [showLegend, setShowLegend] = useState(false);
   const [showDrilldownPanel, setShowDrilldownPanel] = useState(false);
   
   const [cellSubmissionsDialog, setCellSubmissionsDialog] = useState<{
@@ -591,9 +591,20 @@ export function ChartPreview({
       onDrilldown(nextLevel, clickedValue);
     }
   };
-  const handleBarClick = (data: any, event?: any) => {
-    // This will be handled by the drilldown controls instead of direct click
-    console.log('Bar clicked, use drilldown controls instead');
+  const handleBarClick = (data: any, index: number, event?: any) => {
+    // Open dialog to show matching submissions
+    if (data && data.name) {
+      const dimensionField = config.dimensions?.[0] || config.xAxis || '';
+      const dimensionValue = data.name;
+      const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Category';
+      
+      setCellSubmissionsDialog({
+        open: true,
+        dimensionField,
+        dimensionValue,
+        dimensionLabel,
+      });
+    }
   };
   const handleChartClick = (data: any, event?: any) => {
     // This will be handled by the drilldown controls instead of direct click
@@ -628,21 +639,32 @@ export function ChartPreview({
       return sanitized;
     });
 
-    // Calculate safe domain for Y axis to prevent NaN errors
+    // Calculate safe domain for Y axis to prevent NaN errors - use 0.5 increments
     const getYAxisDomain = (data: any[], metricKey: string): [number, number] => {
-      if (!data || data.length === 0) return [0, 100]; // Safe default
+      if (!data || data.length === 0) return [0, 5]; // Safe default with nice 0.5 range
       const values = data.map(item => {
         const val = Number(item[metricKey]);
         return isNaN(val) || !isFinite(val) ? 0 : val;
       }).filter(v => isFinite(v));
-      if (values.length === 0) return [0, 100]; // Safe default
+      if (values.length === 0) return [0, 5]; // Safe default
       const maxVal = Math.max(...values, 0);
       const minVal = Math.min(...values, 0);
       // Return safe default if all values are 0 or invalid
-      if (!isFinite(maxVal) || (maxVal === 0 && minVal === 0)) return [0, 100];
-      // Ensure we have a valid range (max > min)
-      const safeMax = Math.max(maxVal * 1.1, 1);
-      return [Math.min(0, minVal), safeMax];
+      if (!isFinite(maxVal) || (maxVal === 0 && minVal === 0)) return [0, 5];
+      // Round max up to next 0.5 increment for clean ticks
+      const safeMax = Math.ceil((maxVal * 1.1) * 2) / 2;
+      const safeMin = Math.floor(Math.min(0, minVal) * 2) / 2;
+      return [safeMin, Math.max(safeMax, 0.5)];
+    };
+    
+    // Calculate Y-axis ticks with 0.5 increments
+    const getYAxisTicks = (data: any[], metricKey: string): number[] => {
+      const [min, max] = getYAxisDomain(data, metricKey);
+      const ticks: number[] = [];
+      for (let i = min; i <= max; i += 0.5) {
+        ticks.push(Math.round(i * 10) / 10); // Avoid floating point precision issues
+      }
+      return ticks;
     };
 
     // Determine the primary metric to display
@@ -744,7 +766,7 @@ export function ChartPreview({
                   value: config.yAxisLabel || getFormFieldName(primaryMetric),
                   angle: -90,
                   position: 'insideLeft'
-                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
+                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                    <Tooltip formatter={(value, name, props) => {
                   // For multi-dimensional charts, name is already "Field Name: Value"
                   // For single-dimensional charts, name is the field ID, so get field name
@@ -760,16 +782,16 @@ export function ChartPreview({
                    {isMultiDimensional ?
                 // Render separate bars for each dimension value
                 dimensionKeys.map((key, index) => <Bar key={key} dataKey={key} fill={colors[index % colors.length]} name={key} style={{
-                  cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default'
-                }} />) :
+                  cursor: 'pointer'
+                }} onClick={(data, idx) => handleBarClick(data, idx)} />) :
                 // Single dimension - render primary metric and additional metrics if any
                 <>
                          <Bar dataKey={primaryMetric} fill={colors[0]} name={getFormFieldName(primaryMetric)} style={{
-                    cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default'
-                  }} />
+                    cursor: 'pointer'
+                  }} onClick={(data, idx) => handleBarClick(data, idx)} />
                          {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => <Bar key={metric} dataKey={metric} fill={colors[(index + 1) % colors.length]} name={getFormFieldName(metric)} style={{
-                    cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default'
-                  }} />)}
+                    cursor: 'pointer'
+                  }} onClick={(data, idx) => handleBarClick(data, idx)} />)}
                      </>}
                 </BarChart>
               </ResponsiveContainer>
@@ -796,7 +818,7 @@ export function ChartPreview({
                   value: getFormFieldName(primaryMetric),
                   position: 'insideBottom',
                   offset: -5
-                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
+                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <YAxis dataKey="name" type="category" width={120} tick={{
                   fontSize: 11
                 }} />
@@ -807,8 +829,8 @@ export function ChartPreview({
                   fontSize: '12px'
                 }} />
                    {showLegend && <Legend formatter={value => getFormFieldName(value.toString())} iconType="rect" />}
-                   <Bar dataKey={primaryMetric} fill={colors[0]} name={getFormFieldName(primaryMetric)} />
-                   {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => <Bar key={metric} dataKey={metric} fill={colors[(index + 1) % colors.length]} name={getFormFieldName(metric)} />)}
+                   <Bar dataKey={primaryMetric} fill={colors[0]} name={getFormFieldName(primaryMetric)} style={{ cursor: 'pointer' }} onClick={(data, idx) => handleBarClick(data, idx)} />
+                   {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => <Bar key={metric} dataKey={metric} fill={colors[(index + 1) % colors.length]} name={getFormFieldName(metric)} style={{ cursor: 'pointer' }} onClick={(data, idx) => handleBarClick(data, idx)} />)}
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -900,7 +922,7 @@ export function ChartPreview({
                   value: config.yAxisLabel || getFormFieldName(primaryMetric),
                   angle: -90,
                   position: 'insideLeft'
-                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
+                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip formatter={(value, name, props) => {
                   const displayName = isMultiDimensional ? name : getFormFieldName(name.toString());
                   return [`${displayName}: ${value}`, `Category: ${props.payload?.name || 'N/A'}`];
@@ -969,7 +991,7 @@ export function ChartPreview({
                   value: config.yAxisLabel || getFormFieldName(primaryMetric),
                   angle: -90,
                   position: 'insideLeft'
-                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
+                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip formatter={(value, name, props) => {
                   const displayName = getFormFieldName(name.toString());
                   return [`${displayName}: ${value}`, `Category: ${props.payload?.name || 'N/A'}`];
