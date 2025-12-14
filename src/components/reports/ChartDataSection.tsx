@@ -135,7 +135,11 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
     } else {
       newAggregations = [...metricAggregations, { field: fieldId, aggregation: aggregation as any }];
     }
-    onConfigChange({ metricAggregations: newAggregations });
+    // Also update the main aggregation field so ChartPreview uses the correct aggregation
+    onConfigChange({ 
+      metricAggregations: newAggregations,
+      aggregation: aggregation as any
+    });
   };
 
   // Add a dimension (group by) field

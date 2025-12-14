@@ -126,7 +126,9 @@ export function ChartPreview({
             allLevels: drilldownLevels,
             dimensionForChart: chartDimensions
           });
-          const serverData: any[] = await getChartData(config.formId, chartDimensions, config.metrics || [], config.aggregation || 'count', config.filters || [], drilldownLevels, drilldownState?.values || [], config.metricAggregations || [], config.groupByField);
+          // Get aggregation from metricAggregations if available, otherwise use config.aggregation
+          const effectiveAggregation = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
+          const serverData: any[] = await getChartData(config.formId, chartDimensions, config.metrics || [], effectiveAggregation, config.filters || [], drilldownLevels, drilldownState?.values || [], config.metricAggregations || [], config.groupByField);
 
           console.log('📊 Raw server data for grouped chart:', serverData);
           console.log('📊 Group by field:', config.groupByField);
@@ -277,8 +279,11 @@ export function ChartPreview({
   const processGroupedData = (submissions: any[], dimensionFields: string[], metricFields: string[], groupByField: string) => {
     console.log('🔍 Processing grouped data with groupBy:', groupByField);
     
-    // Structure: { dimensionValue: { groupValue1: metricSum, groupValue2: metricSum } }
-    const groupedData: { [dimensionKey: string]: { [groupKey: string]: number } } = {};
+    // Get effective aggregation from metricAggregations or config
+    const effectiveAggregation = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
+    
+    // Structure: { dimensionValue: { groupValue: number[] } } - collect raw values first
+    const rawGroupedData: { [dimensionKey: string]: { [groupKey: string]: number[] } } = {};
     const allGroupValues = new Set<string>();
     
     submissions.forEach(submission => {
@@ -294,28 +299,29 @@ export function ChartPreview({
       allGroupValues.add(groupValue);
       
       // Initialize structures
-      if (!groupedData[dimensionKey]) {
-        groupedData[dimensionKey] = {};
+      if (!rawGroupedData[dimensionKey]) {
+        rawGroupedData[dimensionKey] = {};
       }
-      if (!groupedData[dimensionKey][groupValue]) {
-        groupedData[dimensionKey][groupValue] = 0;
+      if (!rawGroupedData[dimensionKey][groupValue]) {
+        rawGroupedData[dimensionKey][groupValue] = [];
       }
       
-      // Aggregate metrics
+      // Collect raw metric values
       metricFields.forEach(metric => {
-        const metricValue = getMetricValue(submissionData, metric);
-        groupedData[dimensionKey][groupValue] += metricValue;
+        const metricValue = getRawMetricValue(submissionData, metric);
+        rawGroupedData[dimensionKey][groupValue].push(metricValue);
       });
     });
     
-    // Convert to chart-friendly format
+    // Apply aggregation and convert to chart-friendly format
     const result: any[] = [];
-    Object.entries(groupedData).forEach(([dimensionValue, groups]) => {
+    Object.entries(rawGroupedData).forEach(([dimensionValue, groups]) => {
       const dataPoint: any = { name: dimensionValue };
       
-      // Add each group value as a separate property
+      // Add each group value as a separate property with aggregated value
       allGroupValues.forEach(groupValue => {
-        dataPoint[groupValue] = groups[groupValue] || 0;
+        const values = groups[groupValue] || [];
+        dataPoint[groupValue] = applyAggregation(values, effectiveAggregation);
       });
       
       result.push(dataPoint);
@@ -323,37 +329,113 @@ export function ChartPreview({
     
     console.log('🔍 Grouped data result:', result);
     console.log('🔍 All group values:', Array.from(allGroupValues));
+    console.log('🔍 Applied aggregation:', effectiveAggregation);
     
     return result;
   };
   const processSingleDimensionalData = (submissions: any[], dimensionFields: string[], metricFields: string[]) => {
-    const processedData: {
-      [key: string]: any;
+    // Get effective aggregation from metricAggregations or config
+    const effectiveAggregation = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
+    
+    // First pass: collect all raw values per dimension key
+    const rawData: {
+      [key: string]: {
+        name: string;
+        values: number[];
+        metricValues: { [metric: string]: number[] };
+      };
     } = {};
+    
     submissions.forEach(submission => {
       const submissionData = submission.submission_data;
 
       // Apply filters
       if (!passesFilters(submissionData)) return;
       const dimensionKey = getDimensionKey(submissionData, dimensionFields);
-      if (!processedData[dimensionKey]) {
-        processedData[dimensionKey] = {
+      if (!rawData[dimensionKey]) {
+        rawData[dimensionKey] = {
           name: dimensionKey,
-          value: 0
+          values: [],
+          metricValues: {}
         };
         metricFields.forEach(metric => {
-          processedData[dimensionKey][metric] = 0;
+          rawData[dimensionKey].metricValues[metric] = [];
         });
       }
 
-      // Aggregate metrics
+      // Collect raw metric values
       metricFields.forEach(metric => {
-        const metricValue = getMetricValue(submissionData, metric);
-        processedData[dimensionKey][metric] += metricValue;
-        processedData[dimensionKey]['value'] += metricValue;
+        const metricValue = getRawMetricValue(submissionData, metric);
+        rawData[dimensionKey].metricValues[metric].push(metricValue);
+        rawData[dimensionKey].values.push(metricValue);
       });
     });
-    return Object.values(processedData);
+    
+    // Second pass: apply aggregation function to collected values
+    const processedData = Object.values(rawData).map(item => {
+      const result: any = { name: item.name };
+      
+      // Apply aggregation to each metric
+      Object.entries(item.metricValues).forEach(([metric, values]) => {
+        result[metric] = applyAggregation(values, effectiveAggregation);
+      });
+      
+      // Apply aggregation to combined values for 'value' field
+      result.value = applyAggregation(item.values, effectiveAggregation);
+      
+      return result;
+    });
+    
+    return processedData;
+  };
+  
+  // Get raw numeric value from submission data (without aggregation logic)
+  const getRawMetricValue = (submissionData: any, metric: string): number => {
+    if (metric === 'count') {
+      return 1;
+    }
+    const value = submissionData[metric] || submissionData[config.yAxis];
+    if (typeof value === 'object' && value !== null) {
+      if (value.status) {
+        return value.status === 'approved' ? 1 : 0;
+      }
+      if (value.amount !== undefined) {
+        const numValue = Number(value.amount);
+        return isNaN(numValue) ? 0 : numValue;
+      }
+      return 1;
+    } else if (typeof value === 'number') {
+      return isNaN(value) ? 0 : value;
+    } else if (value) {
+      const numValue = Number(value);
+      return isNaN(numValue) ? 1 : numValue;
+    }
+    return 0;
+  };
+  
+  // Apply aggregation function to an array of values
+  const applyAggregation = (values: number[], aggregationType: string): number => {
+    if (values.length === 0) return 0;
+    
+    switch (aggregationType) {
+      case 'count':
+        return values.length;
+      case 'sum':
+        return values.reduce((acc, val) => acc + val, 0);
+      case 'avg':
+        return values.reduce((acc, val) => acc + val, 0) / values.length;
+      case 'min':
+        return Math.min(...values);
+      case 'max':
+        return Math.max(...values);
+      case 'median': {
+        const sorted = [...values].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+      }
+      default:
+        return values.reduce((acc, val) => acc + val, 0);
+    }
   };
   const processMultiDimensionalData = (submissions: any[], dimensionFields: string[], metricFields: string[]) => {
     // For multiple dimensions, create a matrix where each row represents unique combinations
