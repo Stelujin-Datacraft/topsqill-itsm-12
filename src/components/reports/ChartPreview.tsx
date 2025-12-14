@@ -28,7 +28,7 @@ export function ChartPreview({
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showFormFields, setShowFormFields] = useState(false);
-  const [showLegend] = useState(true); // Always show legend when applicable
+  
   const [showDrilldownPanel, setShowDrilldownPanel] = useState(false);
   
   const [cellSubmissionsDialog, setCellSubmissionsDialog] = useState<{
@@ -937,7 +937,7 @@ export function ChartPreview({
                       padding: 0,
                     }} 
                   />
-                   {showLegend && <Legend formatter={value => isMultiDimensional ? value : getFormFieldName(value.toString())} iconType="rect" />}
+                   
                    {isMultiDimensional ?
                 // Render separate bars for each dimension value
                 dimensionKeys.map((key, index) => {
@@ -1014,7 +1014,6 @@ export function ChartPreview({
                   borderRadius: 'var(--radius)',
                   fontSize: '12px'
                 }} />
-                   {showLegend && <Legend formatter={value => getFormFieldName(value.toString())} iconType="rect" />}
                    <Bar dataKey={primaryMetric} fill={colors[0]} name={getFormFieldName(primaryMetric)} style={{ cursor: 'pointer' }} onClick={(data, idx) => handleBarClick(data, idx)} />
                    {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => <Bar key={metric} dataKey={metric} fill={colors[(index + 1) % colors.length]} name={getFormFieldName(metric)} style={{ cursor: 'pointer' }} onClick={(data, idx) => handleBarClick(data, idx)} />)}
                 </BarChart>
@@ -1052,7 +1051,7 @@ export function ChartPreview({
                   borderRadius: 'var(--radius)',
                   fontSize: '12px'
                 }} />
-                   {showLegend && <Legend formatter={value => value} />}
+                   
                 </RechartsPieChart>
               </ResponsiveContainer>
             </div>
@@ -1075,7 +1074,7 @@ export function ChartPreview({
                     {sanitizedChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />)}
                   </Pie>
                    <Tooltip formatter={(value, name) => [value, name]} />
-                   {showLegend && <Legend />}
+                   
                 </RechartsPieChart>
               </ResponsiveContainer>
             </div>
@@ -1118,7 +1117,7 @@ export function ChartPreview({
                   borderRadius: 'var(--radius)',
                   fontSize: '12px'
                 }} />
-                   {showLegend && <Legend formatter={value => isMultiDimensional ? value : getFormFieldName(value.toString())} iconType="line" />}
+                   
                    {isMultiDimensional ?
                 // Render separate lines for each dimension value
                 dimensionKeys.map((key, index) => <Line key={key} type="monotone" dataKey={key} stroke={colors[index % colors.length]} strokeWidth={3} name={key} dot={{
@@ -1187,7 +1186,7 @@ export function ChartPreview({
                   borderRadius: 'var(--radius)',
                   fontSize: '12px'
                 }} />
-                   {showLegend && <Legend formatter={value => getFormFieldName(value.toString())} iconType="rect" />}
+                   
                    <Area type="monotone" dataKey={primaryMetric} stroke={colors[0]} fill={colors[0]} fillOpacity={0.6} name={getFormFieldName(primaryMetric)} />
                    {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => <Area key={metric} type="monotone" dataKey={metric} stroke={colors[(index + 1) % colors.length]} fill={colors[(index + 1) % colors.length]} fillOpacity={0.6} name={getFormFieldName(metric)} />)}
                 </RechartsAreaChart>
