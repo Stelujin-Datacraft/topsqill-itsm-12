@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,12 +40,19 @@ interface DrilldownFilter {
   label: string;
 }
 
+interface ActiveFilter {
+  field: string;
+  operator: string;
+  value: string;
+}
+
 export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTableProps) {
   const [formFields, setFormFields] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ field: string; direction: 'asc' | 'desc' } | null>(null);
   const [drilldownFilters, setDrilldownFilters] = useState<DrilldownFilter[]>([]);
-  const [activeFilters, setActiveFilters] = useState<{ field: string; operator: string; value: string }[]>([]);
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
+  const [appliedFilters, setAppliedFilters] = useState<ActiveFilter[]>([]); // Only apply on button click
   const [showFilterPanel, setShowFilterPanel] = useState(false);
 
   const { forms } = useReports();
@@ -78,10 +85,10 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
     };
   }, [config.joinConfig]);
 
-  // Combine configured filters with user-applied active filters
+  // Combine configured filters with applied active filters (not activeFilters directly)
   const filterGroups = useMemo(() => {
     const configuredFilters = (config as any).filters as { field: string; operator: string; value: any }[] | undefined;
-    const allFilters = [...(configuredFilters || []), ...activeFilters];
+    const allFilters = [...(configuredFilters || []), ...appliedFilters];
     
     if (allFilters.length === 0) return [] as { conditions: { field: string; operator: string; value: any }[] }[];
     return [
@@ -93,7 +100,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
         }))
       }
     ];
-  }, [config, activeFilters]);
+  }, [config, appliedFilters]);
 
   const { data, loading, totalCount, refetch } = useTableData(
     config.formId,
@@ -181,8 +188,8 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
     }
   };
 
-  // Update an active filter
-  const updateActiveFilter = (index: number, updates: Partial<{ field: string; operator: string; value: string }>) => {
+  // Update an active filter (without triggering data fetch)
+  const updateActiveFilter = (index: number, updates: Partial<ActiveFilter>) => {
     setActiveFilters(prev => prev.map((filter, i) => 
       i === index ? { ...filter, ...updates } : filter
     ));
@@ -196,6 +203,12 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
   // Clear all active filters
   const clearActiveFilters = () => {
     setActiveFilters([]);
+    setAppliedFilters([]);
+  };
+
+  // Apply filters - triggers data fetch
+  const applyFilters = () => {
+    setAppliedFilters([...activeFilters]);
   };
 
   // Handle drilldown click on a cell
@@ -470,15 +483,28 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                   </div>
                 ))}
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={addActiveFilter}
-                  className="h-8 gap-1"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Filter
-                </Button>
+                <div className="flex items-center gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={addActiveFilter}
+                    className="h-8 gap-1"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Filter
+                  </Button>
+                  
+                  {activeFilters.length > 0 && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={applyFilters}
+                      className="h-8"
+                    >
+                      Apply Filters
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </div>
