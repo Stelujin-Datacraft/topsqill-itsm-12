@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, ArrowUp, ArrowDown, Eye, Database, X, Filter } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Search, ArrowUp, ArrowDown, Eye, Database, X, Filter, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useReports } from '@/hooks/useReports';
 import { useTableData } from '@/hooks/useTableData';
@@ -44,6 +45,8 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ field: string; direction: 'asc' | 'desc' } | null>(null);
   const [drilldownFilters, setDrilldownFilters] = useState<DrilldownFilter[]>([]);
+  const [activeFilters, setActiveFilters] = useState<{ field: string; operator: string; value: string }[]>([]);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
 
   const { forms } = useReports();
 
@@ -58,7 +61,9 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
 
   // Convert joinConfig to the format expected by useTableData
   const joinConfigForQuery = useMemo(() => {
-    if (!config.joinConfig?.secondaryFormId) return undefined;
+    if (!config.joinConfig?.enabled || !config.joinConfig?.secondaryFormId) return undefined;
+    
+    console.log('Join config:', config.joinConfig);
     
     return {
       enabled: true,
@@ -73,20 +78,22 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
     };
   }, [config.joinConfig]);
 
-  // Use the useTableData hook with filters, drilldown filters and join config
+  // Combine configured filters with user-applied active filters
   const filterGroups = useMemo(() => {
-    const flatFilters = (config as any).filters as { field: string; operator: string; value: any }[] | undefined;
-    if (!flatFilters || flatFilters.length === 0) return [] as { conditions: { field: string; operator: string; value: any }[] }[];
+    const configuredFilters = (config as any).filters as { field: string; operator: string; value: any }[] | undefined;
+    const allFilters = [...(configuredFilters || []), ...activeFilters];
+    
+    if (allFilters.length === 0) return [] as { conditions: { field: string; operator: string; value: any }[] }[];
     return [
       {
-        conditions: flatFilters.map(f => ({
+        conditions: allFilters.map(f => ({
           field: f.field,
           operator: f.operator,
           value: f.value
         }))
       }
     ];
-  }, [config]);
+  }, [config, activeFilters]);
 
   const { data, loading, totalCount, refetch } = useTableData(
     config.formId,
@@ -143,7 +150,52 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
 
   const getFieldValue = (row: any, fieldId: string) => {
     if (!fieldId) return 'N/A';
-    return row.submission_data?.[fieldId] ?? 'N/A';
+    
+    // Direct lookup first
+    if (row.submission_data?.[fieldId] !== undefined) {
+      return row.submission_data[fieldId];
+    }
+    
+    // For joined fields, try different prefix formats
+    // Check if fieldId contains a form ID prefix (format: formId.fieldId)
+    if (fieldId.includes('.')) {
+      const [formIdPart, actualFieldId] = fieldId.split('.');
+      // Try with formId prefix (used in useTableData)
+      const prefixedKey = `${formIdPart}.${actualFieldId}`;
+      if (row.submission_data?.[prefixedKey] !== undefined) {
+        return row.submission_data[prefixedKey];
+      }
+    }
+    
+    return 'N/A';
+  };
+
+  // Add a new active filter
+  const addActiveFilter = () => {
+    if (formFields.length > 0) {
+      setActiveFilters(prev => [...prev, {
+        field: formFields[0].id,
+        operator: 'equals',
+        value: ''
+      }]);
+    }
+  };
+
+  // Update an active filter
+  const updateActiveFilter = (index: number, updates: Partial<{ field: string; operator: string; value: string }>) => {
+    setActiveFilters(prev => prev.map((filter, i) => 
+      i === index ? { ...filter, ...updates } : filter
+    ));
+  };
+
+  // Remove an active filter
+  const removeActiveFilter = (index: number) => {
+    setActiveFilters(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Clear all active filters
+  const clearActiveFilters = () => {
+    setActiveFilters([]);
   };
 
   // Handle drilldown click on a cell
@@ -304,6 +356,131 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-sm h-8"
             />
+          </div>
+        )}
+
+        {/* Filter Controls */}
+        {config.enableFiltering && (
+          <div className="pt-2 space-y-2">
+            <div className="flex items-center justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFilterPanel(!showFilterPanel)}
+                className="h-8 gap-1"
+              >
+                <Filter className="h-4 w-4" />
+                Filters
+                {activeFilters.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                    {activeFilters.length}
+                  </Badge>
+                )}
+                {showFilterPanel ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </Button>
+              
+              {activeFilters.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearActiveFilters}
+                  className="h-8 text-xs"
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+
+            {/* Active Filter Badges */}
+            {activeFilters.length > 0 && !showFilterPanel && (
+              <div className="flex flex-wrap gap-1">
+                {activeFilters.map((filter, index) => {
+                  const field = formFields.find(f => f.id === filter.field);
+                  return (
+                    <Badge key={index} variant="secondary" className="gap-1">
+                      <span className="text-xs">
+                        {field?.label || filter.field} {filter.operator} "{filter.value}"
+                      </span>
+                      <button
+                        onClick={() => removeActiveFilter(index)}
+                        className="hover:bg-muted rounded-full"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Filter Panel */}
+            {showFilterPanel && (
+              <div className="border rounded-lg p-3 bg-muted/30 space-y-2">
+                {activeFilters.map((filter, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Select
+                      value={filter.field}
+                      onValueChange={(value) => updateActiveFilter(index, { field: value })}
+                    >
+                      <SelectTrigger className="w-[180px] h-8 bg-background">
+                        <SelectValue placeholder="Select field" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background">
+                        {formFields.map(f => (
+                          <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={filter.operator}
+                      onValueChange={(value) => updateActiveFilter(index, { operator: value })}
+                    >
+                      <SelectTrigger className="w-[140px] h-8 bg-background">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background">
+                        <SelectItem value="equals">Equals</SelectItem>
+                        <SelectItem value="not_equals">Not equals</SelectItem>
+                        <SelectItem value="contains">Contains</SelectItem>
+                        <SelectItem value="starts_with">Starts with</SelectItem>
+                        <SelectItem value="ends_with">Ends with</SelectItem>
+                        <SelectItem value="greater_than">Greater than</SelectItem>
+                        <SelectItem value="less_than">Less than</SelectItem>
+                        <SelectItem value="is_empty">Is empty</SelectItem>
+                        <SelectItem value="is_not_empty">Is not empty</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Input
+                      value={filter.value}
+                      onChange={(e) => updateActiveFilter(index, { value: e.target.value })}
+                      placeholder="Value..."
+                      className="flex-1 h-8"
+                    />
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeActiveFilter(index)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addActiveFilter}
+                  className="h-8 gap-1"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Filter
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </CardHeader>
