@@ -261,7 +261,12 @@ export function ChartPreview({
 
     // Get metric fields
     const metricFields = config.metrics && config.metrics.length > 0 ? config.metrics : config.aggregation === 'count' || config.aggregationType === 'count' ? ['count'] : config.yAxis ? [config.yAxis] : ['count'];
-    console.log('Processing with dimensions:', dimensionFields, 'metrics:', metricFields, 'groupBy:', config.groupByField);
+    console.log('Processing with dimensions:', dimensionFields, 'metrics:', metricFields, 'groupBy:', config.groupByField, 'compareMode:', config.compareMode);
+
+    // Handle compare mode - show raw values of two fields side-by-side per record/dimension
+    if (config.compareMode && metricFields.length === 2) {
+      return processCompareData(submissions, dimensionFields, metricFields);
+    }
 
     // If groupByField is specified, use grouped processing
     if (config.groupByField) {
@@ -273,6 +278,67 @@ export function ChartPreview({
       return processMultiDimensionalData(submissions, dimensionFields, metricFields);
     } else {
       return processSingleDimensionalData(submissions, dimensionFields, metricFields);
+    }
+  };
+
+  // Process compare mode - show raw values of two fields side-by-side
+  const processCompareData = (submissions: any[], dimensionFields: string[], metricFields: string[]) => {
+    console.log('📊 Processing compare mode data with fields:', metricFields);
+    
+    const hasDimension = dimensionFields.length > 0 && dimensionFields[0] !== '_default';
+    
+    if (hasDimension) {
+      // Group by dimension and show both field values per dimension
+      const groupedData: { [key: string]: { values1: number[], values2: number[] } } = {};
+      
+      submissions.forEach(submission => {
+        const submissionData = submission.submission_data;
+        if (!passesFilters(submissionData)) return;
+        
+        const dimensionKey = getDimensionKey(submissionData, dimensionFields);
+        
+        if (!groupedData[dimensionKey]) {
+          groupedData[dimensionKey] = { values1: [], values2: [] };
+        }
+        
+        const value1 = getRawMetricValue(submissionData, metricFields[0]);
+        const value2 = getRawMetricValue(submissionData, metricFields[1]);
+        
+        groupedData[dimensionKey].values1.push(value1);
+        groupedData[dimensionKey].values2.push(value2);
+      });
+      
+      // Convert to chart format - sum values per dimension for comparison
+      const field1Name = getFormFieldName(metricFields[0]);
+      const field2Name = getFormFieldName(metricFields[1]);
+      
+      return Object.entries(groupedData).map(([dimension, data]) => ({
+        name: dimension,
+        [field1Name]: data.values1.reduce((a, b) => a + b, 0),
+        [field2Name]: data.values2.reduce((a, b) => a + b, 0),
+        [metricFields[0]]: data.values1.reduce((a, b) => a + b, 0),
+        [metricFields[1]]: data.values2.reduce((a, b) => a + b, 0),
+      }));
+    } else {
+      // No dimension - show each record as a separate data point
+      const field1Name = getFormFieldName(metricFields[0]);
+      const field2Name = getFormFieldName(metricFields[1]);
+      
+      return submissions
+        .filter(submission => passesFilters(submission.submission_data))
+        .map((submission, index) => {
+          const submissionData = submission.submission_data;
+          const value1 = getRawMetricValue(submissionData, metricFields[0]);
+          const value2 = getRawMetricValue(submissionData, metricFields[1]);
+          
+          return {
+            name: `Record ${index + 1}`,
+            [field1Name]: value1,
+            [field2Name]: value2,
+            [metricFields[0]]: value1,
+            [metricFields[1]]: value2,
+          };
+        });
     }
   };
   
@@ -882,13 +948,15 @@ export function ChartPreview({
       totalRecords: sanitizedChartData.length
     });
 
-    // Get all dimension-based data keys (for multi-dimensional charts OR grouped charts)
+    // Get all dimension-based data keys (for multi-dimensional charts OR grouped charts OR compare mode)
     let dimensionKeys = sanitizedChartData.length > 0 ? Object.keys(sanitizedChartData[0]).filter(key => key !== 'name' && key !== '_drilldownData' && typeof sanitizedChartData[0][key] === 'number') : [];
-    const isMultiDimensional = (config.dimensions && config.dimensions.length > 1) || (config.groupByField && dimensionKeys.length > 1);
+    const isCompareMode = config.compareMode && config.metrics && config.metrics.length === 2;
+    const isMultiDimensional = (config.dimensions && config.dimensions.length > 1) || (config.groupByField && dimensionKeys.length > 1) || isCompareMode;
     
     console.log('📊 Chart rendering - dimensionKeys:', dimensionKeys);
     console.log('📊 Chart rendering - isMultiDimensional:', isMultiDimensional);
     console.log('📊 Chart rendering - groupByField:', config.groupByField);
+    console.log('📊 Chart rendering - compareMode:', isCompareMode);
 
     // For multi-dimensional charts, limit the number of series to avoid cluttered display
     if (isMultiDimensional && dimensionKeys.length > 8) {
