@@ -75,8 +75,8 @@ export function TableCellSubmissionsDialog({
     }
   };
 
-  const handleViewSubmission = (submissionRefId: string) => {
-    navigate(`/form-submissions?submissionRef=${submissionRefId}`);
+  const handleViewSubmission = (submissionId: string) => {
+    navigate(`/submission/${submissionId}`);
     onOpenChange(false);
   };
 
@@ -116,7 +116,7 @@ export function TableCellSubmissionsDialog({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleViewSubmission(submission.submission_ref_id)}
+                    onClick={() => handleViewSubmission(submission.id)}
                   >
                     <ExternalLink className="h-4 w-4 mr-1" />
                     View
