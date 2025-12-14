@@ -1078,49 +1078,54 @@ export function ChartPreview({
       }
 
       if (chartType === 'bar' || chartType === 'column') {
-        // For bar charts, show Field 1 and Field 2 as side-by-side bars per record
+        // Transform data: use Field 1 value as category (X-axis), Field 2 value as bar height (Y-axis)
+        const barData = sortedData.map((item, idx) => ({
+          ...item,
+          xLabel: String(item.x), // Use x value as category label
+        }));
+
         return (
           <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
             <div className="absolute inset-0" style={{ bottom: '40px' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={sortedData} margin={{ top: 20, right: 30, left: 60, bottom: 80 }}>
+                <BarChart data={barData} margin={{ top: 20, right: 30, left: 60, bottom: 80 }}>
                   <XAxis 
-                    dataKey="name" 
+                    dataKey="xLabel" 
                     tick={{ fontSize: 11 }}
                     angle={-45}
                     textAnchor="end"
                     height={80}
                     interval={0}
+                    label={{ value: field1Name, position: 'insideBottom', offset: -5 }}
                   />
                   <YAxis 
                     tick={{ fontSize: 11 }}
-                    domain={[0, 'auto']}
-                    label={{ value: 'Values', angle: -90, position: 'insideLeft' }}
+                    domain={yDomain}
+                    label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                   />
                   <Tooltip 
-                    content={({ payload, label }) => {
+                    content={({ payload }) => {
                       if (!payload || payload.length === 0) return null;
+                      const data = payload[0]?.payload;
+                      if (!data) return null;
                       return (
                         <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
-                          <div className="font-medium mb-2">{label}</div>
+                          <div className="font-medium mb-2">{data.name}</div>
                           <div className="space-y-1 text-sm">
-                            {payload.map((entry: any, idx: number) => (
-                              <div key={idx} className="flex justify-between gap-4">
-                                <span className="flex items-center gap-2">
-                                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: entry.color }} />
-                                  <span className="text-muted-foreground">{entry.name}:</span>
-                                </span>
-                                <span className="font-semibold">{entry.value}</span>
-                              </div>
-                            ))}
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground">{field1Name} (X):</span>
+                              <span className="font-semibold">{data.x}</span>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground">{field2Name} (Y):</span>
+                              <span className="font-semibold">{data.y}</span>
+                            </div>
                           </div>
                         </div>
                       );
                     }}
                   />
-                  <Legend />
-                  <Bar dataKey="x" name={field1Name} fill={colors[0]} />
-                  <Bar dataKey="y" name={field2Name} fill={colors[1] || colors[0]} />
+                  <Bar dataKey="y" fill={colors[0]} name={field2Name} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
