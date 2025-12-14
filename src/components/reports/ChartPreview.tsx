@@ -1088,15 +1088,13 @@ export function ChartPreview({
           <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
             <div className="absolute inset-0" style={{ bottom: '40px' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={barData} margin={{ top: 20, right: 30, left: 60, bottom: 80 }}>
+                <BarChart data={barData} margin={{ top: 20, right: 30, left: 60, bottom: 60 }}>
                   <XAxis 
                     dataKey="xLabel" 
-                    tick={{ fontSize: 11 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                    interval={0}
-                    label={{ value: field1Name, position: 'insideBottom', offset: -5 }}
+                    tick={{ fontSize: 12 }}
+                    tickLine={true}
+                    axisLine={true}
+                    label={{ value: field1Name, position: 'bottom', offset: 0 }}
                   />
                   <YAxis 
                     tick={{ fontSize: 11 }}
@@ -1125,7 +1123,11 @@ export function ChartPreview({
                       );
                     }}
                   />
-                  <Bar dataKey="y" fill={colors[0]} name={field2Name} />
+                  <Bar dataKey="y" fill={colors[0]} name={field2Name}>
+                    {barData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
