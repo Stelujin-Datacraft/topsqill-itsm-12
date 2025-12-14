@@ -404,10 +404,9 @@ export function ComponentConfigDialog({
   const renderChartConfig = () => {
     return (
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="basic">Basic</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
-          <TabsTrigger value="examples">Examples</TabsTrigger>
           <TabsTrigger value="joins">Joins</TabsTrigger>
           <TabsTrigger value="filters">Filters</TabsTrigger>
           <TabsTrigger value="style">Style</TabsTrigger>
@@ -489,43 +488,6 @@ export function ComponentConfigDialog({
           )}
         </TabsContent>
 
-        <TabsContent value="examples" className="space-y-4">
-          {config.formId ? (
-            <ChartExamples
-              onSelectExample={(example) => {
-                // Create the chart configuration with example data
-                const exampleConfig = {
-                  ...config,
-                  chartType: example.chartType,
-                  metrics: example.metrics,
-                  dimensions: example.dimensions,
-                  metricAggregations: example.metricAggregations,
-                  aggregationEnabled: example.aggregationEnabled,
-                  title: example.title || config.title
-                };
-                
-                // Immediately save the chart to the report
-                onSave({
-                  config: exampleConfig,
-                  layout: {
-                    x: 0,
-                    y: 0,
-                    w: 6,
-                    h: 4
-                  }
-                });
-                
-                // Close the dialog
-                onOpenChange(false);
-              }}
-              formId={config.formId}
-            />
-          ) : (
-            <div className="p-4 text-center text-muted-foreground">
-              Please select a form first to view chart examples.
-            </div>
-          )}
-        </TabsContent>
 
         <TabsContent value="joins" className="space-y-4">
           {config.formId && formFields.length > 0 ? (
