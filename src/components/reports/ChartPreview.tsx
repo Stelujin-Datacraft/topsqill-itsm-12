@@ -260,12 +260,23 @@ export function ChartPreview({
     }
 
     // Get metric fields
-    const metricFields = config.metrics && config.metrics.length > 0 ? config.metrics : config.aggregation === 'count' || config.aggregationType === 'count' ? ['count'] : config.yAxis ? [config.yAxis] : ['count'];
+    const metricFields = config.metrics && config.metrics.length > 0
+      ? config.metrics
+      : config.aggregation === 'count' || config.aggregationType === 'count'
+        ? ['count']
+        : config.yAxis
+          ? [config.yAxis]
+          : ['count'];
+
     console.log('Processing with dimensions:', dimensionFields, 'metrics:', metricFields, 'groupBy:', config.groupByField, 'compareMode:', config.compareMode);
 
-    // Handle compare mode - show raw values of two fields side-by-side per record/dimension
-    if (config.compareMode && metricFields.length === 2) {
-      return processCompareData(submissions, dimensionFields, metricFields);
+    // Compare mode: require exactly two metrics and ignore aggregation/count semantics
+    if (config.compareMode) {
+      if (!config.metrics || config.metrics.length !== 2) {
+        console.warn('Compare mode requires exactly two metric fields. Current metrics:', config.metrics);
+        return [];
+      }
+      return processCompareData(submissions, dimensionFields, config.metrics);
     }
 
     // If groupByField is specified, use grouped processing
@@ -281,65 +292,58 @@ export function ChartPreview({
     }
   };
 
-  // Process compare mode - show raw values of two fields side-by-side
+  // Process compare mode - show raw values of two fields side-by-side (no counting logic)
   const processCompareData = (submissions: any[], dimensionFields: string[], metricFields: string[]) => {
     console.log('📊 Processing compare mode data with fields:', metricFields);
-    
+
     const hasDimension = dimensionFields.length > 0 && dimensionFields[0] !== '_default';
-    
+    const [metricField1, metricField2] = metricFields;
+
+    const field1Name = getFormFieldName(metricField1);
+    const field2Name = getFormFieldName(metricField2);
+
     if (hasDimension) {
       // Group by dimension and show both field values per dimension
-      const groupedData: { [key: string]: { values1: number[], values2: number[] } } = {};
-      
+      const groupedData: { [key: string]: { values1: number[]; values2: number[] } } = {};
+
       submissions.forEach(submission => {
         const submissionData = submission.submission_data;
         if (!passesFilters(submissionData)) return;
-        
+
         const dimensionKey = getDimensionKey(submissionData, dimensionFields);
-        
         if (!groupedData[dimensionKey]) {
           groupedData[dimensionKey] = { values1: [], values2: [] };
         }
-        
-        const value1 = getRawMetricValue(submissionData, metricFields[0]);
-        const value2 = getRawMetricValue(submissionData, metricFields[1]);
-        
+
+        const value1 = getRawMetricValue(submissionData, metricField1);
+        const value2 = getRawMetricValue(submissionData, metricField2);
+
         groupedData[dimensionKey].values1.push(value1);
         groupedData[dimensionKey].values2.push(value2);
       });
-      
+
       // Convert to chart format - sum values per dimension for comparison
-      const field1Name = getFormFieldName(metricFields[0]);
-      const field2Name = getFormFieldName(metricFields[1]);
-      
       return Object.entries(groupedData).map(([dimension, data]) => ({
         name: dimension,
         [field1Name]: data.values1.reduce((a, b) => a + b, 0),
         [field2Name]: data.values2.reduce((a, b) => a + b, 0),
-        [metricFields[0]]: data.values1.reduce((a, b) => a + b, 0),
-        [metricFields[1]]: data.values2.reduce((a, b) => a + b, 0),
       }));
-    } else {
-      // No dimension - show each record as a separate data point
-      const field1Name = getFormFieldName(metricFields[0]);
-      const field2Name = getFormFieldName(metricFields[1]);
-      
-      return submissions
-        .filter(submission => passesFilters(submission.submission_data))
-        .map((submission, index) => {
-          const submissionData = submission.submission_data;
-          const value1 = getRawMetricValue(submissionData, metricFields[0]);
-          const value2 = getRawMetricValue(submissionData, metricFields[1]);
-          
-          return {
-            name: `Record ${index + 1}`,
-            [field1Name]: value1,
-            [field2Name]: value2,
-            [metricFields[0]]: value1,
-            [metricFields[1]]: value2,
-          };
-        });
     }
+
+    // No dimension - show each record as a separate data point
+    return submissions
+      .filter(submission => passesFilters(submission.submission_data))
+      .map((submission, index) => {
+        const submissionData = submission.submission_data;
+        const value1 = getRawMetricValue(submissionData, metricField1);
+        const value2 = getRawMetricValue(submissionData, metricField2);
+
+        return {
+          name: `Record ${index + 1}`,
+          [field1Name]: value1,
+          [field2Name]: value2,
+        };
+      });
   };
   
   const processGroupedData = (submissions: any[], dimensionFields: string[], metricFields: string[], groupByField: string) => {
@@ -771,16 +775,23 @@ export function ChartPreview({
     const formName = config.formId ? getFormName(config.formId) : 'Form';
     const dimensionField = config.dimensions?.[0] || config.xAxis;
     const dimensionName = dimensionField ? getFormFieldName(dimensionField) : null;
+
     const metricField = config.metrics?.[0];
     const metricName = metricField ? getFormFieldName(metricField) : 'Records';
+
     const aggregation = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
     const groupByName = config.groupByField ? getFormFieldName(config.groupByField) : null;
     const chartType = config.type || config.chartType || 'bar';
     
     let title = '';
-    
-    // Build title based on aggregation mode
-    if (aggregation === 'count') {
+
+    if (config.compareMode && config.metrics && config.metrics.length === 2) {
+      const compareField1 = getFormFieldName(config.metrics[0]);
+      const compareField2 = getFormFieldName(config.metrics[1]);
+      title = dimensionName
+        ? `Compare ${compareField1} vs ${compareField2} by ${dimensionName}`
+        : `Compare ${compareField1} vs ${compareField2}`;
+    } else if (aggregation === 'count') {
       title = dimensionName ? `Count of Records by ${dimensionName}` : 'Count of Records';
     } else {
       const aggLabel = aggregation.charAt(0).toUpperCase() + aggregation.slice(1);
@@ -799,8 +810,17 @@ export function ChartPreview({
     const formName = config.formId ? getFormName(config.formId) : 'Form';
     const dimensionField = config.dimensions?.[0] || config.xAxis;
     const dimensionName = dimensionField ? getFormFieldName(dimensionField) : 'Category';
-    const aggregation = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
-    const aggLabel = aggregation === 'count' ? 'Count' : aggregation.charAt(0).toUpperCase() + aggregation.slice(1);
+
+    // In compare mode, we treat values as raw field values (no aggregation)
+    const aggregation = config.compareMode
+      ? 'value'
+      : config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
+
+    const aggLabel = aggregation === 'count'
+      ? 'Count'
+      : aggregation === 'value'
+        ? 'Value'
+        : aggregation.charAt(0).toUpperCase() + aggregation.slice(1);
     
     return (
       <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[200px]">
@@ -810,9 +830,14 @@ export function ChartPreview({
         <div className="space-y-2">
           {payload.map((entry: any, idx: number) => {
             const metricName = entry.name || entry.dataKey;
-            const fieldDisplayName = typeof metricName === 'string' && metricName !== 'value' 
-              ? getFormFieldName(metricName) 
-              : dimensionName;
+
+            // For compare mode, the series name IS the display name already
+            const fieldDisplayName = config.compareMode
+              ? metricName
+              : (typeof metricName === 'string' && metricName !== 'value' 
+                  ? getFormFieldName(metricName) 
+                  : dimensionName);
+
             return (
               <div key={idx} className="space-y-1">
                 <div className="flex items-center gap-2">
