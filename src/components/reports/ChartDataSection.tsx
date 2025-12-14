@@ -167,6 +167,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
 
   const availableNumericFields = numericFields.filter(f => !selectedMetrics.includes(f.id));
   const availableCategoryFields = categoryFields.filter(f => !selectedDimensions.includes(f.id));
+  const availableCompareFields = formFields.filter(f => !selectedMetrics.includes(f.id));
 
   // Show empty state if no form selected
   if (formFields.length === 0) {
@@ -425,9 +426,12 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                         </div>
                       </SelectTrigger>
                       <SelectContent>
-                        {numericFields.map((field) => (
+                        {formFields.filter(f => !selectedMetrics.includes(f.id)).map((field) => (
                           <SelectItem key={field.id} value={field.id}>
-                            {field.label}
+                            <div className="flex items-center gap-2">
+                              <span>{field.label}</span>
+                              <Badge variant="outline" className="text-xs">{getFieldType(field)}</Badge>
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -473,9 +477,12 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                         </div>
                       </SelectTrigger>
                       <SelectContent>
-                        {availableNumericFields.map((field) => (
+                        {formFields.filter(f => !selectedMetrics.includes(f.id)).map((field) => (
                           <SelectItem key={field.id} value={field.id}>
-                            {field.label}
+                            <div className="flex items-center gap-2">
+                              <span>{field.label}</span>
+                              <Badge variant="outline" className="text-xs">{getFieldType(field)}</Badge>
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
