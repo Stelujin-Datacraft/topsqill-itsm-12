@@ -307,8 +307,6 @@ export function ChartPreview({
       .filter(submission => passesFilters(submission.submission_data))
       .map((submission, index) => {
         const submissionData = submission.submission_data;
-        const rawXValue = submissionData[metricField1] ?? submissionData[config.yAxis];
-        const rawYValue = submissionData[metricField2] ?? submissionData[config.yAxis];
         const xValue = getRawMetricValue(submissionData, metricField1);
         const yValue = getRawMetricValue(submissionData, metricField2);
 
@@ -321,9 +319,6 @@ export function ChartPreview({
           x: xValue,
           y: yValue,
           name: dimensionLabel,
-          // Preserve original X/Y field display values for tooltips / labels
-          xDisplay: rawXValue ?? xValue,
-          yDisplay: rawYValue ?? yValue,
           // Store field names for tooltip
           xFieldName: field1Name,
           yFieldName: field2Name,
@@ -1004,19 +999,17 @@ export function ChartPreview({
             if (!payload || payload.length === 0) return null;
             const data = payload[0]?.payload;
             if (!data) return null;
-            const xDisplay = data.xDisplay ?? data.x;
-            const yDisplay = data.yDisplay ?? data.y;
             return (
               <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
                 <div className="font-medium mb-2">{data.name}</div>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between gap-4">
                     <span className="text-muted-foreground">{data.xFieldName || field1Name}:</span>
-                    <span className="font-semibold">{String(xDisplay)}</span>
+                    <span className="font-semibold">{data.x}</span>
                   </div>
                   <div className="flex justify-between gap-4">
                     <span className="text-muted-foreground">{data.yFieldName || field2Name}:</span>
-                    <span className="font-semibold">{String(yDisplay)}</span>
+                    <span className="font-semibold">{data.y}</span>
                   </div>
                 </div>
               </div>
@@ -1085,25 +1078,25 @@ export function ChartPreview({
       }
 
       if (chartType === 'bar' || chartType === 'column') {
+        // Transform data: use Field 1 value as category (X-axis), Field 2 value as bar height (Y-axis)
         const barData = sortedData.map((item, idx) => ({
           ...item,
-          // Prefer original X field display value when available (e.g. single-line text)
-          xLabel: item.xDisplay !== undefined && item.xDisplay !== null
-            ? String(item.xDisplay)
-            : String(item.x),
+          xLabel: String(item.x), // Use x value as category label
         }));
 
         return (
           <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
             <div className="absolute inset-0" style={{ bottom: '40px' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={barData} margin={{ top: 20, right: 30, left: 60, bottom: 60 }}>
+                <BarChart data={barData} margin={{ top: 20, right: 30, left: 60, bottom: 80 }}>
                   <XAxis 
                     dataKey="xLabel" 
-                    tick={{ fontSize: 12 }}
-                    tickLine={true}
-                    axisLine={true}
-                    label={{ value: field1Name, position: 'bottom', offset: 0 }}
+                    tick={{ fontSize: 11 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                    interval={0}
+                    label={{ value: field1Name, position: 'insideBottom', offset: -5 }}
                   />
                   <YAxis 
                     tick={{ fontSize: 11 }}
@@ -1115,14 +1108,13 @@ export function ChartPreview({
                       if (!payload || payload.length === 0) return null;
                       const data = payload[0]?.payload;
                       if (!data) return null;
-                      const xDisplay = data.xDisplay ?? data.xLabel ?? data.x;
                       return (
                         <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
                           <div className="font-medium mb-2">{data.name}</div>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{field1Name} (X):</span>
-                              <span className="font-semibold">{String(xDisplay)}</span>
+                              <span className="font-semibold">{data.x}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{field2Name} (Y):</span>
@@ -1133,11 +1125,7 @@ export function ChartPreview({
                       );
                     }}
                   />
-                  <Bar dataKey="y" fill={colors[0]} name={field2Name}>
-                    {barData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                    ))}
-                  </Bar>
+                  <Bar dataKey="y" fill={colors[0]} name={field2Name} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
