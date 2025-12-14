@@ -23,7 +23,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useReports } from '@/hooks/useReports';
+import { supabase } from '@/integrations/supabase/client';
 
+interface FormFieldData {
+  id: string;
+  label: string;
+  field_type: string;
+}
 
 interface MetricCardConfig {
   title?: string;
@@ -41,15 +47,45 @@ interface MetricCardProps {
   onEdit?: () => void;
 }
 
+// Numeric field types that support aggregation functions (sum, avg, min, max)
+const NUMERIC_FIELD_TYPES = ['number', 'currency', 'rating', 'star-rating', 'slider'];
+
 export function MetricCard({ config, isEditing, onConfigChange, onEdit }: MetricCardProps) {
   const [metricValue, setMetricValue] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [formFields, setFormFields] = useState<FormFieldData[]>([]);
   
-  const { getFormSubmissionData, getFormFields, forms } = useReports();
+  const { getFormSubmissionData, forms } = useReports();
+
+  // Fetch form fields directly from Supabase
+  useEffect(() => {
+    const fetchFormFields = async () => {
+      if (!config.formId) {
+        setFormFields([]);
+        return;
+      }
+      
+      const { data, error } = await supabase
+        .from('form_fields')
+        .select('id, label, field_type')
+        .eq('form_id', config.formId)
+        .order('field_order', { ascending: true });
+      
+      if (error) {
+        console.error('Error fetching form fields:', error);
+        setFormFields([]);
+        return;
+      }
+      
+      setFormFields(data || []);
+    };
+    
+    fetchFormFields();
+  }, [config.formId]);
 
   useEffect(() => {
     loadMetricData();
-  }, [config.formId, config.field, config.aggregation, JSON.stringify(config.filters)]);
+  }, [config.formId, config.field, config.aggregation, JSON.stringify(config.filters), formFields]);
 
   // Extract numeric value from field data based on field type
   const extractNumericValue = (rawValue: any, fieldType?: string): number => {
@@ -92,11 +128,10 @@ export function MetricCard({ config, isEditing, onConfigChange, onEdit }: Metric
 
     try {
       const submissions = await getFormSubmissionData(config.formId);
-      const fields = getFormFields(config.formId);
       
-      // Find the field type for the selected field
-      const selectedField = fields.find(f => f.id === config.field);
-      const fieldType = selectedField ? (selectedField as any).field_type || selectedField.type : undefined;
+      // Find the field type for the selected field from formFields state
+      const selectedField = formFields.find(f => f.id === config.field);
+      const fieldType = selectedField?.field_type;
       
       const filteredSubmissions = submissions.filter(submission => {
         const submissionData = submission.submission_data;
@@ -168,30 +203,25 @@ export function MetricCard({ config, isEditing, onConfigChange, onEdit }: Metric
     }
   };
 
-  // Numeric field types that support aggregation functions (sum, avg, min, max)
-  const NUMERIC_FIELD_TYPES = ['number', 'currency', 'rating', 'star-rating', 'slider'];
-
   const getAvailableFields = () => {
-    if (!config.formId) return [];
-    const fields = getFormFields(config.formId);
+    if (!config.formId || formFields.length === 0) return [];
     
     // For count aggregation, all fields are valid
     if (config.aggregation === 'count') {
-      return fields.map(field => ({
+      return formFields.map(field => ({
         id: field.id,
         label: field.label,
-        type: (field as any).field_type || field.type
+        type: field.field_type
       }));
     }
     
     // For other aggregations (sum, avg, min, max), only numeric fields
-    return fields.filter(field => {
-      const fieldType = (field as any).field_type || field.type;
-      return NUMERIC_FIELD_TYPES.includes(fieldType);
+    return formFields.filter(field => {
+      return NUMERIC_FIELD_TYPES.includes(field.field_type);
     }).map(field => ({
       id: field.id,
       label: field.label,
-      type: (field as any).field_type || field.type
+      type: field.field_type
     }));
   };
 
