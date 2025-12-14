@@ -243,7 +243,10 @@ export function ChartPreview({
       return [];
     }
     console.log('Processing submissions:', submissions.length);
-    console.log('🔍 Group by field:', config.groupByField);
+    
+    // Determine the effective group by field - prioritize dimensions[0] over groupByField
+    const effectiveGroupByField = config.dimensions?.[0] || config.groupByField;
+    console.log('🔍 Group by field:', effectiveGroupByField);
 
     // Get dimension fields - support both drilldownLevels and levels for compatibility
     const drilldownLevelsLocal = config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels || [];
@@ -268,7 +271,7 @@ export function ChartPreview({
           ? [config.yAxis]
           : ['count'];
 
-    console.log('Processing with dimensions:', dimensionFields, 'metrics:', metricFields, 'groupBy:', config.groupByField, 'compareMode:', config.compareMode);
+    console.log('Processing with dimensions:', dimensionFields, 'metrics:', metricFields, 'groupBy:', effectiveGroupByField, 'compareMode:', config.compareMode);
 
     // Compare mode: require exactly two metrics and ignore aggregation/count semantics
     if (config.compareMode) {
@@ -294,7 +297,7 @@ export function ChartPreview({
 
   // Process compare mode - X/Y scatter format (Field 1 on X, Field 2 on Y)
   const processCompareData = (submissions: any[], dimensionFields: string[], metricFields: string[]) => {
-    console.log('📊 Processing compare mode (scatter) with fields:', metricFields);
+    console.log('📊 Processing compare mode with fields:', metricFields, 'dimensions:', dimensionFields);
 
     const [metricField1, metricField2] = metricFields;
     const field1Name = getFormFieldName(metricField1);
@@ -302,7 +305,44 @@ export function ChartPreview({
 
     const hasDimension = dimensionFields.length > 0 && dimensionFields[0] !== '_default';
 
-    // Each submission becomes a point: x = field1 value, y = field2 value
+    // If dimension is selected, group data by dimension and sum values
+    if (hasDimension) {
+      console.log('📊 Compare mode WITH dimension grouping:', dimensionFields[0]);
+      
+      // Group submissions by dimension value and sum both metrics
+      const groupedData: { [key: string]: { x: number; y: number; count: number } } = {};
+      
+      submissions
+        .filter(submission => passesFilters(submission.submission_data))
+        .forEach(submission => {
+          const submissionData = submission.submission_data;
+          const dimensionKey = getDimensionKey(submissionData, dimensionFields);
+          const xValue = getRawMetricValue(submissionData, metricField1);
+          const yValue = getRawMetricValue(submissionData, metricField2);
+          
+          if (!groupedData[dimensionKey]) {
+            groupedData[dimensionKey] = { x: 0, y: 0, count: 0 };
+          }
+          
+          groupedData[dimensionKey].x += xValue;
+          groupedData[dimensionKey].y += yValue;
+          groupedData[dimensionKey].count += 1;
+        });
+      
+      // Convert to array format
+      const points = Object.entries(groupedData).map(([name, values]) => ({
+        name,
+        x: values.x,
+        y: values.y,
+        xFieldName: field1Name,
+        yFieldName: field2Name,
+      }));
+      
+      console.log('📊 Compare grouped data:', points);
+      return points;
+    }
+
+    // No dimension - each submission becomes a point: x = field1 value, y = field2 value
     const points = submissions
       .filter(submission => passesFilters(submission.submission_data))
       .map((submission, index) => {
@@ -310,15 +350,10 @@ export function ChartPreview({
         const xValue = getRawMetricValue(submissionData, metricField1);
         const yValue = getRawMetricValue(submissionData, metricField2);
 
-        // Get dimension label if available
-        const dimensionLabel = hasDimension
-          ? getDimensionKey(submissionData, dimensionFields)
-          : `Record ${index + 1}`;
-
         return {
           x: xValue,
           y: yValue,
-          name: dimensionLabel,
+          name: `Record ${index + 1}`,
           // Store field names for tooltip
           xFieldName: field1Name,
           yFieldName: field2Name,
