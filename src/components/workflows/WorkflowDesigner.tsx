@@ -470,14 +470,17 @@ function WorkflowDesignerInner({ workflowId, projectId, initialNodes, initialCon
       return;
     }
 
+    // Map frontend trigger types to database constraint values
+    // DB constraint: CHECK ((trigger_type = ANY (ARRAY['onFormSubmit', 'onFormCompletion', 'onFormApproval', 'onFormRejection'])))
     const triggerTypeMap: Record<string, string> = {
-      'form_submission': 'form_submission',
-      'form_completion': 'form_completion',
-      'form_approval': 'form_approval',
-      'form_rejection': 'form_rejection',
-      'rule_success': 'rule_success',
-      'rule_failure': 'rule_failure'
-    };
+      'form_submission': 'onFormSubmit',
+      'form_completion': 'onFormCompletion',
+      'form_approval': 'onFormApproval',
+      'form_rejection': 'onFormRejection',
+      // Rule triggers - skip syncing to workflow_triggers (handled via triggerService)
+      'rule_success': null,
+      'rule_failure': null
+    } as Record<string, string | null>;
 
     const dbTriggerType = triggerTypeMap[startConfig.triggerType];
     if (!dbTriggerType) return;
