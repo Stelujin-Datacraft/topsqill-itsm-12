@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useReports } from '@/hooks/useReports';
 import { useTableData } from '@/hooks/useTableData';
 import { FormDataCell } from './FormDataCell';
-import { evaluateFilterCondition, rowPassesSearch, extractComparableValue } from '@/utils/filterUtils';
+import { evaluateFilterCondition, rowPassesSearch, extractComparableValue, valueContainsSearchWithConfig } from '@/utils/filterUtils';
 
 interface EnhancedTableConfig {
   title: string;
@@ -298,14 +298,20 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
 
     // Apply search filter
     if (searchTerm && config.enableSearch) {
-      // Build field type map for proper search handling
+      // Build field type map and field config map for proper search handling
       const fieldTypeMap: Record<string, string> = {};
+      const fieldConfigMap: Record<string, any> = {};
       formFields.forEach(field => {
         fieldTypeMap[field.id] = (field as any)?.field_type || field?.type || '';
+        // Include options and custom_config for proper label resolution
+        fieldConfigMap[field.id] = {
+          options: field.options,
+          custom_config: (field as any)?.custom_config || (field as any)?.customConfig
+        };
       });
       
       filtered = filtered.filter(row => {
-        return rowPassesSearch(row, searchTerm, fieldTypeMap);
+        return rowPassesSearch(row, searchTerm, fieldTypeMap, fieldConfigMap);
       });
     }
 
@@ -332,7 +338,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
     }
 
     return filtered;
-  }, [data, searchTerm, displayFields, config.enableSearch, sortConfig, appliedFilters, evaluateFilters]);
+  }, [data, searchTerm, displayFields, config.enableSearch, sortConfig, appliedFilters, evaluateFilters, formFields]);
 
   useEffect(() => {
     loadFormFields();
