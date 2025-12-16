@@ -1,4 +1,4 @@
-import React, { useState, KeyboardEvent } from 'react';
+import React, { useState, KeyboardEvent, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,10 +10,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Trash2, Plus, Filter, X } from 'lucide-react';
+import { Trash2, Plus, Filter, X, Code, Eye, AlertCircle, CheckCircle } from 'lucide-react';
 import { FormField } from '@/types/form';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
+import { ExpressionEvaluator } from '@/utils/expressionEvaluator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface FilterConfigProps {
   formFields: FormField[];
@@ -24,6 +27,10 @@ interface FilterConfigProps {
     label?: string;
   }>;
   onFiltersChange: (filters: Array<{ field: string; operator: string; value: string; label?: string }>) => void;
+  logicExpression?: string;
+  onLogicExpressionChange?: (expression: string) => void;
+  useManualLogic?: boolean;
+  onUseManualLogicChange?: (useManual: boolean) => void;
 }
 
 const FILTER_OPERATORS = {
@@ -65,7 +72,73 @@ const FILTER_OPERATORS = {
   ]
 };
 
-export function FilterConfig({ formFields, filters, onFiltersChange }: FilterConfigProps) {
+export function FilterConfig({ 
+  formFields, 
+  filters, 
+  onFiltersChange,
+  logicExpression = '',
+  onLogicExpressionChange,
+  useManualLogic = false,
+  onUseManualLogicChange
+}: FilterConfigProps) {
+  const [localExpression, setLocalExpression] = useState(logicExpression);
+  const [expressionError, setExpressionError] = useState<string | null>(null);
+  
+  // Sync local expression with prop
+  useEffect(() => {
+    setLocalExpression(logicExpression);
+  }, [logicExpression]);
+
+  // Generate default expression when filters change
+  useEffect(() => {
+    if (!useManualLogic && filters.length > 0) {
+      const defaultExpr = filters.map((_, i) => i + 1).join(' AND ');
+      if (onLogicExpressionChange && localExpression !== defaultExpr) {
+        onLogicExpressionChange(defaultExpr);
+      }
+    }
+  }, [filters.length, useManualLogic]);
+
+  // Validate expression when it changes
+  useEffect(() => {
+    if (useManualLogic && localExpression) {
+      const validation = ExpressionEvaluator.validate(localExpression);
+      if (!validation.valid) {
+        setExpressionError(validation.error || 'Invalid expression');
+      } else {
+        // Check if all referenced condition IDs exist
+        const conditionIds = ExpressionEvaluator.extractConditionIds(localExpression);
+        const maxConditionNum = filters.length;
+        const invalidIds = conditionIds.filter(id => {
+          const num = parseInt(id, 10);
+          return isNaN(num) || num < 1 || num > maxConditionNum;
+        });
+        if (invalidIds.length > 0) {
+          setExpressionError(`Invalid condition numbers: ${invalidIds.join(', ')}. Use numbers 1-${maxConditionNum}`);
+        } else {
+          setExpressionError(null);
+        }
+      }
+    } else {
+      setExpressionError(null);
+    }
+  }, [localExpression, useManualLogic, filters.length]);
+
+  const handleExpressionChange = (value: string) => {
+    setLocalExpression(value);
+    onLogicExpressionChange?.(value);
+  };
+
+  const toggleManualMode = (enabled: boolean) => {
+    onUseManualLogicChange?.(enabled);
+    if (enabled && filters.length > 0) {
+      // Generate default expression based on current filters
+      const defaultExpr = filters.map((_, i) => i + 1).join(' AND ');
+      setLocalExpression(defaultExpr);
+      onLogicExpressionChange?.(defaultExpr);
+    }
+  };
+
   const addFilter = () => {
     onFiltersChange([
       ...filters,
@@ -981,11 +1054,86 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
           </div>
         ) : (
           <div className="space-y-4">
+            {/* Manual Logic Expression Toggle */}
+            {onUseManualLogicChange && filters.length > 1 && (
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Code className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Manual Logic Expression</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-5 w-5 p-0">
+                          <AlertCircle className="h-3 w-3 text-muted-foreground" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>Write custom expressions like "(1 AND 2) OR 3" to combine filters. Use filter numbers shown on each card.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <Switch
+                  checked={useManualLogic}
+                  onCheckedChange={toggleManualMode}
+                />
+              </div>
+            )}
+
+            {/* Expression Input */}
+            {useManualLogic && filters.length > 1 && (
+              <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Logic Expression</Label>
+                  {expressionError ? (
+                    <div className="flex items-center gap-1 text-destructive text-xs">
+                      <AlertCircle className="h-3 w-3" />
+                      <span>{expressionError}</span>
+                    </div>
+                  ) : localExpression ? (
+                    <div className="flex items-center gap-1 text-green-600 text-xs">
+                      <CheckCircle className="h-3 w-3" />
+                      <span>Valid expression</span>
+                    </div>
+                  ) : null}
+                </div>
+                <Input
+                  value={localExpression}
+                  onChange={(e) => handleExpressionChange(e.target.value)}
+                  placeholder="e.g., (1 AND 2) OR 3"
+                  className={expressionError ? 'border-destructive' : ''}
+                />
+                <div className="flex flex-wrap gap-1 text-xs text-muted-foreground">
+                  <span>Available:</span>
+                  {filters.map((_, i) => (
+                    <Badge key={i} variant="outline" className="text-xs px-1 py-0">
+                      {i + 1}
+                    </Badge>
+                  ))}
+                  <span className="ml-2">Operators: AND, OR, NOT, ( )</span>
+                </div>
+              </div>
+            )}
+
+            {/* Default AND logic indicator */}
+            {!useManualLogic && filters.length > 1 && (
+              <div className="flex items-center gap-2 p-2 bg-muted/30 rounded text-xs text-muted-foreground">
+                <Eye className="h-3 w-3" />
+                <span>Filters are combined with AND logic. Enable manual mode for custom expressions.</span>
+              </div>
+            )}
+
             {filters.map((filter, index) => (
-              <Card key={index} className="p-4">
+              <Card key={index} className="p-4 relative">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label className="font-medium">Filter {index + 1}</Label>
+                    <div className="flex items-center gap-2">
+                      {/* Filter Number Badge */}
+                      <Badge variant="secondary" className="text-xs font-bold min-w-[24px] justify-center">
+                        {index + 1}
+                      </Badge>
+                      <Label className="font-medium">Filter</Label>
+                    </div>
                     <Button
                       size="sm"
                       variant="ghost"
