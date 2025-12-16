@@ -2065,6 +2065,25 @@ export function ChartPreview({
                       ));
                     }
                     
+                    // Check for compare mode
+                    const isCompareMode = config.compareMode && config.metrics?.length === 2;
+                    
+                    if (isCompareMode) {
+                      // Compare mode: show field names from data or config
+                      const field1Name = chartData[0]?.xFieldName || getFormFieldName(config.metrics[0]);
+                      const field2Name = chartData[0]?.yFieldName || getFormFieldName(config.metrics[1]);
+                      return (
+                        <>
+                          <th className="border border-border p-2 bg-muted text-left font-semibold">
+                            {field1Name}
+                          </th>
+                          <th className="border border-border p-2 bg-muted text-left font-semibold">
+                            {field2Name}
+                          </th>
+                        </>
+                      );
+                    }
+                    
                     // For non-grouped data, show metric columns
                     const metrics = config.metrics && config.metrics.length > 0 
                       ? config.metrics 
@@ -2118,6 +2137,46 @@ export function ChartPreview({
                         }
                         
                         // For non-grouped data, show metric values
+                        // Handle different data structures based on mode
+                        const isCompareMode = config.compareMode && config.metrics?.length === 2;
+                        
+                        if (isCompareMode) {
+                          // Compare mode: data has x, y values
+                          return (
+                            <>
+                              <td 
+                                key="field1" 
+                                className="border border-border p-2 cursor-pointer hover:bg-primary/10"
+                                onClick={() => {
+                                  setCellSubmissionsDialog({
+                                    open: true,
+                                    dimensionField,
+                                    dimensionValue: item.name,
+                                    dimensionLabel,
+                                  });
+                                }}
+                              >
+                                {typeof item.x === 'number' ? item.x.toLocaleString() : (item.x ?? 0)}
+                              </td>
+                              <td 
+                                key="field2" 
+                                className="border border-border p-2 cursor-pointer hover:bg-primary/10"
+                                onClick={() => {
+                                  setCellSubmissionsDialog({
+                                    open: true,
+                                    dimensionField,
+                                    dimensionValue: item.name,
+                                    dimensionLabel,
+                                  });
+                                }}
+                              >
+                                {typeof item.y === 'number' ? item.y.toLocaleString() : (item.y ?? 0)}
+                              </td>
+                            </>
+                          );
+                        }
+                        
+                        // Non-compare mode: count or calculate values
                         const metrics = config.metrics && config.metrics.length > 0 
                           ? config.metrics 
                           : config.yAxis 
@@ -2125,12 +2184,18 @@ export function ChartPreview({
                           : ['count'];
                         
                         return metrics.map(metric => {
-                          // Get the value - handle 'count' metric specially
-                          let displayValue = 0;
+                          // Get the value - check multiple possible keys
+                          let displayValue: number | string = 0;
+                          
                           if (metric === 'count') {
-                            displayValue = item.value ?? item.count ?? 0;
+                            // Count mode - value is in count or value property
+                            displayValue = item.count ?? item.value ?? 0;
+                          } else if (item[metric] !== undefined) {
+                            // Field ID exists as key (Calculate mode with proper structure)
+                            displayValue = item[metric];
                           } else {
-                            displayValue = item[metric] ?? item.value ?? 0;
+                            // Fallback to value property (aggregated result)
+                            displayValue = item.value ?? 0;
                           }
                           
                           return (
