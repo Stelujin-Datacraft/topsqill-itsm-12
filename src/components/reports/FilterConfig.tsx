@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, KeyboardEvent } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,8 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Trash2, Plus, Filter } from 'lucide-react';
+import { Trash2, Plus, Filter, X } from 'lucide-react';
 import { FormField } from '@/types/form';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface FilterConfigProps {
   formFields: FormField[];
@@ -355,19 +357,68 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
       );
     }
 
-    // Handle tags field type - text input for tag values
+    // Handle tags field type - multi-tag input
     if (rawFieldType === 'tags') {
-      return (
-        <div className="space-y-2">
-          <Label>Value (tag to filter)</Label>
-          <Input
-            type="text"
-            value={filter.value}
-            onChange={(e) => updateFilter(index, { value: e.target.value })}
-            placeholder="Enter tag value"
-          />
-        </div>
-      );
+      // Parse existing tags (comma-separated)
+      const currentTags = filter.value ? filter.value.split(',').map(t => t.trim()).filter(Boolean) : [];
+      
+      const TagsFilterInput = () => {
+        const [tagInput, setTagInput] = useState('');
+        
+        const addTag = () => {
+          const trimmed = tagInput.trim();
+          if (trimmed && !currentTags.includes(trimmed)) {
+            const newTags = [...currentTags, trimmed];
+            updateFilter(index, { value: newTags.join(',') });
+            setTagInput('');
+          }
+        };
+        
+        const removeTag = (tagToRemove: string) => {
+          const newTags = currentTags.filter(t => t !== tagToRemove);
+          updateFilter(index, { value: newTags.join(',') });
+        };
+        
+        const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+          if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            addTag();
+          } else if (e.key === 'Backspace' && tagInput === '' && currentTags.length > 0) {
+            removeTag(currentTags[currentTags.length - 1]);
+          }
+        };
+        
+        return (
+          <div className="space-y-2">
+            <Label>Tags to filter (contains any)</Label>
+            <div className="min-h-[42px] border rounded-md p-2 flex flex-wrap gap-2 bg-background">
+              {currentTags.map((tag, tagIndex) => (
+                <Badge key={tagIndex} variant="secondary" className="flex items-center gap-1">
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() => removeTag(tag)}
+                    className="ml-1 hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+              <Input
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onBlur={addTag}
+                placeholder={currentTags.length === 0 ? "Type tag and press Enter..." : ""}
+                className="border-none shadow-none p-0 h-auto flex-1 min-w-[120px] focus-visible:ring-0"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">Press Enter or comma to add tags</p>
+          </div>
+        );
+      };
+      
+      return <TagsFilterInput />;
     }
 
     // Handle country field type
@@ -687,7 +738,7 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
       );
     }
 
-    // Handle submission-access field type - show configured users/groups
+    // Handle submission-access field type - show configured users/groups with multi-select
     if (rawFieldType === 'submission-access') {
       const customConfig = (field as any)?.custom_config || (field as any)?.customConfig;
       const allowedUsers = customConfig?.allowedUsers || [];
@@ -707,24 +758,60 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
       ];
 
       if (accessOptions.length > 0) {
+        // Parse existing selected values (comma-separated)
+        const selectedValues = filter.value ? filter.value.split(',').map(v => v.trim()).filter(Boolean) : [];
+        
+        const toggleOption = (optionValue: string) => {
+          const newSelected = selectedValues.includes(optionValue)
+            ? selectedValues.filter(v => v !== optionValue)
+            : [...selectedValues, optionValue];
+          updateFilter(index, { value: newSelected.join(',') });
+        };
+        
         return (
           <div className="space-y-2">
-            <Label>Value</Label>
-            <Select
-              value={filter.value}
-              onValueChange={(value) => updateFilter(index, { value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select user/group" />
-              </SelectTrigger>
-              <SelectContent className="bg-background border shadow-lg z-50">
-                {accessOptions.map((option, optIndex) => (
-                  <SelectItem key={optIndex} value={String(option.value)}>
+            <Label>Select Users/Groups</Label>
+            {/* Show selected items as badges */}
+            {selectedValues.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-2">
+                {selectedValues.map((val, i) => {
+                  const option = accessOptions.find(o => String(o.value) === val);
+                  return (
+                    <Badge key={i} variant="secondary" className="flex items-center gap-1">
+                      {option?.type === 'group' ? '👥' : '👤'} {option?.label || val}
+                      <button
+                        type="button"
+                        onClick={() => toggleOption(val)}
+                        className="ml-1 hover:text-destructive"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  );
+                })}
+              </div>
+            )}
+            {/* Checkbox list for selection */}
+            <div className="border rounded-md p-2 max-h-48 overflow-y-auto bg-background space-y-2">
+              {accessOptions.map((option, optIndex) => (
+                <div key={optIndex} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`access-${index}-${optIndex}`}
+                    checked={selectedValues.includes(String(option.value))}
+                    onCheckedChange={() => toggleOption(String(option.value))}
+                  />
+                  <label 
+                    htmlFor={`access-${index}-${optIndex}`}
+                    className="text-sm cursor-pointer flex-1"
+                  >
                     {option.type === 'group' ? '👥 ' : '👤 '}{option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </label>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {selectedValues.length} selected - matches records containing any selected user/group
+            </p>
           </div>
         );
       }
@@ -739,6 +826,9 @@ export function FilterConfig({ formFields, filters, onFiltersChange }: FilterCon
             onChange={(e) => updateFilter(index, { value: e.target.value })}
             placeholder="Enter user/group ID or email"
           />
+          <p className="text-xs text-muted-foreground">
+            No users/groups configured by admin for this field
+          </p>
         </div>
       );
     }
