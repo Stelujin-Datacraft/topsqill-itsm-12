@@ -1213,8 +1213,8 @@ export function ChartPreview({
       // Render based on selected chart type
       if (chartType === 'line') {
         return (
-          <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
-            <div className="absolute inset-0" style={{ bottom: '40px' }}>
+          <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsLineChart data={sortedData} margin={{ top: 20, right: 30, left: 60, bottom: 60 }}>
                   <XAxis 
@@ -1242,8 +1242,8 @@ export function ChartPreview({
 
       if (chartType === 'area') {
         return (
-          <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
-            <div className="absolute inset-0" style={{ bottom: '40px' }}>
+          <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsAreaChart data={sortedData} margin={{ top: 20, right: 30, left: 60, bottom: 60 }}>
                   <XAxis 
@@ -1277,8 +1277,8 @@ export function ChartPreview({
         }));
 
         return (
-          <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
-            <div className="absolute inset-0" style={{ bottom: '40px' }}>
+          <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={barData} margin={{ top: 20, right: 30, left: 60, bottom: 80 }}>
                   <XAxis 
@@ -1333,8 +1333,8 @@ export function ChartPreview({
         }));
 
         return (
-          <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
-            <div className="absolute inset-0" style={{ bottom: '40px' }}>
+          <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={barData} margin={{ top: 20, right: 30, left: 60, bottom: 80 }}>
                   <XAxis 
@@ -1383,8 +1383,8 @@ export function ChartPreview({
 
       // Default to scatter for other chart types in compare mode
       return (
-        <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
-          <div className="absolute inset-0" style={{ bottom: '40px' }}>
+        <div className="relative w-full h-full min-h-[300px]">
+          <div className="absolute inset-0">
             <ResponsiveContainer width="100%" height="100%">
               <RechartsScatterChart margin={{ top: 20, right: 30, left: 60, bottom: 60 }}>
                 <XAxis 
@@ -1418,13 +1418,8 @@ export function ChartPreview({
     switch (chartType) {
       case 'bar':
         // Bar chart = horizontal bars (categories on Y-axis, values on X-axis)
-        return <div className="relative w-full" style={{
-          height: '400px',
-          paddingBottom: '40px'
-        }}>
-            <div className="absolute inset-0" style={{
-            bottom: '40px'
-          }}>
+        return <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={sanitizedChartData} layout="vertical" margin={{
                 top: 20,
@@ -1504,13 +1499,8 @@ export function ChartPreview({
             </div>
           </div>;
       case 'column':
-        return <div className="relative w-full" style={{
-          height: '400px',
-          paddingBottom: '40px'
-        }}>
-            <div className="absolute inset-0" style={{
-            bottom: '40px'
-          }}>
+        return <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={sanitizedChartData} margin={{
                 top: 20,
@@ -1589,13 +1579,8 @@ export function ChartPreview({
             </div>
           </div>;
       case 'pie':
-        return <div className="relative w-full" style={{
-          height: '400px',
-          paddingBottom: '40px'
-        }}>
-            <div className="absolute inset-0" style={{
-            bottom: '40px'
-          }}>
+        return <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPieChart>
                   <Pie data={sanitizedChartData} cx="50%" cy="50%" outerRadius={120} fill="#8884d8" dataKey={primaryMetric} label={({
@@ -1625,13 +1610,8 @@ export function ChartPreview({
             </div>
           </div>;
       case 'donut':
-        return <div className="relative w-full" style={{
-          height: '400px',
-          paddingBottom: '40px'
-        }}>
-            <div className="absolute inset-0" style={{
-            bottom: '40px'
-          }}>
+        return <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPieChart>
                   <Pie data={sanitizedChartData} cx="50%" cy="50%" innerRadius={config.innerRadius || 60} outerRadius={120} fill="#8884d8" dataKey={primaryMetric} label={({
@@ -1648,13 +1628,8 @@ export function ChartPreview({
             </div>
           </div>;
       case 'line':
-        return <div className="relative w-full" style={{
-          height: '400px',
-          paddingBottom: '40px'
-        }}>
-            <div className="absolute inset-0" style={{
-            bottom: '40px'
-          }}>
+        return <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsLineChart data={sanitizedChartData} margin={{
                 top: 20,
@@ -1717,13 +1692,8 @@ export function ChartPreview({
             </div>
           </div>;
       case 'area':
-        return <div className="relative w-full" style={{
-          height: '400px',
-          paddingBottom: '40px'
-        }}>
-            <div className="absolute inset-0" style={{
-            bottom: '40px'
-          }}>
+        return <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsAreaChart data={sanitizedChartData} margin={{
                 top: 20,
@@ -1762,13 +1732,8 @@ export function ChartPreview({
             </div>
           </div>;
       case 'scatter':
-        return <div className="relative w-full" style={{
-          height: '400px',
-          paddingBottom: '40px'
-        }}>
-            <div className="absolute inset-0" style={{
-            bottom: '40px'
-          }}>
+        return <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsScatterChart data={sanitizedChartData} margin={{
                 top: 20,
@@ -1808,13 +1773,8 @@ export function ChartPreview({
           ...item,
           size: item[sizeField] || 10
         }));
-        return <div className="relative w-full" style={{
-          height: '400px',
-          paddingBottom: '40px'
-        }}>
-            <div className="absolute inset-0" style={{
-            bottom: '40px'
-          }}>
+        return <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsScatterChart data={bubbleData}>
                     <XAxis dataKey="name" />
@@ -2062,11 +2022,8 @@ export function ChartPreview({
           </div>
         </div>}
 
-      {/* Flexible Spacer - pushes chart to bottom */}
-      <div className="flex-grow min-h-4"></div>
-
-      {/* Chart Container - Always positioned at bottom */}
-      <div className="flex-shrink-0 min-h-[300px]">
+      {/* Chart Container - Fills available space */}
+      <div className="flex-grow min-h-[300px]">
         {config.showAsTable ? (
           <div className="h-full overflow-auto">
             <table className="w-full border-collapse border border-border">
@@ -2175,7 +2132,7 @@ export function ChartPreview({
             </table>
           </div>
         ) : (
-          <div className="w-full">
+          <div className="w-full h-full min-h-[300px]">
             {renderChart()}
           </div>
         )}
