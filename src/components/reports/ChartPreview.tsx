@@ -1435,30 +1435,78 @@ export function ChartPreview({
             bottom: '40px'
           }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={sanitizedChartData} layout="horizontal" margin={{
+                <BarChart data={sanitizedChartData} margin={{
                 top: 20,
                 right: 30,
-                left: 120,
-                bottom: 20
+                left: 40,
+                bottom: 80
               }}>
-                  <XAxis type="number" tick={{
+                  <XAxis dataKey="name" tick={{
                   fontSize: 11
-                }} label={{
-                  value: getFormFieldName(primaryMetric),
+                }} angle={-45} textAnchor="end" height={80} interval={0} label={{
+                  value: config.xAxisLabel || 'Category',
                   position: 'insideBottom',
                   offset: -5
-                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
-                  <YAxis dataKey="name" type="category" width={120} tick={{
+                }} />
+                  <YAxis tick={{
                   fontSize: 11
-                }} />
-                  <Tooltip formatter={(value, name, props) => [`${getFormFieldName(name.toString())}: ${value}`, `Category: ${props.payload?.name || 'N/A'}`, `Total Records: ${sanitizedChartData.length}`]} labelFormatter={label => `Category: ${label}`} contentStyle={{
-                  backgroundColor: 'hsl(var(--popover))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: 'var(--radius)',
-                  fontSize: '12px'
-                }} />
-                   <Bar dataKey={primaryMetric} fill={colors[0]} name={getFormFieldName(primaryMetric)} style={{ cursor: 'pointer' }} onClick={(data, idx) => handleBarClick(data, idx)} />
-                   {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => <Bar key={metric} dataKey={metric} fill={colors[(index + 1) % colors.length]} name={getFormFieldName(metric)} style={{ cursor: 'pointer' }} onClick={(data, idx) => handleBarClick(data, idx)} />)}
+                }} label={{
+                  value: config.yAxisLabel || getFormFieldName(primaryMetric),
+                  angle: -90,
+                  position: 'insideLeft'
+                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
+                  <Tooltip 
+                    content={({ payload, label }) => getEnhancedTooltipContent(payload, label)}
+                    contentStyle={{
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      borderRadius: 'var(--radius)',
+                      fontSize: '12px',
+                      padding: 0,
+                    }} 
+                  />
+                   
+                   {isMultiDimensional ?
+                // Render separate bars for each dimension value
+                dimensionKeys.map((key, index) => {
+                  const barColor = colors[index % colors.length];
+                  return (
+                    <Bar 
+                      key={key} 
+                      dataKey={key} 
+                      fill={barColor} 
+                      name={key} 
+                      style={{ cursor: 'pointer' }} 
+                      onClick={(data, idx) => handleBarClick(data, idx)}
+                      activeBar={{ fill: barColor, fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
+                    />
+                  );
+                }) :
+                // Single dimension - render primary metric and additional metrics if any
+                <>
+                  <Bar 
+                    dataKey={primaryMetric} 
+                    fill={colors[0]} 
+                    name={getFormFieldName(primaryMetric)} 
+                    style={{ cursor: 'pointer' }} 
+                    onClick={(data, idx) => handleBarClick(data, idx)}
+                    activeBar={{ fill: colors[0], fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
+                  />
+                  {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => {
+                    const barColor = colors[(index + 1) % colors.length];
+                    return (
+                      <Bar 
+                        key={metric} 
+                        dataKey={metric} 
+                        fill={barColor} 
+                        name={getFormFieldName(metric)} 
+                        style={{ cursor: 'pointer' }} 
+                        onClick={(data, idx) => handleBarClick(data, idx)}
+                        activeBar={{ fill: barColor, fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
+                      />
+                    );
+                  })}
+                </>}
                 </BarChart>
               </ResponsiveContainer>
             </div>
