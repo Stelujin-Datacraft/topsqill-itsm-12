@@ -1250,11 +1250,66 @@ export function ChartPreview({
         );
       }
 
-      if (chartType === 'bar' || chartType === 'column') {
-        // Transform data: use Field 1 value as category (X-axis), Field 2 value as bar height (Y-axis)
+      if (chartType === 'bar') {
+        // Bar chart = horizontal bars in compare mode
         const barData = sortedData.map((item, idx) => ({
           ...item,
-          xLabel: String(item.x), // Use x value as category label
+          yLabel: String(item.x), // Use x value as category label on Y-axis
+        }));
+
+        return (
+          <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
+            <div className="absolute inset-0" style={{ bottom: '40px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={barData} layout="vertical" margin={{ top: 20, right: 30, left: 120, bottom: 20 }}>
+                  <XAxis 
+                    type="number"
+                    tick={{ fontSize: 11 }}
+                    domain={yDomain}
+                    label={{ value: field2Name, position: 'insideBottom', offset: -5 }}
+                  />
+                  <YAxis 
+                    dataKey="yLabel"
+                    type="category"
+                    width={120}
+                    tick={{ fontSize: 11 }}
+                    label={{ value: field1Name, angle: -90, position: 'insideLeft', offset: 10 }}
+                  />
+                  <Tooltip 
+                    content={({ payload }) => {
+                      if (!payload || payload.length === 0) return null;
+                      const data = payload[0]?.payload;
+                      if (!data) return null;
+                      return (
+                        <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
+                          <div className="font-medium mb-2">{data.name}</div>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground">{field1Name}:</span>
+                              <span className="font-semibold">{data.x}</span>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground">{field2Name}:</span>
+                              <span className="font-semibold">{data.y}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Bar dataKey="y" fill={colors[0]} name={field2Name} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+      }
+
+      if (chartType === 'column') {
+        // Column chart = vertical bars in compare mode
+        const barData = sortedData.map((item, idx) => ({
+          ...item,
+          xLabel: String(item.x), // Use x value as category label on X-axis
         }));
 
         return (
@@ -1342,6 +1397,7 @@ export function ChartPreview({
     }
     switch (chartType) {
       case 'bar':
+        // Bar chart = horizontal bars (categories on Y-axis, values on X-axis)
         return <div className="relative w-full" style={{
           height: '400px',
           paddingBottom: '40px'
@@ -1350,26 +1406,27 @@ export function ChartPreview({
             bottom: '40px'
           }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={sanitizedChartData} margin={{
+                <BarChart data={sanitizedChartData} layout="vertical" margin={{
                 top: 20,
                 right: 30,
-                left: 40,
-                bottom: 80
+                left: 120,
+                bottom: 20
               }}>
-                  <XAxis dataKey="name" tick={{
-                  fontSize: 11
-                }} angle={-45} textAnchor="end" height={80} interval={0} label={{
-                  value: config.xAxisLabel || 'Category',
-                  position: 'insideBottom',
-                  offset: -5
-                }} />
-                  <YAxis tick={{
+                  <XAxis type="number" tick={{
                   fontSize: 11
                 }} label={{
-                  value: config.yAxisLabel || getFormFieldName(primaryMetric),
-                  angle: -90,
-                  position: 'insideLeft'
+                  value: config.xAxisLabel || getFormFieldName(primaryMetric),
+                  position: 'insideBottom',
+                  offset: -5
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
+                  <YAxis dataKey="name" type="category" width={120} tick={{
+                  fontSize: 11
+                }} label={{
+                  value: config.yAxisLabel || 'Category',
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: 10
+                }} />
                    <Tooltip 
                     content={({ payload, label }) => getEnhancedTooltipContent(payload, label)}
                     contentStyle={{
