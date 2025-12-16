@@ -114,14 +114,26 @@ export function SimpleTablePreview({
   const filteredData = useMemo(() => {
     if (!enableSearch || !searchTerm) return data;
     
-    // Build field type map
+    // Build field type map and field config map for proper search
     const fieldTypeMap: Record<string, string> = {};
+    const fieldConfigMap: Record<string, any> = {};
+    
     displayFields.forEach(field => {
       fieldTypeMap[field.id] = field.type || '';
     });
     
-    return data.filter(row => rowPassesSearch(row, searchTerm, fieldTypeMap));
-  }, [data, searchTerm, enableSearch, displayFields]);
+    // Get field configs from selectedForm if available
+    if (selectedForm?.fields) {
+      selectedForm.fields.forEach((field: any) => {
+        fieldConfigMap[field.id] = {
+          options: field.options,
+          custom_config: field.custom_config || field.customConfig
+        };
+      });
+    }
+    
+    return data.filter(row => rowPassesSearch(row, searchTerm, fieldTypeMap, fieldConfigMap));
+  }, [data, searchTerm, enableSearch, displayFields, selectedForm]);
 
   const handleSort = (fieldId: string) => {
     if (!enableSorting) return;

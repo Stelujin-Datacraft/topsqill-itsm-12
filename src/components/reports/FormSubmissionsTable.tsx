@@ -59,6 +59,7 @@ interface FormField {
   label: string;
   field_type: string;
   custom_config?: any;
+  options?: any;
 }
 
 export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit }: FormSubmissionsTableProps) {
@@ -82,8 +83,9 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
       try {
         const { data, error } = await supabase
           .from('form_fields')
-          .select('id, label, field_type, custom_config')
+          .select('id, label, field_type, custom_config, options')
           .eq('form_id', config.formId)
+          .neq('field_type', 'signature-pad')
           .order('field_order', { ascending: true });
           
         if (error) {
@@ -174,19 +176,24 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
     }
   };
 
-  // Build field type map for search
-  const fieldTypeMap = useMemo(() => {
-    const map: Record<string, string> = {};
+  // Build field type map and field config map for search
+  const { fieldTypeMap, fieldConfigMap } = useMemo(() => {
+    const typeMap: Record<string, string> = {};
+    const configMap: Record<string, any> = {};
     formFields.forEach(field => {
-      map[field.id] = field.field_type || '';
+      typeMap[field.id] = field.field_type || '';
+      configMap[field.id] = {
+        options: (field as any).options,
+        custom_config: field.custom_config
+      };
     });
-    return map;
+    return { fieldTypeMap: typeMap, fieldConfigMap: configMap };
   }, [formFields]);
 
   const filteredAndSortedData = submissions
     .filter(submission => {
       // Use rowPassesSearch for comprehensive search across all field types
-      const matchesSearch = searchTerm === '' || rowPassesSearch(submission, searchTerm, fieldTypeMap);
+      const matchesSearch = searchTerm === '' || rowPassesSearch(submission, searchTerm, fieldTypeMap, fieldConfigMap);
       
       const matchesApprovalFilter = approvalFilter === 'all' || 
                                    submission.approval_status === approvalFilter;
