@@ -1417,31 +1417,42 @@ export function ChartPreview({
     }
     switch (chartType) {
       case 'bar':
-        // Bar chart = horizontal bars (categories on Y-axis, values on X-axis)
+        // Bar chart = vertical bars (categories on X-axis, values on Y-axis)
         return <div className="relative w-full h-full min-h-[300px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={sanitizedChartData} layout="vertical" margin={{
+                <BarChart data={sanitizedChartData} margin={{
                 top: 20,
                 right: 30,
-                left: 120,
-                bottom: 20
+                left: 60,
+                bottom: 80
               }}>
-                  <XAxis type="number" tick={{
-                  fontSize: 11
-                }} label={{
-                  value: config.xAxisLabel || getFormFieldName(primaryMetric),
-                  position: 'insideBottom',
-                  offset: -5
-                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
-                  <YAxis dataKey="name" type="category" width={120} tick={{
-                  fontSize: 11
-                }} label={{
-                  value: config.yAxisLabel || 'Category',
-                  angle: -90,
-                  position: 'insideLeft',
-                  offset: 10
-                }} />
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 11 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                    interval={0}
+                    label={{
+                      value: config.xAxisLabel || 'Category',
+                      position: 'insideBottom',
+                      offset: -5
+                    }} 
+                  />
+                  <YAxis 
+                    type="number" 
+                    tick={{ fontSize: 11 }}
+                    domain={getYAxisDomain(sanitizedChartData, primaryMetric)} 
+                    ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} 
+                    allowDataOverflow={false}
+                    label={{
+                      value: config.yAxisLabel || getFormFieldName(primaryMetric),
+                      angle: -90,
+                      position: 'insideLeft',
+                      offset: 10
+                    }} 
+                  />
                    <Tooltip 
                     content={({ payload, label }) => getEnhancedTooltipContent(payload, label)}
                     contentStyle={{
