@@ -920,10 +920,15 @@ export function ChartPreview({
   };
   const handleBarClick = (data: any, index: number, event?: any) => {
     // Open dialog to show matching submissions
-    if (data && data.name) {
+    // recharts passes the data point in data.payload or data directly
+    const payload = data?.payload || data;
+    const dimensionValue = payload?.name || data?.name;
+    
+    if (dimensionValue) {
       const dimensionField = config.dimensions?.[0] || config.xAxis || '';
-      const dimensionValue = data.name;
       const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Category';
+      
+      console.log('Bar clicked:', { dimensionField, dimensionValue, dimensionLabel, data, payload });
       
       setCellSubmissionsDialog({
         open: true,
@@ -2119,22 +2124,32 @@ export function ChartPreview({
                           ? [config.yAxis]
                           : ['count'];
                         
-                        return metrics.map(metric => (
-                          <td 
-                            key={metric} 
-                            className="border border-border p-2 cursor-pointer hover:bg-primary/10"
-                            onClick={() => {
-                              setCellSubmissionsDialog({
-                                open: true,
-                                dimensionField,
-                                dimensionValue: item.name,
-                                dimensionLabel,
-                              });
-                            }}
-                          >
-                            {(item[metric] || item.value || item.count || 0).toLocaleString()}
-                          </td>
-                        ));
+                        return metrics.map(metric => {
+                          // Get the value - handle 'count' metric specially
+                          let displayValue = 0;
+                          if (metric === 'count') {
+                            displayValue = item.value ?? item.count ?? 0;
+                          } else {
+                            displayValue = item[metric] ?? item.value ?? 0;
+                          }
+                          
+                          return (
+                            <td 
+                              key={metric} 
+                              className="border border-border p-2 cursor-pointer hover:bg-primary/10"
+                              onClick={() => {
+                                setCellSubmissionsDialog({
+                                  open: true,
+                                  dimensionField,
+                                  dimensionValue: item.name,
+                                  dimensionLabel,
+                                });
+                              }}
+                            >
+                              {typeof displayValue === 'number' ? displayValue.toLocaleString() : displayValue}
+                            </td>
+                          );
+                        });
                       })()}
                     </tr>
                   );
