@@ -1270,29 +1270,30 @@ export function ChartPreview({
       }
 
       if (chartType === 'bar') {
-        // Bar chart = horizontal bars in compare mode
+        // Bar chart = vertical bars in compare mode (X-axis field on horizontal, Y-axis field determines height)
         const barData = sortedData.map((item, idx) => ({
           ...item,
-          yLabel: String(item.x), // Use x value as category label on Y-axis
+          xLabel: String(item.x), // Use x value as category label on X-axis
         }));
 
         return (
           <div className="relative w-full" style={{ height: '400px', paddingBottom: '40px' }}>
             <div className="absolute inset-0" style={{ bottom: '40px' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={barData} layout="vertical" margin={{ top: 20, right: 30, left: 120, bottom: 20 }}>
+                <BarChart data={barData} margin={{ top: 20, right: 30, left: 60, bottom: 80 }}>
                   <XAxis 
-                    type="number"
+                    dataKey="xLabel" 
                     tick={{ fontSize: 11 }}
-                    domain={yDomain}
-                    label={{ value: field2Name, position: 'insideBottom', offset: -5 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                    interval={0}
+                    label={{ value: field1Name, position: 'insideBottom', offset: -5 }}
                   />
                   <YAxis 
-                    dataKey="yLabel"
-                    type="category"
-                    width={120}
                     tick={{ fontSize: 11 }}
-                    label={{ value: field1Name, angle: -90, position: 'insideLeft', offset: 10 }}
+                    domain={yDomain}
+                    label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                   />
                   <Tooltip 
                     content={({ payload }) => {
