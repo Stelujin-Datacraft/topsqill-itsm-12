@@ -1054,8 +1054,8 @@ export function FilterConfig({
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Manual Logic Expression Toggle */}
-            {onUseManualLogicChange && filters.length > 1 && (
+            {/* Manual Logic Expression Toggle - show when we have at least 1 filter */}
+            {onUseManualLogicChange && filters.length >= 1 && (
               <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center gap-2">
                   <Code className="h-4 w-4 text-muted-foreground" />
@@ -1080,8 +1080,8 @@ export function FilterConfig({
               </div>
             )}
 
-            {/* Expression Input */}
-            {useManualLogic && filters.length > 1 && (
+            {/* Expression Input - show when enabled and we have filters */}
+            {useManualLogic && filters.length >= 1 && (
               <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-medium">Logic Expression</Label>
@@ -1100,8 +1100,9 @@ export function FilterConfig({
                 <Input
                   value={localExpression}
                   onChange={(e) => handleExpressionChange(e.target.value)}
-                  placeholder="e.g., (1 AND 2) OR 3"
+                  placeholder={filters.length === 1 ? "Add more filters to use expressions" : "e.g., (1 AND 2) OR 3"}
                   className={expressionError ? 'border-destructive' : ''}
+                  disabled={filters.length < 2}
                 />
                 <div className="flex flex-wrap gap-1 text-xs text-muted-foreground">
                   <span>Available:</span>
@@ -1112,6 +1113,9 @@ export function FilterConfig({
                   ))}
                   <span className="ml-2">Operators: AND, OR, NOT, ( )</span>
                 </div>
+                {filters.length < 2 && (
+                  <p className="text-xs text-muted-foreground">Add at least 2 filters to write custom expressions.</p>
+                )}
               </div>
             )}
 
