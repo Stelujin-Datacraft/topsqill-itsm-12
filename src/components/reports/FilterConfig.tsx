@@ -130,12 +130,17 @@ export function FilterConfig({
   };
 
   const toggleManualMode = (enabled: boolean) => {
+    // Update manual mode first
     onUseManualLogicChange?.(enabled);
+    
+    // Then update expression if enabling
     if (enabled && filters.length > 0) {
-      // Generate default expression based on current filters
       const defaultExpr = filters.map((_, i) => i + 1).join(' AND ');
       setLocalExpression(defaultExpr);
-      onLogicExpressionChange?.(defaultExpr);
+      // Use setTimeout to ensure the previous state update completes
+      setTimeout(() => {
+        onLogicExpressionChange?.(defaultExpr);
+      }, 0);
     }
   };
 

@@ -550,11 +550,11 @@ export function ComponentConfigDialog({
               <FilterConfig
                 formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
                 filters={config.filters || []}
-                onFiltersChange={(filters) => setConfig({ ...config, filters })}
+                onFiltersChange={(filters) => setConfig(prev => ({ ...prev, filters }))}
                 logicExpression={config.filterLogicExpression || ''}
-                onLogicExpressionChange={(expr) => setConfig({ ...config, filterLogicExpression: expr })}
+                onLogicExpressionChange={(expr) => setConfig(prev => ({ ...prev, filterLogicExpression: expr }))}
                 useManualLogic={config.useManualFilterLogic || false}
-                onUseManualLogicChange={(useManual) => setConfig({ ...config, useManualFilterLogic: useManual })}
+                onUseManualLogicChange={(useManual) => setConfig(prev => ({ ...prev, useManualFilterLogic: useManual }))}
               />
               
               {/* Drilldown */}
@@ -1095,11 +1095,11 @@ export function ComponentConfigDialog({
             <FilterConfig
               formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
               filters={config.filters || []}
-              onFiltersChange={(filters) => setConfig({ ...config, filters })}
+              onFiltersChange={(filters) => setConfig(prev => ({ ...prev, filters }))}
               logicExpression={config.filterLogicExpression || ''}
-              onLogicExpressionChange={(expr) => setConfig({ ...config, filterLogicExpression: expr })}
+              onLogicExpressionChange={(expr) => setConfig(prev => ({ ...prev, filterLogicExpression: expr }))}
               useManualLogic={config.useManualFilterLogic || false}
-              onUseManualLogicChange={(useManual) => setConfig({ ...config, useManualFilterLogic: useManual })}
+              onUseManualLogicChange={(useManual) => setConfig(prev => ({ ...prev, useManualFilterLogic: useManual }))}
             />
           ) : (
             <div className="p-4 text-center text-muted-foreground">
