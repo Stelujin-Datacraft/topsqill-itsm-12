@@ -141,6 +141,19 @@ export function GenericFieldSelector({
     );
   }
 
+  // Select all / Deselect all handlers
+  const allFieldIds = fieldsToShow.map(f => f.id);
+  const allSelected = allFieldIds.length > 0 && allFieldIds.every(id => selectedFields.includes(id));
+  const someSelected = selectedFields.length > 0 && !allSelected;
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      onFieldsChange(allFieldIds);
+    } else {
+      onFieldsChange([]);
+    }
+  };
+
   // Checkbox selection with improved scrolling
   return (
     <div className="space-y-3">
@@ -159,6 +172,29 @@ export function GenericFieldSelector({
       <div className="border rounded-md bg-background" style={{ height: maxHeight }}>
         <ScrollArea className="h-full">
           <div className="p-3 space-y-2">
+            {/* Select All option */}
+            <div className="flex items-center space-x-3 p-2 rounded-lg bg-muted/30 border-b mb-2">
+              <Checkbox
+                id="select-all"
+                checked={allSelected}
+                ref={(el) => {
+                  if (el) {
+                    (el as any).indeterminate = someSelected;
+                  }
+                }}
+                onCheckedChange={(checked) => handleSelectAll(!!checked)}
+              />
+              <Label 
+                htmlFor="select-all" 
+                className="text-sm font-medium cursor-pointer flex-1"
+              >
+                Select All
+              </Label>
+              <span className="text-xs text-muted-foreground">
+                ({allFieldIds.length} fields)
+              </span>
+            </div>
+
             {fieldsToShow.map((field) => (
               <div key={field.id} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50">
                 <Checkbox
