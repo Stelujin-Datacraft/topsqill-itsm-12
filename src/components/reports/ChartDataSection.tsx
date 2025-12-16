@@ -405,9 +405,9 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
 
             {mode === 'compare' && (
               <div className="space-y-4">
-                {/* First Field */}
+                {/* X-Axis Field */}
                 <div>
-                  <Label className="text-xs text-muted-foreground mb-2 block font-medium">First Value</Label>
+                  <Label className="text-xs text-muted-foreground mb-2 block font-medium">X-Axis Field (Categories)</Label>
                   {selectedMetrics[0] ? (
                     <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
                       <div className="flex items-center gap-2">
@@ -428,7 +428,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                       <SelectTrigger className="border-dashed border-2">
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Plus className="h-4 w-4" />
-                          <span>Select first field...</span>
+                          <span>Select X-axis field...</span>
                         </div>
                       </SelectTrigger>
                       <SelectContent>
@@ -445,20 +445,18 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                   )}
                 </div>
 
-                {/* VS Indicator */}
+                {/* Arrow Indicator */}
                 {selectedMetrics.length >= 1 && (
                   <div className="flex justify-center">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-full">
-                      <ArrowRight className="h-3 w-3" />
-                      <span className="font-medium">compared with</span>
-                      <ArrowRight className="h-3 w-3 rotate-180" />
+                      <span className="font-medium">X → Y</span>
                     </div>
                   </div>
                 )}
 
-                {/* Second Field */}
+                {/* Y-Axis Field */}
                 <div>
-                  <Label className="text-xs text-muted-foreground mb-2 block font-medium">Second Value</Label>
+                  <Label className="text-xs text-muted-foreground mb-2 block font-medium">Y-Axis Field (Values)</Label>
                   {selectedMetrics[1] ? (
                     <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
                       <div className="flex items-center gap-2">
@@ -479,7 +477,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                       <SelectTrigger className={`border-dashed border-2 ${selectedMetrics.length < 1 ? 'opacity-50' : ''}`}>
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Plus className="h-4 w-4" />
-                          <span>{selectedMetrics.length < 1 ? 'Select first field first' : 'Select second field...'}</span>
+                          <span>{selectedMetrics.length < 1 ? 'Select X-axis field first' : 'Select Y-axis field...'}</span>
                         </div>
                       </SelectTrigger>
                       <SelectContent>
