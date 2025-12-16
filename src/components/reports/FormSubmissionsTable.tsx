@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -36,6 +36,7 @@ import { useReports } from '@/hooks/useReports';
 import { useFormSubmissionData } from '@/hooks/useFormSubmissionData';
 import { supabase } from '@/integrations/supabase/client';
 import { FormDataCell } from './FormDataCell';
+import { rowPassesSearch, extractComparableValue } from '@/utils/filterUtils';
 
 interface FormSubmissionsTableConfig {
   title?: string;
@@ -173,13 +174,19 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
     }
   };
 
+  // Build field type map for search
+  const fieldTypeMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    formFields.forEach(field => {
+      map[field.id] = field.field_type || '';
+    });
+    return map;
+  }, [formFields]);
+
   const filteredAndSortedData = submissions
     .filter(submission => {
-      const matchesSearch = searchTerm === '' || 
-        Object.values(submission.submission_data || {}).some(value => 
-          String(value).toLowerCase().includes(searchTerm.toLowerCase())
-        ) ||
-        (submission.submitted_by || '').toLowerCase().includes(searchTerm.toLowerCase());
+      // Use rowPassesSearch for comprehensive search across all field types
+      const matchesSearch = searchTerm === '' || rowPassesSearch(submission, searchTerm, fieldTypeMap);
       
       const matchesApprovalFilter = approvalFilter === 'all' || 
                                    submission.approval_status === approvalFilter;
