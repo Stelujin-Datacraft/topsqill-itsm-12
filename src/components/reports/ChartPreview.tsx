@@ -8,7 +8,7 @@ import { useFormsData } from '@/hooks/useFormsData';
 import { ChartConfig } from '@/types/reports';
 import { colorSchemes } from './ChartColorThemes';
 import { TableCellSubmissionsDialog } from './TableCellSubmissionsDialog';
-import { evaluateFilterCondition } from '@/utils/filterUtils';
+import { evaluateFilterCondition, evaluateSubmissionFilters } from '@/utils/filterUtils';
 interface ChartPreviewProps {
   config: ChartConfig;
   onEdit?: () => void;
@@ -771,6 +771,25 @@ export function ChartPreview({
       });
     }
     const allFilters = [...(config.filters || []), ...drilldownFilters];
+    
+    // Use expression-based evaluation if manual logic is enabled
+    if (config.useManualFilterLogic && config.filterLogicExpression && (config.filters?.length || 0) > 1) {
+      // Only apply expression to config filters, drilldown filters always use AND
+      const configResult = evaluateSubmissionFilters(
+        submissionData,
+        config.filters || [],
+        true,
+        config.filterLogicExpression
+      );
+      // Drilldown filters must all pass (AND)
+      const drilldownResult = drilldownFilters.length === 0 || drilldownFilters.every(filter => {
+        const value = submissionData[filter.field];
+        return evaluateFilterCondition(value, filter.operator, filter.value);
+      });
+      return configResult && drilldownResult;
+    }
+    
+    // Default: AND logic for all filters
     return allFilters?.every(filter => {
       const value = submissionData[filter.field];
       return evaluateFilterCondition(value, filter.operator, filter.value);

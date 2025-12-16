@@ -2,6 +2,14 @@
  * Utility functions for filtering and searching across all field types
  */
 
+import { ExpressionEvaluator, EvaluationContext } from './expressionEvaluator';
+
+interface FilterCondition {
+  field: string;
+  operator: string;
+  value: string;
+}
+
 /**
  * Extract a comparable string value from any field type
  */
@@ -363,4 +371,67 @@ export const rowPassesSearch = (
   }
 
   return false;
+};
+
+/**
+ * Evaluate filters with optional expression-based logic
+ * @param row - The data row to evaluate
+ * @param filters - Array of filter conditions
+ * @param useManualLogic - Whether to use manual expression logic
+ * @param logicExpression - The logical expression (e.g., "(1 AND 2) OR 3")
+ * @param getFieldValue - Function to extract field value from row
+ * @param fieldTypes - Optional map of field IDs to field types
+ */
+export const evaluateFiltersWithExpression = (
+  row: any,
+  filters: FilterCondition[],
+  useManualLogic: boolean,
+  logicExpression: string,
+  getFieldValue: (row: any, fieldId: string) => any,
+  fieldTypes?: Record<string, string>
+): boolean => {
+  if (filters.length === 0) return true;
+
+  // Evaluate each filter condition individually
+  const conditionResults: EvaluationContext = {};
+  filters.forEach((filter, index) => {
+    const value = getFieldValue(row, filter.field);
+    const fieldType = fieldTypes?.[filter.field] || '';
+    const result = evaluateFilterCondition(value, filter.operator, filter.value, fieldType);
+    conditionResults[String(index + 1)] = result;
+  });
+
+  // If using manual expression logic, evaluate the expression
+  if (useManualLogic && logicExpression && logicExpression.trim()) {
+    try {
+      return ExpressionEvaluator.evaluate(logicExpression, conditionResults);
+    } catch (error) {
+      console.warn('Failed to evaluate filter expression, falling back to AND logic:', error);
+      // Fall back to AND logic on error
+      return Object.values(conditionResults).every(Boolean);
+    }
+  }
+
+  // Default: AND logic
+  return Object.values(conditionResults).every(Boolean);
+};
+
+/**
+ * Simplified filter evaluation for submission data
+ */
+export const evaluateSubmissionFilters = (
+  submissionData: any,
+  filters: FilterCondition[],
+  useManualLogic: boolean = false,
+  logicExpression: string = '',
+  fieldTypes?: Record<string, string>
+): boolean => {
+  return evaluateFiltersWithExpression(
+    submissionData,
+    filters,
+    useManualLogic,
+    logicExpression,
+    (row, fieldId) => row[fieldId],
+    fieldTypes
+  );
 };

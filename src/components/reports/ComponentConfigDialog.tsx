@@ -551,6 +551,10 @@ export function ComponentConfigDialog({
                 formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
                 filters={config.filters || []}
                 onFiltersChange={(filters) => setConfig({ ...config, filters })}
+                logicExpression={config.filterLogicExpression || ''}
+                onLogicExpressionChange={(expr) => setConfig({ ...config, filterLogicExpression: expr })}
+                useManualLogic={config.useManualFilterLogic || false}
+                onUseManualLogicChange={(useManual) => setConfig({ ...config, useManualFilterLogic: useManual })}
               />
               
               {/* Drilldown */}
@@ -1092,6 +1096,10 @@ export function ComponentConfigDialog({
               formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
               filters={config.filters || []}
               onFiltersChange={(filters) => setConfig({ ...config, filters })}
+              logicExpression={config.filterLogicExpression || ''}
+              onLogicExpressionChange={(expr) => setConfig({ ...config, filterLogicExpression: expr })}
+              useManualLogic={config.useManualFilterLogic || false}
+              onUseManualLogicChange={(useManual) => setConfig({ ...config, useManualFilterLogic: useManual })}
             />
           ) : (
             <div className="p-4 text-center text-muted-foreground">
