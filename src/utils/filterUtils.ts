@@ -44,23 +44,55 @@ export const extractComparableValue = (value: any, fieldType?: string): string =
     }
 
     // Phone field (e.g., { countryCode: "+1", number: "1234567890" })
-    if ('countryCode' in value || 'number' in value) {
-      return `${value.countryCode || ''} ${value.number || ''}`.trim();
+    if ('countryCode' in value || 'number' in value || 'phoneNumber' in value) {
+      const code = value.countryCode || value.dialCode || '';
+      const number = value.number || value.phoneNumber || '';
+      return `${code} ${number}`.trim();
     }
 
-    // Name field (e.g., { firstName, lastName })
+    // Name field (e.g., { firstName, lastName, middleName, prefix, suffix })
     if ('firstName' in value || 'lastName' in value) {
-      return `${value.firstName || ''} ${value.lastName || ''}`.trim();
+      return [value.prefix, value.firstName, value.middleName, value.lastName, value.suffix].filter(Boolean).join(' ');
     }
 
     // Status field
-    if ('status' in value) {
+    if ('status' in value && typeof value.status === 'string') {
       return String(value.status);
     }
 
-    // Date range (e.g., { start, end })
-    if ('start' in value || 'end' in value) {
-      return `${value.start || ''} - ${value.end || ''}`;
+    // Date range (e.g., { start, end } or { from, to })
+    if ('start' in value || 'end' in value || 'from' in value || 'to' in value) {
+      const start = value.start || value.from || '';
+      const end = value.end || value.to || '';
+      return `${start} - ${end}`;
+    }
+
+    // File upload field (e.g., { name, url, size })
+    if ('url' in value || ('name' in value && 'size' in value)) {
+      return value.name || value.url || '[File]';
+    }
+
+    // Rating object (e.g., { value: 4, max: 5 })
+    if ('value' in value && 'max' in value) {
+      return `${value.value}/${value.max}`;
+    }
+
+    // Slider object (e.g., { value: 50, min: 0, max: 100 })
+    if ('value' in value && ('min' in value || 'max' in value)) {
+      return String(value.value);
+    }
+
+    // Time field object (e.g., { hours, minutes, period })
+    if ('hours' in value || 'minutes' in value) {
+      const hours = value.hours || '00';
+      const minutes = value.minutes || '00';
+      const period = value.period || '';
+      return `${hours}:${minutes}${period ? ' ' + period : ''}`;
+    }
+
+    // Signature field (skip - contains base64 data)
+    if ('dataUrl' in value || 'signature' in value) {
+      return '[Signature]';
     }
 
     // Generic object - try to stringify meaningful content
@@ -77,9 +109,22 @@ export const extractComparableValue = (value: any, fieldType?: string): string =
     return `${code} ${amount}`;
   }
 
+  // Handle phone string format (e.g., "+1 1234567890")
+  if (fieldType === 'phone' || fieldType === 'phone-number') {
+    return String(value);
+  }
+
   // Handle boolean
   if (typeof value === 'boolean') {
-    return value ? 'true' : 'false';
+    return value ? 'Yes' : 'No';
+  }
+
+  // Handle dates
+  if (fieldType === 'date' || fieldType === 'datetime' || fieldType === 'date-time') {
+    const date = new Date(value);
+    if (!isNaN(date.getTime())) {
+      return date.toLocaleDateString() + (fieldType !== 'date' ? ' ' + date.toLocaleTimeString() : '');
+    }
   }
 
   return String(value);
