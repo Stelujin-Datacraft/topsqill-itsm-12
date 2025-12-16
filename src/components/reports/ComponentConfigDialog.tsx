@@ -308,7 +308,6 @@ export function ComponentConfigDialog({
             formId: '',
             field: '',
             aggregation: 'count',
-            format: 'number',
             filters: []
           },
           'text': {
@@ -1215,22 +1214,6 @@ export function ComponentConfigDialog({
               </Select>
             </div>
 
-            <div>
-              <Label>Display Format</Label>
-              <Select 
-                value={config.format || 'number'} 
-                onValueChange={(value) => setConfig({ ...config, format: value })}
-              >
-                <SelectTrigger className="bg-background">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg z-50">
-                  <SelectItem value="number">Number</SelectItem>
-                  <SelectItem value="currency">Currency</SelectItem>
-                  <SelectItem value="percentage">Percentage</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </>
         )}
       </div>
