@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { evaluateFilterCondition, extractComparableValue } from '@/utils/filterUtils';
 
 interface SubmissionRow {
   id: string;
@@ -129,44 +130,10 @@ export function useTableData(
           if (!condition.field) return true;
 
           const rawValue = row.submission_data?.[condition.field];
-          const valueStr = rawValue !== undefined && rawValue !== null ? rawValue.toString() : '';
           const target = condition.value;
           const targetStr = target !== undefined && target !== null ? target.toString() : '';
 
-          switch (condition.operator) {
-            case 'equals':
-              return valueStr === targetStr;
-            case 'not_equals':
-              return valueStr !== targetStr;
-            case 'contains':
-              return valueStr.toLowerCase().includes(targetStr.toLowerCase());
-            case 'starts_with':
-              return valueStr.startsWith(targetStr);
-            case 'ends_with':
-              return valueStr.endsWith(targetStr);
-            case 'greater_than':
-              return parseFloat(valueStr) > parseFloat(targetStr);
-            case 'less_than':
-              return parseFloat(valueStr) < parseFloat(targetStr);
-            case 'greater_equal':
-              return parseFloat(valueStr) >= parseFloat(targetStr);
-            case 'less_equal':
-              return parseFloat(valueStr) <= parseFloat(targetStr);
-            case 'is_empty':
-              return valueStr === '' || valueStr === undefined;
-            case 'is_not_empty':
-              return valueStr !== '' && valueStr !== undefined;
-            case 'in': {
-              const parts = targetStr.split(',').map(p => p.trim()).filter(Boolean);
-              return parts.length === 0 ? true : parts.includes(valueStr);
-            }
-            case 'not_in': {
-              const parts = targetStr.split(',').map(p => p.trim()).filter(Boolean);
-              return parts.length === 0 ? true : !parts.includes(valueStr);
-            }
-            default:
-              return true;
-          }
+          return evaluateFilterCondition(rawValue, condition.operator, targetStr);
         };
 
         transformedData = transformedData.filter(row =>
@@ -187,7 +154,7 @@ export function useTableData(
           if (filter.field && filter.value !== null && filter.value !== undefined) {
             transformedData = transformedData.filter(row => {
               const fieldValue = row.submission_data[filter.field];
-              return fieldValue && fieldValue.toString() === filter.value;
+              return evaluateFilterCondition(fieldValue, filter.operator || 'equals', filter.value);
             });
           }
         });
