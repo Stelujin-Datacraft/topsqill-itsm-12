@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { ChevronUp, ChevronDown, Search, Download, RefreshCw, Database } from 'lucide-react';
 import { Form } from '@/types/form';
 import { useTableData } from '@/hooks/useTableData';
+import { rowPassesSearch, extractComparableValue } from '@/utils/filterUtils';
 
 interface DisplayField {
   id: string;
@@ -113,14 +114,13 @@ export function SimpleTablePreview({
   const filteredData = useMemo(() => {
     if (!enableSearch || !searchTerm) return data;
     
-    return data.filter(row => {
-      return displayFields.some(field => {
-        const value = field.type === 'metadata' 
-          ? row[field.id as keyof typeof row]
-          : row.submission_data?.[field.id];
-        return value && value.toString().toLowerCase().includes(searchTerm.toLowerCase());
-      });
+    // Build field type map
+    const fieldTypeMap: Record<string, string> = {};
+    displayFields.forEach(field => {
+      fieldTypeMap[field.id] = field.type || '';
     });
+    
+    return data.filter(row => rowPassesSearch(row, searchTerm, fieldTypeMap));
   }, [data, searchTerm, enableSearch, displayFields]);
 
   const handleSort = (fieldId: string) => {

@@ -8,6 +8,7 @@ import { useFormsData } from '@/hooks/useFormsData';
 import { ChartConfig } from '@/types/reports';
 import { colorSchemes } from './ChartColorThemes';
 import { TableCellSubmissionsDialog } from './TableCellSubmissionsDialog';
+import { evaluateFilterCondition } from '@/utils/filterUtils';
 interface ChartPreviewProps {
   config: ChartConfig;
   onEdit?: () => void;
@@ -772,28 +773,7 @@ export function ChartPreview({
     const allFilters = [...(config.filters || []), ...drilldownFilters];
     return allFilters?.every(filter => {
       const value = submissionData[filter.field];
-      switch (filter.operator) {
-        case 'equals':
-          return value === filter.value;
-        case 'contains':
-          return String(value).includes(filter.value);
-        case 'greater_than':
-          return Number(value) > Number(filter.value);
-        case 'less_than':
-          return Number(value) < Number(filter.value);
-        case 'starts_with':
-          return String(value).startsWith(filter.value);
-        case 'ends_with':
-          return String(value).endsWith(filter.value);
-        case 'not_equals':
-          return value !== filter.value;
-        case 'is_empty':
-          return !value || value === '';
-        case 'is_not_empty':
-          return value && value !== '';
-        default:
-          return true;
-      }
+      return evaluateFilterCondition(value, filter.operator, filter.value);
     }) ?? true;
   };
   const getDimensionKey = (submissionData: any, dimensionFields: string[]): string => {

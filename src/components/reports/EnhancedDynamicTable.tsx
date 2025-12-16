@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useReports } from '@/hooks/useReports';
 import { useTableData } from '@/hooks/useTableData';
 import { FormDataCell } from './FormDataCell';
+import { evaluateFilterCondition, rowPassesSearch, extractComparableValue } from '@/utils/filterUtils';
 
 interface EnhancedTableConfig {
   title: string;
@@ -114,32 +115,13 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
   const evaluateFilter = useCallback((row: any, filter: ActiveFilter): boolean => {
     const value = getFieldValue(row, filter.field);
     const filterValue = filter.value;
-    const strValue = String(value).toLowerCase();
-    const strFilterValue = String(filterValue).toLowerCase();
+    
+    // Get field type for proper handling
+    const field = formFields.find(f => f.id === filter.field);
+    const fieldType = (field as any)?.field_type || field?.type || '';
 
-    switch (filter.operator) {
-      case 'equals':
-        return strValue === strFilterValue;
-      case 'not_equals':
-        return strValue !== strFilterValue;
-      case 'contains':
-        return strValue.includes(strFilterValue);
-      case 'starts_with':
-        return strValue.startsWith(strFilterValue);
-      case 'ends_with':
-        return strValue.endsWith(strFilterValue);
-      case 'greater_than':
-        return parseFloat(String(value)) > parseFloat(filterValue);
-      case 'less_than':
-        return parseFloat(String(value)) < parseFloat(filterValue);
-      case 'is_empty':
-        return !value || strValue === '' || strValue === 'n/a';
-      case 'is_not_empty':
-        return value && strValue !== '' && strValue !== 'n/a';
-      default:
-        return true;
-    }
-  }, []);
+    return evaluateFilterCondition(value, filter.operator, filterValue, fieldType);
+  }, [formFields]);
 
   // Evaluate all filters with logical operators
   const evaluateFilters = useCallback((row: any, filters: ActiveFilter[]): boolean => {
@@ -316,11 +298,14 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
 
     // Apply search filter
     if (searchTerm && config.enableSearch) {
+      // Build field type map for proper search handling
+      const fieldTypeMap: Record<string, string> = {};
+      formFields.forEach(field => {
+        fieldTypeMap[field.id] = (field as any)?.field_type || field?.type || '';
+      });
+      
       filtered = filtered.filter(row => {
-        return displayFields.some(field => {
-          const value = getFieldValue(row, field.id);
-          return value.toString().toLowerCase().includes(searchTerm.toLowerCase());
-        });
+        return rowPassesSearch(row, searchTerm, fieldTypeMap);
       });
     }
 
