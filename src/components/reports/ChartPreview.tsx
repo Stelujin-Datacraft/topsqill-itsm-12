@@ -455,6 +455,21 @@ export function ChartPreview({
   };
 
   // Process compare mode - X/Y scatter format (Field 1 on X, Field 2 on Y)
+  // Get raw display value from submission data (for table display, not numeric conversion)
+  const getRawDisplayValue = (submissionData: any, fieldId: string): string => {
+    const value = submissionData[fieldId];
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'object') {
+      if (value.amount !== undefined && value.code) {
+        return `${value.code} ${value.amount}`;
+      }
+      if (value.status) return value.status;
+      if (Array.isArray(value)) return value.join(', ');
+      return JSON.stringify(value);
+    }
+    return String(value);
+  };
+
   const processCompareData = (submissions: any[], dimensionFields: string[], metricFields: string[]) => {
     console.log('📊 Processing compare mode with fields:', metricFields, 'dimensions:', dimensionFields);
 
@@ -501,17 +516,22 @@ export function ChartPreview({
       return points;
     }
 
-    // No dimension - each submission becomes a point: x = field1 value, y = field2 value
+    // No dimension - each submission becomes a point with raw values for table display
     const points = submissions
       .filter(submission => passesFilters(submission.submission_data))
       .map((submission, index) => {
         const submissionData = submission.submission_data;
         const xValue = getRawMetricValue(submissionData, metricField1);
         const yValue = getRawMetricValue(submissionData, metricField2);
+        // Store raw display values for table view
+        const xRawValue = getRawDisplayValue(submissionData, metricField1);
+        const yRawValue = getRawDisplayValue(submissionData, metricField2);
 
         return {
           x: xValue,
           y: yValue,
+          xRaw: xRawValue,
+          yRaw: yRawValue,
           name: `Record ${index + 1}`,
           // Store field names for tooltip
           xFieldName: field1Name,
@@ -2141,7 +2161,9 @@ export function ChartPreview({
                         const isCompareMode = config.compareMode && config.metrics?.length === 2;
                         
                         if (isCompareMode) {
-                          // Compare mode: data has x, y values
+                          // Compare mode: show raw values if available, else numeric values
+                          const displayX = item.xRaw !== undefined && item.xRaw !== '' ? item.xRaw : (typeof item.x === 'number' ? item.x.toLocaleString() : (item.x ?? ''));
+                          const displayY = item.yRaw !== undefined && item.yRaw !== '' ? item.yRaw : (typeof item.y === 'number' ? item.y.toLocaleString() : (item.y ?? ''));
                           return (
                             <>
                               <td 
@@ -2156,7 +2178,7 @@ export function ChartPreview({
                                   });
                                 }}
                               >
-                                {typeof item.x === 'number' ? item.x.toLocaleString() : (item.x ?? 0)}
+                                {displayX || '-'}
                               </td>
                               <td 
                                 key="field2" 
@@ -2170,7 +2192,7 @@ export function ChartPreview({
                                   });
                                 }}
                               >
-                                {typeof item.y === 'number' ? item.y.toLocaleString() : (item.y ?? 0)}
+                                {displayY || '-'}
                               </td>
                             </>
                           );
