@@ -260,8 +260,12 @@ export function ChartPreview({
         // Get drilldown levels - support both property names for compatibility
         const drilldownLevels = config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels || [];
 
-        // Use server-side RPC function for drilldown-enabled charts
-        if (config.drilldownConfig?.enabled && drilldownLevels.length > 0) {
+        // IMPORTANT: Compare mode MUST use client-side processing to get actual field values
+        // Server-side RPC returns count data which is not suitable for compare mode
+        const shouldUseServerSide = config.drilldownConfig?.enabled && drilldownLevels.length > 0 && !config.compareMode;
+
+        // Use server-side RPC function for drilldown-enabled charts (not compare mode)
+        if (shouldUseServerSide) {
           console.log('Using drilldown-enabled chart data fetch');
 
           // Determine the current dimension based on drilldown state
@@ -454,6 +458,52 @@ export function ChartPreview({
     }
   };
 
+  // Helper to get the actual field value (preserving type) for compare mode
+  const getCompareFieldValue = (submissionData: any, fieldId: string): { raw: any; numeric: number; display: string } => {
+    const rawValue = submissionData[fieldId];
+    
+    if (rawValue === undefined || rawValue === null) {
+      return { raw: null, numeric: 0, display: 'N/A' };
+    }
+    
+    // Handle objects (currency, address, etc.)
+    if (typeof rawValue === 'object' && rawValue !== null) {
+      if (rawValue.amount !== undefined) {
+        // Currency field
+        const num = Number(rawValue.amount);
+        return { raw: rawValue, numeric: isNaN(num) ? 0 : num, display: `${rawValue.code || ''} ${num}`.trim() };
+      }
+      if (rawValue.status) {
+        // Status field
+        return { raw: rawValue, numeric: rawValue.status === 'approved' ? 1 : 0, display: rawValue.status };
+      }
+      // Generic object - try to stringify
+      return { raw: rawValue, numeric: 0, display: JSON.stringify(rawValue) };
+    }
+    
+    // Handle numbers
+    if (typeof rawValue === 'number') {
+      return { raw: rawValue, numeric: isNaN(rawValue) ? 0 : rawValue, display: String(rawValue) };
+    }
+    
+    // Handle strings - try to parse as number
+    if (typeof rawValue === 'string') {
+      const numValue = Number(rawValue);
+      if (!isNaN(numValue)) {
+        return { raw: rawValue, numeric: numValue, display: rawValue };
+      }
+      // Pure string - use index for numeric representation
+      return { raw: rawValue, numeric: 0, display: rawValue };
+    }
+    
+    // Handle booleans
+    if (typeof rawValue === 'boolean') {
+      return { raw: rawValue, numeric: rawValue ? 1 : 0, display: rawValue ? 'Yes' : 'No' };
+    }
+    
+    return { raw: rawValue, numeric: 0, display: String(rawValue) };
+  };
+
   // Process compare mode - X/Y scatter format (Field 1 on X, Field 2 on Y)
   const processCompareData = (submissions: any[], dimensionFields: string[], metricFields: string[]) => {
     console.log('📊 Processing compare mode with fields:', metricFields, 'dimensions:', dimensionFields);
@@ -469,30 +519,30 @@ export function ChartPreview({
       console.log('📊 Compare mode WITH dimension grouping:', dimensionFields[0]);
       
       // Group submissions by dimension value and sum both metrics
-      const groupedData: { [key: string]: { x: number; y: number; count: number } } = {};
+      const groupedData: { [key: string]: { xSum: number; ySum: number; count: number } } = {};
       
       submissions
         .filter(submission => passesFilters(submission.submission_data))
         .forEach(submission => {
           const submissionData = submission.submission_data;
           const dimensionKey = getDimensionKey(submissionData, dimensionFields);
-          const xValue = getRawMetricValue(submissionData, metricField1);
-          const yValue = getRawMetricValue(submissionData, metricField2);
+          const xParsed = getCompareFieldValue(submissionData, metricField1);
+          const yParsed = getCompareFieldValue(submissionData, metricField2);
           
           if (!groupedData[dimensionKey]) {
-            groupedData[dimensionKey] = { x: 0, y: 0, count: 0 };
+            groupedData[dimensionKey] = { xSum: 0, ySum: 0, count: 0 };
           }
           
-          groupedData[dimensionKey].x += xValue;
-          groupedData[dimensionKey].y += yValue;
+          groupedData[dimensionKey].xSum += xParsed.numeric;
+          groupedData[dimensionKey].ySum += yParsed.numeric;
           groupedData[dimensionKey].count += 1;
         });
       
       // Convert to array format
       const points = Object.entries(groupedData).map(([name, values]) => ({
         name,
-        x: values.x,
-        y: values.y,
+        x: values.xSum,
+        y: values.ySum,
         xFieldName: field1Name,
         yFieldName: field2Name,
       }));
@@ -506,12 +556,16 @@ export function ChartPreview({
       .filter(submission => passesFilters(submission.submission_data))
       .map((submission, index) => {
         const submissionData = submission.submission_data;
-        const xValue = getRawMetricValue(submissionData, metricField1);
-        const yValue = getRawMetricValue(submissionData, metricField2);
+        const xParsed = getCompareFieldValue(submissionData, metricField1);
+        const yParsed = getCompareFieldValue(submissionData, metricField2);
 
         return {
-          x: xValue,
-          y: yValue,
+          x: xParsed.numeric,
+          y: yParsed.numeric,
+          xRaw: xParsed.raw,
+          yRaw: yParsed.raw,
+          xDisplay: xParsed.display,
+          yDisplay: yParsed.display,
           name: `Record ${index + 1}`,
           // Store field names for tooltip
           xFieldName: field1Name,
@@ -1196,17 +1250,19 @@ export function ChartPreview({
             if (!payload || payload.length === 0) return null;
             const data = payload[0]?.payload;
             if (!data) return null;
+            const xDisplay = data.xDisplay ?? (typeof data.x === 'number' ? data.x.toLocaleString() : data.x);
+            const yDisplay = data.yDisplay ?? (typeof data.y === 'number' ? data.y.toLocaleString() : data.y);
             return (
               <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
                 <div className="font-medium mb-2">{data.name}</div>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between gap-4">
                     <span className="text-muted-foreground">{data.xFieldName || field1Name}:</span>
-                    <span className="font-semibold">{data.x}</span>
+                    <span className="font-semibold">{xDisplay}</span>
                   </div>
                   <div className="flex justify-between gap-4">
                     <span className="text-muted-foreground">{data.yFieldName || field2Name}:</span>
-                    <span className="font-semibold">{data.y}</span>
+                    <span className="font-semibold">{yDisplay}</span>
                   </div>
                 </div>
               </div>
@@ -1278,7 +1334,7 @@ export function ChartPreview({
         // Bar chart = vertical bars in compare mode (X-axis field on horizontal, Y-axis field determines height)
         const barData = sortedData.map((item, idx) => ({
           ...item,
-          xLabel: String(item.x), // Use x value as category label on X-axis
+          xLabel: item.xDisplay ?? String(item.x), // Use display value if available
         }));
 
         return (
@@ -1305,17 +1361,19 @@ export function ChartPreview({
                       if (!payload || payload.length === 0) return null;
                       const data = payload[0]?.payload;
                       if (!data) return null;
+                      const xDisplay = data.xDisplay ?? (typeof data.x === 'number' ? data.x.toLocaleString() : data.x);
+                      const yDisplay = data.yDisplay ?? (typeof data.y === 'number' ? data.y.toLocaleString() : data.y);
                       return (
                         <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
                           <div className="font-medium mb-2">{data.name}</div>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{field1Name}:</span>
-                              <span className="font-semibold">{data.x}</span>
+                              <span className="font-semibold">{xDisplay}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{field2Name}:</span>
-                              <span className="font-semibold">{data.y}</span>
+                              <span className="font-semibold">{yDisplay}</span>
                             </div>
                           </div>
                         </div>
@@ -1334,7 +1392,7 @@ export function ChartPreview({
         // Column chart = vertical bars in compare mode
         const barData = sortedData.map((item, idx) => ({
           ...item,
-          xLabel: String(item.x), // Use x value as category label on X-axis
+          xLabel: item.xDisplay ?? String(item.x), // Use display value if available
         }));
 
         return (
@@ -1361,17 +1419,19 @@ export function ChartPreview({
                       if (!payload || payload.length === 0) return null;
                       const data = payload[0]?.payload;
                       if (!data) return null;
+                      const xDisplay = data.xDisplay ?? (typeof data.x === 'number' ? data.x.toLocaleString() : data.x);
+                      const yDisplay = data.yDisplay ?? (typeof data.y === 'number' ? data.y.toLocaleString() : data.y);
                       return (
                         <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
                           <div className="font-medium mb-2">{data.name}</div>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{field1Name} (X):</span>
-                              <span className="font-semibold">{data.x}</span>
+                              <span className="font-semibold">{xDisplay}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{field2Name} (Y):</span>
-                              <span className="font-semibold">{data.y}</span>
+                              <span className="font-semibold">{yDisplay}</span>
                             </div>
                           </div>
                         </div>
@@ -2141,7 +2201,10 @@ export function ChartPreview({
                         const isCompareMode = config.compareMode && config.metrics?.length === 2;
                         
                         if (isCompareMode) {
-                          // Compare mode: data has x, y values
+                          // Compare mode: data has x, y values and optional xDisplay, yDisplay for strings
+                          const xDisplay = item.xDisplay ?? (typeof item.x === 'number' ? item.x.toLocaleString() : (item.x ?? 'N/A'));
+                          const yDisplay = item.yDisplay ?? (typeof item.y === 'number' ? item.y.toLocaleString() : (item.y ?? 'N/A'));
+                          
                           return (
                             <>
                               <td 
@@ -2156,7 +2219,7 @@ export function ChartPreview({
                                   });
                                 }}
                               >
-                                {typeof item.x === 'number' ? item.x.toLocaleString() : (item.x ?? 0)}
+                                {xDisplay}
                               </td>
                               <td 
                                 key="field2" 
@@ -2170,7 +2233,7 @@ export function ChartPreview({
                                   });
                                 }}
                               >
-                                {typeof item.y === 'number' ? item.y.toLocaleString() : (item.y ?? 0)}
+                                {yDisplay}
                               </td>
                             </>
                           );
