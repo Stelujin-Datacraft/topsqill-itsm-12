@@ -983,7 +983,9 @@ export function ChartPreview({
     const metricField = config.metrics?.[0];
     const metricName = metricField ? getFormFieldName(metricField) : 'Records';
 
-    const aggregation = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
+    // In compare mode, show "Compare" as aggregation type instead of count
+    const isCompareMode = config.compareMode && config.metrics && config.metrics.length === 2;
+    const aggregation = isCompareMode ? 'compare' : (config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count');
     const groupByName = config.groupByField ? getFormFieldName(config.groupByField) : null;
     const chartType = config.type || config.chartType || 'bar';
     
@@ -1304,7 +1306,7 @@ export function ChartPreview({
         // Bar chart = vertical bars in compare mode (X-axis field on horizontal, Y-axis field determines height)
         const barData = sortedData.map((item, idx) => ({
           ...item,
-          xLabel: String(item.x), // Use x value as category label on X-axis
+          xLabel: item.xRaw || item.name || String(item.x), // Use text value from Field 1 for X-axis label
         }));
 
         return (
@@ -1360,7 +1362,7 @@ export function ChartPreview({
         // Column chart = vertical bars in compare mode
         const barData = sortedData.map((item, idx) => ({
           ...item,
-          xLabel: String(item.x), // Use x value as category label on X-axis
+          xLabel: item.xRaw || item.name || String(item.x), // Use text value from Field 1 for X-axis label
         }));
 
         return (
