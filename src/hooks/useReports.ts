@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -139,7 +139,7 @@ export function useReports() {
     if (error) throw error;
   };
 
-  const getFormSubmissionData = async (formId: string) => {
+  const getFormSubmissionData = useCallback(async (formId: string) => {
     const { data, error } = await supabase
       .from('form_submissions')
       .select('*')
@@ -147,9 +147,9 @@ export function useReports() {
 
     if (error) throw error;
     return data || [];
-  };
+  }, []);
 
-  const getChartData = async (
+  const getChartData = useCallback(async (
     formId: string,
     dimensions: string[] = [],
     metrics: string[] = [],
@@ -178,7 +178,7 @@ export function useReports() {
     }
 
     return data || [];
-  };
+  }, []);
 
   const getFormFields = (formId: string) => {
     const form = forms.find(f => f.id === formId);
