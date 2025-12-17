@@ -559,6 +559,16 @@ export function ChartPreview({
         const xParsed = getCompareFieldValue(submissionData, metricField1);
         const yParsed = getCompareFieldValue(submissionData, metricField2);
 
+        // Debug logging to trace actual values
+        console.log(`📊 Record ${index + 1} - Field1 (${metricField1}):`, {
+          rawValue: submissionData[metricField1],
+          parsed: xParsed
+        });
+        console.log(`📊 Record ${index + 1} - Field2 (${metricField2}):`, {
+          rawValue: submissionData[metricField2],
+          parsed: yParsed
+        });
+
         return {
           x: xParsed.numeric,
           y: yParsed.numeric,
@@ -573,7 +583,7 @@ export function ChartPreview({
         };
       });
 
-    console.log('📊 Compare scatter data:', points);
+    console.log('📊 Compare scatter data (full):', JSON.stringify(points, null, 2));
     return points;
   };
   
@@ -1233,7 +1243,44 @@ export function ChartPreview({
       const field1Name = config.metrics ? getFormFieldName(config.metrics[0]) : 'Field 1';
       const field2Name = config.metrics ? getFormFieldName(config.metrics[1]) : 'Field 2';
 
-      // Calculate safe domains for X and Y axes
+      // Detect if fields contain text (non-numeric) values
+      // If most x or y values are 0, it means they're text fields
+      const hasTextX = sanitizedChartData.filter(d => d.x === 0 && d.xDisplay && d.xDisplay !== '0' && d.xDisplay !== 'N/A').length > sanitizedChartData.length / 2;
+      const hasTextY = sanitizedChartData.filter(d => d.y === 0 && d.yDisplay && d.yDisplay !== '0' && d.yDisplay !== 'N/A').length > sanitizedChartData.length / 2;
+      const isTextComparison = hasTextX || hasTextY;
+
+      console.log('📊 Compare mode analysis:', { hasTextX, hasTextY, isTextComparison, sampleData: sanitizedChartData[0] });
+
+      // For text field comparisons, use table view for better readability
+      if (isTextComparison) {
+        return (
+          <div className="h-full overflow-auto">
+            <div className="text-sm text-muted-foreground mb-2 p-2 bg-muted/30 rounded">
+              Comparing text fields - showing as table for better readability
+            </div>
+            <table className="w-full border-collapse border border-border">
+              <thead>
+                <tr>
+                  <th className="border border-border p-2 bg-muted text-left font-semibold">Record</th>
+                  <th className="border border-border p-2 bg-muted text-left font-semibold">{field1Name}</th>
+                  <th className="border border-border p-2 bg-muted text-left font-semibold">{field2Name}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sanitizedChartData.map((item, index) => (
+                  <tr key={index} className="hover:bg-muted/30">
+                    <td className="border border-border p-2 font-medium">{item.name}</td>
+                    <td className="border border-border p-2">{item.xDisplay ?? item.x}</td>
+                    <td className="border border-border p-2">{item.yDisplay ?? item.y}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
+
+      // Calculate safe domains for X and Y axes (numeric comparison)
       const xValues = sanitizedChartData.map(d => Number(d.x)).filter(v => isFinite(v));
       const yValues = sanitizedChartData.map(d => Number(d.y)).filter(v => isFinite(v));
       const xMax = xValues.length > 0 ? Math.max(...xValues) : 10;
