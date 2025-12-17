@@ -1973,8 +1973,11 @@ export function ChartPreview({
           
           {/* Aggregation Badge */}
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-            {chartInfo.aggregation === 'count' ? 'Count' : chartInfo.aggregation.charAt(0).toUpperCase() + chartInfo.aggregation.slice(1)}
-            {chartInfo.aggregation !== 'count' && `: ${chartInfo.metricName}`}
+            {chartInfo.aggregation === 'compare' ? (
+              <>Compare: {config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'Field 1'} - {config.metrics?.[1] ? getFormFieldName(config.metrics[1]) : 'Field 2'}</>
+            ) : chartInfo.aggregation === 'count' ? 'Count' : (
+              <>{chartInfo.aggregation.charAt(0).toUpperCase() + chartInfo.aggregation.slice(1)}: {chartInfo.metricName}</>
+            )}
           </span>
           
           {/* Form Badge */}
