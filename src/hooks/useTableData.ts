@@ -171,11 +171,97 @@ export function useTableData(
     }
   }, [formId, currentPage, pageSize]);
 
+  // Helper to extract field value with multiple fallback strategies
+  const extractFieldValue = (submissionData: Record<string, any>, fieldId: string): any => {
+    if (!submissionData || !fieldId) return undefined;
+    
+    // Direct lookup
+    if (submissionData[fieldId] !== undefined) {
+      return submissionData[fieldId];
+    }
+    
+    // Try without any prefix (in case fieldId has a prefix)
+    if (fieldId.includes('.')) {
+      const rawFieldId = fieldId.split('.').pop();
+      if (rawFieldId && submissionData[rawFieldId] !== undefined) {
+        return submissionData[rawFieldId];
+      }
+    }
+    
+    // Try to find by partial match (for cases where keys might have prefixes)
+    const keys = Object.keys(submissionData);
+    const matchingKey = keys.find(k => k === fieldId || k.endsWith(`.${fieldId}`) || fieldId.endsWith(`.${k}`));
+    if (matchingKey) {
+      return submissionData[matchingKey];
+    }
+    
+    return undefined;
+  };
+
+  // Helper to normalize join values for comparison - more flexible matching
+  const normalizeJoinValue = (value: any): string | null => {
+    if (value === null || value === undefined || value === '') return null;
+    
+    // Handle arrays - extract first element or join
+    if (Array.isArray(value)) {
+      if (value.length === 0) return null;
+      // For single-element arrays, use the element directly
+      if (value.length === 1) {
+        return normalizeJoinValue(value[0]);
+      }
+      // For multi-element, create a sorted string for consistent comparison
+      return value.map(v => normalizeJoinValue(v)).filter(Boolean).sort().join('|');
+    }
+    
+    // Handle objects (like submission-access, address, etc.)
+    if (typeof value === 'object') {
+      // Check for common patterns
+      if (value.value !== undefined) return normalizeJoinValue(value.value);
+      if (value.label !== undefined) return normalizeJoinValue(value.label);
+      if (value.id !== undefined) return normalizeJoinValue(value.id);
+      if (value.name !== undefined) return normalizeJoinValue(value.name);
+      if (value.email !== undefined) return normalizeJoinValue(value.email);
+      
+      // For other objects, stringify
+      try {
+        return JSON.stringify(value).toLowerCase().trim();
+      } catch {
+        return String(value).toLowerCase().trim();
+      }
+    }
+    
+    // Handle numbers
+    if (typeof value === 'number') {
+      return String(value);
+    }
+    
+    // Handle booleans
+    if (typeof value === 'boolean') {
+      return value ? 'true' : 'false';
+    }
+    
+    return String(value).toLowerCase().trim();
+  };
+
+  // Check if two normalized values match
+  const valuesMatch = (val1: string | null, val2: string | null): boolean => {
+    if (val1 === null || val2 === null) return false;
+    if (val1 === val2) return true;
+    
+    // Try partial matching for complex values
+    if (val1.includes('|') || val2.includes('|')) {
+      const parts1 = val1.split('|');
+      const parts2 = val2.split('|');
+      // Check if any part matches
+      return parts1.some(p1 => parts2.some(p2 => p1 === p2));
+    }
+    
+    return false;
+  };
+
   // Helper function to apply joins
   const applyJoins = async (primaryData: SubmissionRow[], joins: JoinDefinition[]): Promise<SubmissionRow[]> => {
     let result = [...primaryData];
-
-    console.log('📌 applyJoins - primaryData length:', primaryData.length);
 
     for (const join of joins) {
       if (!join.secondaryFormId || !join.primaryFieldId || !join.secondaryFieldId) {
@@ -206,42 +292,8 @@ export function useTableData(
           submission_ref_id: row.submission_ref_id || ''
         }));
 
-        console.log(`📌 applyJoins - loaded ${secondarySubmissions.length} records from secondary form for join`);
-
-        // Debug: show distinct join key values before performing join
-        const primaryKeys = Array.from(
-          new Set(
-            primaryData.map(p => p.submission_data?.[join.primaryFieldId]).filter(v => v !== undefined && v !== null)
-          )
-        );
-        const secondaryKeys = Array.from(
-          new Set(
-            secondarySubmissions.map(s => s.submission_data?.[join.secondaryFieldId]).filter(v => v !== undefined && v !== null)
-          )
-        );
-        
-        // Debug: show all keys in submission_data to verify field ID exists
-        if (primaryData.length > 0) {
-          console.log('📌 applyJoins - primary submission_data keys:', Object.keys(primaryData[0].submission_data || {}));
-        }
-        if (secondarySubmissions.length > 0) {
-          console.log('📌 applyJoins - secondary submission_data keys:', Object.keys(secondarySubmissions[0].submission_data || {}));
-        }
-        
-        console.log('📌 applyJoins - primaryFieldId:', join.primaryFieldId);
-        console.log('📌 applyJoins - secondaryFieldId:', join.secondaryFieldId);
-        console.log('📌 applyJoins - primary join values:', primaryKeys);
-        console.log('📌 applyJoins - secondary join values:', secondaryKeys);
-        
-        // Check for matching values
-        const normalizedPrimaryKeys = primaryKeys.map(k => normalizeJoinValue(k));
-        const normalizedSecondaryKeys = secondaryKeys.map(k => normalizeJoinValue(k));
-        const matchingValues = normalizedPrimaryKeys.filter(pk => normalizedSecondaryKeys.includes(pk));
-        console.log('📌 applyJoins - potential matches:', matchingValues.length > 0 ? matchingValues : 'NONE - values do not match between forms');
-
         // Perform the join based on join type
         result = performJoin(result, secondarySubmissions, join);
-        console.log('📌 applyJoins - result length after join:', result.length, '(join type:', join.joinType, ')');
         
       } catch (err) {
         console.error('Error performing join:', err);
@@ -249,22 +301,6 @@ export function useTableData(
     }
 
     return result;
-  };
-
-  // Helper to normalize join values for comparison
-  const normalizeJoinValue = (value: any): string | null => {
-    if (value === null || value === undefined) return null;
-    
-    // Handle objects (like submission-access fields or arrays)
-    if (typeof value === 'object') {
-      try {
-        return JSON.stringify(value).toLowerCase().trim();
-      } catch {
-        return String(value).toLowerCase().trim();
-      }
-    }
-    
-    return String(value).toLowerCase().trim();
   };
 
   // Perform join operation based on type
@@ -276,69 +312,61 @@ export function useTableData(
     const { joinType, primaryFieldId, secondaryFieldId, secondaryFormId } = joinDef;
     // Use formId as prefix to match what EnhancedDynamicTable expects
     const prefix = `${secondaryFormId}.`;
-    
-    let matchCount = 0;
+
+    // Helper to find matching secondary row
+    const findMatchingSecondary = (primaryRow: SubmissionRow) => {
+      const primaryValueRaw = extractFieldValue(primaryRow.submission_data, primaryFieldId);
+      const primaryValue = normalizeJoinValue(primaryValueRaw);
+      
+      return secondaryData.find(secondaryRow => {
+        const secondaryValueRaw = extractFieldValue(secondaryRow.submission_data, secondaryFieldId);
+        const secondaryValue = normalizeJoinValue(secondaryValueRaw);
+        return valuesMatch(primaryValue, secondaryValue);
+      });
+    };
+
+    // Helper to find matching primary row
+    const findMatchingPrimary = (secondaryRow: any) => {
+      const secondaryValueRaw = extractFieldValue(secondaryRow.submission_data, secondaryFieldId);
+      const secondaryValue = normalizeJoinValue(secondaryValueRaw);
+      
+      return primaryData.find(primaryRow => {
+        const primaryValueRaw = extractFieldValue(primaryRow.submission_data, primaryFieldId);
+        const primaryValue = normalizeJoinValue(primaryValueRaw);
+        return valuesMatch(primaryValue, secondaryValue);
+      });
+    };
 
     switch (joinType) {
       case 'inner':
         // Only return records that have matches in both tables
-        const innerResult = primaryData
+        return primaryData
           .map(primaryRow => {
-            const primaryValueRaw = primaryRow.submission_data?.[primaryFieldId];
-            const primaryValue = normalizeJoinValue(primaryValueRaw);
-            const matchingSecondary = secondaryData.find(secondaryRow => {
-              const secondaryValueRaw = secondaryRow.submission_data?.[secondaryFieldId];
-              const secondaryValue = normalizeJoinValue(secondaryValueRaw);
-              return primaryValue !== null && secondaryValue !== null && secondaryValue === primaryValue;
-            });
-
+            const matchingSecondary = findMatchingSecondary(primaryRow);
             if (matchingSecondary) {
-              matchCount++;
               return mergeRows(primaryRow, matchingSecondary, prefix);
             }
             return null;
           })
           .filter((row): row is SubmissionRow => row !== null);
-        
-        console.log(`📌 INNER join: ${matchCount} matches found out of ${primaryData.length} primary records`);
-        return innerResult;
 
       case 'left':
-        let leftMatchCount = 0;
-        const leftResult = primaryData.map(primaryRow => {
-          const primaryValueRaw = primaryRow.submission_data?.[primaryFieldId];
-          const primaryValue = normalizeJoinValue(primaryValueRaw);
-          const matchingSecondary = secondaryData.find(secondaryRow => {
-            const secondaryValueRaw = secondaryRow.submission_data?.[secondaryFieldId];
-            const secondaryValue = normalizeJoinValue(secondaryValueRaw);
-            return primaryValue !== null && secondaryValue !== null && secondaryValue === primaryValue;
-          });
-
+        return primaryData.map(primaryRow => {
+          const matchingSecondary = findMatchingSecondary(primaryRow);
           if (matchingSecondary) {
-            leftMatchCount++;
             return mergeRows(primaryRow, matchingSecondary, prefix);
           }
           return primaryRow;
         });
-        console.log(`📌 LEFT join: ${leftMatchCount} matches found out of ${primaryData.length} primary records`);
-        return leftResult;
 
       case 'right':
         // Return all secondary records, with primary data where matches exist
         const rightResult: SubmissionRow[] = [];
-        const matchedPrimaryIds = new Set<string>();
 
         secondaryData.forEach(secondaryRow => {
-          const secondaryValueRaw = secondaryRow.submission_data?.[secondaryFieldId];
-          const secondaryValue = normalizeJoinValue(secondaryValueRaw);
-          const matchingPrimary = primaryData.find(primaryRow => {
-            const primaryValueRaw = primaryRow.submission_data?.[primaryFieldId];
-            const primaryValue = normalizeJoinValue(primaryValueRaw);
-            return primaryValue !== null && secondaryValue !== null && primaryValue === secondaryValue;
-          });
+          const matchingPrimary = findMatchingPrimary(secondaryRow);
 
           if (matchingPrimary) {
-            matchedPrimaryIds.add(matchingPrimary.id);
             rightResult.push(mergeRows(matchingPrimary, secondaryRow, prefix));
           } else {
             // Create a row with just secondary data
@@ -365,13 +393,7 @@ export function useTableData(
 
         // First, process all primary records
         primaryData.forEach(primaryRow => {
-          const primaryValueRaw = primaryRow.submission_data?.[primaryFieldId];
-          const primaryValue = normalizeJoinValue(primaryValueRaw);
-          const matchingSecondary = secondaryData.find(secondaryRow => {
-            const secondaryValueRaw = secondaryRow.submission_data?.[secondaryFieldId];
-            const secondaryValue = normalizeJoinValue(secondaryValueRaw);
-            return primaryValue !== null && secondaryValue !== null && primaryValue === secondaryValue;
-          });
+          const matchingSecondary = findMatchingSecondary(primaryRow);
 
           if (matchingSecondary) {
             matchedSecondaryIds.add(matchingSecondary.id);
