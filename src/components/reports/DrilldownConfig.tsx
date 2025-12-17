@@ -31,16 +31,17 @@ export function DrilldownConfig({
   maxLevels = 3
 }: DrilldownConfigProps) {
   const getDrilldownableFields = () => {
-    // Include most field types that can be used for drilldown filtering
-    const drilldownableTypes = [
-      'text', 'select', 'radio', 'dropdown', 'date', 'category', 'number', 
-      'email', 'url', 'phone', 'textarea', 'rich-text', 'multiselect', 
-      'multi-select', 'checkbox', 'toggle', 'rating', 'slider', 'currency',
-      'country', 'address', 'status', 'yes-no', 'user-select', 'datetime'
-    ];
-    return formFields.filter(field => 
-      drilldownableTypes.includes(field.type) || !field.type.includes('signature')
-    );
+    // Allow all fields except signature-pad for drilldown
+    // If field has no type, still include it
+    console.log('DrilldownConfig formFields:', formFields?.length, formFields);
+    if (!formFields || formFields.length === 0) {
+      return [];
+    }
+    return formFields.filter(field => {
+      // Exclude only signature fields
+      const fieldType = field.type?.toLowerCase() || '';
+      return !fieldType.includes('signature');
+    });
   };
 
   const addDrilldownLevel = () => {
@@ -141,7 +142,7 @@ export function DrilldownConfig({
               </div>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2">
               <button
                 onClick={addDrilldownLevel}
                 disabled={drilldownLevels.length >= maxLevels || getDrilldownableFields().length === 0}
@@ -149,6 +150,12 @@ export function DrilldownConfig({
               >
                 + Add Drilldown Level
               </button>
+              {getDrilldownableFields().length === 0 && (
+                <p className="text-xs text-amber-600">No form fields available. Please select a form with fields first.</p>
+              )}
+              {drilldownLevels.length >= maxLevels && (
+                <p className="text-xs text-muted-foreground">Maximum {maxLevels} drilldown levels reached.</p>
+              )}
             </div>
 
             {drilldownLevels.length > 0 && (
