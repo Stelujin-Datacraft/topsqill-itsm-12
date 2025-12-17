@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Edit, ArrowLeft, ChevronRight, Filter, RotateCcw } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, PieChart as RechartsPieChart, Pie, Cell, LineChart as RechartsLineChart, Line, AreaChart as RechartsAreaChart, Area, ScatterChart as RechartsScatterChart, Scatter, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, FunnelChart, Funnel, Treemap, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 import { useReports } from '@/hooks/useReports';
 import { useFormsData } from '@/hooks/useFormsData';
 import { ChartConfig } from '@/types/reports';
@@ -26,6 +27,7 @@ export function ChartPreview({
   onDrilldown,
   drilldownState
 }: ChartPreviewProps) {
+  const navigate = useNavigate();
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showFormFields, setShowFormFields] = useState(false);
@@ -533,6 +535,7 @@ export function ChartPreview({
           xRaw: xRawValue,
           yRaw: yRawValue,
           name: `Record ${index + 1}`,
+          submissionId: submission.id, // Store submission ID for direct navigation
           // Store field names for tooltip
           xFieldName: field1Name,
           yFieldName: field2Name,
@@ -2164,33 +2167,34 @@ export function ChartPreview({
                           // Compare mode: show raw values if available, else numeric values
                           const displayX = item.xRaw !== undefined && item.xRaw !== '' ? item.xRaw : (typeof item.x === 'number' ? item.x.toLocaleString() : (item.x ?? ''));
                           const displayY = item.yRaw !== undefined && item.yRaw !== '' ? item.yRaw : (typeof item.y === 'number' ? item.y.toLocaleString() : (item.y ?? ''));
+                          
+                          // If we have a direct submission ID, navigate directly; otherwise show dialog
+                          const handleCellClick = () => {
+                            if (item.submissionId) {
+                              navigate(`/submission/${item.submissionId}`);
+                            } else {
+                              setCellSubmissionsDialog({
+                                open: true,
+                                dimensionField,
+                                dimensionValue: item.name,
+                                dimensionLabel,
+                              });
+                            }
+                          };
+                          
                           return (
                             <>
                               <td 
                                 key="field1" 
                                 className="border border-border p-2 cursor-pointer hover:bg-primary/10"
-                                onClick={() => {
-                                  setCellSubmissionsDialog({
-                                    open: true,
-                                    dimensionField,
-                                    dimensionValue: item.name,
-                                    dimensionLabel,
-                                  });
-                                }}
+                                onClick={handleCellClick}
                               >
                                 {displayX || '-'}
                               </td>
                               <td 
                                 key="field2" 
                                 className="border border-border p-2 cursor-pointer hover:bg-primary/10"
-                                onClick={() => {
-                                  setCellSubmissionsDialog({
-                                    open: true,
-                                    dimensionField,
-                                    dimensionValue: item.name,
-                                    dimensionLabel,
-                                  });
-                                }}
+                                onClick={handleCellClick}
                               >
                                 {displayY || '-'}
                               </td>
