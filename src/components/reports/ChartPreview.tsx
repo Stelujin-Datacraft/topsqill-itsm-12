@@ -1376,7 +1376,6 @@ export function ChartPreview({
                   />
                   <Bar 
                     dataKey="y" 
-                    fill={colors[0]} 
                     name={field2Name} 
                     style={{ cursor: 'pointer' }}
                     onClick={(data, idx) => {
@@ -1402,8 +1401,16 @@ export function ChartPreview({
                         });
                       }
                     }}
-                    activeBar={{ fill: colors[0], fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
-                  />
+                    activeBar={{ fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
+                  >
+                    {barData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={colors[index % colors.length]} 
+                        style={{ cursor: 'pointer' }}
+                      />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -1464,7 +1471,6 @@ export function ChartPreview({
                   />
                   <Bar 
                     dataKey="y" 
-                    fill={colors[0]} 
                     name={field2Name} 
                     style={{ cursor: 'pointer' }}
                     onClick={(data, idx) => {
@@ -1478,8 +1484,16 @@ export function ChartPreview({
                         dimensionLabel: field1Name,
                       });
                     }}
-                    activeBar={{ fill: colors[0], fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
-                  />
+                    activeBar={{ fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
+                  >
+                    {barData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={colors[index % colors.length]} 
+                        style={{ cursor: 'pointer' }}
+                      />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -1589,30 +1603,41 @@ export function ChartPreview({
                     />
                   );
                 }) :
-                // Single dimension - render primary metric and additional metrics if any
+                // Single dimension - render primary metric with multi-colored bars
                 <>
                   <Bar 
                     dataKey={primaryMetric} 
-                    fill={colors[0]} 
                     name={getFormFieldName(primaryMetric)} 
                     style={{ cursor: 'pointer' }} 
                     onClick={(data, idx) => handleBarClick(data, idx)}
-                    activeBar={{ fill: colors[0], fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
-                  />
-                  {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => {
-                    const barColor = colors[(index + 1) % colors.length];
-                    return (
-                      <Bar 
-                        key={metric} 
-                        dataKey={metric} 
-                        fill={barColor} 
-                        name={getFormFieldName(metric)} 
-                        style={{ cursor: 'pointer' }} 
-                        onClick={(data, idx) => handleBarClick(data, idx)}
-                        activeBar={{ fill: barColor, fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
+                    activeBar={{ fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
+                  >
+                    {sanitizedChartData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={colors[index % colors.length]} 
+                        style={{ cursor: 'pointer' }}
                       />
-                    );
-                  })}
+                    ))}
+                  </Bar>
+                  {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, metricIndex) => (
+                    <Bar 
+                      key={metric} 
+                      dataKey={metric} 
+                      name={getFormFieldName(metric)} 
+                      style={{ cursor: 'pointer' }} 
+                      onClick={(data, idx) => handleBarClick(data, idx)}
+                      activeBar={{ fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
+                    >
+                      {sanitizedChartData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${metric}-${index}`} 
+                          fill={colors[(index + metricIndex + 1) % colors.length]} 
+                          style={{ cursor: 'pointer' }}
+                        />
+                      ))}
+                    </Bar>
+                  ))}
                 </>}
                 </BarChart>
               </ResponsiveContainer>
