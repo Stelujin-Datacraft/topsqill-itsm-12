@@ -1350,9 +1350,41 @@ export function ChartPreview({
                       );
                     }}
                   />
-                  <Bar dataKey="y" fill={colors[0]} name={field2Name} />
+                  <Bar 
+                    dataKey="y" 
+                    fill={colors[0]} 
+                    name={field2Name} 
+                    style={{ cursor: 'pointer' }}
+                    onClick={(data, idx) => {
+                      const payload = data?.payload || data;
+                      const name = payload?.name || payload?.xLabel || `Record ${idx + 1}`;
+                      const submissionId = payload?.submissionId;
+                      
+                      if (submissionId) {
+                        // If we have a direct submission ID, open dialog with that
+                        setCellSubmissionsDialog({
+                          open: true,
+                          dimensionField: config.metrics?.[0] || '',
+                          dimensionValue: name,
+                          dimensionLabel: field1Name,
+                        });
+                      } else {
+                        // Open dialog to show matching record
+                        setCellSubmissionsDialog({
+                          open: true,
+                          dimensionField: config.metrics?.[0] || '',
+                          dimensionValue: name,
+                          dimensionLabel: field1Name,
+                        });
+                      }
+                    }}
+                    activeBar={{ fill: colors[0], fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
+                  />
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+            <div className="text-xs text-muted-foreground text-center mt-2">
+              Click a bar to view the record
             </div>
           </div>
         );
@@ -1406,9 +1438,29 @@ export function ChartPreview({
                       );
                     }}
                   />
-                  <Bar dataKey="y" fill={colors[0]} name={field2Name} />
+                  <Bar 
+                    dataKey="y" 
+                    fill={colors[0]} 
+                    name={field2Name} 
+                    style={{ cursor: 'pointer' }}
+                    onClick={(data, idx) => {
+                      const payload = data?.payload || data;
+                      const name = payload?.name || payload?.xLabel || `Record ${idx + 1}`;
+                      
+                      setCellSubmissionsDialog({
+                        open: true,
+                        dimensionField: config.metrics?.[0] || '',
+                        dimensionValue: name,
+                        dimensionLabel: field1Name,
+                      });
+                    }}
+                    activeBar={{ fill: colors[0], fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
+                  />
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+            <div className="text-xs text-muted-foreground text-center mt-2">
+              Click a bar to view the record
             </div>
           </div>
         );
