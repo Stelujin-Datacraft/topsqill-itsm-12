@@ -219,12 +219,29 @@ export function useTableData(
             secondarySubmissions.map(s => s.submission_data?.[join.secondaryFieldId]).filter(v => v !== undefined && v !== null)
           )
         );
-        console.log('📌 applyJoins - primary join keys:', join.primaryFieldId, primaryKeys);
-        console.log('📌 applyJoins - secondary join keys:', join.secondaryFieldId, secondaryKeys);
+        
+        // Debug: show all keys in submission_data to verify field ID exists
+        if (primaryData.length > 0) {
+          console.log('📌 applyJoins - primary submission_data keys:', Object.keys(primaryData[0].submission_data || {}));
+        }
+        if (secondarySubmissions.length > 0) {
+          console.log('📌 applyJoins - secondary submission_data keys:', Object.keys(secondarySubmissions[0].submission_data || {}));
+        }
+        
+        console.log('📌 applyJoins - primaryFieldId:', join.primaryFieldId);
+        console.log('📌 applyJoins - secondaryFieldId:', join.secondaryFieldId);
+        console.log('📌 applyJoins - primary join values:', primaryKeys);
+        console.log('📌 applyJoins - secondary join values:', secondaryKeys);
+        
+        // Check for matching values
+        const normalizedPrimaryKeys = primaryKeys.map(k => normalizeJoinValue(k));
+        const normalizedSecondaryKeys = secondaryKeys.map(k => normalizeJoinValue(k));
+        const matchingValues = normalizedPrimaryKeys.filter(pk => normalizedSecondaryKeys.includes(pk));
+        console.log('📌 applyJoins - potential matches:', matchingValues.length > 0 ? matchingValues : 'NONE - values do not match between forms');
 
         // Perform the join based on join type
         result = performJoin(result, secondarySubmissions, join);
-        console.log('📌 applyJoins - result length after join:', result.length);
+        console.log('📌 applyJoins - result length after join:', result.length, '(join type:', join.joinType, ')');
         
       } catch (err) {
         console.error('Error performing join:', err);
@@ -260,34 +277,35 @@ export function useTableData(
     // Use formId as prefix to match what EnhancedDynamicTable expects
     const prefix = `${secondaryFormId}.`;
     
-    console.log('Performing join with prefix:', prefix, 'primaryField:', primaryFieldId, 'secondaryField:', secondaryFieldId);
+    let matchCount = 0;
 
     switch (joinType) {
       case 'inner':
         // Only return records that have matches in both tables
-        return primaryData
+        const innerResult = primaryData
           .map(primaryRow => {
             const primaryValueRaw = primaryRow.submission_data?.[primaryFieldId];
             const primaryValue = normalizeJoinValue(primaryValueRaw);
             const matchingSecondary = secondaryData.find(secondaryRow => {
               const secondaryValueRaw = secondaryRow.submission_data?.[secondaryFieldId];
               const secondaryValue = normalizeJoinValue(secondaryValueRaw);
-              console.log(`Comparing primary[${primaryFieldId}]="${primaryValue}" with secondary[${secondaryFieldId}]="${secondaryValue}"`);
               return primaryValue !== null && secondaryValue !== null && secondaryValue === primaryValue;
             });
 
             if (matchingSecondary) {
-              const merged = mergeRows(primaryRow, matchingSecondary, prefix);
-              console.log('Merged row submission_data keys:', Object.keys(merged.submission_data));
-              return merged;
+              matchCount++;
+              return mergeRows(primaryRow, matchingSecondary, prefix);
             }
             return null;
           })
           .filter((row): row is SubmissionRow => row !== null);
+        
+        console.log(`📌 INNER join: ${matchCount} matches found out of ${primaryData.length} primary records`);
+        return innerResult;
 
       case 'left':
-        console.log('Performing LEFT join');
-        return primaryData.map(primaryRow => {
+        let leftMatchCount = 0;
+        const leftResult = primaryData.map(primaryRow => {
           const primaryValueRaw = primaryRow.submission_data?.[primaryFieldId];
           const primaryValue = normalizeJoinValue(primaryValueRaw);
           const matchingSecondary = secondaryData.find(secondaryRow => {
@@ -297,12 +315,13 @@ export function useTableData(
           });
 
           if (matchingSecondary) {
-            const merged = mergeRows(primaryRow, matchingSecondary, prefix);
-            console.log('LEFT join merged row keys:', Object.keys(merged.submission_data));
-            return merged;
+            leftMatchCount++;
+            return mergeRows(primaryRow, matchingSecondary, prefix);
           }
           return primaryRow;
         });
+        console.log(`📌 LEFT join: ${leftMatchCount} matches found out of ${primaryData.length} primary records`);
+        return leftResult;
 
       case 'right':
         // Return all secondary records, with primary data where matches exist
