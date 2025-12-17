@@ -561,7 +561,7 @@ export function ReportEditor({
         rowHeight={60} 
         isDraggable={isDragEnabled} 
         isResizable={isDragEnabled} 
-        draggableCancel="button, input, select, textarea, a, [role='button'], .recharts-wrapper, .no-drag"
+        draggableCancel="button, input, select, textarea, a, td, th, table, [role='button'], .recharts-wrapper, .no-drag"
         onLayoutChange={isDragEnabled ? handleLayoutChange : undefined}>
             {components.map(component => <div key={component.id} className="relative group">
                 <Card className={`h-full overflow-hidden transition-all ${!isDragEnabled ? 'cursor-pointer' : 'cursor-move'} ${selectedComponent?.id === component.id ? 'ring-2 ring-primary shadow-lg' : !isDragEnabled ? 'hover:shadow-md hover:ring-1 hover:ring-muted-foreground/20' : ''}`} onClick={e => handleComponentClick(component, e)}>
