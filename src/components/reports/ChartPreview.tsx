@@ -983,14 +983,9 @@ export function ChartPreview({
     const metricField = config.metrics?.[0];
     const metricName = metricField ? getFormFieldName(metricField) : 'Records';
 
-    // In compare mode, show both field names separated by hyphen
+    // In compare mode, show "Compare" as aggregation type instead of count
     const isCompareMode = config.compareMode && config.metrics && config.metrics.length === 2;
-    let aggregation = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
-    if (isCompareMode) {
-      const field1Name = getFormFieldName(config.metrics![0]);
-      const field2Name = getFormFieldName(config.metrics![1]);
-      aggregation = `${field1Name} - ${field2Name}`;
-    }
+    const aggregation = isCompareMode ? 'compare' : (config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count');
     const groupByName = config.groupByField ? getFormFieldName(config.groupByField) : null;
     const chartType = config.type || config.chartType || 'bar';
     
