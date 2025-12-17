@@ -1189,36 +1189,74 @@ export function ChartPreview({
       primaryMetric = 'count';
     }
 
-    // Ensure the primary metric exists in the data
-    if (sanitizedChartData.length > 0 && !sanitizedChartData[0].hasOwnProperty(primaryMetric)) {
-      // Fallback to available keys
-      const availableKeys = Object.keys(sanitizedChartData[0]).filter(key => key !== 'name' && key !== '_drilldownData' && typeof sanitizedChartData[0][key] === 'number');
-      if (availableKeys.length > 0) {
-        primaryMetric = availableKeys[0];
-      } else {
-        // No valid numeric keys found - show no data message
+    // Check if this is compare mode
+    const isCompareModeCheck = config.compareMode && config.metrics && config.metrics.length === 2;
+    
+    // For compare mode, check for 'y' key specifically
+    if (isCompareModeCheck) {
+      // In compare mode, we use 'y' as the primary value for charting
+      const hasCompareData = sanitizedChartData.some(item => {
+        // Check if y value exists and is either numeric or text
+        const yVal = item.y;
+        if (yVal === undefined || yVal === null) return false;
+        // If y is numeric, check it's valid
+        if (typeof yVal === 'number') {
+          return !isNaN(yVal) && isFinite(yVal);
+        }
+        // If y is a string (text field), it's valid for display
+        if (typeof yVal === 'string' && yVal.length > 0) {
+          return true;
+        }
+        return false;
+      });
+      
+      if (!hasCompareData) {
         return <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <div className="text-muted-foreground mb-2">No numeric data available</div>
-            <div className="text-sm text-muted-foreground">Configure the chart with valid numeric metrics</div>
+            <div className="text-muted-foreground mb-2">No data available</div>
+            <div className="text-sm text-muted-foreground">No valid field values found for comparison.</div>
           </div>
         </div>;
       }
-    }
+      
+      // For compare mode, set primaryMetric to 'y' for numeric comparisons
+      const field2IsNumeric = sanitizedChartData[0]?.field2IsNumeric;
+      if (field2IsNumeric) {
+        primaryMetric = 'y';
+      }
+    } else {
+      // Non-compare mode: original validation logic
+      // Ensure the primary metric exists in the data
+      if (sanitizedChartData.length > 0 && !sanitizedChartData[0].hasOwnProperty(primaryMetric)) {
+        // Fallback to available keys
+        const availableKeys = Object.keys(sanitizedChartData[0]).filter(key => key !== 'name' && key !== '_drilldownData' && typeof sanitizedChartData[0][key] === 'number');
+        if (availableKeys.length > 0) {
+          primaryMetric = availableKeys[0];
+        } else {
+          // No valid numeric keys found - show no data message
+          return <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="text-muted-foreground mb-2">No numeric data available</div>
+              <div className="text-sm text-muted-foreground">Configure the chart with valid numeric metrics</div>
+            </div>
+          </div>;
+        }
+      }
 
-    // Final safety check: ensure we actually have some non-zero numeric data for the primary metric
-    const hasValidNumericData = sanitizedChartData.some(item => {
-      const val = Number(item[primaryMetric]);
-      return !isNaN(val) && isFinite(val) && val !== 0;
-    });
+      // Final safety check: ensure we actually have some non-zero numeric data for the primary metric
+      const hasValidNumericData = sanitizedChartData.some(item => {
+        const val = Number(item[primaryMetric]);
+        return !isNaN(val) && isFinite(val) && val !== 0;
+      });
 
-    if (!hasValidNumericData) {
-      return <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="text-muted-foreground mb-2">No numeric data available</div>
-          <div className="text-sm text-muted-foreground">Current configuration does not produce any numeric values to chart.</div>
-        </div>
-      </div>;
+      if (!hasValidNumericData) {
+        return <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="text-muted-foreground mb-2">No numeric data available</div>
+            <div className="text-sm text-muted-foreground">Current configuration does not produce any numeric values to chart.</div>
+          </div>
+        </div>;
+      }
     }
 
     const chartType = config.type || config.chartType || 'bar';
@@ -1255,8 +1293,90 @@ export function ChartPreview({
     if (isCompareMode) {
       const field1Name = config.metrics ? getFormFieldName(config.metrics[0]) : 'Field 1';
       const field2Name = config.metrics ? getFormFieldName(config.metrics[1]) : 'Field 2';
+      
+      // Check if fields are numeric based on data
+      const field1IsNumeric = sanitizedChartData[0]?.field1IsNumeric ?? true;
+      const field2IsNumeric = sanitizedChartData[0]?.field2IsNumeric ?? true;
+      
+      console.log('📊 Compare mode field types:', { field1IsNumeric, field2IsNumeric });
 
-      // Calculate safe domains for X and Y axes
+      // For text-to-text comparison, show a frequency table instead of chart
+      if (!field1IsNumeric && !field2IsNumeric) {
+        // Count unique combinations of x and y values
+        const combinationCounts: { [key: string]: number } = {};
+        sanitizedChartData.forEach(item => {
+          const key = `${item.x || '-'}|||${item.y || '-'}`;
+          combinationCounts[key] = (combinationCounts[key] || 0) + 1;
+        });
+        
+        const tableData = Object.entries(combinationCounts).map(([key, count]) => {
+          const [x, y] = key.split('|||');
+          return { x, y, count };
+        }).sort((a, b) => b.count - a.count);
+        
+        return (
+          <div className="w-full h-full overflow-auto">
+            <div className="text-sm text-muted-foreground mb-2 px-2">Text-to-Text Comparison (showing value frequencies)</div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-2 font-medium">{field1Name}</th>
+                  <th className="text-left p-2 font-medium">{field2Name}</th>
+                  <th className="text-right p-2 font-medium">Count</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tableData.map((row, idx) => (
+                  <tr key={idx} className="border-b border-border/50">
+                    <td className="p-2">{row.x}</td>
+                    <td className="p-2">{row.y}</td>
+                    <td className="p-2 text-right font-medium">{row.count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
+      
+      // For number-to-text comparison (Y is text), show bar chart with text categories and counts
+      if (field1IsNumeric && !field2IsNumeric) {
+        // Group by y (text) value and sum x (number) values
+        const groupedByY: { [key: string]: number } = {};
+        sanitizedChartData.forEach(item => {
+          const yKey = String(item.y || 'Unknown');
+          groupedByY[yKey] = (groupedByY[yKey] || 0) + (Number(item.x) || 0);
+        });
+        
+        const barData = Object.entries(groupedByY).map(([name, value]) => ({
+          name,
+          value,
+        })).sort((a, b) => b.value - a.value);
+        
+        return (
+          <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={barData} margin={{ top: 20, right: 30, left: 60, bottom: 80 }}>
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 11 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                    interval={0}
+                  />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Bar dataKey="value" fill={colors[0]} name={`Sum of ${field1Name}`} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+      }
+
+      // Calculate safe domains for X and Y axes (for numeric fields)
       const xValues = sanitizedChartData.map(d => Number(d.x)).filter(v => isFinite(v));
       const yValues = sanitizedChartData.map(d => Number(d.y)).filter(v => isFinite(v));
       const xMax = xValues.length > 0 ? Math.max(...xValues) : 10;
@@ -1265,7 +1385,7 @@ export function ChartPreview({
       const yDomain: [number, number] = [0, Math.ceil(yMax * 1.1) || 10];
 
       // Sort data by x value for line/area charts
-      const sortedData = [...sanitizedChartData].sort((a, b) => (a.x || 0) - (b.x || 0));
+      const sortedData = [...sanitizedChartData].sort((a, b) => (Number(a.x) || 0) - (Number(b.x) || 0));
 
       const compareTooltip = (
         <Tooltip 
