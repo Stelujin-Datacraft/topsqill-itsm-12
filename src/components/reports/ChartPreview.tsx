@@ -2000,26 +2000,26 @@ export function ChartPreview({
             {chartInfo.aggregation === 'compare' ? (
               <>Compare: {config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'Field 1'} - {config.metrics?.[1] ? getFormFieldName(config.metrics[1]) : 'Field 2'}</>
             ) : chartInfo.aggregation === 'count' ? 'Count' : (
-              <>{chartInfo.aggregation.charAt(0).toUpperCase() + chartInfo.aggregation.slice(1)}: {chartInfo.metricName}</>
+              <>{chartInfo.aggregation.charAt(0).toUpperCase() + chartInfo.aggregation.slice(1)}: {config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'Records'}</>
             )}
           </span>
           
           {/* Form Badge */}
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-            Form: {chartInfo.formName}
+            Form: {config.formId ? getFormName(config.formId) : 'Form'}
           </span>
           
           {/* Dimension Badge */}
-          {chartInfo.dimensionName && (
+          {(config.dimensions?.[0] || config.xAxis) && (
             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-              Grouped by: {chartInfo.dimensionName}
+              Grouped by: {getFormFieldName(config.dimensions?.[0] || config.xAxis || '')}
             </span>
           )}
           
           {/* Segmented By Badge */}
-          {chartInfo.groupByName && (
+          {config.groupByField && (
             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
-              Segmented by: {chartInfo.groupByName}
+              Segmented by: {getFormFieldName(config.groupByField)}
             </span>
           )}
         </div>
