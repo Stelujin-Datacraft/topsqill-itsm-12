@@ -1244,15 +1244,34 @@ export function ChartPreview({
       const field2Name = config.metrics ? getFormFieldName(config.metrics[1]) : 'Field 2';
 
       // Detect if fields contain text (non-numeric) values
-      // If most x or y values are 0, it means they're text fields
-      const hasTextX = sanitizedChartData.filter(d => d.x === 0 && d.xDisplay && d.xDisplay !== '0' && d.xDisplay !== 'N/A').length > sanitizedChartData.length / 2;
-      const hasTextY = sanitizedChartData.filter(d => d.y === 0 && d.yDisplay && d.yDisplay !== '0' && d.yDisplay !== 'N/A').length > sanitizedChartData.length / 2;
+      // If most x or y values are 0 AND they have non-empty display values, it means they're text fields
+      const hasTextX = sanitizedChartData.filter(d => {
+        const isNumericZero = d.x === 0;
+        const hasDisplayValue = d.xDisplay !== undefined && d.xDisplay !== null && d.xDisplay !== '' && d.xDisplay !== '0' && d.xDisplay !== 'N/A';
+        return isNumericZero && hasDisplayValue;
+      }).length > sanitizedChartData.length / 2;
+      
+      const hasTextY = sanitizedChartData.filter(d => {
+        const isNumericZero = d.y === 0;
+        const hasDisplayValue = d.yDisplay !== undefined && d.yDisplay !== null && d.yDisplay !== '' && d.yDisplay !== '0' && d.yDisplay !== 'N/A';
+        return isNumericZero && hasDisplayValue;
+      }).length > sanitizedChartData.length / 2;
+      
       const isTextComparison = hasTextX || hasTextY;
 
-      console.log('📊 Compare mode analysis:', { hasTextX, hasTextY, isTextComparison, sampleData: sanitizedChartData[0] });
+      console.log('📊 Compare mode analysis:', { 
+        hasTextX, 
+        hasTextY, 
+        isTextComparison, 
+        dataLength: sanitizedChartData.length,
+        sampleData: sanitizedChartData[0] 
+      });
 
-      // For text field comparisons, use table view for better readability
-      if (isTextComparison) {
+      // Also check if all numeric values are 0 (meaning no meaningful numeric data)
+      const allZeroValues = sanitizedChartData.every(d => d.x === 0 && d.y === 0);
+
+      // For text field comparisons OR when all values are zero, use table view
+      if (isTextComparison || allZeroValues) {
         return (
           <div className="h-full overflow-auto">
             <div className="text-sm text-muted-foreground mb-2 p-2 bg-muted/30 rounded">
