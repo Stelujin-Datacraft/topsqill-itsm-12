@@ -454,72 +454,146 @@ export function ChartPreview({
     }
   };
 
-  // Process compare mode - X/Y scatter format (Field 1 on X, Field 2 on Y)
+  // Helper to check if a field is numeric based on field type
+  const isNumericField = (fieldId: string): boolean => {
+    const field = formFields.find(f => f.id === fieldId);
+    if (!field) {
+      // Also search across all forms
+      for (const form of forms) {
+        const foundField = form.fields?.find((f: any) => f.id === fieldId);
+        if (foundField) {
+          const fieldType = (foundField as any)?.field_type || foundField?.type || 'unknown';
+          return ['number', 'currency', 'slider', 'rating', 'calculated'].includes(fieldType);
+        }
+      }
+      return false;
+    }
+    const fieldType = (field as any)?.field_type || field?.type || 'unknown';
+    return ['number', 'currency', 'slider', 'rating', 'calculated'].includes(fieldType);
+  };
+
+  // Get raw value from submission data preserving type (text or number)
+  const getRawFieldValue = (submissionData: any, fieldId: string): string | number => {
+    const value = submissionData[fieldId];
+    
+    if (value === undefined || value === null) {
+      return isNumericField(fieldId) ? 0 : '';
+    }
+    
+    // Handle object values (currency, etc.)
+    if (typeof value === 'object' && value !== null) {
+      if (value.amount !== undefined) {
+        return Number(value.amount) || 0;
+      }
+      if (value.label !== undefined) {
+        return String(value.label);
+      }
+      return JSON.stringify(value);
+    }
+    
+    // For numeric fields, ensure we return a number
+    if (isNumericField(fieldId)) {
+      const numValue = Number(value);
+      return isNaN(numValue) ? 0 : numValue;
+    }
+    
+    // For text fields, return the string value
+    return String(value);
+  };
+
+  // Process compare mode - supports number-number, number-text, and text-text comparisons
   const processCompareData = (submissions: any[], dimensionFields: string[], metricFields: string[]) => {
     console.log('📊 Processing compare mode with fields:', metricFields, 'dimensions:', dimensionFields);
 
     const [metricField1, metricField2] = metricFields;
     const field1Name = getFormFieldName(metricField1);
     const field2Name = getFormFieldName(metricField2);
+    const field1IsNumeric = isNumericField(metricField1);
+    const field2IsNumeric = isNumericField(metricField2);
+    
+    console.log('📊 Field types - Field1:', field1IsNumeric ? 'numeric' : 'text', 'Field2:', field2IsNumeric ? 'numeric' : 'text');
 
     const hasDimension = dimensionFields.length > 0 && dimensionFields[0] !== '_default';
 
-    // If dimension is selected, group data by dimension and sum values
+    // If dimension is selected, group data by dimension
     if (hasDimension) {
       console.log('📊 Compare mode WITH dimension grouping:', dimensionFields[0]);
       
-      // Group submissions by dimension value and sum both metrics
-      const groupedData: { [key: string]: { x: number; y: number; count: number } } = {};
+      // Group submissions by dimension value
+      const groupedData: { [key: string]: { xValues: (string | number)[]; yValues: (string | number)[]; count: number } } = {};
       
       submissions
         .filter(submission => passesFilters(submission.submission_data))
         .forEach(submission => {
           const submissionData = submission.submission_data;
           const dimensionKey = getDimensionKey(submissionData, dimensionFields);
-          const xValue = getRawMetricValue(submissionData, metricField1);
-          const yValue = getRawMetricValue(submissionData, metricField2);
+          const xValue = getRawFieldValue(submissionData, metricField1);
+          const yValue = getRawFieldValue(submissionData, metricField2);
           
           if (!groupedData[dimensionKey]) {
-            groupedData[dimensionKey] = { x: 0, y: 0, count: 0 };
+            groupedData[dimensionKey] = { xValues: [], yValues: [], count: 0 };
           }
           
-          groupedData[dimensionKey].x += xValue;
-          groupedData[dimensionKey].y += yValue;
+          groupedData[dimensionKey].xValues.push(xValue);
+          groupedData[dimensionKey].yValues.push(yValue);
           groupedData[dimensionKey].count += 1;
         });
       
-      // Convert to array format
-      const points = Object.entries(groupedData).map(([name, values]) => ({
-        name,
-        x: values.x,
-        y: values.y,
-        xFieldName: field1Name,
-        yFieldName: field2Name,
-      }));
+      // Convert to array format - aggregate numeric fields, concatenate text fields
+      const points = Object.entries(groupedData).map(([name, values]) => {
+        let aggregatedX: string | number;
+        let aggregatedY: string | number;
+        
+        if (field1IsNumeric) {
+          aggregatedX = (values.xValues as number[]).reduce((sum, v) => sum + (Number(v) || 0), 0);
+        } else {
+          // For text, show unique values or count
+          const uniqueValues = [...new Set(values.xValues.map(v => String(v)))];
+          aggregatedX = uniqueValues.length <= 3 ? uniqueValues.join(', ') : `${uniqueValues.length} values`;
+        }
+        
+        if (field2IsNumeric) {
+          aggregatedY = (values.yValues as number[]).reduce((sum, v) => sum + (Number(v) || 0), 0);
+        } else {
+          const uniqueValues = [...new Set(values.yValues.map(v => String(v)))];
+          aggregatedY = uniqueValues.length <= 3 ? uniqueValues.join(', ') : `${uniqueValues.length} values`;
+        }
+        
+        return {
+          name,
+          x: aggregatedX,
+          y: aggregatedY,
+          xFieldName: field1Name,
+          yFieldName: field2Name,
+          field1IsNumeric,
+          field2IsNumeric,
+        };
+      });
       
       console.log('📊 Compare grouped data:', points);
       return points;
     }
 
-    // No dimension - each submission becomes a point: x = field1 value, y = field2 value
+    // No dimension - each submission becomes a point with actual field values
     const points = submissions
       .filter(submission => passesFilters(submission.submission_data))
       .map((submission, index) => {
         const submissionData = submission.submission_data;
-        const xValue = getRawMetricValue(submissionData, metricField1);
-        const yValue = getRawMetricValue(submissionData, metricField2);
+        const xValue = getRawFieldValue(submissionData, metricField1);
+        const yValue = getRawFieldValue(submissionData, metricField2);
 
         return {
           x: xValue,
           y: yValue,
           name: `Record ${index + 1}`,
-          // Store field names for tooltip
           xFieldName: field1Name,
           yFieldName: field2Name,
+          field1IsNumeric,
+          field2IsNumeric,
         };
       });
 
-    console.log('📊 Compare scatter data:', points);
+    console.log('📊 Compare data (preserving types):', points);
     return points;
   };
   
@@ -959,7 +1033,10 @@ export function ChartPreview({
     const metricField = config.metrics?.[0];
     const metricName = metricField ? getFormFieldName(metricField) : 'Records';
 
-    const aggregation = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
+    // For compare mode, use 'compare' as aggregation type
+    const aggregation = config.compareMode 
+      ? 'compare' 
+      : (config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count');
     const groupByName = config.groupByField ? getFormFieldName(config.groupByField) : null;
     const chartType = config.type || config.chartType || 'bar';
     
@@ -1893,8 +1970,10 @@ export function ChartPreview({
           
           {/* Aggregation Badge */}
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-            {chartInfo.aggregation === 'count' ? 'Count' : chartInfo.aggregation.charAt(0).toUpperCase() + chartInfo.aggregation.slice(1)}
-            {chartInfo.aggregation !== 'count' && `: ${chartInfo.metricName}`}
+            {chartInfo.aggregation === 'count' ? 'Count' : 
+             chartInfo.aggregation === 'compare' ? 'Compare Fields' :
+             chartInfo.aggregation.charAt(0).toUpperCase() + chartInfo.aggregation.slice(1)}
+            {chartInfo.aggregation !== 'count' && chartInfo.aggregation !== 'compare' && `: ${chartInfo.metricName}`}
           </span>
           
           {/* Form Badge */}
@@ -2156,7 +2235,7 @@ export function ChartPreview({
                                   });
                                 }}
                               >
-                                {typeof item.x === 'number' ? item.x.toLocaleString() : (item.x ?? 0)}
+                                {typeof item.x === 'number' ? item.x.toLocaleString() : (item.x ?? '-')}
                               </td>
                               <td 
                                 key="field2" 
@@ -2170,7 +2249,7 @@ export function ChartPreview({
                                   });
                                 }}
                               >
-                                {typeof item.y === 'number' ? item.y.toLocaleString() : (item.y ?? 0)}
+                                {typeof item.y === 'number' ? item.y.toLocaleString() : (item.y ?? '-')}
                               </td>
                             </>
                           );
