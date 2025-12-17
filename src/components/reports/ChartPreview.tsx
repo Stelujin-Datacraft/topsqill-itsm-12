@@ -2169,7 +2169,9 @@ export function ChartPreview({
                           const displayY = item.yRaw !== undefined && item.yRaw !== '' ? item.yRaw : (typeof item.y === 'number' ? item.y.toLocaleString() : (item.y ?? ''));
                           
                           // If we have a direct submission ID, navigate directly; otherwise show dialog
-                          const handleCellClick = () => {
+                          const handleCellClick = (e: React.MouseEvent) => {
+                            e.stopPropagation();
+                            e.preventDefault();
                             if (item.submissionId) {
                               navigate(`/submission/${item.submissionId}`);
                             } else {
