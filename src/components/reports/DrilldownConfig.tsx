@@ -31,8 +31,15 @@ export function DrilldownConfig({
   maxLevels = 3
 }: DrilldownConfigProps) {
   const getDrilldownableFields = () => {
+    // Include most field types that can be used for drilldown filtering
+    const drilldownableTypes = [
+      'text', 'select', 'radio', 'dropdown', 'date', 'category', 'number', 
+      'email', 'url', 'phone', 'textarea', 'rich-text', 'multiselect', 
+      'multi-select', 'checkbox', 'toggle', 'rating', 'slider', 'currency',
+      'country', 'address', 'status', 'yes-no', 'user-select', 'datetime'
+    ];
     return formFields.filter(field => 
-      ['text', 'select', 'radio', 'dropdown', 'date', 'category', 'number', 'email', 'url'].includes(field.type)
+      drilldownableTypes.includes(field.type) || !field.type.includes('signature')
     );
   };
 
@@ -59,107 +66,112 @@ export function DrilldownConfig({
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <TrendingDown className="h-5 w-5" />
-            Drilldown Configuration
-          </CardTitle>
-          <div className="flex items-center space-x-2">
-            <Label htmlFor="drilldown-enabled" className="text-sm">Enable Drilldown</Label>
-            <Switch
-              id="drilldown-enabled"
-              checked={enabled}
-              onCheckedChange={onEnabledChange}
-            />
-          </div>
-        </div>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <TrendingDown className="h-5 w-5" />
+          Drilldown Configuration
+        </CardTitle>
       </CardHeader>
-
-      {enabled && (
-        <CardContent className="space-y-4">
-          <div className="text-sm text-muted-foreground mb-4">
-            Configure drilldown levels to enable Power BI-style exploration. For tables, click column headers to enable drilldown, then click cell values to filter. For charts, click chart elements to drill into the next hierarchy level.
+      
+      <CardContent className="space-y-4">
+        {/* Enable Drilldown Toggle - Now below title */}
+        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+          <div>
+            <Label htmlFor="drilldown-enabled" className="text-sm font-medium">Enable Drilldown</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">Allow clicking on values to filter data</p>
           </div>
+          <Switch
+            id="drilldown-enabled"
+            checked={enabled}
+            onCheckedChange={onEnabledChange}
+          />
+        </div>
 
-          {drilldownLevels.length === 0 ? (
-            <div className="text-center py-6 text-muted-foreground">
-              No drilldown levels configured. Add levels to enable hierarchical data exploration.
+        {enabled && (
+          <>
+            <div className="text-sm text-muted-foreground">
+              Configure drilldown levels to enable Power BI-style exploration. For tables, click column headers to enable drilldown, then click cell values to filter. For charts, click chart elements to drill into the next hierarchy level.
             </div>
-          ) : (
-            <div className="space-y-3">
-              {drilldownLevels.map((fieldId, index) => (
-                <div key={index} className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground min-w-0">
-                    Level {index + 1}
-                    {index > 0 && <ChevronRight className="h-4 w-4" />}
-                  </div>
-                  
-                  <div className="flex-1">
-                    <Select
-                      value={fieldId}
-                      onValueChange={(value) => updateDrilldownLevel(index, value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select field for this level" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover border shadow-md z-50">
-                        {getAvailableFields(index).map((field) => (
-                          <SelectItem key={field.id} value={field.id} className="hover:bg-accent hover:text-accent-foreground">
-                            <div className="flex items-center justify-between w-full">
-                              <span>{field.label}</span>
-                              <Badge variant="outline" className="ml-2 text-xs">
-                                {field.type}
-                              </Badge>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
 
-                  <button
-                    onClick={() => removeDrilldownLevel(index)}
-                    className="text-destructive hover:text-destructive/80 p-1"
-                    title="Remove level"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="flex gap-2">
-            <button
-              onClick={addDrilldownLevel}
-              disabled={drilldownLevels.length >= maxLevels || getDrilldownableFields().length === 0}
-              className="px-3 py-2 text-sm border border-dashed border-muted-foreground/50 rounded-md hover:border-muted-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              + Add Drilldown Level
-            </button>
-          </div>
-
-          {drilldownLevels.length > 0 && (
-            <div className="p-3 bg-muted/50 rounded-md">
-              <div className="text-sm font-medium mb-2">Drilldown Path:</div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                {drilldownLevels.map((fieldId, index) => {
-                  const field = formFields.find(f => f.id === fieldId);
-                  return (
-                    <React.Fragment key={index}>
-                      {index > 0 && <ChevronRight className="h-4 w-4" />}
-                      <Badge variant="secondary">
-                        {field?.label || 'Unselected'}
-                      </Badge>
-                    </React.Fragment>
-                  );
-                })}
+            {drilldownLevels.length === 0 ? (
+              <div className="text-center py-4 text-muted-foreground border border-dashed rounded-lg">
+                No drilldown levels configured. Add levels to enable hierarchical data exploration.
               </div>
+            ) : (
+              <div className="space-y-3">
+                {drilldownLevels.map((fieldId, index) => (
+                  <div key={index} className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground min-w-0">
+                      Level {index + 1}
+                      {index > 0 && <ChevronRight className="h-4 w-4" />}
+                    </div>
+                    
+                    <div className="flex-1">
+                      <Select
+                        value={fieldId}
+                        onValueChange={(value) => updateDrilldownLevel(index, value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select field for this level" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover border shadow-md z-50">
+                          {getAvailableFields(index).map((field) => (
+                            <SelectItem key={field.id} value={field.id} className="hover:bg-accent hover:text-accent-foreground">
+                              <div className="flex items-center justify-between w-full">
+                                <span>{field.label}</span>
+                                <Badge variant="outline" className="ml-2 text-xs">
+                                  {field.type}
+                                </Badge>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <button
+                      onClick={() => removeDrilldownLevel(index)}
+                      className="text-destructive hover:text-destructive/80 p-1"
+                      title="Remove level"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={addDrilldownLevel}
+                disabled={drilldownLevels.length >= maxLevels || getDrilldownableFields().length === 0}
+                className="px-3 py-2 text-sm border border-dashed border-muted-foreground/50 rounded-md hover:border-muted-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                + Add Drilldown Level
+              </button>
             </div>
-          )}
-        </CardContent>
-      )}
+
+            {drilldownLevels.length > 0 && (
+              <div className="p-3 bg-muted/50 rounded-md">
+                <div className="text-sm font-medium mb-2">Drilldown Path:</div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  {drilldownLevels.map((fieldId, index) => {
+                    const field = formFields.find(f => f.id === fieldId);
+                    return (
+                      <React.Fragment key={index}>
+                        {index > 0 && <ChevronRight className="h-4 w-4" />}
+                        <Badge variant="secondary">
+                          {field?.label || 'Unselected'}
+                        </Badge>
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
     </Card>
   );
 }
