@@ -2167,7 +2167,7 @@ export function ChartPreview({
                       );
                       return groupKeys.map(key => (
                         <th key={key} className="border border-border p-2 bg-muted text-left font-semibold">
-                          {key}
+                          {getFormFieldName(key)}
                         </th>
                       ));
                     }
