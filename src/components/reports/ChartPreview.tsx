@@ -1300,41 +1300,54 @@ export function ChartPreview({
       
       console.log('📊 Compare mode field types:', { field1IsNumeric, field2IsNumeric });
 
-      // For text-to-text comparison, show a frequency table instead of chart
+      // For text-to-text comparison, show a bar chart with frequency of combinations
       if (!field1IsNumeric && !field2IsNumeric) {
         // Count unique combinations of x and y values
         const combinationCounts: { [key: string]: number } = {};
         sanitizedChartData.forEach(item => {
-          const key = `${item.x || '-'}|||${item.y || '-'}`;
+          const key = `${item.x || '-'} + ${item.y || '-'}`;
           combinationCounts[key] = (combinationCounts[key] || 0) + 1;
         });
         
-        const tableData = Object.entries(combinationCounts).map(([key, count]) => {
-          const [x, y] = key.split('|||');
-          return { x, y, count };
-        }).sort((a, b) => b.count - a.count);
+        const barData = Object.entries(combinationCounts).map(([name, count]) => ({
+          name,
+          count,
+        })).sort((a, b) => b.count - a.count);
         
         return (
-          <div className="w-full h-full overflow-auto">
-            <div className="text-sm text-muted-foreground mb-2 px-2">Text-to-Text Comparison (showing value frequencies)</div>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left p-2 font-medium">{field1Name}</th>
-                  <th className="text-left p-2 font-medium">{field2Name}</th>
-                  <th className="text-right p-2 font-medium">Count</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tableData.map((row, idx) => (
-                  <tr key={idx} className="border-b border-border/50">
-                    <td className="p-2">{row.x}</td>
-                    <td className="p-2">{row.y}</td>
-                    <td className="p-2 text-right font-medium">{row.count}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="relative w-full h-full min-h-[300px]">
+            <div className="text-sm text-muted-foreground mb-2 px-2">
+              Text-to-Text Comparison: {field1Name} + {field2Name} (showing combination frequencies)
+            </div>
+            <div className="absolute inset-0 top-8">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={barData} margin={{ top: 20, right: 30, left: 60, bottom: 100 }}>
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 10 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={100}
+                    interval={0}
+                  />
+                  <YAxis tick={{ fontSize: 11 }} label={{ value: 'Count', angle: -90, position: 'insideLeft' }} />
+                  <Tooltip 
+                    content={({ payload }) => {
+                      if (!payload || payload.length === 0) return null;
+                      const data = payload[0]?.payload;
+                      if (!data) return null;
+                      return (
+                        <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3">
+                          <div className="font-medium mb-1">{data.name}</div>
+                          <div className="text-sm">Count: {data.count}</div>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Bar dataKey="count" fill={colors[0]} name="Frequency" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         );
       }
