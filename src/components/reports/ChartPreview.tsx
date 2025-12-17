@@ -2176,9 +2176,9 @@ export function ChartPreview({
                     const isCompareMode = config.compareMode && config.metrics?.length === 2;
                     
                     if (isCompareMode) {
-                      // Compare mode: show field names from data or config
-                      const field1Name = chartData[0]?.xFieldName || getFormFieldName(config.metrics[0]);
-                      const field2Name = chartData[0]?.yFieldName || getFormFieldName(config.metrics[1]);
+                      // Compare mode: always use getFormFieldName for reliable name resolution
+                      const field1Name = getFormFieldName(config.metrics[0]);
+                      const field2Name = getFormFieldName(config.metrics[1]);
                       return (
                         <>
                           <th className="border border-border p-2 bg-muted text-left font-semibold">
