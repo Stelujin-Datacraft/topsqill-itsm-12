@@ -534,7 +534,8 @@ export function ChartPreview({
           y: yValue,
           xRaw: xRawValue,
           yRaw: yRawValue,
-          name: `Record ${index + 1}`,
+          // Use Field 1's text value as the X-axis label (name), fallback to Record N if empty
+          name: xRawValue || `Record ${index + 1}`,
           submissionId: submission.id, // Store submission ID for direct navigation
           // Store field names for tooltip
           xFieldName: field1Name,
