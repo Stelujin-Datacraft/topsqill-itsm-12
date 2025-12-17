@@ -454,146 +454,72 @@ export function ChartPreview({
     }
   };
 
-  // Helper to check if a field is numeric based on field type
-  const isNumericField = (fieldId: string): boolean => {
-    const field = formFields.find(f => f.id === fieldId);
-    if (!field) {
-      // Also search across all forms
-      for (const form of forms) {
-        const foundField = form.fields?.find((f: any) => f.id === fieldId);
-        if (foundField) {
-          const fieldType = (foundField as any)?.field_type || foundField?.type || 'unknown';
-          return ['number', 'currency', 'slider', 'rating', 'calculated'].includes(fieldType);
-        }
-      }
-      return false;
-    }
-    const fieldType = (field as any)?.field_type || field?.type || 'unknown';
-    return ['number', 'currency', 'slider', 'rating', 'calculated'].includes(fieldType);
-  };
-
-  // Get raw value from submission data preserving type (text or number)
-  const getRawFieldValue = (submissionData: any, fieldId: string): string | number => {
-    const value = submissionData[fieldId];
-    
-    if (value === undefined || value === null) {
-      return isNumericField(fieldId) ? 0 : '';
-    }
-    
-    // Handle object values (currency, etc.)
-    if (typeof value === 'object' && value !== null) {
-      if (value.amount !== undefined) {
-        return Number(value.amount) || 0;
-      }
-      if (value.label !== undefined) {
-        return String(value.label);
-      }
-      return JSON.stringify(value);
-    }
-    
-    // For numeric fields, ensure we return a number
-    if (isNumericField(fieldId)) {
-      const numValue = Number(value);
-      return isNaN(numValue) ? 0 : numValue;
-    }
-    
-    // For text fields, return the string value
-    return String(value);
-  };
-
-  // Process compare mode - supports number-number, number-text, and text-text comparisons
+  // Process compare mode - X/Y scatter format (Field 1 on X, Field 2 on Y)
   const processCompareData = (submissions: any[], dimensionFields: string[], metricFields: string[]) => {
     console.log('📊 Processing compare mode with fields:', metricFields, 'dimensions:', dimensionFields);
 
     const [metricField1, metricField2] = metricFields;
     const field1Name = getFormFieldName(metricField1);
     const field2Name = getFormFieldName(metricField2);
-    const field1IsNumeric = isNumericField(metricField1);
-    const field2IsNumeric = isNumericField(metricField2);
-    
-    console.log('📊 Field types - Field1:', field1IsNumeric ? 'numeric' : 'text', 'Field2:', field2IsNumeric ? 'numeric' : 'text');
 
     const hasDimension = dimensionFields.length > 0 && dimensionFields[0] !== '_default';
 
-    // If dimension is selected, group data by dimension
+    // If dimension is selected, group data by dimension and sum values
     if (hasDimension) {
       console.log('📊 Compare mode WITH dimension grouping:', dimensionFields[0]);
       
-      // Group submissions by dimension value
-      const groupedData: { [key: string]: { xValues: (string | number)[]; yValues: (string | number)[]; count: number } } = {};
+      // Group submissions by dimension value and sum both metrics
+      const groupedData: { [key: string]: { x: number; y: number; count: number } } = {};
       
       submissions
         .filter(submission => passesFilters(submission.submission_data))
         .forEach(submission => {
           const submissionData = submission.submission_data;
           const dimensionKey = getDimensionKey(submissionData, dimensionFields);
-          const xValue = getRawFieldValue(submissionData, metricField1);
-          const yValue = getRawFieldValue(submissionData, metricField2);
+          const xValue = getRawMetricValue(submissionData, metricField1);
+          const yValue = getRawMetricValue(submissionData, metricField2);
           
           if (!groupedData[dimensionKey]) {
-            groupedData[dimensionKey] = { xValues: [], yValues: [], count: 0 };
+            groupedData[dimensionKey] = { x: 0, y: 0, count: 0 };
           }
           
-          groupedData[dimensionKey].xValues.push(xValue);
-          groupedData[dimensionKey].yValues.push(yValue);
+          groupedData[dimensionKey].x += xValue;
+          groupedData[dimensionKey].y += yValue;
           groupedData[dimensionKey].count += 1;
         });
       
-      // Convert to array format - aggregate numeric fields, concatenate text fields
-      const points = Object.entries(groupedData).map(([name, values]) => {
-        let aggregatedX: string | number;
-        let aggregatedY: string | number;
-        
-        if (field1IsNumeric) {
-          aggregatedX = (values.xValues as number[]).reduce((sum, v) => sum + (Number(v) || 0), 0);
-        } else {
-          // For text, show unique values or count
-          const uniqueValues = [...new Set(values.xValues.map(v => String(v)))];
-          aggregatedX = uniqueValues.length <= 3 ? uniqueValues.join(', ') : `${uniqueValues.length} values`;
-        }
-        
-        if (field2IsNumeric) {
-          aggregatedY = (values.yValues as number[]).reduce((sum, v) => sum + (Number(v) || 0), 0);
-        } else {
-          const uniqueValues = [...new Set(values.yValues.map(v => String(v)))];
-          aggregatedY = uniqueValues.length <= 3 ? uniqueValues.join(', ') : `${uniqueValues.length} values`;
-        }
-        
-        return {
-          name,
-          x: aggregatedX,
-          y: aggregatedY,
-          xFieldName: field1Name,
-          yFieldName: field2Name,
-          field1IsNumeric,
-          field2IsNumeric,
-        };
-      });
+      // Convert to array format
+      const points = Object.entries(groupedData).map(([name, values]) => ({
+        name,
+        x: values.x,
+        y: values.y,
+        xFieldName: field1Name,
+        yFieldName: field2Name,
+      }));
       
       console.log('📊 Compare grouped data:', points);
       return points;
     }
 
-    // No dimension - each submission becomes a point with actual field values
+    // No dimension - each submission becomes a point: x = field1 value, y = field2 value
     const points = submissions
       .filter(submission => passesFilters(submission.submission_data))
       .map((submission, index) => {
         const submissionData = submission.submission_data;
-        const xValue = getRawFieldValue(submissionData, metricField1);
-        const yValue = getRawFieldValue(submissionData, metricField2);
+        const xValue = getRawMetricValue(submissionData, metricField1);
+        const yValue = getRawMetricValue(submissionData, metricField2);
 
         return {
           x: xValue,
           y: yValue,
           name: `Record ${index + 1}`,
+          // Store field names for tooltip
           xFieldName: field1Name,
           yFieldName: field2Name,
-          field1IsNumeric,
-          field2IsNumeric,
         };
       });
 
-    console.log('📊 Compare data (preserving types):', points);
+    console.log('📊 Compare scatter data:', points);
     return points;
   };
   
@@ -1033,10 +959,7 @@ export function ChartPreview({
     const metricField = config.metrics?.[0];
     const metricName = metricField ? getFormFieldName(metricField) : 'Records';
 
-    // For compare mode, use 'compare' as aggregation type
-    const aggregation = config.compareMode 
-      ? 'compare' 
-      : (config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count');
+    const aggregation = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
     const groupByName = config.groupByField ? getFormFieldName(config.groupByField) : null;
     const chartType = config.type || config.chartType || 'bar';
     
@@ -1189,74 +1112,36 @@ export function ChartPreview({
       primaryMetric = 'count';
     }
 
-    // Check if this is compare mode
-    const isCompareModeCheck = config.compareMode && config.metrics && config.metrics.length === 2;
-    
-    // For compare mode, check for 'y' key specifically
-    if (isCompareModeCheck) {
-      // In compare mode, we use 'y' as the primary value for charting
-      const hasCompareData = sanitizedChartData.some(item => {
-        // Check if y value exists and is either numeric or text
-        const yVal = item.y;
-        if (yVal === undefined || yVal === null) return false;
-        // If y is numeric, check it's valid
-        if (typeof yVal === 'number') {
-          return !isNaN(yVal) && isFinite(yVal);
-        }
-        // If y is a string (text field), it's valid for display
-        if (typeof yVal === 'string' && yVal.length > 0) {
-          return true;
-        }
-        return false;
-      });
-      
-      if (!hasCompareData) {
-        return <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="text-muted-foreground mb-2">No data available</div>
-            <div className="text-sm text-muted-foreground">No valid field values found for comparison.</div>
-          </div>
-        </div>;
-      }
-      
-      // For compare mode, set primaryMetric to 'y' for numeric comparisons
-      const field2IsNumeric = sanitizedChartData[0]?.field2IsNumeric;
-      if (field2IsNumeric) {
-        primaryMetric = 'y';
-      }
-    } else {
-      // Non-compare mode: original validation logic
-      // Ensure the primary metric exists in the data
-      if (sanitizedChartData.length > 0 && !sanitizedChartData[0].hasOwnProperty(primaryMetric)) {
-        // Fallback to available keys
-        const availableKeys = Object.keys(sanitizedChartData[0]).filter(key => key !== 'name' && key !== '_drilldownData' && typeof sanitizedChartData[0][key] === 'number');
-        if (availableKeys.length > 0) {
-          primaryMetric = availableKeys[0];
-        } else {
-          // No valid numeric keys found - show no data message
-          return <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="text-muted-foreground mb-2">No numeric data available</div>
-              <div className="text-sm text-muted-foreground">Configure the chart with valid numeric metrics</div>
-            </div>
-          </div>;
-        }
-      }
-
-      // Final safety check: ensure we actually have some non-zero numeric data for the primary metric
-      const hasValidNumericData = sanitizedChartData.some(item => {
-        const val = Number(item[primaryMetric]);
-        return !isNaN(val) && isFinite(val) && val !== 0;
-      });
-
-      if (!hasValidNumericData) {
+    // Ensure the primary metric exists in the data
+    if (sanitizedChartData.length > 0 && !sanitizedChartData[0].hasOwnProperty(primaryMetric)) {
+      // Fallback to available keys
+      const availableKeys = Object.keys(sanitizedChartData[0]).filter(key => key !== 'name' && key !== '_drilldownData' && typeof sanitizedChartData[0][key] === 'number');
+      if (availableKeys.length > 0) {
+        primaryMetric = availableKeys[0];
+      } else {
+        // No valid numeric keys found - show no data message
         return <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="text-muted-foreground mb-2">No numeric data available</div>
-            <div className="text-sm text-muted-foreground">Current configuration does not produce any numeric values to chart.</div>
+            <div className="text-sm text-muted-foreground">Configure the chart with valid numeric metrics</div>
           </div>
         </div>;
       }
+    }
+
+    // Final safety check: ensure we actually have some non-zero numeric data for the primary metric
+    const hasValidNumericData = sanitizedChartData.some(item => {
+      const val = Number(item[primaryMetric]);
+      return !isNaN(val) && isFinite(val) && val !== 0;
+    });
+
+    if (!hasValidNumericData) {
+      return <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="text-muted-foreground mb-2">No numeric data available</div>
+          <div className="text-sm text-muted-foreground">Current configuration does not produce any numeric values to chart.</div>
+        </div>
+      </div>;
     }
 
     const chartType = config.type || config.chartType || 'bar';
@@ -1293,103 +1178,8 @@ export function ChartPreview({
     if (isCompareMode) {
       const field1Name = config.metrics ? getFormFieldName(config.metrics[0]) : 'Field 1';
       const field2Name = config.metrics ? getFormFieldName(config.metrics[1]) : 'Field 2';
-      
-      // Check if fields are numeric based on data
-      const field1IsNumeric = sanitizedChartData[0]?.field1IsNumeric ?? true;
-      const field2IsNumeric = sanitizedChartData[0]?.field2IsNumeric ?? true;
-      
-      console.log('📊 Compare mode field types:', { field1IsNumeric, field2IsNumeric });
 
-      // For text-to-text comparison, show a bar chart with frequency of combinations
-      if (!field1IsNumeric && !field2IsNumeric) {
-        // Count unique combinations of x and y values
-        const combinationCounts: { [key: string]: number } = {};
-        sanitizedChartData.forEach(item => {
-          const key = `${item.x || '-'} + ${item.y || '-'}`;
-          combinationCounts[key] = (combinationCounts[key] || 0) + 1;
-        });
-        
-        const barData = Object.entries(combinationCounts).map(([name, count]) => ({
-          name,
-          count,
-        })).sort((a, b) => b.count - a.count);
-        
-        return (
-          <div className="relative w-full h-full min-h-[300px]">
-            <div className="text-sm text-muted-foreground mb-2 px-2">
-              Text-to-Text Comparison: {field1Name} + {field2Name} (showing combination frequencies)
-            </div>
-            <div className="absolute inset-0 top-8">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={barData} margin={{ top: 20, right: 30, left: 60, bottom: 100 }}>
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fontSize: 10 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={100}
-                    interval={0}
-                  />
-                  <YAxis tick={{ fontSize: 11 }} label={{ value: 'Count', angle: -90, position: 'insideLeft' }} />
-                  <Tooltip 
-                    content={({ payload }) => {
-                      if (!payload || payload.length === 0) return null;
-                      const data = payload[0]?.payload;
-                      if (!data) return null;
-                      return (
-                        <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3">
-                          <div className="font-medium mb-1">{data.name}</div>
-                          <div className="text-sm">Count: {data.count}</div>
-                        </div>
-                      );
-                    }}
-                  />
-                  <Bar dataKey="count" fill={colors[0]} name="Frequency" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        );
-      }
-      
-      // For number-to-text comparison (Y is text), show bar chart with text categories and counts
-      if (field1IsNumeric && !field2IsNumeric) {
-        // Group by y (text) value and sum x (number) values
-        const groupedByY: { [key: string]: number } = {};
-        sanitizedChartData.forEach(item => {
-          const yKey = String(item.y || 'Unknown');
-          groupedByY[yKey] = (groupedByY[yKey] || 0) + (Number(item.x) || 0);
-        });
-        
-        const barData = Object.entries(groupedByY).map(([name, value]) => ({
-          name,
-          value,
-        })).sort((a, b) => b.value - a.value);
-        
-        return (
-          <div className="relative w-full h-full min-h-[300px]">
-            <div className="absolute inset-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={barData} margin={{ top: 20, right: 30, left: 60, bottom: 80 }}>
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fontSize: 11 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                    interval={0}
-                  />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill={colors[0]} name={`Sum of ${field1Name}`} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        );
-      }
-
-      // Calculate safe domains for X and Y axes (for numeric fields)
+      // Calculate safe domains for X and Y axes
       const xValues = sanitizedChartData.map(d => Number(d.x)).filter(v => isFinite(v));
       const yValues = sanitizedChartData.map(d => Number(d.y)).filter(v => isFinite(v));
       const xMax = xValues.length > 0 ? Math.max(...xValues) : 10;
@@ -1398,7 +1188,7 @@ export function ChartPreview({
       const yDomain: [number, number] = [0, Math.ceil(yMax * 1.1) || 10];
 
       // Sort data by x value for line/area charts
-      const sortedData = [...sanitizedChartData].sort((a, b) => (Number(a.x) || 0) - (Number(b.x) || 0));
+      const sortedData = [...sanitizedChartData].sort((a, b) => (a.x || 0) - (b.x || 0));
 
       const compareTooltip = (
         <Tooltip 
@@ -2103,10 +1893,8 @@ export function ChartPreview({
           
           {/* Aggregation Badge */}
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-            {chartInfo.aggregation === 'count' ? 'Count' : 
-             chartInfo.aggregation === 'compare' ? 'Compare Fields' :
-             chartInfo.aggregation.charAt(0).toUpperCase() + chartInfo.aggregation.slice(1)}
-            {chartInfo.aggregation !== 'count' && chartInfo.aggregation !== 'compare' && `: ${chartInfo.metricName}`}
+            {chartInfo.aggregation === 'count' ? 'Count' : chartInfo.aggregation.charAt(0).toUpperCase() + chartInfo.aggregation.slice(1)}
+            {chartInfo.aggregation !== 'count' && `: ${chartInfo.metricName}`}
           </span>
           
           {/* Form Badge */}
@@ -2368,7 +2156,7 @@ export function ChartPreview({
                                   });
                                 }}
                               >
-                                {typeof item.x === 'number' ? item.x.toLocaleString() : (item.x ?? '-')}
+                                {typeof item.x === 'number' ? item.x.toLocaleString() : (item.x ?? 0)}
                               </td>
                               <td 
                                 key="field2" 
@@ -2382,7 +2170,7 @@ export function ChartPreview({
                                   });
                                 }}
                               >
-                                {typeof item.y === 'number' ? item.y.toLocaleString() : (item.y ?? '-')}
+                                {typeof item.y === 'number' ? item.y.toLocaleString() : (item.y ?? 0)}
                               </td>
                             </>
                           );
