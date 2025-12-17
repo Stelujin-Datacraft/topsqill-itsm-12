@@ -38,6 +38,7 @@ interface ChartPropertiesPaneProps {
   onUpdateComponent: (componentId: string, updates: Partial<ReportComponent>) => void;
   onExpandedChange?: (expanded: boolean) => void;
   formFields: FormField[];
+  forms?: Array<{ id: string; name: string }>;
 }
 
 export function ChartPropertiesPane({
@@ -52,7 +53,8 @@ export function ChartPropertiesPane({
   onChangeTheme,
   onUpdateComponent,
   onExpandedChange,
-  formFields
+  formFields,
+  forms = []
 }: ChartPropertiesPaneProps) {
   const [componentName, setComponentName] = React.useState('');
   const [isExpanded, setIsExpanded] = React.useState(false);
@@ -342,10 +344,12 @@ export function ChartPropertiesPane({
                     <span className="text-muted-foreground">Size:</span>
                     <span>{component.layout.w} × {component.layout.h}</span>
                   </div>
-                  {component.config?.formId && (
+                {component.config?.formId && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Form:</span>
-                      <span className="text-xs truncate">{component.config.formId}</span>
+                      <span className="text-xs truncate">
+                        {forms.find(f => f.id === component.config.formId)?.name || component.config.formId}
+                      </span>
                     </div>
                   )}
                   {component.config?.chartType && (

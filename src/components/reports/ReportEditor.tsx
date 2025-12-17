@@ -52,7 +52,8 @@ export function ReportEditor({
     updateReportComponent,
     deleteReportComponent,
     getFormFields,
-    updateReport
+    updateReport,
+    forms
   } = useReports();
   const {
     toast
@@ -621,7 +622,8 @@ export function ReportEditor({
             console.error('Error updating component:', error);
           }
         }} 
-        formFields={selectedComponent?.config?.formId ? getFormFields(selectedComponent.config.formId) : []} 
+        formFields={selectedComponent?.config?.formId ? getFormFields(selectedComponent.config.formId) : []}
+        forms={forms}
       />
 
       {/* Component Configuration Dialog */}
