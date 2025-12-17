@@ -56,13 +56,37 @@ export function ChartPreview({
     forms
   } = useFormsData();
 
+  // State to hold directly fetched fields as fallback
+  const [directlyFetchedFields, setDirectlyFetchedFields] = useState<any[]>([]);
+
   // Get current form and its fields from useFormsData for better reliability
   const currentForm = useMemo(() => {
     return forms.find(f => f.id === config.formId);
   }, [forms, config.formId]);
+  
+  // Use directly fetched fields as fallback when currentForm.fields is not available
   const formFields = useMemo(() => {
-    return currentForm?.fields || [];
-  }, [currentForm]);
+    const fieldsFromForm = currentForm?.fields || [];
+    return fieldsFromForm.length > 0 ? fieldsFromForm : directlyFetchedFields;
+  }, [currentForm, directlyFetchedFields]);
+
+  // Fetch fields directly when config.formId changes and formFields is empty
+  useEffect(() => {
+    const fetchFieldsDirectly = async () => {
+      if (config.formId && (!currentForm?.fields || currentForm.fields.length === 0)) {
+        try {
+          const fields = await getFormFields(config.formId);
+          if (fields && fields.length > 0) {
+            setDirectlyFetchedFields(fields);
+            console.log('ChartPreview: Directly fetched fields for form', config.formId, fields);
+          }
+        } catch (error) {
+          console.error('ChartPreview: Error fetching fields directly:', error);
+        }
+      }
+    };
+    fetchFieldsDirectly();
+  }, [config.formId, currentForm?.fields, getFormFields]);
 
   // Helper functions to get form and field names with robust fallbacks
   const getFormName = (formId: string): string => {
