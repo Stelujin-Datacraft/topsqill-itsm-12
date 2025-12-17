@@ -8,9 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ChartColorThemes } from './ChartColorThemes';
-import { DrilldownTab } from './DrilldownTab';
 import { ReportComponent } from '@/types/reports';
-import { FormField } from '@/types/form';
 import { 
   Edit3, 
   Trash2, 
@@ -33,11 +31,9 @@ interface ChartPropertiesPaneProps {
   onDelete: (componentId: string) => void;
   onRename: (componentId: string, newName: string) => void;
   onApplyFilter: (componentId: string) => void;
-  onApplyDrilldown: (componentId: string) => void;
   onChangeTheme: (componentId: string, theme: any) => void;
   onUpdateComponent: (componentId: string, updates: Partial<ReportComponent>) => void;
   onExpandedChange?: (expanded: boolean) => void;
-  formFields: FormField[];
   forms?: Array<{ id: string; name: string }>;
 }
 
@@ -49,11 +45,9 @@ export function ChartPropertiesPane({
   onDelete,
   onRename,
   onApplyFilter,
-  onApplyDrilldown,
   onChangeTheme,
   onUpdateComponent,
   onExpandedChange,
-  formFields,
   forms = []
 }: ChartPropertiesPaneProps) {
   const [componentName, setComponentName] = React.useState('');
@@ -196,10 +190,9 @@ export function ChartPropertiesPane({
             {/* Chart-specific configurations */}
             {component.type === 'chart' && (
               <Tabs defaultValue="display" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="display">Display</TabsTrigger>
                   <TabsTrigger value="filters">Filters</TabsTrigger>
-                  <TabsTrigger value="drilldown">Drilldown</TabsTrigger>
                   <TabsTrigger value="themes">Themes</TabsTrigger>
                 </TabsList>
                 
@@ -300,14 +293,6 @@ export function ChartPropertiesPane({
                       </Button>
                     </CardContent>
                   </Card>
-                </TabsContent>
-                
-                <TabsContent value="drilldown">
-                  <DrilldownTab
-                    component={component}
-                    formFields={formFields}
-                    onUpdateComponent={onUpdateComponent}
-                  />
                 </TabsContent>
                 
                 <TabsContent value="themes">

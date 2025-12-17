@@ -326,13 +326,6 @@ export function ReportEditor({
       setIsPropertiesPaneOpen(false);
     }
   };
-  const handleApplyDrilldown = (componentId: string) => {
-    const component = components.find(c => c.id === componentId);
-    if (component) {
-      handleEditComponent(component);
-      setIsPropertiesPaneOpen(false);
-    }
-  };
   const handleChangeTheme = async (componentId: string, theme: any) => {
     try {
       const component = components.find(c => c.id === componentId);
@@ -597,7 +590,6 @@ export function ReportEditor({
         onDelete={handleDeleteComponent} 
         onRename={handleComponentRename} 
         onApplyFilter={handleApplyFilter} 
-        onApplyDrilldown={handleApplyDrilldown} 
         onChangeTheme={handleChangeTheme} 
         onExpandedChange={setIsPropertiesPaneExpanded}
         onUpdateComponent={async (componentId, updates) => {
@@ -622,7 +614,6 @@ export function ReportEditor({
             console.error('Error updating component:', error);
           }
         }} 
-        formFields={selectedComponent?.config?.formId ? getFormFields(selectedComponent.config.formId) : []}
         forms={forms}
       />
 
