@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Table,
   TableBody,
@@ -63,6 +64,7 @@ interface FormField {
 }
 
 export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit }: FormSubmissionsTableProps) {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -424,7 +426,11 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
           </TableHeader>
           <TableBody>
             {filteredAndSortedData.slice(0, config.pageSize || 50).map((submission, index) => (
-              <TableRow key={submission.id || index}>
+              <TableRow 
+                key={submission.id || index}
+                className="cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => submission.id && navigate(`/submission/${submission.id}`)}
+              >
                 {getDisplayColumns().map((column) => (
                   <TableCell key={column.id}>
                     {renderCellValue(submission, column.id, column.type)}

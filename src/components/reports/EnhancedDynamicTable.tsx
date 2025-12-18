@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,6 +50,7 @@ interface ActiveFilter {
 }
 
 export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTableProps) {
+  const navigate = useNavigate();
   const [formFields, setFormFields] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ field: string; direction: 'asc' | 'desc' } | null>(null);
@@ -673,7 +675,11 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                 </TableRow>
               ) : (
                 filteredData.map(row => (
-                  <TableRow key={row.id}>
+                  <TableRow 
+                    key={row.id}
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => row.id && navigate(`/submission/${row.id}`)}
+                  >
                     {displayFields.map(field => {
                       const fieldValue = getFieldValue(row, field.id);
                       const canDrilldown = isDrilldownEnabled(field.id);
