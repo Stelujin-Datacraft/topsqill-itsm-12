@@ -1289,7 +1289,7 @@ export function ChartPreview({
                     label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                   />
                   {compareTooltip}
-                  <Line type="monotone" dataKey="y" stroke={colors[0]} strokeWidth={2} dot={{ fill: colors[0], r: 4 }} />
+                  <Line type="monotone" dataKey="y" stroke={colors[0]} strokeWidth={2} dot={{ fill: colors[0], r: 4 }} style={{ cursor: 'pointer' }} activeDot={{ r: 8, onClick: (data: any) => handleBarClick(data?.payload || data, 0) }} />
                 </RechartsLineChart>
               </ResponsiveContainer>
             </div>
@@ -1318,7 +1318,7 @@ export function ChartPreview({
                     label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                   />
                   {compareTooltip}
-                  <Area type="monotone" dataKey="y" stroke={colors[0]} fill={colors[0]} fillOpacity={0.3} />
+                  <Area type="monotone" dataKey="y" stroke={colors[0]} fill={colors[0]} fillOpacity={0.3} style={{ cursor: 'pointer' }} activeDot={{ r: 8, onClick: (data: any) => handleBarClick(data?.payload || data, 0) }} />
                 </RechartsAreaChart>
               </ResponsiveContainer>
             </div>
@@ -1531,6 +1531,8 @@ export function ChartPreview({
                   data={sanitizedChartData} 
                   fill={colors[0]}
                   shape="circle"
+                  style={{ cursor: 'pointer' }}
+                  onClick={(data: any) => handleBarClick(data?.payload || data, 0)}
                 />
               </RechartsScatterChart>
             </ResponsiveContainer>
@@ -1744,10 +1746,10 @@ export function ChartPreview({
                   value,
                   percent
                 }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`} style={{
-                  cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default'
-                }} onClick={config.drilldownConfig?.enabled ? handlePieClick : undefined}>
+                  cursor: 'pointer'
+                }} onClick={(data, idx) => config.drilldownConfig?.enabled ? handlePieClick(data) : handleBarClick(data, idx)}>
                     {sanitizedChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={colors[index % colors.length]} style={{
-                    cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default'
+                    cursor: 'pointer'
                   }} />)}
                   </Pie>
                   <Tooltip formatter={(value, name, props) => {
@@ -1774,8 +1776,8 @@ export function ChartPreview({
                   name,
                   value,
                   percent
-                }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}>
-                    {sanitizedChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />)}
+                }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`} style={{ cursor: 'pointer' }} onClick={(data, idx) => handleBarClick(data, idx)}>
+                    {sanitizedChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={colors[index % colors.length]} style={{ cursor: 'pointer' }} />)}
                   </Pie>
                    <Tooltip formatter={(value, name) => [value, name]} />
                    
@@ -1823,25 +1825,19 @@ export function ChartPreview({
                   fill: colors[index % colors.length],
                   strokeWidth: 2,
                   r: 4
-                }} style={{
-                  cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default'
-                }} />) :
+                }} style={{ cursor: 'pointer' }} activeDot={{ r: 8, onClick: (data: any) => handleBarClick(data, index) }} />) :
                 // Single dimension - render primary metric and additional metrics if any
                 <>
                         <Line type="monotone" dataKey={primaryMetric} stroke={colors[0]} strokeWidth={3} name={getFormFieldName(primaryMetric)} dot={{
                     fill: colors[0],
                     strokeWidth: 2,
                     r: 4
-                  }} style={{
-                    cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default'
-                  }} />
+                  }} style={{ cursor: 'pointer' }} activeDot={{ r: 8, onClick: (data: any) => handleBarClick(data, 0) }} />
                         {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => <Line key={metric} type="monotone" dataKey={metric} stroke={colors[(index + 1) % colors.length]} strokeWidth={3} name={getFormFieldName(metric)} dot={{
                     fill: colors[(index + 1) % colors.length],
                     strokeWidth: 2,
                     r: 4
-                  }} style={{
-                    cursor: config.drilldownConfig?.enabled ? 'pointer' : 'default'
-                  }} />)}
+                  }} style={{ cursor: 'pointer' }} activeDot={{ r: 8, onClick: (data: any) => handleBarClick(data, index + 1) }} />)}
                      </>}
                 </RechartsLineChart>
               </ResponsiveContainer>
@@ -1881,8 +1877,8 @@ export function ChartPreview({
                   fontSize: '12px'
                 }} />
                    
-                   <Area type="monotone" dataKey={primaryMetric} stroke={colors[0]} fill={colors[0]} fillOpacity={0.6} name={getFormFieldName(primaryMetric)} />
-                   {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => <Area key={metric} type="monotone" dataKey={metric} stroke={colors[(index + 1) % colors.length]} fill={colors[(index + 1) % colors.length]} fillOpacity={0.6} name={getFormFieldName(metric)} />)}
+                   <Area type="monotone" dataKey={primaryMetric} stroke={colors[0]} fill={colors[0]} fillOpacity={0.6} name={getFormFieldName(primaryMetric)} style={{ cursor: 'pointer' }} activeDot={{ r: 8, onClick: (data: any) => handleBarClick(data, 0) }} />
+                   {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => <Area key={metric} type="monotone" dataKey={metric} stroke={colors[(index + 1) % colors.length]} fill={colors[(index + 1) % colors.length]} fillOpacity={0.6} name={getFormFieldName(metric)} style={{ cursor: 'pointer' }} activeDot={{ r: 8, onClick: (data: any) => handleBarClick(data, index + 1) }} />)}
                 </RechartsAreaChart>
               </ResponsiveContainer>
             </div>
@@ -1917,7 +1913,7 @@ export function ChartPreview({
                   borderRadius: 'var(--radius)',
                   fontSize: '12px'
                 }} />
-                  <Scatter dataKey={primaryMetric} fill={colors[0]} />
+                  <Scatter dataKey={primaryMetric} fill={colors[0]} style={{ cursor: 'pointer' }} onClick={(data: any) => handleBarClick(data, 0)} />
                 </RechartsScatterChart>
               </ResponsiveContainer>
             </div>
@@ -1936,7 +1932,7 @@ export function ChartPreview({
                     <XAxis dataKey="name" />
                     <YAxis dataKey={primaryMetric} domain={getYAxisDomain(bubbleData, primaryMetric)} />
                     <Tooltip formatter={(value, name, props) => [`${name}: ${value}`, `Size: ${props.payload.size}`]} />
-                    {bubbleData.map((entry, index) => <Scatter key={index} data={[entry]} fill={colors[index % colors.length]} r={Math.max(5, Math.min(20, entry.size / 2))} />)}
+                    {bubbleData.map((entry, index) => <Scatter key={index} data={[entry]} fill={colors[index % colors.length]} r={Math.max(5, Math.min(20, entry.size / 2))} style={{ cursor: 'pointer' }} onClick={() => handleBarClick(entry, index)} />)}
                 </RechartsScatterChart>
               </ResponsiveContainer>
             </div>
