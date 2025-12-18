@@ -42,6 +42,7 @@ export interface ChartConfig {
   aggregationType?: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'median' | 'stddev';
   aggregationEnabled?: boolean;
   compareMode?: boolean; // When true, show raw values of two fields side-by-side without aggregation
+  encodedLegendMode?: boolean; // When true, encode second field values as numbers with legend
   groupByField?: string;
   colorTheme: 'default' | 'vibrant' | 'pastel' | 'monochrome' | 'custom';
   customColors?: string[];
