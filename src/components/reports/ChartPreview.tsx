@@ -1407,7 +1407,9 @@ export function ChartPreview({
     }
 
     // Compare mode: render with X/Y axis format using selected chart type
-    if (isCompareMode) {
+    // Skip standard compare rendering if using encoded legend mode (data has _legendMapping)
+    const hasEncodedLegend = sanitizedChartData.length > 0 && sanitizedChartData[0]._legendMapping;
+    if (isCompareMode && !hasEncodedLegend) {
       const field1Name = config.metrics ? getFormFieldName(config.metrics[0]) : 'Field 1';
       const field2Name = config.metrics ? getFormFieldName(config.metrics[1]) : 'Field 2';
 
