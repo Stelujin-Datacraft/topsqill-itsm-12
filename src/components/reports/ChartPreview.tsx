@@ -473,9 +473,16 @@ export function ChartPreview({
     }
     
     // For Count mode with 2 dimensions: first is X-axis, second is Stack/Color
-    // Use grouped processing where dimensions[0] is X-axis, dimensions[1] is groupBy
+    // Check if encoded legend mode is enabled
     if (dimensionFields.length > 1 && !config.aggregationEnabled && !config.compareMode) {
       console.log('🔍 Count mode with stacking: X-axis =', dimensionFields[0], 'Stack =', dimensionFields[1]);
+      
+      // Encoded legend mode: show Y-axis as numbers with legend mapping
+      if (config.encodedLegendMode) {
+        console.log('🔍 Using encoded legend mode');
+        return processEncodedLegendData(submissions, dimensionFields[0], dimensionFields[1]);
+      }
+      
       return processGroupedData(submissions, [dimensionFields[0]], metricFields, dimensionFields[1]);
     }
     
@@ -576,6 +583,59 @@ export function ChartPreview({
 
     console.log('📊 Compare scatter data:', points);
     return points;
+  };
+
+  // Process encoded legend mode - X-axis shows primary field values, Y-axis shows encoded numeric values for secondary field
+  // Returns chart data plus a legend mapping object
+  const processEncodedLegendData = (submissions: any[], primaryField: string, secondaryField: string) => {
+    console.log('📊 Processing encoded legend mode - Primary:', primaryField, 'Secondary:', secondaryField);
+    
+    // First, collect all unique values of the secondary field to create the encoding
+    const uniqueSecondaryValues = new Set<string>();
+    submissions
+      .filter(submission => passesFilters(submission.submission_data))
+      .forEach(submission => {
+        const value = getDimensionValue(submission.submission_data, secondaryField);
+        if (value && value !== 'Unknown') {
+          uniqueSecondaryValues.add(value);
+        }
+      });
+    
+    // Create encoding map: value -> number (1, 2, 3, ...)
+    const encodingMap: { [value: string]: number } = {};
+    const legendMapping: { number: number; label: string }[] = [];
+    let encodingNumber = 1;
+    
+    Array.from(uniqueSecondaryValues).sort().forEach(value => {
+      encodingMap[value] = encodingNumber;
+      legendMapping.push({ number: encodingNumber, label: value });
+      encodingNumber++;
+    });
+    
+    console.log('📊 Encoding map:', encodingMap);
+    console.log('📊 Legend mapping:', legendMapping);
+    
+    // Now create chart data with primary field as X-axis and encoded value as Y-axis
+    const chartData = submissions
+      .filter(submission => passesFilters(submission.submission_data))
+      .map((submission, index) => {
+        const submissionData = submission.submission_data;
+        const primaryValue = getDimensionValue(submissionData, primaryField);
+        const secondaryValue = getDimensionValue(submissionData, secondaryField);
+        const encodedValue = encodingMap[secondaryValue] || 0;
+        
+        return {
+          name: primaryValue || `Record ${index + 1}`,
+          value: encodedValue,
+          encodedValue,
+          rawSecondaryValue: secondaryValue,
+          submissionId: submission.id,
+          _legendMapping: legendMapping, // Store legend for rendering
+        };
+      });
+    
+    console.log('📊 Encoded legend chart data:', chartData);
+    return chartData;
   };
   
   const processGroupedData = (submissions: any[], dimensionFields: string[], metricFields: string[], groupByField: string) => {
@@ -1568,6 +1628,113 @@ export function ChartPreview({
         </div>
       );
     }
+    
+    // Encoded Legend Mode: special rendering with legend sidebar
+    if (config.encodedLegendMode && sanitizedChartData.length > 0 && sanitizedChartData[0]._legendMapping) {
+      const legendMapping = sanitizedChartData[0]._legendMapping as { number: number; label: string }[];
+      const maxEncodedValue = Math.max(...sanitizedChartData.map(d => d.encodedValue || 0), 1);
+      
+      // Get field names for labels
+      const xAxisFieldName = config.dimensions?.[0] ? getFormFieldName(config.dimensions[0]) : 'Category';
+      const yAxisFieldName = config.dimensions?.[1] ? getFormFieldName(config.dimensions[1]) : 'Value';
+      
+      return (
+        <div className="relative w-full h-full min-h-[300px] flex gap-4">
+          {/* Chart Area */}
+          <div className="flex-1 relative min-w-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart 
+                data={sanitizedChartData} 
+                margin={{ top: 20, right: 20, left: 60, bottom: 80 }}
+              >
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fontSize: 11 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  interval={0}
+                  label={{
+                    value: xAxisFieldName,
+                    position: 'insideBottom',
+                    offset: -5
+                  }} 
+                />
+                <YAxis 
+                  type="number" 
+                  tick={{ fontSize: 11 }}
+                  domain={[0, maxEncodedValue + 0.5]}
+                  ticks={Array.from({ length: maxEncodedValue }, (_, i) => i + 1)}
+                  allowDecimals={false}
+                  label={{
+                    value: `${yAxisFieldName} (Encoded)`,
+                    angle: -90,
+                    position: 'insideLeft',
+                    offset: 10
+                  }} 
+                />
+                <Tooltip 
+                  content={({ payload }) => {
+                    if (!payload || payload.length === 0) return null;
+                    const data = payload[0]?.payload;
+                    if (!data) return null;
+                    return (
+                      <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
+                        <div className="font-medium mb-2">{data.name}</div>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground">{yAxisFieldName}:</span>
+                            <span className="font-semibold">{data.rawSecondaryValue}</span>
+                          </div>
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground">Code:</span>
+                            <span className="font-semibold">{data.encodedValue}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
+                <Bar 
+                  dataKey="encodedValue" 
+                  name="Encoded Value"
+                  style={{ cursor: 'pointer' }}
+                  onClick={(data, idx) => handleBarClick(data, idx)}
+                  activeBar={{ fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
+                >
+                  {sanitizedChartData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={colors[index % colors.length]} 
+                      style={{ cursor: 'pointer' }}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          
+          {/* Legend Sidebar */}
+          <div className="w-40 shrink-0 border-l border-border pl-4">
+            <div className="text-sm font-semibold mb-3 text-foreground">{yAxisFieldName} Legend</div>
+            <div className="space-y-2 max-h-[250px] overflow-y-auto">
+              {legendMapping.map(({ number, label }) => (
+                <div key={number} className="flex items-center gap-2 text-sm">
+                  <div 
+                    className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-primary-foreground shrink-0"
+                    style={{ backgroundColor: colors[(number - 1) % colors.length] }}
+                  >
+                    {number}
+                  </div>
+                  <span className="text-foreground truncate" title={label}>{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
     switch (chartType) {
       case 'bar':
         // Bar chart = vertical bars (categories on X-axis, values on Y-axis)

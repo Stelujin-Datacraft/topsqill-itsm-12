@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Plus, X, TrendingUp, Tag, BarChart3, Calculator, Layers, Info, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Plus, X, TrendingUp, Tag, BarChart3, Calculator, Layers, Info, CheckCircle2, ArrowRight, ListOrdered } from 'lucide-react';
 
 interface ChartDataSectionProps {
   config: ChartConfig;
@@ -635,6 +636,33 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
               ) : (
                 <p className="text-xs text-muted-foreground">Select an X-axis field first in Step 2.</p>
               )}
+              
+              {/* Encoded Legend Mode Toggle - only when second dimension is selected */}
+              {selectedDimensions.length === 2 && (
+                <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="encodedLegendMode"
+                      checked={config.encodedLegendMode || false}
+                      onCheckedChange={(checked) => {
+                        onConfigChange({ encodedLegendMode: checked === true });
+                      }}
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="encodedLegendMode" className="font-medium cursor-pointer flex items-center gap-2">
+                        <ListOrdered className="h-4 w-4 text-primary" />
+                        Use Number Encoding with Legend
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Show Y-axis as numbers (1, 2, 3...) with a legend showing what each number represents.
+                        <br />
+                        <span className="italic">Example: Name on X-axis, bar height = 1 (Mumbai), 2 (Gujarat), 3 (Delhi)</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <p className="text-xs text-muted-foreground">
                 This creates stacked or grouped bars where each color represents a different value of this field.
                 <br />
