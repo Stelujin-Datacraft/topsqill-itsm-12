@@ -473,13 +473,22 @@ export function ChartPreview({
     }
     
     // For Count mode with 2 dimensions: first is X-axis, second is Stack/Color
-    // Check if encoded legend mode is enabled
+    // Auto-detect if secondary field is text type and use encoded legend mode
     if (dimensionFields.length > 1 && !config.aggregationEnabled && !config.compareMode) {
       console.log('🔍 Count mode with stacking: X-axis =', dimensionFields[0], 'Stack =', dimensionFields[1]);
       
-      // Encoded legend mode: show Y-axis as numbers with legend mapping
-      if (config.encodedLegendMode) {
-        console.log('🔍 Using encoded legend mode');
+      // Check if secondary field is a text type - auto enable encoded legend mode
+      const secondaryFieldId = dimensionFields[1];
+      const secondaryField = formFields.find(f => f.id === secondaryFieldId);
+      const secondaryFieldType = (secondaryField as any)?.field_type || (secondaryField as any)?.type || '';
+      const textFieldTypes = ['text', 'short-text', 'long-text', 'textarea', 'select', 'radio', 'dropdown', 'status', 'country', 'email', 'tags', 'address', 'multi-select', 'checkbox'];
+      const isTextType = textFieldTypes.includes(secondaryFieldType);
+      
+      console.log('🔍 Secondary field type:', secondaryFieldType, 'Is text type:', isTextType);
+      
+      // Use encoded legend mode for text fields OR if explicitly enabled
+      if (isTextType || config.encodedLegendMode) {
+        console.log('🔍 Using encoded legend mode (auto-detected text field)');
         return processEncodedLegendData(submissions, dimensionFields[0], dimensionFields[1]);
       }
       
