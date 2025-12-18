@@ -470,9 +470,19 @@ export function ChartPreview({
       const yAxisField = formFields.find(f => f.id === yAxisFieldId);
       const yAxisFieldType = (yAxisField as any)?.field_type || (yAxisField as any)?.type || '';
       const textFieldTypes = ['text', 'short-text', 'long-text', 'textarea', 'select', 'radio', 'dropdown', 'status', 'country', 'email', 'tags', 'address', 'multi-select', 'checkbox'];
-      const isYAxisTextType = textFieldTypes.includes(yAxisFieldType);
+      let isYAxisTextType = textFieldTypes.includes(yAxisFieldType);
       
-      console.log('🔍 Compare mode - Y-axis field type:', yAxisFieldType, 'Is text type:', isYAxisTextType);
+      // Fallback: if field not found in formFields, detect from actual data values
+      if (!yAxisField && submissions.length > 0) {
+        const sampleValue = submissions[0]?.submission_data?.[yAxisFieldId];
+        // If the sample value is a string and not a pure number, treat as text
+        if (typeof sampleValue === 'string' && isNaN(Number(sampleValue))) {
+          isYAxisTextType = true;
+          console.log('🔍 Compare mode - Detected text type from data value:', sampleValue);
+        }
+      }
+      
+      console.log('🔍 Compare mode - Y-axis field:', yAxisFieldId, 'field found:', !!yAxisField, 'type:', yAxisFieldType, 'Is text type:', isYAxisTextType);
       
       if (isYAxisTextType) {
         console.log('🔍 Using encoded legend mode for compare (auto-detected text Y-axis field)');
