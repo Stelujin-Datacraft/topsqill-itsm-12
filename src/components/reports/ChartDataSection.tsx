@@ -637,38 +637,34 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                 <p className="text-xs text-muted-foreground">Select an X-axis field first in Step 2.</p>
               )}
               
-              {/* Encoded Legend Mode Toggle - only when second dimension is selected */}
-              {selectedDimensions.length === 2 && (
-                <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
-                  <div className="flex items-start gap-3">
-                    <Checkbox
-                      id="encodedLegendMode"
-                      checked={config.encodedLegendMode || false}
-                      onCheckedChange={(checked) => {
-                        onConfigChange({ encodedLegendMode: checked === true });
-                      }}
-                    />
-                    <div className="flex-1">
-                      <Label htmlFor="encodedLegendMode" className="font-medium cursor-pointer flex items-center gap-2">
-                        <ListOrdered className="h-4 w-4 text-primary" />
-                        Use Number Encoding with Legend
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Show Y-axis as numbers (1, 2, 3...) with a legend showing what each number represents.
-                        <br />
-                        <span className="italic">Example: Name on X-axis, bar height = 1 (Mumbai), 2 (Gujarat), 3 (Delhi)</span>
-                      </p>
+              {/* Info message when secondary field is text - auto uses encoded legend */}
+              {selectedDimensions.length === 2 && (() => {
+                const secondaryField = formFields.find(f => f.id === selectedDimensions[1]);
+                const secondaryFieldType = secondaryField ? getFieldType(secondaryField) : '';
+                const isTextType = ['text', 'short-text', 'long-text', 'textarea', 'select', 'radio', 'dropdown', 'status', 'country', 'email', 'tags', 'address'].includes(secondaryFieldType);
+                
+                if (isTextType) {
+                  return (
+                    <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+                      <div className="flex items-start gap-2">
+                        <ListOrdered className="h-4 w-4 text-primary mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-foreground">Encoded Legend Mode (Auto)</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Since "{secondaryField?.label}" is a text field, it will be shown as numbers on Y-axis with a legend.
+                            <br />
+                            <span className="italic">Example: John → 1 (Mumbai), Ria → 2 (Gujarat)</span>
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              )}
+                  );
+                }
+                return null;
+              })()}
 
               <p className="text-xs text-muted-foreground">
-                This creates stacked or grouped bars where each color represents a different value of this field.
-                <br />
-                <span className="italic">Example: X-axis = Name, Stack by = Location → Shows each person colored by their location</span>
-                <br />
-                <span className="italic">Or: X-axis = Location, Stack by = Name → Shows each location with names stacked inside</span>
+                Choose a secondary field to see relationships between the two fields.
               </p>
             </>
           )}
