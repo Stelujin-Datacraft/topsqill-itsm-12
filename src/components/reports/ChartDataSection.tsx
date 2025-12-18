@@ -636,9 +636,11 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                 <p className="text-xs text-muted-foreground">Select an X-axis field first in Step 2.</p>
               )}
               <p className="text-xs text-muted-foreground">
-                This creates stacked or grouped bars where each segment/bar color represents a different value.
+                This creates stacked or grouped bars where each color represents a different value of this field.
                 <br />
-                <span className="italic">Example: X-axis = Location, Stack by = Name → Shows names within each location</span>
+                <span className="italic">Example: X-axis = Name, Stack by = Location → Shows each person colored by their location</span>
+                <br />
+                <span className="italic">Or: X-axis = Location, Stack by = Name → Shows each location with names stacked inside</span>
               </p>
             </>
           )}

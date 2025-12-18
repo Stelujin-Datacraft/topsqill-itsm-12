@@ -580,9 +580,14 @@ export function ChartPreview({
   
   const processGroupedData = (submissions: any[], dimensionFields: string[], metricFields: string[], groupByField: string) => {
     console.log('🔍 Processing grouped data with groupBy:', groupByField);
+    console.log('🔍 Dimension fields:', dimensionFields);
+    console.log('🔍 Metric fields:', metricFields);
     
     // Get effective aggregation from metricAggregations or config
     const effectiveAggregation = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
+    const isCountMode = metricFields.length === 0 || effectiveAggregation === 'count';
+    
+    console.log('🔍 Is Count mode:', isCountMode, 'Aggregation:', effectiveAggregation);
     
     // Structure: { dimensionValue: { groupValue: number[] } } - collect raw values first
     const rawGroupedData: { [dimensionKey: string]: { [groupKey: string]: number[] } } = {};
@@ -608,11 +613,16 @@ export function ChartPreview({
         rawGroupedData[dimensionKey][groupValue] = [];
       }
       
-      // Collect raw metric values
-      metricFields.forEach(metric => {
-        const metricValue = getRawMetricValue(submissionData, metric);
-        rawGroupedData[dimensionKey][groupValue].push(metricValue);
-      });
+      // In Count mode (no metrics), push 1 for each record to count
+      if (isCountMode) {
+        rawGroupedData[dimensionKey][groupValue].push(1);
+      } else {
+        // Collect raw metric values
+        metricFields.forEach(metric => {
+          const metricValue = getRawMetricValue(submissionData, metric);
+          rawGroupedData[dimensionKey][groupValue].push(metricValue);
+        });
+      }
     });
     
     // Apply aggregation and convert to chart-friendly format
@@ -623,7 +633,8 @@ export function ChartPreview({
       // Add each group value as a separate property with aggregated value
       allGroupValues.forEach(groupValue => {
         const values = groups[groupValue] || [];
-        dataPoint[groupValue] = applyAggregation(values, effectiveAggregation);
+        // In count mode, just count the records (array length)
+        dataPoint[groupValue] = isCountMode ? values.length : applyAggregation(values, effectiveAggregation);
       });
       
       result.push(dataPoint);
@@ -1212,10 +1223,20 @@ export function ChartPreview({
       totalRecords: sanitizedChartData.length
     });
 
-    // Get all dimension-based data keys (for multi-dimensional charts OR grouped charts OR compare mode)
-    let dimensionKeys = sanitizedChartData.length > 0 ? Object.keys(sanitizedChartData[0]).filter(key => key !== 'name' && key !== '_drilldownData' && key !== 'x' && key !== 'y' && key !== 'xFieldName' && key !== 'yFieldName' && typeof sanitizedChartData[0][key] === 'number') : [];
+    // Get ALL dimension-based data keys from ALL data items (for multi-dimensional charts OR grouped charts OR compare mode)
+    // Important: Must scan all items because different records may have different keys (e.g., John has Canada, George has Finland)
+    const allNumericKeys = new Set<string>();
+    sanitizedChartData.forEach(item => {
+      Object.keys(item).forEach(key => {
+        if (key !== 'name' && key !== '_drilldownData' && key !== 'x' && key !== 'y' && key !== 'xFieldName' && key !== 'yFieldName' && key !== 'xRaw' && key !== 'yRaw' && key !== 'submissionId' && typeof item[key] === 'number') {
+          allNumericKeys.add(key);
+        }
+      });
+    });
+    let dimensionKeys = Array.from(allNumericKeys);
+    
     const isCompareMode = config.compareMode && config.metrics && config.metrics.length === 2;
-    const isMultiDimensional = (config.dimensions && config.dimensions.length > 1) || (config.groupByField && dimensionKeys.length > 1);
+    const isMultiDimensional = (config.dimensions && config.dimensions.length > 1) || (config.groupByField && dimensionKeys.length > 1) || dimensionKeys.length > 1;
     
     console.log('📊 Chart rendering - dimensionKeys:', dimensionKeys);
     console.log('📊 Chart rendering - isMultiDimensional:', isMultiDimensional);
