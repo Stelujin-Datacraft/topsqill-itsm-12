@@ -472,7 +472,14 @@ export function ChartPreview({
       return processGroupedData(submissions, dimensionFields, metricFields, config.groupByField);
     }
     
-    // For multiple dimensions, we need to create a cross-product structure
+    // For Count mode with 2 dimensions: first is X-axis, second is Stack/Color
+    // Use grouped processing where dimensions[0] is X-axis, dimensions[1] is groupBy
+    if (dimensionFields.length > 1 && !config.aggregationEnabled && !config.compareMode) {
+      console.log('🔍 Count mode with stacking: X-axis =', dimensionFields[0], 'Stack =', dimensionFields[1]);
+      return processGroupedData(submissions, [dimensionFields[0]], metricFields, dimensionFields[1]);
+    }
+    
+    // For multiple dimensions in other modes, we need to create a cross-product structure
     if (dimensionFields.length > 1) {
       return processMultiDimensionalData(submissions, dimensionFields, metricFields);
     } else {
