@@ -33,7 +33,14 @@ const getNumericFields = (fields: FormField[]) => {
 const getCategoryFields = (fields: FormField[]) => {
   return fields.filter(f => {
     const type = getFieldType(f);
-    return ['select', 'multi-select', 'radio', 'checkbox', 'text', 'date', 'status', 'dropdown', 'country', 'tags'].includes(type);
+    // Include most field types that can be used for categorization
+    return [
+      'select', 'multi-select', 'radio', 'checkbox', 'text', 'date', 'datetime',
+      'status', 'dropdown', 'country', 'tags', 'email', 'phone', 'phone-number',
+      'user-select', 'user-picker', 'submission-access', 'yes-no', 'toggle',
+      'address', 'rating', 'star-rating', 'slider', 'number', 'currency',
+      'time', 'short-text', 'long-text', 'textarea', 'assignee', 'group-picker'
+    ].includes(type);
   });
 };
 
