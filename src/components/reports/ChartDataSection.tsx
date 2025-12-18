@@ -564,6 +564,30 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                   </Select>
                 )}
               </div>
+              
+              {/* Info message when Y-axis field is text - auto uses encoded legend */}
+              {selectedMetrics.length === 2 && (() => {
+                const yAxisField = formFields.find(f => f.id === selectedMetrics[1]);
+                const yAxisFieldType = yAxisField ? getFieldType(yAxisField) : '';
+                const isTextType = ['text', 'short-text', 'long-text', 'textarea', 'select', 'radio', 'dropdown', 'status', 'country', 'email', 'tags', 'address', 'multi-select', 'checkbox'].includes(yAxisFieldType);
+                
+                if (isTextType) {
+                  return (
+                    <div className="p-3 bg-primary/5 rounded-lg border border-primary/20 mt-4">
+                      <div className="flex items-start gap-2">
+                        <ListOrdered className="h-4 w-4 text-primary mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-foreground">Encoded Legend Mode (Auto)</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Since "{yAxisField?.label}" is a text field, it will be shown as numbers on Y-axis with a legend.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
           )}
         </CardContent>
