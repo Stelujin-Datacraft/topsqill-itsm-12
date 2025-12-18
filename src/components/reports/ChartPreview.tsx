@@ -464,6 +464,21 @@ export function ChartPreview({
         console.warn('Compare mode requires exactly two metric fields. Current metrics:', config.metrics);
         return [];
       }
+      
+      // Check if Y-axis field (second metric) is a text type - auto enable encoded legend
+      const yAxisFieldId = config.metrics[1];
+      const yAxisField = formFields.find(f => f.id === yAxisFieldId);
+      const yAxisFieldType = (yAxisField as any)?.field_type || (yAxisField as any)?.type || '';
+      const textFieldTypes = ['text', 'short-text', 'long-text', 'textarea', 'select', 'radio', 'dropdown', 'status', 'country', 'email', 'tags', 'address', 'multi-select', 'checkbox'];
+      const isYAxisTextType = textFieldTypes.includes(yAxisFieldType);
+      
+      console.log('🔍 Compare mode - Y-axis field type:', yAxisFieldType, 'Is text type:', isYAxisTextType);
+      
+      if (isYAxisTextType) {
+        console.log('🔍 Using encoded legend mode for compare (auto-detected text Y-axis field)');
+        return processCompareEncodedData(submissions, config.metrics[0], config.metrics[1]);
+      }
+      
       return processCompareData(submissions, dimensionFields, config.metrics);
     }
 
@@ -644,6 +659,64 @@ export function ChartPreview({
       });
     
     console.log('📊 Encoded legend chart data:', chartData);
+    return chartData;
+  };
+
+  // Process compare mode with encoded legend - X-axis shows first field values, Y-axis shows encoded numeric values for second field
+  const processCompareEncodedData = (submissions: any[], xAxisField: string, yAxisField: string) => {
+    console.log('📊 Processing compare encoded mode - X:', xAxisField, 'Y:', yAxisField);
+    
+    const xFieldName = getFormFieldName(xAxisField);
+    const yFieldName = getFormFieldName(yAxisField);
+    
+    // Collect all unique Y-axis values to create encoding
+    const uniqueYValues = new Set<string>();
+    submissions
+      .filter(submission => passesFilters(submission.submission_data))
+      .forEach(submission => {
+        const value = getDimensionValue(submission.submission_data, yAxisField);
+        if (value && value !== 'Unknown') {
+          uniqueYValues.add(value);
+        }
+      });
+    
+    // Create encoding map: value -> number (1, 2, 3, ...)
+    const encodingMap: { [value: string]: number } = {};
+    const legendMapping: { number: number; label: string }[] = [];
+    let encodingNumber = 1;
+    
+    Array.from(uniqueYValues).sort().forEach(value => {
+      encodingMap[value] = encodingNumber;
+      legendMapping.push({ number: encodingNumber, label: value });
+      encodingNumber++;
+    });
+    
+    console.log('📊 Compare encoding map:', encodingMap);
+    console.log('📊 Compare legend mapping:', legendMapping);
+    
+    // Create chart data with X field as labels and encoded Y values
+    const chartData = submissions
+      .filter(submission => passesFilters(submission.submission_data))
+      .map((submission, index) => {
+        const submissionData = submission.submission_data;
+        const xValue = getDimensionValue(submissionData, xAxisField);
+        const yValue = getDimensionValue(submissionData, yAxisField);
+        const encodedValue = encodingMap[yValue] || 0;
+        
+        return {
+          name: xValue || `Record ${index + 1}`,
+          value: encodedValue,
+          encodedValue,
+          rawYValue: yValue,
+          xFieldName,
+          yFieldName,
+          submissionId: submission.id,
+          _legendMapping: legendMapping,
+          _isCompareEncoded: true, // Flag to identify this mode
+        };
+      });
+    
+    console.log('📊 Compare encoded chart data:', chartData);
     return chartData;
   };
   
@@ -1198,7 +1271,7 @@ export function ChartPreview({
 
     // Sanitize chart data - ensure all numeric values are valid numbers (not NaN/undefined)
     // Preserve string values for display fields (xRaw, yRaw, field names, IDs)
-    const preserveAsStringKeys = ['name', '_drilldownData', 'xRaw', 'yRaw', 'xFieldName', 'yFieldName', 'submissionId', '_legendMapping', 'rawSecondaryValue'];
+    const preserveAsStringKeys = ['name', '_drilldownData', 'xRaw', 'yRaw', 'xFieldName', 'yFieldName', 'submissionId', '_legendMapping', 'rawSecondaryValue', 'rawYValue', '_isCompareEncoded'];
     const sanitizedChartData = chartData.map(item => {
       const sanitized: any = { name: item.name || 'Unknown' };
       Object.keys(item).forEach(key => {
@@ -1638,14 +1711,20 @@ export function ChartPreview({
       );
     }
     
-    // Encoded Legend Mode: special rendering with legend sidebar
-    if (config.encodedLegendMode && sanitizedChartData.length > 0 && sanitizedChartData[0]._legendMapping) {
+    // Encoded Legend Mode: special rendering with legend sidebar (for both Count and Compare modes)
+    // Auto-detect by checking if data has _legendMapping property
+    if (sanitizedChartData.length > 0 && sanitizedChartData[0]._legendMapping) {
       const legendMapping = sanitizedChartData[0]._legendMapping as { number: number; label: string }[];
       const maxEncodedValue = Math.max(...sanitizedChartData.map(d => d.encodedValue || 0), 1);
+      const isCompareEncoded = sanitizedChartData[0]._isCompareEncoded;
       
-      // Get field names for labels
-      const xAxisFieldName = config.dimensions?.[0] ? getFormFieldName(config.dimensions[0]) : 'Category';
-      const yAxisFieldName = config.dimensions?.[1] ? getFormFieldName(config.dimensions[1]) : 'Value';
+      // Get field names for labels - handle both count and compare modes
+      const xAxisFieldName = isCompareEncoded 
+        ? (sanitizedChartData[0].xFieldName || 'X-Axis')
+        : (config.dimensions?.[0] ? getFormFieldName(config.dimensions[0]) : 'Category');
+      const yAxisFieldName = isCompareEncoded
+        ? (sanitizedChartData[0].yFieldName || 'Y-Axis')
+        : (config.dimensions?.[1] ? getFormFieldName(config.dimensions[1]) : 'Value');
       
       return (
         <div className="relative w-full h-full min-h-[300px] flex gap-4">
@@ -1687,13 +1766,15 @@ export function ChartPreview({
                     if (!payload || payload.length === 0) return null;
                     const data = payload[0]?.payload;
                     if (!data) return null;
+                    // Handle both count mode (rawSecondaryValue) and compare mode (rawYValue)
+                    const rawValue = data.rawSecondaryValue || data.rawYValue || '';
                     return (
                       <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
                         <div className="font-medium mb-2">{data.name}</div>
                         <div className="space-y-1 text-sm">
                           <div className="flex justify-between gap-4">
                             <span className="text-muted-foreground">{yAxisFieldName}:</span>
-                            <span className="font-semibold">{data.rawSecondaryValue}</span>
+                            <span className="font-semibold">{rawValue}</span>
                           </div>
                           <div className="flex justify-between gap-4">
                             <span className="text-muted-foreground">Code:</span>
