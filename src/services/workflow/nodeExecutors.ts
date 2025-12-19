@@ -503,11 +503,14 @@ export class NodeExecutors {
         },
         nextNodeIds: [] // Empty to stop execution here
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error in wait node execution:', error);
+      // Extract error message from various error types (Supabase errors, Error objects, etc.)
+      const errorMessage = error?.message || error?.error_description || 
+        (typeof error === 'string' ? error : 'Wait node execution failed');
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Wait node execution failed',
+        error: errorMessage,
         nextNodeIds: []
       };
     }
