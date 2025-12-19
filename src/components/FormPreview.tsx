@@ -44,9 +44,11 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
     }
   }, [pages, currentPageId]);
 
-  // Initialize field states
+  // Initialize field states and default values for boolean fields
   useEffect(() => {
     const initialStates: Record<string, any> = {};
+    const initialFormData: Record<string, any> = {};
+    
     if (Array.isArray(form.fields)) {
       form.fields.forEach(field => {
         initialStates[field.id] = {
@@ -57,9 +59,27 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
           tooltip: field.tooltip,
           errorMessage: field.errorMessage,
         };
+        
+        // Initialize boolean fields (checkbox, toggle, yes-no) with false if not already set
+        const booleanFieldTypes = ['checkbox', 'toggle-switch', 'toggle', 'yes-no', 'boolean'];
+        if (booleanFieldTypes.includes(field.type?.toLowerCase() || '')) {
+          initialFormData[field.id] = false;
+        }
       });
     }
+    
     setFieldStates(initialStates);
+    // Only set initial form data if formData is empty to avoid overwriting user input
+    setFormData(prev => {
+      const merged = { ...initialFormData };
+      // Preserve any existing values
+      Object.keys(prev).forEach(key => {
+        if (prev[key] !== undefined) {
+          merged[key] = prev[key];
+        }
+      });
+      return merged;
+    });
   }, [form.fields]);
 
   // Process field rules when form data changes
