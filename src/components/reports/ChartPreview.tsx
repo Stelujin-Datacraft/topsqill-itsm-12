@@ -1783,11 +1783,28 @@ export function ChartPreview({
       const isCompareEncoded = sanitizedChartData[0]._isCompareEncoded;
       
       // Get field names for labels - handle both count and compare modes
+      // Resolve field names properly - if stored names look like IDs (contain hyphens with UUID pattern), re-resolve them
+      const resolveFieldName = (storedName: string, fieldId: string | undefined): string => {
+        // Check if stored name looks like a UUID (field ID) - 8-4-4-4-12 hex pattern
+        const uuidPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+        if (storedName && !uuidPattern.test(storedName)) {
+          return storedName; // Already a proper name
+        }
+        // Try to resolve from fieldId
+        if (fieldId) {
+          const resolved = getFormFieldName(fieldId);
+          if (resolved && !uuidPattern.test(resolved)) {
+            return resolved;
+          }
+        }
+        return storedName || 'Unknown';
+      };
+      
       const xAxisFieldName = isCompareEncoded 
-        ? (sanitizedChartData[0].xFieldName || 'X-Axis')
+        ? resolveFieldName(sanitizedChartData[0].xFieldName, config.metrics?.[0])
         : (config.dimensions?.[0] ? getFormFieldName(config.dimensions[0]) : 'Category');
       const yAxisFieldName = isCompareEncoded
-        ? (sanitizedChartData[0].yFieldName || 'Y-Axis')
+        ? resolveFieldName(sanitizedChartData[0].yFieldName, config.metrics?.[1])
         : (config.dimensions?.[1] ? getFormFieldName(config.dimensions[1]) : 'Value');
       
       return (
@@ -1875,8 +1892,7 @@ export function ChartPreview({
               {legendMapping.map(({ number, label }) => (
                 <div key={number} className="flex items-center gap-2 text-sm">
                   <div 
-                    className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-primary-foreground shrink-0"
-                    style={{ backgroundColor: colors[(number - 1) % colors.length] }}
+                    className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold bg-muted text-foreground border border-border shrink-0"
                   >
                     {number}
                   </div>
