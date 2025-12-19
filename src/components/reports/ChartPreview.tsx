@@ -2414,33 +2414,35 @@ export function ChartPreview({
       <div ref={chartContainerRef} className="flex flex-col flex-grow">
         {/* Chart Info Header - Always visible for context */}
         <div className="mb-4 p-4 bg-gradient-to-r from-muted/50 to-muted/30 rounded-lg border border-border flex-shrink-0">
-          <div className="flex items-start justify-between mb-3">
-          <h4 className="font-semibold text-lg text-foreground">{config.title || chartInfo.title}</h4>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSaveAsPDF}
-              disabled={isExporting}
-              className="h-8 px-3"
-            >
-              <Download className="h-4 w-4 mr-1" />
-              {isExporting ? 'Exporting...' : 'Save as PDF'}
-            </Button>
-            {canDrillUp && <Button variant="outline" size="sm" onClick={() => {
-              if (onDrilldown && drilldownState?.values) {
-                const newValues = [...drilldownState.values];
-                newValues.pop();
-                const lastLevel = config.drilldownConfig?.drilldownLevels?.[newValues.length - 1] || '';
-                const lastValue = newValues[newValues.length - 1] || '';
-                onDrilldown(lastLevel, lastValue);
-              }
-            }}>
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Back
-            </Button>}
+          <div className="flex items-center justify-between gap-4 mb-3">
+            <h4 className="font-semibold text-lg text-foreground flex-1">{config.title || chartInfo.title}</h4>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSaveAsPDF}
+                disabled={isExporting}
+                className="h-8 px-3"
+              >
+                <Download className="h-4 w-4 mr-1" />
+                {isExporting ? 'Exporting...' : 'Save as PDF'}
+              </Button>
+              {canDrillUp && (
+                <Button variant="outline" size="sm" onClick={() => {
+                  if (onDrilldown && drilldownState?.values) {
+                    const newValues = [...drilldownState.values];
+                    newValues.pop();
+                    const lastLevel = config.drilldownConfig?.drilldownLevels?.[newValues.length - 1] || '';
+                    const lastValue = newValues[newValues.length - 1] || '';
+                    onDrilldown(lastLevel, lastValue);
+                  }
+                }}>
+                  <ArrowLeft className="h-4 w-4 mr-1" />
+                  Back
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
         
         {/* Info Badges */}
         <div className="flex flex-wrap items-center gap-2">
