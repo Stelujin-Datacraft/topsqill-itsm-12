@@ -467,6 +467,25 @@ export function ComponentConfigDialog({
           )}
 
           {renderFormSelection()}
+
+          {/* Display Fields for Chart - shown when clicking on chart bars */}
+          {componentType === 'chart' && config.formId && (
+            formFields.length > 0 ? (
+              <GenericFieldSelector
+                formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
+                selectedFields={config.displayFields || []}
+                onFieldsChange={(fields) => setConfig({ ...config, displayFields: fields })}
+                label="Fields to Display on Click"
+                description="Select which fields to show when clicking on chart bars"
+                selectionType="checkbox"
+                maxHeight="200px"
+              />
+            ) : (
+              <div className="p-4 text-center text-muted-foreground border rounded-md">
+                {loadingFields ? 'Loading form fields...' : 'No fields available'}
+              </div>
+            )
+          )}
         </TabsContent>
 
         <TabsContent value="data" className="space-y-4">
