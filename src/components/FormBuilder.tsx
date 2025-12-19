@@ -41,7 +41,9 @@ function FormBuilderContent({
     deleteField,
     updateField,
     reorderFields,
-    loadForms
+    loadForms,
+    batchSaveFields,
+    batchDeleteFields
   } = useFormsData();
   const {
     userProfile
@@ -220,9 +222,9 @@ function FormBuilderContent({
           throw new Error('Failed to create form');
         }
         
-        // Add all fields to the new form
-        for (const field of snapshot.form.fields) {
-          await addField(newForm.id, field);
+        // Batch save all fields to the new form (single DB call)
+        if (snapshot.form.fields.length > 0) {
+          await batchSaveFields(newForm.id, snapshot.form.fields, []);
         }
         
         state.setIsCreating(false);
@@ -247,33 +249,40 @@ function FormBuilderContent({
       
       await updateForm(formId!, formUpdates);
 
-      // Save all field changes
+      // Batch save all fields (single DB call with upsert)
       const existingFields = currentForm?.fields || [];
-      for (const field of snapshot.form.fields) {
-        if (existingFields.find(f => f.id === field.id)) {
-          await updateField(field.id, field);
-        } else {
-          await addField(formId!, field);
-        }
-      }
+      const existingFieldIds = existingFields.map(f => f.id);
+      await batchSaveFields(formId!, snapshot.form.fields, existingFieldIds);
 
-      // Delete removed fields and handle cross-reference cleanup
+      // Handle deleted fields - identify which fields to remove
+      const snapshotFieldIds = new Set(snapshot.form.fields.map(f => f.id));
+      const fieldsToDelete: string[] = [];
+      const crossRefCleanupPromises: Promise<void>[] = [];
+
       for (const oldField of existingFields) {
-        if (!snapshot.form.fields.find(f => f.id === oldField.id)) {
+        if (!snapshotFieldIds.has(oldField.id)) {
           // If it's a cross-reference field, clean up child fields first
           if (oldField.type === 'cross-reference' && oldField.customConfig?.targetFormId) {
-            try {
-              await removeChildCrossReferenceField({
+            crossRefCleanupPromises.push(
+              removeChildCrossReferenceField({
                 parentFormId: formId!,
                 parentFieldId: oldField.id,
                 targetFormId: oldField.customConfig.targetFormId
-              });
-            } catch (error) {
-              console.error('Error removing child cross-reference field:', error);
-            }
+              }).catch(error => {
+                console.error('Error removing child cross-reference field:', error);
+              })
+            );
           }
-          await deleteField(oldField.id);
+          fieldsToDelete.push(oldField.id);
         }
+      }
+
+      // Run cross-reference cleanup in parallel, then batch delete fields
+      if (crossRefCleanupPromises.length > 0) {
+        await Promise.all(crossRefCleanupPromises);
+      }
+      if (fieldsToDelete.length > 0) {
+        await batchDeleteFields(fieldsToDelete);
       }
       markAsSaved();
       toast({

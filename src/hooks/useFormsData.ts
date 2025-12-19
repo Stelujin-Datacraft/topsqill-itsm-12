@@ -12,7 +12,14 @@ export function useFormsData() {
   const { currentProject } = useProject();
   const { forms, setForms, loading, loadForms } = useFormsLoader();
   const { createForm: createFormMutation, updateForm: updateFormMutation, deleteForm: deleteFormMutation } = useFormMutations();
-  const { addField: addFieldMutation, updateField: updateFieldMutation, deleteField: deleteFieldMutation, reorderFields: reorderFieldsMutation } = useFieldMutations();
+  const { 
+    addField: addFieldMutation, 
+    updateField: updateFieldMutation, 
+    deleteField: deleteFieldMutation, 
+    reorderFields: reorderFieldsMutation,
+    batchUpdateFields: batchUpdateFieldsMutation,
+    batchDeleteFields: batchDeleteFieldsMutation
+  } = useFieldMutations();
 
   const createForm = async (formData: Omit<Form, 'id' | 'createdAt' | 'updatedAt' | 'fields'>) => {
     if (!currentProject) {
@@ -95,6 +102,29 @@ export function useFormsData() {
     );
   };
 
+  // Batch save all fields at once (for optimized save)
+  const batchSaveFields = async (formId: string, fields: FormField[], existingFieldIds: string[]) => {
+    await batchUpdateFieldsMutation(formId, fields, new Set(existingFieldIds));
+    setForms(prev =>
+      prev.map(form =>
+        form.id === formId
+          ? { ...form, fields }
+          : form
+      )
+    );
+  };
+
+  // Batch delete multiple fields at once
+  const batchDeleteFields = async (fieldIds: string[]) => {
+    await batchDeleteFieldsMutation(fieldIds);
+    setForms(prev =>
+      prev.map(form => ({
+        ...form,
+        fields: form.fields.filter(field => !fieldIds.includes(field.id))
+      }))
+    );
+  };
+
   // Load forms when project changes
   useEffect(() => {
     if (currentProject?.id && userProfile?.organization_id && session) {
@@ -114,6 +144,8 @@ export function useFormsData() {
     updateField,
     deleteField,
     reorderFields,
+    batchSaveFields,
+    batchDeleteFields,
     loadForms: () => currentProject?.id && userProfile?.organization_id && loadForms(userProfile.organization_id, currentProject.id),
   };
 }
