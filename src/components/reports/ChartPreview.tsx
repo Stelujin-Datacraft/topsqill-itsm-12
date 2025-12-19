@@ -673,8 +673,13 @@ export function ChartPreview({
   };
 
   // Process compare mode with encoded legend - X-axis shows first field values, Y-axis shows encoded numeric values for second field
+  // Now also supports grouping by dimension field
   const processCompareEncodedData = (submissions: any[], xAxisField: string, yAxisField: string) => {
-    console.log('📊 Processing compare encoded mode - X:', xAxisField, 'Y:', yAxisField);
+    // Check if there's a dimension field selected for grouping
+    const dimensionFields = config.dimensions || [];
+    const hasDimension = dimensionFields.length > 0 && dimensionFields[0] !== '_default';
+    
+    console.log('📊 Processing compare encoded mode - X:', xAxisField, 'Y:', yAxisField, 'Dimension:', hasDimension ? dimensionFields[0] : 'none');
     
     const xFieldName = getFormFieldName(xAxisField);
     const yFieldName = getFormFieldName(yAxisField);
@@ -704,7 +709,54 @@ export function ChartPreview({
     console.log('📊 Compare encoding map:', encodingMap);
     console.log('📊 Compare legend mapping:', legendMapping);
     
-    // Create chart data with X field as labels and encoded Y values
+    // If dimension is selected, group by dimension and show aggregated data
+    if (hasDimension) {
+      const dimensionField = dimensionFields[0];
+      const groupedData: { [key: string]: { yValues: string[]; count: number } } = {};
+      
+      submissions
+        .filter(submission => passesFilters(submission.submission_data))
+        .forEach(submission => {
+          const submissionData = submission.submission_data;
+          const dimensionValue = getDimensionValue(submissionData, dimensionField);
+          const yValue = getDimensionValue(submissionData, yAxisField);
+          
+          if (!groupedData[dimensionValue]) {
+            groupedData[dimensionValue] = { yValues: [], count: 0 };
+          }
+          
+          groupedData[dimensionValue].yValues.push(yValue);
+          groupedData[dimensionValue].count += 1;
+        });
+      
+      // Convert to chart data - use most frequent Y value for each group
+      const chartData = Object.entries(groupedData).map(([dimensionValue, data]) => {
+        // Find most frequent Y value in this group
+        const valueCounts: { [key: string]: number } = {};
+        data.yValues.forEach(v => {
+          valueCounts[v] = (valueCounts[v] || 0) + 1;
+        });
+        const mostFrequentY = Object.entries(valueCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+        const encodedValue = encodingMap[mostFrequentY] || 0;
+        
+        return {
+          name: dimensionValue,
+          value: encodedValue,
+          encodedValue,
+          rawYValue: mostFrequentY,
+          xFieldName: getFormFieldName(dimensionField),
+          yFieldName,
+          count: data.count,
+          _legendMapping: legendMapping,
+          _isCompareEncoded: true,
+        };
+      });
+      
+      console.log('📊 Compare encoded grouped chart data:', chartData);
+      return chartData;
+    }
+    
+    // No dimension - create chart data with X field as labels and encoded Y values
     const chartData = submissions
       .filter(submission => passesFilters(submission.submission_data))
       .map((submission, index) => {
