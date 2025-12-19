@@ -5,13 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Filter, Plus, X, ChevronDown, ChevronRight, Save } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Filter, Plus, X, ChevronDown, ChevronRight, Save, Users, User } from 'lucide-react';
 import { Form } from '@/types/form';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SaveFilterDialog } from './SaveFilterDialog';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
 import { useToast } from '@/hooks/use-toast';
+import { useUsersAndGroups } from '@/hooks/useUsersAndGroups';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface FilterCondition {
@@ -41,6 +44,8 @@ interface FieldOption {
   id: string;
   label: string;
   type: string;
+  options?: any;
+  custom_config?: any;
 }
 
 const OPERATORS = [
@@ -54,7 +59,9 @@ const OPERATORS = [
   { value: 'is_not_empty', label: 'Is Not Empty' },
   { value: 'greater_than', label: 'Greater Than' },
   { value: 'less_than', label: 'Less Than' },
-  { value: 'between', label: 'Between' }
+  { value: 'between', label: 'Between' },
+  { value: 'in', label: 'In List' },
+  { value: 'not_in', label: 'Not In List' }
 ];
 
 export function TableFiltersPanel({
@@ -69,6 +76,9 @@ export function TableFiltersPanel({
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [availableFields, setAvailableFields] = useState<FieldOption[]>([]);
   const [loadingFields, setLoadingFields] = useState(false);
+  
+  // Fetch users and groups for submission-access field filtering
+  const { users, groups, loading: usersGroupsLoading, getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
 
   // Fetch fields directly from Supabase when primaryFormId changes
   useEffect(() => {
@@ -82,7 +92,7 @@ export function TableFiltersPanel({
       try {
         const { data: fields, error } = await supabase
           .from('form_fields')
-          .select('id, label, field_type')
+          .select('id, label, field_type, options, custom_config')
           .eq('form_id', primaryFormId)
           .order('field_order', { ascending: true });
 
@@ -101,7 +111,9 @@ export function TableFiltersPanel({
         const formFields: FieldOption[] = (fields || []).map(field => ({
           id: field.id,
           label: field.label,
-          type: field.field_type
+          type: field.field_type,
+          options: field.options,
+          custom_config: field.custom_config
         }));
 
         setAvailableFields([...baseFields, ...formFields]);
@@ -117,6 +129,52 @@ export function TableFiltersPanel({
   }, [primaryFormId]);
 
   const getAvailableFields = () => availableFields;
+  
+  const getFieldById = (fieldId: string): FieldOption | undefined => {
+    return availableFields.find(f => f.id === fieldId);
+  };
+
+  // Get field options from various sources
+  const getFieldOptions = (field: FieldOption | undefined): any[] => {
+    if (!field) return [];
+    
+    // Check field.options first
+    if (field.options) {
+      if (Array.isArray(field.options) && field.options.length > 0) {
+        return field.options;
+      }
+      if (typeof field.options === 'string') {
+        try {
+          const parsed = JSON.parse(field.options);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        } catch (e) {}
+      }
+    }
+    
+    // Check custom_config.options
+    const customConfig = field.custom_config;
+    if (customConfig?.options) {
+      if (Array.isArray(customConfig.options) && customConfig.options.length > 0) {
+        return customConfig.options;
+      }
+      if (typeof customConfig.options === 'string') {
+        try {
+          const parsed = JSON.parse(customConfig.options);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        } catch (e) {}
+      }
+    }
+    
+    if (customConfig?.choices && Array.isArray(customConfig.choices)) {
+      return customConfig.choices;
+    }
+    
+    return [];
+  };
 
   const addFilterGroup = () => {
     const newGroup: FilterGroup = {
@@ -200,6 +258,297 @@ export function TableFiltersPanel({
   };
 
   const canSaveFilter = filters.length > 0 && getTotalConditions() > 0;
+
+  // Render value input based on field type
+  const renderValueInput = (
+    condition: FilterCondition, 
+    groupId: string
+  ) => {
+    if (['is_empty', 'is_not_empty'].includes(condition.operator)) {
+      return null;
+    }
+
+    const field = getFieldById(condition.field);
+    const fieldType = field?.type || 'text';
+    const fieldOptions = getFieldOptions(field);
+
+    // Helper to toggle multi-select values
+    const toggleMultiValue = (optionValue: string) => {
+      const selectedValues = condition.value ? condition.value.split(',').map(v => v.trim()).filter(Boolean) : [];
+      const newSelected = selectedValues.includes(optionValue)
+        ? selectedValues.filter(v => v !== optionValue)
+        : [...selectedValues, optionValue];
+      updateCondition(groupId, condition.id, { value: newSelected.join(',') });
+    };
+
+    // Handle submission-access field type
+    if (fieldType === 'submission-access') {
+      const selectedValues = condition.value ? condition.value.split(',').map(v => v.trim()).filter(Boolean) : [];
+      
+      if (usersGroupsLoading) {
+        return <div className="text-sm text-muted-foreground p-2 flex-1">Loading...</div>;
+      }
+
+      const hasData = users.length > 0 || groups.length > 0;
+      if (!hasData) {
+        return (
+          <Input
+            value={condition.value}
+            onChange={(e) => updateCondition(groupId, condition.id, { value: e.target.value })}
+            placeholder="Enter user/group ID"
+            className="flex-1"
+          />
+        );
+      }
+
+      return (
+        <div className="flex-1 space-y-2">
+          {selectedValues.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {selectedValues.map((val, i) => {
+                const isGroup = groups.some(g => g.id === val);
+                const displayName = isGroup ? getGroupDisplayName(val) : getUserDisplayName(val);
+                return (
+                  <Badge key={i} variant="secondary" className="flex items-center gap-1">
+                    {isGroup ? <Users className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                    {displayName}
+                    <button type="button" onClick={() => toggleMultiValue(val)} className="ml-1 hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                );
+              })}
+            </div>
+          )}
+          <div className="border rounded-md p-2 max-h-40 overflow-y-auto bg-background space-y-1">
+            {groups.length > 0 && (
+              <>
+                <div className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <Users className="h-3 w-3" /> Groups
+                </div>
+                {groups.map((group) => (
+                  <div key={`group-${group.id}`} className="flex items-center gap-2 pl-2">
+                    <Checkbox
+                      id={`filter-group-${condition.id}-${group.id}`}
+                      checked={selectedValues.includes(group.id)}
+                      onCheckedChange={() => toggleMultiValue(group.id)}
+                    />
+                    <label htmlFor={`filter-group-${condition.id}-${group.id}`} className="text-sm cursor-pointer">
+                      {group.name}
+                    </label>
+                  </div>
+                ))}
+              </>
+            )}
+            {users.length > 0 && (
+              <>
+                <div className="text-xs font-medium text-muted-foreground flex items-center gap-1 mt-2">
+                  <User className="h-3 w-3" /> Users
+                </div>
+                {users.map((user) => (
+                  <div key={`user-${user.id}`} className="flex items-center gap-2 pl-2">
+                    <Checkbox
+                      id={`filter-user-${condition.id}-${user.id}`}
+                      checked={selectedValues.includes(user.id)}
+                      onCheckedChange={() => toggleMultiValue(user.id)}
+                    />
+                    <label htmlFor={`filter-user-${condition.id}-${user.id}`} className="text-sm cursor-pointer">
+                      {getUserDisplayName(user.id)}
+                    </label>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Handle multi-select, select, dropdown, radio, checkbox, status with options
+    const selectTypes = ['multi-select', 'select', 'dropdown', 'radio', 'status'];
+    const hasOptions = fieldOptions.length > 0;
+    
+    if (selectTypes.includes(fieldType) || (fieldType === 'checkbox' && hasOptions)) {
+      if (hasOptions) {
+        // For 'in' or 'not_in' operators, show multi-select checkboxes
+        if (condition.operator === 'in' || condition.operator === 'not_in') {
+          const selectedValues = condition.value ? condition.value.split(',').map(v => v.trim()).filter(Boolean) : [];
+          
+          return (
+            <div className="flex-1 space-y-2">
+              {selectedValues.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {selectedValues.map((val, i) => {
+                    const option = fieldOptions.find((o: any) => String(o.value || o) === val);
+                    const displayLabel = option?.label || option?.value || val;
+                    return (
+                      <Badge key={i} variant="secondary" className="flex items-center gap-1">
+                        {displayLabel}
+                        <button type="button" onClick={() => toggleMultiValue(val)} className="ml-1 hover:text-destructive">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="border rounded-md p-2 max-h-40 overflow-y-auto bg-background space-y-1">
+                {fieldOptions
+                  .filter((option: any) => {
+                    const val = option.value || option;
+                    return val && String(val).trim() !== '';
+                  })
+                  .map((option: any, optIndex: number) => {
+                    const val = String(option.value || option);
+                    const label = option.label || option.value || option;
+                    return (
+                      <div key={option.id || optIndex} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`filter-opt-${condition.id}-${optIndex}`}
+                          checked={selectedValues.includes(val)}
+                          onCheckedChange={() => toggleMultiValue(val)}
+                        />
+                        <label htmlFor={`filter-opt-${condition.id}-${optIndex}`} className="text-sm cursor-pointer">
+                          {label}
+                        </label>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          );
+        }
+        
+        // Single select for equals/not_equals
+        return (
+          <Select
+            value={condition.value}
+            onValueChange={(value) => updateCondition(groupId, condition.id, { value })}
+          >
+            <SelectTrigger className="flex-1">
+              <SelectValue placeholder="Select value" />
+            </SelectTrigger>
+            <SelectContent className="bg-background border shadow-lg z-50 max-h-60">
+              {fieldOptions
+                .filter((option: any) => {
+                  const val = option.value || option;
+                  return val && String(val).trim() !== '';
+                })
+                .map((option: any, optIndex: number) => {
+                  const val = option.value || option;
+                  const label = option.label || option.value || option;
+                  return (
+                    <SelectItem key={option.id || optIndex} value={String(val)}>
+                      {label}
+                    </SelectItem>
+                  );
+                })}
+            </SelectContent>
+          </Select>
+        );
+      }
+    }
+
+    // Handle boolean/toggle/checkbox (without options)
+    if (['checkbox', 'toggle', 'toggle-switch', 'yes-no'].includes(fieldType) && !hasOptions) {
+      return (
+        <Select
+          value={condition.value}
+          onValueChange={(value) => updateCondition(groupId, condition.id, { value })}
+        >
+          <SelectTrigger className="flex-1">
+            <SelectValue placeholder="Select value" />
+          </SelectTrigger>
+          <SelectContent className="bg-background border shadow-lg z-50">
+            <SelectItem value="true">{fieldType === 'yes-no' ? 'Yes' : 'True / On'}</SelectItem>
+            <SelectItem value="false">{fieldType === 'yes-no' ? 'No' : 'False / Off'}</SelectItem>
+          </SelectContent>
+        </Select>
+      );
+    }
+
+    // Handle rating field
+    if (fieldType === 'rating' || fieldType === 'star-rating') {
+      const customConfig = field?.custom_config;
+      const maxRating = customConfig?.maxRating || 5;
+      const ratingOptions = Array.from({ length: maxRating }, (_, i) => i + 1);
+      
+      return (
+        <Select
+          value={condition.value}
+          onValueChange={(value) => updateCondition(groupId, condition.id, { value })}
+        >
+          <SelectTrigger className="flex-1">
+            <SelectValue placeholder="Select rating" />
+          </SelectTrigger>
+          <SelectContent className="bg-background border shadow-lg z-50">
+            {ratingOptions.map((rating) => (
+              <SelectItem key={rating} value={String(rating)}>
+                {'★'.repeat(rating)} ({rating})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+
+    // Handle date/datetime fields
+    if (fieldType === 'date') {
+      return (
+        <Input
+          type="date"
+          value={condition.value}
+          onChange={(e) => updateCondition(groupId, condition.id, { value: e.target.value })}
+          className="flex-1"
+        />
+      );
+    }
+
+    if (fieldType === 'datetime' || fieldType === 'date-time') {
+      return (
+        <Input
+          type="datetime-local"
+          value={condition.value}
+          onChange={(e) => updateCondition(groupId, condition.id, { value: e.target.value })}
+          className="flex-1"
+        />
+      );
+    }
+
+    if (fieldType === 'time') {
+      return (
+        <Input
+          type="time"
+          value={condition.value}
+          onChange={(e) => updateCondition(groupId, condition.id, { value: e.target.value })}
+          className="flex-1"
+        />
+      );
+    }
+
+    // Handle number/currency/slider fields
+    if (['number', 'currency', 'slider', 'range'].includes(fieldType)) {
+      return (
+        <Input
+          type="number"
+          value={condition.value}
+          onChange={(e) => updateCondition(groupId, condition.id, { value: e.target.value })}
+          placeholder="Enter number"
+          className="flex-1"
+        />
+      );
+    }
+
+    // Default text input
+    return (
+      <Input
+        value={condition.value}
+        onChange={(e) => updateCondition(groupId, condition.id, { value: e.target.value })}
+        placeholder="Enter value"
+        className="flex-1"
+      />
+    );
+  };
 
   return (
     <Card>
@@ -317,9 +666,9 @@ export function TableFiltersPanel({
                       {/* Conditions */}
                       <div className="space-y-3">
                         {group.conditions.map((condition, conditionIndex) => (
-                          <div key={condition.id} className="flex items-center gap-2 p-3 bg-muted/30 rounded-md">
+                          <div key={condition.id} className="flex items-start gap-2 p-3 bg-muted/30 rounded-md">
                             {conditionIndex > 0 && (
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline" className="text-xs mt-2">
                                 {condition.logic}
                               </Badge>
                             )}
@@ -327,7 +676,7 @@ export function TableFiltersPanel({
                             <Select
                               value={condition.field}
                               onValueChange={(value) => 
-                                updateCondition(group.id, condition.id, { field: value })
+                                updateCondition(group.id, condition.id, { field: value, value: '' })
                               }
                             >
                               <SelectTrigger className="w-48">
@@ -360,16 +709,7 @@ export function TableFiltersPanel({
                               </SelectContent>
                             </Select>
 
-                            {!['is_empty', 'is_not_empty'].includes(condition.operator) && (
-                              <Input
-                                value={condition.value}
-                                onChange={(e) => 
-                                  updateCondition(group.id, condition.id, { value: e.target.value })
-                                }
-                                placeholder="Enter value"
-                                className="flex-1"
-                              />
-                            )}
+                            {renderValueInput(condition, group.id)}
 
                             {conditionIndex > 0 && (
                               <Select
@@ -392,6 +732,7 @@ export function TableFiltersPanel({
                               variant="ghost"
                               size="sm"
                               onClick={() => removeCondition(group.id, condition.id)}
+                              className="mt-1"
                             >
                               <X className="h-4 w-4" />
                             </Button>
