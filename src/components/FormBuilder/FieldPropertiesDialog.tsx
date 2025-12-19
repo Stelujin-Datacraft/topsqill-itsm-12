@@ -550,7 +550,7 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
   // Text
   'text', 'textarea', 'email', 'password', 'url', 'ip-address',
   // Select
-  'select', 'multi-select', 'radio', 'checkbox',
+  'select', 'multi-select', 'radio',
   // User/Organization Fields
   'user-picker',
   // Date/Time
