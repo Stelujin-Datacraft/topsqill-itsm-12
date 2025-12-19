@@ -2772,6 +2772,11 @@ export function ChartPreview({
         groupValue={cellSubmissionsDialog.groupValue}
         dimensionLabel={cellSubmissionsDialog.dimensionLabel}
         groupLabel={cellSubmissionsDialog.groupLabel}
+        displayFields={config.displayFields || []}
+        fieldLabels={formFields.reduce((acc, field) => {
+          acc[field.id] = field.label || field.id;
+          return acc;
+        }, {} as Record<string, string>)}
       />
     </div>;
 }

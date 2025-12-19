@@ -5,6 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChartConfig } from '@/types/reports';
 import { FormField } from '@/types/form';
@@ -12,7 +15,7 @@ import { ChartTypeSelector } from './ChartTypeSelector';
 import { ChartPreview } from './ChartPreview';
 import { ChartDataSection } from './ChartDataSection';
 import { ChartExamples } from './ChartExamples';
-import { Database, Sparkles, Lightbulb } from 'lucide-react';
+import { Database, Sparkles, Lightbulb, CheckSquare } from 'lucide-react';
 import { getChartMetricCapabilities } from '@/utils/chartConfig';
 
 interface ChartConfigurationTabsProps {
@@ -229,6 +232,68 @@ export function ChartConfigurationTabs({
             </SelectContent>
           </Select>
         </div>
+
+        {/* Display Fields Multi-Select */}
+        {config.formId && formFields.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>Fields to Display on Click</Label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const allFieldIds = formFields.map(f => f.id);
+                  const currentDisplayFields = config.displayFields || [];
+                  const allSelected = allFieldIds.every(id => currentDisplayFields.includes(id));
+                  handleConfigUpdate({ 
+                    displayFields: allSelected ? [] : allFieldIds 
+                  });
+                }}
+              >
+                <CheckSquare className="h-4 w-4 mr-1" />
+                {(config.displayFields?.length === formFields.length) ? 'Deselect All' : 'Select All'}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Select which fields to show when clicking on chart bars
+            </p>
+            <ScrollArea className="h-[200px] border rounded-md p-3">
+              <div className="space-y-2">
+                {formFields.map((field) => {
+                  const isSelected = config.displayFields?.includes(field.id) || false;
+                  return (
+                    <div
+                      key={field.id}
+                      className="flex items-center space-x-2 p-2 rounded hover:bg-muted/50"
+                    >
+                      <Checkbox
+                        id={`display-field-${field.id}`}
+                        checked={isSelected}
+                        onCheckedChange={(checked) => {
+                          const currentFields = config.displayFields || [];
+                          const newFields = checked
+                            ? [...currentFields, field.id]
+                            : currentFields.filter(id => id !== field.id);
+                          handleConfigUpdate({ displayFields: newFields });
+                        }}
+                      />
+                      <label
+                        htmlFor={`display-field-${field.id}`}
+                        className="flex-1 text-sm cursor-pointer"
+                      >
+                        {field.label}
+                        <span className="text-xs text-muted-foreground ml-2">({field.type})</span>
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+            <p className="text-xs text-muted-foreground">
+              {config.displayFields?.length || 0} of {formFields.length} fields selected
+            </p>
+          </div>
+        )}
       </TabsContent>
 
       <TabsContent value="data" className="space-y-6">

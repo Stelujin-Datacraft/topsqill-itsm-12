@@ -3,9 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, ExternalLink } from 'lucide-react';
+import { Loader2, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface TableCellSubmissionsDialogProps {
   open: boolean;
@@ -17,11 +18,14 @@ interface TableCellSubmissionsDialogProps {
   groupValue?: string;
   dimensionLabel?: string;
   groupLabel?: string;
+  displayFields?: string[];
+  fieldLabels?: Record<string, string>;
 }
 
 interface SubmissionRecord {
   id: string;
   submission_ref_id: string;
+  submission_data: Record<string, any>;
 }
 
 export function TableCellSubmissionsDialog({ 
@@ -33,15 +37,19 @@ export function TableCellSubmissionsDialog({
   groupField,
   groupValue,
   dimensionLabel,
-  groupLabel
+  groupLabel,
+  displayFields = [],
+  fieldLabels = {}
 }: TableCellSubmissionsDialogProps) {
   const navigate = useNavigate();
   const [submissions, setSubmissions] = useState<SubmissionRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [expandedSubmissions, setExpandedSubmissions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (open && formId) {
       loadSubmissions();
+      setExpandedSubmissions(new Set());
     }
   }, [open, formId, dimensionField, dimensionValue, groupField, groupValue]);
 
@@ -50,7 +58,7 @@ export function TableCellSubmissionsDialog({
     try {
       let query = supabase
         .from('form_submissions')
-        .select('id, submission_ref_id')
+        .select('id, submission_ref_id, submission_data')
         .eq('form_id', formId);
 
       // Apply dimension filter
@@ -66,7 +74,10 @@ export function TableCellSubmissionsDialog({
       const { data, error } = await query.order('submitted_at', { ascending: false });
 
       if (error) throw error;
-      setSubmissions(data || []);
+      setSubmissions(data?.map(d => ({
+        ...d,
+        submission_data: (d.submission_data as Record<string, any>) || {}
+      })) || []);
     } catch (error) {
       console.error('Error loading submissions:', error);
       setSubmissions([]);
@@ -80,6 +91,27 @@ export function TableCellSubmissionsDialog({
     onOpenChange(false);
   };
 
+  const toggleExpanded = (submissionId: string) => {
+    setExpandedSubmissions(prev => {
+      const next = new Set(prev);
+      if (next.has(submissionId)) {
+        next.delete(submissionId);
+      } else {
+        next.add(submissionId);
+      }
+      return next;
+    });
+  };
+
+  const formatFieldValue = (value: any): string => {
+    if (value === null || value === undefined) return '-';
+    if (typeof value === 'object') {
+      if (Array.isArray(value)) return value.join(', ');
+      return JSON.stringify(value);
+    }
+    return String(value);
+  };
+
   const getDialogTitle = () => {
     let title = `Submissions`;
     if (dimensionLabel && dimensionValue) {
@@ -91,9 +123,11 @@ export function TableCellSubmissionsDialog({
     return `${title} (${submissions.length})`;
   };
 
+  const hasDisplayFields = displayFields.length > 0;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh]">
+      <DialogContent className="max-w-3xl max-h-[80vh]">
         <DialogHeader>
           <DialogTitle>{getDialogTitle()}</DialogTitle>
         </DialogHeader>
@@ -105,24 +139,64 @@ export function TableCellSubmissionsDialog({
             </div>
           ) : submissions.length > 0 ? (
             <div className="space-y-2 p-1">
-              {submissions.map((submission) => (
-                <div
-                  key={submission.id}
-                  className="flex items-center justify-between p-3 border border-border rounded-md hover:bg-muted/30"
-                >
-                  <Badge variant="secondary" className="font-mono">
-                    #{submission.submission_ref_id}
-                  </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleViewSubmission(submission.id)}
+              {submissions.map((submission) => {
+                const isExpanded = expandedSubmissions.has(submission.id);
+                return (
+                  <div
+                    key={submission.id}
+                    className="border border-border rounded-md overflow-hidden"
                   >
-                    <ExternalLink className="h-4 w-4 mr-1" />
-                    View
-                  </Button>
-                </div>
-              ))}
+                    <div className="flex items-center justify-between p-3 hover:bg-muted/30">
+                      <div className="flex items-center gap-2">
+                        {hasDisplayFields && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => toggleExpanded(submission.id)}
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+                        <Badge variant="secondary" className="font-mono">
+                          #{submission.submission_ref_id}
+                        </Badge>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewSubmission(submission.id)}
+                      >
+                        <ExternalLink className="h-4 w-4 mr-1" />
+                        View
+                      </Button>
+                    </div>
+                    
+                    {hasDisplayFields && isExpanded && (
+                      <div className="px-4 pb-3 pt-1 bg-muted/20 border-t border-border">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                          {displayFields.map((fieldId) => {
+                            const value = submission.submission_data[fieldId];
+                            const label = fieldLabels[fieldId] || fieldId;
+                            return (
+                              <div key={fieldId} className="flex flex-col">
+                                <span className="text-muted-foreground text-xs">{label}</span>
+                                <span className="font-medium truncate" title={formatFieldValue(value)}>
+                                  {formatFieldValue(value)}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
