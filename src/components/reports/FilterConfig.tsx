@@ -10,13 +10,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Trash2, Plus, Filter, X, Code, Eye, AlertCircle, CheckCircle } from 'lucide-react';
+import { Trash2, Plus, Filter, X, Code, Eye, AlertCircle, CheckCircle, Users, User } from 'lucide-react';
 import { FormField } from '@/types/form';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { ExpressionEvaluator } from '@/utils/expressionEvaluator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useUsersAndGroups } from '@/hooks/useUsersAndGroups';
 
 interface FilterConfigProps {
   formFields: FormField[];
@@ -83,6 +84,9 @@ export function FilterConfig({
 }: FilterConfigProps) {
   const [localExpression, setLocalExpression] = useState(logicExpression);
   const [expressionError, setExpressionError] = useState<string | null>(null);
+  
+  // Fetch users and groups for submission-access field filtering
+  const { users, groups, loading: usersGroupsLoading, getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
   
   // Sync local expression with prop
   useEffect(() => {
@@ -816,96 +820,122 @@ export function FilterConfig({
       );
     }
 
-    // Handle submission-access field type - show configured users/groups with multi-select
+    // Handle submission-access field type - show users/groups from database with multi-select
     if (rawFieldType === 'submission-access') {
-      const customConfig = (field as any)?.custom_config || (field as any)?.customConfig;
-      const allowedUsers = customConfig?.allowedUsers || [];
-      const allowedGroups = customConfig?.allowedGroups || [];
+      // Parse existing selected values (comma-separated)
+      const selectedValues = filter.value ? filter.value.split(',').map(v => v.trim()).filter(Boolean) : [];
       
-      const accessOptions = [
-        ...allowedUsers.map((user: any) => ({
-          value: user.id || user.email || user,
-          label: user.name || user.email || user.id || user,
-          type: 'user'
-        })),
-        ...allowedGroups.map((group: any) => ({
-          value: group.id || group.name || group,
-          label: group.name || group.id || group,
-          type: 'group'
-        }))
-      ];
-
-      if (accessOptions.length > 0) {
-        // Parse existing selected values (comma-separated)
-        const selectedValues = filter.value ? filter.value.split(',').map(v => v.trim()).filter(Boolean) : [];
-        
-        const toggleOption = (optionValue: string) => {
-          const newSelected = selectedValues.includes(optionValue)
-            ? selectedValues.filter(v => v !== optionValue)
-            : [...selectedValues, optionValue];
-          updateFilter(index, { value: newSelected.join(',') });
-        };
-        
+      const toggleOption = (optionValue: string) => {
+        const newSelected = selectedValues.includes(optionValue)
+          ? selectedValues.filter(v => v !== optionValue)
+          : [...selectedValues, optionValue];
+        updateFilter(index, { value: newSelected.join(',') });
+      };
+      
+      if (usersGroupsLoading) {
         return (
           <div className="space-y-2">
             <Label>Select Users/Groups</Label>
-            {/* Show selected items as badges */}
-            {selectedValues.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-2">
-                {selectedValues.map((val, i) => {
-                  const option = accessOptions.find(o => String(o.value) === val);
-                  return (
-                    <Badge key={i} variant="secondary" className="flex items-center gap-1">
-                      {option?.type === 'group' ? '👥' : '👤'} {option?.label || val}
-                      <button
-                        type="button"
-                        onClick={() => toggleOption(val)}
-                        className="ml-1 hover:text-destructive"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  );
-                })}
-              </div>
-            )}
-            {/* Checkbox list for selection */}
-            <div className="border rounded-md p-2 max-h-48 overflow-y-auto bg-background space-y-2">
-              {accessOptions.map((option, optIndex) => (
-                <div key={optIndex} className="flex items-center gap-2">
-                  <Checkbox
-                    id={`access-${index}-${optIndex}`}
-                    checked={selectedValues.includes(String(option.value))}
-                    onCheckedChange={() => toggleOption(String(option.value))}
-                  />
-                  <label 
-                    htmlFor={`access-${index}-${optIndex}`}
-                    className="text-sm cursor-pointer flex-1"
-                  >
-                    {option.type === 'group' ? '👥 ' : '👤 '}{option.label}
-                  </label>
-                </div>
-              ))}
-            </div>
+            <div className="text-sm text-muted-foreground p-2">Loading users and groups...</div>
+          </div>
+        );
+      }
+      
+      const hasData = users.length > 0 || groups.length > 0;
+      
+      if (!hasData) {
+        return (
+          <div className="space-y-2">
+            <Label>Value (user/group ID or email)</Label>
+            <Input
+              type="text"
+              value={filter.value}
+              onChange={(e) => updateFilter(index, { value: e.target.value })}
+              placeholder="Enter user/group ID or email"
+            />
             <p className="text-xs text-muted-foreground">
-              {selectedValues.length} selected - matches records containing any selected user/group
+              No users/groups found in your organization
             </p>
           </div>
         );
       }
       
-      // Fallback if no configured users/groups
       return (
         <div className="space-y-2">
-          <Label>Value (user/group ID or email)</Label>
-          <Input
-            type="text"
-            value={filter.value}
-            onChange={(e) => updateFilter(index, { value: e.target.value })}
-            placeholder="Enter user/group ID or email"
-          />
+          <Label>Select Users/Groups</Label>
+          {/* Show selected items as badges */}
+          {selectedValues.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {selectedValues.map((val, i) => {
+                const isGroup = groups.some(g => g.id === val);
+                const displayName = isGroup ? getGroupDisplayName(val) : getUserDisplayName(val);
+                return (
+                  <Badge key={i} variant="secondary" className="flex items-center gap-1">
+                    {isGroup ? <Users className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                    {displayName}
+                    <button
+                      type="button"
+                      onClick={() => toggleOption(val)}
+                      className="ml-1 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                );
+              })}
+            </div>
+          )}
+          {/* Checkbox list for selection */}
+          <div className="border rounded-md p-2 max-h-48 overflow-y-auto bg-background space-y-1">
+            {/* Groups section */}
+            {groups.length > 0 && (
+              <>
+                <div className="text-xs font-medium text-muted-foreground px-1 py-1 flex items-center gap-1">
+                  <Users className="h-3 w-3" /> Groups
+                </div>
+                {groups.map((group) => (
+                  <div key={`group-${group.id}`} className="flex items-center gap-2 pl-2">
+                    <Checkbox
+                      id={`access-group-${index}-${group.id}`}
+                      checked={selectedValues.includes(group.id)}
+                      onCheckedChange={() => toggleOption(group.id)}
+                    />
+                    <label 
+                      htmlFor={`access-group-${index}-${group.id}`}
+                      className="text-sm cursor-pointer flex-1"
+                    >
+                      {group.name}
+                    </label>
+                  </div>
+                ))}
+              </>
+            )}
+            {/* Users section */}
+            {users.length > 0 && (
+              <>
+                <div className="text-xs font-medium text-muted-foreground px-1 py-1 mt-2 flex items-center gap-1">
+                  <User className="h-3 w-3" /> Users
+                </div>
+                {users.map((user) => (
+                  <div key={`user-${user.id}`} className="flex items-center gap-2 pl-2">
+                    <Checkbox
+                      id={`access-user-${index}-${user.id}`}
+                      checked={selectedValues.includes(user.id)}
+                      onCheckedChange={() => toggleOption(user.id)}
+                    />
+                    <label 
+                      htmlFor={`access-user-${index}-${user.id}`}
+                      className="text-sm cursor-pointer flex-1"
+                    >
+                      {getUserDisplayName(user.id)}
+                    </label>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground">
-            No users/groups configured by admin for this field
+            {selectedValues.length} selected - matches records containing any selected user/group
           </p>
         </div>
       );
@@ -918,15 +948,72 @@ export function FilterConfig({
       
       // If options exist, show dropdown
       if (fieldOptions.length > 0) {
+        // For 'in' or 'not_in' operators, show multi-select with checkboxes
         if (filter.operator === 'in' || filter.operator === 'not_in') {
+          // Parse existing selected values (comma-separated)
+          const selectedValues = filter.value ? filter.value.split(',').map(v => v.trim()).filter(Boolean) : [];
+          
+          const toggleOption = (optionValue: string) => {
+            const newSelected = selectedValues.includes(optionValue)
+              ? selectedValues.filter(v => v !== optionValue)
+              : [...selectedValues, optionValue];
+            updateFilter(index, { value: newSelected.join(',') });
+          };
+          
           return (
             <div className="space-y-2">
-              <Label>Values (comma-separated)</Label>
-              <Input
-                value={filter.value}
-                onChange={(e) => updateFilter(index, { value: e.target.value })}
-                placeholder="value1, value2, value3"
-              />
+              <Label>Select Values ({filter.operator === 'in' ? 'match any' : 'exclude'})</Label>
+              {/* Show selected items as badges */}
+              {selectedValues.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {selectedValues.map((val, i) => {
+                    const option = fieldOptions.find((o: any) => String(o.value || o) === val);
+                    const displayLabel = option?.label || option?.value || val;
+                    return (
+                      <Badge key={i} variant="secondary" className="flex items-center gap-1">
+                        {displayLabel}
+                        <button
+                          type="button"
+                          onClick={() => toggleOption(val)}
+                          className="ml-1 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    );
+                  })}
+                </div>
+              )}
+              {/* Checkbox list for selection */}
+              <div className="border rounded-md p-2 max-h-48 overflow-y-auto bg-background space-y-1">
+                {fieldOptions
+                  .filter((option: any) => {
+                    const val = option.value || option;
+                    return val && String(val).trim() !== '';
+                  })
+                  .map((option: any, optIndex: number) => {
+                    const val = String(option.value || option);
+                    const label = option.label || option.value || option;
+                    return (
+                      <div key={option.id || optIndex} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`multiselect-${index}-${optIndex}`}
+                          checked={selectedValues.includes(val)}
+                          onCheckedChange={() => toggleOption(val)}
+                        />
+                        <label 
+                          htmlFor={`multiselect-${index}-${optIndex}`}
+                          className="text-sm cursor-pointer flex-1"
+                        >
+                          {label}
+                        </label>
+                      </div>
+                    );
+                  })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {selectedValues.length} selected
+              </p>
             </div>
           );
         } else {
