@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { ChevronUp, ChevronDown, Search, Download, RefreshCw, Database } from 'lucide-react';
 import { Form } from '@/types/form';
 import { useTableData } from '@/hooks/useTableData';
-import { rowPassesSearch, extractComparableValue } from '@/utils/filterUtils';
+import { rowPassesSearch, extractComparableValue, extractNumericValue } from '@/utils/filterUtils';
 
 interface DisplayField {
   id: string;
@@ -111,29 +111,86 @@ export function SimpleTablePreview({
     return allFields;
   }, [selectedForm, selectedColumns]);
 
-  const filteredData = useMemo(() => {
-    if (!enableSearch || !searchTerm) return data;
-    
-    // Build field type map and field config map for proper search
-    const fieldTypeMap: Record<string, string> = {};
-    const fieldConfigMap: Record<string, any> = {};
+  // Build field type map and field config map for proper search/sort
+  const { fieldTypeMap, fieldConfigMap } = useMemo(() => {
+    const typeMap: Record<string, string> = {};
+    const configMap: Record<string, any> = {};
     
     displayFields.forEach(field => {
-      fieldTypeMap[field.id] = field.type || '';
+      typeMap[field.id] = field.type || '';
     });
     
-    // Get field configs from selectedForm if available
     if (selectedForm?.fields) {
       selectedForm.fields.forEach((field: any) => {
-        fieldConfigMap[field.id] = {
+        configMap[field.id] = {
           options: field.options,
           custom_config: field.custom_config || field.customConfig
         };
       });
     }
     
+    return { fieldTypeMap: typeMap, fieldConfigMap: configMap };
+  }, [displayFields, selectedForm]);
+
+  const filteredData = useMemo(() => {
+    if (!enableSearch || !searchTerm) return data;
     return data.filter(row => rowPassesSearch(row, searchTerm, fieldTypeMap, fieldConfigMap));
-  }, [data, searchTerm, enableSearch, displayFields, selectedForm]);
+  }, [data, searchTerm, enableSearch, fieldTypeMap, fieldConfigMap]);
+
+  // Sort the filtered data
+  const sortedData = useMemo(() => {
+    if (!enableSorting || !sortField) return filteredData;
+    
+    const fieldType = fieldTypeMap[sortField] || '';
+    const fieldConfig = fieldConfigMap[sortField];
+    
+    // Determine if this is a numeric field type
+    const numericTypes = ['number', 'currency', 'slider', 'rating', 'calculation'];
+    const isNumericField = numericTypes.includes(fieldType);
+    
+    // Determine if this is a date field type
+    const dateTypes = ['date', 'datetime', 'time', 'metadata'];
+    const isDateField = dateTypes.includes(fieldType) || sortField === 'submitted_at';
+    
+    return [...filteredData].sort((a, b) => {
+      let valueA: any;
+      let valueB: any;
+      
+      // Extract values based on field type (metadata vs submission_data)
+      if (fieldType === 'metadata' || ['submitted_at', 'submitted_by', 'submission_ref_id'].includes(sortField)) {
+        valueA = a[sortField as keyof typeof a];
+        valueB = b[sortField as keyof typeof b];
+      } else {
+        valueA = a.submission_data?.[sortField];
+        valueB = b.submission_data?.[sortField];
+      }
+      
+      // Handle null/undefined values - always sort to end
+      if (valueA === null || valueA === undefined) return sortDirection === 'asc' ? 1 : -1;
+      if (valueB === null || valueB === undefined) return sortDirection === 'asc' ? -1 : 1;
+      
+      let comparison = 0;
+      
+      if (isDateField) {
+        // Date comparison
+        const dateA = new Date(valueA).getTime();
+        const dateB = new Date(valueB).getTime();
+        comparison = dateA - dateB;
+      } else if (isNumericField) {
+        // Numeric comparison using extractNumericValue for complex types
+        const numA = extractNumericValue(valueA) ?? 0;
+        const numB = extractNumericValue(valueB) ?? 0;
+        comparison = numA - numB;
+      } else {
+        // String comparison using extractComparableValue for complex types
+        const strA = extractComparableValue(valueA, fieldType, fieldConfig).toLowerCase();
+        const strB = extractComparableValue(valueB, fieldType, fieldConfig).toLowerCase();
+        comparison = strA.localeCompare(strB);
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [filteredData, sortField, sortDirection, enableSorting, fieldTypeMap, fieldConfigMap]);
 
   const handleSort = (fieldId: string) => {
     if (!enableSorting) return;
@@ -150,7 +207,7 @@ export function SimpleTablePreview({
     if (!enableExport) return;
     
     const headers = displayFields.map(f => f.label).join(',');
-    const rows = filteredData.map(row => 
+    const rows = sortedData.map(row => 
       displayFields.map(field => {
         const value = field.type === 'metadata' 
           ? row[field.id as keyof typeof row]
@@ -225,7 +282,7 @@ export function SimpleTablePreview({
               variant="outline"
               size="sm"
               onClick={handleExport}
-              disabled={filteredData.length === 0}
+              disabled={sortedData.length === 0}
             >
               <Download className="h-4 w-4 mr-2" />
               Export
@@ -292,7 +349,7 @@ export function SimpleTablePreview({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredData.length === 0 ? (
+                {sortedData.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={displayFields.length} className="text-center py-8">
                       <div className="text-muted-foreground">
@@ -301,7 +358,7 @@ export function SimpleTablePreview({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredData.map((row) => (
+                  sortedData.map((row) => (
                     <TableRow key={row.id}>
                       {displayFields.map(field => {
                         let displayValue: string;
