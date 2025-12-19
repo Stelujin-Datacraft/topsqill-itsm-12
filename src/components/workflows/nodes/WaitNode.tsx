@@ -31,7 +31,13 @@ export const WaitNode = React.memo(function WaitNode({ data }: WaitNodeProps) {
         <div className="text-orange-800 font-medium">{data.label}</div>
       </div>
       <div className="text-xs text-orange-600 mt-1">
-        {data.config?.waitDuration ? `${data.config.waitDuration} ${data.config.waitUnit}` : 'Click to configure'}
+        {data.config?.durationValue 
+          ? `${data.config.durationValue} ${data.config.durationUnit || 'hours'}` 
+          : data.config?.untilDate 
+            ? `Until ${new Date(data.config.untilDate).toLocaleString()}`
+            : data.config?.eventType
+              ? `Wait for ${data.config.eventType.replace('_', ' ')}`
+              : 'Click to configure'}
       </div>
       {data.config?.description && (
         <div className="text-xs text-orange-500 mt-1 italic line-clamp-2 break-words w-full whitespace-normal">
