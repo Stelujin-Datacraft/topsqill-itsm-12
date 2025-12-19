@@ -2651,9 +2651,23 @@ export function ChartPreview({
                         const isCompareMode = config.compareMode && config.metrics?.length === 2;
                         
                         if (isCompareMode) {
-                          // Compare mode: show raw values if available, else numeric values
-                          const displayX = item.xRaw !== undefined && item.xRaw !== '' ? item.xRaw : (typeof item.x === 'number' ? item.x.toLocaleString() : (item.x ?? ''));
-                          const displayY = item.yRaw !== undefined && item.yRaw !== '' ? item.yRaw : (typeof item.y === 'number' ? item.y.toLocaleString() : (item.y ?? ''));
+                          // Compare mode: handle both regular compare and encoded compare data
+                          // For encoded compare mode: use 'name' as X value and 'rawYValue' as Y value
+                          // For regular compare mode: use 'xRaw'/'x' as X and 'yRaw'/'y' as Y
+                          const isEncodedCompare = item._isCompareEncoded;
+                          
+                          let displayX: string | number;
+                          let displayY: string | number;
+                          
+                          if (isEncodedCompare) {
+                            // Encoded compare mode: name is the X value, rawYValue is the Y value
+                            displayX = item.name || '';
+                            displayY = item.rawYValue || '';
+                          } else {
+                            // Regular compare mode
+                            displayX = item.xRaw !== undefined && item.xRaw !== '' ? item.xRaw : (typeof item.x === 'number' ? item.x.toLocaleString() : (item.x ?? ''));
+                            displayY = item.yRaw !== undefined && item.yRaw !== '' ? item.yRaw : (typeof item.y === 'number' ? item.y.toLocaleString() : (item.y ?? ''));
+                          }
                           
                           // If we have a direct submission ID, navigate directly; otherwise show dialog
                           const handleCellClick = (e: React.MouseEvent) => {
