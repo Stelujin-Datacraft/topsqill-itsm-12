@@ -84,6 +84,44 @@ export class WorkflowOrchestrator {
     }
   }
 
+  /**
+   * Continue workflow execution from a specific node (used for resuming after wait)
+   */
+  static async continueFromNode(
+    executionId: string,
+    workflowId: string,
+    nodeId: string,
+    triggerData: any,
+    submissionId?: string,
+    submitterId?: string
+  ) {
+    console.log('▶️ Continuing workflow from node:', { executionId, workflowId, nodeId });
+
+    const context: WorkflowExecutionContext = {
+      executionId,
+      workflowId,
+      triggerData,
+      submissionId,
+      submitterId
+    };
+
+    const result = await this.executeNode(executionId, nodeId, triggerData, context);
+
+    // Only mark as completed if there are no more nodes (not waiting)
+    if (!result.success) {
+      await supabase
+        .from('workflow_executions')
+        .update({
+          status: 'failed',
+          completed_at: new Date().toISOString(),
+          error_message: result.error
+        })
+        .eq('id', executionId);
+    }
+
+    return result;
+  }
+
   private static async executeNode(executionId: string, nodeId: string, inputData: any, context: WorkflowExecutionContext) {
     console.log(`🔄 Executing node ${nodeId} for execution ${executionId}`);
 

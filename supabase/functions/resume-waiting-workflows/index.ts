@@ -16,6 +16,16 @@ interface WaitingExecution {
   submitter_id: string
 }
 
+interface WorkflowNode {
+  id: string
+  workflow_id: string
+  node_type: string
+  label: string
+  config: any
+  position_x: number
+  position_y: number
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -28,14 +38,33 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
+    // Check if this is a manual resume request
+    let manualExecutionId: string | null = null
+    if (req.method === 'POST') {
+      try {
+        const body = await req.json()
+        manualExecutionId = body?.executionId
+        console.log('📝 Manual resume request for execution:', manualExecutionId)
+      } catch {
+        // Not a JSON body, continue with auto-resume
+      }
+    }
+
     console.log('🔍 Checking for waiting workflows to resume...')
 
-    // Find all workflow executions that are waiting and past their scheduled resume time
-    const { data: waitingExecutions, error: fetchError } = await supabase
+    // Build query based on whether this is manual or scheduled
+    let query = supabase
       .from('workflow_executions')
       .select('id, workflow_id, wait_node_id, wait_config, trigger_data, execution_data, trigger_submission_id, submitter_id')
       .eq('status', 'waiting')
-      .lte('scheduled_resume_at', new Date().toISOString())
+
+    if (manualExecutionId) {
+      query = query.eq('id', manualExecutionId)
+    } else {
+      query = query.lte('scheduled_resume_at', new Date().toISOString())
+    }
+
+    const { data: waitingExecutions, error: fetchError } = await query
 
     if (fetchError) {
       console.error('❌ Error fetching waiting executions:', fetchError)
@@ -54,10 +83,13 @@ Deno.serve(async (req) => {
 
     let resumedCount = 0
     const errors: string[] = []
+    const resumedExecutions: string[] = []
 
     for (const execution of waitingExecutions as WaitingExecution[]) {
       try {
         console.log(`▶️ Resuming workflow execution: ${execution.id}`)
+        console.log(`   Wait node: ${execution.wait_node_id}`)
+        console.log(`   Wait config:`, execution.wait_config)
 
         // Get the next nodes from the wait node
         const { data: connections, error: connError } = await supabase
@@ -72,18 +104,28 @@ Deno.serve(async (req) => {
         }
 
         const nextNodeIds = connections?.map(c => c.target_node_id) || []
+        console.log(`   Next nodes: ${nextNodeIds.join(', ') || 'none'}`)
 
         // Update the wait node log to completed
-        await supabase
+        const { error: logUpdateError } = await supabase
           .from('workflow_instance_logs')
           .update({
             status: 'completed',
             completed_at: new Date().toISOString(),
-            output_data: { resumed: true, resumedAt: new Date().toISOString() }
+            output_data: { 
+              resumed: true, 
+              resumedAt: new Date().toISOString(),
+              waitType: execution.wait_config?.waitType || 'duration',
+              message: 'Wait period completed, workflow resumed'
+            }
           })
           .eq('execution_id', execution.id)
           .eq('node_id', execution.wait_node_id)
           .eq('status', 'waiting')
+
+        if (logUpdateError) {
+          console.error(`⚠️ Error updating wait log for ${execution.id}:`, logUpdateError)
+        }
 
         if (nextNodeIds.length === 0) {
           // No next nodes, mark workflow as completed
@@ -96,57 +138,88 @@ Deno.serve(async (req) => {
               completed_at: new Date().toISOString(),
               scheduled_resume_at: null,
               wait_node_id: null,
-              wait_config: null
+              wait_config: null,
+              execution_data: {
+                ...execution.execution_data,
+                completedByResume: true,
+                completedAt: new Date().toISOString()
+              }
             })
             .eq('id', execution.id)
 
           resumedCount++
+          resumedExecutions.push(execution.id)
           continue
         }
 
-        // Update execution status to running
-        await supabase
+        // Get details for next nodes
+        const { data: nextNodes, error: nodesError } = await supabase
+          .from('workflow_nodes')
+          .select('*')
+          .in('id', nextNodeIds)
+
+        if (nodesError) {
+          console.error(`❌ Error fetching next nodes:`, nodesError)
+          errors.push(`Execution ${execution.id}: Failed to fetch next nodes`)
+          continue
+        }
+
+        // Update execution status to running with the first next node
+        const { error: execUpdateError } = await supabase
           .from('workflow_executions')
           .update({
             status: 'running',
             current_node_id: nextNodeIds[0],
             scheduled_resume_at: null,
             wait_node_id: null,
-            wait_config: null
+            wait_config: null,
+            execution_data: {
+              ...execution.execution_data,
+              resumedAt: new Date().toISOString(),
+              resumedFromWait: true,
+              pendingNodes: nextNodeIds
+            }
           })
           .eq('id', execution.id)
 
-        // For each next node, create a log entry to trigger execution
-        // The frontend orchestrator will pick up 'running' status and continue
-        for (const nextNodeId of nextNodeIds) {
-          // Get node details
-          const { data: nodeData } = await supabase
-            .from('workflow_nodes')
-            .select('*')
-            .eq('id', nextNodeId)
-            .single()
+        if (execUpdateError) {
+          console.error(`❌ Error updating execution status:`, execUpdateError)
+          errors.push(`Execution ${execution.id}: ${execUpdateError.message}`)
+          continue
+        }
 
-          if (nodeData) {
-            // Create a pending log for the next node
-            await supabase
-              .from('workflow_instance_logs')
-              .insert({
-                execution_id: execution.id,
-                node_id: nextNodeId,
-                node_type: nodeData.node_type,
-                node_label: nodeData.label,
-                status: 'pending',
-                action_type: 'resume_from_wait',
-                input_data: {
-                  resumedFrom: execution.wait_node_id,
-                  triggerData: execution.trigger_data
-                }
-              })
+        // Create running log entries for each next node
+        // This allows the frontend to pick up and continue execution
+        for (const nodeData of (nextNodes || []) as WorkflowNode[]) {
+          const { error: insertError } = await supabase
+            .from('workflow_instance_logs')
+            .insert({
+              execution_id: execution.id,
+              node_id: nodeData.id,
+              node_type: nodeData.node_type,
+              node_label: nodeData.label,
+              status: 'pending', // Mark as pending for frontend to execute
+              action_type: 'resume_continuation',
+              input_data: {
+                resumedFrom: execution.wait_node_id,
+                triggerData: execution.trigger_data,
+                needsExecution: true // Flag to indicate frontend should execute this
+              }
+            })
+
+          if (insertError) {
+            console.error(`⚠️ Error creating log for node ${nodeData.id}:`, insertError)
+          } else {
+            console.log(`✅ Created pending log for node: ${nodeData.label} (${nodeData.node_type})`)
           }
         }
 
-        console.log(`✅ Workflow execution ${execution.id} resumed, next nodes: ${nextNodeIds.join(', ')}`)
+        console.log(`✅ Workflow execution ${execution.id} resumed successfully`)
+        console.log(`   Status set to 'running'`)
+        console.log(`   Next nodes marked as pending: ${nextNodeIds.join(', ')}`)
+        
         resumedCount++
+        resumedExecutions.push(execution.id)
 
       } catch (execError) {
         const errorMsg = execError instanceof Error ? execError.message : 'Unknown error'
@@ -169,6 +242,7 @@ Deno.serve(async (req) => {
       message: `Resumed ${resumedCount} of ${waitingExecutions.length} waiting workflow(s)`,
       resumedCount,
       totalWaiting: waitingExecutions.length,
+      resumedExecutions,
       errors: errors.length > 0 ? errors : undefined
     }
 
