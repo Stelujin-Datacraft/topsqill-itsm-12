@@ -439,11 +439,12 @@ export function ComponentConfigDialog({
   const renderChartConfig = () => {
     return (
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="basic">Basic</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
           <TabsTrigger value="joins">Joins</TabsTrigger>
           <TabsTrigger value="filters">Filters</TabsTrigger>
+          <TabsTrigger value="drilldown">Drilldown</TabsTrigger>
           <TabsTrigger value="style">Style</TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>
         </TabsList>
@@ -563,42 +564,46 @@ export function ComponentConfigDialog({
 
         <TabsContent value="filters" className="space-y-4">
           {config.formId && formFields.length > 0 ? (
-            <div className="space-y-6">
-              {/* Filters */}
-              <FilterConfig
-                formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-                filters={config.filters || []}
-                onFiltersChange={(filters) => setConfig(prev => ({ ...prev, filters }))}
-                logicExpression={config.filterLogicExpression || ''}
-                onLogicExpressionChange={(expr) => setConfig(prev => ({ ...prev, filterLogicExpression: expr }))}
-                useManualLogic={config.useManualFilterLogic || false}
-                onUseManualLogicChange={(useManual) => setConfig(prev => ({ ...prev, useManualFilterLogic: useManual }))}
-              />
-              
-              {/* Drilldown */}
-              <DrilldownConfig
-                formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-                enabled={config.drilldownConfig?.enabled || false}
-                onEnabledChange={(enabled) => setConfig({ 
-                  ...config, 
-                  drilldownConfig: { 
-                    ...config.drilldownConfig, 
-                    enabled 
-                  } 
-                })}
-                drilldownLevels={config.drilldownConfig?.drilldownLevels || []}
-                onDrilldownLevelsChange={(drilldownLevels) => setConfig({ 
-                  ...config, 
-                  drilldownConfig: { 
-                    ...config.drilldownConfig, 
-                    drilldownLevels
-                  } 
-                })}
-              />
-            </div>
+            <FilterConfig
+              formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
+              filters={config.filters || []}
+              onFiltersChange={(filters) => setConfig(prev => ({ ...prev, filters }))}
+              logicExpression={config.filterLogicExpression || ''}
+              onLogicExpressionChange={(expr) => setConfig(prev => ({ ...prev, filterLogicExpression: expr }))}
+              useManualLogic={config.useManualFilterLogic || false}
+              onUseManualLogicChange={(useManual) => setConfig(prev => ({ ...prev, useManualFilterLogic: useManual }))}
+            />
           ) : (
             <div className="p-4 text-center text-muted-foreground">
-              Please select a form first to configure filters and drilldown.
+              Please select a form first to configure filters.
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="drilldown" className="space-y-4">
+          {config.formId && formFields.length > 0 ? (
+            <DrilldownConfig
+              formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
+              enabled={config.drilldownConfig?.enabled || false}
+              onEnabledChange={(enabled) => setConfig({ 
+                ...config, 
+                drilldownConfig: { 
+                  ...config.drilldownConfig, 
+                  enabled 
+                } 
+              })}
+              drilldownLevels={config.drilldownConfig?.drilldownLevels || []}
+              onDrilldownLevelsChange={(drilldownLevels) => setConfig({ 
+                ...config, 
+                drilldownConfig: { 
+                  ...config.drilldownConfig, 
+                  drilldownLevels
+                } 
+              })}
+            />
+          ) : (
+            <div className="p-4 text-center text-muted-foreground">
+              Please select a form first to configure drilldown.
             </div>
           )}
         </TabsContent>
