@@ -475,20 +475,18 @@ export class NodeExecutors {
         throw updateError;
       }
 
-      // Log the wait node execution
+      // Update the existing log entry to 'waiting' status (created by workflowExecutor)
       await supabase
         .from('workflow_instance_logs')
-        .insert({
-          execution_id: context.executionId,
-          node_id: nodeData.id,
-          node_type: 'wait',
-          node_label: nodeData.label || 'Wait',
+        .update({
           status: 'waiting',
-          started_at: new Date().toISOString(),
           action_type: config.waitType || 'duration',
           action_details: config,
           input_data: { scheduledResumeAt: scheduledResumeAt.toISOString() }
-        });
+        })
+        .eq('execution_id', context.executionId)
+        .eq('node_id', nodeData.id)
+        .eq('status', 'running');
 
       console.log('✅ Workflow paused, will resume at:', scheduledResumeAt.toISOString());
 
