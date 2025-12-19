@@ -222,22 +222,28 @@ export class WorkflowExecutor {
         }
       }
 
-      // Update log entry with results
-      await supabase
-        .from('workflow_instance_logs')
-        .update({
-          status: result.success ? 'completed' : 'failed',
-          completed_at: new Date().toISOString(),
-          duration_ms: duration,
-          output_data: { 
-            ...result.output || {}, 
-            ...conditionalInfo 
-          },
-          error_message: result.error,
-          action_type: actionType,
-          action_details: { ...actionDetails, ...conditionalInfo }
-        })
-        .eq('id', logEntry.id);
+      // For wait nodes that are pausing, don't update the log entry - it already has 'waiting' status
+      const isWaitNodePausing = node.node_type === 'wait' && result.success && 
+        result.output?.waited === true && (!result.nextNodeIds || result.nextNodeIds.length === 0);
+
+      if (!isWaitNodePausing) {
+        // Update log entry with results
+        await supabase
+          .from('workflow_instance_logs')
+          .update({
+            status: result.success ? 'completed' : 'failed',
+            completed_at: new Date().toISOString(),
+            duration_ms: duration,
+            output_data: { 
+              ...result.output || {}, 
+              ...conditionalInfo 
+            },
+            error_message: result.error,
+            action_type: actionType,
+            action_details: { ...actionDetails, ...conditionalInfo }
+          })
+          .eq('id', logEntry.id);
+      }
 
       console.log(`${result.success ? '✅' : '❌'} Node execution result:`, {
         nodeId,
@@ -247,7 +253,7 @@ export class WorkflowExecutor {
         error: result.error,
         duration: `${duration}ms`,
         conditionalInfo,
-        outputKeys: result.output ? Object.keys(result.output) : []
+        nextNodeCount: result.nextNodeIds?.length || 0
       });
 
       // Continue to next nodes if successful
@@ -257,9 +263,15 @@ export class WorkflowExecutor {
           await this.executeNodeSequence(executionId, workflowId, nextNodeId, triggerData, submissionId, submitterId);
         }
       } else if (result.success && (!result.nextNodeIds || result.nextNodeIds.length === 0)) {
-        // No more nodes - workflow completed
-        console.log('🏁 Workflow execution completed');
-        await this.markExecutionCompleted(executionId);
+        // Check if this is a wait node that's pausing - don't mark workflow as completed
+        if (isWaitNodePausing) {
+          console.log('⏸️ Workflow paused by wait node, will resume later');
+          // Don't mark as completed - the wait node already set status to 'waiting'
+        } else {
+          // No more nodes - workflow completed
+          console.log('🏁 Workflow execution completed');
+          await this.markExecutionCompleted(executionId);
+        }
       } else {
         // Node failed - mark workflow as failed
         await this.markExecutionFailed(executionId, result.error);
