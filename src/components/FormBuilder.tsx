@@ -17,6 +17,7 @@ import { EnhancedFormRuleBuilder } from './rules/EnhancedFormRuleBuilder';
 import { FormNavigationPanel } from './FormNavigationPanel';
 import { Zap, Users, Database, Settings, Save, ArrowLeft, Undo2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { schemaCache } from '@/services/schemaCache';
 
 // Import optimized components
 import { FormBuilderHeader } from './FormBuilder/FormBuilderHeader';
@@ -229,6 +230,10 @@ function FormBuilderContent({
         
         state.setIsCreating(false);
         markAsSaved();
+        
+        // Invalidate schema cache once after form creation
+        schemaCache.invalidateCache();
+        
         toast({
           title: shouldPublish ? "Form created and published" : "Form created",
           description: shouldPublish ? "Your form has been created and published successfully." : "Your form has been created successfully."
@@ -285,6 +290,10 @@ function FormBuilderContent({
         await batchDeleteFields(fieldsToDelete);
       }
       markAsSaved();
+      
+      // Invalidate schema cache once after all operations complete
+      schemaCache.invalidateCache();
+      
       toast({
         title: shouldPublish ? "Form published" : "Form saved",
         description: shouldPublish ? "Your form has been published successfully and is now live." : "All changes have been saved to the database."

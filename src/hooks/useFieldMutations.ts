@@ -1,10 +1,9 @@
 import { supabase } from '@/integrations/supabase/client';
 import { FormField } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
-import { schemaCache } from '@/services/schemaCache';
 
 export function useFieldMutations() {
-  // Define updateField first since addField may call it
+  // Single field update (used for individual field changes outside of save)
   const updateField = async (fieldId: string, updates: Partial<FormField>) => {
     try {
       const updateData: any = {};
@@ -12,7 +11,6 @@ export function useFieldMutations() {
       if (updates.placeholder !== undefined) updateData.placeholder = updates.placeholder;
       if (updates.required !== undefined) updateData.required = updates.required;
       
-      // Handle defaultValue properly - convert to string for database storage
       if (updates.defaultValue !== undefined) {
         if (typeof updates.defaultValue === 'boolean') {
           updateData.default_value = updates.defaultValue.toString();
@@ -35,7 +33,6 @@ export function useFieldMutations() {
       if (updates.tooltip !== undefined) updateData.tooltip = updates.tooltip;
       if (updates.errorMessage !== undefined) updateData.error_message = updates.errorMessage;
       
-      // Properly handle customConfig updates
       if (updates.customConfig !== undefined) {
         updateData.custom_config = JSON.stringify(updates.customConfig);
       }
@@ -46,7 +43,7 @@ export function useFieldMutations() {
         .eq('id', fieldId);
 
       if (error) {
-        console.error('useFieldMutations: Database error updating field:', error);
+        console.error('useFieldMutations: Error updating field:', error);
         throw error;
       }
     } catch (error) {
@@ -55,16 +52,12 @@ export function useFieldMutations() {
     }
   };
 
-  // Batch update multiple fields at once using upsert
+  // Batch update/insert multiple fields at once using upsert - OPTIMIZED
   const batchUpdateFields = async (formId: string, fields: FormField[], existingFieldIds: Set<string>) => {
     try {
       if (fields.length === 0) return;
 
-      const fieldsToUpdate: any[] = [];
-      const fieldsToInsert: any[] = [];
-
-      fields.forEach((field, index) => {
-        // Convert defaultValue to string for database storage
+      const allFields = fields.map((field, index) => {
         let defaultValueStr = '';
         if (field.defaultValue !== undefined) {
           if (typeof field.defaultValue === 'boolean') {
@@ -76,7 +69,7 @@ export function useFieldMutations() {
           }
         }
 
-        const fieldData = {
+        return {
           id: field.id,
           form_id: formId,
           field_type: field.type,
@@ -87,7 +80,7 @@ export function useFieldMutations() {
           options: field.options ? JSON.stringify(field.options) : null,
           validation: field.validation ? JSON.stringify(field.validation) : null,
           permissions: JSON.stringify(field.permissions || { read: ['*'], write: ['*'] }),
-          triggers: JSON.stringify(field.triggers || [] ),
+          triggers: JSON.stringify(field.triggers || []),
           is_visible: field.isVisible !== false,
           is_enabled: field.isEnabled !== false,
           current_value: field.currentValue || '',
@@ -96,33 +89,19 @@ export function useFieldMutations() {
           field_order: index,
           custom_config: field.customConfig ? JSON.stringify(field.customConfig) : null,
         };
-
-        if (existingFieldIds.has(field.id)) {
-          fieldsToUpdate.push(fieldData);
-        } else {
-          fieldsToInsert.push(fieldData);
-        }
       });
-
-      // Use upsert for all fields (updates existing, inserts new)
-      const allFields = [...fieldsToUpdate, ...fieldsToInsert];
       
-      if (allFields.length > 0) {
-        const { error } = await supabase
-          .from('form_fields')
-          .upsert(allFields as any[], { 
-            onConflict: 'id',
-            ignoreDuplicates: false 
-          });
+      const { error } = await supabase
+        .from('form_fields')
+        .upsert(allFields as any[], { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        });
 
-        if (error) {
-          console.error('useFieldMutations: Error batch saving fields:', error);
-          throw error;
-        }
+      if (error) {
+        console.error('useFieldMutations: Error batch saving fields:', error);
+        throw error;
       }
-
-      // Invalidate schema cache once after all operations
-      schemaCache.invalidateCache();
     } catch (error) {
       console.error('useFieldMutations: Error in batch update:', error);
       throw error;
@@ -151,7 +130,6 @@ export function useFieldMutations() {
 
   const addField = async (formId: string, fieldData: Omit<FormField, 'id'> & { id?: string }, userProfile: any) => {
     if (!userProfile?.organization_id) {
-      console.error('useFieldMutations: No organization for adding field');
       toast({
         title: "Authentication required",
         description: "Please log in to add fields.",
@@ -161,25 +139,20 @@ export function useFieldMutations() {
     }
 
     try {
-      // Check if field with this ID already exists (to handle duplicate key errors)
+      // Check if field with this ID already exists
       if (fieldData.id) {
-        const { data: existingField, error: checkError } = await supabase
+        const { data: existingField } = await supabase
           .from('form_fields')
           .select('id')
           .eq('id', fieldData.id)
           .maybeSingle();
         
-        if (!checkError && existingField) {
-          // Field exists, update it instead
+        if (existingField) {
           await updateField(fieldData.id, fieldData);
-          return {
-            id: fieldData.id,
-            ...fieldData,
-          } as FormField;
+          return { id: fieldData.id, ...fieldData } as FormField;
         }
       }
       
-      // Convert defaultValue to string for database storage
       let defaultValueStr = '';
       if (fieldData.defaultValue !== undefined) {
         if (typeof fieldData.defaultValue === 'boolean') {
@@ -207,11 +180,10 @@ export function useFieldMutations() {
         current_value: fieldData.currentValue || '',
         tooltip: fieldData.tooltip || '',
         error_message: fieldData.errorMessage || '',
-        field_order: 0, // Will be set correctly in batch operations
+        field_order: 0,
         custom_config: fieldData.customConfig ? JSON.stringify(fieldData.customConfig) : null,
       };
 
-      // Include the client-generated ID if provided to preserve field ID consistency
       if (fieldData.id) {
         insertData.id = fieldData.id;
       }
@@ -224,30 +196,14 @@ export function useFieldMutations() {
 
       if (error) {
         console.error('useFieldMutations: Error adding field:', error);
-
-        if (error.message?.includes('permission denied')) {
-          toast({
-            title: "Permission denied",
-            description: "You don't have permission to add fields to this form.",
-            variant: "destructive",
-          });
-        } else if (error.message?.includes('row-level security')) {
-          toast({
-            title: "Security policy violation",
-            description: "Field creation blocked by security policy. Please contact your administrator.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Error adding field",
-            description: `Failed to add the field: ${error.message}`,
-            variant: "destructive",
-          });
-        }
+        toast({
+          title: "Error adding field",
+          description: `Failed to add the field: ${error.message}`,
+          variant: "destructive",
+        });
         return null;
       }
 
-      // Parse defaultValue back from string
       let parsedDefaultValue: string | boolean | string[] = data.default_value || '';
       if (fieldData.type === 'toggle-switch') {
         if (data.default_value === 'true') parsedDefaultValue = true;
@@ -256,23 +212,18 @@ export function useFieldMutations() {
         try {
           const parsed = JSON.parse(data.default_value);
           if (Array.isArray(parsed)) parsedDefaultValue = parsed;
-        } catch {
-          // Keep as string if not valid JSON
-        }
+        } catch { }
       }
 
-      // Parse customConfig from database
       let parsedCustomConfig = {};
       const dataWithCustomConfig = data as any;
       if (dataWithCustomConfig.custom_config) {
         try {
           parsedCustomConfig = JSON.parse(dataWithCustomConfig.custom_config);
-        } catch (error) {
-          console.warn('Failed to parse custom_config:', error);
-        }
+        } catch { }
       }
 
-      const newField: FormField = {
+      return {
         id: data.id,
         type: data.field_type as FormField['type'],
         label: data.label,
@@ -290,17 +241,12 @@ export function useFieldMutations() {
         errorMessage: data.error_message || '',
         pageId: fieldData.pageId || 'default',
         customConfig: parsedCustomConfig,
-      };
-
-      // Invalidate schema cache
-      schemaCache.invalidateCache();
-      
-      return newField;
+      } as FormField;
     } catch (error) {
       console.error('useFieldMutations: Unexpected error adding field:', error);
       toast({
         title: "Unexpected error",
-        description: "An unexpected error occurred while adding the field. Please try again.",
+        description: "An unexpected error occurred while adding the field.",
         variant: "destructive",
       });
       return null;
@@ -315,12 +261,8 @@ export function useFieldMutations() {
         .eq('id', fieldId);
 
       if (error) {
-        console.error('useFieldMutations: Error deleting field:', error);
         throw error;
       }
-
-      // Invalidate schema cache
-      schemaCache.invalidateCache();
     } catch (error) {
       console.error('useFieldMutations: Error deleting field:', error);
       toast({
@@ -333,18 +275,15 @@ export function useFieldMutations() {
 
   const reorderFields = async (formId: string, startIndex: number, endIndex: number, fields: FormField[]) => {
     try {
-      // Reorder the fields array
       const reorderedFields = [...fields];
       const [removed] = reorderedFields.splice(startIndex, 1);
       reorderedFields.splice(endIndex, 0, removed);
 
-      // Batch update field orders
       const updates = reorderedFields.map((field, index) => ({
         id: field.id,
         field_order: index,
       }));
 
-      // Use a single upsert for all order updates
       const { error } = await supabase
         .from('form_fields')
         .upsert(updates.map(u => ({ id: u.id, field_order: u.field_order })) as any[], {
@@ -353,7 +292,6 @@ export function useFieldMutations() {
         });
 
       if (error) {
-        console.error('useFieldMutations: Error updating field order:', error);
         throw error;
       }
 
