@@ -1430,9 +1430,11 @@ export function ChartPreview({
     // Get ALL dimension-based data keys from ALL data items (for multi-dimensional charts OR grouped charts OR compare mode)
     // Important: Must scan all items because different records may have different keys (e.g., John has Canada, George has Finland)
     const allNumericKeys = new Set<string>();
+    // Keys to exclude from dimension detection (internal keys and duplicates)
+    const excludedKeys = new Set(['name', '_drilldownData', 'x', 'y', 'xFieldName', 'yFieldName', 'xRaw', 'yRaw', 'submissionId', 'value', '_isCompareEncoded', 'rawYValue', 'encodedValue']);
     sanitizedChartData.forEach(item => {
       Object.keys(item).forEach(key => {
-        if (key !== 'name' && key !== '_drilldownData' && key !== 'x' && key !== 'y' && key !== 'xFieldName' && key !== 'yFieldName' && key !== 'xRaw' && key !== 'yRaw' && key !== 'submissionId' && typeof item[key] === 'number') {
+        if (!excludedKeys.has(key) && typeof item[key] === 'number') {
           allNumericKeys.add(key);
         }
       });
@@ -1440,7 +1442,9 @@ export function ChartPreview({
     let dimensionKeys = Array.from(allNumericKeys);
     
     const isCompareMode = config.compareMode && config.metrics && config.metrics.length === 2;
-    const isMultiDimensional = (config.dimensions && config.dimensions.length > 1) || (config.groupByField && dimensionKeys.length > 1) || dimensionKeys.length > 1;
+    // For Calculate Values mode (single metric, no groupBy), treat as single-dimensional even if dimensionKeys > 1
+    const isCalculateMode = !config.compareMode && config.metrics?.length === 1 && !config.groupByField;
+    const isMultiDimensional = !isCalculateMode && ((config.dimensions && config.dimensions.length > 1) || (config.groupByField && dimensionKeys.length > 1) || dimensionKeys.length > 1);
     
     console.log('📊 Chart rendering - dimensionKeys:', dimensionKeys);
     console.log('📊 Chart rendering - isMultiDimensional:', isMultiDimensional);
