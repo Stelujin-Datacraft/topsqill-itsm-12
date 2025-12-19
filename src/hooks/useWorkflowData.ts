@@ -174,7 +174,7 @@ export function useWorkflowData() {
       console.log('Step 1: Clearing workflow execution references...');
       const { error: clearReferencesError } = await supabase
         .from('workflow_executions')
-        .update({ current_node_id: null })
+        .update({ current_node_id: null, wait_node_id: null })
         .eq('workflow_id', workflowId);
 
       if (clearReferencesError) {
