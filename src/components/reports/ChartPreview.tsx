@@ -1196,7 +1196,7 @@ export function ChartPreview({
     
     if (dimensionValue) {
       const dimensionField = config.dimensions?.[0] || config.xAxis || '';
-      const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Category';
+      const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : (config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'Field');
       
       console.log('Bar clicked:', { dimensionField, dimensionValue, dimensionLabel, data, payload });
       
@@ -1261,7 +1261,7 @@ export function ChartPreview({
     
     const formName = config.formId ? getFormName(config.formId) : 'Form';
     const dimensionField = config.dimensions?.[0] || config.xAxis;
-    const dimensionName = dimensionField ? getFormFieldName(dimensionField) : 'Category';
+    const dimensionName = dimensionField ? getFormFieldName(dimensionField) : (config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'Field');
 
     // In compare mode, we treat values as raw field values (no aggregation)
     const aggregation = config.compareMode
@@ -1802,7 +1802,7 @@ export function ChartPreview({
       
       const xAxisFieldName = isCompareEncoded 
         ? resolveFieldName(sanitizedChartData[0].xFieldName, config.metrics?.[0])
-        : (config.dimensions?.[0] ? getFormFieldName(config.dimensions[0]) : 'Category');
+        : (config.dimensions?.[0] ? getFormFieldName(config.dimensions[0]) : (config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'Field'));
       const yAxisFieldName = isCompareEncoded
         ? resolveFieldName(sanitizedChartData[0].yFieldName, config.metrics?.[1])
         : (config.dimensions?.[1] ? getFormFieldName(config.dimensions[1]) : 'Value');
@@ -1925,7 +1925,7 @@ export function ChartPreview({
                     height={80}
                     interval={0}
                     label={{
-                      value: config.xAxisLabel || 'Category',
+                      value: config.xAxisLabel || getFormFieldName(primaryMetric),
                       position: 'insideBottom',
                       offset: -5
                     }} 
@@ -1937,7 +1937,7 @@ export function ChartPreview({
                     ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} 
                     allowDataOverflow={false}
                     label={{
-                      value: config.yAxisLabel || getFormFieldName(primaryMetric),
+                      value: config.yAxisLabel || 'Value',
                       angle: -90,
                       position: 'insideLeft',
                       offset: 10
@@ -2023,14 +2023,14 @@ export function ChartPreview({
                   <XAxis dataKey="name" tick={{
                   fontSize: 11
                 }} angle={-45} textAnchor="end" height={80} interval={0} label={{
-                  value: config.xAxisLabel || 'Category',
+                  value: config.xAxisLabel || getFormFieldName(primaryMetric),
                   position: 'insideBottom',
                   offset: -5
                 }} />
                   <YAxis tick={{
                   fontSize: 11
                 }} label={{
-                  value: config.yAxisLabel || getFormFieldName(primaryMetric),
+                  value: config.yAxisLabel || 'Value',
                   angle: -90,
                   position: 'insideLeft'
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
@@ -2163,21 +2163,21 @@ export function ChartPreview({
                   <XAxis dataKey="name" tick={{
                   fontSize: 11
                 }} angle={-45} textAnchor="end" height={80} interval={0} label={{
-                  value: config.xAxisLabel || 'Category',
+                  value: config.xAxisLabel || getFormFieldName(primaryMetric),
                   position: 'insideBottom',
                   offset: -5
                 }} />
                   <YAxis tick={{
                   fontSize: 11
                 }} label={{
-                  value: config.yAxisLabel || getFormFieldName(primaryMetric),
+                  value: config.yAxisLabel || 'Value',
                   angle: -90,
                   position: 'insideLeft'
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip formatter={(value, name, props) => {
                   const displayName = isMultiDimensional ? name : getFormFieldName(name.toString());
-                  return [`${displayName}: ${value}`, `Category: ${props.payload?.name || 'N/A'}`];
-                }} labelFormatter={label => `Category: ${label}`} contentStyle={{
+                  return [`${displayName}: ${value}`, props.payload?.name || 'N/A'];
+                }} labelFormatter={label => label} contentStyle={{
                   backgroundColor: 'hsl(var(--popover))',
                   border: '1px solid hsl(var(--border))',
                   borderRadius: 'var(--radius)',
@@ -2227,21 +2227,21 @@ export function ChartPreview({
                   <XAxis dataKey="name" tick={{
                   fontSize: 11
                 }} angle={-45} textAnchor="end" height={80} interval={0} label={{
-                  value: config.xAxisLabel || 'Category',
+                  value: config.xAxisLabel || getFormFieldName(primaryMetric),
                   position: 'insideBottom',
                   offset: -5
                 }} />
                   <YAxis tick={{
                   fontSize: 11
                 }} label={{
-                  value: config.yAxisLabel || getFormFieldName(primaryMetric),
+                  value: config.yAxisLabel || 'Value',
                   angle: -90,
                   position: 'insideLeft'
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip formatter={(value, name, props) => {
                   const displayName = getFormFieldName(name.toString());
-                  return [`${displayName}: ${value}`, `Category: ${props.payload?.name || 'N/A'}`];
-                }} labelFormatter={label => `Category: ${label}`} contentStyle={{
+                  return [`${displayName}: ${value}`, props.payload?.name || 'N/A'];
+                }} labelFormatter={label => label} contentStyle={{
                   backgroundColor: 'hsl(var(--popover))',
                   border: '1px solid hsl(var(--border))',
                   borderRadius: 'var(--radius)',
@@ -2267,18 +2267,18 @@ export function ChartPreview({
                   <XAxis dataKey="name" tick={{
                   fontSize: 11
                 }} angle={-45} textAnchor="end" height={80} label={{
-                  value: config.xAxisLabel || 'Category',
+                  value: config.xAxisLabel || getFormFieldName(primaryMetric),
                   position: 'insideBottom',
                   offset: -5
                 }} />
                   <YAxis dataKey={primaryMetric} tick={{
                   fontSize: 11
                 }} label={{
-                  value: config.yAxisLabel || getFormFieldName(primaryMetric),
+                  value: config.yAxisLabel || 'Value',
                   angle: -90,
                   position: 'insideLeft'
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} />
-                  <Tooltip formatter={(value, name) => [value, name]} labelFormatter={label => `Category: ${label}`} contentStyle={{
+                  <Tooltip formatter={(value, name) => [value, name]} labelFormatter={label => label} contentStyle={{
                   backgroundColor: 'hsl(var(--popover))',
                   border: '1px solid hsl(var(--border))',
                   borderRadius: 'var(--radius)',
@@ -2560,7 +2560,7 @@ export function ChartPreview({
                       ? getFormFieldName(config.dimensions[0]) 
                       : config.xAxis 
                       ? getFormFieldName(config.xAxis)
-                      : 'Category')}
+                      : config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'Name')}
                   </th>
                   {(() => {
                     // For grouped data, show all group value columns
