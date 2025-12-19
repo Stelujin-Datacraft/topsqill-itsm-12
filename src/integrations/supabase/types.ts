@@ -1452,12 +1452,15 @@ export type Database = {
           form_owner_id: string | null
           form_submission_id: string | null
           id: string
+          scheduled_resume_at: string | null
           started_at: string
           status: string
           submitter_id: string | null
           trigger_data: Json | null
           trigger_form_id: string | null
           trigger_submission_id: string | null
+          wait_config: Json | null
+          wait_node_id: string | null
           workflow_id: string
         }
         Insert: {
@@ -1468,12 +1471,15 @@ export type Database = {
           form_owner_id?: string | null
           form_submission_id?: string | null
           id?: string
+          scheduled_resume_at?: string | null
           started_at?: string
           status?: string
           submitter_id?: string | null
           trigger_data?: Json | null
           trigger_form_id?: string | null
           trigger_submission_id?: string | null
+          wait_config?: Json | null
+          wait_node_id?: string | null
           workflow_id: string
         }
         Update: {
@@ -1484,12 +1490,15 @@ export type Database = {
           form_owner_id?: string | null
           form_submission_id?: string | null
           id?: string
+          scheduled_resume_at?: string | null
           started_at?: string
           status?: string
           submitter_id?: string | null
           trigger_data?: Json | null
           trigger_form_id?: string | null
           trigger_submission_id?: string | null
+          wait_config?: Json | null
+          wait_node_id?: string | null
           workflow_id?: string
         }
         Relationships: [
@@ -1519,6 +1528,13 @@ export type Database = {
             columns: ["trigger_submission_id"]
             isOneToOne: false
             referencedRelation: "form_submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_executions_wait_node_id_fkey"
+            columns: ["wait_node_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_nodes"
             referencedColumns: ["id"]
           },
           {
