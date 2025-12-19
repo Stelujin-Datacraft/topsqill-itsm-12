@@ -53,6 +53,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
   const metricAggregations = config.metricAggregations || [];
 
   // Determine initial mode based on config - only used for initial state
+  // Note: 'count' mode is hidden, so default to 'calculate'
   const getInitialMode = (): ChartMode => {
     // Check for explicit compareMode flag first
     if (config.compareMode) {
@@ -64,7 +65,8 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
     if (selectedMetrics.length === 2 && !config.aggregationEnabled) {
       return 'compare';
     }
-    return 'count';
+    // Default to calculate instead of count (count is hidden)
+    return 'calculate';
   };
 
   const [mode, setMode] = useState<ChartMode>(getInitialMode);
@@ -242,29 +244,6 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
             onValueChange={(v) => handleModeChange(v as ChartMode)} 
             className="grid gap-3"
           >
-            {/* Count Records Option */}
-            <div 
-              onClick={() => handleModeChange('count')}
-              className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                mode === 'count' 
-                  ? 'border-primary bg-primary/5 shadow-sm' 
-                  : 'border-border hover:border-muted-foreground/50 hover:bg-muted/30'
-              }`}
-            >
-              <RadioGroupItem value="count" id="mode-count" className="mt-0.5" />
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <BarChart3 className="h-4 w-4 text-primary" />
-                  <span className="font-semibold">Count Records</span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Count how many records exist in each category.
-                  <br />
-                  <span className="text-muted-foreground/70 italic">Example: "How many orders per status?" or "Users by country"</span>
-                </p>
-              </div>
-            </div>
-            
             {/* Calculate Values Option */}
             <div 
               onClick={() => handleModeChange('calculate')}
