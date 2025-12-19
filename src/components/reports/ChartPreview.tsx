@@ -4,7 +4,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Edit, ArrowLeft, ChevronRight, Filter, RotateCcw, Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-// Chart PDF export functionality
 import { BarChart, Bar, XAxis, YAxis, PieChart as RechartsPieChart, Pie, Cell, LineChart as RechartsLineChart, Line, AreaChart as RechartsAreaChart, Area, ScatterChart as RechartsScatterChart, Scatter, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, FunnelChart, Funnel, Treemap, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { useReports } from '@/hooks/useReports';
@@ -2411,9 +2410,11 @@ export function ChartPreview({
   const chartInfo = getChartInfoSummary();
   
   return <div className="h-full flex flex-col overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
-      {/* Chart Info Header - Always visible for context */}
-      <div ref={chartContainerRef} className="mb-4 p-4 bg-gradient-to-r from-muted/50 to-muted/30 rounded-lg border border-border flex-shrink-0">
-        <div className="flex items-start justify-between mb-3">
+      {/* PDF Export Container - wraps entire chart for export */}
+      <div ref={chartContainerRef} className="flex flex-col flex-grow">
+        {/* Chart Info Header - Always visible for context */}
+        <div className="mb-4 p-4 bg-gradient-to-r from-muted/50 to-muted/30 rounded-lg border border-border flex-shrink-0">
+          <div className="flex items-start justify-between mb-3">
           <h4 className="font-semibold text-lg text-foreground">{config.title || chartInfo.title}</h4>
           <div className="flex items-center gap-2">
             <Button
@@ -2806,6 +2807,7 @@ export function ChartPreview({
             {renderChart()}
           </div>
         )}
+      </div>
       </div>
       
       <TableCellSubmissionsDialog
