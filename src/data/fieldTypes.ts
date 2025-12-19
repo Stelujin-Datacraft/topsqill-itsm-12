@@ -74,6 +74,7 @@ export const fieldTypes: FieldTypeConfig[] = [
     description: 'Inline grid showing related records from another form or table',
     category: 'full-width',
     isFullWidth: true,
+    isHidden: true,
   },
   {
     type: 'matrix-grid',
@@ -369,6 +370,7 @@ export const fieldTypes: FieldTypeConfig[] = [
     description: 'A container of fields that only appears when criteria are met',
     category: 'standard',
     isFullWidth: false,
+    isHidden: true,
   },
   {
     type: 'geo-location',
@@ -385,6 +387,7 @@ export const fieldTypes: FieldTypeConfig[] = [
     description: 'Invisible field carrying state to drive downstream workflows',
     category: 'full-width',
     isFullWidth: true,
+    isHidden: true,
   },
   {
     type: 'query-field',
