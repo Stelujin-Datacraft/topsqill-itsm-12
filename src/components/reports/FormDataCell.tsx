@@ -27,6 +27,27 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
   
   const navigate = useNavigate();
 
+  // Handle boolean fields first (before null check, since false is a valid value)
+  const booleanFieldTypes = ['checkbox', 'toggle-switch', 'toggle', 'yes-no', 'boolean'];
+  if (booleanFieldTypes.includes(fieldType?.toLowerCase() || '')) {
+    const boolValue = value === true || value === 'true' || value === 1 || value === '1' || value === 'yes' || value === 'Yes';
+    const isFalse = value === false || value === 'false' || value === 0 || value === '0' || value === 'no' || value === 'No';
+    
+    if (boolValue) {
+      return (
+        <Badge variant="default" className="bg-success text-success-foreground">
+          True
+        </Badge>
+      );
+    } else if (isFalse || value === null || value === undefined || value === '') {
+      return (
+        <Badge variant="secondary" className="bg-muted text-muted-foreground">
+          False
+        </Badge>
+      );
+    }
+  }
+
   // Handle null/undefined values
   if (value === null || value === undefined || value === '') {
     return (
