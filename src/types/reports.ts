@@ -86,6 +86,9 @@ export interface ChartConfig {
     secondaryFieldId: string;
   };
   
+  // Fields to display when clicking on chart elements
+  displayFields?: string[];
+  
   [key: string]: any;
 }
 
