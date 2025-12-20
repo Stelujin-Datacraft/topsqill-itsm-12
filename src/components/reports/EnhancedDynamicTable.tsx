@@ -25,7 +25,8 @@ interface EnhancedTableConfig {
   joinConfig?: any;
   drilldownConfig?: {
     enabled: boolean;
-    fields: string[];
+    fields?: string[];
+    drilldownLevels?: string[];
   };
 }
 
@@ -275,8 +276,10 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
 
   // Check if a field is drilldown-enabled
   const isDrilldownEnabled = (fieldId: string) => {
-    return config.drilldownConfig?.enabled && 
-           (config.drilldownConfig.fields || []).includes(fieldId);
+    if (!config.drilldownConfig?.enabled) return false;
+    // Support both 'drilldownLevels' (new) and 'fields' (legacy) property names
+    const drilldownFields = config.drilldownConfig.drilldownLevels || config.drilldownConfig.fields || [];
+    return drilldownFields.includes(fieldId);
   };
 
   // Get display fields based on selected columns
