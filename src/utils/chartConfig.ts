@@ -139,6 +139,9 @@ export function getDimensionCompatibleFields(fields: FormField[]): FormField[] {
 }
 
 export function getCompatibleAggregations(fieldType: string): AggregationOption[] {
+  // Normalize field type to lowercase for comparison
+  const normalizedType = (fieldType || '').toLowerCase().trim();
+  
   const textAggregations: AggregationOption[] = [
     { value: 'count', label: 'Count', description: 'Count of records' },
     { value: 'count_distinct', label: 'Count Distinct', description: 'Count of unique values' },
@@ -167,17 +170,42 @@ export function getCompatibleAggregations(fieldType: string): AggregationOption[
     { value: 'last', label: 'Last', description: 'Last value' }
   ];
 
-  // Numeric fields support all numeric aggregations
-  if (['number', 'currency', 'rating', 'slider', 'star-rating'].includes(fieldType)) {
+  const selectAggregations: AggregationOption[] = [
+    { value: 'count', label: 'Count', description: 'Count of records' },
+    { value: 'count_distinct', label: 'Count Distinct', description: 'Count of unique values' },
+    { value: 'mode', label: 'Most Frequent', description: 'Most common value' },
+    { value: 'first', label: 'First', description: 'First value' },
+    { value: 'last', label: 'Last', description: 'Last value' }
+  ];
+
+  const booleanAggregations: AggregationOption[] = [
+    { value: 'count', label: 'Count', description: 'Count of records' },
+    { value: 'count_distinct', label: 'Count Distinct', description: 'Count of unique values' },
+    { value: 'sum', label: 'Count True', description: 'Count of true/checked values' },
+    { value: 'mode', label: 'Most Frequent', description: 'Most common value' }
+  ];
+
+  // Numeric fields
+  if (['number', 'currency', 'rating', 'slider', 'star-rating', 'percentage'].includes(normalizedType)) {
     return numericAggregations;
   }
 
-  // Date/time fields support date-specific aggregations
-  if (['date', 'datetime', 'time'].includes(fieldType)) {
+  // Date/time fields
+  if (['date', 'datetime', 'time', 'date-time', 'timestamp'].includes(normalizedType)) {
     return dateTimeAggregations;
   }
 
-  // Text and other fields support text aggregations
+  // Select/dropdown/radio fields
+  if (['select', 'dropdown', 'radio', 'multi-select', 'checkbox-group', 'tags'].includes(normalizedType)) {
+    return selectAggregations;
+  }
+
+  // Boolean/checkbox fields
+  if (['checkbox', 'boolean', 'switch', 'toggle'].includes(normalizedType)) {
+    return booleanAggregations;
+  }
+
+  // Text and all other fields
   return textAggregations;
 }
 
