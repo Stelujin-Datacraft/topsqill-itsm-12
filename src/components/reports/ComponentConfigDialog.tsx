@@ -24,7 +24,7 @@ import {
 import { useReports } from '@/hooks/useReports';
 import { GenericFieldSelector } from './GenericFieldSelector';
 import { FormJoinConfig } from './FormJoinConfig';
-import { getFieldDisplayName } from '@/utils/chartConfig';
+import { getFieldDisplayName, getCompatibleAggregations } from '@/utils/chartConfig';
 import { FilterConfig } from './FilterConfig';
 import { DrilldownConfig } from './DrilldownConfig';
 import { 
@@ -1232,9 +1232,8 @@ export function ComponentConfigDialog({
                   {(() => {
                     const selectedField = formFields.find(f => f.id === config.field);
                     const fieldType = (selectedField as any)?.field_type || selectedField?.type || 'text';
-                    const { getCompatibleAggregations } = require('@/utils/chartConfig');
                     const compatibleAggs = getCompatibleAggregations(fieldType);
-                    return compatibleAggs.map((agg: { value: string; label: string }) => (
+                    return compatibleAggs.map((agg) => (
                       <SelectItem key={agg.value} value={agg.value}>
                         {agg.label}
                       </SelectItem>
