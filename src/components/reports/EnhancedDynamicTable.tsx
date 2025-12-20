@@ -56,6 +56,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ field: string; direction: 'asc' | 'desc' } | null>(null);
   const [drilldownFilters, setDrilldownFilters] = useState<DrilldownFilter[]>([]);
+  const [currentDrilldownLevel, setCurrentDrilldownLevel] = useState(0); // Track current level
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [appliedFilters, setAppliedFilters] = useState<ActiveFilter[]>([]); // Client-side filters
   const [showFilterPanel, setShowFilterPanel] = useState(false);
@@ -248,49 +249,100 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
     setAppliedFilters([...activeFilters]);
   };
 
-  // Handle drilldown click on a cell
+  // Handle drilldown click on a cell - hierarchical drilldown
   const handleCellDrilldown = (fieldId: string, value: string, label: string) => {
-    // Check if this field is already filtered
-    const existingIndex = drilldownFilters.findIndex(f => f.fieldId === fieldId);
+    const drilldownLevels = getDrilldownLevels();
+    const currentLevelFieldId = drilldownLevels[currentDrilldownLevel];
     
-    if (existingIndex >= 0) {
-      // Update existing filter
-      setDrilldownFilters(prev => 
-        prev.map((f, i) => i === existingIndex ? { fieldId, value, label } : f)
-      );
+    // Only allow drilling down from the current level's field
+    if (fieldId !== currentLevelFieldId) return;
+    
+    // Add filter for current level
+    setDrilldownFilters(prev => [...prev, { fieldId, value, label }]);
+    
+    // Move to next drilldown level
+    if (currentDrilldownLevel < drilldownLevels.length - 1) {
+      setCurrentDrilldownLevel(prev => prev + 1);
     } else {
-      // Add new filter
-      setDrilldownFilters(prev => [...prev, { fieldId, value, label }]);
+      // At final level - show all records (no more drilldown levels)
+      setCurrentDrilldownLevel(drilldownLevels.length);
     }
   };
 
-  // Remove a specific drilldown filter
-  const removeFilter = (fieldId: string) => {
-    setDrilldownFilters(prev => prev.filter(f => f.fieldId !== fieldId));
+  // Go back one drilldown level
+  const goBackOneLevel = () => {
+    if (currentDrilldownLevel > 0) {
+      setCurrentDrilldownLevel(prev => prev - 1);
+      setDrilldownFilters(prev => prev.slice(0, -1));
+    }
+  };
+
+  // Remove a specific drilldown filter and reset to that level
+  const removeFilter = (index: number) => {
+    setDrilldownFilters(prev => prev.slice(0, index));
+    setCurrentDrilldownLevel(index);
   };
 
   // Reset all drilldown filters
   const resetAllFilters = () => {
     setDrilldownFilters([]);
+    setCurrentDrilldownLevel(0);
   };
 
-  // Check if a field is drilldown-enabled
+  // Get drilldown levels array
+  const getDrilldownLevels = (): string[] => {
+    return config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.fields || [];
+  };
+
+  // Check if drilldown is enabled and we're in drilldown mode
+  const isInDrilldownMode = () => {
+    const drilldownLevels = getDrilldownLevels();
+    return config.drilldownConfig?.enabled && drilldownLevels.length > 0;
+  };
+
+  // Check if we've drilled down to the final level (showing raw records)
+  const isAtFinalLevel = () => {
+    const drilldownLevels = getDrilldownLevels();
+    return currentDrilldownLevel >= drilldownLevels.length;
+  };
+
+  // Get the current drilldown field to display
+  const getCurrentDrilldownField = () => {
+    const drilldownLevels = getDrilldownLevels();
+    if (currentDrilldownLevel < drilldownLevels.length) {
+      return drilldownLevels[currentDrilldownLevel];
+    }
+    return null;
+  };
+
+  // Check if a specific field is the current drilldown field (can be clicked)
   const isDrilldownEnabled = (fieldId: string) => {
-    if (!config.drilldownConfig?.enabled) return false;
-    // Support both 'drilldownLevels' (new) and 'fields' (legacy) property names
-    const drilldownFields = config.drilldownConfig.drilldownLevels || config.drilldownConfig.fields || [];
-    return drilldownFields.includes(fieldId);
+    if (!isInDrilldownMode()) return false;
+    const currentField = getCurrentDrilldownField();
+    return currentField === fieldId;
   };
 
-  // Get display fields based on selected columns
+  // Get display fields based on drilldown state and selected columns
   const displayFields = useMemo(() => {
     const validFields = formFields.filter(field => field && field.id);
     
+    // If in drilldown mode and NOT at final level, show only the current drilldown field
+    if (isInDrilldownMode() && !isAtFinalLevel()) {
+      const currentFieldId = getCurrentDrilldownField();
+      if (currentFieldId) {
+        const currentField = validFields.find(f => f.id === currentFieldId);
+        if (currentField) {
+          return [currentField];
+        }
+      }
+    }
+    
+    // At final level or no drilldown - show selected columns
     if (config.selectedColumns?.length > 0) {
       return validFields.filter(field => config.selectedColumns.includes(field.id));
     }
     return validFields;
-  }, [formFields, config.selectedColumns]);
+  }, [formFields, config.selectedColumns, currentDrilldownLevel, config.drilldownConfig]);
 
   // Apply client-side filters, search and sorting
   const filteredData = useMemo(() => {
@@ -345,6 +397,31 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
     return filtered;
   }, [data, searchTerm, displayFields, config.enableSearch, sortConfig, appliedFilters, evaluateFilters, formFields]);
 
+  // Aggregate data for drilldown mode - group by current field with counts
+  const aggregatedData = useMemo(() => {
+    if (!isInDrilldownMode() || isAtFinalLevel()) {
+      return null; // No aggregation needed
+    }
+
+    const currentFieldId = getCurrentDrilldownField();
+    if (!currentFieldId) return null;
+
+    // Group data by the current drilldown field value
+    const grouped: Record<string, { value: string; count: number; sampleRow: any }> = {};
+    
+    filteredData.forEach(row => {
+      const fieldValue = getFieldValue(row, currentFieldId);
+      const valueStr = fieldValue === null || fieldValue === undefined ? '(Empty)' : String(fieldValue);
+      
+      if (!grouped[valueStr]) {
+        grouped[valueStr] = { value: valueStr, count: 0, sampleRow: row };
+      }
+      grouped[valueStr].count++;
+    });
+
+    return Object.values(grouped).sort((a, b) => b.count - a.count);
+  }, [filteredData, currentDrilldownLevel, config.drilldownConfig]);
+
   useEffect(() => {
     loadFormFields();
   }, [loadFormFields]);
@@ -378,27 +455,23 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
           )}
         </div>
 
-        {/* Active Drilldown Filters */}
+        {/* Active Drilldown Filters - Breadcrumb style */}
         {drilldownFilters.length > 0 && (
           <div className="flex items-center gap-2 pt-2 flex-wrap">
             <Filter className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Filters:</span>
-            {drilldownFilters.map((filter) => (
+            <span className="text-sm text-muted-foreground">Drilldown:</span>
+            {drilldownFilters.map((filter, index) => (
               <Badge 
-                key={filter.fieldId} 
+                key={`${filter.fieldId}-${index}`} 
                 variant="default"
-                className="flex items-center gap-1"
+                className="flex items-center gap-1 cursor-pointer hover:bg-primary/80"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeFilter(index);
+                }}
               >
                 <span>{filter.label}: {filter.value}</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeFilter(filter.fieldId);
-                  }}
-                  className="ml-1 hover:bg-primary-foreground/20 rounded-full p-0.5"
-                >
-                  <X className="h-3 w-3" />
-                </button>
+                <X className="h-3 w-3 ml-1" />
               </Badge>
             ))}
             <Button
@@ -407,7 +480,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
               onClick={resetAllFilters}
               className="h-6 text-xs"
             >
-              Clear All
+              Reset
             </Button>
           </div>
         )}
@@ -592,7 +665,6 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
               <TableRow>
                 {displayFields.map(field => {
                   const canDrilldown = isDrilldownEnabled(field.id);
-                  const hasActiveFilter = drilldownFilters.some(f => f.fieldId === field.id);
                   
                   return (
                     <TableHead key={field.id} className="whitespace-nowrap">
@@ -601,8 +673,8 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                           {field.label}
                         </span>
                         
-                        {/* Sorting controls */}
-                        {config.enableSorting && (
+                        {/* Sorting controls - only show when not in aggregated mode */}
+                        {config.enableSorting && !aggregatedData && (
                           <div className="flex flex-col ml-1">
                             <Button
                               variant="ghost"
@@ -624,17 +696,18 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                         )}
                         
                         {canDrilldown && (
-                          <Badge variant="outline" className="text-xs ml-1">Click to filter</Badge>
-                        )}
-                        
-                        {hasActiveFilter && (
-                          <Badge variant="default" className="text-xs ml-1">Active</Badge>
+                          <Badge variant="outline" className="text-xs ml-1">Click to drill down</Badge>
                         )}
                       </div>
                     </TableHead>
                   );
                 })}
-                {config.showMetadata && (
+                {/* Count column for aggregated view */}
+                {aggregatedData && (
+                  <TableHead className="text-right">Count</TableHead>
+                )}
+                {/* Metadata columns only in non-aggregated view */}
+                {!aggregatedData && config.showMetadata && (
                   <>
                     <TableHead>
                       <div className="flex items-center gap-1">
@@ -667,78 +740,116 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredData.length === 0 ? (
-                <TableRow>
-                  <TableCell 
-                    colSpan={displayFields.length + (config.showMetadata ? 2 : 0)} 
-                    className="text-center py-8 text-muted-foreground"
-                  >
-                    {data.length === 0 ? 'No data available' : 'No matching records'}
-                  </TableCell>
-                </TableRow>
+              {/* Aggregated drilldown view */}
+              {aggregatedData ? (
+                aggregatedData.length === 0 ? (
+                  <TableRow>
+                    <TableCell 
+                      colSpan={displayFields.length + 1} 
+                      className="text-center py-8 text-muted-foreground"
+                    >
+                      No data available
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  aggregatedData.map((item, index) => (
+                    <TableRow 
+                      key={`agg-${index}-${item.value}`}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => {
+                        const currentFieldId = getCurrentDrilldownField();
+                        const currentField = formFields.find(f => f.id === currentFieldId);
+                        if (currentFieldId && currentField) {
+                          handleCellDrilldown(currentFieldId, item.value, currentField.label);
+                        }
+                      }}
+                    >
+                      <TableCell>
+                        <button
+                          className="text-left hover:underline hover:text-primary transition-colors font-medium"
+                          title={`Click to drill down into "${item.value}"`}
+                        >
+                          {item.value}
+                        </button>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant="secondary">{item.count} records</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )
               ) : (
-                filteredData.map(row => (
-                  <TableRow 
-                    key={row.id}
-                    className="cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => row.id && navigate(`/submission/${row.id}`)}
-                  >
-                    {displayFields.map(field => {
-                      const fieldValue = getFieldValue(row, field.id);
-                      const canDrilldown = isDrilldownEnabled(field.id);
-                      const activeFilter = drilldownFilters.find(f => f.fieldId === field.id);
-                      const isCurrentlyFiltered = activeFilter?.value === fieldValue.toString();
-                      
-                      return (
-                        <TableCell key={field.id}>
-                          {canDrilldown ? (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                handleCellDrilldown(field.id, fieldValue.toString(), field.label);
-                              }}
-                              className={`text-left hover:underline hover:text-primary transition-colors ${isCurrentlyFiltered ? 'font-semibold text-primary' : ''}`}
-                              title={`Click to filter by "${fieldValue}"`}
-                            >
-                              <FormDataCell 
-                                value={fieldValue} 
-                                fieldType={field.field_type} 
-                                field={field}
-                              />
-                            </button>
-                          ) : (
+                /* Normal table view (at final level or no drilldown) */
+                filteredData.length === 0 ? (
+                  <TableRow>
+                    <TableCell 
+                      colSpan={displayFields.length + (config.showMetadata ? 2 : 0)} 
+                      className="text-center py-8 text-muted-foreground"
+                    >
+                      {data.length === 0 ? 'No data available' : 'No matching records'}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredData.map(row => (
+                    <TableRow 
+                      key={row.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => row.id && navigate(`/submission/${row.id}`)}
+                    >
+                      {displayFields.map(field => {
+                        const fieldValue = getFieldValue(row, field.id);
+                        
+                        return (
+                          <TableCell key={field.id}>
                             <FormDataCell 
                               value={fieldValue} 
                               fieldType={field.field_type} 
                               field={field}
                             />
-                          )}
-                        </TableCell>
-                      );
-                    })}
-                    {config.showMetadata && (
-                      <>
-                        <TableCell className="text-sm">
-                          {new Date(row.submitted_at).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={row.approval_status === 'approved' ? 'default' : 'secondary'}>
-                            {row.approval_status || 'pending'}
-                          </Badge>
-                        </TableCell>
-                      </>
-                    )}
-                  </TableRow>
-                ))
+                          </TableCell>
+                        );
+                      })}
+                      {config.showMetadata && (
+                        <>
+                          <TableCell className="text-sm">
+                            {new Date(row.submitted_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={row.approval_status === 'approved' ? 'default' : 'secondary'}>
+                              {row.approval_status || 'pending'}
+                            </Badge>
+                          </TableCell>
+                        </>
+                      )}
+                    </TableRow>
+                  ))
+                )
               )}
             </TableBody>
           </Table>
         </ScrollArea>
 
         <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
-          <span>Showing {filteredData.length} of {data.length} records</span>
-          {sortConfig && (
+          <div className="flex items-center gap-3">
+            {/* Back button when in drilldown */}
+            {isInDrilldownMode() && currentDrilldownLevel > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goBackOneLevel}
+                className="h-7 text-xs gap-1"
+              >
+                ← Back
+              </Button>
+            )}
+            <span>
+              {aggregatedData 
+                ? `${aggregatedData.length} unique values (Level ${currentDrilldownLevel + 1} of ${getDrilldownLevels().length})`
+                : `Showing ${filteredData.length} of {data.length} records`
+              }
+            </span>
+          </div>
+          {sortConfig && !aggregatedData && (
             <div className="flex items-center gap-2">
               <span>Sorted by: {sortConfig.field} ({sortConfig.direction})</span>
               <Button
