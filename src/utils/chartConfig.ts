@@ -139,7 +139,11 @@ export function getDimensionCompatibleFields(fields: FormField[]): FormField[] {
 }
 
 export function getCompatibleAggregations(fieldType: string): AggregationOption[] {
-  const allAggregations: AggregationOption[] = [
+  const countOnly: AggregationOption[] = [
+    { value: 'count', label: 'Count', description: 'Count of records' }
+  ];
+
+  const numericAggregations: AggregationOption[] = [
     { value: 'count', label: 'Count', description: 'Count of records' },
     { value: 'sum', label: 'Sum', description: 'Sum of values' },
     { value: 'avg', label: 'Average', description: 'Average value' },
@@ -149,12 +153,24 @@ export function getCompatibleAggregations(fieldType: string): AggregationOption[
     { value: 'stddev', label: 'Standard Deviation', description: 'Standard deviation' }
   ];
 
-  if (['number', 'currency', 'rating', 'slider'].includes(fieldType)) {
-    return allAggregations;
+  const dateTimeAggregations: AggregationOption[] = [
+    { value: 'count', label: 'Count', description: 'Count of records' },
+    { value: 'min', label: 'Earliest', description: 'Earliest date/time' },
+    { value: 'max', label: 'Latest', description: 'Latest date/time' }
+  ];
+
+  // Numeric fields support all aggregations
+  if (['number', 'currency', 'rating', 'slider', 'star-rating'].includes(fieldType)) {
+    return numericAggregations;
   }
 
-  // For non-numeric fields, only count makes sense
-  return [allAggregations[0]];
+  // Date/time fields support count, min (earliest), max (latest)
+  if (['date', 'datetime', 'time'].includes(fieldType)) {
+    return dateTimeAggregations;
+  }
+
+  // Text and other fields only support count
+  return countOnly;
 }
 
 export function getChartMetricCapabilities(chartType: string): { maxMetrics: number; maxDimensions: number } {

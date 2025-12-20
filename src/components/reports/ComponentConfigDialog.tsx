@@ -1229,11 +1229,17 @@ export function ComponentConfigDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-background border shadow-lg z-50">
-                  {AGGREGATION_FUNCTIONS.map(agg => (
-                    <SelectItem key={agg.value} value={agg.value}>
-                      {agg.label}
-                    </SelectItem>
-                  ))}
+                  {(() => {
+                    const selectedField = formFields.find(f => f.id === config.field);
+                    const fieldType = (selectedField as any)?.field_type || selectedField?.type || 'text';
+                    const { getCompatibleAggregations } = require('@/utils/chartConfig');
+                    const compatibleAggs = getCompatibleAggregations(fieldType);
+                    return compatibleAggs.map((agg: { value: string; label: string }) => (
+                      <SelectItem key={agg.value} value={agg.value}>
+                        {agg.label}
+                      </SelectItem>
+                    ));
+                  })()}
                 </SelectContent>
               </Select>
             </div>
