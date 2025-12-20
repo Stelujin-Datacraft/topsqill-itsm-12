@@ -66,7 +66,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
   const drilldownFiltersForQuery = useMemo(() => {
     return drilldownFilters.map(filter => ({
       field: filter.fieldId,
-      operator: 'eq',
+      operator: 'equals', // Use 'equals' to match evaluateFilterCondition
       value: filter.value
     }));
   }, [drilldownFilters]);
