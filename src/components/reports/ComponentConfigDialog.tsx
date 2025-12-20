@@ -24,7 +24,7 @@ import {
 import { useReports } from '@/hooks/useReports';
 import { GenericFieldSelector } from './GenericFieldSelector';
 import { FormJoinConfig } from './FormJoinConfig';
-import { getFieldDisplayName, getCompatibleAggregations } from '@/utils/chartConfig';
+import { getFieldDisplayName } from '@/utils/chartConfig';
 import { FilterConfig } from './FilterConfig';
 import { DrilldownConfig } from './DrilldownConfig';
 import { 
@@ -1229,16 +1229,11 @@ export function ComponentConfigDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-background border shadow-lg z-50">
-                  {(() => {
-                    const selectedField = formFields.find(f => f.id === config.field);
-                    const fieldType = (selectedField as any)?.field_type || selectedField?.type || 'text';
-                    const compatibleAggs = getCompatibleAggregations(fieldType);
-                    return compatibleAggs.map((agg) => (
-                      <SelectItem key={agg.value} value={agg.value}>
-                        {agg.label}
-                      </SelectItem>
-                    ));
-                  })()}
+                  {AGGREGATION_FUNCTIONS.map(agg => (
+                    <SelectItem key={agg.value} value={agg.value}>
+                      {agg.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

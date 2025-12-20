@@ -139,20 +139,8 @@ export function getDimensionCompatibleFields(fields: FormField[]): FormField[] {
 }
 
 export function getCompatibleAggregations(fieldType: string): AggregationOption[] {
-  // Normalize field type to lowercase for comparison
-  const normalizedType = (fieldType || '').toLowerCase().trim();
-  
-  const textAggregations: AggregationOption[] = [
+  const allAggregations: AggregationOption[] = [
     { value: 'count', label: 'Count', description: 'Count of records' },
-    { value: 'count_distinct', label: 'Count Distinct', description: 'Count of unique values' },
-    { value: 'first', label: 'First', description: 'First value' },
-    { value: 'last', label: 'Last', description: 'Last value' },
-    { value: 'mode', label: 'Most Frequent', description: 'Most common value' }
-  ];
-
-  const numericAggregations: AggregationOption[] = [
-    { value: 'count', label: 'Count', description: 'Count of records' },
-    { value: 'count_distinct', label: 'Count Distinct', description: 'Count of unique values' },
     { value: 'sum', label: 'Sum', description: 'Sum of values' },
     { value: 'avg', label: 'Average', description: 'Average value' },
     { value: 'min', label: 'Minimum', description: 'Minimum value' },
@@ -161,52 +149,12 @@ export function getCompatibleAggregations(fieldType: string): AggregationOption[
     { value: 'stddev', label: 'Standard Deviation', description: 'Standard deviation' }
   ];
 
-  const dateTimeAggregations: AggregationOption[] = [
-    { value: 'count', label: 'Count', description: 'Count of records' },
-    { value: 'count_distinct', label: 'Count Distinct', description: 'Count of unique values' },
-    { value: 'min', label: 'Earliest', description: 'Earliest date/time' },
-    { value: 'max', label: 'Latest', description: 'Latest date/time' },
-    { value: 'first', label: 'First', description: 'First value' },
-    { value: 'last', label: 'Last', description: 'Last value' }
-  ];
-
-  const selectAggregations: AggregationOption[] = [
-    { value: 'count', label: 'Count', description: 'Count of records' },
-    { value: 'count_distinct', label: 'Count Distinct', description: 'Count of unique values' },
-    { value: 'mode', label: 'Most Frequent', description: 'Most common value' },
-    { value: 'first', label: 'First', description: 'First value' },
-    { value: 'last', label: 'Last', description: 'Last value' }
-  ];
-
-  const booleanAggregations: AggregationOption[] = [
-    { value: 'count', label: 'Count', description: 'Count of records' },
-    { value: 'count_distinct', label: 'Count Distinct', description: 'Count of unique values' },
-    { value: 'sum', label: 'Count True', description: 'Count of true/checked values' },
-    { value: 'mode', label: 'Most Frequent', description: 'Most common value' }
-  ];
-
-  // Numeric fields
-  if (['number', 'currency', 'rating', 'slider', 'star-rating', 'percentage'].includes(normalizedType)) {
-    return numericAggregations;
+  if (['number', 'currency', 'rating', 'slider'].includes(fieldType)) {
+    return allAggregations;
   }
 
-  // Date/time fields
-  if (['date', 'datetime', 'time', 'date-time', 'timestamp'].includes(normalizedType)) {
-    return dateTimeAggregations;
-  }
-
-  // Select/dropdown/radio fields
-  if (['select', 'dropdown', 'radio', 'multi-select', 'checkbox-group', 'tags'].includes(normalizedType)) {
-    return selectAggregations;
-  }
-
-  // Boolean/checkbox fields
-  if (['checkbox', 'boolean', 'switch', 'toggle'].includes(normalizedType)) {
-    return booleanAggregations;
-  }
-
-  // Text and all other fields
-  return textAggregations;
+  // For non-numeric fields, only count makes sense
+  return [allAggregations[0]];
 }
 
 export function getChartMetricCapabilities(chartType: string): { maxMetrics: number; maxDimensions: number } {
