@@ -14,104 +14,91 @@ export async function exportChartToPDF(
   chartElement: HTMLElement,
   options: ChartExportOptions = {}
 ): Promise<void> {
-  const { filename = 'chart-export', quality = 2 } = options;
+  const { filename = 'chart-export', title, quality = 2 } = options;
 
   try {
-    // Clone the element to avoid modifying the original
-    const clonedElement = chartElement.cloneNode(true) as HTMLElement;
+    // Store original styles to restore later
+    const elementsToHide: { element: HTMLElement; originalDisplay: string }[] = [];
     
-    // Create a temporary container for the cloned element
-    const tempContainer = document.createElement('div');
-    tempContainer.style.position = 'absolute';
-    tempContainer.style.left = '-9999px';
-    tempContainer.style.top = '0';
-    tempContainer.style.width = `${chartElement.offsetWidth}px`;
-    tempContainer.style.backgroundColor = '#ffffff';
-    tempContainer.style.padding = '20px';
-    tempContainer.style.boxSizing = 'border-box';
-    tempContainer.appendChild(clonedElement);
-    document.body.appendChild(tempContainer);
-
-    // Remove export buttons and controls from the clone
-    const exportButtons = clonedElement.querySelectorAll('[data-export-hide="true"]');
-    exportButtons.forEach(btn => btn.remove());
-
-    // Remove hover states and opacity controls
-    const hoverElements = clonedElement.querySelectorAll('.opacity-0, .group-hover\\:opacity-100');
-    hoverElements.forEach(el => {
-      (el as HTMLElement).style.opacity = '0';
-      (el as HTMLElement).style.display = 'none';
+    // Hide export buttons temporarily
+    const exportButtons = chartElement.querySelectorAll('[data-export-hide="true"]');
+    exportButtons.forEach(btn => {
+      const el = btn as HTMLElement;
+      elementsToHide.push({ element: el, originalDisplay: el.style.display });
+      el.style.display = 'none';
     });
 
-    // Fix badge wrapping - make them inline and properly spaced
-    const badges = clonedElement.querySelectorAll('.flex-wrap');
-    badges.forEach(badge => {
-      (badge as HTMLElement).style.display = 'flex';
-      (badge as HTMLElement).style.flexWrap = 'wrap';
-      (badge as HTMLElement).style.gap = '8px';
-      (badge as HTMLElement).style.alignItems = 'center';
+    // Hide hover-only controls
+    const hoverControls = chartElement.querySelectorAll('.opacity-0.group-hover\\:opacity-100');
+    hoverControls.forEach(ctrl => {
+      const el = ctrl as HTMLElement;
+      elementsToHide.push({ element: el, originalDisplay: el.style.display });
+      el.style.display = 'none';
     });
 
-    // Ensure all badge spans are properly styled
-    const badgeSpans = clonedElement.querySelectorAll('.rounded-full');
-    badgeSpans.forEach(span => {
-      (span as HTMLElement).style.display = 'inline-flex';
-      (span as HTMLElement).style.alignItems = 'center';
-      (span as HTMLElement).style.whiteSpace = 'nowrap';
-      (span as HTMLElement).style.flexShrink = '0';
-    });
+    // Force white background temporarily
+    const originalBg = chartElement.style.backgroundColor;
+    chartElement.style.backgroundColor = '#ffffff';
 
-    // Set proper background colors for the header
-    const headerSection = clonedElement.querySelector('.bg-gradient-to-r');
-    if (headerSection) {
-      (headerSection as HTMLElement).style.background = '#f8f9fa';
-      (headerSection as HTMLElement).style.borderRadius = '8px';
-      (headerSection as HTMLElement).style.padding = '16px';
-    }
+    // Wait for styles to apply
+    await new Promise(resolve => setTimeout(resolve, 50));
 
-    // Ensure chart container has proper dimensions
-    clonedElement.style.width = '100%';
-    clonedElement.style.height = 'auto';
-    clonedElement.style.minHeight = '400px';
-    clonedElement.style.overflow = 'visible';
-    clonedElement.style.backgroundColor = '#ffffff';
-
-    // Wait for any reflows
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // Capture the cloned element as canvas
-    const canvas = await html2canvas(tempContainer, {
+    // Capture the chart element
+    const canvas = await html2canvas(chartElement, {
       scale: quality,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
       logging: false,
-      width: tempContainer.offsetWidth,
-      height: tempContainer.scrollHeight,
-      windowWidth: tempContainer.offsetWidth,
-      windowHeight: tempContainer.scrollHeight,
+      onclone: (clonedDoc, clonedElement) => {
+        // Style fixes in the cloned document
+        const clonedBadges = clonedElement.querySelectorAll('.rounded-full');
+        clonedBadges.forEach(badge => {
+          const el = badge as HTMLElement;
+          el.style.display = 'inline-flex';
+          el.style.alignItems = 'center';
+          el.style.justifyContent = 'center';
+          el.style.textAlign = 'center';
+          el.style.whiteSpace = 'nowrap';
+          el.style.lineHeight = '1.5';
+          el.style.verticalAlign = 'middle';
+        });
+
+        // Fix flex containers
+        const flexContainers = clonedElement.querySelectorAll('.flex');
+        flexContainers.forEach(container => {
+          const el = container as HTMLElement;
+          el.style.alignItems = 'center';
+        });
+
+        // Ensure header gradient has solid background
+        const headers = clonedElement.querySelectorAll('.bg-gradient-to-r');
+        headers.forEach(header => {
+          const el = header as HTMLElement;
+          el.style.background = '#f3f4f6';
+        });
+      }
     });
 
-    // Clean up
-    document.body.removeChild(tempContainer);
+    // Restore original styles
+    elementsToHide.forEach(({ element, originalDisplay }) => {
+      element.style.display = originalDisplay;
+    });
+    chartElement.style.backgroundColor = originalBg;
 
     // Get image dimensions
     const imgWidth = canvas.width;
     const imgHeight = canvas.height;
 
-    // Calculate PDF dimensions (A4 with margins)
+    // Calculate PDF dimensions
     const pdfWidth = 210; // A4 width in mm
     const pdfHeight = 297; // A4 height in mm
-    const margin = 15;
-    const availableWidth = pdfWidth - (margin * 2);
+    const margin = 10;
     
-    // Calculate aspect ratio and fit image
-    const ratio = imgHeight / imgWidth;
-    const imageWidth = availableWidth;
-    const imageHeight = imageWidth * ratio;
-
-    // Choose orientation based on content aspect ratio
-    const orientation = imageHeight > (pdfHeight - margin * 2) ? 'portrait' : 'landscape';
+    // Choose orientation based on aspect ratio
+    const aspectRatio = imgWidth / imgHeight;
+    const orientation = aspectRatio > 1.2 ? 'landscape' : 'portrait';
+    
     const doc = new jsPDF({
       orientation,
       unit: 'mm',
@@ -120,25 +107,43 @@ export async function exportChartToPDF(
 
     const pageWidth = orientation === 'portrait' ? pdfWidth : pdfHeight;
     const pageHeight = orientation === 'portrait' ? pdfHeight : pdfWidth;
+    const availableWidth = pageWidth - (margin * 2);
+    const availableHeight = pageHeight - (margin * 2) - 20; // Reserve space for title
+
+    let yOffset = margin;
+
+    // Add title if provided
+    if (title) {
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text(title, pageWidth / 2, yOffset + 5, { align: 'center' });
+      yOffset += 12;
+    }
+
+    // Add timestamp
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(120, 120, 120);
+    const timestamp = `Exported: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+    doc.text(timestamp, pageWidth / 2, yOffset, { align: 'center' });
+    yOffset += 8;
 
     // Convert canvas to image data
     const imgData = canvas.toDataURL('image/png', 1.0);
 
-    // Calculate final image size to fit the page
-    const maxHeight = pageHeight - (margin * 2);
-    const maxWidth = pageWidth - (margin * 2);
-    
-    let finalWidth = maxWidth;
+    // Calculate image dimensions to fit page
+    const ratio = imgHeight / imgWidth;
+    let finalWidth = availableWidth;
     let finalHeight = finalWidth * ratio;
 
-    if (finalHeight > maxHeight) {
-      finalHeight = maxHeight;
+    if (finalHeight > availableHeight) {
+      finalHeight = availableHeight;
       finalWidth = finalHeight / ratio;
     }
 
     // Center the image
     const xOffset = (pageWidth - finalWidth) / 2;
-    const yOffset = margin;
 
     // Add the chart image
     doc.addImage(imgData, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
