@@ -164,9 +164,13 @@ export function BubbleDataSection({ config, formFields, onConfigChange }: Bubble
             </div>
           ) : (
             <Select 
-              onValueChange={(value) => onConfigChange({ 
-                metrics: [config.metrics?.[0] || '', value]
-              })}
+              value=""
+              onValueChange={(value) => {
+                const currentX = config.metrics?.[0] || '';
+                onConfigChange({ 
+                  metrics: [currentX, value]
+                });
+              }}
               disabled={!xAxisField}
             >
               <SelectTrigger className={`border-dashed border-2 ${!xAxisField ? 'opacity-50' : ''}`}>
