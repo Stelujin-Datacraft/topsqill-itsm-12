@@ -617,15 +617,40 @@ if (fieldType === 'checkbox') {
 
 
 
-  // Handle multi-select fields
-  if (['multi-select'].includes(fieldType)) {
+  // Handle multi-select fields (both 'multi-select' and 'multiselect' variants)
+  if (['multi-select', 'multiselect'].includes(fieldType)) {
+    const options = ensureOptionsArray(field?.options);
+    
     if (Array.isArray(value)) {
       return (
         <div className="flex flex-wrap gap-1">
           {value.map((item, index) => {
-            const selectedOption = field?.options && Array.isArray(field.options) 
-              ? field.options.find((opt: any) => opt.value === item)
-              : null;
+            const selectedOption = options.find((opt: any) => opt.value === item);
+            const displayValue = selectedOption?.label || item;
+            return (
+              <Badge key={index} variant="secondary" className="text-xs bg-primary/10 text-primary border-primary/30 flex items-center gap-2 px-2 py-1">
+                {selectedOption?.image && (
+                  <img
+                    src={selectedOption.image}
+                    alt={displayValue || 'Option image'}
+                    className="w-5 h-5 object-cover rounded border border-border"
+                    onError={(e) => (e.currentTarget.style.display = 'none')}
+                  />
+                )}
+                <span>{displayValue}</span>
+              </Badge>
+            );
+          })}
+        </div>
+      );
+    }
+    // Handle string value (possibly comma-separated)
+    if (typeof value === 'string' && value) {
+      const values = value.split(',').map(v => v.trim());
+      return (
+        <div className="flex flex-wrap gap-1">
+          {values.map((item, index) => {
+            const selectedOption = options.find((opt: any) => opt.value === item);
             const displayValue = selectedOption?.label || item;
             return (
               <Badge key={index} variant="secondary" className="text-xs bg-primary/10 text-primary border-primary/30">
