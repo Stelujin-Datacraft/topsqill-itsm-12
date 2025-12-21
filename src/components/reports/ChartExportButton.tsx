@@ -49,6 +49,7 @@ export function ChartExportButton({
       disabled={isExporting}
       className={`gap-1.5 ${className}`}
       title="Export chart to PDF"
+      data-export-hide="true"
     >
       {isExporting ? (
         <>
