@@ -15,6 +15,13 @@ import { ChartTypeSelector } from './ChartTypeSelector';
 import { ChartPreview } from './ChartPreview';
 import { ChartDataSection } from './ChartDataSection';
 import { ChartExamples } from './ChartExamples';
+import { 
+  PieDonutDataSection, 
+  LineAreaDataSection, 
+  ScatterDataSection, 
+  BubbleDataSection, 
+  HeatmapDataSection 
+} from './chart-data-sections';
 import { Database, Sparkles, Lightbulb, CheckSquare } from 'lucide-react';
 import { getChartMetricCapabilities } from '@/utils/chartConfig';
 
