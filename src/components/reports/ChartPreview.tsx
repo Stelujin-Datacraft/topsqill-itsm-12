@@ -458,7 +458,16 @@ export function ChartPreview({
           ? [config.yAxis]
           : ['count'];
 
-    console.log('Processing with dimensions:', dimensionFields, 'metrics:', metricFields, 'groupBy:', effectiveGroupByField, 'compareMode:', config.compareMode);
+    // Get the current chart type
+    const currentChartType = config.type || config.chartType || 'bar';
+
+    console.log('Processing with dimensions:', dimensionFields, 'metrics:', metricFields, 'groupBy:', effectiveGroupByField, 'compareMode:', config.compareMode, 'chartType:', currentChartType);
+
+    // Heatmap: special processing for 2 dimensions + intensity
+    if (currentChartType === 'heatmap' && dimensionFields.length >= 2) {
+      console.log('📊 Processing heatmap with row/column dimensions');
+      return processHeatmapData(submissions, dimensionFields[0], dimensionFields[1], config.heatmapIntensityField || metricFields[0]);
+    }
 
     // Compare mode: require exactly two metrics and ignore aggregation/count semantics
     if (config.compareMode) {
@@ -1028,6 +1037,55 @@ export function ChartPreview({
     console.log('Form fields loaded:', formFields.length, 'Current form:', currentForm?.name);
     return result;
   };
+
+  // Process heatmap data with row/column dimensions and intensity value
+  const processHeatmapData = (submissions: any[], rowField: string, colField: string, intensityField?: string) => {
+    console.log('📊 Processing heatmap data - Row:', rowField, 'Col:', colField, 'Intensity:', intensityField);
+    
+    const effectiveAggregation = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
+    
+    // Structure: collect raw values per row-col combination
+    const rawData: { [key: string]: { row: string; col: string; values: number[] } } = {};
+    
+    submissions.forEach(submission => {
+      const submissionData = submission.submission_data;
+      
+      // Apply filters
+      if (!passesFilters(submissionData)) return;
+      
+      const rowValue = getDimensionValue(submissionData, rowField);
+      const colValue = getDimensionValue(submissionData, colField);
+      const key = `${rowValue}||${colValue}`;
+      
+      if (!rawData[key]) {
+        rawData[key] = { row: rowValue, col: colValue, values: [] };
+      }
+      
+      // Get intensity value (or count)
+      if (intensityField && intensityField !== 'count') {
+        const metricValue = getRawMetricValue(submissionData, intensityField);
+        rawData[key].values.push(metricValue);
+      } else {
+        rawData[key].values.push(1); // Count
+      }
+    });
+    
+    // Apply aggregation and convert to chart format
+    const result = Object.values(rawData).map(item => {
+      const aggregatedValue = applyAggregation(item.values, effectiveAggregation);
+      return {
+        name: item.row,
+        rowValue: item.row,
+        colValue: item.col,
+        value: aggregatedValue,
+        [intensityField || 'count']: aggregatedValue
+      };
+    });
+    
+    console.log('📊 Heatmap processed data:', result);
+    return result;
+  };
+
   const passesFilters = (submissionData: any): boolean => {
     const drilldownFilters: any[] = [];
     if (config.drilldownConfig?.enabled && drilldownState?.values?.length > 0) {
@@ -2285,87 +2343,277 @@ export function ChartPreview({
             </div>
           </div>;
       case 'scatter':
+        // Scatter plot uses x and y from compare mode data
+        const scatterXKey = config.compareMode ? 'x' : 'name';
+        const scatterYKey = config.compareMode ? 'y' : (primaryMetric || 'value');
+        const scatterXLabel = config.xAxisLabel || (config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'X-Axis');
+        const scatterYLabel = config.yAxisLabel || (config.metrics?.[1] ? getFormFieldName(config.metrics[1]) : 'Y-Axis');
+        
         return <div className="relative w-full h-full min-h-[300px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
-                <RechartsScatterChart data={sanitizedChartData} margin={{
+                <RechartsScatterChart margin={{
                 top: 20,
                 right: 30,
-                left: 20,
+                left: 60,
                 bottom: 80
               }}>
-                  <XAxis dataKey="name" tick={{
-                  fontSize: 11
-                }} angle={-45} textAnchor="end" height={80} label={{
-                  value: config.xAxisLabel || getFormFieldName(primaryMetric),
-                  position: 'insideBottom',
-                  offset: -5
-                }} />
-                  <YAxis dataKey={primaryMetric} tick={{
-                  fontSize: 11
-                }} label={{
-                  value: config.yAxisLabel || 'Value',
-                  angle: -90,
-                  position: 'insideLeft'
-                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} />
-                  <Tooltip formatter={(value, name) => [value, name]} labelFormatter={label => label} contentStyle={{
-                  backgroundColor: 'hsl(var(--popover))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: 'var(--radius)',
-                  fontSize: '12px'
-                }} />
-                  <Scatter dataKey={primaryMetric} fill={colors[0]} style={{ cursor: 'pointer' }} onClick={(data: any) => handleBarClick(data, 0)} />
+                  <XAxis 
+                    type="number"
+                    dataKey={scatterXKey} 
+                    tick={{ fontSize: 11 }} 
+                    name={scatterXLabel}
+                    label={{
+                      value: scatterXLabel,
+                      position: 'insideBottom',
+                      offset: -5
+                    }} 
+                    domain={['auto', 'auto']}
+                  />
+                  <YAxis 
+                    type="number"
+                    dataKey={scatterYKey} 
+                    tick={{ fontSize: 11 }} 
+                    name={scatterYLabel}
+                    label={{
+                      value: scatterYLabel,
+                      angle: -90,
+                      position: 'insideLeft'
+                    }} 
+                    domain={['auto', 'auto']}
+                  />
+                  <Tooltip 
+                    cursor={{ strokeDasharray: '3 3' }}
+                    content={({ payload }) => {
+                      if (!payload || payload.length === 0) return null;
+                      const data = payload[0]?.payload;
+                      if (!data) return null;
+                      return (
+                        <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
+                          <div className="font-medium mb-2">{data.name || 'Data Point'}</div>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground">{scatterXLabel}:</span>
+                              <span className="font-semibold">{data.x ?? data[scatterXKey]}</span>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground">{scatterYLabel}:</span>
+                              <span className="font-semibold">{data.y ?? data[scatterYKey]}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Scatter 
+                    data={sanitizedChartData} 
+                    fill={colors[0]} 
+                    style={{ cursor: 'pointer' }} 
+                    onClick={(data: any) => handleBarClick(data, 0)}
+                  />
                 </RechartsScatterChart>
               </ResponsiveContainer>
             </div>
           </div>;
       case 'bubble':
-        // For bubble chart, use multiple scatter components with different sizes
-        const sizeField = config.sizeField || primaryMetric;
-        const bubbleData = sanitizedChartData.map(item => ({
-          ...item,
-          size: item[sizeField] || 10
-        }));
+        // Bubble chart uses x, y from compare mode and sizeField for bubble size
+        const bubbleSizeField = config.sizeField;
+        const bubbleXKey = config.compareMode ? 'x' : 'name';
+        const bubbleYKey = config.compareMode ? 'y' : (primaryMetric || 'value');
+        const bubbleXLabel = config.xAxisLabel || (config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'X-Axis');
+        const bubbleYLabel = config.yAxisLabel || (config.metrics?.[1] ? getFormFieldName(config.metrics[1]) : 'Y-Axis');
+        const bubbleSizeLabel = bubbleSizeField ? getFormFieldName(bubbleSizeField) : 'Size';
+        
+        const bubbleData = sanitizedChartData.map(item => {
+          const sizeValue = bubbleSizeField ? (item[bubbleSizeField] || 10) : 10;
+          return {
+            ...item,
+            size: typeof sizeValue === 'number' ? sizeValue : 10
+          };
+        });
+        
+        // Calculate size scale
+        const maxSize = Math.max(...bubbleData.map(d => d.size), 1);
+        const minSize = Math.min(...bubbleData.map(d => d.size), 0);
+        const sizeScale = (size: number) => {
+          const normalized = maxSize === minSize ? 0.5 : (size - minSize) / (maxSize - minSize);
+          return 5 + normalized * 25; // Size range from 5 to 30
+        };
+        
         return <div className="relative w-full h-full min-h-[300px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
-                <RechartsScatterChart data={bubbleData}>
-                    <XAxis dataKey="name" />
-                    <YAxis dataKey={primaryMetric} domain={getYAxisDomain(bubbleData, primaryMetric)} />
-                    <Tooltip formatter={(value, name, props) => [`${name}: ${value}`, `Size: ${props.payload.size}`]} />
-                    {bubbleData.map((entry, index) => <Scatter key={index} data={[entry]} fill={colors[index % colors.length]} r={Math.max(5, Math.min(20, entry.size / 2))} style={{ cursor: 'pointer' }} onClick={() => handleBarClick(entry, index)} />)}
+                <RechartsScatterChart margin={{ top: 20, right: 30, left: 60, bottom: 80 }}>
+                    <XAxis 
+                      type="number" 
+                      dataKey={bubbleXKey}
+                      tick={{ fontSize: 11 }}
+                      name={bubbleXLabel}
+                      label={{ value: bubbleXLabel, position: 'insideBottom', offset: -5 }}
+                      domain={['auto', 'auto']}
+                    />
+                    <YAxis 
+                      type="number" 
+                      dataKey={bubbleYKey}
+                      tick={{ fontSize: 11 }}
+                      name={bubbleYLabel}
+                      label={{ value: bubbleYLabel, angle: -90, position: 'insideLeft' }}
+                      domain={['auto', 'auto']}
+                    />
+                    <Tooltip 
+                      cursor={{ strokeDasharray: '3 3' }}
+                      content={({ payload }) => {
+                        if (!payload || payload.length === 0) return null;
+                        const data = payload[0]?.payload;
+                        if (!data) return null;
+                        return (
+                          <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
+                            <div className="font-medium mb-2">{data.name || 'Data Point'}</div>
+                            <div className="space-y-1 text-sm">
+                              <div className="flex justify-between gap-4">
+                                <span className="text-muted-foreground">{bubbleXLabel}:</span>
+                                <span className="font-semibold">{data.x ?? data[bubbleXKey]}</span>
+                              </div>
+                              <div className="flex justify-between gap-4">
+                                <span className="text-muted-foreground">{bubbleYLabel}:</span>
+                                <span className="font-semibold">{data.y ?? data[bubbleYKey]}</span>
+                              </div>
+                              {bubbleSizeField && (
+                                <div className="flex justify-between gap-4">
+                                  <span className="text-muted-foreground">{bubbleSizeLabel}:</span>
+                                  <span className="font-semibold">{data.size}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Scatter 
+                      data={bubbleData} 
+                      fill={colors[0]}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {bubbleData.map((entry, index) => (
+                        <Cell 
+                          key={`bubble-${index}`}
+                          fill={colors[index % colors.length]}
+                          onClick={() => handleBarClick(entry, index)}
+                        />
+                      ))}
+                    </Scatter>
                 </RechartsScatterChart>
               </ResponsiveContainer>
             </div>
           </div>;
       case 'heatmap':
-        // Generate heatmap data grid with safe values
-        const heatmapData = sanitizedChartData.map((item, index) => {
-          const rawValue = item[config.heatmapIntensityField || primaryMetric];
-          const safeValue = typeof rawValue === 'number' && isFinite(rawValue) ? rawValue : 0;
-          return {
-            ...item,
-            x: index % (config.gridColumns || 5),
-            y: Math.floor(index / (config.gridColumns || 5)),
-            value: safeValue
-          };
+        // Heatmap uses two dimensions (rows and columns) and an intensity value
+        const rowDimension = config.dimensions?.[0];
+        const colDimension = config.dimensions?.[1];
+        const intensityField = config.heatmapIntensityField || primaryMetric || 'value';
+        
+        // Get unique row and column values
+        const uniqueRows = [...new Set(sanitizedChartData.map(d => d.rowValue || d.name || 'Unknown'))];
+        const uniqueCols = [...new Set(sanitizedChartData.map(d => d.colValue || 'Default'))];
+        
+        // If data doesn't have row/col structure, use simple grid fallback
+        const hasProperStructure = sanitizedChartData.length > 0 && (sanitizedChartData[0].rowValue || sanitizedChartData[0].colValue);
+        
+        if (!hasProperStructure) {
+          // Fallback: simple grid based on index
+          const gridCols = config.gridColumns || Math.ceil(Math.sqrt(sanitizedChartData.length));
+          const heatmapDataSimple = sanitizedChartData.map((item, index) => {
+            const rawValue = item[intensityField] || item.value || 0;
+            const safeValue = typeof rawValue === 'number' && isFinite(rawValue) ? rawValue : 0;
+            return {
+              ...item,
+              x: index % gridCols,
+              y: Math.floor(index / gridCols),
+              value: safeValue
+            };
+          });
+          const maxValueSimple = Math.max(...heatmapDataSimple.map(d => d.value), 1);
+          
+          return <div className="relative">
+              <div className="grid gap-1" style={{
+                gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
+                maxWidth: '100%'
+              }}>
+                {heatmapDataSimple.map((cell, index) => {
+                  const intensity = cell.value / maxValueSimple;
+                  const colorIndex = Math.floor(intensity * (colors.length - 1));
+                  const safeColorIndex = Math.max(0, Math.min(colors.length - 1, isNaN(colorIndex) ? 0 : colorIndex));
+                  return <div key={index} className="aspect-square rounded-sm flex items-center justify-center text-xs font-medium cursor-pointer hover:ring-2 hover:ring-primary" style={{
+                    backgroundColor: colors[safeColorIndex],
+                    color: intensity > 0.5 ? 'white' : 'black'
+                  }} title={`${cell.name}: ${cell.value}`}>
+                    {cell.value}
+                  </div>;
+                })}
+              </div>
+            </div>;
+        }
+        
+        // Proper heatmap with row/column structure
+        const heatmapMatrix: { [key: string]: { [key: string]: number } } = {};
+        sanitizedChartData.forEach(item => {
+          const row = item.rowValue || item.name || 'Unknown';
+          const col = item.colValue || 'Default';
+          const val = item[intensityField] || item.value || 0;
+          if (!heatmapMatrix[row]) heatmapMatrix[row] = {};
+          heatmapMatrix[row][col] = (heatmapMatrix[row][col] || 0) + val;
         });
-        const heatmapMaxValue = Math.max(...heatmapData.map(d => d.value), 1); // Ensure minimum of 1 to prevent division by zero
-        return <div className="relative">
-            <div className="grid gap-1" style={{
-            gridTemplateColumns: `repeat(${config.gridColumns || 5}, 1fr)`,
-            maxWidth: '100%'
-          }}>
-              {heatmapData.map((cell, index) => {
-                const colorIndex = Math.floor((cell.value / heatmapMaxValue) * (colors.length - 1));
-                const safeColorIndex = Math.max(0, Math.min(colors.length - 1, isNaN(colorIndex) ? 0 : colorIndex));
-                return <div key={index} className="aspect-square rounded-sm flex items-center justify-center text-xs font-medium" style={{
-                  backgroundColor: colors[safeColorIndex],
-                  color: cell.value > heatmapMaxValue / 2 ? 'white' : 'black'
-                }} title={`${cell.name}: ${cell.value}`}>
-                  {cell.value}
-                </div>;
-              })}
+        
+        const allValues = Object.values(heatmapMatrix).flatMap(row => Object.values(row));
+        const maxValue = Math.max(...allValues, 1);
+        const rowLabels = Object.keys(heatmapMatrix);
+        const colLabels = [...new Set(sanitizedChartData.map(d => d.colValue || 'Default'))];
+        
+        const rowLabel = rowDimension ? getFormFieldName(rowDimension) : 'Rows';
+        const colLabel = colDimension ? getFormFieldName(colDimension) : 'Columns';
+        
+        return <div className="relative overflow-auto">
+            <div className="text-sm text-muted-foreground mb-2">
+              <span className="font-medium">{rowLabel}</span> × <span className="font-medium">{colLabel}</span>
+              {intensityField && <span> (Intensity: {getFormFieldName(intensityField)})</span>}
+            </div>
+            <div className="inline-block">
+              {/* Column Headers */}
+              <div className="flex">
+                <div className="w-24 shrink-0"></div>
+                {colLabels.map((col, idx) => (
+                  <div key={idx} className="w-16 px-1 text-xs font-medium text-center truncate" title={col}>
+                    {col}
+                  </div>
+                ))}
+              </div>
+              {/* Rows */}
+              {rowLabels.map((row, rowIdx) => (
+                <div key={rowIdx} className="flex items-center">
+                  <div className="w-24 shrink-0 text-xs font-medium truncate pr-2" title={row}>
+                    {row}
+                  </div>
+                  {colLabels.map((col, colIdx) => {
+                    const cellValue = heatmapMatrix[row]?.[col] || 0;
+                    const intensity = cellValue / maxValue;
+                    const colorIndex = Math.floor(intensity * (colors.length - 1));
+                    const safeColorIndex = Math.max(0, Math.min(colors.length - 1, isNaN(colorIndex) ? 0 : colorIndex));
+                    return (
+                      <div 
+                        key={colIdx} 
+                        className="w-16 h-10 m-0.5 rounded-sm flex items-center justify-center text-xs font-medium cursor-pointer hover:ring-2 hover:ring-primary"
+                        style={{
+                          backgroundColor: colors[safeColorIndex],
+                          color: intensity > 0.5 ? 'white' : 'black'
+                        }}
+                        title={`${row} × ${col}: ${cellValue}`}
+                      >
+                        {cellValue}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </div>;
       case 'table':
