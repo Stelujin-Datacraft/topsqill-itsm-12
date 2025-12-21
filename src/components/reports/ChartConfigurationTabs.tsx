@@ -314,11 +314,70 @@ export function ChartConfigurationTabs({
       </TabsContent>
 
       <TabsContent value="data" className="space-y-6">
-        <ChartDataSection
-          config={config}
-          formFields={formFields}
-          onConfigChange={handleConfigUpdate}
-        />
+        {/* Bar and Column charts use the original flexible data section */}
+        {(config.chartType === 'bar' || config.chartType === 'column') && (
+          <ChartDataSection
+            config={config}
+            formFields={formFields}
+            onConfigChange={handleConfigUpdate}
+          />
+        )}
+
+        {/* Pie and Donut charts */}
+        {(config.chartType === 'pie' || config.chartType === 'donut') && (
+          <PieDonutDataSection
+            config={config}
+            formFields={formFields}
+            onConfigChange={handleConfigUpdate}
+            chartType={config.chartType}
+          />
+        )}
+
+        {/* Line and Area charts */}
+        {(config.chartType === 'line' || config.chartType === 'area') && (
+          <LineAreaDataSection
+            config={config}
+            formFields={formFields}
+            onConfigChange={handleConfigUpdate}
+            chartType={config.chartType}
+          />
+        )}
+
+        {/* Scatter chart */}
+        {config.chartType === 'scatter' && (
+          <ScatterDataSection
+            config={config}
+            formFields={formFields}
+            onConfigChange={handleConfigUpdate}
+          />
+        )}
+
+        {/* Bubble chart */}
+        {config.chartType === 'bubble' && (
+          <BubbleDataSection
+            config={config}
+            formFields={formFields}
+            onConfigChange={handleConfigUpdate}
+          />
+        )}
+
+        {/* Heatmap chart */}
+        {config.chartType === 'heatmap' && (
+          <HeatmapDataSection
+            config={config}
+            formFields={formFields}
+            onConfigChange={handleConfigUpdate}
+          />
+        )}
+
+        {/* Table type - use original section */}
+        {config.chartType === 'table' && (
+          <ChartDataSection
+            config={config}
+            formFields={formFields}
+            onConfigChange={handleConfigUpdate}
+          />
+        )}
       </TabsContent>
 
 
