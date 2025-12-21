@@ -1197,6 +1197,10 @@ export function ChartPreview({
     
     if (!dimensionValue) return;
     
+    // Get dimensionField from the data payload (xFieldName) or fallback to config
+    const dimensionField = payload?.xFieldName || config.dimensions?.[0] || config.xAxis || '';
+    const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Field';
+    
     // Check if drilldown is enabled - if so, trigger drilldown instead of dialog
     const drilldownLevels = getDrilldownLevels();
     if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0) {
@@ -1206,8 +1210,6 @@ export function ChartPreview({
       const currentLevel = drilldownState?.values?.length || 0;
       if (currentLevel >= drilldownLevels.length) {
         // At final level - show submissions dialog
-        const dimensionField = drilldownLevels[currentLevel - 1] || config.dimensions?.[0] || config.xAxis || '';
-        const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Field';
         setCellSubmissionsDialog({
           open: true,
           dimensionField,
@@ -1219,24 +1221,12 @@ export function ChartPreview({
       
       const nextLevel = drilldownLevels[currentLevel];
       if (nextLevel && dimensionValue !== 'Not Specified') {
-        console.log('📊 Bar click drilldown:', {
-          nextLevel,
-          clickedValue: dimensionValue,
-          currentLevel,
-          fieldName: getFormFieldName(nextLevel),
-          totalLevels: drilldownLevels.length
-        });
         onDrilldown(nextLevel, dimensionValue);
         return;
       }
     }
     
     // No drilldown enabled - open submissions dialog
-    const dimensionField = config.dimensions?.[0] || config.xAxis || '';
-    const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : (config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'Field');
-    
-    console.log('Bar clicked (no drilldown):', { dimensionField, dimensionValue, dimensionLabel, data, payload });
-    
     setCellSubmissionsDialog({
       open: true,
       dimensionField,
