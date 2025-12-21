@@ -6,8 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Plus, X, TrendingUp, Tag, BarChart3, Calculator, Info, CheckCircle2, PieChart, LineChart, ScatterChart, Grid3X3, CircleDot } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Plus, X, TrendingUp, Tag, BarChart3, Calculator, Layers, Info, CheckCircle2, ArrowRight, ListOrdered } from 'lucide-react';
 
 interface ChartDataSectionProps {
   config: ChartConfig;
@@ -32,6 +34,7 @@ const getNumericFields = (fields: FormField[]) => {
 const getCategoryFields = (fields: FormField[]) => {
   return fields.filter(f => {
     const type = getFieldType(f);
+    // Include most field types that can be used for categorization
     return [
       'select', 'multi-select', 'radio', 'checkbox', 'text', 'date', 'datetime',
       'status', 'dropdown', 'country', 'tags', 'email', 'phone', 'phone-number',
@@ -42,141 +45,74 @@ const getCategoryFields = (fields: FormField[]) => {
   });
 };
 
-// Chart type configuration definitions
-interface ChartTypeConfig {
-  name: string;
-  icon: React.ReactNode;
-  description: string;
-  requirements: {
-    metrics: { min: number; max: number; label: string; description: string };
-    dimensions: { min: number; max: number; label: string; description: string };
-  };
-  aggregationRequired: boolean;
-  example: string;
-}
-
-const CHART_TYPE_CONFIGS: Record<string, ChartTypeConfig> = {
-  bar: {
-    name: 'Bar Chart',
-    icon: <BarChart3 className="h-5 w-5" />,
-    description: 'Compare values across categories with horizontal bars',
-    requirements: {
-      metrics: { min: 1, max: 5, label: 'Values (Y-axis)', description: 'Numeric fields to measure' },
-      dimensions: { min: 1, max: 2, label: 'Categories (X-axis)', description: 'How to group the data' }
-    },
-    aggregationRequired: true,
-    example: 'Example: Total sales by region'
-  },
-  column: {
-    name: 'Column Chart',
-    icon: <BarChart3 className="h-5 w-5 rotate-90" />,
-    description: 'Compare values across categories with vertical bars',
-    requirements: {
-      metrics: { min: 1, max: 5, label: 'Values (Y-axis)', description: 'Numeric fields to measure' },
-      dimensions: { min: 1, max: 2, label: 'Categories (X-axis)', description: 'How to group the data' }
-    },
-    aggregationRequired: true,
-    example: 'Example: Revenue by month'
-  },
-  line: {
-    name: 'Line Chart',
-    icon: <LineChart className="h-5 w-5" />,
-    description: 'Show trends over time or continuous data',
-    requirements: {
-      metrics: { min: 1, max: 5, label: 'Values (Y-axis)', description: 'Numeric fields to track' },
-      dimensions: { min: 1, max: 1, label: 'Time/Sequence (X-axis)', description: 'Date or ordered category field' }
-    },
-    aggregationRequired: true,
-    example: 'Example: Website visits over time'
-  },
-  area: {
-    name: 'Area Chart',
-    icon: <LineChart className="h-5 w-5" />,
-    description: 'Like line chart but with filled area below',
-    requirements: {
-      metrics: { min: 1, max: 5, label: 'Values (Y-axis)', description: 'Numeric fields to track' },
-      dimensions: { min: 1, max: 1, label: 'Time/Sequence (X-axis)', description: 'Date or ordered category field' }
-    },
-    aggregationRequired: true,
-    example: 'Example: Revenue growth over quarters'
-  },
-  pie: {
-    name: 'Pie Chart',
-    icon: <PieChart className="h-5 w-5" />,
-    description: 'Show parts of a whole as slices',
-    requirements: {
-      metrics: { min: 1, max: 1, label: 'Value', description: 'Numeric field for slice sizes' },
-      dimensions: { min: 1, max: 1, label: 'Slices', description: 'Category field for each slice' }
-    },
-    aggregationRequired: true,
-    example: 'Example: Sales distribution by product'
-  },
-  donut: {
-    name: 'Donut Chart',
-    icon: <CircleDot className="h-5 w-5" />,
-    description: 'Pie chart with hollow center',
-    requirements: {
-      metrics: { min: 1, max: 1, label: 'Value', description: 'Numeric field for slice sizes' },
-      dimensions: { min: 1, max: 1, label: 'Slices', description: 'Category field for each slice' }
-    },
-    aggregationRequired: true,
-    example: 'Example: Budget allocation by department'
-  },
-  scatter: {
-    name: 'Scatter Plot',
-    icon: <ScatterChart className="h-5 w-5" />,
-    description: 'Show correlation between two numeric values',
-    requirements: {
-      metrics: { min: 2, max: 2, label: 'X & Y Values', description: 'Two numeric fields for X and Y coordinates' },
-      dimensions: { min: 0, max: 1, label: 'Color By (Optional)', description: 'Category to color-code points' }
-    },
-    aggregationRequired: false,
-    example: 'Example: Price vs Quantity relationship'
-  },
-  bubble: {
-    name: 'Bubble Chart',
-    icon: <ScatterChart className="h-5 w-5" />,
-    description: 'Scatter plot where point size represents a third value',
-    requirements: {
-      metrics: { min: 3, max: 3, label: 'X, Y & Size', description: 'Three numeric fields: X position, Y position, and bubble size' },
-      dimensions: { min: 0, max: 1, label: 'Color By (Optional)', description: 'Category to color-code bubbles' }
-    },
-    aggregationRequired: false,
-    example: 'Example: Sales vs Profit with deal size'
-  },
-  heatmap: {
-    name: 'Heatmap',
-    icon: <Grid3X3 className="h-5 w-5" />,
-    description: 'Show intensity values across two dimensions',
-    requirements: {
-      metrics: { min: 1, max: 1, label: 'Intensity Value', description: 'Numeric field for color intensity' },
-      dimensions: { min: 2, max: 2, label: 'Row & Column', description: 'Two category fields for rows and columns' }
-    },
-    aggregationRequired: true,
-    example: 'Example: Sales by product and region'
-  }
-};
+type ChartMode = 'count' | 'calculate' | 'compare';
 
 export function ChartDataSection({ config, formFields, onConfigChange }: ChartDataSectionProps) {
-  const chartType = config.chartType || 'bar';
-  const chartConfig = CHART_TYPE_CONFIGS[chartType] || CHART_TYPE_CONFIGS.bar;
-  
   const selectedMetrics = config.metrics || [];
   const selectedDimensions = config.dimensions || [];
   const metricAggregations = config.metricAggregations || [];
 
+  // Determine initial mode based on config - only used for initial state
+  // Note: 'count' mode is hidden, so default to 'calculate'
+  const getInitialMode = (): ChartMode => {
+    // Check for explicit compareMode flag first
+    if (config.compareMode) {
+      return 'compare';
+    }
+    if (config.aggregationEnabled && selectedMetrics.length > 0) {
+      return 'calculate';
+    }
+    if (selectedMetrics.length === 2 && !config.aggregationEnabled) {
+      return 'compare';
+    }
+    // Default to calculate instead of count (count is hidden)
+    return 'calculate';
+  };
+
+  const [mode, setMode] = useState<ChartMode>(getInitialMode);
+
   const numericFields = getNumericFields(formFields);
   const categoryFields = getCategoryFields(formFields);
+
+  // Handle mode change
+  const handleModeChange = (newMode: ChartMode) => {
+    setMode(newMode);
+    
+    if (newMode === 'count') {
+      onConfigChange({
+        aggregationEnabled: false,
+        compareMode: false,
+        metrics: [],
+        metricAggregations: []
+      });
+    } else if (newMode === 'calculate') {
+      onConfigChange({
+        aggregationEnabled: true,
+        compareMode: false,
+        metrics: selectedMetrics.slice(0, 1),
+        metricAggregations: metricAggregations.slice(0, 1)
+      });
+    } else if (newMode === 'compare') {
+      onConfigChange({
+        aggregationEnabled: false,
+        compareMode: true,
+        metrics: selectedMetrics.slice(0, 2),
+        metricAggregations: []
+      });
+    }
+  };
 
   // Add a metric field
   const addMetric = (fieldId: string) => {
     if (selectedMetrics.includes(fieldId)) return;
-    if (selectedMetrics.length >= chartConfig.requirements.metrics.max) return;
+    
+    const maxAllowed = mode === 'compare' ? 2 : 1;
+    if (selectedMetrics.length >= maxAllowed) return;
     
     const newMetrics = [...selectedMetrics, fieldId];
     const updates: Partial<ChartConfig> = { metrics: newMetrics };
     
-    if (chartConfig.aggregationRequired) {
+    if (mode === 'calculate') {
       updates.metricAggregations = [
         ...metricAggregations,
         { field: fieldId, aggregation: 'sum' }
@@ -208,16 +144,17 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
     } else {
       newAggregations = [...metricAggregations, { field: fieldId, aggregation: aggregation as any }];
     }
+    // Also update the main aggregation field so ChartPreview uses the correct aggregation
     onConfigChange({ 
       metricAggregations: newAggregations,
       aggregation: aggregation as any
     });
   };
 
-  // Add a dimension field
+  // Add a dimension (group by) field
   const addDimension = (fieldId: string) => {
     if (selectedDimensions.includes(fieldId)) return;
-    if (selectedDimensions.length >= chartConfig.requirements.dimensions.max) return;
+    if (selectedDimensions.length >= 2) return;
     
     const newDimensions = [...selectedDimensions, fieldId];
     onConfigChange({ dimensions: newDimensions });
@@ -243,13 +180,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
 
   const availableNumericFields = numericFields.filter(f => !selectedMetrics.includes(f.id));
   const availableCategoryFields = categoryFields.filter(f => !selectedDimensions.includes(f.id));
-
-  // Check if configuration is complete
-  const isConfigComplete = () => {
-    const metricsValid = selectedMetrics.length >= chartConfig.requirements.metrics.min;
-    const dimensionsValid = selectedDimensions.length >= chartConfig.requirements.dimensions.min;
-    return metricsValid && dimensionsValid;
-  };
+  const availableCompareFields = formFields.filter(f => !selectedMetrics.includes(f.id));
 
   // Show empty state if no form selected
   if (formFields.length === 0) {
@@ -265,254 +196,430 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
     );
   }
 
-  // Get specific metric labels based on chart type
-  const getMetricLabels = () => {
-    if (chartType === 'scatter') {
-      return ['X-Axis Value', 'Y-Axis Value'];
+  // Check if configuration is complete
+  const isConfigComplete = () => {
+    if (mode === 'count') {
+      // Count mode requires at least X-axis dimension selected
+      return selectedDimensions.length >= 1;
     }
-    if (chartType === 'bubble') {
-      return ['X-Axis Value', 'Y-Axis Value', 'Bubble Size'];
+    if (mode === 'calculate') {
+      // Calculate mode requires at least one metric selected
+      return selectedMetrics.length > 0;
     }
-    return [];
+    if (mode === 'compare') {
+      // Compare mode requires exactly two fields selected
+      return selectedMetrics.length === 2;
+    }
+    return false;
   };
-
-  // Get specific dimension labels based on chart type
-  const getDimensionLabels = () => {
-    if (chartType === 'heatmap') {
-      return ['Row Category', 'Column Category'];
-    }
-    return ['Primary Category', 'Secondary Category'];
-  };
-
-  const metricLabels = getMetricLabels();
-  const dimensionLabels = getDimensionLabels();
 
   return (
     <div className="space-y-6">
-      {/* Chart Type Info Banner */}
+      {/* Introduction */}
       <Alert className="bg-primary/5 border-primary/20">
-        <div className="flex items-start gap-3">
-          <div className="text-primary mt-0.5">{chartConfig.icon}</div>
-          <div className="flex-1">
-            <div className="font-semibold text-sm">{chartConfig.name}</div>
-            <p className="text-xs text-muted-foreground mt-0.5">{chartConfig.description}</p>
-            <p className="text-xs text-primary/80 mt-1 italic">{chartConfig.example}</p>
-          </div>
-          <div className="flex gap-2">
-            <Badge variant="secondary" className="text-xs">
-              {chartConfig.requirements.metrics.min === chartConfig.requirements.metrics.max 
-                ? `${chartConfig.requirements.metrics.min}` 
-                : `${chartConfig.requirements.metrics.min}-${chartConfig.requirements.metrics.max}`} Metric{chartConfig.requirements.metrics.max !== 1 ? 's' : ''}
-            </Badge>
-            <Badge variant="outline" className="text-xs">
-              {chartConfig.requirements.dimensions.min === chartConfig.requirements.dimensions.max 
-                ? `${chartConfig.requirements.dimensions.min}` 
-                : `${chartConfig.requirements.dimensions.min}-${chartConfig.requirements.dimensions.max}`} Dimension{chartConfig.requirements.dimensions.max !== 1 ? 's' : ''}
-            </Badge>
-          </div>
-        </div>
+        <Info className="h-4 w-4 text-primary" />
+        <AlertDescription className="text-sm">
+          Configure your chart data in 3 simple steps: choose what to show, select your values, and pick how to group them.
+        </AlertDescription>
       </Alert>
 
-      {/* Metrics Section */}
+      {/* STEP 1: Choose Chart Purpose */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shrink-0">
               1
             </div>
-            <div className="flex-1">
-              <CardTitle className="text-base">{chartConfig.requirements.metrics.label}</CardTitle>
+            <div>
+              <CardTitle className="text-base">What do you want to show?</CardTitle>
               <CardDescription className="text-xs mt-0.5">
-                {chartConfig.requirements.metrics.description}
-                {chartConfig.requirements.metrics.min > 0 && (
-                  <span className="text-primary ml-1">
-                    (Required: {chartConfig.requirements.metrics.min === chartConfig.requirements.metrics.max 
-                      ? `exactly ${chartConfig.requirements.metrics.min}` 
-                      : `${chartConfig.requirements.metrics.min}-${chartConfig.requirements.metrics.max}`})
-                  </span>
-                )}
+                Choose the type of data visualization
               </CardDescription>
             </div>
-            <Badge 
-              variant={selectedMetrics.length >= chartConfig.requirements.metrics.min ? 'default' : 'secondary'}
-              className="text-xs"
-            >
-              {selectedMetrics.length}/{chartConfig.requirements.metrics.max}
-            </Badge>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {/* Selected Metrics */}
-          {selectedMetrics.length > 0 && (
-            <div className="space-y-2">
-              {selectedMetrics.map((metricId, index) => (
-                <div key={metricId} className="p-3 bg-muted/50 rounded-lg border space-y-3">
+        <CardContent>
+          <RadioGroup 
+            value={mode} 
+            onValueChange={(v) => handleModeChange(v as ChartMode)} 
+            className="grid gap-3"
+          >
+            {/* Calculate Values Option */}
+            <div 
+              onClick={() => handleModeChange('calculate')}
+              className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                mode === 'calculate' 
+                  ? 'border-primary bg-primary/5 shadow-sm' 
+                  : 'border-border hover:border-muted-foreground/50 hover:bg-muted/30'
+              }`}
+            >
+              <RadioGroupItem value="calculate" id="mode-calculate" className="mt-0.5" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <Calculator className="h-4 w-4 text-primary" />
+                  <span className="font-semibold">Calculate Values</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Sum, average, or analyze a numeric field.
+                  <br />
+                  <span className="text-muted-foreground/70 italic">Example: "Total sales by region" or "Average rating by product"</span>
+                </p>
+              </div>
+            </div>
+            
+            {/* Compare Two Fields Option */}
+            <div 
+              onClick={() => handleModeChange('compare')}
+              className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                mode === 'compare' 
+                  ? 'border-primary bg-primary/5 shadow-sm' 
+                  : 'border-border hover:border-muted-foreground/50 hover:bg-muted/30'
+              }`}
+            >
+              <RadioGroupItem value="compare" id="mode-compare" className="mt-0.5" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <Layers className="h-4 w-4 text-primary" />
+                  <span className="font-semibold">Compare Two Fields</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Show two values side by side for comparison.
+                  <br />
+                  <span className="text-muted-foreground/70 italic">Example: "Budget vs Actual" or "Revenue vs Expenses"</span>
+                </p>
+              </div>
+            </div>
+          </RadioGroup>
+        </CardContent>
+      </Card>
+
+      {/* STEP 2: Select Values/Categories */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shrink-0">
+              2
+            </div>
+            <div>
+              <CardTitle className="text-base">
+                {mode === 'count' 
+                  ? 'Select X-axis categories' 
+                  : mode === 'calculate' 
+                    ? 'Select the value to calculate' 
+                    : 'Select two fields to compare'
+                }
+              </CardTitle>
+              <CardDescription className="text-xs mt-0.5">
+                {mode === 'count'
+                  ? 'Choose which field to count records by (shown on X-axis)'
+                  : mode === 'calculate' 
+                    ? 'Choose a numeric field and how to calculate it' 
+                    : 'Pick two fields to show side by side'
+                }
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* COUNT MODE - X-axis category selection */}
+          {mode === 'count' && (
+            <>
+              {selectedDimensions[0] ? (
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+                  <div className="flex items-center gap-2">
+                    <Tag className="h-4 w-4 text-primary" />
+                    <span className="font-medium">{getFieldLabel(selectedDimensions[0])}</span>
+                    <Badge variant="secondary" className="text-xs">{getFieldTypeLabel(selectedDimensions[0])}</Badge>
+                    <Badge variant="outline" className="text-xs">X-axis</Badge>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeDimension(selectedDimensions[0])}
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                categoryFields.length > 0 ? (
+                  <Select onValueChange={addDimension}>
+                    <SelectTrigger className="border-dashed border-2">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Plus className="h-4 w-4" />
+                        <span>Select a category field for X-axis...</span>
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoryFields.map((field) => (
+                        <SelectItem key={field.id} value={field.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{field.label}</span>
+                            <Badge variant="outline" className="text-xs">{getFieldType(field)}</Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertDescription>
+                      No category fields found. Add fields like select, radio, or text to group your data.
+                    </AlertDescription>
+                  </Alert>
+                )
+              )}
+              <p className="text-xs text-muted-foreground">
+                This field determines the bars/categories on your chart. Each unique value will be shown as a separate bar.
+              </p>
+            </>
+          )}
+
+          {/* CALCULATE MODE */}
+          {mode === 'calculate' && (
+            <>
+              {selectedMetrics.length > 0 ? (
+                <div className="p-4 bg-muted/50 rounded-lg border space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <TrendingUp className="h-4 w-4 text-primary" />
-                      <span className="font-medium">{getFieldLabel(metricId)}</span>
-                      <Badge variant="secondary" className="text-xs">{getFieldTypeLabel(metricId)}</Badge>
-                      {metricLabels[index] && (
-                        <Badge variant="outline" className="text-xs">{metricLabels[index]}</Badge>
-                      )}
+                      <span className="font-medium">{getFieldLabel(selectedMetrics[0])}</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {getFieldTypeLabel(selectedMetrics[0])}
+                      </Badge>
                     </div>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => removeMetric(metricId)}
+                      onClick={() => removeMetric(selectedMetrics[0])}
                       className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                     >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
                   
-                  {/* Aggregation selector for charts that need it */}
-                  {chartConfig.aggregationRequired && (
-                    <div className="flex items-center gap-3">
-                      <Label className="text-sm whitespace-nowrap font-medium">Aggregate:</Label>
-                      <Select
-                        value={metricAggregations.find(a => a.field === metricId)?.aggregation || 'sum'}
-                        onValueChange={(v) => updateAggregation(metricId, v)}
-                      >
-                        <SelectTrigger className="flex-1 h-8">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="sum">Sum (Total)</SelectItem>
-                          <SelectItem value="avg">Average (Mean)</SelectItem>
-                          <SelectItem value="min">Minimum</SelectItem>
-                          <SelectItem value="max">Maximum</SelectItem>
-                          <SelectItem value="count">Count</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="flex items-center gap-3">
+                    <Label className="text-sm whitespace-nowrap font-medium">Calculate as:</Label>
+                    <Select
+                      value={metricAggregations.find(a => a.field === selectedMetrics[0])?.aggregation || 'sum'}
+                      onValueChange={(v) => updateAggregation(selectedMetrics[0], v)}
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sum">Sum (Total)</SelectItem>
+                        <SelectItem value="avg">Average (Mean)</SelectItem>
+                        <SelectItem value="min">Minimum (Lowest)</SelectItem>
+                        <SelectItem value="max">Maximum (Highest)</SelectItem>
+                        <SelectItem value="count">Count (Number of records)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  {numericFields.length > 0 ? (
+                    <Select onValueChange={addMetric}>
+                      <SelectTrigger className="border-dashed border-2">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Plus className="h-4 w-4" />
+                          <span>Select a numeric field...</span>
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {numericFields.map((field) => (
+                          <SelectItem key={field.id} value={field.id}>
+                            <div className="flex items-center gap-2">
+                              <span>{field.label}</span>
+                              <Badge variant="outline" className="text-xs">{getFieldType(field)}</Badge>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Alert>
+                      <Info className="h-4 w-4" />
+                      <AlertDescription>
+                        No numeric fields found in this form. Use <strong>Count Records</strong> mode instead.
+                      </AlertDescription>
+                    </Alert>
                   )}
                 </div>
-              ))}
-            </div>
-          )}
-
-          {/* Add Metric */}
-          {selectedMetrics.length < chartConfig.requirements.metrics.max && (
-            <div>
-              {numericFields.length > 0 ? (
-                <Select onValueChange={addMetric}>
-                  <SelectTrigger className="border-dashed border-2">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Plus className="h-4 w-4" />
-                      <span>
-                        {selectedMetrics.length === 0 
-                          ? `Select ${metricLabels[0] || 'a numeric field'}...`
-                          : metricLabels[selectedMetrics.length] 
-                            ? `Select ${metricLabels[selectedMetrics.length]}...`
-                            : 'Add another metric...'
-                        }
-                      </span>
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableNumericFields.map((field) => (
-                      <SelectItem key={field.id} value={field.id}>
-                        <div className="flex items-center gap-2">
-                          <span>{field.label}</span>
-                          <Badge variant="outline" className="text-xs">{getFieldType(field)}</Badge>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertDescription>
-                    No numeric fields found in this form. Add number, currency, or rating fields to use this chart type.
-                  </AlertDescription>
-                </Alert>
               )}
-            </div>
+            </>
           )}
 
-          {/* Metric requirement info */}
-          {selectedMetrics.length < chartConfig.requirements.metrics.min && (
-            <p className="text-xs text-amber-600 dark:text-amber-400">
-              Please select {chartConfig.requirements.metrics.min - selectedMetrics.length} more metric{chartConfig.requirements.metrics.min - selectedMetrics.length !== 1 ? 's' : ''} for this chart type.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Dimensions Section */}
-      {(chartConfig.requirements.dimensions.max > 0 || chartConfig.requirements.dimensions.min > 0) && (
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shrink-0">
-                2
-              </div>
-              <div className="flex-1">
-                <CardTitle className="text-base">{chartConfig.requirements.dimensions.label}</CardTitle>
-                <CardDescription className="text-xs mt-0.5">
-                  {chartConfig.requirements.dimensions.description}
-                  {chartConfig.requirements.dimensions.min > 0 ? (
-                    <span className="text-primary ml-1">
-                      (Required: {chartConfig.requirements.dimensions.min === chartConfig.requirements.dimensions.max 
-                        ? `exactly ${chartConfig.requirements.dimensions.min}` 
-                        : `${chartConfig.requirements.dimensions.min}-${chartConfig.requirements.dimensions.max}`})
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground ml-1">(Optional)</span>
-                  )}
-                </CardDescription>
-              </div>
-              <Badge 
-                variant={selectedDimensions.length >= chartConfig.requirements.dimensions.min ? 'default' : 'secondary'}
-                className="text-xs"
-              >
-                {selectedDimensions.length}/{chartConfig.requirements.dimensions.max}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {/* Selected Dimensions */}
-            {selectedDimensions.length > 0 && (
-              <div className="space-y-2">
-                {selectedDimensions.map((dimId, index) => (
-                  <div key={dimId} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+          {/* COMPARE MODE */}
+          {mode === 'compare' && (
+            <div className="space-y-4">
+              {/* X-Axis Field */}
+              <div>
+                <Label className="text-xs text-muted-foreground mb-2 block font-medium">X-Axis Field (Categories)</Label>
+                {selectedMetrics[0] ? (
+                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
                     <div className="flex items-center gap-2">
-                      <Tag className="h-4 w-4 text-primary" />
-                      <span className="font-medium">{getFieldLabel(dimId)}</span>
-                      <Badge variant="secondary" className="text-xs">{getFieldTypeLabel(dimId)}</Badge>
-                      <Badge variant="outline" className="text-xs">{dimensionLabels[index] || `Dimension ${index + 1}`}</Badge>
+                      <TrendingUp className="h-4 w-4 text-primary" />
+                      <span className="font-medium">{getFieldLabel(selectedMetrics[0])}</span>
                     </div>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => removeDimension(dimId)}
+                      onClick={() => removeMetric(selectedMetrics[0])}
                       className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                     >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
-                ))}
-              </div>
-            )}
-
-            {/* Add Dimension */}
-            {selectedDimensions.length < chartConfig.requirements.dimensions.max && (
-              <div>
-                {categoryFields.length > 0 ? (
-                  <Select onValueChange={addDimension}>
-                    <SelectTrigger className={`border-dashed border-2 ${chartConfig.requirements.dimensions.min === 0 && selectedDimensions.length === 0 ? 'border-muted' : ''}`}>
+                ) : (
+                  <Select onValueChange={addMetric}>
+                    <SelectTrigger className="border-dashed border-2">
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Plus className="h-4 w-4" />
-                        <span>
-                          {selectedDimensions.length === 0 
-                            ? `Select ${dimensionLabels[0] || 'a category field'}...`
-                            : dimensionLabels[selectedDimensions.length]
-                              ? `Select ${dimensionLabels[selectedDimensions.length]}...`
-                              : 'Add another dimension...'
-                          }
-                        </span>
+                        <span>Select X-axis field...</span>
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {formFields.filter(f => !selectedMetrics.includes(f.id)).map((field) => (
+                        <SelectItem key={field.id} value={field.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{field.label}</span>
+                            <Badge variant="outline" className="text-xs">{getFieldType(field)}</Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
+              {/* Arrow Indicator */}
+              {selectedMetrics.length >= 1 && (
+                <div className="flex justify-center">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-full">
+                    <span className="font-medium">X → Y</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Y-Axis Field */}
+              <div>
+                <Label className="text-xs text-muted-foreground mb-2 block font-medium">Y-Axis Field (Values)</Label>
+                {selectedMetrics[1] ? (
+                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-secondary-foreground" />
+                      <span className="font-medium">{getFieldLabel(selectedMetrics[1])}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeMetric(selectedMetrics[1])}
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Select onValueChange={addMetric} disabled={selectedMetrics.length < 1}>
+                    <SelectTrigger className={`border-dashed border-2 ${selectedMetrics.length < 1 ? 'opacity-50' : ''}`}>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Plus className="h-4 w-4" />
+                        <span>{selectedMetrics.length < 1 ? 'Select X-axis field first' : 'Select Y-axis field...'}</span>
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {formFields.filter(f => !selectedMetrics.includes(f.id)).map((field) => (
+                        <SelectItem key={field.id} value={field.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{field.label}</span>
+                            <Badge variant="outline" className="text-xs">{getFieldType(field)}</Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              
+              {/* Info message when Y-axis field is text - auto uses encoded legend */}
+              {selectedMetrics.length === 2 && (() => {
+                const yAxisField = formFields.find(f => f.id === selectedMetrics[1]);
+                const yAxisFieldType = yAxisField ? getFieldType(yAxisField) : '';
+                const isTextType = ['text', 'short-text', 'long-text', 'textarea', 'select', 'radio', 'dropdown', 'status', 'country', 'email', 'tags', 'address', 'multi-select', 'checkbox'].includes(yAxisFieldType);
+                
+                if (isTextType) {
+                  return (
+                    <div className="p-3 bg-primary/5 rounded-lg border border-primary/20 mt-4">
+                      <div className="flex items-start gap-2">
+                        <ListOrdered className="h-4 w-4 text-primary mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-foreground">Encoded Legend Mode (Auto)</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Since "{yAxisField?.label}" is a text field, it will be shown as numbers on Y-axis with a legend.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* STEP 3: Group By / Stack By */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shrink-0">
+              3
+            </div>
+            <div>
+              <CardTitle className="text-base">
+                {mode === 'count' ? 'Stack/Color by (Optional)' : 'Group data by (Optional)'}
+              </CardTitle>
+              <CardDescription className="text-xs mt-0.5">
+                {mode === 'count'
+                  ? 'Add a secondary field to stack or color-code your bars'
+                  : 'Choose how to categorize your data. Leave empty to show aggregated totals.'
+                }
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* For Count mode - show secondary dimension selector */}
+          {mode === 'count' && (
+            <>
+              {selectedDimensions[1] ? (
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+                  <div className="flex items-center gap-2">
+                    <Layers className="h-4 w-4 text-primary" />
+                    <span className="font-medium">{getFieldLabel(selectedDimensions[1])}</span>
+                    <Badge variant="secondary" className="text-xs">{getFieldTypeLabel(selectedDimensions[1])}</Badge>
+                    <Badge variant="outline" className="text-xs">Stack/Color</Badge>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeDimension(selectedDimensions[1])}
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : selectedDimensions.length >= 1 ? (
+                availableCategoryFields.length > 0 ? (
+                  <Select onValueChange={addDimension}>
+                    <SelectTrigger className="border-dashed border-2 border-muted">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Plus className="h-4 w-4" />
+                        <span>Add secondary field for stacking...</span>
                       </div>
                     </SelectTrigger>
                     <SelectContent>
@@ -527,25 +634,116 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                     </SelectContent>
                   </Select>
                 ) : (
-                  <Alert>
-                    <Info className="h-4 w-4" />
-                    <AlertDescription>
-                      No category fields found. Add select, radio, text, or date fields to group your data.
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
-            )}
+                  <p className="text-xs text-muted-foreground">No additional category fields available for stacking.</p>
+                )
+              ) : (
+                <p className="text-xs text-muted-foreground">Select an X-axis field first in Step 2.</p>
+              )}
+              
+              {/* Info message when secondary field is text - auto uses encoded legend */}
+              {selectedDimensions.length === 2 && (() => {
+                const secondaryField = formFields.find(f => f.id === selectedDimensions[1]);
+                const secondaryFieldType = secondaryField ? getFieldType(secondaryField) : '';
+                const isTextType = ['text', 'short-text', 'long-text', 'textarea', 'select', 'radio', 'dropdown', 'status', 'country', 'email', 'tags', 'address'].includes(secondaryFieldType);
+                
+                if (isTextType) {
+                  return (
+                    <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+                      <div className="flex items-start gap-2">
+                        <ListOrdered className="h-4 w-4 text-primary mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-foreground">Encoded Legend Mode (Auto)</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Since "{secondaryField?.label}" is a text field, it will be shown as numbers on Y-axis with a legend.
+                            <br />
+                            <span className="italic">Example: John → 1 (Mumbai), Ria → 2 (Gujarat)</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
-            {/* Dimension requirement info */}
-            {chartConfig.requirements.dimensions.min > 0 && selectedDimensions.length < chartConfig.requirements.dimensions.min && (
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                Please select {chartConfig.requirements.dimensions.min - selectedDimensions.length} more dimension{chartConfig.requirements.dimensions.min - selectedDimensions.length !== 1 ? 's' : ''} for this chart type.
+              <p className="text-xs text-muted-foreground">
+                Choose a secondary field to see relationships between the two fields.
               </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
+            </>
+          )}
+
+          {/* For Calculate and Compare modes - show dimension selector */}
+          {mode !== 'count' && (
+            <>
+              {/* Selected Dimensions */}
+              {selectedDimensions.length > 0 && (
+                <div className="space-y-2">
+                  {selectedDimensions.map((dimId, index) => (
+                    <div key={dimId} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+                      <div className="flex items-center gap-2">
+                        <Tag className="h-4 w-4 text-primary" />
+                        <span className="font-medium">{getFieldLabel(dimId)}</span>
+                        <Badge variant="secondary" className="text-xs">{getFieldTypeLabel(dimId)}</Badge>
+                        {index === 0 && <Badge variant="outline" className="text-xs">Primary</Badge>}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeDimension(dimId)}
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add Dimension */}
+              {selectedDimensions.length < 2 && (
+                <div>
+                  {categoryFields.length > 0 ? (
+                    <Select onValueChange={addDimension}>
+                      <SelectTrigger className={`border-dashed border-2 ${selectedDimensions.length === 0 ? '' : 'border-muted'}`}>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Plus className="h-4 w-4" />
+                          <span>
+                            {selectedDimensions.length === 0 
+                              ? 'Select a category field to group data...' 
+                              : 'Add secondary grouping (optional)...'
+                            }
+                          </span>
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableCategoryFields.map((field) => (
+                          <SelectItem key={field.id} value={field.id}>
+                            <div className="flex items-center gap-2">
+                              <span>{field.label}</span>
+                              <Badge variant="outline" className="text-xs">{getFieldType(field)}</Badge>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Alert>
+                      <Info className="h-4 w-4" />
+                      <AlertDescription>
+                        No category fields found. Add fields like select, radio, or text to group your data.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                The primary group field will be shown on the X-axis. You can add a secondary field for nested grouping.
+              </p>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Configuration Summary */}
       <Card className={isConfigComplete() ? 'border-green-500/50 bg-green-50/50 dark:bg-green-950/20' : 'border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20'}>
@@ -556,26 +754,31 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
             ) : (
               <Info className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
             )}
-            <div className="flex-1">
+            <div>
               <p className={`text-sm font-medium ${isConfigComplete() ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'}`}>
                 {isConfigComplete() ? 'Configuration Complete' : 'Configuration Incomplete'}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                {isConfigComplete() ? (
-                  <span>
-                    Your {chartConfig.name.toLowerCase()} is ready! 
-                    {selectedMetrics.length > 0 && ` Showing ${selectedMetrics.map(m => getFieldLabel(m)).join(', ')}`}
-                    {selectedDimensions.length > 0 && ` grouped by ${selectedDimensions.map(d => getFieldLabel(d)).join(' and ')}`}.
-                  </span>
-                ) : (
-                  <span>
-                    {selectedMetrics.length < chartConfig.requirements.metrics.min && (
-                      <>Select {chartConfig.requirements.metrics.min - selectedMetrics.length} more metric{chartConfig.requirements.metrics.min - selectedMetrics.length !== 1 ? 's' : ''}. </>
-                    )}
-                    {chartConfig.requirements.dimensions.min > 0 && selectedDimensions.length < chartConfig.requirements.dimensions.min && (
-                      <>Select {chartConfig.requirements.dimensions.min - selectedDimensions.length} more dimension{chartConfig.requirements.dimensions.min - selectedDimensions.length !== 1 ? 's' : ''}.</>
-                    )}
-                  </span>
+                {mode === 'count' && (
+                  selectedDimensions.length >= 1
+                    ? selectedDimensions.length >= 2
+                      ? `Your chart will count records by "${getFieldLabel(selectedDimensions[0])}", stacked/colored by "${getFieldLabel(selectedDimensions[1])}".`
+                      : `Your chart will count records grouped by "${getFieldLabel(selectedDimensions[0])}". Add a Stack/Color field to see distribution within each category.`
+                    : 'Select an X-axis category field to see record counts per category.'
+                )}
+                {mode === 'calculate' && (
+                  selectedMetrics.length > 0
+                    ? selectedDimensions.length > 0
+                      ? `Your chart will show the ${metricAggregations[0]?.aggregation || 'sum'} of "${getFieldLabel(selectedMetrics[0])}" grouped by "${getFieldLabel(selectedDimensions[0])}".`
+                      : `Your chart will show the ${metricAggregations[0]?.aggregation || 'sum'} of "${getFieldLabel(selectedMetrics[0])}". Add a group field to break down by category.`
+                    : 'Select a numeric field to calculate.'
+                )}
+                {mode === 'compare' && (
+                  selectedMetrics.length === 2 
+                    ? selectedDimensions.length > 0
+                      ? `Your chart will compare "${getFieldLabel(selectedMetrics[0])}" vs "${getFieldLabel(selectedMetrics[1])}" grouped by "${getFieldLabel(selectedDimensions[0])}".`
+                      : `Your chart will compare "${getFieldLabel(selectedMetrics[0])}" vs "${getFieldLabel(selectedMetrics[1])}". Add a group field to see comparisons per category.`
+                    : 'Select two fields to compare.'
                 )}
               </p>
             </div>
