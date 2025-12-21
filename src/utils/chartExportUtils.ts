@@ -43,31 +43,57 @@ export async function exportChartToPDF(
       (el as HTMLElement).style.display = 'none';
     });
 
-    // Fix badge wrapping - make them inline and properly spaced
-    const badges = clonedElement.querySelectorAll('.flex-wrap');
+    // Fix badge container styling - ensure proper flex layout
+    const badgeContainers = clonedElement.querySelectorAll('.flex-wrap, [class*="flex-wrap"]');
+    badgeContainers.forEach(container => {
+      const el = container as HTMLElement;
+      el.style.display = 'flex';
+      el.style.flexWrap = 'wrap';
+      el.style.gap = '6px';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'flex-start';
+    });
+
+    // Fix individual badge/span styling for proper alignment
+    const badges = clonedElement.querySelectorAll('.rounded-full, [class*="rounded-full"], .inline-flex');
     badges.forEach(badge => {
-      (badge as HTMLElement).style.display = 'flex';
-      (badge as HTMLElement).style.flexWrap = 'wrap';
-      (badge as HTMLElement).style.gap = '8px';
-      (badge as HTMLElement).style.alignItems = 'center';
+      const el = badge as HTMLElement;
+      el.style.display = 'inline-flex';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
+      el.style.whiteSpace = 'nowrap';
+      el.style.flexShrink = '0';
+      el.style.padding = '4px 10px';
+      el.style.fontSize = '12px';
+      el.style.lineHeight = '1.4';
     });
 
-    // Ensure all badge spans are properly styled
-    const badgeSpans = clonedElement.querySelectorAll('.rounded-full');
-    badgeSpans.forEach(span => {
-      (span as HTMLElement).style.display = 'inline-flex';
-      (span as HTMLElement).style.alignItems = 'center';
-      (span as HTMLElement).style.whiteSpace = 'nowrap';
-      (span as HTMLElement).style.flexShrink = '0';
+    // Fix text elements to ensure proper styling
+    const textElements = clonedElement.querySelectorAll('span, p, div');
+    textElements.forEach(textEl => {
+      const el = textEl as HTMLElement;
+      const computedStyle = window.getComputedStyle(textEl);
+      // Preserve computed colors for better rendering
+      if (computedStyle.color) {
+        el.style.color = computedStyle.color;
+      }
     });
 
-    // Set proper background colors for the header
-    const headerSection = clonedElement.querySelector('.bg-gradient-to-r');
+    // Set proper background for header sections
+    const headerSection = clonedElement.querySelector('.bg-gradient-to-r, [class*="bg-gradient"]');
     if (headerSection) {
-      (headerSection as HTMLElement).style.background = '#f8f9fa';
+      (headerSection as HTMLElement).style.background = '#f1f5f9';
       (headerSection as HTMLElement).style.borderRadius = '8px';
       (headerSection as HTMLElement).style.padding = '16px';
     }
+
+    // Ensure SVG text elements render correctly
+    const svgTexts = clonedElement.querySelectorAll('svg text, svg tspan');
+    svgTexts.forEach(textEl => {
+      const el = textEl as SVGTextElement;
+      el.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+      el.style.fontSize = el.style.fontSize || '12px';
+    });
 
     // Ensure chart container has proper dimensions
     clonedElement.style.width = '100%';
@@ -76,8 +102,8 @@ export async function exportChartToPDF(
     clonedElement.style.overflow = 'visible';
     clonedElement.style.backgroundColor = '#ffffff';
 
-    // Wait for any reflows
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Wait for any reflows and SVG rendering
+    await new Promise(resolve => setTimeout(resolve, 200));
 
     // Capture the cloned element as canvas
     const canvas = await html2canvas(tempContainer, {
@@ -90,6 +116,15 @@ export async function exportChartToPDF(
       height: tempContainer.scrollHeight,
       windowWidth: tempContainer.offsetWidth,
       windowHeight: tempContainer.scrollHeight,
+      onclone: (clonedDoc) => {
+        // Additional fixes on the cloned document for html2canvas
+        const clonedBadges = clonedDoc.querySelectorAll('.rounded-full, [class*="rounded-full"]');
+        clonedBadges.forEach(badge => {
+          const el = badge as HTMLElement;
+          el.style.display = 'inline-flex';
+          el.style.alignItems = 'center';
+        });
+      }
     });
 
     // Clean up
@@ -103,15 +138,12 @@ export async function exportChartToPDF(
     const pdfWidth = 210; // A4 width in mm
     const pdfHeight = 297; // A4 height in mm
     const margin = 15;
-    const availableWidth = pdfWidth - (margin * 2);
     
     // Calculate aspect ratio and fit image
     const ratio = imgHeight / imgWidth;
-    const imageWidth = availableWidth;
-    const imageHeight = imageWidth * ratio;
 
     // Choose orientation based on content aspect ratio
-    const orientation = imageHeight > (pdfHeight - margin * 2) ? 'portrait' : 'landscape';
+    const orientation = ratio > 1.2 ? 'portrait' : 'landscape';
     const doc = new jsPDF({
       orientation,
       unit: 'mm',
