@@ -174,9 +174,13 @@ export function HeatmapDataSection({ config, formFields, onConfigChange }: Heatm
             </div>
           ) : (
             <Select 
-              onValueChange={(value) => onConfigChange({ 
-                dimensions: [config.dimensions?.[0] || '', value]
-              })}
+              key={`heatmap-col-${rowField || 'none'}`}
+              onValueChange={(value) => {
+                const currentRow = config.dimensions?.[0] || '';
+                onConfigChange({ 
+                  dimensions: [currentRow, value]
+                });
+              }}
               disabled={!rowField}
             >
               <SelectTrigger className={`border-dashed border-2 ${!rowField ? 'opacity-50' : ''}`}>

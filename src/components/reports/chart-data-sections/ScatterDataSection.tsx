@@ -181,9 +181,13 @@ export function ScatterDataSection({ config, formFields, onConfigChange }: Scatt
             </div>
           ) : (
             <Select 
-              onValueChange={(value) => onConfigChange({ 
-                metrics: [config.metrics?.[0] || '', value]
-              })}
+              key={`scatter-y-${xAxisField || 'none'}`}
+              onValueChange={(value) => {
+                const currentX = config.metrics?.[0] || '';
+                onConfigChange({ 
+                  metrics: [currentX, value]
+                });
+              }}
               disabled={!xAxisField}
             >
               <SelectTrigger className={`border-dashed border-2 ${!xAxisField ? 'opacity-50' : ''}`}>
