@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Edit, ArrowLeft, ChevronRight, Filter, RotateCcw } from 'lucide-react';
@@ -10,6 +10,7 @@ import { ChartConfig } from '@/types/reports';
 import { colorSchemes } from './ChartColorThemes';
 import { TableCellSubmissionsDialog } from './TableCellSubmissionsDialog';
 import { evaluateFilterCondition, evaluateSubmissionFilters } from '@/utils/filterUtils';
+import { ChartExportButton } from './ChartExportButton';
 interface ChartPreviewProps {
   config: ChartConfig;
   onEdit?: () => void;
@@ -28,6 +29,7 @@ export function ChartPreview({
   drilldownState
 }: ChartPreviewProps) {
   const navigate = useNavigate();
+  const chartContainerRef = useRef<HTMLDivElement>(null);
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showFormFields, setShowFormFields] = useState(false);
@@ -2376,23 +2378,31 @@ export function ChartPreview({
   const canDrillUp = drilldownState?.values && drilldownState.values.length > 0;
   const chartInfo = getChartInfoSummary();
   
-  return <div className="h-full flex flex-col overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
+  return <div ref={chartContainerRef} className="h-full flex flex-col overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40 bg-background">
       {/* Chart Info Header - Always visible for context */}
       <div className="mb-4 p-4 bg-gradient-to-r from-muted/50 to-muted/30 rounded-lg border border-border flex-shrink-0">
         <div className="flex items-start justify-between mb-3">
           <h4 className="font-semibold text-lg text-foreground">{config.title || chartInfo.title}</h4>
-          {canDrillUp && <Button variant="outline" size="sm" onClick={() => {
-            if (onDrilldown && drilldownState?.values) {
-              const newValues = [...drilldownState.values];
-              newValues.pop();
-              const lastLevel = config.drilldownConfig?.drilldownLevels?.[newValues.length - 1] || '';
-              const lastValue = newValues[newValues.length - 1] || '';
-              onDrilldown(lastLevel, lastValue);
-            }
-          }}>
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back
-          </Button>}
+          <div className="flex items-center gap-2">
+            {/* Export Button */}
+            <ChartExportButton
+              chartRef={chartContainerRef}
+              filename={`${config.title || 'chart'}-${new Date().toISOString().split('T')[0]}`}
+              title={config.title || chartInfo.title}
+            />
+            {canDrillUp && <Button variant="outline" size="sm" onClick={() => {
+              if (onDrilldown && drilldownState?.values) {
+                const newValues = [...drilldownState.values];
+                newValues.pop();
+                const lastLevel = config.drilldownConfig?.drilldownLevels?.[newValues.length - 1] || '';
+                const lastValue = newValues[newValues.length - 1] || '';
+                onDrilldown(lastLevel, lastValue);
+              }
+            }}>
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back
+            </Button>}
+          </div>
         </div>
         
         {/* Info Badges */}
