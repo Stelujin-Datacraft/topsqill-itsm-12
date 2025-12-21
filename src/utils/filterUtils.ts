@@ -308,10 +308,33 @@ export const valueEquals = (value: any, filterValue: string, fieldType?: string,
     return filterValue === '' || filterValue.toLowerCase() === 'null' || filterValue.toLowerCase() === 'undefined';
   }
 
-  // Handle arrays - check if filter value is in array
+  // Handle submission-access objects {users: [...], groups: [...]}
+  if (typeof value === 'object' && !Array.isArray(value) && ('users' in value || 'groups' in value)) {
+    const filterValues = filterValue.split(',').map(v => v.trim().toLowerCase()).filter(Boolean);
+    if (filterValues.length === 0) return false;
+    
+    // Combine users and groups into a single array for comparison
+    const allIds: string[] = [];
+    if (Array.isArray(value.users)) allIds.push(...value.users.map((u: string) => u.toLowerCase()));
+    if (Array.isArray(value.groups)) allIds.push(...value.groups.map((g: string) => g.toLowerCase()));
+    
+    // Check if any filter value matches any user/group ID
+    return filterValues.some(fv => allIds.includes(fv));
+  }
+
+  // Handle arrays (multiselect, etc.) - check if ANY filter value matches ANY value in the array
   if (Array.isArray(value)) {
-    const normalizedFilter = filterValue.toLowerCase();
-    return value.some(v => extractComparableValue(v, fieldType, fieldConfig).toLowerCase() === normalizedFilter);
+    // Split filter value by comma to support multiple selected filter values
+    const filterValues = filterValue.split(',').map(v => v.trim().toLowerCase()).filter(Boolean);
+    
+    // If no filter values, no match
+    if (filterValues.length === 0) return false;
+    
+    // Check if any value in the data array matches any of the filter values
+    return value.some(v => {
+      const normalizedValue = extractComparableValue(v, fieldType, fieldConfig).toLowerCase();
+      return filterValues.some(fv => normalizedValue === fv);
+    });
   }
 
   // Handle boolean
@@ -321,8 +344,15 @@ export const valueEquals = (value: any, filterValue: string, fieldType?: string,
            (!value && (boolFilter === 'false' || boolFilter === 'no' || boolFilter === 'off' || boolFilter === 'unchecked'));
   }
 
+  // For non-array values, also check if filterValue is comma-separated and match any
+  const filterValues = filterValue.split(',').map(v => v.trim().toLowerCase()).filter(Boolean);
   const comparableValue = extractComparableValue(value, fieldType, fieldConfig).toLowerCase();
-  return comparableValue === filterValue.toLowerCase();
+  
+  // If single filter value, do exact match; if multiple, check if value matches any
+  if (filterValues.length === 1) {
+    return comparableValue === filterValues[0];
+  }
+  return filterValues.includes(comparableValue);
 };
 
 /**
@@ -405,7 +435,16 @@ export const evaluateFilterCondition = (
     
     case 'in': {
       // Check if value is in a comma-separated list
-      const listValues = filterValue.split(',').map(v => v.trim().toLowerCase());
+      const listValues = filterValue.split(',').map(v => v.trim().toLowerCase()).filter(Boolean);
+      
+      // Handle submission-access objects {users: [...], groups: [...]}
+      if (typeof value === 'object' && !Array.isArray(value) && ('users' in value || 'groups' in value)) {
+        const allIds: string[] = [];
+        if (Array.isArray(value.users)) allIds.push(...value.users.map((u: string) => u.toLowerCase()));
+        if (Array.isArray(value.groups)) allIds.push(...value.groups.map((g: string) => g.toLowerCase()));
+        return listValues.some(fv => allIds.includes(fv));
+      }
+      
       if (Array.isArray(value)) {
         return value.some(v => listValues.includes(extractComparableValue(v, fieldType).toLowerCase()));
       }
@@ -413,7 +452,16 @@ export const evaluateFilterCondition = (
     }
     
     case 'not_in': {
-      const listValues = filterValue.split(',').map(v => v.trim().toLowerCase());
+      const listValues = filterValue.split(',').map(v => v.trim().toLowerCase()).filter(Boolean);
+      
+      // Handle submission-access objects {users: [...], groups: [...]}
+      if (typeof value === 'object' && !Array.isArray(value) && ('users' in value || 'groups' in value)) {
+        const allIds: string[] = [];
+        if (Array.isArray(value.users)) allIds.push(...value.users.map((u: string) => u.toLowerCase()));
+        if (Array.isArray(value.groups)) allIds.push(...value.groups.map((g: string) => g.toLowerCase()));
+        return !listValues.some(fv => allIds.includes(fv));
+      }
+      
       if (Array.isArray(value)) {
         return !value.some(v => listValues.includes(extractComparableValue(v, fieldType).toLowerCase()));
       }
