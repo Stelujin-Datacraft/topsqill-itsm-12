@@ -942,14 +942,17 @@ export function FilterConfig({
     }
 
     // Handle multi-select, dropdown, radio, select, checkbox (with options), status fields
-    if (rawFieldType === 'multi-select' || rawFieldType === 'dropdown' || 
+    if (rawFieldType === 'multi-select' || rawFieldType === 'multiselect' || rawFieldType === 'dropdown' || 
         rawFieldType === 'radio' || rawFieldType === 'select' || 
         rawFieldType === 'status' || (rawFieldType === 'checkbox' && fieldOptions.length > 0)) {
       
       // If options exist, show dropdown
       if (fieldOptions.length > 0) {
-        // For 'in' or 'not_in' operators, show multi-select with checkboxes
-        if (filter.operator === 'in' || filter.operator === 'not_in') {
+        // For 'in' or 'not_in' operators OR for multi-select field types, show multi-select with checkboxes
+        const isMultiSelectFieldType = rawFieldType === 'multi-select' || rawFieldType === 'multiselect';
+        const shouldShowMultiSelect = filter.operator === 'in' || filter.operator === 'not_in' || isMultiSelectFieldType;
+        
+        if (shouldShowMultiSelect) {
           // Parse existing selected values (comma-separated)
           const selectedValues = filter.value ? filter.value.split(',').map(v => v.trim()).filter(Boolean) : [];
           
@@ -960,9 +963,16 @@ export function FilterConfig({
             updateFilter(index, { value: newSelected.join(',') });
           };
           
+          const getLabel = () => {
+            if (filter.operator === 'in') return 'Select Values (match any)';
+            if (filter.operator === 'not_in') return 'Select Values (exclude)';
+            if (filter.operator === 'not_equals') return 'Select Values (exclude all)';
+            return 'Select Values (match any)';
+          };
+          
           return (
             <div className="space-y-2">
-              <Label>Select Values ({filter.operator === 'in' ? 'match any' : 'exclude'})</Label>
+              <Label>{getLabel()}</Label>
               {/* Show selected items as badges */}
               {selectedValues.length > 0 && (
                 <div className="flex flex-wrap gap-1 mb-2">
