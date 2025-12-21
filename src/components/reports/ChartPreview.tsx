@@ -1191,24 +1191,58 @@ export function ChartPreview({
     }
   };
   const handleBarClick = (data: any, index: number, event?: any) => {
-    // Open dialog to show matching submissions
     // recharts passes the data point in data.payload or data directly
     const payload = data?.payload || data;
     const dimensionValue = payload?.name || data?.name;
     
-    if (dimensionValue) {
-      const dimensionField = config.dimensions?.[0] || config.xAxis || '';
-      const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : (config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'Field');
+    if (!dimensionValue) return;
+    
+    // Check if drilldown is enabled - if so, trigger drilldown instead of dialog
+    const drilldownLevels = getDrilldownLevels();
+    if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0) {
+      if (event) {
+        event.stopPropagation();
+      }
+      const currentLevel = drilldownState?.values?.length || 0;
+      if (currentLevel >= drilldownLevels.length) {
+        // At final level - show submissions dialog
+        const dimensionField = drilldownLevels[currentLevel - 1] || config.dimensions?.[0] || config.xAxis || '';
+        const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Field';
+        setCellSubmissionsDialog({
+          open: true,
+          dimensionField,
+          dimensionValue,
+          dimensionLabel,
+        });
+        return;
+      }
       
-      console.log('Bar clicked:', { dimensionField, dimensionValue, dimensionLabel, data, payload });
-      
-      setCellSubmissionsDialog({
-        open: true,
-        dimensionField,
-        dimensionValue,
-        dimensionLabel,
-      });
+      const nextLevel = drilldownLevels[currentLevel];
+      if (nextLevel && dimensionValue !== 'Not Specified') {
+        console.log('📊 Bar click drilldown:', {
+          nextLevel,
+          clickedValue: dimensionValue,
+          currentLevel,
+          fieldName: getFormFieldName(nextLevel),
+          totalLevels: drilldownLevels.length
+        });
+        onDrilldown(nextLevel, dimensionValue);
+        return;
+      }
     }
+    
+    // No drilldown enabled - open submissions dialog
+    const dimensionField = config.dimensions?.[0] || config.xAxis || '';
+    const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : (config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'Field');
+    
+    console.log('Bar clicked (no drilldown):', { dimensionField, dimensionValue, dimensionLabel, data, payload });
+    
+    setCellSubmissionsDialog({
+      open: true,
+      dimensionField,
+      dimensionValue,
+      dimensionLabel,
+    });
   };
   const handleChartClick = (data: any, event?: any) => {
     // This will be handled by the drilldown controls instead of direct click
