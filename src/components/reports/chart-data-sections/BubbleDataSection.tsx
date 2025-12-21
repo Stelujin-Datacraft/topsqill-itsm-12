@@ -164,7 +164,7 @@ export function BubbleDataSection({ config, formFields, onConfigChange }: Bubble
             </div>
           ) : (
             <Select 
-              value=""
+              key={`bubble-y-${xAxisField || 'none'}`}
               onValueChange={(value) => {
                 const currentX = config.metrics?.[0] || '';
                 onConfigChange({ 
