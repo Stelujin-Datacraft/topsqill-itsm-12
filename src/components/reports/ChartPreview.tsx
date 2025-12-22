@@ -1257,25 +1257,54 @@ export function ChartPreview({
   };
   const currentLevelInfo = getCurrentLevelInfo();
   const handlePieClick = (data: any, index?: number, event?: any) => {
-    const drilldownLevels = getDrilldownLevels();
-    if (!config.drilldownConfig?.enabled || !onDrilldown || drilldownLevels.length === 0) return;
     if (event) {
       event.stopPropagation();
     }
-    const currentLevel = drilldownState?.values?.length || 0;
-    if (currentLevel >= drilldownLevels.length) return;
-    const nextLevel = drilldownLevels[currentLevel];
+    
     const clickedValue = data?.name || data;
-    if (nextLevel && clickedValue && clickedValue !== 'Not Specified') {
-      console.log('🥧 Pie click drilldown:', {
-        nextLevel,
-        clickedValue,
-        currentLevel,
-        fieldName: getFormFieldName(nextLevel),
-        totalLevels: drilldownLevels.length
-      });
-      onDrilldown(nextLevel, clickedValue);
+    if (!clickedValue || clickedValue === 'Not Specified') return;
+    
+    // Get dimension field for the pie chart
+    const dimensionField = config.dimensions?.[0] || '';
+    const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Category';
+    
+    // Check if drilldown is enabled
+    const drilldownLevels = getDrilldownLevels();
+    if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0) {
+      const currentLevel = drilldownState?.values?.length || 0;
+      
+      if (currentLevel >= drilldownLevels.length) {
+        // At final level - show submissions dialog
+        setCellSubmissionsDialog({
+          open: true,
+          dimensionField,
+          dimensionValue: clickedValue,
+          dimensionLabel,
+        });
+        return;
+      }
+      
+      const nextLevel = drilldownLevels[currentLevel];
+      if (nextLevel) {
+        console.log('🥧 Pie click drilldown:', {
+          nextLevel,
+          clickedValue,
+          currentLevel,
+          fieldName: getFormFieldName(nextLevel),
+          totalLevels: drilldownLevels.length
+        });
+        onDrilldown(nextLevel, clickedValue);
+        return;
+      }
     }
+    
+    // No drilldown enabled - open submissions dialog
+    setCellSubmissionsDialog({
+      open: true,
+      dimensionField,
+      dimensionValue: clickedValue,
+      dimensionLabel,
+    });
   };
   const handleBarClick = (data: any, index: number, event?: any) => {
     // recharts passes the data point in data.payload or data directly
@@ -1324,6 +1353,23 @@ export function ChartPreview({
   const handleChartClick = (data: any, event?: any) => {
     // This will be handled by the drilldown controls instead of direct click
     console.log('Chart clicked, use drilldown controls instead');
+  };
+  
+  // Handle heatmap cell click - shows submissions for the row/column intersection
+  const handleHeatmapCellClick = (rowValue: string, colValue: string, rowField?: string, colField?: string) => {
+    const dimensionField = rowField || config.dimensions?.[0] || '';
+    const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Row';
+    
+    // For heatmap, we want to filter by both row and column values
+    // We'll use the row as the primary dimension and add column info to the dialog
+    setCellSubmissionsDialog({
+      open: true,
+      dimensionField,
+      dimensionValue: rowValue,
+      dimensionLabel,
+      groupField: colField,
+      groupValue: colValue,
+    });
   };
   // Generate chart info summary for context
   const getChartInfoSummary = (): { 
@@ -2573,10 +2619,16 @@ export function ChartPreview({
                   const intensity = cell.value / maxValueSimple;
                   const colorIndex = Math.floor(intensity * (colors.length - 1));
                   const safeColorIndex = Math.max(0, Math.min(colors.length - 1, isNaN(colorIndex) ? 0 : colorIndex));
-                  return <div key={index} className="aspect-square rounded-sm flex items-center justify-center text-xs font-medium cursor-pointer hover:ring-2 hover:ring-primary" style={{
-                    backgroundColor: colors[safeColorIndex],
-                    color: intensity > 0.5 ? 'white' : 'black'
-                  }} title={`${cell.name}: ${cell.value}`}>
+                  return <div 
+                    key={index} 
+                    className="aspect-square rounded-sm flex items-center justify-center text-xs font-medium cursor-pointer hover:ring-2 hover:ring-primary" 
+                    style={{
+                      backgroundColor: colors[safeColorIndex],
+                      color: intensity > 0.5 ? 'white' : 'black'
+                    }} 
+                    title={`${cell.name}: ${cell.value}`}
+                    onClick={() => handleHeatmapCellClick(cell.name, 'Default', config.dimensions?.[0], config.dimensions?.[1])}
+                  >
                     {cell.value}
                   </div>;
                 })}
@@ -2637,6 +2689,7 @@ export function ChartPreview({
                           color: intensity > 0.5 ? 'white' : 'black'
                         }}
                         title={`${row} × ${col}: ${cellValue}`}
+                        onClick={() => handleHeatmapCellClick(row, col, rowDimension, colDimension)}
                       >
                         {cellValue}
                       </div>
