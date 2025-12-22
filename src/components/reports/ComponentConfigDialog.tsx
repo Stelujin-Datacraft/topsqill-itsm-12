@@ -63,15 +63,13 @@ interface ComponentConfigDialogProps {
 
 const CHART_TYPES = [
   { value: 'bar', label: 'Bar Chart', icon: BarChart, description: 'Compare values across categories' },
-  { value: 'column', label: 'Column Chart', icon: BarChart, description: 'Vertical bar chart' },
+  { value: 'heatmap', label: 'Heatmap', icon: Table, description: 'Show intensity across dimensions' },
   { value: 'line', label: 'Line Chart', icon: LineChart, description: 'Show trends over time' },
   { value: 'area', label: 'Area Chart', icon: TrendingUp, description: 'Filled line chart' },
   { value: 'pie', label: 'Pie Chart', icon: PieChart, description: 'Show parts of a whole' },
   { value: 'donut', label: 'Donut Chart', icon: PieChart, description: 'Pie chart with hollow center' },
   { value: 'scatter', label: 'Scatter Plot', icon: TrendingUp, description: 'Show correlation between variables' },
   { value: 'bubble', label: 'Bubble Chart', icon: TrendingUp, description: 'Scatter plot with size dimension' },
-  { value: 'heatmap', label: 'Heatmap', icon: Table, description: 'Show intensity across dimensions' },
-  { value: 'table', label: 'Table', icon: Table, description: 'Tabular data display' }
 ];
 
 const AGGREGATION_FUNCTIONS = [
