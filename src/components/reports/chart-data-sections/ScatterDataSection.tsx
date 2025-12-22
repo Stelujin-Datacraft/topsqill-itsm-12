@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { X, ScatterChart, Info, ArrowRight } from 'lucide-react';
+import { MaxDataPointsControl } from './MaxDataPointsControl';
 
 interface ScatterDataSectionProps {
   config: ChartConfig;
@@ -260,6 +261,15 @@ export function ScatterDataSection({ config, formFields, onConfigChange }: Scatt
           )}
         </CardContent>
       </Card>
+
+      {/* Step 4: Max Data Points */}
+      <MaxDataPointsControl 
+        config={config} 
+        onConfigChange={onConfigChange}
+        stepNumber={4}
+        label="Max Points"
+        description="Limit the number of scatter points shown"
+      />
 
       {/* Summary */}
       <Card className={xAxisField && yAxisField ? 'border-green-500/50 bg-green-50/50 dark:bg-green-950/20' : 'border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20'}>

@@ -57,6 +57,7 @@ export interface ChartConfig {
   heatmapIntensityField?: string; // For heatmap
   gridColumns?: number; // For heatmap
   gridRows?: number; // For heatmap
+  maxDataPoints?: number; // Limit number of data points shown on chart
   
   // Enhanced configurations
   enableMultipleMetrics?: boolean;

@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { X, Grid3X3, Info } from 'lucide-react';
+import { MaxDataPointsControl } from './MaxDataPointsControl';
 
 interface HeatmapDataSectionProps {
   config: ChartConfig;
@@ -275,6 +276,15 @@ export function HeatmapDataSection({ config, formFields, onConfigChange }: Heatm
           </p>
         </CardContent>
       </Card>
+
+      {/* Step 4: Max Data Points */}
+      <MaxDataPointsControl 
+        config={config} 
+        onConfigChange={onConfigChange}
+        stepNumber={4}
+        label="Max Cells"
+        description="Limit the number of cells shown in the heatmap"
+      />
 
       {/* Summary */}
       <Card className={rowField && columnField ? 'border-green-500/50 bg-green-50/50 dark:bg-green-950/20' : 'border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20'}>

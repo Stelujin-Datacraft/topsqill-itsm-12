@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { X, Circle, Info, ArrowRight } from 'lucide-react';
+import { MaxDataPointsControl } from './MaxDataPointsControl';
 
 interface BubbleDataSectionProps {
   config: ChartConfig;
@@ -299,6 +300,15 @@ export function BubbleDataSection({ config, formFields, onConfigChange }: Bubble
           )}
         </CardContent>
       </Card>
+
+      {/* Step 5: Max Data Points */}
+      <MaxDataPointsControl 
+        config={config} 
+        onConfigChange={onConfigChange}
+        stepNumber={5}
+        label="Max Bubbles"
+        description="Limit the number of bubbles shown on the chart"
+      />
 
       {/* Summary */}
       <Card className={xAxisField && yAxisField && sizeField ? 'border-green-500/50 bg-green-50/50 dark:bg-green-950/20' : 'border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20'}>
