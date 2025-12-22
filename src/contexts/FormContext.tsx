@@ -100,120 +100,84 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
       // Get current user's ID
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log('FormContext: No authenticated user');
         setForms([]);
         return;
       }
 
-      console.log('FormContext: Current user ID:', user.id);
+      // Check if user is admin - run in parallel with getting user profile
+      const [projectUserResult, userProfileResult] = await Promise.all([
+        supabase
+          .from('project_users')
+          .select('role')
+          .eq('project_id', currentProject.id)
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle()
+      ]);
 
-      // First, get the user's role in the project
-      const { data: projectUser, error: projectUserError } = await supabase
-        .from('project_users')
-        .select('role')
-        .eq('project_id', currentProject.id)
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const isProjectAdmin = projectUserResult.data?.role === 'admin';
+      const isOrgAdmin = userProfileResult.data?.role === 'admin';
 
-      if (projectUserError) {
-        console.log('FormContext: Error getting project user role:', projectUserError);
-        // Continue without role - user might still have access to some forms
+      // If user is admin, just fetch all forms directly - no need for permission checks
+      if (isProjectAdmin || isOrgAdmin) {
+        const { data, error } = await supabase
+          .from('forms')
+          .select('*')
+          .eq('project_id', currentProject.id)
+          .order('updated_at', { ascending: false });
+
+        if (error) {
+          setError(error.message);
+        } else {
+          setForms((data || []).map(transformDatabaseFormToAppForm));
+        }
+        return;
       }
 
-      console.log('FormContext: User project role:', projectUser?.role || 'no role');
-
-      // Start with base query
-      let formsQuery = supabase
-        .from('forms')
-        .select('*')
-        .eq('project_id', currentProject.id);
-
-      // If user is project admin, they can see all forms
-      if (projectUser && projectUser.role === 'admin') {
-        console.log('FormContext: User is project admin, loading all forms');
-      } else {
-        console.log('FormContext: User is not project admin, applying filters');
-        
-        // Get forms where user has explicit asset permissions
-        const { data: accessibleFormIds, error: permissionsError } = await supabase
+      // For non-admin users, run all permission queries in parallel
+      const [assetPermsResult, formAccessResult, formsResult] = await Promise.all([
+        supabase
           .from('asset_permissions')
           .select('asset_id')
           .eq('project_id', currentProject.id)
           .eq('user_id', user.id)
-          .eq('asset_type', 'form');
-
-        if (permissionsError) {
-          console.log('FormContext: Error getting asset permissions:', permissionsError);
-        }
-
-        const formIdsWithAssetAccess = accessibleFormIds?.map(p => p.asset_id) || [];
-        console.log('FormContext: Forms with explicit asset access:', formIdsWithAssetAccess);
-        
-        // Get forms where user has direct form access through form_user_access
-        const { data: formUserAccess, error: formAccessError } = await supabase
+          .eq('asset_type', 'form'),
+        supabase
           .from('form_user_access')
           .select('form_id')
           .eq('user_id', user.id)
-          .eq('status', 'active');
-
-        if (formAccessError) {
-          console.log('FormContext: Error getting form user access:', formAccessError);
-        }
-
-        const formIdsWithDirectAccess = formUserAccess?.map(f => f.form_id) || [];
-        console.log('FormContext: Forms with direct user access:', formIdsWithDirectAccess);
-        
-        // Get public forms
-        const { data: publicForms, error: publicFormsError } = await supabase
+          .eq('status', 'active'),
+        supabase
           .from('forms')
-          .select('id')
+          .select('*')
           .eq('project_id', currentProject.id)
-          .eq('is_public', true);
+          .order('updated_at', { ascending: false })
+      ]);
 
-        if (publicFormsError) {
-          console.log('FormContext: Error getting public forms:', publicFormsError);
-        }
-
-        const publicFormIds = publicForms?.map(f => f.id) || [];
-        console.log('FormContext: Public forms:', publicFormIds);
-
-        // Combine all accessible form IDs
-        const allAccessibleFormIds = [
-          ...formIdsWithAssetAccess,
-          ...formIdsWithDirectAccess,
-          ...publicFormIds
-        ];
-
-        console.log('FormContext: All accessible form IDs:', allAccessibleFormIds);
-
-        // Build the final query - forms created by user OR forms with access OR public forms
-        if (allAccessibleFormIds.length > 0) {
-          // User created forms OR forms with explicit access OR public forms
-          formsQuery = formsQuery.or(`created_by.eq.${user.id},id.in.(${allAccessibleFormIds.join(',')})`);
-        } else {
-          // Only forms created by the user
-          formsQuery = formsQuery.eq('created_by', user.id);
-        }
+      if (formsResult.error) {
+        setError(formsResult.error.message);
+        return;
       }
 
-      const { data, error } = await formsQuery.order('created_at', { ascending: false });
+      // Build set of accessible form IDs
+      const accessibleIds = new Set<string>();
+      assetPermsResult.data?.forEach(p => accessibleIds.add(p.asset_id));
+      formAccessResult.data?.forEach(f => accessibleIds.add(f.form_id));
 
-      if (error) {
-        console.error('FormContext: Error loading forms:', error);
-        setError(error.message);
-      } else {
-        const transformedForms = (data || []).map(transformDatabaseFormToAppForm);
-        console.log('FormContext: Loaded forms successfully:', transformedForms.length, 'forms');
-        console.log('FormContext: Loaded forms:', transformedForms.map(f => ({ 
-          id: f.id, 
-          name: f.name, 
-          createdBy: f.createdBy,
-          isPublic: f.isPublic 
-        })));
-        setForms(transformedForms);
-      }
+      // Filter forms - user can see: their own forms, forms with access, public forms
+      const filteredForms = (formsResult.data || []).filter(form => 
+        form.created_by === user.id || 
+        form.is_public || 
+        accessibleIds.has(form.id)
+      );
+
+      setForms(filteredForms.map(transformDatabaseFormToAppForm));
     } catch (err: any) {
-      console.error('FormContext: Unexpected error:', err);
+      console.error('FormContext: Error loading forms:', err);
       setError(err.message);
     } finally {
       setLoading(false);
