@@ -30,7 +30,7 @@ export interface ReportComponent {
 
 export interface ChartConfig {
   formId: string;
-  chartType: 'bar' | 'column' | 'line' | 'area' | 'pie' | 'donut' | 'scatter' | 'bubble' | 'heatmap' | 'table';
+  chartType: 'bar' | 'line' | 'area' | 'pie' | 'donut' | 'scatter' | 'bubble' | 'heatmap';
   title: string;
   description?: string;
   xAxis?: string;

@@ -31,15 +31,13 @@ export interface AggregationOption {
 
 export const CHART_TYPES: ChartTypeOption[] = [
   { value: 'bar', label: 'Bar Chart', icon: null, description: 'Compare values across categories', supportedMetrics: 5, supportedDimensions: 2 },
-  { value: 'column', label: 'Column Chart', icon: null, description: 'Vertical bar chart', supportedMetrics: 5, supportedDimensions: 2 },
+  { value: 'heatmap', label: 'Heatmap', icon: null, description: 'Show intensity across dimensions', supportedMetrics: 1, supportedDimensions: 2 },
   { value: 'line', label: 'Line Chart', icon: null, description: 'Show trends over time', supportedMetrics: 5, supportedDimensions: 1 },
   { value: 'area', label: 'Area Chart', icon: null, description: 'Filled line chart', supportedMetrics: 5, supportedDimensions: 1 },
   { value: 'pie', label: 'Pie Chart', icon: null, description: 'Show parts of a whole', supportedMetrics: 1, supportedDimensions: 1 },
   { value: 'donut', label: 'Donut Chart', icon: null, description: 'Pie chart with hollow center', supportedMetrics: 1, supportedDimensions: 1 },
   { value: 'scatter', label: 'Scatter Plot', icon: null, description: 'Show correlation between variables', supportedMetrics: 2, supportedDimensions: 1 },
   { value: 'bubble', label: 'Bubble Chart', icon: null, description: 'Scatter plot with size dimension', supportedMetrics: 3, supportedDimensions: 1 },
-  { value: 'heatmap', label: 'Heatmap', icon: null, description: 'Show intensity across dimensions', supportedMetrics: 1, supportedDimensions: 2 },
-  { value: 'table', label: 'Table', icon: null, description: 'Tabular data display', supportedMetrics: 10, supportedDimensions: 10 }
 ];
 
 export function canFieldsBeJoined(field1: FormField, field2: FormField): boolean {

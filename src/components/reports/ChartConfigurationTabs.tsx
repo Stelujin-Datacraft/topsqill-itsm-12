@@ -314,8 +314,8 @@ export function ChartConfigurationTabs({
       </TabsContent>
 
       <TabsContent value="data" className="space-y-6">
-        {/* Bar and Column charts use the original flexible data section */}
-        {(config.chartType === 'bar' || config.chartType === 'column') && (
+        {/* Bar charts use the original flexible data section */}
+        {config.chartType === 'bar' && (
           <ChartDataSection
             config={config}
             formFields={formFields}
@@ -364,15 +364,6 @@ export function ChartConfigurationTabs({
         {/* Heatmap chart */}
         {config.chartType === 'heatmap' && (
           <HeatmapDataSection
-            config={config}
-            formFields={formFields}
-            onConfigChange={handleConfigUpdate}
-          />
-        )}
-
-        {/* Table type - use original section */}
-        {config.chartType === 'table' && (
-          <ChartDataSection
             config={config}
             formFields={formFields}
             onConfigChange={handleConfigUpdate}
