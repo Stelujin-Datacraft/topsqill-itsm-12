@@ -24,7 +24,7 @@ import {
 import { useReports } from '@/hooks/useReports';
 import { GenericFieldSelector } from './GenericFieldSelector';
 import { FormJoinConfig } from './FormJoinConfig';
-import { getFieldDisplayName, UNSUPPORTED_TABLE_FIELDS } from '@/utils/chartConfig';
+import { getFieldDisplayName, UNSUPPORTED_TABLE_FIELDS, UNSUPPORTED_FILTER_FIELDS } from '@/utils/chartConfig';
 import { FilterConfig } from './FilterConfig';
 import { DrilldownConfig } from './DrilldownConfig';
 import { 
@@ -621,7 +621,9 @@ export function ComponentConfigDialog({
         <TabsContent value="filters" className="space-y-4">
           {config.formId && formFields.length > 0 ? (
             <FilterConfig
-              formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
+              formFields={(joinEnabled ? [...formFields, ...secondaryFormFields] : formFields).filter(
+                field => !UNSUPPORTED_FILTER_FIELDS.includes((field as any).field_type || field.type || '')
+              )}
               filters={config.filters || []}
               onFiltersChange={(filters) => setConfig(prev => ({ ...prev, filters }))}
               logicExpression={config.filterLogicExpression || ''}
@@ -1179,7 +1181,9 @@ export function ComponentConfigDialog({
         <TabsContent value="filters" className="space-y-4">
           {config.formId && formFields.length > 0 ? (
             <FilterConfig
-              formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
+              formFields={(joinEnabled ? [...formFields, ...secondaryFormFields] : formFields).filter(
+                field => !UNSUPPORTED_FILTER_FIELDS.includes((field as any).field_type || field.type || '')
+              )}
               filters={config.filters || []}
               onFiltersChange={(filters) => setConfig(prev => ({ ...prev, filters }))}
               logicExpression={config.filterLogicExpression || ''}
