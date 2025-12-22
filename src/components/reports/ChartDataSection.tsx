@@ -10,6 +10,11 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, X, TrendingUp, Tag, BarChart3, Calculator, Layers, Info, CheckCircle2, ArrowRight, ListOrdered } from 'lucide-react';
+import { 
+  UNSUPPORTED_CHART_FIELDS, 
+  DIMENSION_FIELD_TYPES, 
+  METRIC_FIELD_TYPES 
+} from '@/utils/chartConfig';
 
 interface ChartDataSectionProps {
   config: ChartConfig;
@@ -22,26 +27,28 @@ const getFieldType = (field: FormField): string => {
   return (field as any)?.field_type || field?.type || 'unknown';
 };
 
-// Get numeric fields that can be used for calculations
+// Get numeric fields that can be used for calculations (metrics)
 const getNumericFields = (fields: FormField[]) => {
   return fields.filter(f => {
     const type = getFieldType(f);
-    return ['number', 'currency', 'slider', 'rating', 'calculated'].includes(type);
+    return METRIC_FIELD_TYPES.includes(type);
   });
 };
 
-// Get categorical fields that can be used for grouping
+// Get categorical fields that can be used for grouping (dimensions)
 const getCategoryFields = (fields: FormField[]) => {
   return fields.filter(f => {
     const type = getFieldType(f);
-    // Include most field types that can be used for categorization
-    return [
-      'select', 'multi-select', 'radio', 'checkbox', 'text', 'date', 'datetime',
-      'status', 'dropdown', 'country', 'tags', 'email', 'phone', 'phone-number',
-      'user-select', 'user-picker', 'submission-access', 'yes-no', 'toggle',
-      'address', 'rating', 'star-rating', 'slider', 'number', 'currency',
-      'time', 'short-text', 'long-text', 'textarea', 'assignee', 'group-picker'
-    ].includes(type);
+    // Only include dimension-compatible fields, exclude unsupported ones
+    return DIMENSION_FIELD_TYPES.includes(type) && !UNSUPPORTED_CHART_FIELDS.includes(type);
+  });
+};
+
+// Filter out unsupported fields entirely
+const getChartCompatibleFields = (fields: FormField[]) => {
+  return fields.filter(f => {
+    const type = getFieldType(f);
+    return !UNSUPPORTED_CHART_FIELDS.includes(type);
   });
 };
 
@@ -178,9 +185,10 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
     return field ? getFieldType(field) : 'unknown';
   };
 
+  const chartCompatibleFields = getChartCompatibleFields(formFields);
   const availableNumericFields = numericFields.filter(f => !selectedMetrics.includes(f.id));
   const availableCategoryFields = categoryFields.filter(f => !selectedDimensions.includes(f.id));
-  const availableCompareFields = formFields.filter(f => !selectedMetrics.includes(f.id));
+  const availableCompareFields = chartCompatibleFields.filter(f => !selectedMetrics.includes(f.id));
 
   // Show empty state if no form selected
   if (formFields.length === 0) {
