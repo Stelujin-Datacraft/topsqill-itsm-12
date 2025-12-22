@@ -3,10 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
+import { Loader2, ExternalLink, ChevronDown, ChevronRight, Maximize2, X } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface TableCellSubmissionsDialogProps {
   open: boolean;
@@ -45,11 +45,13 @@ export function TableCellSubmissionsDialog({
   const [submissions, setSubmissions] = useState<SubmissionRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedSubmissions, setExpandedSubmissions] = useState<Set<string>>(new Set());
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   useEffect(() => {
     if (open && formId) {
       loadSubmissions();
       setExpandedSubmissions(new Set());
+      setIsFullScreen(false);
     }
   }, [open, formId, dimensionField, dimensionValue, groupField, groupValue]);
 
@@ -125,13 +127,71 @@ export function TableCellSubmissionsDialog({
 
   const hasDisplayFields = displayFields.length > 0;
 
+  // Render the horizontal table for display fields
+  const renderFieldsTable = (submission: SubmissionRecord) => {
+    if (!hasDisplayFields) return null;
+    
+    return (
+      <div className="overflow-x-auto">
+        <Table className="text-sm">
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              {displayFields.map((fieldId) => (
+                <TableHead key={fieldId} className="h-8 px-3 text-xs font-medium whitespace-nowrap">
+                  {fieldLabels[fieldId] || fieldId}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow className="hover:bg-transparent">
+              {displayFields.map((fieldId) => {
+                const value = submission.submission_data[fieldId];
+                return (
+                  <TableCell 
+                    key={fieldId} 
+                    className="px-3 py-2 whitespace-nowrap max-w-[200px] truncate"
+                    title={formatFieldValue(value)}
+                  >
+                    {formatFieldValue(value)}
+                  </TableCell>
+                );
+              })}
+            </TableRow>
+          </TableBody>
+        </Table>
+      </div>
+    );
+  };
+
+  const dialogContentClass = isFullScreen 
+    ? "max-w-[95vw] w-[95vw] max-h-[95vh] h-[95vh]"
+    : "max-w-3xl max-h-[80vh]";
+
+  const scrollAreaClass = isFullScreen ? "h-[calc(95vh-120px)]" : "max-h-[60vh]";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[80vh]">
-        <DialogHeader>
-          <DialogTitle>{getDialogTitle()}</DialogTitle>
+      <DialogContent className={dialogContentClass}>
+        <DialogHeader className="flex flex-row items-center justify-between pr-8">
+          <DialogTitle className="flex-1">{getDialogTitle()}</DialogTitle>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => setIsFullScreen(!isFullScreen)}
+              title={isFullScreen ? "Exit full screen" : "Expand to full screen"}
+            >
+              {isFullScreen ? (
+                <X className="h-4 w-4" />
+              ) : (
+                <Maximize2 className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         </DialogHeader>
-        <ScrollArea className="max-h-[60vh]">
+        <ScrollArea className={scrollAreaClass}>
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -177,21 +237,8 @@ export function TableCellSubmissionsDialog({
                     </div>
                     
                     {hasDisplayFields && isExpanded && (
-                      <div className="px-4 pb-3 pt-1 bg-muted/20 border-t border-border">
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                          {displayFields.map((fieldId) => {
-                            const value = submission.submission_data[fieldId];
-                            const label = fieldLabels[fieldId] || fieldId;
-                            return (
-                              <div key={fieldId} className="flex flex-col">
-                                <span className="text-muted-foreground text-xs">{label}</span>
-                                <span className="font-medium truncate" title={formatFieldValue(value)}>
-                                  {formatFieldValue(value)}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
+                      <div className="px-2 pb-3 pt-1 bg-muted/20 border-t border-border">
+                        {renderFieldsTable(submission)}
                       </div>
                     )}
                   </div>
