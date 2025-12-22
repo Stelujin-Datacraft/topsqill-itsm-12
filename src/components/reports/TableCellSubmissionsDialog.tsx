@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, ExternalLink, ChevronDown, ChevronRight, Maximize2, X } from 'lucide-react';
+import { Loader2, ExternalLink, ChevronDown, ChevronRight, Maximize2, Minimize2, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface TableCellSubmissionsDialogProps {
@@ -46,12 +47,14 @@ export function TableCellSubmissionsDialog({
   const [loading, setLoading] = useState(false);
   const [expandedSubmissions, setExpandedSubmissions] = useState<Set<string>>(new Set());
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (open && formId) {
       loadSubmissions();
       setExpandedSubmissions(new Set());
       setIsFullScreen(false);
+      setSearchQuery('');
     }
   }, [open, formId, dimensionField, dimensionValue, groupField, groupValue]);
 
@@ -114,6 +117,23 @@ export function TableCellSubmissionsDialog({
     return String(value);
   };
 
+  // Filter submissions based on search query across all fields
+  const filteredSubmissions = useMemo(() => {
+    if (!searchQuery.trim()) return submissions;
+    
+    const query = searchQuery.toLowerCase();
+    return submissions.filter(submission => {
+      // Search in submission ref id
+      if (submission.submission_ref_id?.toLowerCase().includes(query)) return true;
+      
+      // Search in all submission data fields
+      return Object.values(submission.submission_data).some(value => {
+        const stringValue = formatFieldValue(value).toLowerCase();
+        return stringValue.includes(query);
+      });
+    });
+  }, [submissions, searchQuery]);
+
   const getDialogTitle = () => {
     let title = `Submissions`;
     if (dimensionLabel && dimensionValue) {
@@ -122,7 +142,7 @@ export function TableCellSubmissionsDialog({
     if (groupLabel && groupValue) {
       title += ` - ${groupLabel}: ${groupValue}`;
     }
-    return `${title} (${submissions.length})`;
+    return `${title} (${filteredSubmissions.length}${searchQuery ? ` of ${submissions.length}` : ''})`;
   };
 
   const hasDisplayFields = displayFields.length > 0;
@@ -168,38 +188,48 @@ export function TableCellSubmissionsDialog({
     ? "max-w-[95vw] w-[95vw] max-h-[95vh] h-[95vh]"
     : "max-w-3xl max-h-[80vh]";
 
-  const scrollAreaClass = isFullScreen ? "h-[calc(95vh-120px)]" : "max-h-[60vh]";
+  const scrollAreaClass = isFullScreen ? "h-[calc(95vh-180px)]" : "max-h-[55vh]";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={dialogContentClass}>
         <DialogHeader className="flex flex-row items-center justify-between pr-8">
           <DialogTitle className="flex-1">{getDialogTitle()}</DialogTitle>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0"
-              onClick={() => setIsFullScreen(!isFullScreen)}
-              title={isFullScreen ? "Exit full screen" : "Expand to full screen"}
-            >
-              {isFullScreen ? (
-                <X className="h-4 w-4" />
-              ) : (
-                <Maximize2 className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => setIsFullScreen(!isFullScreen)}
+            title={isFullScreen ? "Exit full screen" : "Expand to full screen"}
+          >
+            {isFullScreen ? (
+              <Minimize2 className="h-4 w-4" />
+            ) : (
+              <Maximize2 className="h-4 w-4" />
+            )}
+          </Button>
         </DialogHeader>
+        
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search across all fields..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
         <ScrollArea className={scrollAreaClass}>
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               <span className="ml-2 text-muted-foreground">Loading submissions...</span>
             </div>
-          ) : submissions.length > 0 ? (
+          ) : filteredSubmissions.length > 0 ? (
             <div className="space-y-2 p-1">
-              {submissions.map((submission) => {
+              {filteredSubmissions.map((submission) => {
                 const isExpanded = expandedSubmissions.has(submission.id);
                 return (
                   <div
@@ -247,7 +277,7 @@ export function TableCellSubmissionsDialog({
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
-              No submissions found for this criteria
+              {searchQuery ? 'No submissions match your search' : 'No submissions found for this criteria'}
             </div>
           )}
         </ScrollArea>
