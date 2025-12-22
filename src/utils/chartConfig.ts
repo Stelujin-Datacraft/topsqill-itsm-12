@@ -95,6 +95,13 @@ export const UNSUPPORTED_TABLE_FIELDS = [
   'file', 'image', 'signature', 'geo-location', 'barcode', 'color'
 ];
 
+// Field types that should be hidden from FILTER selection (layout/static elements only)
+export const UNSUPPORTED_FILTER_FIELDS = [
+  'header', 'description', 'section-break', 'horizontal-line', 'full-width-container',
+  'rich-text', 'record-table', 'matrix-grid', 'workflow-trigger', 'conditional-section',
+  'file', 'image', 'signature', 'geo-location', 'barcode', 'color'
+];
+
 // Field types that can be used as DIMENSIONS (grouping/X-axis)
 export const DIMENSION_FIELD_TYPES = [
   'text', 'textarea', 'select', 'multi-select', 'dropdown', 'radio', 'checkbox',
