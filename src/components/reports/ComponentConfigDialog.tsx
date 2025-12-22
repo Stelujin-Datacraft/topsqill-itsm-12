@@ -24,7 +24,7 @@ import {
 import { useReports } from '@/hooks/useReports';
 import { GenericFieldSelector } from './GenericFieldSelector';
 import { FormJoinConfig } from './FormJoinConfig';
-import { getFieldDisplayName } from '@/utils/chartConfig';
+import { getFieldDisplayName, UNSUPPORTED_TABLE_FIELDS } from '@/utils/chartConfig';
 import { FilterConfig } from './FilterConfig';
 import { DrilldownConfig } from './DrilldownConfig';
 import { 
@@ -895,7 +895,14 @@ export function ComponentConfigDialog({
   };
 
   const renderTableConfig = () => {
-    const allFields = joinEnabled ? [...formFields, ...secondaryFormFields] : formFields;
+    // Filter out unsupported field types from table columns
+    const getFieldType = (field: any): string => field.field_type || field.type || '';
+    const filterSupportedFields = (fields: any[]) => 
+      fields.filter(f => !UNSUPPORTED_TABLE_FIELDS.includes(getFieldType(f)));
+    
+    const allFields = joinEnabled 
+      ? filterSupportedFields([...formFields, ...secondaryFormFields]) 
+      : filterSupportedFields(formFields);
     const selectedColumns = config.selectedColumns || [];
     const allSelected = allFields.length > 0 && selectedColumns.length === allFields.length;
 
