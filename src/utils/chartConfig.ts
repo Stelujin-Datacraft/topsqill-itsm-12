@@ -88,11 +88,11 @@ export const UNSUPPORTED_CHART_FIELDS = [
   'submission-access', 'ip-address', 'barcode'
 ];
 
-// Field types that should be hidden from TABLE column selection (layout/static elements only)
-// Tables can show more field types than charts (like file links, images, signatures, etc.)
+// Field types that should be hidden from TABLE column selection (layout/static/complex elements)
 export const UNSUPPORTED_TABLE_FIELDS = [
   'header', 'description', 'section-break', 'horizontal-line', 'full-width-container',
-  'rich-text', 'record-table', 'matrix-grid', 'workflow-trigger', 'conditional-section'
+  'rich-text', 'record-table', 'matrix-grid', 'workflow-trigger', 'conditional-section',
+  'file', 'image', 'signature', 'geo-location', 'barcode', 'color'
 ];
 
 // Field types that can be used as DIMENSIONS (grouping/X-axis)

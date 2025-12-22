@@ -1,10 +1,15 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Eye, Calendar, DollarSign, Clock, Link as LinkIcon } from 'lucide-react';
+import { Eye, Calendar, DollarSign, Clock, Link as LinkIcon, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUsersAndGroups } from '@/hooks/useUsersAndGroups';
 import { CrossReferenceCell } from './CrossReferenceCell';
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card';
 
 interface FormDataCellProps {
   value: any;
@@ -297,35 +302,75 @@ const COUNTRIES = [
   { code: 'ZW', name: 'Zimbabwe' },
 ];
   if (fieldType === "address" && typeof value === "object" && value !== null) {
-  const { street, city, state, postal, country } = value;
+    const { street, city, state, postal, country } = value;
 
-  // Find country name from your COUNTRIES array
-  const selectedCountry = COUNTRIES.find(c => c.code === country);
+    // Find country name from COUNTRIES array
+    const selectedCountry = COUNTRIES.find(c => c.code === country);
+    const countryName = selectedCountry ? selectedCountry.name : country;
+    const countryEmoji = country ? countryCodeToEmoji(country) : '';
 
-  const displayAddress = [
-    street,
-    city,
-    state,
-    postal,
-    selectedCountry ? selectedCountry.name : country
-  ]
-    .filter(Boolean) // remove empty values
-    .join(", ");
+    // Build short display (city, country)
+    const shortDisplay = [city, countryName].filter(Boolean).join(', ');
+    
+    // Build full address parts
+    const hasAnyAddress = street || city || state || postal || country;
 
-  if (!displayAddress) {
+    if (!hasAnyAddress) {
+      return (
+        <Badge variant="outline" className="italic opacity-70">
+          No address provided
+        </Badge>
+      );
+    }
+
     return (
-      <Badge variant="outline" className="italic opacity-70">
-        No address provided
-      </Badge>
+      <HoverCard>
+        <HoverCardTrigger asChild>
+          <div className="flex items-center gap-1.5 cursor-pointer hover:text-primary transition-colors max-w-[200px]">
+            <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <span className="truncate text-sm">
+              {shortDisplay || street || 'View address'}
+            </span>
+          </div>
+        </HoverCardTrigger>
+        <HoverCardContent className="w-72 p-3" align="start">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <MapPin className="h-4 w-4 text-primary" />
+              <span>Address Details</span>
+            </div>
+            <div className="space-y-1.5 text-sm">
+              {street && (
+                <div className="text-foreground">{street}</div>
+              )}
+              {(city || state || postal) && (
+                <div className="text-muted-foreground">
+                  {[city, state, postal].filter(Boolean).join(', ')}
+                </div>
+              )}
+              {countryName && (
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  {countryEmoji && <span className="text-base">{countryEmoji}</span>}
+                  <span>{countryName}</span>
+                </div>
+              )}
+            </div>
+            {street && city && (
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([street, city, state, postal, countryName].filter(Boolean).join(', '))}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-2"
+              >
+                <LinkIcon className="h-3 w-3" />
+                View on Google Maps
+              </a>
+            )}
+          </div>
+        </HoverCardContent>
+      </HoverCard>
     );
   }
-
-  return (
-    <div className="max-w-[350px] truncate" title={displayAddress}>
-      {displayAddress}
-    </div>
-  );
-}
 
 
   // Handle cross-reference and child-cross-reference fields  
