@@ -464,9 +464,17 @@ export function ChartPreview({
     console.log('Processing with dimensions:', dimensionFields, 'metrics:', metricFields, 'groupBy:', effectiveGroupByField, 'compareMode:', config.compareMode, 'chartType:', currentChartType);
 
     // Heatmap: special processing for 2 dimensions + intensity
-    if (currentChartType === 'heatmap' && dimensionFields.length >= 2) {
-      console.log('📊 Processing heatmap with row/column dimensions');
-      return processHeatmapData(submissions, dimensionFields[0], dimensionFields[1], config.heatmapIntensityField || metricFields[0]);
+    // Use config.dimensions directly since dimensionFields may only have first dimension
+    const heatmapDimensions = config.dimensions || [];
+    if (currentChartType === 'heatmap' && heatmapDimensions.length >= 2) {
+      console.log('📊 Processing heatmap with row/column dimensions:', heatmapDimensions[0], heatmapDimensions[1]);
+      return processHeatmapData(submissions, heatmapDimensions[0], heatmapDimensions[1], config.heatmapIntensityField || metricFields[0]);
+    }
+
+    // Scatter/Bubble charts: use compare mode processing with x/y coordinates
+    if ((currentChartType === 'scatter' || currentChartType === 'bubble') && config.metrics && config.metrics.length >= 2) {
+      console.log('📊 Processing scatter/bubble chart with metrics:', config.metrics);
+      return processCompareData(submissions, dimensionFields, config.metrics);
     }
 
     // Compare mode: require exactly two metrics and ignore aggregation/count semantics
@@ -561,6 +569,9 @@ export function ChartPreview({
     const [metricField1, metricField2] = metricFields;
     const field1Name = getFormFieldName(metricField1);
     const field2Name = getFormFieldName(metricField2);
+    
+    // Get size field for bubble charts
+    const sizeField = config.sizeField;
 
     const hasDimension = dimensionFields.length > 0 && dimensionFields[0] !== '_default';
 
@@ -569,7 +580,7 @@ export function ChartPreview({
       console.log('📊 Compare mode WITH dimension grouping:', dimensionFields[0]);
       
       // Group submissions by dimension value and sum both metrics
-      const groupedData: { [key: string]: { x: number; y: number; count: number } } = {};
+      const groupedData: { [key: string]: { x: number; y: number; count: number; sizeSum: number } } = {};
       
       submissions
         .filter(submission => passesFilters(submission.submission_data))
@@ -578,24 +589,32 @@ export function ChartPreview({
           const dimensionKey = getDimensionKey(submissionData, dimensionFields);
           const xValue = getRawMetricValue(submissionData, metricField1);
           const yValue = getRawMetricValue(submissionData, metricField2);
+          const sizeValue = sizeField ? getRawMetricValue(submissionData, sizeField) : 1;
           
           if (!groupedData[dimensionKey]) {
-            groupedData[dimensionKey] = { x: 0, y: 0, count: 0 };
+            groupedData[dimensionKey] = { x: 0, y: 0, count: 0, sizeSum: 0 };
           }
           
           groupedData[dimensionKey].x += xValue;
           groupedData[dimensionKey].y += yValue;
+          groupedData[dimensionKey].sizeSum += sizeValue;
           groupedData[dimensionKey].count += 1;
         });
       
-      // Convert to array format
-      const points = Object.entries(groupedData).map(([name, values]) => ({
-        name,
-        x: values.x,
-        y: values.y,
-        xFieldName: field1Name,
-        yFieldName: field2Name,
-      }));
+      // Convert to array format - include size field value
+      const points = Object.entries(groupedData).map(([name, values]) => {
+        const point: any = {
+          name,
+          x: values.x,
+          y: values.y,
+          xFieldName: field1Name,
+          yFieldName: field2Name,
+        };
+        if (sizeField) {
+          point[sizeField] = values.sizeSum;
+        }
+        return point;
+      });
       
       console.log('📊 Compare grouped data:', points);
       return points;
@@ -611,8 +630,11 @@ export function ChartPreview({
         // Store raw display values for table view
         const xRawValue = getRawDisplayValue(submissionData, metricField1);
         const yRawValue = getRawDisplayValue(submissionData, metricField2);
+        
+        // Get size value for bubble charts
+        const sizeValue = sizeField ? getRawMetricValue(submissionData, sizeField) : 1;
 
-        return {
+        const point: any = {
           x: xValue,
           y: yValue,
           xRaw: xRawValue,
@@ -624,6 +646,13 @@ export function ChartPreview({
           xFieldName: field1Name,
           yFieldName: field2Name,
         };
+        
+        // Include size field value for bubble charts
+        if (sizeField) {
+          point[sizeField] = sizeValue;
+        }
+        
+        return point;
       });
 
     console.log('📊 Compare scatter data:', points);
@@ -2343,9 +2372,7 @@ export function ChartPreview({
             </div>
           </div>;
       case 'scatter':
-        // Scatter plot uses x and y from compare mode data
-        const scatterXKey = config.compareMode ? 'x' : 'name';
-        const scatterYKey = config.compareMode ? 'y' : (primaryMetric || 'value');
+        // Scatter plot always uses x and y from processCompareData
         const scatterXLabel = config.xAxisLabel || (config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'X-Axis');
         const scatterYLabel = config.yAxisLabel || (config.metrics?.[1] ? getFormFieldName(config.metrics[1]) : 'Y-Axis');
         
@@ -2360,7 +2387,7 @@ export function ChartPreview({
               }}>
                   <XAxis 
                     type="number"
-                    dataKey={scatterXKey} 
+                    dataKey="x" 
                     tick={{ fontSize: 11 }} 
                     name={scatterXLabel}
                     label={{
@@ -2372,7 +2399,7 @@ export function ChartPreview({
                   />
                   <YAxis 
                     type="number"
-                    dataKey={scatterYKey} 
+                    dataKey="y" 
                     tick={{ fontSize: 11 }} 
                     name={scatterYLabel}
                     label={{
@@ -2394,11 +2421,11 @@ export function ChartPreview({
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{scatterXLabel}:</span>
-                              <span className="font-semibold">{data.x ?? data[scatterXKey]}</span>
+                              <span className="font-semibold">{data.x}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{scatterYLabel}:</span>
-                              <span className="font-semibold">{data.y ?? data[scatterYKey]}</span>
+                              <span className="font-semibold">{data.y}</span>
                             </div>
                           </div>
                         </div>
@@ -2416,10 +2443,8 @@ export function ChartPreview({
             </div>
           </div>;
       case 'bubble':
-        // Bubble chart uses x, y from compare mode and sizeField for bubble size
+        // Bubble chart uses x, y from processCompareData and sizeField for bubble size
         const bubbleSizeField = config.sizeField;
-        const bubbleXKey = config.compareMode ? 'x' : 'name';
-        const bubbleYKey = config.compareMode ? 'y' : (primaryMetric || 'value');
         const bubbleXLabel = config.xAxisLabel || (config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'X-Axis');
         const bubbleYLabel = config.yAxisLabel || (config.metrics?.[1] ? getFormFieldName(config.metrics[1]) : 'Y-Axis');
         const bubbleSizeLabel = bubbleSizeField ? getFormFieldName(bubbleSizeField) : 'Size';
@@ -2446,7 +2471,7 @@ export function ChartPreview({
                 <RechartsScatterChart margin={{ top: 20, right: 30, left: 60, bottom: 80 }}>
                     <XAxis 
                       type="number" 
-                      dataKey={bubbleXKey}
+                      dataKey="x"
                       tick={{ fontSize: 11 }}
                       name={bubbleXLabel}
                       label={{ value: bubbleXLabel, position: 'insideBottom', offset: -5 }}
@@ -2454,7 +2479,7 @@ export function ChartPreview({
                     />
                     <YAxis 
                       type="number" 
-                      dataKey={bubbleYKey}
+                      dataKey="y"
                       tick={{ fontSize: 11 }}
                       name={bubbleYLabel}
                       label={{ value: bubbleYLabel, angle: -90, position: 'insideLeft' }}
@@ -2472,11 +2497,11 @@ export function ChartPreview({
                             <div className="space-y-1 text-sm">
                               <div className="flex justify-between gap-4">
                                 <span className="text-muted-foreground">{bubbleXLabel}:</span>
-                                <span className="font-semibold">{data.x ?? data[bubbleXKey]}</span>
+                                <span className="font-semibold">{data.x}</span>
                               </div>
                               <div className="flex justify-between gap-4">
                                 <span className="text-muted-foreground">{bubbleYLabel}:</span>
-                                <span className="font-semibold">{data.y ?? data[bubbleYKey]}</span>
+                                <span className="font-semibold">{data.y}</span>
                               </div>
                               {bubbleSizeField && (
                                 <div className="flex justify-between gap-4">
