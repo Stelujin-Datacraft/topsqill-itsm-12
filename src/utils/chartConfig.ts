@@ -79,6 +79,29 @@ export function getFieldDisplayName(field: FormField, formName?: string): string
   return formName ? `${formName}.${field.label}` : field.label;
 }
 
+// Field types that can NEVER be used in charts (static/layout/binary/complex)
+export const UNSUPPORTED_CHART_FIELDS = [
+  'header', 'description', 'section-break', 'horizontal-line', 'full-width-container',
+  'rich-text', 'record-table', 'matrix-grid', 'file', 'image', 'signature', 'color',
+  'geo-location', 'address', 'cross-reference', 'child-cross-reference', 
+  'workflow-trigger', 'query-field', 'conditional-section', 'group-picker', 
+  'submission-access', 'ip-address'
+];
+
+// Field types that can be used as DIMENSIONS (grouping/X-axis)
+export const DIMENSION_FIELD_TYPES = [
+  'text', 'textarea', 'select', 'multi-select', 'dropdown', 'radio', 'checkbox',
+  'date', 'datetime', 'time', 'email', 'url', 'tel', 'phone', 'country', 'tags',
+  'toggle-switch', 'barcode',
+  // Numeric fields can also be dimensions (for grouping by value ranges)
+  'number', 'currency', 'rating', 'slider'
+];
+
+// Field types that can be used as METRICS (values/Y-axis) - must be numeric
+export const METRIC_FIELD_TYPES = [
+  'number', 'currency', 'rating', 'slider', 'calculated'
+];
+
 export function categorizeFields(fields: FormField[]): { [category: string]: ChartFieldOption[] } {
   const categories: { [category: string]: ChartFieldOption[] } = {
     dimensions: [],
@@ -93,6 +116,12 @@ export function categorizeFields(fields: FormField[]): { [category: string]: Cha
 
   fields.forEach(field => {
     const fieldType = getFieldType(field);
+    
+    // Skip unsupported field types entirely
+    if (UNSUPPORTED_CHART_FIELDS.includes(fieldType)) {
+      return;
+    }
+    
     const option: ChartFieldOption = {
       id: field.id,
       label: field.label,
@@ -100,15 +129,19 @@ export function categorizeFields(fields: FormField[]): { [category: string]: Cha
       category: ''
     };
 
-    // Dimensions: Categorical data that can be used for grouping
-    if (['text', 'select', 'radio', 'checkbox', 'date', 'datetime', 'email', 'url', 'tel', 'dropdown', 'multi-select'].includes(fieldType)) {
-      option.category = 'dimensions';
-      categories.dimensions.push(option);
-    } 
     // Metrics: Numeric data that can be measured and aggregated
-    else if (['number', 'currency', 'rating', 'slider'].includes(fieldType)) {
+    if (METRIC_FIELD_TYPES.includes(fieldType)) {
       option.category = 'metrics';
       categories.metrics.push(option);
+      
+      // Numeric fields can also be used as dimensions for grouping
+      const dimensionOption: ChartFieldOption = { ...option, category: 'dimensions' };
+      categories.dimensions.push(dimensionOption);
+    } 
+    // Dimensions: Categorical data that can be used for grouping
+    else if (DIMENSION_FIELD_TYPES.includes(fieldType)) {
+      option.category = 'dimensions';
+      categories.dimensions.push(option);
     } 
     // Other fields that don't fit standard metric/dimension categories
     else {
@@ -122,18 +155,20 @@ export function categorizeFields(fields: FormField[]): { [category: string]: Cha
 
 export function getMetricCompatibleFields(fields: FormField[]): FormField[] {
   return fields.filter(field => {
-    // Support both .type and .field_type
     const fieldType = (field as any).field_type || field.type || '';
-    return ['number', 'currency', 'rating', 'slider'].includes(fieldType);
+    return METRIC_FIELD_TYPES.includes(fieldType);
   });
 }
 
 export function getDimensionCompatibleFields(fields: FormField[]): FormField[] {
   return fields.filter(field => {
-    // Support both .type and .field_type
     const fieldType = (field as any).field_type || field.type || '';
-    return ['text', 'select', 'radio', 'checkbox', 'date', 'datetime', 'email', 'url', 'tel', 'dropdown', 'multi-select'].includes(fieldType);
+    return DIMENSION_FIELD_TYPES.includes(fieldType) && !UNSUPPORTED_CHART_FIELDS.includes(fieldType);
   });
+}
+
+export function isChartCompatibleField(fieldType: string): boolean {
+  return !UNSUPPORTED_CHART_FIELDS.includes(fieldType);
 }
 
 export function getCompatibleAggregations(fieldType: string): AggregationOption[] {
@@ -147,7 +182,8 @@ export function getCompatibleAggregations(fieldType: string): AggregationOption[
     { value: 'stddev', label: 'Standard Deviation', description: 'Standard deviation' }
   ];
 
-  if (['number', 'currency', 'rating', 'slider'].includes(fieldType)) {
+  // Numeric fields support all aggregations
+  if (METRIC_FIELD_TYPES.includes(fieldType)) {
     return allAggregations;
   }
 
