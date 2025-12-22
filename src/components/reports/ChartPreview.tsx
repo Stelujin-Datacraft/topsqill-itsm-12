@@ -1447,7 +1447,7 @@ export function ChartPreview({
     // Sanitize chart data - ensure all numeric values are valid numbers (not NaN/undefined)
     // Preserve string values for display fields (xRaw, yRaw, field names, IDs)
     const preserveAsStringKeys = ['name', '_drilldownData', 'xRaw', 'yRaw', 'xFieldName', 'yFieldName', 'submissionId', '_legendMapping', 'rawSecondaryValue', 'rawYValue', '_isCompareEncoded'];
-    const sanitizedChartData = chartData.map(item => {
+    let sanitizedChartData = chartData.map(item => {
       const sanitized: any = { name: item.name || 'Unknown' };
       Object.keys(item).forEach(key => {
         if (preserveAsStringKeys.includes(key)) {
@@ -1459,6 +1459,11 @@ export function ChartPreview({
       });
       return sanitized;
     });
+
+    // Apply maxDataPoints limit if configured
+    if (config.maxDataPoints && config.maxDataPoints > 0) {
+      sanitizedChartData = sanitizedChartData.slice(0, config.maxDataPoints);
+    }
 
     // Calculate safe domain for Y axis to prevent NaN errors - use 0.5 increments
     const getYAxisDomain = (data: any[], metricKey: string): [number, number] => {

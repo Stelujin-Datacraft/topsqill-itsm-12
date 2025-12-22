@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { X, PieChart, Tag, Calculator, Info } from 'lucide-react';
+import { MaxDataPointsControl } from './MaxDataPointsControl';
 
 interface PieDonutDataSectionProps {
   config: ChartConfig;
@@ -245,6 +246,15 @@ export function PieDonutDataSection({ config, formFields, onConfigChange, chartT
           </p>
         </CardContent>
       </Card>
+
+      {/* Step 3: Max Data Points */}
+      <MaxDataPointsControl 
+        config={config} 
+        onConfigChange={onConfigChange}
+        stepNumber={3}
+        label="Max Slices"
+        description="Limit the number of slices shown (others grouped as 'Other')"
+      />
 
       {/* Summary */}
       <Card className={selectedDimension ? 'border-green-500/50 bg-green-50/50 dark:bg-green-950/20' : 'border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20'}>
