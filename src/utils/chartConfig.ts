@@ -85,14 +85,14 @@ export const UNSUPPORTED_CHART_FIELDS = [
   'rich-text', 'record-table', 'matrix-grid', 'file', 'image', 'signature', 'color',
   'geo-location', 'address', 'cross-reference', 'child-cross-reference', 
   'workflow-trigger', 'query-field', 'conditional-section', 'group-picker', 
-  'submission-access', 'ip-address'
+  'submission-access', 'ip-address', 'barcode'
 ];
 
 // Field types that can be used as DIMENSIONS (grouping/X-axis)
 export const DIMENSION_FIELD_TYPES = [
   'text', 'textarea', 'select', 'multi-select', 'dropdown', 'radio', 'checkbox',
   'date', 'datetime', 'time', 'email', 'url', 'tel', 'phone', 'country', 'tags',
-  'toggle-switch', 'barcode',
+  'toggle-switch',
   // Numeric fields can also be dimensions (for grouping by value ranges)
   'number', 'currency', 'rating', 'slider'
 ];
