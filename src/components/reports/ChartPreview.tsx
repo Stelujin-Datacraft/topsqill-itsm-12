@@ -1764,11 +1764,11 @@ export function ChartPreview({
                           <div className="font-medium mb-2">{data.name}</div>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between gap-4">
-                              <span className="text-muted-foreground">{field1Name}:</span>
+                              <span className="text-muted-foreground">{field1Name} (X):</span>
                               <span className="font-semibold">{data.x}</span>
                             </div>
                             <div className="flex justify-between gap-4">
-                              <span className="text-muted-foreground">{field2Name}:</span>
+                              <span className="text-muted-foreground">{field2Name} (Y):</span>
                               <span className="font-semibold">{data.y}</span>
                             </div>
                           </div>
@@ -1776,7 +1776,11 @@ export function ChartPreview({
                       );
                     }}
                   />
-                  <Bar 
+                  <Legend 
+                    wrapperStyle={{ paddingTop: '10px' }}
+                    formatter={(value) => <span className="text-foreground">{value}</span>}
+                  />
+                  <Bar
                     dataKey="y" 
                     name={field2Name} 
                     style={{ cursor: 'pointer' }}
@@ -1871,7 +1875,11 @@ export function ChartPreview({
                       );
                     }}
                   />
-                  <Bar 
+                  <Legend 
+                    wrapperStyle={{ paddingTop: '10px' }}
+                    formatter={(value) => <span className="text-foreground">{value}</span>}
+                  />
+                  <Bar
                     dataKey="y" 
                     name={field2Name} 
                     style={{ cursor: 'pointer' }}
