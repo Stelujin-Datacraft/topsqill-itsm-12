@@ -368,11 +368,29 @@ export const evaluateFilterCondition = (
   const normalizedFilterValue = filterValue.toLowerCase();
 
   switch (operator) {
-    case 'equals':
+    case 'equals': {
+      // For currency and numeric fields, use numeric comparison for equals
+      if (fieldType === 'currency' || fieldType === 'number' || fieldType === 'rating' || fieldType === 'slider') {
+        const numValue = extractNumericValue(value);
+        const numFilter = parseFloat(filterValue);
+        if (numValue !== null && !isNaN(numFilter)) {
+          return numValue === numFilter;
+        }
+      }
       return valueEquals(value, filterValue, fieldType);
+    }
     
-    case 'not_equals':
+    case 'not_equals': {
+      // For currency and numeric fields, use numeric comparison for not equals
+      if (fieldType === 'currency' || fieldType === 'number' || fieldType === 'rating' || fieldType === 'slider') {
+        const numValue = extractNumericValue(value);
+        const numFilter = parseFloat(filterValue);
+        if (numValue !== null && !isNaN(numFilter)) {
+          return numValue !== numFilter;
+        }
+      }
       return !valueEquals(value, filterValue, fieldType);
+    }
     
     case 'contains':
       // For arrays, check if any element contains the filter value

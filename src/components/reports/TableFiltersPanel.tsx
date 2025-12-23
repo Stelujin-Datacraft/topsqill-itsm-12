@@ -475,6 +475,52 @@ export function TableFiltersPanel({
       const maxRating = customConfig?.maxRating || 5;
       const ratingOptions = Array.from({ length: maxRating }, (_, i) => i + 1);
       
+      // Handle "between" operator with two inputs
+      if (condition.operator === 'between') {
+        const [startVal, endVal] = (condition.value || '').split(',').map(v => v.trim());
+        return (
+          <div className="flex gap-2 items-center flex-1">
+            <Select
+              value={startVal || ''}
+              onValueChange={(value) => {
+                const newValue = `${value},${endVal || ''}`;
+                updateCondition(groupId, condition.id, { value: newValue });
+              }}
+            >
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="From" />
+              </SelectTrigger>
+              <SelectContent className="bg-background border shadow-lg z-50">
+                {ratingOptions.map((rating) => (
+                  <SelectItem key={rating} value={String(rating)}>
+                    {'★'.repeat(rating)} ({rating})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-muted-foreground">to</span>
+            <Select
+              value={endVal || ''}
+              onValueChange={(value) => {
+                const newValue = `${startVal || ''},${value}`;
+                updateCondition(groupId, condition.id, { value: newValue });
+              }}
+            >
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="To" />
+              </SelectTrigger>
+              <SelectContent className="bg-background border shadow-lg z-50">
+                {ratingOptions.map((rating) => (
+                  <SelectItem key={rating} value={String(rating)}>
+                    {'★'.repeat(rating)} ({rating})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        );
+      }
+      
       return (
         <Select
           value={condition.value}

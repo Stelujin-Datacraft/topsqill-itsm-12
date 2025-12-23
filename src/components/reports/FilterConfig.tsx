@@ -283,6 +283,56 @@ export function FilterConfig({
       const customConfig = (field as any)?.custom_config || (field as any)?.customConfig;
       const maxRating = customConfig?.maxRating || (field as any)?.validation?.max || 5;
       const ratingOptions = Array.from({ length: maxRating }, (_, i) => i + 1);
+      
+      // Handle "between" operator with two inputs
+      if (filter.operator === 'between') {
+        const [startVal, endVal] = (filter.value || '').split(',').map(v => v.trim());
+        return (
+          <div className="space-y-2">
+            <Label>Rating Range (1 - {maxRating})</Label>
+            <div className="flex gap-2 items-center">
+              <Select
+                value={startVal || ''}
+                onValueChange={(value) => {
+                  const newValue = `${value},${endVal || ''}`;
+                  updateFilter(index, { value: newValue });
+                }}
+              >
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="From" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  {ratingOptions.map((rating) => (
+                    <SelectItem key={rating} value={String(rating)}>
+                      {'★'.repeat(rating)} ({rating})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-muted-foreground">to</span>
+              <Select
+                value={endVal || ''}
+                onValueChange={(value) => {
+                  const newValue = `${startVal || ''},${value}`;
+                  updateFilter(index, { value: newValue });
+                }}
+              >
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="To" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  {ratingOptions.map((rating) => (
+                    <SelectItem key={rating} value={String(rating)}>
+                      {'★'.repeat(rating)} ({rating})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        );
+      }
+      
       return (
         <div className="space-y-2">
           <Label>Value</Label>
