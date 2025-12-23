@@ -1314,9 +1314,6 @@ export function ChartPreview({
     
     if (!dimensionValue) return;
     
-    // Check if this is a single record with a direct submissionId
-    const submissionId = payload?.submissionId;
-    
     // Get dimensionField from the data payload (xFieldName) or fallback to config
     const dimensionField = payload?.xFieldName || config.dimensions?.[0] || config.xAxis || '';
     const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Field';
@@ -1329,13 +1326,12 @@ export function ChartPreview({
       }
       const currentLevel = drilldownState?.values?.length || 0;
       if (currentLevel >= drilldownLevels.length) {
-        // At final level - show submissions dialog
+        // At final level - show submissions dialog (always show list with view button)
         setCellSubmissionsDialog({
           open: true,
           dimensionField,
           dimensionValue,
           dimensionLabel,
-          submissionId,
         });
         return;
       }
@@ -1347,13 +1343,12 @@ export function ChartPreview({
       }
     }
     
-    // No drilldown enabled - open submissions dialog
+    // No drilldown enabled - open submissions dialog (always show list with view button)
     setCellSubmissionsDialog({
       open: true,
       dimensionField,
       dimensionValue,
       dimensionLabel,
-      submissionId,
     });
   };
   const handleChartClick = (data: any, event?: any) => {
