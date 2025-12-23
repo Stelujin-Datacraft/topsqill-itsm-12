@@ -479,7 +479,7 @@ export function TableFiltersPanel({
       if (condition.operator === 'between') {
         const [startVal, endVal] = (condition.value || '').split(',').map(v => v.trim());
         return (
-          <div className="flex gap-2 items-center flex-1">
+          <div className="flex gap-2 items-center w-48 min-w-0">
             <Select
               value={startVal || ''}
               onValueChange={(value) => {
@@ -487,7 +487,7 @@ export function TableFiltersPanel({
                 updateCondition(groupId, condition.id, { value: newValue });
               }}
             >
-              <SelectTrigger className="flex-1">
+              <SelectTrigger className="flex-1 min-w-0">
                 <SelectValue placeholder="From" />
               </SelectTrigger>
               <SelectContent className="bg-background border shadow-lg z-50">
@@ -498,7 +498,7 @@ export function TableFiltersPanel({
                 ))}
               </SelectContent>
             </Select>
-            <span className="text-muted-foreground">to</span>
+            <span className="text-muted-foreground text-xs">to</span>
             <Select
               value={endVal || ''}
               onValueChange={(value) => {
@@ -506,7 +506,7 @@ export function TableFiltersPanel({
                 updateCondition(groupId, condition.id, { value: newValue });
               }}
             >
-              <SelectTrigger className="flex-1">
+              <SelectTrigger className="flex-1 min-w-0">
                 <SelectValue placeholder="To" />
               </SelectTrigger>
               <SelectContent className="bg-background border shadow-lg z-50">
@@ -546,7 +546,7 @@ export function TableFiltersPanel({
       if (condition.operator === 'between') {
         const [startDate, endDate] = (condition.value || '').split(',').map(v => v.trim());
         return (
-          <div className="flex gap-2 items-center flex-1">
+          <div className="flex gap-2 items-center w-64 min-w-0">
             <Input
               type="date"
               value={startDate || ''}
@@ -554,9 +554,9 @@ export function TableFiltersPanel({
                 const newValue = `${e.target.value},${endDate || ''}`;
                 updateCondition(groupId, condition.id, { value: newValue });
               }}
-              className="flex-1"
+              className="flex-1 min-w-0"
             />
-            <span className="text-muted-foreground">to</span>
+            <span className="text-muted-foreground text-xs">to</span>
             <Input
               type="date"
               value={endDate || ''}
@@ -564,7 +564,7 @@ export function TableFiltersPanel({
                 const newValue = `${startDate || ''},${e.target.value}`;
                 updateCondition(groupId, condition.id, { value: newValue });
               }}
-              className="flex-1"
+              className="flex-1 min-w-0"
             />
           </div>
         );
@@ -621,7 +621,7 @@ export function TableFiltersPanel({
       if (condition.operator === 'between') {
         const [startDate, endDate] = (condition.value || '').split(',').map(v => v.trim());
         return (
-          <div className="flex gap-2 items-center flex-1">
+          <div className="flex gap-2 items-center w-80 min-w-0">
             <Input
               type="datetime-local"
               value={startDate || ''}
@@ -629,9 +629,9 @@ export function TableFiltersPanel({
                 const newValue = `${e.target.value},${endDate || ''}`;
                 updateCondition(groupId, condition.id, { value: newValue });
               }}
-              className="flex-1"
+              className="flex-1 min-w-0"
             />
-            <span className="text-muted-foreground">to</span>
+            <span className="text-muted-foreground text-xs">to</span>
             <Input
               type="datetime-local"
               value={endDate || ''}
@@ -639,7 +639,7 @@ export function TableFiltersPanel({
                 const newValue = `${startDate || ''},${e.target.value}`;
                 updateCondition(groupId, condition.id, { value: newValue });
               }}
-              className="flex-1"
+              className="flex-1 min-w-0"
             />
           </div>
         );
@@ -696,7 +696,7 @@ export function TableFiltersPanel({
       if (condition.operator === 'between') {
         const [startTime, endTime] = (condition.value || '').split(',').map(v => v.trim());
         return (
-          <div className="flex gap-2 items-center flex-1">
+          <div className="flex gap-2 items-center w-48 min-w-0">
             <Input
               type="time"
               value={startTime || ''}
@@ -704,9 +704,9 @@ export function TableFiltersPanel({
                 const newValue = `${e.target.value},${endTime || ''}`;
                 updateCondition(groupId, condition.id, { value: newValue });
               }}
-              className="flex-1"
+              className="flex-1 min-w-0"
             />
-            <span className="text-muted-foreground">to</span>
+            <span className="text-muted-foreground text-xs">to</span>
             <Input
               type="time"
               value={endTime || ''}
@@ -714,7 +714,7 @@ export function TableFiltersPanel({
                 const newValue = `${startTime || ''},${e.target.value}`;
                 updateCondition(groupId, condition.id, { value: newValue });
               }}
-              className="flex-1"
+              className="flex-1 min-w-0"
             />
           </div>
         );
@@ -736,7 +736,7 @@ export function TableFiltersPanel({
       if (condition.operator === 'between') {
         const [startNum, endNum] = (condition.value || '').split(',').map(v => v.trim());
         return (
-          <div className="flex gap-2 items-center flex-1">
+          <div className="flex gap-2 items-center w-48 min-w-0">
             <Input
               type="number"
               value={startNum || ''}
@@ -745,9 +745,9 @@ export function TableFiltersPanel({
                 updateCondition(groupId, condition.id, { value: newValue });
               }}
               placeholder="From"
-              className="flex-1"
+              className="flex-1 min-w-0"
             />
-            <span className="text-muted-foreground">to</span>
+            <span className="text-muted-foreground text-xs">to</span>
             <Input
               type="number"
               value={endNum || ''}
@@ -756,7 +756,7 @@ export function TableFiltersPanel({
                 updateCondition(groupId, condition.id, { value: newValue });
               }}
               placeholder="To"
-              className="flex-1"
+              className="flex-1 min-w-0"
             />
           </div>
         );
