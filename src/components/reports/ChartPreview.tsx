@@ -3039,7 +3039,19 @@ export function ChartPreview({
                     const rowPercentage = grandTotal > 0 ? ((rowTotal / grandTotal) * 100).toFixed(1) : '0.0';
                     
                     return (
-                      <tr key={index} className="hover:bg-muted/50">
+                      <tr 
+                        key={index} 
+                        className="hover:bg-muted/50 cursor-pointer"
+                        onClick={() => {
+                          const dimField = config.dimensions?.[0] || config.xAxis || '';
+                          setCellSubmissionsDialog({
+                            open: true,
+                            dimensionField: dimField,
+                            dimensionValue: row.name,
+                            dimensionLabel: dimensionLabel,
+                          });
+                        }}
+                      >
                         <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-foreground">
                           {row.name}
                         </td>
