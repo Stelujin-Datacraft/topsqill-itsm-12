@@ -61,6 +61,12 @@ const FILTER_OPERATORS = {
     { value: 'last_days', label: 'Last N days' },
     { value: 'next_days', label: 'Next N days' }
   ],
+  time: [
+    { value: 'equals', label: 'At time' },
+    { value: 'after', label: 'After' },
+    { value: 'before', label: 'Before' },
+    { value: 'between', label: 'Between times' }
+  ],
   select: [
     { value: 'equals', label: 'Equals' },
     { value: 'not_equals', label: 'Not equals' },
@@ -180,8 +186,9 @@ export function FilterConfig({
         return 'number';
       case 'date':
       case 'datetime':
-      case 'time':
         return 'date';
+      case 'time':
+        return 'time';
       case 'select':
       case 'radio':
       case 'multi-select':
@@ -305,6 +312,45 @@ export function FilterConfig({
       const max = (field as any)?.validation?.max || customConfig?.max || 100;
       const step = (field as any)?.validation?.step || customConfig?.step || 1;
       
+      // Handle "between" operator with two inputs
+      if (filter.operator === 'between') {
+        const [startVal, endVal] = (filter.value || '').split(',').map(v => v.trim());
+        return (
+          <div className="space-y-2">
+            <Label>Range ({min} - {max})</Label>
+            <div className="flex gap-2 items-center">
+              <Input
+                type="number"
+                min={min}
+                max={max}
+                step={step}
+                value={startVal || ''}
+                onChange={(e) => {
+                  const newValue = `${e.target.value},${endVal || ''}`;
+                  updateFilter(index, { value: newValue });
+                }}
+                placeholder="From"
+                className="flex-1"
+              />
+              <span className="text-muted-foreground">to</span>
+              <Input
+                type="number"
+                min={min}
+                max={max}
+                step={step}
+                value={endVal || ''}
+                onChange={(e) => {
+                  const newValue = `${startVal || ''},${e.target.value}`;
+                  updateFilter(index, { value: newValue });
+                }}
+                placeholder="To"
+                className="flex-1"
+              />
+            </div>
+          </div>
+        );
+      }
+      
       // Generate options based on min/max/step
       const sliderOptions: number[] = [];
       for (let val = min; val <= max; val += step) {
@@ -411,6 +457,39 @@ export function FilterConfig({
 
     // Handle time field type
     if (rawFieldType === 'time') {
+      // Handle "between" operator with two time inputs
+      if (filter.operator === 'between') {
+        const [startTime, endTime] = (filter.value || '').split(',').map(v => v.trim());
+        return (
+          <div className="space-y-2">
+            <Label>Time Range</Label>
+            <div className="flex gap-2 items-center">
+              <Input
+                type="time"
+                value={startTime || ''}
+                onChange={(e) => {
+                  const newValue = `${e.target.value},${endTime || ''}`;
+                  updateFilter(index, { value: newValue });
+                }}
+                placeholder="From"
+                className="flex-1"
+              />
+              <span className="text-muted-foreground">to</span>
+              <Input
+                type="time"
+                value={endTime || ''}
+                onChange={(e) => {
+                  const newValue = `${startTime || ''},${e.target.value}`;
+                  updateFilter(index, { value: newValue });
+                }}
+                placeholder="To"
+                className="flex-1"
+              />
+            </div>
+          </div>
+        );
+      }
+      
       return (
         <div className="space-y-2">
           <Label>Value</Label>
@@ -1099,6 +1178,81 @@ export function FilterConfig({
 
     // Handle date field type
     if (rawFieldType === 'date') {
+      // Handle "between" operator with two date inputs
+      if (filter.operator === 'between') {
+        const [startDate, endDate] = (filter.value || '').split(',').map(v => v.trim());
+        return (
+          <div className="space-y-2">
+            <Label>Date Range</Label>
+            <div className="flex gap-2 items-center">
+              <Input
+                type="date"
+                value={startDate || ''}
+                onChange={(e) => {
+                  const newValue = `${e.target.value},${endDate || ''}`;
+                  updateFilter(index, { value: newValue });
+                }}
+                placeholder="From"
+                className="flex-1"
+              />
+              <span className="text-muted-foreground">to</span>
+              <Input
+                type="date"
+                value={endDate || ''}
+                onChange={(e) => {
+                  const newValue = `${startDate || ''},${e.target.value}`;
+                  updateFilter(index, { value: newValue });
+                }}
+                placeholder="To"
+                className="flex-1"
+              />
+            </div>
+          </div>
+        );
+      }
+      
+      // Handle "last_days" operator
+      if (filter.operator === 'last_days') {
+        return (
+          <div className="space-y-2">
+            <Label>Number of Days</Label>
+            <div className="flex gap-2 items-center">
+              <span className="text-muted-foreground whitespace-nowrap">Last</span>
+              <Input
+                type="number"
+                min={1}
+                value={filter.value}
+                onChange={(e) => updateFilter(index, { value: e.target.value })}
+                placeholder="N"
+                className="w-24"
+              />
+              <span className="text-muted-foreground">days</span>
+            </div>
+          </div>
+        );
+      }
+      
+      // Handle "next_days" operator
+      if (filter.operator === 'next_days') {
+        return (
+          <div className="space-y-2">
+            <Label>Number of Days</Label>
+            <div className="flex gap-2 items-center">
+              <span className="text-muted-foreground whitespace-nowrap">Next</span>
+              <Input
+                type="number"
+                min={1}
+                value={filter.value}
+                onChange={(e) => updateFilter(index, { value: e.target.value })}
+                placeholder="N"
+                className="w-24"
+              />
+              <span className="text-muted-foreground">days</span>
+            </div>
+          </div>
+        );
+      }
+      
       return (
         <div className="space-y-2">
           <Label>Value</Label>
@@ -1114,6 +1268,39 @@ export function FilterConfig({
 
     // Handle number/currency field types
     if (rawFieldType === 'number' || rawFieldType === 'currency') {
+      // Handle "between" operator with two number inputs
+      if (filter.operator === 'between') {
+        const [startNum, endNum] = (filter.value || '').split(',').map(v => v.trim());
+        return (
+          <div className="space-y-2">
+            <Label>Number Range</Label>
+            <div className="flex gap-2 items-center">
+              <Input
+                type="number"
+                value={startNum || ''}
+                onChange={(e) => {
+                  const newValue = `${e.target.value},${endNum || ''}`;
+                  updateFilter(index, { value: newValue });
+                }}
+                placeholder="From"
+                className="flex-1"
+              />
+              <span className="text-muted-foreground">to</span>
+              <Input
+                type="number"
+                value={endNum || ''}
+                onChange={(e) => {
+                  const newValue = `${startNum || ''},${e.target.value}`;
+                  updateFilter(index, { value: newValue });
+                }}
+                placeholder="To"
+                className="flex-1"
+              />
+            </div>
+          </div>
+        );
+      }
+      
       return (
         <div className="space-y-2">
           <Label>Value</Label>
