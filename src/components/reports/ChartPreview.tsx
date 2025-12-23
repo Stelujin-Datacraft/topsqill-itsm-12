@@ -2433,27 +2433,30 @@ export function ChartPreview({
                 // Render separate lines for each dimension value
                 dimensionKeys.map((key, index) => <Line key={key} type="monotone" dataKey={key} stroke={colors[index % colors.length]} strokeWidth={3} name={key} dot={{
                   fill: colors[index % colors.length],
+                  stroke: 'hsl(var(--background))',
                   strokeWidth: 2,
-                  r: 4,
+                  r: 5,
                   cursor: 'pointer',
                   onClick: (props: any) => handleBarClick(props, index)
-                }} activeDot={{ r: 8, stroke: colors[index % colors.length], strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, index) }} />) :
+                }} activeDot={{ r: 8, fill: colors[index % colors.length], stroke: 'hsl(var(--background))', strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, index) }} />) :
                 // Single dimension - render primary metric and additional metrics if any
                 <>
                         <Line type="monotone" dataKey={primaryMetric} stroke={colors[0]} strokeWidth={3} name={getFormFieldName(primaryMetric)} dot={{
                     fill: colors[0],
+                    stroke: 'hsl(var(--background))',
                     strokeWidth: 2,
-                    r: 4,
+                    r: 5,
                     cursor: 'pointer',
                     onClick: (props: any) => handleBarClick(props, 0)
-                  }} activeDot={{ r: 8, stroke: colors[0], strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} />
+                  }} activeDot={{ r: 8, fill: colors[0], stroke: 'hsl(var(--background))', strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} />
                         {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => <Line key={metric} type="monotone" dataKey={metric} stroke={colors[(index + 1) % colors.length]} strokeWidth={3} name={getFormFieldName(metric)} dot={{
                     fill: colors[(index + 1) % colors.length],
+                    stroke: 'hsl(var(--background))',
                     strokeWidth: 2,
-                    r: 4,
+                    r: 5,
                     cursor: 'pointer',
                     onClick: (props: any) => handleBarClick(props, index + 1)
-                  }} activeDot={{ r: 8, stroke: colors[(index + 1) % colors.length], strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, index + 1) }} />)}
+                  }} activeDot={{ r: 8, fill: colors[(index + 1) % colors.length], stroke: 'hsl(var(--background))', strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, index + 1) }} />)}
                      </>}
                 </RechartsLineChart>
               </ResponsiveContainer>
@@ -2511,8 +2514,8 @@ export function ChartPreview({
                     }}
                   />
                    
-                   <Area type="monotone" dataKey={primaryMetric} stroke={colors[0]} fill={colors[0]} fillOpacity={0.6} name={getFormFieldName(primaryMetric)} dot={{ r: 4, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} activeDot={{ r: 8, stroke: colors[0], strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} />
-                   {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => <Area key={metric} type="monotone" dataKey={metric} stroke={colors[(index + 1) % colors.length]} fill={colors[(index + 1) % colors.length]} fillOpacity={0.6} name={getFormFieldName(metric)} dot={{ r: 4, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, index + 1) }} activeDot={{ r: 8, stroke: colors[(index + 1) % colors.length], strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, index + 1) }} />)}
+                   <Area type="monotone" dataKey={primaryMetric} stroke={colors[0]} fill={colors[0]} fillOpacity={0.6} name={getFormFieldName(primaryMetric)} dot={{ r: 5, fill: colors[0], stroke: 'hsl(var(--background))', strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} activeDot={{ r: 8, fill: colors[0], stroke: 'hsl(var(--background))', strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} />
+                   {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => <Area key={metric} type="monotone" dataKey={metric} stroke={colors[(index + 1) % colors.length]} fill={colors[(index + 1) % colors.length]} fillOpacity={0.6} name={getFormFieldName(metric)} dot={{ r: 5, fill: colors[(index + 1) % colors.length], stroke: 'hsl(var(--background))', strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, index + 1) }} activeDot={{ r: 8, fill: colors[(index + 1) % colors.length], stroke: 'hsl(var(--background))', strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, index + 1) }} />)}
                 </RechartsAreaChart>
               </ResponsiveContainer>
             </div>
