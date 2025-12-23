@@ -24,7 +24,8 @@ import {
   User,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  ExternalLink
 } from 'lucide-react';
 import {
   Select,
@@ -33,6 +34,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { useReports } from '@/hooks/useReports';
 import { useFormSubmissionData } from '@/hooks/useFormSubmissionData';
 import { supabase } from '@/integrations/supabase/client';
@@ -70,6 +78,7 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [approvalFilter, setApprovalFilter] = useState<string>('all');
   const [formFields, setFormFields] = useState<FormField[]>([]);
+  const [selectedSubmission, setSelectedSubmission] = useState<{ id: string; refId: string } | null>(null);
   
   const { forms } = useReports();
   const { submissions, loading } = useFormSubmissionData(config.formId);
@@ -429,7 +438,7 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
               <TableRow 
                 key={submission.id || index}
                 className="cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => submission.id && navigate(`/submission/${submission.id}`)}
+                onClick={() => submission.id && setSelectedSubmission({ id: submission.id, refId: submission.id.slice(0, 8) })}
               >
                 {getDisplayColumns().map((column) => (
                   <TableCell key={column.id}>
@@ -451,6 +460,37 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
       <div className="text-sm text-muted-foreground text-center">
         Showing {Math.min(filteredAndSortedData.length, config.pageSize || 50)} of {filteredAndSortedData.length} submissions
       </div>
+      
+      {/* View Submission Dialog */}
+      <Dialog open={!!selectedSubmission} onOpenChange={(open) => !open && setSelectedSubmission(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>View Submission</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              You selected submission <span className="font-mono font-medium text-foreground">#{selectedSubmission?.refId}</span>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Would you like to view the full details of this submission?
+            </p>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setSelectedSubmission(null)}>
+              Cancel
+            </Button>
+            <Button onClick={() => {
+              if (selectedSubmission) {
+                navigate(`/submission/${selectedSubmission.id}`);
+                setSelectedSubmission(null);
+              }
+            }}>
+              <ExternalLink className="h-4 w-4 mr-2" />
+              View Submission
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
