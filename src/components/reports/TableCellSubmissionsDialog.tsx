@@ -6,7 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, ExternalLink, ChevronDown, ChevronRight, Maximize2, Minimize2, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Loader2, ExternalLink, ChevronDown, ChevronRight, Maximize2, Minimize2, Search, ArrowUpDown, ArrowUp, ArrowDown, Download, FileSpreadsheet, FileText } from 'lucide-react';
+import { exportData, ExportFormat } from '@/utils/exportUtils';
+import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -46,6 +48,7 @@ export function TableCellSubmissionsDialog({
   fieldLabels = {}
 }: TableCellSubmissionsDialogProps) {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [submissions, setSubmissions] = useState<SubmissionRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedSubmissions, setExpandedSubmissions] = useState<Set<string>>(new Set());
@@ -219,6 +222,54 @@ export function TableCellSubmissionsDialog({
     setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
   };
 
+  const handleExport = (format: ExportFormat) => {
+    if (filteredAndSortedSubmissions.length === 0) {
+      toast({
+        title: "No data to export",
+        description: "There are no submissions to export.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Prepare export data with flattened submission_data
+      const exportRows = filteredAndSortedSubmissions.map(submission => {
+        const row: Record<string, any> = {
+          'Submission ID': submission.submission_ref_id || submission.id
+        };
+        
+        // Add display fields if specified, otherwise add all submission_data fields
+        if (displayFields.length > 0) {
+          displayFields.forEach(fieldId => {
+            const label = fieldLabels[fieldId] || fieldId;
+            row[label] = formatFieldValue(submission.submission_data[fieldId]);
+          });
+        } else {
+          Object.entries(submission.submission_data).forEach(([key, value]) => {
+            row[key] = formatFieldValue(value);
+          });
+        }
+        
+        return row;
+      });
+
+      const filename = `submissions_${dimensionValue || 'all'}_${new Date().toISOString().split('T')[0]}`;
+      exportData(exportRows, format, filename);
+      
+      toast({
+        title: "Export successful",
+        description: `Exported ${exportRows.length} submissions to ${format.toUpperCase()}`
+      });
+    } catch (error) {
+      toast({
+        title: "Export failed",
+        description: "An error occurred while exporting data.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const getDialogTitle = () => {
     let title = `Submissions`;
     if (dimensionLabel && dimensionValue) {
@@ -337,6 +388,30 @@ export function TableCellSubmissionsDialog({
               ) : (
                 <ArrowDown className="h-4 w-4" />
               )}
+            </Button>
+          </div>
+
+          {/* Export Controls */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport('csv')}
+              title="Export to CSV"
+              className="h-10 px-3"
+            >
+              <FileText className="h-4 w-4 mr-1" />
+              CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport('excel')}
+              title="Export to Excel"
+              className="h-10 px-3"
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-1" />
+              Excel
             </Button>
           </div>
         </div>
