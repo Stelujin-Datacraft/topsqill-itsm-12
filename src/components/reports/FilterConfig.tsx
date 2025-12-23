@@ -1234,7 +1234,7 @@ export function FilterConfig({
         return (
           <div className="space-y-2">
             <Label>Date Range</Label>
-            <div className="flex gap-2 items-center">
+            <div className="flex flex-col gap-2">
               <Input
                 type="date"
                 value={startDate || ''}
@@ -1243,9 +1243,8 @@ export function FilterConfig({
                   updateFilter(index, { value: newValue });
                 }}
                 placeholder="From"
-                className="flex-1"
+                className="w-full"
               />
-              <span className="text-muted-foreground">to</span>
               <Input
                 type="date"
                 value={endDate || ''}
@@ -1254,7 +1253,7 @@ export function FilterConfig({
                   updateFilter(index, { value: newValue });
                 }}
                 placeholder="To"
-                className="flex-1"
+                className="w-full"
               />
             </div>
           </div>
@@ -1324,7 +1323,7 @@ export function FilterConfig({
         return (
           <div className="space-y-2">
             <Label>Number Range</Label>
-            <div className="flex gap-2 items-center">
+            <div className="flex flex-col gap-2">
               <Input
                 type="number"
                 value={startNum || ''}
@@ -1333,9 +1332,8 @@ export function FilterConfig({
                   updateFilter(index, { value: newValue });
                 }}
                 placeholder="From"
-                className="flex-1"
+                className="w-full"
               />
-              <span className="text-muted-foreground">to</span>
               <Input
                 type="number"
                 value={endNum || ''}
@@ -1344,7 +1342,7 @@ export function FilterConfig({
                   updateFilter(index, { value: newValue });
                 }}
                 placeholder="To"
-                className="flex-1"
+                className="w-full"
               />
             </div>
           </div>
