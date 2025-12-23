@@ -2962,14 +2962,12 @@ export function ChartPreview({
                 <tbody className="bg-background divide-y divide-border">
                   {sanitizedChartData.map((row, index) => (
                     <tr key={index} className="hover:bg-muted/50 cursor-pointer" onClick={() => {
-                      if (row.submissionId) {
-                        setCellSubmissionsDialog({
-                          open: true,
-                          dimensionField: field1,
-                          dimensionValue: row.name || String(row.x),
-                          submissionId: row.submissionId,
-                        });
-                      }
+                      setCellSubmissionsDialog({
+                        open: true,
+                        dimensionField: field1,
+                        dimensionValue: row.name || String(row.x),
+                        dimensionLabel: field1Name,
+                      });
                     }}>
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-foreground">
                         {row.name || `Record ${index + 1}`}
