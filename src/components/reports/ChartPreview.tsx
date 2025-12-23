@@ -2858,31 +2858,341 @@ export function ChartPreview({
               ))}
             </div>
           </div>;
-      case 'table':
-        return <div className="overflow-auto">
+      case 'table': {
+        // Get chart info for display
+        const tableChartInfo = getChartInfoSummary();
+        const effectiveAggregation = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
+        const isCompareMode = config.compareMode && config.metrics && config.metrics.length === 2;
+        const isCountMode = effectiveAggregation === 'count' && !isCompareMode;
+        
+        // Get dimension label
+        const dimensionField = config.dimensions?.[0] || config.xAxis;
+        const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Category';
+        
+        // Determine all column keys from data (for grouped/stacked charts)
+        const allKeys = new Set<string>();
+        sanitizedChartData.forEach(row => {
+          Object.keys(row).forEach(key => {
+            if (key !== 'name' && key !== 'value' && key !== 'submissionId' && 
+                key !== 'encodedValue' && key !== 'rawSecondaryValue' && key !== 'rawYValue' &&
+                key !== '_legendMapping' && key !== '_isCompareEncoded' &&
+                key !== 'x' && key !== 'y' && key !== 'xRaw' && key !== 'yRaw' &&
+                key !== 'xFieldName' && key !== 'yFieldName' && key !== 'count') {
+              allKeys.add(key);
+            }
+          });
+        });
+        const dataKeys = Array.from(allKeys);
+        const hasGroupedData = dataKeys.length > 0 && !dataKeys.includes(primaryMetric);
+        
+        // Calculate totals for each column
+        const columnTotals: { [key: string]: number } = {};
+        let grandTotal = 0;
+        
+        if (hasGroupedData) {
+          dataKeys.forEach(key => {
+            columnTotals[key] = sanitizedChartData.reduce((sum, row) => sum + (Number(row[key]) || 0), 0);
+            grandTotal += columnTotals[key];
+          });
+        } else {
+          // For single metric charts
+          const metricsToUse = config.metrics && config.metrics.length > 0 ? config.metrics : [primaryMetric];
+          metricsToUse.forEach(metric => {
+            columnTotals[metric] = sanitizedChartData.reduce((sum, row) => sum + (Number(row[metric]) || Number(row.value) || 0), 0);
+            grandTotal += columnTotals[metric];
+          });
+        }
+        
+        // Get aggregation label
+        const getAggregationLabel = (agg: string): string => {
+          const labels: { [key: string]: string } = {
+            count: 'Count',
+            sum: 'Sum',
+            avg: 'Average',
+            min: 'Minimum',
+            max: 'Maximum',
+            median: 'Median'
+          };
+          return labels[agg] || agg.charAt(0).toUpperCase() + agg.slice(1);
+        };
+        
+        // Compare mode table
+        if (isCompareMode) {
+          const field1 = config.metrics?.[0] || '';
+          const field2 = config.metrics?.[1] || '';
+          const field1Name = getFormFieldName(field1);
+          const field2Name = getFormFieldName(field2);
+          
+          return (
+            <div className="overflow-auto">
+              {/* Table Header Info */}
+              <div className="mb-3 p-3 bg-muted/50 rounded-lg border border-border">
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    Compare Mode
+                  </span>
+                  <span className="px-2 py-1 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                    X-Axis: {field1Name}
+                  </span>
+                  <span className="px-2 py-1 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                    Y-Axis: {field2Name}
+                  </span>
+                  {dimensionField && (
+                    <span className="px-2 py-1 rounded bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
+                      Grouped by: {dimensionLabel}
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              <table className="min-w-full divide-y divide-border">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
+                      {dimensionLabel || 'Record'}
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-foreground uppercase tracking-wider">
+                      {field1Name} (X)
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-foreground uppercase tracking-wider">
+                      {field2Name} (Y)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-background divide-y divide-border">
+                  {sanitizedChartData.map((row, index) => (
+                    <tr key={index} className="hover:bg-muted/50 cursor-pointer" onClick={() => {
+                      if (row.submissionId) {
+                        setCellSubmissionsDialog({
+                          open: true,
+                          dimensionField: field1,
+                          dimensionValue: row.name || String(row.x),
+                          submissionId: row.submissionId,
+                        });
+                      }
+                    }}>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-foreground">
+                        {row.name || `Record ${index + 1}`}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right tabular-nums">
+                        {typeof row.x === 'number' ? row.x.toLocaleString() : (row.xRaw || row.x)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right tabular-nums">
+                        {typeof row.y === 'number' ? row.y.toLocaleString() : (row.yRaw || row.y)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        }
+        
+        // Grouped/Stacked data table (when groupByField is used)
+        if (hasGroupedData) {
+          return (
+            <div className="overflow-auto">
+              {/* Table Header Info */}
+              <div className="mb-3 p-3 bg-muted/50 rounded-lg border border-border">
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    {getAggregationLabel(effectiveAggregation)}
+                  </span>
+                  <span className="px-2 py-1 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                    Grouped by: {dimensionLabel}
+                  </span>
+                  {config.groupByField && (
+                    <span className="px-2 py-1 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                      Segmented by: {getFormFieldName(config.groupByField)}
+                    </span>
+                  )}
+                  {config.dimensions?.[1] && (
+                    <span className="px-2 py-1 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                      Stacked by: {getFormFieldName(config.dimensions[1])}
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              <table className="min-w-full divide-y divide-border">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
+                      {dimensionLabel}
+                    </th>
+                    {dataKeys.map(key => (
+                      <th key={key} className="px-4 py-3 text-right text-xs font-semibold text-foreground uppercase tracking-wider">
+                        {key}
+                      </th>
+                    ))}
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-foreground uppercase tracking-wider bg-muted/80">
+                      Row Total
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-foreground uppercase tracking-wider bg-muted/80">
+                      % of Total
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-background divide-y divide-border">
+                  {sanitizedChartData.map((row, index) => {
+                    const rowTotal = dataKeys.reduce((sum, key) => sum + (Number(row[key]) || 0), 0);
+                    const rowPercentage = grandTotal > 0 ? ((rowTotal / grandTotal) * 100).toFixed(1) : '0.0';
+                    
+                    return (
+                      <tr key={index} className="hover:bg-muted/50">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-foreground">
+                          {row.name}
+                        </td>
+                        {dataKeys.map(key => (
+                          <td key={key} className="px-4 py-3 whitespace-nowrap text-sm text-right tabular-nums">
+                            {typeof row[key] === 'number' 
+                              ? (effectiveAggregation === 'avg' || effectiveAggregation === 'median' 
+                                  ? row[key].toFixed(2) 
+                                  : row[key].toLocaleString())
+                              : (row[key] ?? '-')}
+                          </td>
+                        ))}
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right tabular-nums font-semibold bg-muted/30">
+                          {effectiveAggregation === 'avg' || effectiveAggregation === 'median' 
+                            ? rowTotal.toFixed(2) 
+                            : rowTotal.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right tabular-nums bg-muted/30">
+                          {rowPercentage}%
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                {/* Footer with column totals */}
+                <tfoot className="bg-muted/70">
+                  <tr className="font-semibold">
+                    <td className="px-4 py-3 text-sm text-foreground">
+                      Total
+                    </td>
+                    {dataKeys.map(key => (
+                      <td key={key} className="px-4 py-3 text-sm text-right tabular-nums">
+                        {effectiveAggregation === 'avg' || effectiveAggregation === 'median' 
+                          ? columnTotals[key]?.toFixed(2) 
+                          : columnTotals[key]?.toLocaleString()}
+                      </td>
+                    ))}
+                    <td className="px-4 py-3 text-sm text-right tabular-nums bg-primary/10 font-bold">
+                      {effectiveAggregation === 'avg' || effectiveAggregation === 'median' 
+                        ? grandTotal.toFixed(2) 
+                        : grandTotal.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-right tabular-nums bg-primary/10 font-bold">
+                      100%
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          );
+        }
+        
+        // Standard single-metric table
+        const metricsToDisplay = config.metrics && config.metrics.length > 0 ? config.metrics : [primaryMetric];
+        const singleMetricTotal = sanitizedChartData.reduce((sum, row) => {
+          return sum + metricsToDisplay.reduce((mSum, m) => mSum + (Number(row[m]) || Number(row.value) || 0), 0);
+        }, 0);
+        
+        return (
+          <div className="overflow-auto">
+            {/* Table Header Info */}
+            <div className="mb-3 p-3 bg-muted/50 rounded-lg border border-border">
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  {getAggregationLabel(effectiveAggregation)}
+                  {!isCountMode && metricsToDisplay[0] && `: ${getFormFieldName(metricsToDisplay[0])}`}
+                </span>
+                <span className="px-2 py-1 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                  Grouped by: {dimensionLabel}
+                </span>
+                <span className="px-2 py-1 rounded bg-muted text-muted-foreground border border-border">
+                  {sanitizedChartData.length} categories
+                </span>
+              </div>
+            </div>
+            
             <table className="min-w-full divide-y divide-border">
               <thead className="bg-muted">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Category
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
+                    {dimensionLabel}
                   </th>
-                     {(config.metrics || [primaryMetric]).map(metric => <th key={metric} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                         {getFieldName(metric)}
-                       </th>)}
+                  {metricsToDisplay.map(metric => (
+                    <th key={metric} className="px-4 py-3 text-right text-xs font-semibold text-foreground uppercase tracking-wider">
+                      {isCountMode ? 'Count' : `${getAggregationLabel(effectiveAggregation)} of ${getFormFieldName(metric)}`}
+                    </th>
+                  ))}
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-foreground uppercase tracking-wider bg-muted/80">
+                    % of Total
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-background divide-y divide-border">
-                {sanitizedChartData.map((row, index) => <tr key={index} className="hover:bg-muted/50">
-                    <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">
-                      {row.name}
-                    </td>
-                    {(config.metrics || [primaryMetric]).map(metric => <td key={metric} className="px-4 py-2 whitespace-nowrap text-sm">
-                        {row[metric]}
-                      </td>)}
-                  </tr>)}
+                {sanitizedChartData.map((row, index) => {
+                  const rowValue = metricsToDisplay.reduce((sum, m) => sum + (Number(row[m]) || Number(row.value) || 0), 0);
+                  const percentage = singleMetricTotal > 0 ? ((rowValue / singleMetricTotal) * 100).toFixed(1) : '0.0';
+                  
+                  return (
+                    <tr 
+                      key={index} 
+                      className="hover:bg-muted/50 cursor-pointer"
+                      onClick={() => {
+                        const dimField = config.dimensions?.[0] || config.xAxis || '';
+                        setCellSubmissionsDialog({
+                          open: true,
+                          dimensionField: dimField,
+                          dimensionValue: row.name,
+                          dimensionLabel: dimensionLabel,
+                        });
+                      }}
+                    >
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-foreground">
+                        {row.name}
+                      </td>
+                      {metricsToDisplay.map(metric => {
+                        const value = Number(row[metric]) || Number(row.value) || 0;
+                        return (
+                          <td key={metric} className="px-4 py-3 whitespace-nowrap text-sm text-right tabular-nums">
+                            {effectiveAggregation === 'avg' || effectiveAggregation === 'median' 
+                              ? value.toFixed(2) 
+                              : value.toLocaleString()}
+                          </td>
+                        );
+                      })}
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right tabular-nums bg-muted/30">
+                        {percentage}%
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
+              {/* Footer with total */}
+              <tfoot className="bg-muted/70">
+                <tr className="font-semibold">
+                  <td className="px-4 py-3 text-sm text-foreground">
+                    Total
+                  </td>
+                  {metricsToDisplay.map(metric => (
+                    <td key={metric} className="px-4 py-3 text-sm text-right tabular-nums">
+                      {effectiveAggregation === 'avg' || effectiveAggregation === 'median' 
+                        ? singleMetricTotal.toFixed(2) 
+                        : singleMetricTotal.toLocaleString()}
+                    </td>
+                  ))}
+                  <td className="px-4 py-3 text-sm text-right tabular-nums bg-primary/10 font-bold">
+                    100%
+                  </td>
+                </tr>
+              </tfoot>
             </table>
-          </div>;
+          </div>
+        );
+      }
       default:
         return <div className="flex items-center justify-center h-64 text-muted-foreground">
             Chart type "{chartType}" not implemented yet
