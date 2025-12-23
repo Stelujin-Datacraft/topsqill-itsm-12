@@ -2018,11 +2018,11 @@ export function ChartPreview({
                   ticks={Array.from({ length: maxEncodedValue }, (_, i) => i + 1)}
                   allowDecimals={false}
                   label={{
-                    value: `${yAxisFieldName} (Encoded)`,
+                    value: yAxisFieldName,
                     angle: -90,
                     position: 'insideLeft',
                     offset: 10
-                  }} 
+                  }}
                 />
                 <Tooltip 
                   content={({ payload }) => {
