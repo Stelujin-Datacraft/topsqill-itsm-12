@@ -12,7 +12,7 @@ import { exportData, ExportFormat } from '@/utils/exportUtils';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { extractComparableValue } from '@/utils/filterUtils';
+import { extractComparableValue, extractNumericValue } from '@/utils/filterUtils';
 
 interface TableCellSubmissionsDialogProps {
   open: boolean;
@@ -58,10 +58,12 @@ export function TableCellSubmissionsDialog({
   const [searchQuery, setSearchQuery] = useState('');
   const [sortField, setSortField] = useState<string>('_submission_ref');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [fieldTypeMap, setFieldTypeMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (open && formId) {
       loadSubmissions();
+      loadFieldTypes();
       setExpandedSubmissions(new Set());
       setIsFullScreen(false);
       setSearchQuery('');
@@ -69,6 +71,25 @@ export function TableCellSubmissionsDialog({
       setSortDirection('desc');
     }
   }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId]);
+
+  const loadFieldTypes = async () => {
+    try {
+      const { data: fields, error } = await supabase
+        .from('form_fields')
+        .select('id, field_type')
+        .eq('form_id', formId);
+      
+      if (error) throw error;
+      
+      const typeMap: Record<string, string> = {};
+      fields?.forEach(field => {
+        typeMap[field.id] = field.field_type;
+      });
+      setFieldTypeMap(typeMap);
+    } catch (error) {
+      console.error('Error loading field types:', error);
+    }
+  };
 
   const loadSubmissions = async () => {
     setLoading(true);
@@ -191,35 +212,50 @@ export function TableCellSubmissionsDialog({
       if (sortField === '_submission_ref') {
         aValue = a.submission_ref_id || '';
         bValue = b.submission_ref_id || '';
-      } else {
-        aValue = a.submission_data[sortField];
-        bValue = b.submission_data[sortField];
+        // String comparison for submission ref
+        const comparison = (aValue as string).localeCompare(bValue as string, undefined, { numeric: true, sensitivity: 'base' });
+        return sortDirection === 'asc' ? comparison : -comparison;
       }
+      
+      aValue = a.submission_data[sortField];
+      bValue = b.submission_data[sortField];
       
       // Handle null/undefined
       if (aValue == null && bValue == null) return 0;
-      if (aValue == null) return sortDirection === 'asc' ? -1 : 1;
-      if (bValue == null) return sortDirection === 'asc' ? 1 : -1;
+      if (aValue == null) return sortDirection === 'asc' ? 1 : -1;
+      if (bValue == null) return sortDirection === 'asc' ? -1 : 1;
       
-      // Convert to comparable values
-      const aStr = formatFieldValue(aValue);
-      const bStr = formatFieldValue(bValue);
+      // Get field type for proper comparison
+      const fieldType = fieldTypeMap[sortField] || '';
       
-      // Try numeric comparison first
-      const aNum = parseFloat(aStr);
-      const bNum = parseFloat(bStr);
-      
-      if (!isNaN(aNum) && !isNaN(bNum)) {
+      // Numeric field types - use extractNumericValue for proper handling of currency, slider, rating
+      const numericTypes = ['number', 'currency', 'slider', 'rating', 'calculation'];
+      if (numericTypes.includes(fieldType)) {
+        const aNum = extractNumericValue(aValue) ?? 0;
+        const bNum = extractNumericValue(bValue) ?? 0;
         return sortDirection === 'asc' ? aNum - bNum : bNum - aNum;
       }
       
-      // Fall back to string comparison
+      // Date field types
+      const dateTypes = ['date', 'datetime', 'datetime-local', 'time'];
+      if (dateTypes.includes(fieldType)) {
+        const aDate = new Date(aValue).getTime();
+        const bDate = new Date(bValue).getTime();
+        if (!isNaN(aDate) && !isNaN(bDate)) {
+          return sortDirection === 'asc' ? aDate - bDate : bDate - aDate;
+        }
+      }
+      
+      // For address and other complex types, use extractComparableValue
+      const aStr = extractComparableValue(aValue, fieldType).toLowerCase();
+      const bStr = extractComparableValue(bValue, fieldType).toLowerCase();
+      
       const comparison = aStr.localeCompare(bStr, undefined, { numeric: true, sensitivity: 'base' });
       return sortDirection === 'asc' ? comparison : -comparison;
     });
     
     return result;
-  }, [submissions, searchQuery, sortField, sortDirection]);
+  }, [submissions, searchQuery, sortField, sortDirection, fieldTypeMap]);
 
   const toggleSortDirection = () => {
     setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
