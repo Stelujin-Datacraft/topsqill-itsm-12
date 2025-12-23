@@ -61,7 +61,9 @@ const OPERATORS = [
   { value: 'less_than', label: 'Less Than' },
   { value: 'between', label: 'Between' },
   { value: 'in', label: 'In List' },
-  { value: 'not_in', label: 'Not In List' }
+  { value: 'not_in', label: 'Not In List' },
+  { value: 'last_days', label: 'Last N Days' },
+  { value: 'next_days', label: 'Next N Days' }
 ];
 
 export function TableFiltersPanel({
@@ -494,6 +496,70 @@ export function TableFiltersPanel({
 
     // Handle date/datetime fields
     if (fieldType === 'date') {
+      // Handle "between" operator with two date inputs
+      if (condition.operator === 'between') {
+        const [startDate, endDate] = (condition.value || '').split(',').map(v => v.trim());
+        return (
+          <div className="flex gap-2 items-center flex-1">
+            <Input
+              type="date"
+              value={startDate || ''}
+              onChange={(e) => {
+                const newValue = `${e.target.value},${endDate || ''}`;
+                updateCondition(groupId, condition.id, { value: newValue });
+              }}
+              className="flex-1"
+            />
+            <span className="text-muted-foreground">to</span>
+            <Input
+              type="date"
+              value={endDate || ''}
+              onChange={(e) => {
+                const newValue = `${startDate || ''},${e.target.value}`;
+                updateCondition(groupId, condition.id, { value: newValue });
+              }}
+              className="flex-1"
+            />
+          </div>
+        );
+      }
+      
+      // Handle "last_days" operator
+      if (condition.operator === 'last_days') {
+        return (
+          <div className="flex gap-2 items-center flex-1">
+            <span className="text-muted-foreground whitespace-nowrap">Last</span>
+            <Input
+              type="number"
+              min={1}
+              value={condition.value}
+              onChange={(e) => updateCondition(groupId, condition.id, { value: e.target.value })}
+              placeholder="N"
+              className="w-20"
+            />
+            <span className="text-muted-foreground">days</span>
+          </div>
+        );
+      }
+      
+      // Handle "next_days" operator
+      if (condition.operator === 'next_days') {
+        return (
+          <div className="flex gap-2 items-center flex-1">
+            <span className="text-muted-foreground whitespace-nowrap">Next</span>
+            <Input
+              type="number"
+              min={1}
+              value={condition.value}
+              onChange={(e) => updateCondition(groupId, condition.id, { value: e.target.value })}
+              placeholder="N"
+              className="w-20"
+            />
+            <span className="text-muted-foreground">days</span>
+          </div>
+        );
+      }
+      
       return (
         <Input
           type="date"
@@ -505,6 +571,70 @@ export function TableFiltersPanel({
     }
 
     if (fieldType === 'datetime' || fieldType === 'date-time') {
+      // Handle "between" operator with two datetime inputs
+      if (condition.operator === 'between') {
+        const [startDate, endDate] = (condition.value || '').split(',').map(v => v.trim());
+        return (
+          <div className="flex gap-2 items-center flex-1">
+            <Input
+              type="datetime-local"
+              value={startDate || ''}
+              onChange={(e) => {
+                const newValue = `${e.target.value},${endDate || ''}`;
+                updateCondition(groupId, condition.id, { value: newValue });
+              }}
+              className="flex-1"
+            />
+            <span className="text-muted-foreground">to</span>
+            <Input
+              type="datetime-local"
+              value={endDate || ''}
+              onChange={(e) => {
+                const newValue = `${startDate || ''},${e.target.value}`;
+                updateCondition(groupId, condition.id, { value: newValue });
+              }}
+              className="flex-1"
+            />
+          </div>
+        );
+      }
+      
+      // Handle "last_days" operator
+      if (condition.operator === 'last_days') {
+        return (
+          <div className="flex gap-2 items-center flex-1">
+            <span className="text-muted-foreground whitespace-nowrap">Last</span>
+            <Input
+              type="number"
+              min={1}
+              value={condition.value}
+              onChange={(e) => updateCondition(groupId, condition.id, { value: e.target.value })}
+              placeholder="N"
+              className="w-20"
+            />
+            <span className="text-muted-foreground">days</span>
+          </div>
+        );
+      }
+      
+      // Handle "next_days" operator
+      if (condition.operator === 'next_days') {
+        return (
+          <div className="flex gap-2 items-center flex-1">
+            <span className="text-muted-foreground whitespace-nowrap">Next</span>
+            <Input
+              type="number"
+              min={1}
+              value={condition.value}
+              onChange={(e) => updateCondition(groupId, condition.id, { value: e.target.value })}
+              placeholder="N"
+              className="w-20"
+            />
+            <span className="text-muted-foreground">days</span>
+          </div>
+        );
+      }
+      
       return (
         <Input
           type="datetime-local"
@@ -516,6 +646,34 @@ export function TableFiltersPanel({
     }
 
     if (fieldType === 'time') {
+      // Handle "between" operator with two time inputs
+      if (condition.operator === 'between') {
+        const [startTime, endTime] = (condition.value || '').split(',').map(v => v.trim());
+        return (
+          <div className="flex gap-2 items-center flex-1">
+            <Input
+              type="time"
+              value={startTime || ''}
+              onChange={(e) => {
+                const newValue = `${e.target.value},${endTime || ''}`;
+                updateCondition(groupId, condition.id, { value: newValue });
+              }}
+              className="flex-1"
+            />
+            <span className="text-muted-foreground">to</span>
+            <Input
+              type="time"
+              value={endTime || ''}
+              onChange={(e) => {
+                const newValue = `${startTime || ''},${e.target.value}`;
+                updateCondition(groupId, condition.id, { value: newValue });
+              }}
+              className="flex-1"
+            />
+          </div>
+        );
+      }
+      
       return (
         <Input
           type="time"
@@ -528,6 +686,36 @@ export function TableFiltersPanel({
 
     // Handle number/currency/slider fields
     if (['number', 'currency', 'slider', 'range'].includes(fieldType)) {
+      // Handle "between" operator with two number inputs
+      if (condition.operator === 'between') {
+        const [startNum, endNum] = (condition.value || '').split(',').map(v => v.trim());
+        return (
+          <div className="flex gap-2 items-center flex-1">
+            <Input
+              type="number"
+              value={startNum || ''}
+              onChange={(e) => {
+                const newValue = `${e.target.value},${endNum || ''}`;
+                updateCondition(groupId, condition.id, { value: newValue });
+              }}
+              placeholder="From"
+              className="flex-1"
+            />
+            <span className="text-muted-foreground">to</span>
+            <Input
+              type="number"
+              value={endNum || ''}
+              onChange={(e) => {
+                const newValue = `${startNum || ''},${e.target.value}`;
+                updateCondition(groupId, condition.id, { value: newValue });
+              }}
+              placeholder="To"
+              className="flex-1"
+            />
+          </div>
+        );
+      }
+      
       return (
         <Input
           type="number"

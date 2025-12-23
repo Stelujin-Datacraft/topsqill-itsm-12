@@ -486,6 +486,8 @@ export const evaluateFilterCondition = (
     case 'between': {
       // Expects filterValue in format "start,end"
       const [start, end] = filterValue.split(',').map(v => v.trim());
+      
+      // Try numeric comparison first
       const numValue = extractNumericValue(value);
       if (numValue !== null) {
         const numStart = parseFloat(start);
@@ -494,6 +496,20 @@ export const evaluateFilterCondition = (
           return numValue >= numStart && numValue <= numEnd;
         }
       }
+      
+      // Try time comparison (format HH:MM or HH:MM:SS)
+      const timePattern = /^\d{1,2}:\d{2}(:\d{2})?$/;
+      if (timePattern.test(String(value)) && timePattern.test(start) && timePattern.test(end)) {
+        const normalizeTime = (t: string) => {
+          const parts = t.split(':').map(p => p.padStart(2, '0'));
+          return parts.join(':');
+        };
+        const timeValue = normalizeTime(String(value));
+        const timeStart = normalizeTime(start);
+        const timeEnd = normalizeTime(end);
+        return timeValue >= timeStart && timeValue <= timeEnd;
+      }
+      
       // Try date comparison
       const dateValue = new Date(value);
       const dateStart = new Date(start);
@@ -502,6 +518,38 @@ export const evaluateFilterCondition = (
         return dateValue >= dateStart && dateValue <= dateEnd;
       }
       return false;
+    }
+    
+    case 'last_days': {
+      // filterValue is the number of days
+      const days = parseInt(filterValue, 10);
+      if (isNaN(days) || days <= 0) return false;
+      
+      const dateValue = new Date(value);
+      if (isNaN(dateValue.getTime())) return false;
+      
+      const now = new Date();
+      const startDate = new Date(now);
+      startDate.setDate(now.getDate() - days);
+      startDate.setHours(0, 0, 0, 0);
+      
+      return dateValue >= startDate && dateValue <= now;
+    }
+    
+    case 'next_days': {
+      // filterValue is the number of days
+      const days = parseInt(filterValue, 10);
+      if (isNaN(days) || days <= 0) return false;
+      
+      const dateValue = new Date(value);
+      if (isNaN(dateValue.getTime())) return false;
+      
+      const now = new Date();
+      const endDate = new Date(now);
+      endDate.setDate(now.getDate() + days);
+      endDate.setHours(23, 59, 59, 999);
+      
+      return dateValue >= now && dateValue <= endDate;
     }
     
     default:
