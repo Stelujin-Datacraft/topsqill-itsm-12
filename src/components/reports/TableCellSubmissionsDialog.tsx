@@ -19,6 +19,7 @@ interface TableCellSubmissionsDialogProps {
   groupValue?: string;
   dimensionLabel?: string;
   groupLabel?: string;
+  submissionId?: string;
   displayFields?: string[];
   fieldLabels?: Record<string, string>;
 }
@@ -39,6 +40,7 @@ export function TableCellSubmissionsDialog({
   groupValue,
   dimensionLabel,
   groupLabel,
+  submissionId,
   displayFields = [],
   fieldLabels = {}
 }: TableCellSubmissionsDialogProps) {
@@ -56,11 +58,32 @@ export function TableCellSubmissionsDialog({
       setIsFullScreen(false);
       setSearchQuery('');
     }
-  }, [open, formId, dimensionField, dimensionValue, groupField, groupValue]);
+  }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId]);
 
   const loadSubmissions = async () => {
     setLoading(true);
     try {
+      // If we have a direct submissionId, fetch that specific record
+      if (submissionId) {
+        const { data, error } = await supabase
+          .from('form_submissions')
+          .select('id, submission_ref_id, submission_data')
+          .eq('id', submissionId)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (data) {
+          setSubmissions([{
+            ...data,
+            submission_data: (data.submission_data as Record<string, any>) || {}
+          }]);
+        } else {
+          setSubmissions([]);
+        }
+        return;
+      }
+
+      // Otherwise, query by dimension/group filters
       let query = supabase
         .from('form_submissions')
         .select('id, submission_ref_id, submission_data')

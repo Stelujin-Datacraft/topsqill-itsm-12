@@ -44,6 +44,7 @@ export function ChartPreview({
     groupValue?: string;
     dimensionLabel?: string;
     groupLabel?: string;
+    submissionId?: string;
   }>({
     open: false,
     dimensionField: '',
@@ -1313,6 +1314,9 @@ export function ChartPreview({
     
     if (!dimensionValue) return;
     
+    // Check if this is a single record with a direct submissionId
+    const submissionId = payload?.submissionId;
+    
     // Get dimensionField from the data payload (xFieldName) or fallback to config
     const dimensionField = payload?.xFieldName || config.dimensions?.[0] || config.xAxis || '';
     const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Field';
@@ -1331,6 +1335,7 @@ export function ChartPreview({
           dimensionField,
           dimensionValue,
           dimensionLabel,
+          submissionId,
         });
         return;
       }
@@ -1348,6 +1353,7 @@ export function ChartPreview({
       dimensionField,
       dimensionValue,
       dimensionLabel,
+      submissionId,
     });
   };
   const handleChartClick = (data: any, event?: any) => {
@@ -3145,6 +3151,7 @@ export function ChartPreview({
         groupValue={cellSubmissionsDialog.groupValue}
         dimensionLabel={cellSubmissionsDialog.dimensionLabel}
         groupLabel={cellSubmissionsDialog.groupLabel}
+        submissionId={cellSubmissionsDialog.submissionId}
         displayFields={config.displayFields || []}
         fieldLabels={formFields.reduce((acc, field) => {
           acc[field.id] = field.label || field.id;
