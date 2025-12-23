@@ -6,8 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, ExternalLink, ChevronDown, ChevronRight, Maximize2, Minimize2, Search } from 'lucide-react';
+import { Loader2, ExternalLink, ChevronDown, ChevronRight, Maximize2, Minimize2, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface TableCellSubmissionsDialogProps {
   open: boolean;
@@ -50,6 +51,8 @@ export function TableCellSubmissionsDialog({
   const [expandedSubmissions, setExpandedSubmissions] = useState<Set<string>>(new Set());
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortField, setSortField] = useState<string>('_submission_ref');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     if (open && formId) {
@@ -57,6 +60,8 @@ export function TableCellSubmissionsDialog({
       setExpandedSubmissions(new Set());
       setIsFullScreen(false);
       setSearchQuery('');
+      setSortField('_submission_ref');
+      setSortDirection('desc');
     }
   }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId]);
 
@@ -140,22 +145,79 @@ export function TableCellSubmissionsDialog({
     return String(value);
   };
 
-  // Filter submissions based on search query across all fields
-  const filteredSubmissions = useMemo(() => {
-    if (!searchQuery.trim()) return submissions;
+  // Get sortable fields (submission ref + display fields)
+  const sortableFields = useMemo(() => {
+    const fields: { value: string; label: string }[] = [
+      { value: '_submission_ref', label: 'Submission ID' }
+    ];
     
-    const query = searchQuery.toLowerCase();
-    return submissions.filter(submission => {
-      // Search in submission ref id
-      if (submission.submission_ref_id?.toLowerCase().includes(query)) return true;
-      
-      // Search in all submission data fields
-      return Object.values(submission.submission_data).some(value => {
-        const stringValue = formatFieldValue(value).toLowerCase();
-        return stringValue.includes(query);
+    displayFields.forEach(fieldId => {
+      fields.push({
+        value: fieldId,
+        label: fieldLabels[fieldId] || fieldId
       });
     });
-  }, [submissions, searchQuery]);
+    
+    return fields;
+  }, [displayFields, fieldLabels]);
+
+  // Filter and sort submissions
+  const filteredAndSortedSubmissions = useMemo(() => {
+    let result = [...submissions];
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(submission => {
+        if (submission.submission_ref_id?.toLowerCase().includes(query)) return true;
+        return Object.values(submission.submission_data).some(value => {
+          const stringValue = formatFieldValue(value).toLowerCase();
+          return stringValue.includes(query);
+        });
+      });
+    }
+    
+    // Apply sorting
+    result.sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+      
+      if (sortField === '_submission_ref') {
+        aValue = a.submission_ref_id || '';
+        bValue = b.submission_ref_id || '';
+      } else {
+        aValue = a.submission_data[sortField];
+        bValue = b.submission_data[sortField];
+      }
+      
+      // Handle null/undefined
+      if (aValue == null && bValue == null) return 0;
+      if (aValue == null) return sortDirection === 'asc' ? -1 : 1;
+      if (bValue == null) return sortDirection === 'asc' ? 1 : -1;
+      
+      // Convert to comparable values
+      const aStr = formatFieldValue(aValue);
+      const bStr = formatFieldValue(bValue);
+      
+      // Try numeric comparison first
+      const aNum = parseFloat(aStr);
+      const bNum = parseFloat(bStr);
+      
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        return sortDirection === 'asc' ? aNum - bNum : bNum - aNum;
+      }
+      
+      // Fall back to string comparison
+      const comparison = aStr.localeCompare(bStr, undefined, { numeric: true, sensitivity: 'base' });
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+    
+    return result;
+  }, [submissions, searchQuery, sortField, sortDirection]);
+
+  const toggleSortDirection = () => {
+    setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+  };
 
   const getDialogTitle = () => {
     let title = `Submissions`;
@@ -165,7 +227,7 @@ export function TableCellSubmissionsDialog({
     if (groupLabel && groupValue) {
       title += ` - ${groupLabel}: ${groupValue}`;
     }
-    return `${title} (${filteredSubmissions.length}${searchQuery ? ` of ${submissions.length}` : ''})`;
+    return `${title} (${filteredAndSortedSubmissions.length}${searchQuery ? ` of ${submissions.length}` : ''})`;
   };
 
   const hasDisplayFields = displayFields.length > 0;
@@ -211,7 +273,7 @@ export function TableCellSubmissionsDialog({
     ? "max-w-[95vw] w-[95vw] max-h-[95vh] h-[95vh]"
     : "max-w-3xl max-h-[80vh]";
 
-  const scrollAreaClass = isFullScreen ? "h-[calc(95vh-180px)]" : "max-h-[55vh]";
+  const scrollAreaClass = isFullScreen ? "h-[calc(95vh-220px)]" : "max-h-[50vh]";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -233,15 +295,50 @@ export function TableCellSubmissionsDialog({
           </Button>
         </DialogHeader>
         
-        {/* Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search across all fields..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
+        {/* Search and Sort Controls */}
+        <div className="flex gap-2 items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search across all fields..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          
+          {/* Sort Controls */}
+          <div className="flex items-center gap-1">
+            <Select value={sortField} onValueChange={setSortField}>
+              <SelectTrigger className="w-[160px] h-10">
+                <div className="flex items-center gap-2">
+                  <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  <SelectValue placeholder="Sort by..." />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                {sortableFields.map(field => (
+                  <SelectItem key={field.value} value={field.value}>
+                    {field.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={toggleSortDirection}
+              title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
+              className="h-10 w-10"
+            >
+              {sortDirection === 'asc' ? (
+                <ArrowUp className="h-4 w-4" />
+              ) : (
+                <ArrowDown className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         </div>
 
         <ScrollArea className={scrollAreaClass}>
@@ -250,9 +347,9 @@ export function TableCellSubmissionsDialog({
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               <span className="ml-2 text-muted-foreground">Loading submissions...</span>
             </div>
-          ) : filteredSubmissions.length > 0 ? (
+          ) : filteredAndSortedSubmissions.length > 0 ? (
             <div className="space-y-2 p-1">
-              {filteredSubmissions.map((submission) => {
+              {filteredAndSortedSubmissions.map((submission) => {
                 const isExpanded = expandedSubmissions.has(submission.id);
                 return (
                   <div
