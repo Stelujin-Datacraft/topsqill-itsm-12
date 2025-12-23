@@ -3512,7 +3512,7 @@ export function ChartPreview({
                             displayY = item.yRaw !== undefined && item.yRaw !== '' ? item.yRaw : (typeof item.y === 'number' ? item.y.toLocaleString() : (item.y ?? ''));
                           }
                           
-                          // Always show dialog first instead of direct navigation
+                          // Always show dialog first with View button
                           const handleCellClick = (e: React.MouseEvent) => {
                             e.stopPropagation();
                             e.preventDefault();
@@ -3521,6 +3521,7 @@ export function ChartPreview({
                               dimensionField,
                               dimensionValue: item.name,
                               dimensionLabel,
+                              submissionId: item.submissionId, // Pass submissionId to show just this record
                             });
                           };
                           
