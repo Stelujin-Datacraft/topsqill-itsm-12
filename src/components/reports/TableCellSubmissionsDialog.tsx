@@ -12,6 +12,7 @@ import { exportData, ExportFormat } from '@/utils/exportUtils';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { extractComparableValue } from '@/utils/filterUtils';
 
 interface TableCellSubmissionsDialogProps {
   open: boolean;
@@ -175,7 +176,8 @@ export function TableCellSubmissionsDialog({
       result = result.filter(submission => {
         if (submission.submission_ref_id?.toLowerCase().includes(query)) return true;
         return Object.values(submission.submission_data).some(value => {
-          const stringValue = formatFieldValue(value).toLowerCase();
+          // Use extractComparableValue for proper handling of currency, rating, slider, etc.
+          const stringValue = extractComparableValue(value).toLowerCase();
           return stringValue.includes(query);
         });
       });
