@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, ArrowUp, ArrowDown, Eye, Database, X, Filter, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, ArrowUp, ArrowDown, Eye, Database, X, Filter, Plus, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useReports } from '@/hooks/useReports';
 import { useTableData } from '@/hooks/useTableData';
@@ -60,6 +61,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [appliedFilters, setAppliedFilters] = useState<ActiveFilter[]>([]); // Client-side filters
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [selectedSubmission, setSelectedSubmission] = useState<{ id: string; refId: string } | null>(null);
 
   const { forms } = useReports();
 
@@ -794,7 +796,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                     <TableRow 
                       key={row.id}
                       className="cursor-pointer hover:bg-muted/50 transition-colors"
-                      onClick={() => row.id && navigate(`/submission/${row.id}`)}
+                      onClick={() => row.id && setSelectedSubmission({ id: row.id, refId: row.submission_ref_id || row.id.slice(0, 8) })}
                     >
                       {displayFields.map(field => {
                         const fieldValue = getFieldValue(row, field.id);
@@ -863,6 +865,37 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
             </div>
           )}
         </div>
+        
+        {/* View Submission Dialog */}
+        <Dialog open={!!selectedSubmission} onOpenChange={(open) => !open && setSelectedSubmission(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>View Submission</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <p className="text-sm text-muted-foreground mb-4">
+                You selected submission <span className="font-mono font-medium text-foreground">#{selectedSubmission?.refId}</span>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Would you like to view the full details of this submission?
+              </p>
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setSelectedSubmission(null)}>
+                Cancel
+              </Button>
+              <Button onClick={() => {
+                if (selectedSubmission) {
+                  navigate(`/submission/${selectedSubmission.id}`);
+                  setSelectedSubmission(null);
+                }
+              }}>
+                <ExternalLink className="h-4 w-4 mr-2" />
+                View Submission
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );

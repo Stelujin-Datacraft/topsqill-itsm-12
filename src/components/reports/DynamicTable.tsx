@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3, FileText, User, Calendar, CheckCircle, ExternalLink, Move } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useReports } from '@/hooks/useReports';
 import { useNavigate } from 'react-router-dom';
@@ -88,6 +89,7 @@ export function DynamicTable({
   const [crossReferenceTargetFormId, setCrossReferenceTargetFormId] = useState<string>();
   const [crossReferenceDisplayFields, setCrossReferenceDisplayFields] = useState<string[]>([]);
   const [highlightedSubmissionRef, setHighlightedSubmissionRef] = useState<string | null>(null);
+  const [selectedSubmissionForView, setSelectedSubmissionForView] = useState<{ id: string; refId: string } | null>(null);
 
   // Custom hooks
   const {
@@ -1037,7 +1039,7 @@ export function DynamicTable({
                         
                         {/* Submission ID */}
                         <TableCell className="py-2 bg-white">
-                          <Button variant="link" className="font-mono text-xs p-0 h-auto underline" onClick={() => navigate(`/submission/${row.id}`)}>
+                          <Button variant="link" className="font-mono text-xs p-0 h-auto underline" onClick={() => setSelectedSubmissionForView({ id: row.id, refId: row.submission_ref_id || row.id.slice(0, 8) })}>
                             #{row.submission_ref_id || row.id.slice(0, 8)}
                           </Button>
                         </TableCell>
@@ -1156,5 +1158,36 @@ export function DynamicTable({
         targetFormId={crossReferenceTargetFormId}
         displayFieldIds={crossReferenceDisplayFields}
       />
+      
+      {/* View Submission Dialog */}
+      <Dialog open={!!selectedSubmissionForView} onOpenChange={(open) => !open && setSelectedSubmissionForView(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>View Submission</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              You selected submission <span className="font-mono font-medium text-foreground">#{selectedSubmissionForView?.refId}</span>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Would you like to view the full details of this submission?
+            </p>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setSelectedSubmissionForView(null)}>
+              Cancel
+            </Button>
+            <Button onClick={() => {
+              if (selectedSubmissionForView) {
+                navigate(`/submission/${selectedSubmissionForView.id}`);
+                setSelectedSubmissionForView(null);
+              }
+            }}>
+              <ExternalLink className="h-4 w-4 mr-2" />
+              View Submission
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>;
 }
