@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 
 export const colorSchemes = {
-  default: ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00', '#d084d0', '#8dd1e1', '#ffb347'],
+  default: ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#6366f1', '#d084d0', '#8dd1e1', '#ffb347'],
   vibrant: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'],
   pastel: ['#FFB3BA', '#BAFFC9', '#BAE1FF', '#FFFFBA', '#FFB3FF', '#D5AAFF', '#FFD3A5', '#AAFFE6'],
   monochrome: ['#2C3E50', '#34495E', '#7F8C8D', '#95A5A6', '#BDC3C7', '#85929E', '#5D6D7E', '#AEB6BF'],
