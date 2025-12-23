@@ -3512,20 +3512,16 @@ export function ChartPreview({
                             displayY = item.yRaw !== undefined && item.yRaw !== '' ? item.yRaw : (typeof item.y === 'number' ? item.y.toLocaleString() : (item.y ?? ''));
                           }
                           
-                          // If we have a direct submission ID, navigate directly; otherwise show dialog
+                          // Always show dialog first instead of direct navigation
                           const handleCellClick = (e: React.MouseEvent) => {
                             e.stopPropagation();
                             e.preventDefault();
-                            if (item.submissionId) {
-                              navigate(`/submission/${item.submissionId}`);
-                            } else {
-                              setCellSubmissionsDialog({
-                                open: true,
-                                dimensionField,
-                                dimensionValue: item.name,
-                                dimensionLabel,
-                              });
-                            }
+                            setCellSubmissionsDialog({
+                              open: true,
+                              dimensionField,
+                              dimensionValue: item.name,
+                              dimensionLabel,
+                            });
                           };
                           
                           return (
