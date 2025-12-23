@@ -81,7 +81,6 @@ export function ChartPreview({
           const fields = await getFormFields(config.formId);
           if (fields && fields.length > 0) {
             setDirectlyFetchedFields(fields);
-            console.log('ChartPreview: Directly fetched fields for form', config.formId, fields);
           }
         } catch (error) {
           console.error('ChartPreview: Error fetching fields directly:', error);
@@ -91,42 +90,45 @@ export function ChartPreview({
     fetchFieldsDirectly();
   }, [config.formId, currentForm?.fields, getFormFields]);
 
-  // Helper functions to get form and field names with robust fallbacks
+  // Memoized lookup maps for form and field names (performance optimization)
+  const formNameCache = useMemo(() => {
+    const cache = new Map<string, string>();
+    forms.forEach(f => cache.set(f.id, f.name));
+    return cache;
+  }, [forms]);
+
+  const fieldNameCache = useMemo(() => {
+    const cache = new Map<string, string>();
+    // Add fields from current form
+    formFields.forEach(f => cache.set(f.id, f.label || f.id));
+    // Add fields from all forms
+    forms.forEach(form => {
+      form.fields?.forEach((f: any) => {
+        if (!cache.has(f.id)) {
+          cache.set(f.id, f.label || f.id);
+        }
+      });
+    });
+    return cache;
+  }, [formFields, forms]);
+
+  // Helper functions to get form and field names with caching
   const getFormName = (formId: string): string => {
-    const form = forms.find(f => f.id === formId);
-    const formName = form?.name || formId;
-    console.log(`Getting form name for ${formId}: ${formName}`);
-    return formName;
+    return formNameCache.get(formId) || formId;
   };
+
   const getFormFieldName = (fieldId: string): string => {
     // Handle prefixed field IDs from joined forms (e.g., "[FormName].fieldId")
     const prefixMatch = fieldId.match(/^\[(.+?)\]\.(.+)$/);
     if (prefixMatch) {
       const [, formName, originalFieldId] = prefixMatch;
-      // Search for the original field ID in forms
-      for (const form of forms) {
-        const field = form.fields?.find((f: any) => f.id === originalFieldId);
-        if (field) {
-          return `${formName}: ${field.label || originalFieldId}`;
-        }
-      }
-      return `${formName}: ${originalFieldId}`;
+      const fieldLabel = fieldNameCache.get(originalFieldId) || originalFieldId;
+      return `${formName}: ${fieldLabel}`;
     }
     
-    // First try to find field in current form fields
-    let field = formFields.find(f => f.id === fieldId);
-
-    // If not found and we have forms data, search across all forms
-    if (!field && forms.length > 0) {
-      for (const form of forms) {
-        field = form.fields?.find((f: any) => f.id === fieldId);
-        if (field) break;
-      }
-    }
-    const fieldName = field?.label || fieldId;
-    console.log(`Getting field name for ${fieldId}: ${fieldName} (field found: ${!!field})`);
-    return fieldName;
+    return fieldNameCache.get(fieldId) || fieldId;
   };
+
   const getFieldName = (fieldId: string): string => {
     return getFormFieldName(fieldId);
   };
@@ -270,7 +272,6 @@ export function ChartPreview({
     const loadChartData = async () => {
       // Use sample data if provided, otherwise fetch from form
       if ((config as any).data) {
-        console.log('Using provided sample data:', (config as any).data);
         setChartData((config as any).data);
         setLoading(false);
         return;
@@ -278,41 +279,26 @@ export function ChartPreview({
 
       // Check if we have minimum required configuration
       if (!config.formId) {
-        console.log('No formId provided, showing empty state');
         setChartData([]);
         setLoading(false);
         return;
       }
       try {
-        console.log('Fetching chart data for form:', config.formId);
 
         // Get drilldown levels - support both property names for compatibility
         const drilldownLevels = config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels || [];
 
         // Use server-side RPC function for drilldown-enabled charts
         if (config.drilldownConfig?.enabled && drilldownLevels.length > 0) {
-          console.log('Using drilldown-enabled chart data fetch');
-
           // Determine the current dimension based on drilldown state
           const currentDrilldownLevel = drilldownState?.values?.length || 0;
           const currentDimension = drilldownLevels[currentDrilldownLevel] || drilldownLevels[0];
 
           // Use the current dimension for the chart - show the NEXT level after current drilldown
           const chartDimensions = [currentDimension];
-          console.log('Drilldown chart config:', {
-            currentLevel: currentDrilldownLevel,
-            currentDimension,
-            drilldownValues: drilldownState?.values || [],
-            allLevels: drilldownLevels,
-            dimensionForChart: chartDimensions
-          });
           // Get aggregation from metricAggregations if available, otherwise use config.aggregation
           const effectiveAggregation = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
           const serverData: any[] = await getChartData(config.formId, chartDimensions, config.metrics || [], effectiveAggregation, config.filters || [], drilldownLevels, drilldownState?.values || [], config.metricAggregations || [], config.groupByField);
-
-          console.log('📊 Raw server data for grouped chart:', serverData);
-          console.log('📊 Group by field:', config.groupByField);
-          console.log('📊 Server data structure check:', serverData.length > 0 ? Object.keys(serverData[0]) : 'no data');
 
           // Transform server data to chart format
           let chartData: any[];
@@ -1062,16 +1048,11 @@ export function ChartPreview({
       });
       result.push(dataPoint);
     }
-    console.log('Multi-dimensional processed data:', result);
-    console.log('All series keys:', Array.from(allSeries));
-    console.log('Form fields loaded:', formFields.length, 'Current form:', currentForm?.name);
     return result;
   };
 
   // Process heatmap data with row/column dimensions and intensity value
   const processHeatmapData = (submissions: any[], rowField: string, colField: string, intensityField?: string) => {
-    console.log('📊 Processing heatmap data - Row:', rowField, 'Col:', colField, 'Intensity:', intensityField);
-    
     const effectiveAggregation = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
     
     // Structure: collect raw values per row-col combination
@@ -1584,13 +1565,6 @@ export function ChartPreview({
     }
 
     const chartType = config.type || config.chartType || 'bar';
-    console.log('Chart rendering config:', {
-      chartType,
-      primaryMetric,
-      dataKeys: sanitizedChartData.length > 0 ? Object.keys(sanitizedChartData[0]) : [],
-      sampleData: sanitizedChartData[0],
-      totalRecords: sanitizedChartData.length
-    });
 
     // Get ALL dimension-based data keys from ALL data items (for multi-dimensional charts OR grouped charts OR compare mode)
     // Important: Must scan all items because different records may have different keys (e.g., John has Canada, George has Finland)
@@ -1610,11 +1584,6 @@ export function ChartPreview({
     // For Calculate Values mode (single metric, no groupBy), treat as single-dimensional even if dimensionKeys > 1
     const isCalculateMode = !config.compareMode && config.metrics?.length === 1 && !config.groupByField;
     const isMultiDimensional = !isCalculateMode && ((config.dimensions && config.dimensions.length > 1) || (config.groupByField && dimensionKeys.length > 1) || dimensionKeys.length > 1);
-    
-    console.log('📊 Chart rendering - dimensionKeys:', dimensionKeys);
-    console.log('📊 Chart rendering - isMultiDimensional:', isMultiDimensional);
-    console.log('📊 Chart rendering - groupByField:', config.groupByField);
-    console.log('📊 Chart rendering - compareMode:', isCompareMode);
 
     // For multi-dimensional charts, limit the number of series to avoid cluttered display
     if (isMultiDimensional && dimensionKeys.length > 8) {
