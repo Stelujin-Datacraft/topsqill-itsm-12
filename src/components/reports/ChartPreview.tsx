@@ -1097,6 +1097,19 @@ export function ChartPreview({
     return result;
   };
 
+  // Build field types map for proper filter evaluation
+  const fieldTypesMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    formFields.forEach((field: any) => {
+      const fieldId = field.id;
+      const fieldType = field.field_type || field.type || '';
+      if (fieldId && fieldType) {
+        map[fieldId] = fieldType;
+      }
+    });
+    return map;
+  }, [formFields]);
+
   const passesFilters = (submissionData: any): boolean => {
     const drilldownFilters: any[] = [];
     if (config.drilldownConfig?.enabled && drilldownState?.values?.length > 0) {
@@ -1120,20 +1133,23 @@ export function ChartPreview({
         submissionData,
         config.filters || [],
         true,
-        config.filterLogicExpression
+        config.filterLogicExpression,
+        fieldTypesMap
       );
       // Drilldown filters must all pass (AND)
       const drilldownResult = drilldownFilters.length === 0 || drilldownFilters.every(filter => {
         const value = submissionData[filter.field];
-        return evaluateFilterCondition(value, filter.operator, filter.value);
+        const fieldType = fieldTypesMap[filter.field] || '';
+        return evaluateFilterCondition(value, filter.operator, filter.value, fieldType);
       });
       return configResult && drilldownResult;
     }
     
-    // Default: AND logic for all filters
+    // Default: AND logic for all filters with field type support
     return allFilters?.every(filter => {
       const value = submissionData[filter.field];
-      return evaluateFilterCondition(value, filter.operator, filter.value);
+      const fieldType = fieldTypesMap[filter.field] || '';
+      return evaluateFilterCondition(value, filter.operator, filter.value, fieldType);
     }) ?? true;
   };
   const getDimensionKey = (submissionData: any, dimensionFields: string[]): string => {
