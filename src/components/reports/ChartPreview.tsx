@@ -2299,16 +2299,34 @@ export function ChartPreview({
                     cursor: 'pointer'
                   }} />)}
                   </Pie>
-                  <Tooltip formatter={(value, name, props) => {
-                  const numValue = Number(value) || 0;
-                  const total = sanitizedChartData.reduce((sum, item) => sum + (Number(item[primaryMetric]) || 0), 0);
-                  return [`${props.payload?.name || 'Unknown'}: ${numValue}`, `Percentage: ${total > 0 ? (numValue / total * 100).toFixed(1) : 0}%`];
-                }} contentStyle={{
-                  backgroundColor: 'hsl(var(--popover))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: 'var(--radius)',
-                  fontSize: '12px'
-                }} />
+                  <Tooltip 
+                    content={({ payload }) => {
+                      if (!payload || payload.length === 0) return null;
+                      const data = payload[0]?.payload;
+                      if (!data) return null;
+                      const numValue = Number(data[primaryMetric]) || 0;
+                      const total = sanitizedChartData.reduce((sum, item) => sum + (Number(item[primaryMetric]) || 0), 0);
+                      const percentage = total > 0 ? ((numValue / total) * 100).toFixed(1) : '0';
+                      return (
+                        <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
+                          <div className="font-medium mb-2">{data.name || 'Unknown'}</div>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground">Value:</span>
+                              <span className="font-semibold">{numValue}</span>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground">Percentage:</span>
+                              <span className="font-semibold">{percentage}%</span>
+                            </div>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground mt-2 pt-1 border-t border-border">
+                            Click slice to view records
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
                    
                 </RechartsPieChart>
               </ResponsiveContainer>
@@ -2326,7 +2344,34 @@ export function ChartPreview({
                 }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`} style={{ cursor: 'pointer' }} onClick={(data, idx) => handleBarClick(data, idx)}>
                     {sanitizedChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={colors[index % colors.length]} style={{ cursor: 'pointer' }} />)}
                   </Pie>
-                   <Tooltip formatter={(value, name) => [value, name]} />
+                   <Tooltip 
+                    content={({ payload }) => {
+                      if (!payload || payload.length === 0) return null;
+                      const data = payload[0]?.payload;
+                      if (!data) return null;
+                      const numValue = Number(data[primaryMetric]) || 0;
+                      const total = sanitizedChartData.reduce((sum, item) => sum + (Number(item[primaryMetric]) || 0), 0);
+                      const percentage = total > 0 ? ((numValue / total) * 100).toFixed(1) : '0';
+                      return (
+                        <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
+                          <div className="font-medium mb-2">{data.name || 'Unknown'}</div>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground">Value:</span>
+                              <span className="font-semibold">{numValue}</span>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground">Percentage:</span>
+                              <span className="font-semibold">{percentage}%</span>
+                            </div>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground mt-2 pt-1 border-t border-border">
+                            Click slice to view records
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
                    
                 </RechartsPieChart>
               </ResponsiveContainer>
@@ -2356,15 +2401,33 @@ export function ChartPreview({
                   angle: -90,
                   position: 'insideLeft'
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
-                  <Tooltip formatter={(value, name, props) => {
-                  const displayName = isMultiDimensional ? name : getFormFieldName(name.toString());
-                  return [`${displayName}: ${value}`, props.payload?.name || 'N/A'];
-                }} labelFormatter={label => label} contentStyle={{
-                  backgroundColor: 'hsl(var(--popover))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: 'var(--radius)',
-                  fontSize: '12px'
-                }} />
+                  <Tooltip 
+                    content={({ payload, label }) => {
+                      if (!payload || payload.length === 0) return null;
+                      return (
+                        <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
+                          <div className="font-medium mb-2">{label || 'Data Point'}</div>
+                          <div className="space-y-1 text-sm">
+                            {payload.map((entry: any, idx: number) => {
+                              const displayName = isMultiDimensional ? entry.name : getFormFieldName(entry.dataKey || entry.name);
+                              return (
+                                <div key={idx} className="flex justify-between gap-4">
+                                  <span className="text-muted-foreground flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                                    {displayName}:
+                                  </span>
+                                  <span className="font-semibold">{entry.value}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground mt-2 pt-1 border-t border-border">
+                            Click point to view records
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
                    
                    {isMultiDimensional ?
                 // Render separate lines for each dimension value
@@ -2420,15 +2483,33 @@ export function ChartPreview({
                   angle: -90,
                   position: 'insideLeft'
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
-                  <Tooltip formatter={(value, name, props) => {
-                  const displayName = getFormFieldName(name.toString());
-                  return [`${displayName}: ${value}`, props.payload?.name || 'N/A'];
-                }} labelFormatter={label => label} contentStyle={{
-                  backgroundColor: 'hsl(var(--popover))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: 'var(--radius)',
-                  fontSize: '12px'
-                }} />
+                  <Tooltip 
+                    content={({ payload, label }) => {
+                      if (!payload || payload.length === 0) return null;
+                      return (
+                        <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
+                          <div className="font-medium mb-2">{label || 'Data Point'}</div>
+                          <div className="space-y-1 text-sm">
+                            {payload.map((entry: any, idx: number) => {
+                              const displayName = getFormFieldName(entry.dataKey || entry.name);
+                              return (
+                                <div key={idx} className="flex justify-between gap-4">
+                                  <span className="text-muted-foreground flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color || entry.fill }} />
+                                    {displayName}:
+                                  </span>
+                                  <span className="font-semibold">{entry.value}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground mt-2 pt-1 border-t border-border">
+                            Click point to view records
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
                    
                    <Area type="monotone" dataKey={primaryMetric} stroke={colors[0]} fill={colors[0]} fillOpacity={0.6} name={getFormFieldName(primaryMetric)} dot={{ r: 4, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} activeDot={{ r: 8, stroke: colors[0], strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} />
                    {config.metrics && config.metrics.length > 1 && config.metrics.slice(1).map((metric, index) => <Area key={metric} type="monotone" dataKey={metric} stroke={colors[(index + 1) % colors.length]} fill={colors[(index + 1) % colors.length]} fillOpacity={0.6} name={getFormFieldName(metric)} dot={{ r: 4, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, index + 1) }} activeDot={{ r: 8, stroke: colors[(index + 1) % colors.length], strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, index + 1) }} />)}
@@ -2492,6 +2573,9 @@ export function ChartPreview({
                               <span className="text-muted-foreground">{scatterYLabel}:</span>
                               <span className="font-semibold">{data.y}</span>
                             </div>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground mt-2 pt-1 border-t border-border">
+                            Click point to view records
                           </div>
                         </div>
                       );
@@ -2575,6 +2659,9 @@ export function ChartPreview({
                                 </div>
                               )}
                             </div>
+                            <div className="text-[11px] text-muted-foreground mt-2 pt-1 border-t border-border">
+                              Click bubble to view records
+                            </div>
                           </div>
                         );
                       }}
@@ -2640,7 +2727,7 @@ export function ChartPreview({
                       backgroundColor: colors[safeColorIndex],
                       color: intensity > 0.5 ? 'white' : 'black'
                     }} 
-                    title={`${cell.name}: ${cell.value}`}
+                    title={`${getFormFieldName(config.dimensions?.[0] || 'Category')}: ${cell.name}\nValue: ${cell.value}\n\nClick to view records`}
                     onClick={() => handleHeatmapCellClick(cell.name, 'Default', config.dimensions?.[0], config.dimensions?.[1])}
                   >
                     {cell.value}
@@ -2702,7 +2789,7 @@ export function ChartPreview({
                           backgroundColor: colors[safeColorIndex],
                           color: intensity > 0.5 ? 'white' : 'black'
                         }}
-                        title={`${row} × ${col}: ${cellValue}`}
+                        title={`${rowLabel}: ${row}\n${colLabel}: ${col}\nValue: ${cellValue}\n\nClick to view records`}
                         onClick={() => handleHeatmapCellClick(row, col, rowDimension, colDimension)}
                       >
                         {cellValue}
