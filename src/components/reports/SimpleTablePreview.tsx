@@ -171,16 +171,25 @@ export function SimpleTablePreview({
       
       let comparison = 0;
       
+      // Check if values are currency objects (detect by structure, not just fieldType)
+      const isCurrencyObject = (v: any) => typeof v === 'object' && v !== null && ('amount' in v || ('value' in v && 'currency' in v));
+      const isAddressObject = (v: any) => typeof v === 'object' && v !== null && ('street' in v || 'city' in v || 'state' in v || 'country' in v);
+      
       if (isDateField) {
         // Date comparison
         const dateA = new Date(valueA).getTime();
         const dateB = new Date(valueB).getTime();
         comparison = dateA - dateB;
-      } else if (isNumericField) {
+      } else if (isNumericField || isCurrencyObject(valueA) || isCurrencyObject(valueB)) {
         // Numeric comparison using extractNumericValue for complex types
         const numA = extractNumericValue(valueA) ?? 0;
         const numB = extractNumericValue(valueB) ?? 0;
         comparison = numA - numB;
+      } else if (isAddressObject(valueA) || isAddressObject(valueB)) {
+        // Address comparison - use extractComparableValue for proper string formatting
+        const strA = extractComparableValue(valueA, 'address', fieldConfig).toLowerCase();
+        const strB = extractComparableValue(valueB, 'address', fieldConfig).toLowerCase();
+        comparison = strA.localeCompare(strB);
       } else {
         // String comparison using extractComparableValue for complex types
         const strA = extractComparableValue(valueA, fieldType, fieldConfig).toLowerCase();

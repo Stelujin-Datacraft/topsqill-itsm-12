@@ -144,7 +144,7 @@ export const extractComparableValue = (value: any, fieldType?: string, fieldConf
   // Handle objects
   if (typeof value === 'object') {
     // Address field
-    if ('street' in value || 'city' in value || 'state' in value || 'country' in value || 'zipCode' in value || 'postalCode' in value) {
+    if ('street' in value || 'city' in value || 'state' in value || 'country' in value || 'zipCode' in value || 'postalCode' in value || 'postal' in value) {
       const countryValue = value.country;
       const country = countryValue ? COUNTRIES.find(c => c.code === countryValue) : null;
       return [
@@ -153,7 +153,7 @@ export const extractComparableValue = (value: any, fieldType?: string, fieldConf
         value.city,
         value.state,
         country ? country.name : countryValue,
-        value.zipCode || value.postalCode
+        value.zipCode || value.postalCode || value.postal
       ].filter(Boolean).join(', ');
     }
 
