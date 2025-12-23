@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, ExternalLink, ChevronDown, ChevronRight, Maximize2, Minimize2, Search, ArrowUpDown, ArrowUp, ArrowDown, Download, FileSpreadsheet, FileText } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { exportData, ExportFormat } from '@/utils/exportUtils';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -391,29 +392,26 @@ export function TableCellSubmissionsDialog({
             </Button>
           </div>
 
-          {/* Export Controls */}
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleExport('csv')}
-              title="Export to CSV"
-              className="h-10 px-3"
-            >
-              <FileText className="h-4 w-4 mr-1" />
-              CSV
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleExport('excel')}
-              title="Export to Excel"
-              className="h-10 px-3"
-            >
-              <FileSpreadsheet className="h-4 w-4 mr-1" />
-              Excel
-            </Button>
-          </div>
+          {/* Export Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-10 px-3">
+                <Download className="h-4 w-4 mr-2" />
+                Export
+                <ChevronDown className="h-4 w-4 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExport('csv')}>
+                <FileText className="h-4 w-4 mr-2" />
+                Export to CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('excel')}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Export to Excel
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <ScrollArea className={scrollAreaClass}>
