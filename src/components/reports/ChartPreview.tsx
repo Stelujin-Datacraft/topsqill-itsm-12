@@ -2847,14 +2847,28 @@ export function ChartPreview({
         const numCols = colLabels.length;
         
         return <div className="relative w-full h-full flex flex-col overflow-auto">
-            <div className="text-sm text-muted-foreground mb-3">
-              <span className="font-medium">{rowLabel}</span> × <span className="font-medium">{colLabel}</span>
-              <span className="text-xs ml-2">(Intensity: {intensityLabel}, Aggregation: {effectiveAgg})</span>
+            {/* Header with title and color scale legend */}
+            <div className="flex items-center justify-between gap-4 mb-3 flex-wrap">
+              <div className="text-sm text-muted-foreground">
+                <span className="font-medium">{rowLabel}</span> × <span className="font-medium">{colLabel}</span>
+                <span className="text-xs ml-2">(Intensity: {intensityLabel}, Aggregation: {effectiveAgg})</span>
+              </div>
+              {/* Color scale legend - moved to top */}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>Low</span>
+                <div className="flex h-3 rounded overflow-hidden w-[120px]">
+                  {colors.map((color, idx) => (
+                    <div key={idx} style={{ backgroundColor: color, flex: 1 }} />
+                  ))}
+                </div>
+                <span>High</span>
+                <span className="ml-1 text-muted-foreground/70 text-[10px]">({minValue.toLocaleString()}-{maxValue.toLocaleString()})</span>
+              </div>
             </div>
             <div className="flex-1 min-h-0">
-              <div className="w-full h-full" style={{ display: 'grid', gridTemplateColumns: `minmax(60px, max-content) repeat(${numCols}, 1fr)`, gridTemplateRows: `auto repeat(${numRows}, 1fr)`, gap: '2px' }}>
+              <div className="w-full h-full" style={{ display: 'grid', gridTemplateColumns: `minmax(80px, max-content) repeat(${numCols}, 1fr)`, gridTemplateRows: `auto repeat(${numRows}, 1fr)`, gap: '2px' }}>
                 {/* Empty corner cell */}
-                <div className="flex items-end justify-end p-1 text-[10px] font-medium text-muted-foreground max-w-[100px]">
+                <div className="flex items-end justify-end p-1 text-[10px] font-medium text-muted-foreground max-w-[120px]">
                   <span className="truncate">{rowLabel} ↓</span>
                 </div>
                 {/* Column Headers */}
@@ -2867,7 +2881,7 @@ export function ChartPreview({
                 {rowLabels.map((row, rowIdx) => (
                   <React.Fragment key={rowIdx}>
                     {/* Row label */}
-                    <div className="flex items-center justify-end pr-2 text-xs font-medium truncate bg-muted/30 rounded-l max-w-[100px]" title={row}>
+                    <div className="flex items-center justify-end pr-2 text-xs font-medium truncate bg-muted/30 rounded-l max-w-[120px]" title={row}>
                       <span className="truncate">{row}</span>
                     </div>
                     {/* Data cells */}
@@ -2902,17 +2916,6 @@ export function ChartPreview({
                   </React.Fragment>
                 ))}
               </div>
-            </div>
-            {/* Color scale legend */}
-            <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-              <span>Low</span>
-              <div className="flex h-3 rounded overflow-hidden flex-1 max-w-[200px]">
-                {colors.map((color, idx) => (
-                  <div key={idx} style={{ backgroundColor: color, flex: 1 }} />
-                ))}
-              </div>
-              <span>High</span>
-              <span className="ml-2 text-muted-foreground/70">({minValue.toLocaleString()} - {maxValue.toLocaleString()})</span>
             </div>
           </div>;
       case 'table': {
