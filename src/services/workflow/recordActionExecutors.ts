@@ -855,4 +855,201 @@ export class RecordActionExecutors {
       };
     }
   }
+
+  static async executeUpdateLinkedRecordsAction(context: NodeExecutionContext): Promise<ActionExecutionResult> {
+    console.log('🔄 EXECUTING UPDATE LINKED RECORDS ACTION');
+    console.log('📋 Context:', JSON.stringify(context, null, 2));
+
+    const config = context.config;
+    const actionDetails = {
+      actionType: 'update_linked_records',
+      crossReferenceFieldId: config.crossReferenceFieldId,
+      targetFormId: config.targetFormId,
+      updateScope: config.updateScope || 'all',
+      timestamp: new Date().toISOString()
+    };
+
+    try {
+      // Validate configuration
+      if (!config.crossReferenceFieldId) {
+        return {
+          success: false,
+          error: 'Missing cross-reference field selection',
+          actionDetails
+        };
+      }
+
+      if (!config.targetFormId) {
+        return {
+          success: false,
+          error: 'Missing target form ID for linked record update',
+          actionDetails
+        };
+      }
+
+      if (!config.fieldMappings || config.fieldMappings.length === 0) {
+        return {
+          success: false,
+          error: 'At least one field mapping is required',
+          actionDetails
+        };
+      }
+
+      // Get trigger data
+      const triggerSubmissionData = context.triggerData?.submissionData || context.triggerData || {};
+      const triggerSubmissionId = context.submissionId;
+
+      console.log('📋 Trigger data:', { triggerSubmissionId, fieldMappings: config.fieldMappings });
+
+      // Get the linked record refs from the cross-reference field
+      const crossRefValue = triggerSubmissionData[config.crossReferenceFieldId];
+      
+      if (!crossRefValue) {
+        console.log('⚠️ No linked records found in cross-reference field');
+        return {
+          success: true,
+          output: {
+            updatedCount: 0,
+            message: 'No linked records found in cross-reference field',
+            crossReferenceFieldId: config.crossReferenceFieldId
+          },
+          actionDetails
+        };
+      }
+
+      // Cross-reference fields can store an array of submission_ref_ids or a single value
+      let linkedRefIds: string[];
+      if (Array.isArray(crossRefValue)) {
+        linkedRefIds = crossRefValue.filter(v => v && typeof v === 'string');
+      } else if (typeof crossRefValue === 'string' && crossRefValue) {
+        linkedRefIds = [crossRefValue];
+      } else {
+        linkedRefIds = [];
+      }
+
+      if (linkedRefIds.length === 0) {
+        return {
+          success: true,
+          output: {
+            updatedCount: 0,
+            message: 'No valid linked record references found',
+            crossReferenceFieldId: config.crossReferenceFieldId
+          },
+          actionDetails
+        };
+      }
+
+      console.log(`📋 Found ${linkedRefIds.length} linked record refs:`, linkedRefIds);
+
+      // Apply update scope filter
+      const updateScope = config.updateScope || 'all';
+      let refsToUpdate: string[];
+      
+      if (updateScope === 'first') {
+        refsToUpdate = [linkedRefIds[0]];
+      } else if (updateScope === 'last') {
+        refsToUpdate = [linkedRefIds[linkedRefIds.length - 1]];
+      } else {
+        refsToUpdate = linkedRefIds;
+      }
+
+      console.log(`📋 Will update ${refsToUpdate.length} records (scope: ${updateScope})`);
+
+      // Build the update data from field mappings
+      const updateData: Record<string, any> = {};
+      for (const mapping of config.fieldMappings) {
+        if (mapping.sourceFieldId && mapping.targetFieldId) {
+          const sourceValue = triggerSubmissionData[mapping.sourceFieldId];
+          if (sourceValue !== undefined) {
+            updateData[mapping.targetFieldId] = sourceValue;
+          }
+        }
+      }
+
+      console.log('📝 Update data:', updateData);
+
+      if (Object.keys(updateData).length === 0) {
+        return {
+          success: false,
+          error: 'No valid field mappings resulted in update data',
+          actionDetails
+        };
+      }
+
+      // Find and update the linked submissions
+      const updatedRecords: Array<{ id: string; submission_ref_id: string }> = [];
+      const errors: string[] = [];
+
+      for (const refId of refsToUpdate) {
+        // First find the submission by ref ID
+        const { data: linkedSubmission, error: findError } = await supabase
+          .from('form_submissions')
+          .select('id, submission_ref_id, submission_data, form_id')
+          .eq('submission_ref_id', refId)
+          .eq('form_id', config.targetFormId)
+          .single();
+
+        if (findError || !linkedSubmission) {
+          console.error(`⚠️ Could not find linked submission with ref ${refId}:`, findError);
+          errors.push(`Submission ${refId} not found`);
+          continue;
+        }
+
+        // Merge update data with existing submission data
+        const currentData = linkedSubmission.submission_data || {};
+        const mergedData = {
+          ...(typeof currentData === 'object' ? currentData : {}),
+          ...updateData
+        };
+
+        // Update the submission
+        const { error: updateError } = await supabase
+          .from('form_submissions')
+          .update({ submission_data: mergedData })
+          .eq('id', linkedSubmission.id);
+
+        if (updateError) {
+          console.error(`❌ Error updating submission ${linkedSubmission.id}:`, updateError);
+          errors.push(`Failed to update ${refId}: ${updateError.message}`);
+          continue;
+        }
+
+        console.log(`✅ Updated linked record: ${linkedSubmission.submission_ref_id}`);
+        updatedRecords.push({
+          id: linkedSubmission.id,
+          submission_ref_id: linkedSubmission.submission_ref_id || refId
+        });
+      }
+
+      if (updatedRecords.length === 0 && errors.length > 0) {
+        return {
+          success: false,
+          error: `Failed to update any linked records: ${errors.join(', ')}`,
+          actionDetails
+        };
+      }
+
+      return {
+        success: true,
+        output: {
+          updatedCount: updatedRecords.length,
+          requestedCount: refsToUpdate.length,
+          updatedRecords,
+          updateScope,
+          fieldMappingsApplied: config.fieldMappings.length,
+          errors: errors.length > 0 ? errors : undefined,
+          updatedAt: new Date().toISOString()
+        },
+        actionDetails
+      };
+
+    } catch (error) {
+      console.error('❌ Error in update linked records action:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        actionDetails
+      };
+    }
+  }
 }
