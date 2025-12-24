@@ -146,20 +146,34 @@ export function TableCellSubmissionsDialog({
         submission_data: (d.submission_data as Record<string, any>) || {}
       })) || [];
 
+      console.log('📊 Dialog filtering - Total submissions:', filteredData.length);
+      console.log('📊 Dimension filter:', { dimensionField, dimensionValue });
+      console.log('📊 Group filter:', { groupField, groupValue });
+
       // Apply dimension filter using getDimensionValue for proper matching
       if (dimensionField && dimensionValue) {
         filteredData = filteredData.filter(submission => {
           const extractedValue = getDimensionValue(submission.submission_data, dimensionField);
-          return extractedValue === dimensionValue;
+          const matches = extractedValue === dimensionValue;
+          if (!matches && filteredData.length < 10) {
+            console.log('📊 No match:', { extractedValue, expected: dimensionValue, submission_id: submission.id });
+          }
+          return matches;
         });
+        console.log('📊 After dimension filter:', filteredData.length);
       }
 
       // Apply group filter if exists (for heatmap column dimension)
       if (groupField && groupValue) {
         filteredData = filteredData.filter(submission => {
           const extractedValue = getDimensionValue(submission.submission_data, groupField);
-          return extractedValue === groupValue;
+          const matches = extractedValue === groupValue;
+          if (!matches && filteredData.length < 10) {
+            console.log('📊 Group no match:', { extractedValue, expected: groupValue, submission_id: submission.id });
+          }
+          return matches;
         });
+        console.log('📊 After group filter:', filteredData.length);
       }
 
       setSubmissions(filteredData);

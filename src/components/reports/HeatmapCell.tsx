@@ -40,34 +40,27 @@ export function HeatmapCell({
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log('🔥 HeatmapCell clicked:', { rowValue, colValue, cellValue, cellCount });
     onClick();
   };
 
   return (
-    <TooltipProvider delayDuration={100}>
+    <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div
-            className="min-h-[40px] rounded-sm flex items-center justify-center text-xs font-medium cursor-pointer hover:ring-2 hover:ring-primary hover:z-10 transition-all select-none"
+          <button
+            type="button"
+            className="min-h-[40px] w-full rounded-sm flex items-center justify-center text-xs font-medium cursor-pointer hover:ring-2 hover:ring-primary hover:z-10 transition-all select-none focus:outline-none focus:ring-2 focus:ring-primary"
             style={{
               backgroundColor,
               color: textColor,
             }}
             onClick={handleClick}
-            onMouseDown={(e) => e.stopPropagation()}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onClick();
-              }
-            }}
           >
             <span className="truncate px-1">
               {typeof cellValue === 'number' ? cellValue.toLocaleString() : cellValue}
             </span>
-          </div>
+          </button>
         </TooltipTrigger>
         <TooltipContent 
           side="top" 
