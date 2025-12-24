@@ -1023,6 +1023,22 @@ export function FilterConfig({
               })}
             </div>
           )}
+          {/* Search input for users/groups */}
+          <Input
+            type="text"
+            placeholder="Search users or groups..."
+            onChange={(e) => {
+              const searchInput = e.target as HTMLInputElement;
+              searchInput.dataset.search = e.target.value;
+              // Force re-render by updating a dummy attribute
+              searchInput.closest('.space-y-2')?.querySelectorAll('[data-filterable]').forEach(el => {
+                const text = el.textContent?.toLowerCase() || '';
+                const searchVal = e.target.value.toLowerCase();
+                (el as HTMLElement).style.display = text.includes(searchVal) ? '' : 'none';
+              });
+            }}
+            className="mb-2"
+          />
           {/* Checkbox list for selection */}
           <div className="border rounded-md p-2 max-h-48 overflow-y-auto bg-background space-y-1">
             {/* Groups section */}
@@ -1032,7 +1048,7 @@ export function FilterConfig({
                   <Users className="h-3 w-3" /> Groups
                 </div>
                 {groups.map((group) => (
-                  <div key={`group-${group.id}`} className="flex items-center gap-2 pl-2">
+                  <div key={`group-${group.id}`} className="flex items-center gap-2 pl-2" data-filterable>
                     <Checkbox
                       id={`access-group-${index}-${group.id}`}
                       checked={selectedValues.includes(group.id)}
@@ -1055,7 +1071,7 @@ export function FilterConfig({
                   <User className="h-3 w-3" /> Users
                 </div>
                 {users.map((user) => (
-                  <div key={`user-${user.id}`} className="flex items-center gap-2 pl-2">
+                  <div key={`user-${user.id}`} className="flex items-center gap-2 pl-2" data-filterable>
                     <Checkbox
                       id={`access-user-${index}-${user.id}`}
                       checked={selectedValues.includes(user.id)}
