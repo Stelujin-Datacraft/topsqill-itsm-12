@@ -570,6 +570,127 @@ export const evaluateFilterCondition = (
       return dateValue >= now && dateValue <= endDate;
     }
     
+    case 'current_day': {
+      const dateValue = new Date(value);
+      if (isNaN(dateValue.getTime())) return false;
+      
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      
+      return dateValue >= startOfDay && dateValue <= endOfDay;
+    }
+    
+    case 'last_day': {
+      const dateValue = new Date(value);
+      if (isNaN(dateValue.getTime())) return false;
+      
+      const now = new Date();
+      const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+      const startOfDay = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 0, 0, 0, 0);
+      const endOfDay = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59, 999);
+      
+      return dateValue >= startOfDay && dateValue <= endOfDay;
+    }
+    
+    case 'current_month': {
+      const dateValue = new Date(value);
+      if (isNaN(dateValue.getTime())) return false;
+      
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      
+      return dateValue >= startOfMonth && dateValue <= endOfMonth;
+    }
+    
+    case 'last_month': {
+      const dateValue = new Date(value);
+      if (isNaN(dateValue.getTime())) return false;
+      
+      const now = new Date();
+      const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+      const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      
+      return dateValue >= startOfLastMonth && dateValue <= endOfLastMonth;
+    }
+    
+    case 'current_year': {
+      const dateValue = new Date(value);
+      if (isNaN(dateValue.getTime())) return false;
+      
+      const now = new Date();
+      const startOfYear = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+      const endOfYear = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+      
+      return dateValue >= startOfYear && dateValue <= endOfYear;
+    }
+    
+    case 'last_year': {
+      const dateValue = new Date(value);
+      if (isNaN(dateValue.getTime())) return false;
+      
+      const now = new Date();
+      const startOfLastYear = new Date(now.getFullYear() - 1, 0, 1, 0, 0, 0, 0);
+      const endOfLastYear = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+      
+      return dateValue >= startOfLastYear && dateValue <= endOfLastYear;
+    }
+    
+    case 'current_quarter': {
+      const dateValue = new Date(value);
+      if (isNaN(dateValue.getTime())) return false;
+      
+      const now = new Date();
+      const currentQuarter = Math.floor(now.getMonth() / 3);
+      const startOfQuarter = new Date(now.getFullYear(), currentQuarter * 3, 1, 0, 0, 0, 0);
+      const endOfQuarter = new Date(now.getFullYear(), currentQuarter * 3 + 3, 0, 23, 59, 59, 999);
+      
+      return dateValue >= startOfQuarter && dateValue <= endOfQuarter;
+    }
+    
+    case 'last_quarter': {
+      const dateValue = new Date(value);
+      if (isNaN(dateValue.getTime())) return false;
+      
+      const now = new Date();
+      const currentQuarter = Math.floor(now.getMonth() / 3);
+      let lastQuarterStart: Date;
+      let lastQuarterEnd: Date;
+      
+      if (currentQuarter === 0) {
+        // If current quarter is Q1, last quarter is Q4 of previous year
+        lastQuarterStart = new Date(now.getFullYear() - 1, 9, 1, 0, 0, 0, 0);
+        lastQuarterEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+      } else {
+        lastQuarterStart = new Date(now.getFullYear(), (currentQuarter - 1) * 3, 1, 0, 0, 0, 0);
+        lastQuarterEnd = new Date(now.getFullYear(), currentQuarter * 3, 0, 23, 59, 59, 999);
+      }
+      
+      return dateValue >= lastQuarterStart && dateValue <= lastQuarterEnd;
+    }
+    
+    case 'next_quarter': {
+      const dateValue = new Date(value);
+      if (isNaN(dateValue.getTime())) return false;
+      
+      const now = new Date();
+      const currentQuarter = Math.floor(now.getMonth() / 3);
+      let nextQuarterStart: Date;
+      let nextQuarterEnd: Date;
+      
+      if (currentQuarter === 3) {
+        // If current quarter is Q4, next quarter is Q1 of next year
+        nextQuarterStart = new Date(now.getFullYear() + 1, 0, 1, 0, 0, 0, 0);
+        nextQuarterEnd = new Date(now.getFullYear() + 1, 2, 31, 23, 59, 59, 999);
+      } else {
+        nextQuarterStart = new Date(now.getFullYear(), (currentQuarter + 1) * 3, 1, 0, 0, 0, 0);
+        nextQuarterEnd = new Date(now.getFullYear(), (currentQuarter + 2) * 3, 0, 23, 59, 59, 999);
+      }
+      
+      return dateValue >= nextQuarterStart && dateValue <= nextQuarterEnd;
+    }
+    
     default:
       return true;
   }
