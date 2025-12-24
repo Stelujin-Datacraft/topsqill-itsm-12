@@ -984,23 +984,6 @@ export function ComponentConfigDialog({
           {renderFormSelection()}
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="showMetadata"
-                checked={config.showMetadata || false}
-                onCheckedChange={(checked) => setConfig({ ...config, showMetadata: checked })}
-              />
-              <Label htmlFor="showMetadata">Show metadata</Label>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="enableFiltering"
-                checked={config.enableFiltering !== false}
-                onCheckedChange={(checked) => setConfig({ ...config, enableFiltering: checked })}
-              />
-              <Label htmlFor="enableFiltering">Enable filtering</Label>
-            </div>
 
             <div className="flex items-center space-x-2">
               <Switch

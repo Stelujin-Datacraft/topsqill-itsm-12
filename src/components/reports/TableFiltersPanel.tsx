@@ -331,6 +331,20 @@ export function TableFiltersPanel({
               })}
             </div>
           )}
+          {/* Search input for users/groups */}
+          <Input
+            type="text"
+            placeholder="Search users or groups..."
+            onChange={(e) => {
+              const searchInput = e.target as HTMLInputElement;
+              searchInput.closest('.flex-1')?.querySelectorAll('[data-filterable]').forEach(el => {
+                const text = el.textContent?.toLowerCase() || '';
+                const searchVal = e.target.value.toLowerCase();
+                (el as HTMLElement).style.display = text.includes(searchVal) ? '' : 'none';
+              });
+            }}
+            className="mb-2"
+          />
           <div className="border rounded-md p-2 max-h-40 overflow-y-auto bg-background space-y-1">
             {groups.length > 0 && (
               <>
@@ -338,7 +352,7 @@ export function TableFiltersPanel({
                   <Users className="h-3 w-3" /> Groups
                 </div>
                 {groups.map((group) => (
-                  <div key={`group-${group.id}`} className="flex items-center gap-2 pl-2">
+                  <div key={`group-${group.id}`} className="flex items-center gap-2 pl-2" data-filterable>
                     <Checkbox
                       id={`filter-group-${condition.id}-${group.id}`}
                       checked={selectedValues.includes(group.id)}
@@ -357,7 +371,7 @@ export function TableFiltersPanel({
                   <User className="h-3 w-3" /> Users
                 </div>
                 {users.map((user) => (
-                  <div key={`user-${user.id}`} className="flex items-center gap-2 pl-2">
+                  <div key={`user-${user.id}`} className="flex items-center gap-2 pl-2" data-filterable>
                     <Checkbox
                       id={`filter-user-${condition.id}-${user.id}`}
                       checked={selectedValues.includes(user.id)}
