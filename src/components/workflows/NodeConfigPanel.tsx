@@ -1135,6 +1135,8 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                 )}
               </>
             )}
+              </div>
+            )}
             
             {/* Update Linked Records Configuration */}
             {localConfig?.actionType === 'update_linked_records' && (
@@ -1254,9 +1256,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
               </div>
             )}
           </div>
-        )}
-      </div>
-    );
+        );
 
       case 'approval':
         return (
