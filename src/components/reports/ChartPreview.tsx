@@ -2866,9 +2866,9 @@ export function ChartPreview({
               </div>
             </div>
             <div className="flex-1 min-h-0">
-              <div className="w-full h-full" style={{ display: 'grid', gridTemplateColumns: `minmax(100px, max-content) repeat(${numCols}, 1fr)`, gridTemplateRows: `auto repeat(${numRows}, 1fr)`, gap: '2px' }}>
+              <div className="w-full h-full" style={{ display: 'grid', gridTemplateColumns: `minmax(120px, max-content) repeat(${numCols}, 1fr)`, gridTemplateRows: `auto repeat(${numRows}, 1fr)`, gap: '2px' }}>
                 {/* Empty corner cell */}
-                <div className="flex items-end justify-end p-1 text-[10px] font-medium text-muted-foreground max-w-[150px]">
+                <div className="flex items-end justify-end p-1 text-[10px] font-medium text-muted-foreground max-w-[180px]">
                   <span className="truncate">{rowLabel} ↓</span>
                 </div>
                 {/* Column Headers */}
@@ -2881,7 +2881,7 @@ export function ChartPreview({
                 {rowLabels.map((row, rowIdx) => (
                   <React.Fragment key={rowIdx}>
                     {/* Row label */}
-                    <div className="flex items-center justify-end pr-2 text-xs font-medium truncate bg-muted/30 rounded-l max-w-[150px]" title={row}>
+                    <div className="flex items-center justify-end pr-2 text-xs font-medium bg-muted/30 rounded-l max-w-[180px] min-w-[120px]" title={row}>
                       <span className="truncate">{row}</span>
                     </div>
                     {/* Data cells */}
