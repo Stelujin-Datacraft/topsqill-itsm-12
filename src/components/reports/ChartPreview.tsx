@@ -1356,12 +1356,19 @@ export function ChartPreview({
   
   // Handle heatmap cell click - shows submissions for the row/column intersection
   const handleHeatmapCellClick = (rowValue: string, colValue: string, rowField?: string, colField?: string) => {
+    console.log('🔥 handleHeatmapCellClick called with:', { rowValue, colValue, rowField, colField });
+    
     const dimensionField = rowField || config.dimensions?.[0] || '';
     const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Row';
     const groupFieldId = colField || config.dimensions?.[1] || '';
     const groupLabel = groupFieldId ? getFormFieldName(groupFieldId) : 'Column';
     
-    console.log('🔥 Heatmap cell clicked:', { rowValue, colValue, dimensionField, groupFieldId });
+    console.log('🔥 Setting dialog state:', { 
+      dimensionField, 
+      dimensionValue: rowValue, 
+      groupField: groupFieldId, 
+      groupValue: colValue 
+    });
     
     // For heatmap, we want to filter by both row and column values
     // We'll use the row as the primary dimension and add column info to the dialog
@@ -2845,10 +2852,10 @@ export function ChartPreview({
               <span className="text-xs ml-2">(Intensity: {intensityLabel}, Aggregation: {effectiveAgg})</span>
             </div>
             <div className="flex-1 min-h-0">
-              <div className="w-full h-full" style={{ display: 'grid', gridTemplateColumns: `minmax(80px, auto) repeat(${numCols}, 1fr)`, gridTemplateRows: `auto repeat(${numRows}, 1fr)`, gap: '2px' }}>
+              <div className="w-full h-full" style={{ display: 'grid', gridTemplateColumns: `minmax(60px, max-content) repeat(${numCols}, 1fr)`, gridTemplateRows: `auto repeat(${numRows}, 1fr)`, gap: '2px' }}>
                 {/* Empty corner cell */}
-                <div className="flex items-end justify-end p-1 text-xs font-medium text-muted-foreground">
-                  {rowLabel} ↓ / {colLabel} →
+                <div className="flex items-end justify-end p-1 text-[10px] font-medium text-muted-foreground max-w-[100px]">
+                  <span className="truncate">{rowLabel} ↓</span>
                 </div>
                 {/* Column Headers */}
                 {colLabels.map((col, idx) => (
@@ -2860,8 +2867,8 @@ export function ChartPreview({
                 {rowLabels.map((row, rowIdx) => (
                   <React.Fragment key={rowIdx}>
                     {/* Row label */}
-                    <div className="flex items-center justify-end pr-2 text-xs font-medium truncate bg-muted/30 rounded-l" title={row}>
-                      {row}
+                    <div className="flex items-center justify-end pr-2 text-xs font-medium truncate bg-muted/30 rounded-l max-w-[100px]" title={row}>
+                      <span className="truncate">{row}</span>
                     </div>
                     {/* Data cells */}
                     {colLabels.map((col, colIdx) => {
