@@ -1357,6 +1357,10 @@ export function ChartPreview({
   const handleHeatmapCellClick = (rowValue: string, colValue: string, rowField?: string, colField?: string) => {
     const dimensionField = rowField || config.dimensions?.[0] || '';
     const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Row';
+    const groupFieldId = colField || config.dimensions?.[1] || '';
+    const groupLabel = groupFieldId ? getFormFieldName(groupFieldId) : 'Column';
+    
+    console.log('🔥 Heatmap cell clicked:', { rowValue, colValue, dimensionField, groupFieldId });
     
     // For heatmap, we want to filter by both row and column values
     // We'll use the row as the primary dimension and add column info to the dialog
@@ -1365,8 +1369,9 @@ export function ChartPreview({
       dimensionField,
       dimensionValue: rowValue,
       dimensionLabel,
-      groupField: colField,
+      groupField: groupFieldId,
       groupValue: colValue,
+      groupLabel,
     });
   };
   // Generate chart info summary for context
@@ -2748,94 +2753,188 @@ export function ChartPreview({
             };
           });
           const maxValueSimple = Math.max(...heatmapDataSimple.map(d => d.value), 1);
+          const minValueSimple = Math.min(...heatmapDataSimple.map(d => d.value).filter(v => v > 0), 0);
+          const dimensionLabel = getFormFieldName(config.dimensions?.[0] || 'Category');
+          const intensityLabel = intensityField ? getFormFieldName(intensityField) : 'Value';
+          const effectiveAgg = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
           
-          return <div className="relative">
-              <div className="grid gap-1" style={{
+          return <div className="relative w-full h-full flex flex-col">
+              <div className="text-sm text-muted-foreground mb-3">
+                <span className="font-medium">{dimensionLabel}</span>
+                <span className="text-xs ml-2">(Intensity: {intensityLabel}, Aggregation: {effectiveAgg})</span>
+              </div>
+              <div className="flex-1 min-h-0 grid gap-1" style={{
                 gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
-                maxWidth: '100%'
+                gridTemplateRows: `repeat(${Math.ceil(heatmapDataSimple.length / gridCols)}, 1fr)`
               }}>
                 {heatmapDataSimple.map((cell, index) => {
                   const intensity = cell.value / maxValueSimple;
+                  const intensityPercent = (intensity * 100).toFixed(1);
                   const colorIndex = Math.floor(intensity * (colors.length - 1));
                   const safeColorIndex = Math.max(0, Math.min(colors.length - 1, isNaN(colorIndex) ? 0 : colorIndex));
+                  
+                  // Build detailed tooltip
+                  const tooltipLines = [
+                    `━━━ Cell Details ━━━`,
+                    `${dimensionLabel}: ${cell.name}`,
+                    ``,
+                    `━━━ Values ━━━`,
+                    `${intensityLabel}: ${typeof cell.value === 'number' ? cell.value.toLocaleString() : cell.value}`,
+                    `Aggregation: ${effectiveAgg}`,
+                    ``,
+                    `━━━ Intensity ━━━`,
+                    `Intensity: ${intensityPercent}%`,
+                    `Max Value: ${maxValueSimple.toLocaleString()}`,
+                    ``,
+                    `Click to view records`
+                  ];
+                  
                   return <div 
                     key={index} 
-                    className="aspect-square rounded-sm flex items-center justify-center text-xs font-medium cursor-pointer hover:ring-2 hover:ring-primary" 
+                    className="min-h-[40px] rounded-sm flex items-center justify-center text-xs font-medium cursor-pointer hover:ring-2 hover:ring-primary hover:z-10 transition-all" 
                     style={{
                       backgroundColor: colors[safeColorIndex],
                       color: intensity > 0.5 ? 'white' : 'black'
                     }} 
-                    title={`${getFormFieldName(config.dimensions?.[0] || 'Category')}: ${cell.name}\nValue: ${cell.value}\n\nClick to view records`}
-                    onClick={() => handleHeatmapCellClick(cell.name, 'Default', config.dimensions?.[0], config.dimensions?.[1])}
+                    title={tooltipLines.join('\n')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleHeatmapCellClick(cell.name, 'Default', config.dimensions?.[0], config.dimensions?.[1]);
+                    }}
                   >
-                    {cell.value}
+                    <span className="truncate px-1">{typeof cell.value === 'number' ? cell.value.toLocaleString() : cell.value}</span>
                   </div>;
                 })}
+              </div>
+              {/* Color scale legend */}
+              <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                <span>Low</span>
+                <div className="flex h-3 rounded overflow-hidden flex-1 max-w-[200px]">
+                  {colors.map((color, idx) => (
+                    <div key={idx} style={{ backgroundColor: color, flex: 1 }} />
+                  ))}
+                </div>
+                <span>High</span>
+                <span className="ml-2 text-muted-foreground/70">({minValueSimple.toLocaleString()} - {maxValueSimple.toLocaleString()})</span>
               </div>
             </div>;
         }
         
         // Proper heatmap with row/column structure
-        const heatmapMatrix: { [key: string]: { [key: string]: number } } = {};
+        const heatmapMatrix: { [key: string]: { [key: string]: { value: number; count: number } } } = {};
         sanitizedChartData.forEach(item => {
           const row = item.rowValue || item.name || 'Unknown';
           const col = item.colValue || 'Default';
           const val = item[intensityField] || item.value || 0;
           if (!heatmapMatrix[row]) heatmapMatrix[row] = {};
-          heatmapMatrix[row][col] = (heatmapMatrix[row][col] || 0) + val;
+          if (!heatmapMatrix[row][col]) {
+            heatmapMatrix[row][col] = { value: 0, count: 0 };
+          }
+          heatmapMatrix[row][col].value += val;
+          heatmapMatrix[row][col].count += 1;
         });
         
-        const allValues = Object.values(heatmapMatrix).flatMap(row => Object.values(row));
+        const allValues = Object.values(heatmapMatrix).flatMap(row => 
+          Object.values(row).map(cell => cell.value)
+        );
         const maxValue = Math.max(...allValues, 1);
+        const minValue = Math.min(...allValues.filter(v => v > 0), 0);
         const rowLabels = Object.keys(heatmapMatrix);
         const colLabels = [...new Set(sanitizedChartData.map(d => d.colValue || 'Default'))];
         
         const rowLabel = rowDimension ? getFormFieldName(rowDimension) : 'Rows';
         const colLabel = colDimension ? getFormFieldName(colDimension) : 'Columns';
+        const intensityLabel = intensityField ? getFormFieldName(intensityField) : 'Value';
+        const effectiveAgg = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
         
-        return <div className="relative overflow-auto">
-            <div className="text-sm text-muted-foreground mb-2">
+        // Calculate dynamic cell size to fill container
+        const numRows = rowLabels.length;
+        const numCols = colLabels.length;
+        
+        return <div className="relative w-full h-full flex flex-col overflow-auto">
+            <div className="text-sm text-muted-foreground mb-3">
               <span className="font-medium">{rowLabel}</span> × <span className="font-medium">{colLabel}</span>
-              {intensityField && <span> (Intensity: {getFormFieldName(intensityField)})</span>}
+              <span className="text-xs ml-2">(Intensity: {intensityLabel}, Aggregation: {effectiveAgg})</span>
             </div>
-            <div className="inline-block">
-              {/* Column Headers */}
-              <div className="flex">
-                <div className="w-24 shrink-0"></div>
+            <div className="flex-1 min-h-0">
+              <div className="w-full h-full" style={{ display: 'grid', gridTemplateColumns: `minmax(80px, auto) repeat(${numCols}, 1fr)`, gridTemplateRows: `auto repeat(${numRows}, 1fr)`, gap: '2px' }}>
+                {/* Empty corner cell */}
+                <div className="flex items-end justify-end p-1 text-xs font-medium text-muted-foreground">
+                  {rowLabel} ↓ / {colLabel} →
+                </div>
+                {/* Column Headers */}
                 {colLabels.map((col, idx) => (
-                  <div key={idx} className="w-16 px-1 text-xs font-medium text-center truncate" title={col}>
+                  <div key={idx} className="flex items-center justify-center p-1 text-xs font-medium text-center truncate bg-muted/30 rounded-t" title={col}>
                     {col}
                   </div>
                 ))}
+                {/* Rows with data cells */}
+                {rowLabels.map((row, rowIdx) => (
+                  <React.Fragment key={rowIdx}>
+                    {/* Row label */}
+                    <div className="flex items-center justify-end pr-2 text-xs font-medium truncate bg-muted/30 rounded-l" title={row}>
+                      {row}
+                    </div>
+                    {/* Data cells */}
+                    {colLabels.map((col, colIdx) => {
+                      const cellData = heatmapMatrix[row]?.[col] || { value: 0, count: 0 };
+                      const cellValue = cellData.value;
+                      const cellCount = cellData.count;
+                      const intensity = cellValue / maxValue;
+                      const intensityPercent = (intensity * 100).toFixed(1);
+                      const colorIndex = Math.floor(intensity * (colors.length - 1));
+                      const safeColorIndex = Math.max(0, Math.min(colors.length - 1, isNaN(colorIndex) ? 0 : colorIndex));
+                      
+                      // Build detailed tooltip
+                      const tooltipLines = [
+                        `━━━ Cell Details ━━━`,
+                        `${rowLabel}: ${row}`,
+                        `${colLabel}: ${col}`,
+                        ``,
+                        `━━━ Values ━━━`,
+                        `${intensityLabel}: ${typeof cellValue === 'number' ? cellValue.toLocaleString() : cellValue}`,
+                        `Aggregation: ${effectiveAgg}`,
+                        `Record Count: ${cellCount}`,
+                        ``,
+                        `━━━ Intensity ━━━`,
+                        `Intensity: ${intensityPercent}%`,
+                        `Max Value: ${maxValue.toLocaleString()}`,
+                        ``,
+                        `Click to view ${cellCount} record${cellCount !== 1 ? 's' : ''}`
+                      ];
+                      
+                      return (
+                        <div 
+                          key={colIdx} 
+                          className="min-h-[40px] rounded-sm flex items-center justify-center text-xs font-medium cursor-pointer hover:ring-2 hover:ring-primary hover:z-10 transition-all"
+                          style={{
+                            backgroundColor: colors[safeColorIndex],
+                            color: intensity > 0.5 ? 'white' : 'black'
+                          }}
+                          title={tooltipLines.join('\n')}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleHeatmapCellClick(row, col, rowDimension, colDimension);
+                          }}
+                        >
+                          <span className="truncate px-1">{typeof cellValue === 'number' ? cellValue.toLocaleString() : cellValue}</span>
+                        </div>
+                      );
+                    })}
+                  </React.Fragment>
+                ))}
               </div>
-              {/* Rows */}
-              {rowLabels.map((row, rowIdx) => (
-                <div key={rowIdx} className="flex items-center">
-                  <div className="w-24 shrink-0 text-xs font-medium truncate pr-2" title={row}>
-                    {row}
-                  </div>
-                  {colLabels.map((col, colIdx) => {
-                    const cellValue = heatmapMatrix[row]?.[col] || 0;
-                    const intensity = cellValue / maxValue;
-                    const colorIndex = Math.floor(intensity * (colors.length - 1));
-                    const safeColorIndex = Math.max(0, Math.min(colors.length - 1, isNaN(colorIndex) ? 0 : colorIndex));
-                    return (
-                      <div 
-                        key={colIdx} 
-                        className="w-16 h-10 m-0.5 rounded-sm flex items-center justify-center text-xs font-medium cursor-pointer hover:ring-2 hover:ring-primary"
-                        style={{
-                          backgroundColor: colors[safeColorIndex],
-                          color: intensity > 0.5 ? 'white' : 'black'
-                        }}
-                        title={`${rowLabel}: ${row}\n${colLabel}: ${col}\nValue: ${cellValue}\n\nClick to view records`}
-                        onClick={() => handleHeatmapCellClick(row, col, rowDimension, colDimension)}
-                      >
-                        {cellValue}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
+            </div>
+            {/* Color scale legend */}
+            <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+              <span>Low</span>
+              <div className="flex h-3 rounded overflow-hidden flex-1 max-w-[200px]">
+                {colors.map((color, idx) => (
+                  <div key={idx} style={{ backgroundColor: color, flex: 1 }} />
+                ))}
+              </div>
+              <span>High</span>
+              <span className="ml-2 text-muted-foreground/70">({minValue.toLocaleString()} - {maxValue.toLocaleString()})</span>
             </div>
           </div>;
       case 'table': {
