@@ -404,6 +404,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   <SelectItem value="change_record_status">Change Record Status</SelectItem>
                   <SelectItem value="create_record">Create Record</SelectItem>
                   <SelectItem value="create_linked_record">Create Linked Record</SelectItem>
+                  <SelectItem value="update_linked_records">Update Linked Records</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1133,6 +1134,124 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   </div>
                 )}
               </>
+            )}
+            
+            {/* Update Linked Records Configuration */}
+            {localConfig?.actionType === 'update_linked_records' && (
+              <div className="space-y-4 border-t pt-4">
+                <div className="text-xs text-teal-700 bg-teal-50 p-3 rounded border border-teal-200 mb-4">
+                  <strong>Update Linked Records</strong> updates fields in records that are linked via a cross-reference field in the current form. The values from the trigger form's submission will be used to update the linked records.
+                </div>
+
+                {!triggerFormId ? (
+                  <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded border border-amber-200">
+                    Please configure the Start Node with a trigger form first, then <strong>save the workflow</strong>. The trigger form should contain the cross-reference field.
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <Label>Cross-Reference Field *</Label>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Select the cross-reference field that links to the records you want to update
+                      </p>
+                      <FormFieldSelector
+                        formId={triggerFormId}
+                        value={localConfig?.crossReferenceFieldId || ''}
+                        onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
+                          const targetFormId = customConfig?.targetFormId;
+                          const targetFormName = customConfig?.targetFormName;
+                          
+                          handleFullConfigUpdate({
+                            ...localConfig,
+                            crossReferenceFieldId: fieldId,
+                            crossReferenceFieldName: fieldName,
+                            targetFormId: targetFormId || localConfig?.targetFormId,
+                            targetFormName: targetFormName || localConfig?.targetFormName,
+                            fieldMappings: [] // Reset field mappings when cross-reference changes
+                          });
+                        }}
+                        placeholder="Select cross-reference field"
+                        filterTypes={['cross-reference']}
+                      />
+                    </div>
+
+                    {localConfig?.crossReferenceFieldId && (
+                      <>
+                        <div>
+                          <Label>Target Form (Linked Form)</Label>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            {localConfig?.targetFormId 
+                              ? `Auto-detected from cross-reference: ${localConfig.targetFormName || 'Unknown'}`
+                              : 'Will be auto-detected from cross-reference field'
+                            }
+                          </p>
+                          {!localConfig?.targetFormId && (
+                            <FormSelector
+                              value={localConfig?.targetFormId || ''}
+                              onValueChange={(formId, formName) => {
+                                handleFullConfigUpdate({ 
+                                  ...localConfig, 
+                                  targetFormId: formId,
+                                  targetFormName: formName,
+                                  fieldMappings: []
+                                });
+                              }}
+                              placeholder="Select target form (if not auto-detected)"
+                              projectId={projectId}
+                            />
+                          )}
+                          {localConfig?.targetFormId && (
+                            <div className="text-sm p-2 bg-muted rounded">
+                              {localConfig.targetFormName || localConfig.targetFormId}
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <Label>Update Scope *</Label>
+                          <Select
+                            value={localConfig?.updateScope || 'all'}
+                            onValueChange={(value) => handleConfigUpdate('updateScope', value)}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder="Select update scope" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Linked Records</SelectItem>
+                              <SelectItem value="first">First Linked Record Only</SelectItem>
+                              <SelectItem value="last">Last Linked Record Only</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Choose which linked records to update when there are multiple
+                          </p>
+                        </div>
+
+                        {localConfig?.targetFormId && (
+                          <div>
+                            <Label>Field Mappings *</Label>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Map fields from the trigger form to the linked records
+                            </p>
+                            <FieldMappingConfig
+                              triggerFormId={triggerFormId}
+                              targetFormId={localConfig.targetFormId}
+                              fieldMappings={localConfig?.fieldMappings || []}
+                              onFieldMappingsChange={(mappings) => handleConfigUpdate('fieldMappings', mappings)}
+                            />
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {localConfig?.crossReferenceFieldId && localConfig?.targetFormId && (localConfig?.fieldMappings?.length || 0) > 0 && (
+                      <div className="text-xs text-teal-700 bg-teal-50 p-3 rounded border border-teal-200">
+                        <strong>Summary:</strong> Will update {localConfig.updateScope === 'all' ? 'all' : localConfig.updateScope === 'first' ? 'the first' : 'the last'} linked record{localConfig.updateScope === 'all' ? 's' : ''} in "{localConfig.targetFormName}" using {localConfig.fieldMappings.length} field mapping{localConfig.fieldMappings.length !== 1 ? 's' : ''} from the trigger form
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             )}
           </div>
         )}

@@ -36,7 +36,8 @@ export type ActionType =
   | 'change_field_value'
   | 'change_record_status'
   | 'create_record'
-  | 'create_linked_record';
+  | 'create_linked_record'
+  | 'update_linked_records';
 
 export type ConditionOperator = '==' | '!=' | '<' | '>' | '<=' | '>=' | 'contains' | 'in' | 'not_in' | 'exists' | 'not_exists';
 

@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { Settings, CheckCircle, XCircle, Mail, MessageSquare, Webhook, FileText, Edit, Activity, Bell, RefreshCw, Edit3, FileCheck, Link2 } from 'lucide-react';
+import { Settings, CheckCircle, XCircle, Mail, MessageSquare, Webhook, FileText, Edit, Activity, Bell, RefreshCw, Edit3, FileCheck, Link2, RefreshCcw } from 'lucide-react';
 
 interface ActionNodeProps {
   data: {
@@ -39,6 +39,8 @@ const getActionIcon = (actionType: string) => {
       return FileText;
     case 'create_linked_record':
       return Link2;
+    case 'update_linked_records':
+      return RefreshCcw;
     default:
       return Settings;
   }
@@ -73,6 +75,8 @@ const getActionColor = (actionType: string) => {
       return 'bg-cyan-100 text-cyan-800 border-cyan-200';
     case 'create_linked_record':
       return 'bg-violet-100 text-violet-800 border-violet-200';
+    case 'update_linked_records':
+      return 'bg-teal-100 text-teal-800 border-teal-200';
     default:
       return 'bg-slate-100 text-slate-800 border-slate-200';
   }
@@ -96,6 +100,7 @@ const getActionLabel = (actionType: string) => {
     case 'change_record_status': return 'Change Status';
     case 'create_record': return 'Create Record';
     case 'create_linked_record': return 'Create Linked Record';
+    case 'update_linked_records': return 'Update Linked Records';
     default: return 'Action';
   }
 };
@@ -158,6 +163,14 @@ export const ActionNode = React.memo(function ActionNode({ data }: ActionNodePro
       const targetForm = config.targetFormName || 'child form';
       const count = config.recordCount || 1;
       return `Create ${count} linked record${count > 1 ? 's' : ''} in ${targetForm} via ${crossRefField}`;
+    }
+    
+    if (actionType === 'update_linked_records') {
+      const crossRefField = config.crossReferenceFieldName || 'cross-reference field';
+      const targetForm = config.targetFormName || 'linked form';
+      const mappingCount = config.fieldMappings?.length || 0;
+      const scope = config.updateScope || 'all';
+      return `Update ${scope === 'all' ? 'all' : scope} linked records in ${targetForm} (${mappingCount} field${mappingCount !== 1 ? 's' : ''})`;
     }
     
     return 'Click to configure';

@@ -73,3 +73,16 @@ export interface CreateLinkedRecordConfig {
   // Initial status for the new record
   initialStatus?: 'pending' | 'approved' | 'rejected' | 'in_review';
 }
+
+export interface UpdateLinkedRecordsConfig {
+  // The cross-reference field in the current (parent) form that holds linked record refs
+  crossReferenceFieldId: string;
+  crossReferenceFieldName?: string;
+  // The linked (child) form where records will be updated
+  targetFormId: string;
+  targetFormName?: string;
+  // Update scope - how to handle multiple linked records
+  updateScope: 'all' | 'first' | 'last';
+  // Field mappings from current form to the linked records
+  fieldMappings: FieldMapping[];
+}
