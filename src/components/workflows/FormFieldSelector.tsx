@@ -3,6 +3,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { FormField } from '@/types/form';
 import { Loader2 } from 'lucide-react';
+import { 
+  STATIC_LAYOUT_FIELD_TYPES, 
+  filterCompatibleFields,
+  getCompatibleTypes 
+} from '@/utils/workflowFieldFiltering';
 
 interface ExtendedFormField extends FormField {
   customConfig?: any;
@@ -14,9 +19,19 @@ interface FormFieldSelectorProps {
   onValueChange: (fieldId: string, fieldName: string, fieldType?: string, fieldOptions?: any[], customConfig?: any) => void;
   placeholder?: string;
   filterTypes?: string[]; // Optional filter to show only specific field types
+  excludeStaticFields?: boolean; // Whether to exclude static/layout fields (default: true)
+  targetFieldType?: string; // If provided, only show compatible types
 }
 
-export function FormFieldSelector({ formId, value, onValueChange, placeholder = "Select field", filterTypes }: FormFieldSelectorProps) {
+export function FormFieldSelector({ 
+  formId, 
+  value, 
+  onValueChange, 
+  placeholder = "Select field", 
+  filterTypes,
+  excludeStaticFields = true,
+  targetFieldType
+}: FormFieldSelectorProps) {
   const [fields, setFields] = useState<ExtendedFormField[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -44,9 +59,9 @@ export function FormFieldSelector({ formId, value, onValueChange, placeholder = 
         }
 
         if (fieldsData) {
-          // Filter out non-data fields (layout-only fields)
+          // Filter out static/layout fields using centralized utility
           let dataFields = fieldsData
-            .filter(field => !['header', 'description', 'section-break', 'horizontal-line'].includes(field.field_type))
+            .filter(field => !excludeStaticFields || !STATIC_LAYOUT_FIELD_TYPES.includes(field.field_type as any))
             .map(field => ({
               id: field.id,
               type: field.field_type,
@@ -61,6 +76,11 @@ export function FormFieldSelector({ formId, value, onValueChange, placeholder = 
             dataFields = dataFields.filter(field => typesToFilter.includes(field.type));
           }
           
+          // Apply target type compatibility filter if provided
+          if (targetFieldType) {
+            dataFields = filterCompatibleFields(dataFields, targetFieldType);
+          }
+          
           setFields(dataFields);
         }
       } catch (error) {
@@ -71,7 +91,7 @@ export function FormFieldSelector({ formId, value, onValueChange, placeholder = 
     };
 
     fetchFields();
-  }, [formId, filterTypesKey]);
+  }, [formId, filterTypesKey, excludeStaticFields, targetFieldType]);
 
   if (loading) {
     return (

@@ -1,15 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Trash2, Plus, ArrowRight } from 'lucide-react';
+import { Trash2, Plus, ArrowRight, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { 
+  STATIC_LAYOUT_FIELD_TYPES, 
+  areTypesCompatible,
+  getTypeCompatibilityLabel 
+} from '@/utils/workflowFieldFiltering';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface FieldMapping {
   sourceFieldId: string;
   sourceFieldName?: string;
+  sourceFieldType?: string;
   targetFieldId: string;
   targetFieldName?: string;
+  targetFieldType?: string;
 }
 
 interface FieldMappingConfigProps {
@@ -17,6 +25,7 @@ interface FieldMappingConfigProps {
   targetFormId: string;
   fieldMappings: FieldMapping[];
   onFieldMappingsChange: (mappings: FieldMapping[]) => void;
+  showTypeCompatibility?: boolean;
 }
 
 interface FormField {
@@ -29,13 +38,14 @@ export function FieldMappingConfig({
   triggerFormId,
   targetFormId,
   fieldMappings,
-  onFieldMappingsChange
+  onFieldMappingsChange,
+  showTypeCompatibility = true
 }: FieldMappingConfigProps) {
   const [triggerFields, setTriggerFields] = useState<FormField[]>([]);
   const [targetFields, setTargetFields] = useState<FormField[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch fields from both forms
+  // Fetch fields from both forms with static field filtering
   useEffect(() => {
     const fetchFields = async () => {
       if (!triggerFormId || !targetFormId) return;
@@ -56,10 +66,18 @@ export function FieldMappingConfig({
         ]);
 
         if (triggerResult.data) {
-          setTriggerFields(triggerResult.data);
+          // Filter out static/layout fields
+          const filteredFields = triggerResult.data.filter(
+            field => !STATIC_LAYOUT_FIELD_TYPES.includes(field.field_type as any)
+          );
+          setTriggerFields(filteredFields);
         }
         if (targetResult.data) {
-          setTargetFields(targetResult.data);
+          // Filter out static/layout fields
+          const filteredFields = targetResult.data.filter(
+            field => !STATIC_LAYOUT_FIELD_TYPES.includes(field.field_type as any)
+          );
+          setTargetFields(filteredFields);
         }
       } catch (error) {
         console.error('Error fetching form fields:', error);
@@ -93,9 +111,31 @@ export function FieldMappingConfig({
     newMappings[index] = {
       ...newMappings[index],
       [field]: value,
-      [field === 'sourceFieldId' ? 'sourceFieldName' : 'targetFieldName']: selectedField?.label
+      [field === 'sourceFieldId' ? 'sourceFieldName' : 'targetFieldName']: selectedField?.label,
+      [field === 'sourceFieldId' ? 'sourceFieldType' : 'targetFieldType']: selectedField?.field_type
     };
     onFieldMappingsChange(newMappings);
+  };
+
+  // Check mapping compatibility
+  const getMappingCompatibility = (mapping: FieldMapping): { isCompatible: boolean; message: string } => {
+    if (!mapping.sourceFieldId || !mapping.targetFieldId) {
+      return { isCompatible: true, message: '' };
+    }
+    
+    const sourceField = triggerFields.find(f => f.id === mapping.sourceFieldId);
+    const targetField = targetFields.find(f => f.id === mapping.targetFieldId);
+    
+    if (!sourceField || !targetField) {
+      return { isCompatible: true, message: '' };
+    }
+    
+    const isCompatible = areTypesCompatible(sourceField.field_type, targetField.field_type);
+    const message = isCompatible 
+      ? `${sourceField.field_type} → ${targetField.field_type}`
+      : `Warning: ${sourceField.field_type} may not be compatible with ${targetField.field_type}`;
+    
+    return { isCompatible, message };
   };
 
   if (!triggerFormId) {
@@ -123,58 +163,82 @@ export function FieldMappingConfig({
         </p>
       )}
 
-      {fieldMappings.map((mapping, index) => (
-        <div key={index} className="flex items-center gap-2 p-2 bg-muted/30 rounded">
-          <div className="flex-1">
-            <Label className="text-xs text-muted-foreground mb-1 block">From Trigger Form</Label>
-            <Select
-              value={mapping.sourceFieldId}
-              onValueChange={(value) => handleMappingChange(index, 'sourceFieldId', value)}
+      {fieldMappings.map((mapping, index) => {
+        const compatibility = getMappingCompatibility(mapping);
+        
+        return (
+          <div key={index} className="flex items-center gap-2 p-2 bg-muted/30 rounded">
+            <div className="flex-1">
+              <Label className="text-xs text-muted-foreground mb-1 block">From Trigger Form</Label>
+              <Select
+                value={mapping.sourceFieldId}
+                onValueChange={(value) => handleMappingChange(index, 'sourceFieldId', value)}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Select trigger field" />
+                </SelectTrigger>
+                <SelectContent>
+                  {triggerFields.map((field) => (
+                    <SelectItem key={field.id} value={field.id}>
+                      {field.label} ({field.field_type})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex flex-col items-center flex-shrink-0 mt-5">
+              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+              {showTypeCompatibility && mapping.sourceFieldId && mapping.targetFieldId && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="mt-1">
+                        {compatibility.isCompatible ? (
+                          <CheckCircle2 className="h-3 w-3 text-green-500" />
+                        ) : (
+                          <AlertTriangle className="h-3 w-3 text-amber-500" />
+                        )}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">{compatibility.message}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+            
+            <div className="flex-1">
+              <Label className="text-xs text-muted-foreground mb-1 block">To Target Form</Label>
+              <Select
+                value={mapping.targetFieldId}
+                onValueChange={(value) => handleMappingChange(index, 'targetFieldId', value)}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Select target field" />
+                </SelectTrigger>
+                <SelectContent>
+                  {targetFields.map((field) => (
+                    <SelectItem key={field.id} value={field.id}>
+                      {field.label} ({field.field_type})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 flex-shrink-0 mt-5"
+              onClick={() => handleRemoveMapping(index)}
             >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Select trigger field" />
-              </SelectTrigger>
-              <SelectContent>
-                {triggerFields.map((field) => (
-                  <SelectItem key={field.id} value={field.id}>
-                    {field.label} ({field.field_type})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <Trash2 className="h-3 w-3 text-destructive" />
+            </Button>
           </div>
-          
-          <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-5" />
-          
-          <div className="flex-1">
-            <Label className="text-xs text-muted-foreground mb-1 block">To Target Form</Label>
-            <Select
-              value={mapping.targetFieldId}
-              onValueChange={(value) => handleMappingChange(index, 'targetFieldId', value)}
-            >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Select target field" />
-              </SelectTrigger>
-              <SelectContent>
-                {targetFields.map((field) => (
-                  <SelectItem key={field.id} value={field.id}>
-                    {field.label} ({field.field_type})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 flex-shrink-0 mt-5"
-            onClick={() => handleRemoveMapping(index)}
-          >
-            <Trash2 className="h-3 w-3 text-destructive" />
-          </Button>
-        </div>
-      ))}
+        );
+      })}
 
       <Button
         variant="outline"
