@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { FormOption, FormFieldOption } from '@/types/conditions';
 import { useProject } from '@/contexts/ProjectContext';
+import { STATIC_LAYOUT_FIELD_TYPES } from '@/utils/workflowFieldFiltering';
 
 export function useConditionFormData() {
   const { currentProject } = useProject();
@@ -51,7 +52,12 @@ export function useConditionFormData() {
             };
           }
 
-          const fields: FormFieldOption[] = fieldsData.map(field => {
+          // Filter out static/layout fields that don't hold data
+          const dataFields = fieldsData.filter(
+            field => !STATIC_LAYOUT_FIELD_TYPES.includes(field.field_type as any)
+          );
+
+          const fields: FormFieldOption[] = dataFields.map(field => {
             let processedOptions: Array<{ id: string; value: string; label: string }> = [];
             
             // Handle options - could be array, JSON string, or null
@@ -152,7 +158,12 @@ export function useFormFields(formId: string | undefined) {
 
         if (error) throw error;
 
-        const formattedFields: FormFieldOption[] = data.map(field => {
+        // Filter out static/layout fields that don't hold data
+        const dataFields = data.filter(
+          field => !STATIC_LAYOUT_FIELD_TYPES.includes(field.field_type as any)
+        );
+
+        const formattedFields: FormFieldOption[] = dataFields.map(field => {
           let processedOptions: Array<{ id: string; value: string; label: string }> = [];
           
           // Handle options - could be array, JSON string, or null

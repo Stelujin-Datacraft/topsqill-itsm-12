@@ -4,6 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { FormField } from '@/types/form';
 import { Loader2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { 
+  STATIC_LAYOUT_FIELD_TYPES, 
+  getCompatibleTypes,
+  getTypeCompatibilityLabel 
+} from '@/utils/workflowFieldFiltering';
 
 interface DynamicFieldSelectorProps {
   triggerFormId?: string;
@@ -13,75 +18,6 @@ interface DynamicFieldSelectorProps {
   onValueChange: (fieldId: string, fieldName: string, sourceForm: 'trigger' | 'target') => void;
   placeholder?: string;
 }
-
-// Define compatible field type groups
-const getCompatibleTypes = (targetType: string): string[] => {
-  const typeGroups: Record<string, string[]> = {
-    // Text-based fields
-    text: ['text', 'short-answer', 'textarea', 'long-text', 'paragraph', 'rich-text', 'email', 'url', 'phone'],
-    'short-answer': ['text', 'short-answer', 'textarea', 'long-text', 'paragraph', 'rich-text', 'email', 'url', 'phone'],
-    textarea: ['text', 'short-answer', 'textarea', 'long-text', 'paragraph', 'rich-text'],
-    'long-text': ['text', 'short-answer', 'textarea', 'long-text', 'paragraph', 'rich-text'],
-    paragraph: ['text', 'short-answer', 'textarea', 'long-text', 'paragraph', 'rich-text'],
-    'rich-text': ['text', 'short-answer', 'textarea', 'long-text', 'paragraph', 'rich-text'],
-    
-    // Email
-    email: ['email', 'text', 'short-answer'],
-    
-    // URL
-    url: ['url', 'text', 'short-answer'],
-    
-    // Phone
-    phone: ['phone', 'text', 'short-answer'],
-    
-    // Number-based fields
-    number: ['number', 'slider', 'rating', 'star-rating', 'currency'],
-    slider: ['number', 'slider', 'rating', 'star-rating'],
-    rating: ['number', 'slider', 'rating', 'star-rating'],
-    'star-rating': ['number', 'slider', 'rating', 'star-rating'],
-    currency: ['currency', 'number'],
-    
-    // Date/Time fields
-    date: ['date', 'datetime'],
-    time: ['time', 'datetime'],
-    datetime: ['date', 'time', 'datetime'],
-    
-    // Boolean fields
-    toggle: ['toggle', 'switch', 'checkbox', 'yes-no'],
-    switch: ['toggle', 'switch', 'checkbox', 'yes-no'],
-    'yes-no': ['toggle', 'switch', 'checkbox', 'yes-no'],
-    
-    // Select/Option fields
-    select: ['select', 'radio', 'dropdown', 'multi-select', 'checkbox'],
-    radio: ['select', 'radio', 'dropdown'],
-    dropdown: ['select', 'radio', 'dropdown'],
-    'multi-select': ['multi-select', 'checkbox', 'tags'],
-    checkbox: ['checkbox', 'multi-select', 'toggle', 'switch', 'yes-no'],
-    
-    // Tags
-    tags: ['tags', 'multi-select'],
-    
-    // Country
-    country: ['country', 'select', 'dropdown', 'text'],
-    
-    // User/Access fields
-    'user-picker': ['user-picker', 'email', 'submission-access'],
-    'submission-access': ['submission-access', 'user-picker', 'group-picker'],
-    'group-picker': ['group-picker', 'submission-access'],
-    assignee: ['assignee', 'user-picker', 'email'],
-    
-    // File fields
-    file: ['file', 'image', 'attachment'],
-    image: ['file', 'image', 'attachment'],
-    attachment: ['file', 'image', 'attachment'],
-    
-    // Signature
-    signature: ['signature', 'image'],
-  };
-
-  const normalizedType = targetType?.toLowerCase() || '';
-  return typeGroups[normalizedType] || [normalizedType];
-};
 
 interface FieldWithSource extends FormField {
   sourceForm: 'trigger' | 'target';
@@ -114,9 +50,10 @@ export function DynamicFieldSelector({
             .eq('form_id', triggerFormId)
             .order('field_order', { ascending: true });
 
-          if (!triggerFieldsError && triggerFieldsData) {
+        if (!triggerFieldsError && triggerFieldsData) {
+            // Use centralized static field filtering
             const dataFields = triggerFieldsData
-              .filter(field => !['header', 'description', 'section-break', 'horizontal-line'].includes(field.field_type))
+              .filter(field => !STATIC_LAYOUT_FIELD_TYPES.includes(field.field_type as any))
               .map(field => ({
                 id: field.id,
                 type: field.field_type,
@@ -146,8 +83,9 @@ export function DynamicFieldSelector({
             .order('field_order', { ascending: true });
 
           if (!targetFieldsError && targetFieldsData) {
+            // Use centralized static field filtering
             const dataFields = targetFieldsData
-              .filter(field => !['header', 'description', 'section-break', 'horizontal-line'].includes(field.field_type))
+              .filter(field => !STATIC_LAYOUT_FIELD_TYPES.includes(field.field_type as any))
               .map(field => ({
                 id: field.id,
                 type: field.field_type,
