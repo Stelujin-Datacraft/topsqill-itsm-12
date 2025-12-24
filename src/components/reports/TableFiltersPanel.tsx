@@ -63,7 +63,16 @@ const OPERATORS = [
   { value: 'in', label: 'In List' },
   { value: 'not_in', label: 'Not In List' },
   { value: 'last_days', label: 'Last N Days' },
-  { value: 'next_days', label: 'Next N Days' }
+  { value: 'next_days', label: 'Next N Days' },
+  { value: 'current_day', label: 'Current Day' },
+  { value: 'last_day', label: 'Last Day' },
+  { value: 'current_month', label: 'Current Month' },
+  { value: 'last_month', label: 'Last Month' },
+  { value: 'current_year', label: 'Current Year' },
+  { value: 'last_year', label: 'Last Year' },
+  { value: 'current_quarter', label: 'Current Quarter' },
+  { value: 'last_quarter', label: 'Last Quarter' },
+  { value: 'next_quarter', label: 'Next Quarter' }
 ];
 
 export function TableFiltersPanel({

@@ -59,7 +59,16 @@ const FILTER_OPERATORS = {
     { value: 'before', label: 'Before' },
     { value: 'between', label: 'Between dates' },
     { value: 'last_days', label: 'Last N days' },
-    { value: 'next_days', label: 'Next N days' }
+    { value: 'next_days', label: 'Next N days' },
+    { value: 'current_day', label: 'Current Day' },
+    { value: 'last_day', label: 'Last Day' },
+    { value: 'current_month', label: 'Current Month' },
+    { value: 'last_month', label: 'Last Month' },
+    { value: 'current_year', label: 'Current Year' },
+    { value: 'last_year', label: 'Last Year' },
+    { value: 'current_quarter', label: 'Current Quarter' },
+    { value: 'last_quarter', label: 'Last Quarter' },
+    { value: 'next_quarter', label: 'Next Quarter' }
   ],
   time: [
     { value: 'equals', label: 'At time' },
