@@ -1311,6 +1311,32 @@ export function FilterConfig({
         );
       }
       
+      // Handle auto-calculating date operators (no input needed)
+      const autoDateOperators = [
+        'current_day', 'last_day', 'current_month', 'last_month',
+        'current_year', 'last_year', 'current_quarter', 'last_quarter', 'next_quarter'
+      ];
+      if (autoDateOperators.includes(filter.operator)) {
+        const labels: Record<string, string> = {
+          'current_day': 'Today',
+          'last_day': 'Yesterday',
+          'current_month': 'This Month',
+          'last_month': 'Previous Month',
+          'current_year': 'This Year',
+          'last_year': 'Previous Year',
+          'current_quarter': 'This Quarter',
+          'last_quarter': 'Previous Quarter',
+          'next_quarter': 'Next Quarter'
+        };
+        return (
+          <div className="space-y-2">
+            <Label>Date Range</Label>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+              <span>Automatically filters to: <strong className="text-foreground">{labels[filter.operator]}</strong></span>
+            </div>
+          </div>
+        );
+      }
       return (
         <div className="space-y-2">
           <Label>Value</Label>
