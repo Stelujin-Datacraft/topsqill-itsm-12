@@ -9,6 +9,7 @@ import { useFormsData } from '@/hooks/useFormsData';
 import { ChartConfig } from '@/types/reports';
 import { colorSchemes } from './ChartColorThemes';
 import { TableCellSubmissionsDialog } from './TableCellSubmissionsDialog';
+import { HeatmapCell } from './HeatmapCell';
 import { evaluateFilterCondition, evaluateSubmissionFilters } from '@/utils/filterUtils';
 import { ChartExportButton } from './ChartExportButton';
 interface ChartPreviewProps {
@@ -2773,37 +2774,24 @@ export function ChartPreview({
                   const colorIndex = Math.floor(intensity * (colors.length - 1));
                   const safeColorIndex = Math.max(0, Math.min(colors.length - 1, isNaN(colorIndex) ? 0 : colorIndex));
                   
-                  // Build detailed tooltip
-                  const tooltipLines = [
-                    `━━━ Cell Details ━━━`,
-                    `${dimensionLabel}: ${cell.name}`,
-                    ``,
-                    `━━━ Values ━━━`,
-                    `${intensityLabel}: ${typeof cell.value === 'number' ? cell.value.toLocaleString() : cell.value}`,
-                    `Aggregation: ${effectiveAgg}`,
-                    ``,
-                    `━━━ Intensity ━━━`,
-                    `Intensity: ${intensityPercent}%`,
-                    `Max Value: ${maxValueSimple.toLocaleString()}`,
-                    ``,
-                    `Click to view records`
-                  ];
-                  
-                  return <div 
-                    key={index} 
-                    className="min-h-[40px] rounded-sm flex items-center justify-center text-xs font-medium cursor-pointer hover:ring-2 hover:ring-primary hover:z-10 transition-all" 
-                    style={{
-                      backgroundColor: colors[safeColorIndex],
-                      color: intensity > 0.5 ? 'white' : 'black'
-                    }} 
-                    title={tooltipLines.join('\n')}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleHeatmapCellClick(cell.name, 'Default', config.dimensions?.[0], config.dimensions?.[1]);
-                    }}
-                  >
-                    <span className="truncate px-1">{typeof cell.value === 'number' ? cell.value.toLocaleString() : cell.value}</span>
-                  </div>;
+                  return (
+                    <HeatmapCell
+                      key={index}
+                      rowLabel={dimensionLabel}
+                      colLabel="Category"
+                      rowValue={cell.name}
+                      colValue="Default"
+                      cellValue={cell.value}
+                      cellCount={1}
+                      intensityLabel={intensityLabel}
+                      aggregation={effectiveAgg}
+                      intensityPercent={intensityPercent}
+                      maxValue={maxValueSimple}
+                      backgroundColor={colors[safeColorIndex]}
+                      textColor={intensity > 0.5 ? 'white' : 'black'}
+                      onClick={() => handleHeatmapCellClick(cell.name, 'Default', config.dimensions?.[0], config.dimensions?.[1])}
+                    />
+                  );
                 })}
               </div>
               {/* Color scale legend */}
@@ -2885,40 +2873,23 @@ export function ChartPreview({
                       const colorIndex = Math.floor(intensity * (colors.length - 1));
                       const safeColorIndex = Math.max(0, Math.min(colors.length - 1, isNaN(colorIndex) ? 0 : colorIndex));
                       
-                      // Build detailed tooltip
-                      const tooltipLines = [
-                        `━━━ Cell Details ━━━`,
-                        `${rowLabel}: ${row}`,
-                        `${colLabel}: ${col}`,
-                        ``,
-                        `━━━ Values ━━━`,
-                        `${intensityLabel}: ${typeof cellValue === 'number' ? cellValue.toLocaleString() : cellValue}`,
-                        `Aggregation: ${effectiveAgg}`,
-                        `Record Count: ${cellCount}`,
-                        ``,
-                        `━━━ Intensity ━━━`,
-                        `Intensity: ${intensityPercent}%`,
-                        `Max Value: ${maxValue.toLocaleString()}`,
-                        ``,
-                        `Click to view ${cellCount} record${cellCount !== 1 ? 's' : ''}`
-                      ];
-                      
                       return (
-                        <div 
-                          key={colIdx} 
-                          className="min-h-[40px] rounded-sm flex items-center justify-center text-xs font-medium cursor-pointer hover:ring-2 hover:ring-primary hover:z-10 transition-all"
-                          style={{
-                            backgroundColor: colors[safeColorIndex],
-                            color: intensity > 0.5 ? 'white' : 'black'
-                          }}
-                          title={tooltipLines.join('\n')}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleHeatmapCellClick(row, col, rowDimension, colDimension);
-                          }}
-                        >
-                          <span className="truncate px-1">{typeof cellValue === 'number' ? cellValue.toLocaleString() : cellValue}</span>
-                        </div>
+                        <HeatmapCell
+                          key={colIdx}
+                          rowLabel={rowLabel}
+                          colLabel={colLabel}
+                          rowValue={row}
+                          colValue={col}
+                          cellValue={cellValue}
+                          cellCount={cellCount}
+                          intensityLabel={intensityLabel}
+                          aggregation={effectiveAgg}
+                          intensityPercent={intensityPercent}
+                          maxValue={maxValue}
+                          backgroundColor={colors[safeColorIndex]}
+                          textColor={intensity > 0.5 ? 'white' : 'black'}
+                          onClick={() => handleHeatmapCellClick(row, col, rowDimension, colDimension)}
+                        />
                       );
                     })}
                   </React.Fragment>
