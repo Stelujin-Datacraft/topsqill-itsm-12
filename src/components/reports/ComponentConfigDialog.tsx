@@ -102,6 +102,7 @@ export function ComponentConfigDialog({
   const [secondaryFormFields, setSecondaryFormFields] = useState<FormField[]>([]);
   const [loadingFields, setLoadingFields] = useState(false);
   const [loadingSecondaryFields, setLoadingSecondaryFields] = useState(false);
+  const [useSampleData, setUseSampleData] = useState(false);
   const { forms } = useReports();
 
   // Fetch form fields from backend
@@ -844,23 +845,45 @@ export function ComponentConfigDialog({
         <TabsContent value="preview" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Chart Preview</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm">Chart Preview</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="use-sample-data" className="text-xs text-muted-foreground">Use sample data</Label>
+                  <Switch
+                    id="use-sample-data"
+                    checked={useSampleData}
+                    onCheckedChange={setUseSampleData}
+                  />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="h-64">
-                <ChartPreview 
-                  config={{
-                    ...config,
-                    data: [
-                      { name: 'Sample A', value: 120, revenue: 15000, customers: 45 },
-                      { name: 'Sample B', value: 98, revenue: 12500, customers: 32 },
-                      { name: 'Sample C', value: 86, revenue: 9800, customers: 28 },
-                      { name: 'Sample D', value: 145, revenue: 18200, customers: 56 },
-                      { name: 'Sample E', value: 73, revenue: 8900, customers: 21 }
-                    ]
-                  }}
-                />
+                {useSampleData ? (
+                  <ChartPreview 
+                    config={{
+                      ...config,
+                      data: [
+                        { name: 'Sample A', value: 120, revenue: 15000, customers: 45 },
+                        { name: 'Sample B', value: 98, revenue: 12500, customers: 32 },
+                        { name: 'Sample C', value: 86, revenue: 9800, customers: 28 },
+                        { name: 'Sample D', value: 145, revenue: 18200, customers: 56 },
+                        { name: 'Sample E', value: 73, revenue: 8900, customers: 21 }
+                      ]
+                    }}
+                  />
+                ) : (
+                  <ChartPreview 
+                    key={`chart-preview-${JSON.stringify(config.metrics)}-${JSON.stringify(config.dimensions)}-${config.formId}`}
+                    config={config}
+                  />
+                )}
               </div>
+              {!useSampleData && !config.formId && (
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  Select a data source in the Basic tab to see real data preview
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -939,11 +962,12 @@ export function ComponentConfigDialog({
 
     return (
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="basic">Basic & Columns</TabsTrigger>
           <TabsTrigger value="joins">Joins</TabsTrigger>
           <TabsTrigger value="drilldown">Drilldown</TabsTrigger>
           <TabsTrigger value="filters">Filters</TabsTrigger>
+          <TabsTrigger value="preview">Preview</TabsTrigger>
         </TabsList>
 
         <TabsContent value="basic" className="space-y-4">
@@ -1196,6 +1220,79 @@ export function ComponentConfigDialog({
               Please select a form first to configure filters.
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="preview" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Table Preview</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {selectedColumns.length} column(s) selected
+              </p>
+            </CardHeader>
+            <CardContent>
+              {config.formId && selectedColumns.length > 0 ? (
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="bg-muted/50 p-2 border-b">
+                    <div className="flex gap-2 overflow-x-auto">
+                      {selectedColumns.slice(0, 6).map((colId: string) => {
+                        const field = allFields.find(f => f.id === colId);
+                        return (
+                          <Badge key={colId} variant="secondary" className="text-xs whitespace-nowrap">
+                            {field?.label || colId}
+                          </Badge>
+                        );
+                      })}
+                      {selectedColumns.length > 6 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{selectedColumns.length - 6} more
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    Preview will be available after saving. Click "Save Component" to see the table with real data.
+                  </div>
+                </div>
+              ) : (
+                <div className="p-8 text-center text-muted-foreground">
+                  {!config.formId ? (
+                    <p>Select a data source in the Basic tab to see preview</p>
+                  ) : (
+                    <p>Select at least one column to see preview</p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Configuration Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium">Columns:</span> {selectedColumns.length} selected
+                </div>
+                <div>
+                  <span className="font-medium">Filters:</span> {config.filters?.length || 0} active
+                </div>
+                <div>
+                  <span className="font-medium">Sorting:</span> {config.enableSorting !== false ? 'Enabled' : 'Disabled'}
+                </div>
+                <div>
+                  <span className="font-medium">Search:</span> {config.enableSearch !== false ? 'Enabled' : 'Disabled'}
+                </div>
+                <div>
+                  <span className="font-medium">Drilldown:</span> {config.drilldownConfig?.enabled ? 'Enabled' : 'Disabled'}
+                </div>
+                <div>
+                  <span className="font-medium">Join:</span> {joinEnabled ? 'Enabled' : 'Disabled'}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     );
