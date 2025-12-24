@@ -917,15 +917,30 @@ export class RecordActionExecutors {
         };
       }
 
-      // Cross-reference fields can store an array of submission_ref_ids or a single value
+      // Cross-reference fields can store:
+      // 1. An array of objects with submission_ref_id property
+      // 2. An array of string submission_ref_ids
+      // 3. A single object with submission_ref_id property
+      // 4. A single string submission_ref_id
       let linkedRefIds: string[];
+      
       if (Array.isArray(crossRefValue)) {
-        linkedRefIds = crossRefValue.filter(v => v && typeof v === 'string');
+        linkedRefIds = crossRefValue
+          .map(v => {
+            if (typeof v === 'string') return v;
+            if (v && typeof v === 'object' && v.submission_ref_id) return v.submission_ref_id;
+            return null;
+          })
+          .filter((v): v is string => v !== null && v !== '');
+      } else if (typeof crossRefValue === 'object' && crossRefValue?.submission_ref_id) {
+        linkedRefIds = [crossRefValue.submission_ref_id];
       } else if (typeof crossRefValue === 'string' && crossRefValue) {
         linkedRefIds = [crossRefValue];
       } else {
         linkedRefIds = [];
       }
+
+      console.log('📋 Extracted linked ref IDs:', linkedRefIds, 'from cross-ref value:', crossRefValue);
 
       if (linkedRefIds.length === 0) {
         return {
@@ -933,7 +948,8 @@ export class RecordActionExecutors {
           output: {
             updatedCount: 0,
             message: 'No valid linked record references found',
-            crossReferenceFieldId: config.crossReferenceFieldId
+            crossReferenceFieldId: config.crossReferenceFieldId,
+            rawCrossRefValue: crossRefValue
           },
           actionDetails
         };
