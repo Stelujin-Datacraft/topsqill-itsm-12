@@ -91,6 +91,21 @@ export function TableCellSubmissionsDialog({
     }
   };
 
+  // Helper function to extract dimension value - same logic as ChartPreview
+  const getDimensionValue = (submissionData: any, dim: string): string => {
+    if (dim === '_default') return 'Total';
+    const val = submissionData[dim];
+    if (typeof val === 'object' && val !== null) {
+      if (val.status) return val.status;
+      if (val.label) return val.label;
+      return JSON.stringify(val);
+    }
+    if (val === null || val === undefined || val === '') {
+      return 'Not Specified';
+    }
+    return String(val);
+  };
+
   const loadSubmissions = async () => {
     setLoading(true);
     try {
@@ -114,29 +129,40 @@ export function TableCellSubmissionsDialog({
         return;
       }
 
-      // Otherwise, query by dimension/group filters
-      let query = supabase
+      // Fetch all submissions for the form, then filter client-side
+      // This is necessary because dimension values may be processed/stringified
+      // and the DB contains raw values (numbers, objects, etc.)
+      const { data, error } = await supabase
         .from('form_submissions')
         .select('id, submission_ref_id, submission_data')
-        .eq('form_id', formId);
-
-      // Apply dimension filter
-      if (dimensionField && dimensionValue) {
-        query = query.contains('submission_data', { [dimensionField]: dimensionValue });
-      }
-
-      // Apply group filter if exists
-      if (groupField && groupValue) {
-        query = query.contains('submission_data', { [groupField]: groupValue });
-      }
-
-      const { data, error } = await query.order('submitted_at', { ascending: false });
+        .eq('form_id', formId)
+        .order('submitted_at', { ascending: false });
 
       if (error) throw error;
-      setSubmissions(data?.map(d => ({
+      
+      // Filter submissions client-side using the same dimension extraction logic as charts
+      let filteredData = data?.map(d => ({
         ...d,
         submission_data: (d.submission_data as Record<string, any>) || {}
-      })) || []);
+      })) || [];
+
+      // Apply dimension filter using getDimensionValue for proper matching
+      if (dimensionField && dimensionValue) {
+        filteredData = filteredData.filter(submission => {
+          const extractedValue = getDimensionValue(submission.submission_data, dimensionField);
+          return extractedValue === dimensionValue;
+        });
+      }
+
+      // Apply group filter if exists (for heatmap column dimension)
+      if (groupField && groupValue) {
+        filteredData = filteredData.filter(submission => {
+          const extractedValue = getDimensionValue(submission.submission_data, groupField);
+          return extractedValue === groupValue;
+        });
+      }
+
+      setSubmissions(filteredData);
     } catch (error) {
       console.error('Error loading submissions:', error);
       setSubmissions([]);
