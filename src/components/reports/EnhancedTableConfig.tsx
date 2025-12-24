@@ -244,21 +244,6 @@ export function EnhancedTableConfig({ config, forms, onConfigChange }: EnhancedT
 
         {/* Options */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="flex items-center space-x-2">
-            <Switch
-              checked={config.showMetadata || false}
-              onCheckedChange={(checked) => onConfigChange({ ...config, showMetadata: checked })}
-            />
-            <Label>Show Metadata</Label>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Switch
-              checked={config.enableFiltering !== false}
-              onCheckedChange={(checked) => onConfigChange({ ...config, enableFiltering: checked })}
-            />
-            <Label>Enable Filtering</Label>
-          </div>
 
           <div className="flex items-center space-x-2">
             <Switch
