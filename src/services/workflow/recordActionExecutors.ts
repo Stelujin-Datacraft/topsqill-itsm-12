@@ -917,32 +917,45 @@ export class RecordActionExecutors {
         };
       }
 
-      // Cross-reference fields can store:
-      // 1. An array of objects with submission_ref_id property
-      // 2. An array of string submission_ref_ids
-      // 3. A single object with submission_ref_id property
-      // 4. A single string submission_ref_id
-      let linkedRefIds: string[];
+      // Cross-reference fields store an array of objects with:
+      // { id, submission_ref_id, form_id, displayData }
+      // We need to extract both the submission_ref_id AND the form_id
+      interface LinkedRecord {
+        refId: string;
+        formId: string;
+      }
+      
+      let linkedRecords: LinkedRecord[] = [];
       
       if (Array.isArray(crossRefValue)) {
-        linkedRefIds = crossRefValue
+        linkedRecords = crossRefValue
           .map(v => {
-            if (typeof v === 'string') return v;
-            if (v && typeof v === 'object' && v.submission_ref_id) return v.submission_ref_id;
+            if (typeof v === 'string') {
+              // Just a string ref ID - use config.targetFormId
+              return { refId: v, formId: config.targetFormId };
+            }
+            if (v && typeof v === 'object' && v.submission_ref_id) {
+              // Object with form_id - use the form_id from the value
+              return { 
+                refId: v.submission_ref_id, 
+                formId: v.form_id || config.targetFormId 
+              };
+            }
             return null;
           })
-          .filter((v): v is string => v !== null && v !== '');
+          .filter((v): v is LinkedRecord => v !== null && v.refId !== '');
       } else if (typeof crossRefValue === 'object' && crossRefValue?.submission_ref_id) {
-        linkedRefIds = [crossRefValue.submission_ref_id];
+        linkedRecords = [{
+          refId: crossRefValue.submission_ref_id,
+          formId: crossRefValue.form_id || config.targetFormId
+        }];
       } else if (typeof crossRefValue === 'string' && crossRefValue) {
-        linkedRefIds = [crossRefValue];
-      } else {
-        linkedRefIds = [];
+        linkedRecords = [{ refId: crossRefValue, formId: config.targetFormId }];
       }
 
-      console.log('📋 Extracted linked ref IDs:', linkedRefIds, 'from cross-ref value:', crossRefValue);
+      console.log('📋 Extracted linked records:', linkedRecords, 'from cross-ref value:', crossRefValue);
 
-      if (linkedRefIds.length === 0) {
+      if (linkedRecords.length === 0) {
         return {
           success: true,
           output: {
@@ -955,21 +968,21 @@ export class RecordActionExecutors {
         };
       }
 
-      console.log(`📋 Found ${linkedRefIds.length} linked record refs:`, linkedRefIds);
+      console.log(`📋 Found ${linkedRecords.length} linked records:`, linkedRecords);
 
       // Apply update scope filter
       const updateScope = config.updateScope || 'all';
-      let refsToUpdate: string[];
+      let recordsToUpdate: LinkedRecord[];
       
       if (updateScope === 'first') {
-        refsToUpdate = [linkedRefIds[0]];
+        recordsToUpdate = [linkedRecords[0]];
       } else if (updateScope === 'last') {
-        refsToUpdate = [linkedRefIds[linkedRefIds.length - 1]];
+        recordsToUpdate = [linkedRecords[linkedRecords.length - 1]];
       } else {
-        refsToUpdate = linkedRefIds;
+        recordsToUpdate = linkedRecords;
       }
 
-      console.log(`📋 Will update ${refsToUpdate.length} records (scope: ${updateScope})`);
+      console.log(`📋 Will update ${recordsToUpdate.length} records (scope: ${updateScope})`);
 
       // Build the update data from field mappings
       const updateData: Record<string, any> = {};
@@ -993,21 +1006,24 @@ export class RecordActionExecutors {
       }
 
       // Find and update the linked submissions
-      const updatedRecords: Array<{ id: string; submission_ref_id: string }> = [];
+      const updatedRecordsList: Array<{ id: string; submission_ref_id: string }> = [];
       const errors: string[] = [];
 
-      for (const refId of refsToUpdate) {
-        // First find the submission by ref ID
+      for (const linkedRec of recordsToUpdate) {
+        // First find the submission by ref ID - use the form_id from the cross-reference value
+        const targetFormId = linkedRec.formId;
+        console.log(`🔍 Looking for submission ${linkedRec.refId} in form ${targetFormId}`);
+        
         const { data: linkedSubmission, error: findError } = await supabase
           .from('form_submissions')
           .select('id, submission_ref_id, submission_data, form_id')
-          .eq('submission_ref_id', refId)
-          .eq('form_id', config.targetFormId)
+          .eq('submission_ref_id', linkedRec.refId)
+          .eq('form_id', targetFormId)
           .single();
 
         if (findError || !linkedSubmission) {
-          console.error(`⚠️ Could not find linked submission with ref ${refId}:`, findError);
-          errors.push(`Submission ${refId} not found`);
+          console.error(`⚠️ Could not find linked submission with ref ${linkedRec.refId} in form ${targetFormId}:`, findError);
+          errors.push(`Submission ${linkedRec.refId} not found in form ${targetFormId}`);
           continue;
         }
 
@@ -1026,18 +1042,18 @@ export class RecordActionExecutors {
 
         if (updateError) {
           console.error(`❌ Error updating submission ${linkedSubmission.id}:`, updateError);
-          errors.push(`Failed to update ${refId}: ${updateError.message}`);
+          errors.push(`Failed to update ${linkedRec.refId}: ${updateError.message}`);
           continue;
         }
 
         console.log(`✅ Updated linked record: ${linkedSubmission.submission_ref_id}`);
-        updatedRecords.push({
+        updatedRecordsList.push({
           id: linkedSubmission.id,
-          submission_ref_id: linkedSubmission.submission_ref_id || refId
+          submission_ref_id: linkedSubmission.submission_ref_id || linkedRec.refId
         });
       }
 
-      if (updatedRecords.length === 0 && errors.length > 0) {
+      if (updatedRecordsList.length === 0 && errors.length > 0) {
         return {
           success: false,
           error: `Failed to update any linked records: ${errors.join(', ')}`,
@@ -1048,9 +1064,9 @@ export class RecordActionExecutors {
       return {
         success: true,
         output: {
-          updatedCount: updatedRecords.length,
-          requestedCount: refsToUpdate.length,
-          updatedRecords,
+          updatedCount: updatedRecordsList.length,
+          requestedCount: recordsToUpdate.length,
+          updatedRecords: updatedRecordsList,
           updateScope,
           fieldMappingsApplied: config.fieldMappings.length,
           errors: errors.length > 0 ? errors : undefined,
