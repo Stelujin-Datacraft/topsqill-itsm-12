@@ -236,32 +236,6 @@ export function useFormSubmissionTableData({
     JSON.stringify(displayColumns)
   ]);
 
-  // Real-time subscription for instant updates when records are modified
-  useEffect(() => {
-    if (!targetFormId) return;
-
-    const channel = supabase
-      .channel(`form-submissions-realtime-${targetFormId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'form_submissions',
-          filter: `form_id=eq.${targetFormId}`
-        },
-        () => {
-          console.log('📡 Real-time update detected for form submissions');
-          fetchData();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [targetFormId]);
-
   return {
     data,
     loading,
