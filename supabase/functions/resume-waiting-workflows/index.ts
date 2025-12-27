@@ -359,10 +359,10 @@ Deno.serve(async (req) => {
         }
 
         // Check if all next nodes have been processed and mark workflow as completed
-        // If there's an end node, or if there are no more connections from the action nodes
+        // Workflow completes if: there's an end node, OR any node has no outgoing connections
         const hasEndNode = (nextNodes || []).some((n: any) => n.node_type === 'end')
         
-        // Also check if action nodes have no further connections (meaning they're terminal)
+        // Check if ALL nodes are terminal (no further outgoing connections)
         let allNodesTerminal = true
         for (const nodeData of (nextNodes || []) as WorkflowNode[]) {
           if (nodeData.node_type !== 'end') {
