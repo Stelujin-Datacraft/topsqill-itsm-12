@@ -399,7 +399,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                 <SelectContent>
                   <SelectItem value="send_notification">Send Notification</SelectItem>
                   <SelectItem value="change_field_value">Change Field Value</SelectItem>
-                  <SelectItem value="change_record_status">Change Record Status</SelectItem>
+                  {/* <SelectItem value="change_record_status">Change Record Status</SelectItem> */}
                   <SelectItem value="create_record">Create Record</SelectItem>
                   <SelectItem value="create_linked_record">Create Linked Record</SelectItem>
                   <SelectItem value="update_linked_records">Update Linked Records</SelectItem>
