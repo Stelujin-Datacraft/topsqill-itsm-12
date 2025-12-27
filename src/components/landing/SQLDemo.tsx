@@ -44,10 +44,64 @@ function computeAggregate() {
   }));
 }
 
+// Simple query parser to demonstrate dynamic results
+function parseAndExecuteQuery(query: string): Record<string, any>[] {
+  const lowerQuery = query.toLowerCase();
+  
+  // Check for GROUP BY
+  const hasGroupBy = lowerQuery.includes('group by');
+  
+  // Check for ORDER BY and direction
+  const orderByMatch = lowerQuery.match(/order\s+by\s+(\w+)\s*(asc|desc)?/i);
+  
+  if (hasGroupBy) {
+    let result = computeAggregate();
+    
+    // Apply ORDER BY if present
+    if (orderByMatch) {
+      const orderField = orderByMatch[1].toLowerCase();
+      const isDesc = orderByMatch[2]?.toLowerCase() === 'desc';
+      
+      result = [...result].sort((a, b) => {
+        const aVal = a[orderField as keyof typeof a] ?? a.total;
+        const bVal = b[orderField as keyof typeof b] ?? b.total;
+        if (typeof aVal === 'number' && typeof bVal === 'number') {
+          return isDesc ? bVal - aVal : aVal - bVal;
+        }
+        return isDesc ? String(bVal).localeCompare(String(aVal)) : String(aVal).localeCompare(String(bVal));
+      });
+    }
+    
+    return result;
+  }
+  
+  // Return raw data with optional ordering
+  let result = [...rows];
+  if (orderByMatch) {
+    const orderField = orderByMatch[1].toLowerCase();
+    const isDesc = orderByMatch[2]?.toLowerCase() === 'desc';
+    
+    result = result.sort((a, b) => {
+      const aVal = a[orderField as keyof typeof a] ?? 0;
+      const bVal = b[orderField as keyof typeof b] ?? 0;
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return isDesc ? bVal - aVal : aVal - bVal;
+      }
+      return isDesc ? String(bVal).localeCompare(String(aVal)) : String(aVal).localeCompare(String(bVal));
+    });
+  }
+  
+  return result;
+}
+
 export default function SQLDemo() {
   const [query, setQuery] = useState(SAMPLE_QUERY);
-  const [mode, setMode] = useState<"raw" | "aggregate">("aggregate");
-  const result = useMemo(() => (mode === "aggregate" ? computeAggregate() : rows), [mode]);
+  const [executedQuery, setExecutedQuery] = useState(SAMPLE_QUERY);
+  const result = useMemo(() => parseAndExecuteQuery(executedQuery), [executedQuery]);
+  
+  const handleRun = () => {
+    setExecutedQuery(query);
+  };
 
   return (
     <section aria-labelledby="sql-demo-heading" className="container mx-auto px-4">
@@ -68,9 +122,9 @@ export default function SQLDemo() {
               />
             </Suspense>
             <div className="mt-3 flex gap-3">
-              <Button onClick={() => setMode("aggregate")}>Run</Button>
-              <Button variant="outline" onClick={() => setMode((m) => (m === "raw" ? "aggregate" : "raw"))}>
-                Toggle raw/aggregate
+              <Button onClick={handleRun}>Run</Button>
+              <Button variant="outline" onClick={() => setQuery(SAMPLE_QUERY)}>
+                Reset Query
               </Button>
             </div>
           </div>

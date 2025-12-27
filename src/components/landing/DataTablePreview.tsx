@@ -1,11 +1,17 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { 
   User, Mail, Building, Calendar, Star, CheckCircle, 
-  AlertCircle, Clock, Download, Filter, Search, MoreHorizontal
+  AlertCircle, Clock, Download, Filter, Search, MoreHorizontal,
+  FileSpreadsheet, FileText, FileCode
 } from "lucide-react";
-
 const sampleData = [
   {
     id: "001",
@@ -117,10 +123,28 @@ export default function DataTablePreview() {
                 <Filter className="h-4 w-4 mr-2" />
                 Filter
               </Button>
-              <Button variant="outline" size="sm" className="group-hover:border-cyan-300 group-hover:text-cyan-600 transition-all duration-300">
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="group-hover:border-cyan-300 group-hover:text-cyan-600 transition-all duration-300">
+                    <Download className="h-4 w-4 mr-2" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem disabled className="opacity-50 cursor-not-allowed">
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Export as Excel
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled className="opacity-50 cursor-not-allowed">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Export as CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled className="opacity-50 cursor-not-allowed">
+                    <FileCode className="h-4 w-4 mr-2" />
+                    Export as XML
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </CardHeader>
