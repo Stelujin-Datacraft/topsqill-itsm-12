@@ -22,6 +22,8 @@ interface FilterCondition {
 
 interface FilterGroup {
   conditions: FilterCondition[];
+  logic?: 'AND' | 'OR';
+  logicExpression?: string;
 }
 
 interface DrilldownFilter {
@@ -136,10 +138,22 @@ export function useTableData(
           return evaluateFilterCondition(rawValue, condition.operator, targetStr);
         };
 
+        // Evaluate each filter group respecting its logic property
         transformedData = transformedData.filter(row =>
-          currentFilters.every(group =>
-            (group.conditions || []).every(cond => matchesCondition(row, cond))
-          )
+          currentFilters.every(group => {
+            if (!group.conditions || group.conditions.length === 0) return true;
+            
+            // Use the group's logic property (default to AND if not specified)
+            const useOrLogic = group.logic === 'OR';
+            
+            if (useOrLogic) {
+              // OR: At least one condition must match
+              return group.conditions.some(cond => matchesCondition(row, cond));
+            } else {
+              // AND: All conditions must match
+              return group.conditions.every(cond => matchesCondition(row, cond));
+            }
+          })
         );
       }
 

@@ -28,6 +28,7 @@ import { SortingControls, SortConfig } from './SortingControls';
 import { ComplexFilter, FilterGroup, FilterCondition } from '@/components/ui/complex-filter';
 import { SavedFiltersManager } from './SavedFiltersManager';
 import { ExpressionEvaluator, EvaluationContext } from '@/utils/expressionEvaluator';
+import { evaluateFilterCondition } from '@/utils/filterUtils';
 import { InlineEditDialog } from './InlineEditDialog';
 import { MultiLineEditDialog } from './MultiLineEditDialog';
 import { BulkActionsBar } from './BulkActionsBar';
@@ -102,45 +103,19 @@ export function DynamicTable({
     userProfile?.id
   );
 
-  // Helper function to evaluate filter conditions
+  // Helper function to evaluate filter conditions using proper type-aware evaluation
   const evaluateCondition = useCallback((row: any, condition: any) => {
     if (!condition.field || !condition.operator) return true;
     const value = row.submission_data?.[condition.field];
-    const filterValue = condition.value;
-    if (value === null || value === undefined) {
-      return ['is_empty'].includes(condition.operator);
-    }
-    const stringValue = value.toString().toLowerCase();
-    const stringFilterValue = filterValue?.toString().toLowerCase() || '';
-    switch (condition.operator) {
-      case 'equals':
-        return stringValue === stringFilterValue;
-      case 'not_equals':
-        return stringValue !== stringFilterValue;
-      case 'contains':
-        return stringValue.includes(stringFilterValue);
-      case 'not_contains':
-        return !stringValue.includes(stringFilterValue);
-      case 'starts_with':
-        return stringValue.startsWith(stringFilterValue);
-      case 'ends_with':
-        return stringValue.endsWith(stringFilterValue);
-      case 'greater_than':
-        return parseFloat(stringValue) > parseFloat(stringFilterValue);
-      case 'less_than':
-        return parseFloat(stringValue) < parseFloat(stringFilterValue);
-      case 'greater_equal':
-        return parseFloat(stringValue) >= parseFloat(stringFilterValue);
-      case 'less_equal':
-        return parseFloat(stringValue) <= parseFloat(stringFilterValue);
-      case 'is_empty':
-        return !stringValue || stringValue.trim() === '';
-      case 'is_not_empty':
-        return stringValue && stringValue.trim() !== '';
-      default:
-        return true;
-    }
-  }, []);
+    const filterValue = condition.value?.toString() || '';
+    
+    // Get the field type for proper handling
+    const field = formFields.find(f => f.id === condition.field);
+    const fieldType = field?.field_type || '';
+    
+    // Use the comprehensive evaluateFilterCondition from filterUtils
+    return evaluateFilterCondition(value, condition.operator, filterValue, fieldType);
+  }, [formFields]);
 
   // All useMemo hooks
   const displayFields = useMemo(() => {
