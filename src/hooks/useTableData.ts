@@ -331,24 +331,24 @@ export function useTableData(
     // Use formId as prefix to match what EnhancedDynamicTable expects
     const prefix = `${secondaryFormId}.`;
 
-    // Helper to find matching secondary row
-    const findMatchingSecondary = (primaryRow: SubmissionRow) => {
+    // Helper to find ALL matching secondary rows (not just the first one)
+    const findAllMatchingSecondary = (primaryRow: SubmissionRow) => {
       const primaryValueRaw = extractFieldValue(primaryRow.submission_data, primaryFieldId);
       const primaryValue = normalizeJoinValue(primaryValueRaw);
       
-      return secondaryData.find(secondaryRow => {
+      return secondaryData.filter(secondaryRow => {
         const secondaryValueRaw = extractFieldValue(secondaryRow.submission_data, secondaryFieldId);
         const secondaryValue = normalizeJoinValue(secondaryValueRaw);
         return valuesMatch(primaryValue, secondaryValue);
       });
     };
 
-    // Helper to find matching primary row
-    const findMatchingPrimary = (secondaryRow: any) => {
+    // Helper to find ALL matching primary rows
+    const findAllMatchingPrimary = (secondaryRow: any) => {
       const secondaryValueRaw = extractFieldValue(secondaryRow.submission_data, secondaryFieldId);
       const secondaryValue = normalizeJoinValue(secondaryValueRaw);
       
-      return primaryData.find(primaryRow => {
+      return primaryData.filter(primaryRow => {
         const primaryValueRaw = extractFieldValue(primaryRow.submission_data, primaryFieldId);
         const primaryValue = normalizeJoinValue(primaryValueRaw);
         return valuesMatch(primaryValue, secondaryValue);
@@ -357,35 +357,44 @@ export function useTableData(
 
     switch (joinType) {
       case 'inner':
-        // Only return records that have matches in both tables
-        return primaryData
-          .map(primaryRow => {
-            const matchingSecondary = findMatchingSecondary(primaryRow);
-            if (matchingSecondary) {
-              return mergeRows(primaryRow, matchingSecondary, prefix);
-            }
-            return null;
-          })
-          .filter((row): row is SubmissionRow => row !== null);
+        // Return all combinations of matching records from both tables
+        const innerResult: SubmissionRow[] = [];
+        primaryData.forEach(primaryRow => {
+          const matchingSecondaryRows = findAllMatchingSecondary(primaryRow);
+          matchingSecondaryRows.forEach(secondaryRow => {
+            innerResult.push(mergeRows(primaryRow, secondaryRow, prefix));
+          });
+        });
+        return innerResult;
 
       case 'left':
-        return primaryData.map(primaryRow => {
-          const matchingSecondary = findMatchingSecondary(primaryRow);
-          if (matchingSecondary) {
-            return mergeRows(primaryRow, matchingSecondary, prefix);
+        // Return all primary records; for each, include all matching secondary records
+        // If no match, include primary record alone
+        const leftResult: SubmissionRow[] = [];
+        primaryData.forEach(primaryRow => {
+          const matchingSecondaryRows = findAllMatchingSecondary(primaryRow);
+          if (matchingSecondaryRows.length > 0) {
+            matchingSecondaryRows.forEach(secondaryRow => {
+              leftResult.push(mergeRows(primaryRow, secondaryRow, prefix));
+            });
+          } else {
+            leftResult.push(primaryRow);
           }
-          return primaryRow;
         });
+        return leftResult;
 
       case 'right':
-        // Return all secondary records, with primary data where matches exist
+        // Return all secondary records; for each, include all matching primary records
+        // If no match, include secondary record alone
         const rightResult: SubmissionRow[] = [];
 
         secondaryData.forEach(secondaryRow => {
-          const matchingPrimary = findMatchingPrimary(secondaryRow);
+          const matchingPrimaryRows = findAllMatchingPrimary(secondaryRow);
 
-          if (matchingPrimary) {
-            rightResult.push(mergeRows(matchingPrimary, secondaryRow, prefix));
+          if (matchingPrimaryRows.length > 0) {
+            matchingPrimaryRows.forEach(primaryRow => {
+              rightResult.push(mergeRows(primaryRow, secondaryRow, prefix));
+            });
           } else {
             // Create a row with just secondary data
             rightResult.push({
@@ -405,17 +414,19 @@ export function useTableData(
         return rightResult;
 
       case 'full':
-        // Return all records from both tables
+        // Return all combinations of matching records, plus unmatched from both sides
         const fullResult: SubmissionRow[] = [];
         const matchedSecondaryIds = new Set<string>();
 
         // First, process all primary records
         primaryData.forEach(primaryRow => {
-          const matchingSecondary = findMatchingSecondary(primaryRow);
+          const matchingSecondaryRows = findAllMatchingSecondary(primaryRow);
 
-          if (matchingSecondary) {
-            matchedSecondaryIds.add(matchingSecondary.id);
-            fullResult.push(mergeRows(primaryRow, matchingSecondary, prefix));
+          if (matchingSecondaryRows.length > 0) {
+            matchingSecondaryRows.forEach(secondaryRow => {
+              matchedSecondaryIds.add(secondaryRow.id);
+              fullResult.push(mergeRows(primaryRow, secondaryRow, prefix));
+            });
           } else {
             fullResult.push(primaryRow);
           }
