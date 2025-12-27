@@ -6,7 +6,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 
 interface Notification {
   id: string;
-  type: 'organization_request' | 'form_assignment' | 'form_access_request';
+  type: 'organization_request' | 'form_assignment' | 'form_access_request' | 'workflow' | 'workflow_notification' | 'invitation_accepted';
   title: string;
   message: string;
   data: any;
