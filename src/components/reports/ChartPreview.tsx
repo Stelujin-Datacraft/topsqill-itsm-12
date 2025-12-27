@@ -1360,14 +1360,21 @@ export function ChartPreview({
     
     const dimensionField = rowField || config.dimensions?.[0] || '';
     const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Row';
-    const groupFieldId = colField || config.dimensions?.[1] || '';
+    
+    // Only set group field if we have an actual second dimension (not for 1D heatmaps)
+    const hasSecondDimension = !!(colField || config.dimensions?.[1]);
+    const groupFieldId = hasSecondDimension ? (colField || config.dimensions?.[1] || '') : '';
     const groupLabel = groupFieldId ? getFormFieldName(groupFieldId) : 'Column';
+    
+    // For 1D heatmaps (colValue is "Default"), don't pass groupValue to avoid filtering issues
+    const effectiveGroupValue = hasSecondDimension && colValue !== 'Default' ? colValue : undefined;
     
     console.log('🔥 Setting dialog state:', { 
       dimensionField, 
       dimensionValue: rowValue, 
       groupField: groupFieldId, 
-      groupValue: colValue 
+      groupValue: effectiveGroupValue,
+      hasSecondDimension
     });
     
     // For heatmap, we want to filter by both row and column values
@@ -1378,7 +1385,7 @@ export function ChartPreview({
       dimensionValue: rowValue,
       dimensionLabel,
       groupField: groupFieldId,
-      groupValue: colValue,
+      groupValue: effectiveGroupValue,
       groupLabel,
     });
   };
