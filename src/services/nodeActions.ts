@@ -586,30 +586,188 @@ export class NodeActions {
 
   static async executeWaitNode(context: NodeExecutionContext): Promise<NodeExecutionResult> {
     console.log('⏱️ Executing wait node:', context.nodeId);
+    console.log('⏱️ Wait node config:', JSON.stringify(context.config, null, 2));
     
     try {
       const config = context.config;
-      const waitDuration = config.waitDuration || 1;
-      const waitUnit = config.waitUnit || 'minutes';
+      
+      // Calculate the scheduled resume time based on wait configuration
+      const scheduledResumeAt = this.calculateResumeTime(config);
+      
+      if (!scheduledResumeAt) {
+        console.log('⚠️ No valid wait configuration or date in past, continuing immediately');
+        const nextNodeIds = await this.getNextNodes(context.workflowId, context.nodeId);
+        return {
+          success: true,
+          output: { 
+            waited: false, 
+            reason: 'No valid wait configuration or date is in the past',
+            waitType: config.waitType 
+          },
+          nextNodeIds
+        };
+      }
 
-      console.log(`⏳ Wait configured for ${waitDuration} ${waitUnit}`);
+      const waitType = config.waitType || 'duration';
+      const waitDetails = {
+        waitType,
+        scheduledResumeAt: scheduledResumeAt.toISOString(),
+        durationValue: config.durationValue,
+        durationUnit: config.durationUnit,
+        untilDate: config.untilDate,
+        eventType: config.eventType
+      };
 
-      const nextNodeIds = await this.getNextNodes(context.workflowId, context.nodeId);
+      console.log(`⏳ Scheduling workflow to resume at: ${scheduledResumeAt.toISOString()}`);
+      console.log('⏳ Wait details:', waitDetails);
 
+      // Update the workflow execution to 'waiting' status with scheduled resume time
+      const { error: updateError, data: updateData } = await supabase
+        .from('workflow_executions')
+        .update({
+          status: 'waiting',
+          current_node_id: context.nodeId,
+          scheduled_resume_at: scheduledResumeAt.toISOString(),
+          wait_node_id: context.nodeId,
+          wait_config: {
+            ...config,
+            scheduledAt: new Date().toISOString(),
+            originalConfig: config
+          }
+        })
+        .eq('id', context.executionId)
+        .select();
+
+      if (updateError) {
+        console.error('❌ Failed to update workflow execution for wait:', updateError);
+        throw updateError;
+      }
+
+      console.log('✅ Workflow execution updated to waiting:', updateData);
+
+      // Update the existing log entry to 'waiting' status (created by workflowExecutor)
+      const { error: logUpdateError } = await supabase
+        .from('workflow_instance_logs')
+        .update({
+          status: 'waiting',
+          action_type: waitType,
+          action_details: waitDetails,
+          input_data: { 
+            scheduledResumeAt: scheduledResumeAt.toISOString(),
+            waitType,
+            config: config
+          }
+        })
+        .eq('execution_id', context.executionId)
+        .eq('node_id', context.nodeId)
+        .eq('status', 'running');
+
+      if (logUpdateError) {
+        console.error('⚠️ Failed to update log entry (may already be updated):', logUpdateError);
+      }
+
+      console.log('✅ Workflow paused successfully');
+      console.log(`📅 Will resume at: ${scheduledResumeAt.toISOString()}`);
+      console.log(`⏰ Current time: ${new Date().toISOString()}`);
+      console.log(`⏱️ Wait duration: ${(scheduledResumeAt.getTime() - Date.now()) / 1000} seconds`);
+
+      // Return empty nextNodeIds to stop execution - it will be resumed by the cron job or event
       return {
         success: true,
-        output: {
-          waitDuration,
-          waitUnit,
-          message: `Waited for ${waitDuration} ${waitUnit}`
+        output: { 
+          waited: true, 
+          scheduledResumeAt: scheduledResumeAt.toISOString(),
+          waitType: waitType,
+          waitDetails,
+          message: `Workflow paused until ${scheduledResumeAt.toISOString()}`
         },
-        nextNodeIds
+        nextNodeIds: [] // Empty to stop execution here
       };
     } catch (error) {
+      console.error('❌ Error in wait node execution:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Wait node execution failed'
+        error: error instanceof Error ? error.message : 'Wait node execution failed',
+        nextNodeIds: []
       };
+    }
+  }
+
+  /**
+   * Calculate the resume time based on wait configuration
+   */
+  private static calculateResumeTime(config: any): Date | null {
+    const now = new Date();
+    const waitType = config.waitType || 'duration';
+
+    console.log('📅 Calculating resume time for wait type:', waitType, 'config:', config);
+
+    switch (waitType) {
+      case 'duration': {
+        const duration = parseInt(config.durationValue) || parseInt(config.waitDuration) || 1;
+        const unit = config.durationUnit || config.waitUnit || 'minutes';
+        
+        console.log(`⏱️ Duration wait: ${duration} ${unit}`);
+        
+        let resumeTime: Date;
+        switch (unit) {
+          case 'minutes':
+            resumeTime = new Date(now.getTime() + duration * 60 * 1000);
+            break;
+          case 'hours':
+            resumeTime = new Date(now.getTime() + duration * 60 * 60 * 1000);
+            break;
+          case 'days':
+            resumeTime = new Date(now.getTime() + duration * 24 * 60 * 60 * 1000);
+            break;
+          case 'weeks':
+            resumeTime = new Date(now.getTime() + duration * 7 * 24 * 60 * 60 * 1000);
+            break;
+          default:
+            resumeTime = new Date(now.getTime() + duration * 60 * 1000);
+        }
+        console.log(`📅 Duration resume time: ${resumeTime.toISOString()}`);
+        return resumeTime;
+      }
+      
+      case 'until_date': {
+        const untilDate = config.untilDate;
+        if (!untilDate) {
+          console.log('⚠️ No untilDate provided in config');
+          return null;
+        }
+        
+        // Parse the datetime-local value properly
+        const targetDate = new Date(untilDate);
+        
+        console.log(`📅 Until date: ${untilDate} -> parsed: ${targetDate.toISOString()}`);
+        
+        if (isNaN(targetDate.getTime())) {
+          console.log('⚠️ Invalid date format:', untilDate);
+          return null;
+        }
+        
+        // Check if the date is in the future
+        if (targetDate <= now) {
+          console.log('⚠️ Target date is in the past, continuing immediately');
+          return null;
+        }
+        
+        return targetDate;
+      }
+      
+      case 'until_event': {
+        // For event-based waiting, we set a very long timeout (365 days)
+        // The workflow will be resumed manually when the event occurs
+        const eventType = config.eventType || 'manual_trigger';
+        console.log(`📅 Event wait: ${eventType} - setting 365 day max timeout`);
+        const maxWaitTime = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+        return maxWaitTime;
+      }
+      
+      default:
+        console.log('⚠️ Unknown wait type:', waitType);
+        return null;
     }
   }
 
