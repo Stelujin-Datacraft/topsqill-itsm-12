@@ -88,7 +88,9 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
         joinType: config.joinConfig.joinType || 'inner',
         primaryFieldId: config.joinConfig.primaryFieldId,
         secondaryFieldId: config.joinConfig.secondaryFieldId,
-        alias: config.joinConfig.alias
+        alias: config.joinConfig.alias,
+        useCrossReference: config.joinConfig.useCrossReference || 
+          config.joinConfig.secondaryFieldId === '__submission_ref_id__'
       }]
     };
   }, [config.joinConfig]);
