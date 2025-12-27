@@ -78,7 +78,7 @@ export default function FormBuilderMini() {
                 Build complex forms with validation and conditional logic in minutes
               </CardDescription>
             </div>
-            <Button className="bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90">
+            <Button className="bg-foreground text-background hover:bg-foreground/90">
               <Eye className="h-4 w-4 mr-2" />
               Preview Form
             </Button>
