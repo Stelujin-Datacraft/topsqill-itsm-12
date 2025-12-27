@@ -356,6 +356,39 @@ export const valueEquals = (value: any, filterValue: string, fieldType?: string,
 };
 
 /**
+ * Parse a date value handling various formats
+ * For date-only strings, parse as local date to avoid timezone issues
+ */
+const parseDateValue = (value: any): Date | null => {
+  if (!value) return null;
+  
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? null : value;
+  }
+  
+  if (typeof value === 'string') {
+    // For date-only strings like "2024-09-15", parse as local date to avoid timezone issues
+    const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;
+    if (dateOnlyPattern.test(value)) {
+      const [year, month, day] = value.split('-').map(Number);
+      const date = new Date(year, month - 1, day, 12, 0, 0, 0); // Use noon to avoid edge cases
+      return isNaN(date.getTime()) ? null : date;
+    }
+    
+    // Try regular parsing for other formats
+    const date = new Date(value);
+    return isNaN(date.getTime()) ? null : date;
+  }
+  
+  if (typeof value === 'number') {
+    const date = new Date(value);
+    return isNaN(date.getTime()) ? null : date;
+  }
+  
+  return null;
+};
+
+/**
  * Evaluate a filter condition against a value
  */
 export const evaluateFilterCondition = (
@@ -487,23 +520,49 @@ export const evaluateFilterCondition = (
     }
     
     case 'after': {
-      // Date comparison
-      const dateValue = new Date(value);
-      const filterDate = new Date(filterValue);
-      if (isNaN(dateValue.getTime()) || isNaN(filterDate.getTime())) return false;
+      // Handle time-only comparison (format HH:MM or HH:MM:SS)
+      const timePattern = /^\d{1,2}:\d{2}(:\d{2})?$/;
+      if (fieldType === 'time' || (timePattern.test(String(value)) && timePattern.test(filterValue))) {
+        const normalizeTime = (t: string) => {
+          const parts = t.split(':').map(p => p.padStart(2, '0'));
+          return parts.join(':');
+        };
+        const timeValue = normalizeTime(String(value));
+        const timeFilter = normalizeTime(filterValue);
+        return timeValue > timeFilter;
+      }
+      
+      // Date/datetime comparison using helper
+      const dateValue = parseDateValue(value);
+      const filterDate = parseDateValue(filterValue);
+      if (!dateValue || !filterDate) return false;
       return dateValue > filterDate;
     }
     
     case 'before': {
-      const dateValue = new Date(value);
-      const filterDate = new Date(filterValue);
-      if (isNaN(dateValue.getTime()) || isNaN(filterDate.getTime())) return false;
+      // Handle time-only comparison (format HH:MM or HH:MM:SS)
+      const timePattern = /^\d{1,2}:\d{2}(:\d{2})?$/;
+      if (fieldType === 'time' || (timePattern.test(String(value)) && timePattern.test(filterValue))) {
+        const normalizeTime = (t: string) => {
+          const parts = t.split(':').map(p => p.padStart(2, '0'));
+          return parts.join(':');
+        };
+        const timeValue = normalizeTime(String(value));
+        const timeFilter = normalizeTime(filterValue);
+        return timeValue < timeFilter;
+      }
+      
+      // Date/datetime comparison using helper
+      const dateValue = parseDateValue(value);
+      const filterDate = parseDateValue(filterValue);
+      if (!dateValue || !filterDate) return false;
       return dateValue < filterDate;
     }
     
     case 'between': {
       // Expects filterValue in format "start,end"
       const [start, end] = filterValue.split(',').map(v => v.trim());
+      if (!start || !end) return false;
       
       // Try numeric comparison first
       const numValue = extractNumericValue(value);
@@ -517,22 +576,25 @@ export const evaluateFilterCondition = (
       
       // Try time comparison (format HH:MM or HH:MM:SS)
       const timePattern = /^\d{1,2}:\d{2}(:\d{2})?$/;
-      if (timePattern.test(String(value)) && timePattern.test(start) && timePattern.test(end)) {
+      const valueStr = String(value);
+      if (fieldType === 'time' || (timePattern.test(valueStr) && timePattern.test(start) && timePattern.test(end))) {
         const normalizeTime = (t: string) => {
           const parts = t.split(':').map(p => p.padStart(2, '0'));
-          return parts.join(':');
+          // Ensure we have at least HH:MM format
+          while (parts.length < 2) parts.push('00');
+          return parts.slice(0, 3).join(':');
         };
-        const timeValue = normalizeTime(String(value));
+        const timeValue = normalizeTime(valueStr);
         const timeStart = normalizeTime(start);
         const timeEnd = normalizeTime(end);
         return timeValue >= timeStart && timeValue <= timeEnd;
       }
       
-      // Try date comparison
-      const dateValue = new Date(value);
-      const dateStart = new Date(start);
-      const dateEnd = new Date(end);
-      if (!isNaN(dateValue.getTime()) && !isNaN(dateStart.getTime()) && !isNaN(dateEnd.getTime())) {
+      // Try date comparison using helper
+      const dateValue = parseDateValue(value);
+      const dateStart = parseDateValue(start);
+      const dateEnd = parseDateValue(end);
+      if (dateValue && dateStart && dateEnd) {
         return dateValue >= dateStart && dateValue <= dateEnd;
       }
       return false;
@@ -543,8 +605,8 @@ export const evaluateFilterCondition = (
       const days = parseInt(filterValue, 10);
       if (isNaN(days) || days <= 0) return false;
       
-      const dateValue = new Date(value);
-      if (isNaN(dateValue.getTime())) return false;
+      const dateValue = parseDateValue(value);
+      if (!dateValue) return false;
       
       const now = new Date();
       const startDate = new Date(now);
@@ -559,8 +621,8 @@ export const evaluateFilterCondition = (
       const days = parseInt(filterValue, 10);
       if (isNaN(days) || days <= 0) return false;
       
-      const dateValue = new Date(value);
-      if (isNaN(dateValue.getTime())) return false;
+      const dateValue = parseDateValue(value);
+      if (!dateValue) return false;
       
       const now = new Date();
       const endDate = new Date(now);
@@ -571,8 +633,8 @@ export const evaluateFilterCondition = (
     }
     
     case 'current_day': {
-      const dateValue = new Date(value);
-      if (isNaN(dateValue.getTime())) return false;
+      const dateValue = parseDateValue(value);
+      if (!dateValue) return false;
       
       const now = new Date();
       const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
@@ -582,8 +644,8 @@ export const evaluateFilterCondition = (
     }
     
     case 'last_day': {
-      const dateValue = new Date(value);
-      if (isNaN(dateValue.getTime())) return false;
+      const dateValue = parseDateValue(value);
+      if (!dateValue) return false;
       
       const now = new Date();
       const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
@@ -594,8 +656,8 @@ export const evaluateFilterCondition = (
     }
     
     case 'current_month': {
-      const dateValue = new Date(value);
-      if (isNaN(dateValue.getTime())) return false;
+      const dateValue = parseDateValue(value);
+      if (!dateValue) return false;
       
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
@@ -605,8 +667,8 @@ export const evaluateFilterCondition = (
     }
     
     case 'last_month': {
-      const dateValue = new Date(value);
-      if (isNaN(dateValue.getTime())) return false;
+      const dateValue = parseDateValue(value);
+      if (!dateValue) return false;
       
       const now = new Date();
       const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
@@ -616,8 +678,8 @@ export const evaluateFilterCondition = (
     }
     
     case 'current_year': {
-      const dateValue = new Date(value);
-      if (isNaN(dateValue.getTime())) return false;
+      const dateValue = parseDateValue(value);
+      if (!dateValue) return false;
       
       const now = new Date();
       const startOfYear = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
@@ -627,8 +689,8 @@ export const evaluateFilterCondition = (
     }
     
     case 'last_year': {
-      const dateValue = new Date(value);
-      if (isNaN(dateValue.getTime())) return false;
+      const dateValue = parseDateValue(value);
+      if (!dateValue) return false;
       
       const now = new Date();
       const startOfLastYear = new Date(now.getFullYear() - 1, 0, 1, 0, 0, 0, 0);
@@ -638,8 +700,8 @@ export const evaluateFilterCondition = (
     }
     
     case 'current_quarter': {
-      const dateValue = new Date(value);
-      if (isNaN(dateValue.getTime())) return false;
+      const dateValue = parseDateValue(value);
+      if (!dateValue) return false;
       
       const now = new Date();
       const currentQuarter = Math.floor(now.getMonth() / 3);
@@ -650,8 +712,8 @@ export const evaluateFilterCondition = (
     }
     
     case 'last_quarter': {
-      const dateValue = new Date(value);
-      if (isNaN(dateValue.getTime())) return false;
+      const dateValue = parseDateValue(value);
+      if (!dateValue) return false;
       
       const now = new Date();
       const currentQuarter = Math.floor(now.getMonth() / 3);
@@ -671,8 +733,8 @@ export const evaluateFilterCondition = (
     }
     
     case 'next_quarter': {
-      const dateValue = new Date(value);
-      if (isNaN(dateValue.getTime())) return false;
+      const dateValue = parseDateValue(value);
+      if (!dateValue) return false;
       
       const now = new Date();
       const currentQuarter = Math.floor(now.getMonth() / 3);
