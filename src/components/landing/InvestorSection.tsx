@@ -32,7 +32,7 @@ export default function InvestorSection() {
               ✨ Investment Opportunity
             </span>
           </Badge>
-          <h2 id="investor-heading" className="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-primary via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          <h2 id="investor-heading" className="text-3xl md:text-4xl font-bold mb-4 text-foreground">
             Partner with the Future of Enterprise Automation
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
@@ -112,7 +112,7 @@ export default function InvestorSection() {
         </div>
 
         <div className="mt-12 text-center">
-          <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-primary to-indigo-600 text-primary-foreground font-semibold hover:from-primary/90 hover:to-indigo-500 transition-all duration-300 shadow-lg hover:shadow-xl">
+          <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-foreground text-background font-semibold hover:bg-foreground/90 transition-all duration-300 shadow-lg hover:shadow-xl">
             <DollarSign className="h-5 w-5" />
             <span className="font-medium">Seeking $8M Series A • Contact: investors@topsqill.com</span>
           </div>

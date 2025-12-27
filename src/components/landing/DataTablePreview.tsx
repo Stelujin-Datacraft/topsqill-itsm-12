@@ -244,7 +244,7 @@ export default function DataTablePreview() {
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="h-8 w-8 p-0 opacity-0 group-hover/row:opacity-100 transition-opacity duration-300 hover:bg-emerald-100 hover:text-emerald-600"
+                        className="h-8 w-8 p-0 hover:bg-emerald-100 hover:text-emerald-600"
                       >
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>

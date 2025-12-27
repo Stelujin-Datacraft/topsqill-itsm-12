@@ -43,7 +43,7 @@ const initialNodes: Node[] = [
         </div>
       ) 
     },
-    style: { background: 'hsl(var(--secondary) / 0.1)', border: '1px solid hsl(var(--secondary))', borderRadius: '8px' }
+    style: { background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgb(59, 130, 246)', borderRadius: '8px' }
   },
   {
     id: '3',
