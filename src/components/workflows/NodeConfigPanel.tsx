@@ -397,8 +397,6 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   <SelectValue placeholder="Select action type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="approve_form">Approve Form</SelectItem>
-                  <SelectItem value="update_form_lifecycle_status">Update Form Lifecycle Status</SelectItem>
                   <SelectItem value="send_notification">Send Notification</SelectItem>
                   <SelectItem value="change_field_value">Change Field Value</SelectItem>
                   <SelectItem value="change_record_status">Change Record Status</SelectItem>
@@ -409,56 +407,6 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
               </Select>
             </div>
 
-            {/* Approve Form Configuration */}
-            {(!localConfig?.actionType || localConfig?.actionType === 'approve_form') && (
-              <div>
-                <Label htmlFor="targetForm">Form to Approve</Label>
-                <FormSelector
-                  value={localConfig?.targetFormId || ''}
-                  onValueChange={(formId, formName) => {
-                    handleFullConfigUpdate({ 
-                      ...localConfig, 
-                      targetFormId: formId,
-                      targetFormName: formName
-                    });
-                  }}
-                  placeholder="Select form to approve"
-                  projectId={projectId}
-                />
-              </div>
-            )}
-
-            {/* Update Form Lifecycle Status Configuration */}
-            {localConfig?.actionType === 'update_form_lifecycle_status' && (
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="targetForm">Target Form</Label>
-                  <FormSelector
-                    value={localConfig?.targetFormId || ''}
-                    onValueChange={(formId, formName) => {
-                      handleFullConfigUpdate({ 
-                        ...localConfig, 
-                        targetFormId: formId,
-                        targetFormName: formName
-                      });
-                    }}
-                    placeholder="Select form to update lifecycle status"
-                    projectId={projectId}
-                  />
-                </div>
-                <div>
-                  <FormStatusSelector
-                    value={localConfig?.newStatus || 'active'}
-                    onValueChange={(value) => handleConfigUpdate('newStatus', value)}
-                  />
-                </div>
-                {localConfig?.targetFormId && localConfig?.newStatus && (
-                  <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
-                    <strong>Configuration:</strong> Update {localConfig.targetFormName || 'selected form'} lifecycle status to {localConfig.newStatus}
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Send Notification Configuration */}
             {localConfig?.actionType === 'send_notification' && (
