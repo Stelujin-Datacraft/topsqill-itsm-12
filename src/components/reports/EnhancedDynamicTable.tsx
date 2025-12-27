@@ -339,9 +339,12 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
       }
     }
     
-    // At final level or no drilldown - show selected columns
+    // At final level or no drilldown - show selected columns in order
     if (config.selectedColumns?.length > 0) {
-      return validFields.filter(field => config.selectedColumns.includes(field.id));
+      // Preserve the order from selectedColumns by mapping through it
+      return config.selectedColumns
+        .map((colId: string) => validFields.find(field => field.id === colId))
+        .filter((field): field is typeof validFields[0] => field !== undefined);
     }
     return validFields;
   }, [formFields, config.selectedColumns, currentDrilldownLevel, config.drilldownConfig]);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { FormField } from '@/types/form';
 import { ChartConfig } from '@/types/reports';
 import { Label } from '@/components/ui/label';
@@ -9,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, X, TrendingUp, Tag, BarChart3, Calculator, Layers, Info, CheckCircle2, ArrowRight, ListOrdered } from 'lucide-react';
+import { Plus, X, TrendingUp, Tag, BarChart3, Calculator, Layers, Info, CheckCircle2, ArrowRight, ListOrdered, GripVertical } from 'lucide-react';
 import { 
   UNSUPPORTED_CHART_FIELDS, 
   DIMENSION_FIELD_TYPES, 
@@ -171,6 +172,33 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
   const removeDimension = (fieldId: string) => {
     const newDimensions = selectedDimensions.filter(id => id !== fieldId);
     onConfigChange({ dimensions: newDimensions });
+  };
+
+  // Reorder dimensions via drag and drop
+  const handleDimensionDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+    const items = Array.from(selectedDimensions);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    onConfigChange({ dimensions: items });
+  };
+
+  // Reorder metrics via drag and drop
+  const handleMetricDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+    const items = Array.from(selectedMetrics);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    
+    // Also reorder metricAggregations to match
+    const newAggregations = items.map(id => 
+      metricAggregations.find(agg => agg.field === id) || { field: id, aggregation: 'sum' as const }
+    );
+    
+    onConfigChange({ 
+      metrics: items,
+      metricAggregations: newAggregations
+    });
   };
 
   // Get field label by ID
@@ -683,28 +711,57 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
           {/* For Calculate and Compare modes - show dimension selector */}
           {mode !== 'count' && (
             <>
-              {/* Selected Dimensions */}
+              {/* Selected Dimensions - Draggable */}
               {selectedDimensions.length > 0 && (
-                <div className="space-y-2">
-                  {selectedDimensions.map((dimId, index) => (
-                    <div key={dimId} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
-                      <div className="flex items-center gap-2">
-                        <Tag className="h-4 w-4 text-primary" />
-                        <span className="font-medium">{getFieldLabel(dimId)}</span>
-                        <Badge variant="secondary" className="text-xs">{getFieldTypeLabel(dimId)}</Badge>
-                        {index === 0 && <Badge variant="outline" className="text-xs">Primary</Badge>}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeDimension(dimId)}
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                <DragDropContext onDragEnd={handleDimensionDragEnd}>
+                  <Droppable droppableId="dimensions-list">
+                    {(provided, snapshot) => (
+                      <div
+                        {...provided.droppableProps}
+                        ref={provided.innerRef}
+                        className={`space-y-2 p-2 rounded-lg border-2 border-dashed transition-colors ${
+                          snapshot.isDraggingOver ? 'border-primary bg-primary/5' : 'border-transparent'
+                        }`}
                       >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+                        {selectedDimensions.map((dimId, index) => (
+                          <Draggable key={dimId} draggableId={dimId} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                className={`flex items-center justify-between p-3 bg-muted/50 rounded-lg border transition-shadow ${
+                                  snapshot.isDragging ? 'shadow-lg ring-2 ring-primary' : ''
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <div
+                                    {...provided.dragHandleProps}
+                                    className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
+                                  >
+                                    <GripVertical className="h-4 w-4" />
+                                  </div>
+                                  <Tag className="h-4 w-4 text-primary" />
+                                  <span className="font-medium">{getFieldLabel(dimId)}</span>
+                                  <Badge variant="secondary" className="text-xs">{getFieldTypeLabel(dimId)}</Badge>
+                                  <Badge variant="outline" className="text-xs">{index === 0 ? 'Primary' : 'Secondary'}</Badge>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeDimension(dimId)}
+                                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </DragDropContext>
               )}
 
               {/* Add Dimension */}

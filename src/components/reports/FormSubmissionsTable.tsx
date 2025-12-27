@@ -138,7 +138,10 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
   const getDisplayColumns = () => {
     const availableFields = getAvailableFields();
     if (config.selectedColumns?.length) {
-      return availableFields.filter(field => config.selectedColumns!.includes(field.id));
+      // Preserve the order from selectedColumns by mapping through it
+      return config.selectedColumns
+        .map((colId: string) => availableFields.find(field => field.id === colId))
+        .filter((field): field is typeof availableFields[0] => field !== undefined);
     }
     return availableFields.slice(0, 5); // Default to first 5 columns
   };

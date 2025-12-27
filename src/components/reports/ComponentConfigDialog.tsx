@@ -41,6 +41,7 @@ import {
 import { ChartConfigurationTabs } from './ChartConfigurationTabs';
 import { ChartPreview } from './ChartPreview';
 import { ChartDataSection } from './ChartDataSection';
+import { DraggableFieldSelector } from './DraggableFieldSelector';
 import {
   PieDonutDataSection,
   LineAreaDataSection,
@@ -946,6 +947,10 @@ export function ComponentConfigDialog({
       setConfig({ ...config, selectedColumns: newColumns });
     };
 
+    const handleColumnReorder = (newOrder: string[]) => {
+      setConfig({ ...config, selectedColumns: newOrder });
+    };
+
     const handleDrilldownFieldToggle = (fieldId: string, checked: boolean) => {
       const currentFields = config.drilldownConfig?.fields || [];
       const newFields = checked
@@ -1009,7 +1014,7 @@ export function ComponentConfigDialog({
             <Card>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm">Column Selection</CardTitle>
+                  <CardTitle className="text-sm">Column Selection & Order</CardTitle>
                   <Button
                     variant="outline"
                     size="sm"
@@ -1020,28 +1025,21 @@ export function ComponentConfigDialog({
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {selectedColumns.length} of {allFields.length} columns selected
+                  {selectedColumns.length} of {allFields.length} columns selected. Drag to reorder.
                 </p>
               </CardHeader>
               <CardContent>
-                <div className="max-h-48 overflow-y-auto">
-                  <div className="grid grid-cols-2 gap-2">
-                    {allFields.map(field => (
-                      <div key={field.id} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={`col-${field.id}`}
-                          checked={selectedColumns.includes(field.id)}
-                          onChange={(e) => handleColumnToggle(field.id, e.target.checked)}
-                          className="rounded border-gray-300"
-                        />
-                        <Label htmlFor={`col-${field.id}`} className="text-sm cursor-pointer">
-                          {field.label}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <DraggableFieldSelector
+                  availableFields={allFields.map(f => ({ 
+                    id: f.id, 
+                    label: f.label,
+                    type: (f as any).field_type || (f as any).type 
+                  }))}
+                  selectedFieldIds={selectedColumns}
+                  onFieldToggle={handleColumnToggle}
+                  onReorder={handleColumnReorder}
+                  showFieldType={true}
+                />
               </CardContent>
             </Card>
           )}
