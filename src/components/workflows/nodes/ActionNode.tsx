@@ -48,10 +48,6 @@ const getActionIcon = (actionType: string) => {
 
 const getActionColor = (actionType: string) => {
   switch (actionType) {
-    case 'approve_form':
-      return 'bg-green-100 text-green-800 border-green-200';
-    case 'disapprove_form':
-      return 'bg-red-100 text-red-800 border-red-200';
     case 'assign_form':
       return 'bg-blue-100 text-blue-800 border-blue-200';
     case 'send_email':
@@ -61,8 +57,6 @@ const getActionColor = (actionType: string) => {
       return 'bg-pink-100 text-pink-800 border-pink-200';
     case 'trigger_webhook':
       return 'bg-indigo-100 text-indigo-800 border-indigo-200';
-    case 'update_form_lifecycle_status':
-      return 'bg-orange-100 text-orange-800 border-orange-200';
     case 'set_field_values':
       return 'bg-yellow-100 text-yellow-800 border-yellow-200';
     case 'log_event':
@@ -84,14 +78,11 @@ const getActionColor = (actionType: string) => {
 
 const getActionLabel = (actionType: string) => {
   switch (actionType) {
-    case 'approve_form': return 'Approve Form';
-    case 'disapprove_form': return 'Disapprove Form';
     case 'assign_form': return 'Assign Form';
     case 'send_email': return 'Send Email';
     case 'send_notification': return 'Send Notification';
     case 'send_sms': return 'Send SMS';
     case 'trigger_webhook': return 'Trigger Webhook';
-    case 'update_form_lifecycle_status': return 'Update Lifecycle Status';
     case 'set_field_values': return 'Set Field Values';
     case 'log_event': return 'Log Event';
     case 'update_workflow_variable': return 'Update Variable';
@@ -115,9 +106,6 @@ export const ActionNode = React.memo(function ActionNode({ data }: ActionNodePro
     const config = data.config;
     
     if (config?.targetFormName) {
-      if (actionType === 'update_form_lifecycle_status') {
-        return `${actionLabel}: ${config.targetFormName} → ${config.newStatus || 'status'}`;
-      }
       return `${actionLabel}: ${config.targetFormName}`;
     }
     
