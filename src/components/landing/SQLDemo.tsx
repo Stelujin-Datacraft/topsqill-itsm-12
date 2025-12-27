@@ -1,4 +1,4 @@
-import React, { Suspense, useMemo, useState } from "react";
+import React, { Suspense, useMemo, useState, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 // Remove the TableDemo import since we have a separate DataTablePreview component
@@ -94,14 +94,31 @@ function parseAndExecuteQuery(query: string): Record<string, any>[] {
   return result;
 }
 
+const RAW_DATA_QUERY = `-- View raw form submissions data
+SELECT * FROM "form-uuid";`;
+
 export default function SQLDemo() {
   const [query, setQuery] = useState(SAMPLE_QUERY);
   const [executedQuery, setExecutedQuery] = useState(SAMPLE_QUERY);
-  const result = useMemo(() => parseAndExecuteQuery(executedQuery), [executedQuery]);
+  const [showRaw, setShowRaw] = useState(false);
   
-  const handleRun = () => {
+  const result = useMemo(() => {
+    if (showRaw) {
+      return rows.map(r => ({ ...r }));
+    }
+    return parseAndExecuteQuery(executedQuery);
+  }, [executedQuery, showRaw]);
+  
+  const handleRun = useCallback(() => {
+    setShowRaw(false);
     setExecutedQuery(query);
-  };
+  }, [query]);
+
+  const handleShowRaw = useCallback(() => {
+    setShowRaw(true);
+    setQuery(RAW_DATA_QUERY);
+    setExecutedQuery(RAW_DATA_QUERY);
+  }, []);
 
   return (
     <section aria-labelledby="sql-demo-heading" className="container mx-auto px-4">
@@ -123,7 +140,10 @@ export default function SQLDemo() {
             </Suspense>
             <div className="mt-3 flex gap-3">
               <Button onClick={handleRun}>Run</Button>
-              <Button variant="outline" onClick={() => setQuery(SAMPLE_QUERY)}>
+              <Button variant="outline" onClick={handleShowRaw}>
+                Raw Data
+              </Button>
+              <Button variant="outline" onClick={() => { setQuery(SAMPLE_QUERY); setShowRaw(false); setExecutedQuery(SAMPLE_QUERY); }}>
                 Reset Query
               </Button>
             </div>

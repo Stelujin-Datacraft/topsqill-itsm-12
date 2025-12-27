@@ -10,7 +10,7 @@ import {
 import { 
   User, Mail, Building, Calendar, Star, CheckCircle, 
   AlertCircle, Clock, Download, Filter, Search, MoreHorizontal,
-  FileSpreadsheet, FileText, FileCode
+  FileSpreadsheet, FileText, FileCode, Eye, Pencil, Trash2
 } from "lucide-react";
 const sampleData = [
   {
@@ -119,13 +119,13 @@ export default function DataTablePreview() {
               </CardDescription>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="group-hover:border-emerald-300 group-hover:text-emerald-600 transition-all duration-300">
+              <Button variant="outline" size="sm" className="hover:bg-emerald-100 hover:border-emerald-400 hover:text-emerald-700 transition-all duration-300">
                 <Filter className="h-4 w-4 mr-2" />
                 Filter
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="group-hover:border-cyan-300 group-hover:text-cyan-600 transition-all duration-300">
+                  <Button variant="outline" size="sm" className="hover:bg-emerald-100 hover:border-emerald-400 hover:text-emerald-700 transition-all duration-300">
                     <Download className="h-4 w-4 mr-2" />
                     Export
                   </Button>
@@ -239,13 +239,31 @@ export default function DataTablePreview() {
                 </div>
                 
                 <div className="col-span-1 flex items-center justify-center">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 w-8 p-0 opacity-0 group-hover/row:opacity-100 transition-opacity duration-300 hover:bg-emerald-100 hover:text-emerald-600"
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 w-8 p-0 opacity-0 group-hover/row:opacity-100 transition-opacity duration-300 hover:bg-emerald-100 hover:text-emerald-600"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem className="cursor-pointer">
+                        <Eye className="h-4 w-4 mr-2" />
+                        View
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="cursor-pointer">
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             ))}
