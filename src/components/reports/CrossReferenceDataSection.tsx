@@ -36,10 +36,16 @@ export function CrossReferenceDataSection({
   const [loadingFields, setLoadingFields] = useState(false);
 
   // Get cross-reference fields from the current form
+  // Get cross-reference fields from the current form
   const crossRefFields = useMemo(() => {
+    console.log('CrossReferenceDataSection: formFields received:', formFields);
     return formFields.filter(f => {
       const type = getFieldType(f);
-      return type === 'cross-reference' || type === 'child-cross-reference';
+      const isMatch = type === 'cross-reference' || type === 'child-cross-reference';
+      if (isMatch) {
+        console.log('CrossReferenceDataSection: Found cross-ref field:', f.label, 'type:', type, 'customConfig:', (f as any).customConfig);
+      }
+      return isMatch;
     });
   }, [formFields]);
 
@@ -51,14 +57,22 @@ export function CrossReferenceDataSection({
     return formFields.find(f => f.id === crossRefConfig.crossRefFieldId);
   }, [formFields, crossRefConfig?.crossRefFieldId]);
 
-  // Extract target form ID from the cross-reference field's custom_config
+  // Extract target form ID from the cross-reference field's customConfig
   const targetFormIdFromField = useMemo(() => {
     if (!selectedCrossRefField) return null;
-    const customConfig = (selectedCrossRefField as any).custom_config || (selectedCrossRefField as any).customConfig;
+    // Check both camelCase (from transformed fields) and snake_case (from raw DB)
+    const customConfig = (selectedCrossRefField as any).customConfig || (selectedCrossRefField as any).custom_config;
+    console.log('CrossReferenceDataSection: selectedCrossRefField:', selectedCrossRefField?.label, 'customConfig:', customConfig);
     if (!customConfig) return null;
     
-    const parsed = typeof customConfig === 'string' ? JSON.parse(customConfig) : customConfig;
-    return parsed?.targetFormId;
+    try {
+      const parsed = typeof customConfig === 'string' ? JSON.parse(customConfig) : customConfig;
+      console.log('CrossReferenceDataSection: parsed targetFormId:', parsed?.targetFormId);
+      return parsed?.targetFormId;
+    } catch (e) {
+      console.error('Error parsing customConfig:', e);
+      return null;
+    }
   }, [selectedCrossRefField]);
 
   // Fetch fields from the target form when it changes
@@ -138,12 +152,20 @@ export function CrossReferenceDataSection({
   // Handle cross-reference field selection
   const handleCrossRefFieldChange = (fieldId: string) => {
     const field = formFields.find(f => f.id === fieldId);
-    const customConfig = (field as any)?.custom_config || (field as any)?.customConfig;
+    // Check both camelCase (from transformed fields) and snake_case (from raw DB)
+    const customConfig = (field as any)?.customConfig || (field as any)?.custom_config;
     let targetFormId = '';
     
+    console.log('CrossReferenceDataSection: handleCrossRefFieldChange - field:', field?.label, 'customConfig:', customConfig);
+    
     if (customConfig) {
-      const parsed = typeof customConfig === 'string' ? JSON.parse(customConfig) : customConfig;
-      targetFormId = parsed?.targetFormId || '';
+      try {
+        const parsed = typeof customConfig === 'string' ? JSON.parse(customConfig) : customConfig;
+        targetFormId = parsed?.targetFormId || '';
+        console.log('CrossReferenceDataSection: extracted targetFormId:', targetFormId);
+      } catch (e) {
+        console.error('Error parsing customConfig:', e);
+      }
     }
 
     onConfigChange({
