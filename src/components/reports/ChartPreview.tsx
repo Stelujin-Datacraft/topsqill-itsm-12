@@ -135,6 +135,100 @@ export function ChartPreview({
   };
 
   // Apply join to chart data - merges data from secondary form
+  // Helper to normalize join values for comparison - handles all field types
+  const normalizeJoinValue = (value: any): string | null => {
+    if (value === null || value === undefined || value === '') return null;
+    
+    // Handle arrays - extract first element or join
+    if (Array.isArray(value)) {
+      if (value.length === 0) return null;
+      // For single-element arrays, use the element directly
+      if (value.length === 1) {
+        return normalizeJoinValue(value[0]);
+      }
+      // For multi-element, create a sorted string for consistent comparison
+      return value.map(v => normalizeJoinValue(v)).filter(Boolean).sort().join('|');
+    }
+    
+    // Handle objects (like submission-access, cross-reference, address, etc.)
+    if (typeof value === 'object') {
+      // Check for common patterns in order of likelihood
+      if (value.value !== undefined) return normalizeJoinValue(value.value);
+      if (value.label !== undefined) return normalizeJoinValue(value.label);
+      if (value.id !== undefined) return normalizeJoinValue(value.id);
+      if (value.name !== undefined) return normalizeJoinValue(value.name);
+      if (value.email !== undefined) return normalizeJoinValue(value.email);
+      if (value.submission_ref_id !== undefined) return normalizeJoinValue(value.submission_ref_id);
+      
+      // For other objects, stringify
+      try {
+        return JSON.stringify(value).toLowerCase().trim();
+      } catch {
+        return String(value).toLowerCase().trim();
+      }
+    }
+    
+    // Handle numbers - convert to string for comparison
+    if (typeof value === 'number') {
+      return String(value);
+    }
+    
+    // Handle booleans
+    if (typeof value === 'boolean') {
+      return value ? 'true' : 'false';
+    }
+    
+    // Handle dates
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    
+    return String(value).toLowerCase().trim();
+  };
+
+  // Check if two normalized values match
+  const valuesMatch = (val1: string | null, val2: string | null): boolean => {
+    if (val1 === null || val2 === null) return false;
+    if (val1 === val2) return true;
+    
+    // Try partial matching for complex values (multi-select, arrays)
+    if (val1.includes('|') || val2.includes('|')) {
+      const parts1 = val1.split('|');
+      const parts2 = val2.split('|');
+      // Check if any part matches
+      return parts1.some(p1 => parts2.some(p2 => p1 === p2));
+    }
+    
+    return false;
+  };
+
+  // Extract field value with multiple fallback strategies
+  const extractJoinFieldValue = (submissionData: Record<string, any>, fieldId: string): any => {
+    if (!submissionData || !fieldId) return undefined;
+    
+    // Direct lookup
+    if (submissionData[fieldId] !== undefined) {
+      return submissionData[fieldId];
+    }
+    
+    // Try without any prefix (in case fieldId has a prefix)
+    if (fieldId.includes('.')) {
+      const rawFieldId = fieldId.split('.').pop();
+      if (rawFieldId && submissionData[rawFieldId] !== undefined) {
+        return submissionData[rawFieldId];
+      }
+    }
+    
+    // Try to find by partial match (for cases where keys might have prefixes)
+    const keys = Object.keys(submissionData);
+    const matchingKey = keys.find(k => k === fieldId || k.endsWith(`.${fieldId}`) || fieldId.endsWith(`.${k}`));
+    if (matchingKey) {
+      return submissionData[matchingKey];
+    }
+    
+    return undefined;
+  };
+
   const applyChartJoin = async (
     primaryData: any[],
     joinConfig: {
@@ -178,40 +272,70 @@ export function ChartPreview({
         return merged;
       };
 
+      // Helper to find matching secondary row with normalized comparison
+      const findMatchingSecondary = (primaryRow: any) => {
+        const primaryValueRaw = extractJoinFieldValue(primaryRow.submission_data, primaryFieldId);
+        const primaryValue = normalizeJoinValue(primaryValueRaw);
+        
+        return secondaryData.find(secondaryRow => {
+          const submissionData = (typeof secondaryRow.submission_data === 'object' && secondaryRow.submission_data !== null) 
+            ? secondaryRow.submission_data as Record<string, any> 
+            : {};
+          const secondaryValueRaw = extractJoinFieldValue(submissionData, secondaryFieldId);
+          const secondaryValue = normalizeJoinValue(secondaryValueRaw);
+          return valuesMatch(primaryValue, secondaryValue);
+        });
+      };
+
+      // Helper to find matching primary row with normalized comparison
+      const findMatchingPrimary = (secondaryRow: any) => {
+        const submissionData = (typeof secondaryRow.submission_data === 'object' && secondaryRow.submission_data !== null) 
+          ? secondaryRow.submission_data as Record<string, any> 
+          : {};
+        const secondaryValueRaw = extractJoinFieldValue(submissionData, secondaryFieldId);
+        const secondaryValue = normalizeJoinValue(secondaryValueRaw);
+        
+        return primaryData.find(primaryRow => {
+          const primaryValueRaw = extractJoinFieldValue(primaryRow.submission_data, primaryFieldId);
+          const primaryValue = normalizeJoinValue(primaryValueRaw);
+          return valuesMatch(primaryValue, secondaryValue);
+        });
+      };
+
+      console.log(`📊 Applying ${joinType} join between ${primaryFieldId} and ${secondaryFieldId}`);
+
       switch (joinType) {
         case 'inner':
-          return primaryData
+          // Only return records that have matches in BOTH forms
+          const innerResult = primaryData
             .map(primaryRow => {
-              const primaryValue = primaryRow.submission_data?.[primaryFieldId];
-              const matchingSecondary = secondaryData.find(secondaryRow => 
-                secondaryRow.submission_data?.[secondaryFieldId] === primaryValue
-              );
+              const matchingSecondary = findMatchingSecondary(primaryRow);
               if (matchingSecondary) {
                 return mergeRows(primaryRow, matchingSecondary);
               }
               return null;
             })
             .filter((row): row is any => row !== null);
+          console.log(`📊 Inner join: ${primaryData.length} primary + ${secondaryData.length} secondary = ${innerResult.length} matched`);
+          return innerResult;
 
         case 'left':
-          return primaryData.map(primaryRow => {
-            const primaryValue = primaryRow.submission_data?.[primaryFieldId];
-            const matchingSecondary = secondaryData.find(secondaryRow => 
-              secondaryRow.submission_data?.[secondaryFieldId] === primaryValue
-            );
+          // Return ALL primary records, with secondary data where matches exist
+          const leftResult = primaryData.map(primaryRow => {
+            const matchingSecondary = findMatchingSecondary(primaryRow);
             if (matchingSecondary) {
               return mergeRows(primaryRow, matchingSecondary);
             }
             return primaryRow;
           });
+          console.log(`📊 Left join: ${primaryData.length} primary records (all kept)`);
+          return leftResult;
 
         case 'right':
+          // Return ALL secondary records, with primary data where matches exist
           const rightResult: any[] = [];
           secondaryData.forEach(secondaryRow => {
-            const secondaryValue = secondaryRow.submission_data?.[secondaryFieldId];
-            const matchingPrimary = primaryData.find(primaryRow => 
-              primaryRow.submission_data?.[primaryFieldId] === secondaryValue
-            );
+            const matchingPrimary = findMatchingPrimary(secondaryRow);
             if (matchingPrimary) {
               rightResult.push(mergeRows(matchingPrimary, secondaryRow));
             } else {
@@ -226,17 +350,17 @@ export function ChartPreview({
               rightResult.push(newRow);
             }
           });
+          console.log(`📊 Right join: ${secondaryData.length} secondary records (all kept)`);
           return rightResult;
 
         case 'full':
+          // Return ALL records from BOTH forms
           const fullResult: any[] = [];
           const matchedSecondaryIds = new Set<string>();
 
+          // First, process all primary records
           primaryData.forEach(primaryRow => {
-            const primaryValue = primaryRow.submission_data?.[primaryFieldId];
-            const matchingSecondary = secondaryData.find(secondaryRow => 
-              secondaryRow.submission_data?.[secondaryFieldId] === primaryValue
-            );
+            const matchingSecondary = findMatchingSecondary(primaryRow);
             if (matchingSecondary) {
               matchedSecondaryIds.add(matchingSecondary.id);
               fullResult.push(mergeRows(primaryRow, matchingSecondary));
@@ -245,7 +369,7 @@ export function ChartPreview({
             }
           });
 
-          // Add unmatched secondary records
+          // Then add unmatched secondary records
           secondaryData.forEach(secondaryRow => {
             if (!matchedSecondaryIds.has(secondaryRow.id)) {
               const newRow = {
@@ -258,6 +382,7 @@ export function ChartPreview({
               fullResult.push(newRow);
             }
           });
+          console.log(`📊 Full join: ${primaryData.length} primary + ${secondaryData.length} secondary = ${fullResult.length} total (${matchedSecondaryIds.size} matched)`);
           return fullResult;
 
         default:

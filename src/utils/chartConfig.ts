@@ -40,6 +40,24 @@ export const CHART_TYPES: ChartTypeOption[] = [
   { value: 'bubble', label: 'Bubble Chart', icon: null, description: 'Scatter plot with size dimension', supportedMetrics: 3, supportedDimensions: 1 },
 ];
 
+// Field types that can be used for joining between forms
+export const JOINABLE_FIELD_TYPES = [
+  // Text-based fields - most common for joins
+  'text', 'textarea', 'email', 'url', 'tel', 'phone',
+  // Selection fields
+  'select', 'radio', 'dropdown', 'multi-select', 'checkbox',
+  // Numeric fields
+  'number', 'currency', 'rating', 'slider', 'calculated',
+  // Date/time fields  
+  'date', 'datetime', 'time',
+  // Reference fields
+  'cross-reference', 'child-cross-reference',
+  // Identifier fields
+  'country', 'tags', 'toggle-switch',
+  // User-related fields
+  'submission-access', 'user-picker', 'group-picker'
+];
+
 export function canFieldsBeJoined(field1: FormField, field2: FormField): boolean {
   // Fields can be joined if they have compatible types
   // Support both .type and .field_type properties for flexibility
@@ -50,14 +68,33 @@ export function canFieldsBeJoined(field1: FormField, field2: FormField): boolean
   const type1 = getFieldType(field1);
   const type2 = getFieldType(field2);
 
+  // Both fields must be joinable types
+  if (!JOINABLE_FIELD_TYPES.includes(type1) || !JOINABLE_FIELD_TYPES.includes(type2)) {
+    return false;
+  }
+
+  // Define compatibility groups - fields in the same group can be joined
   const compatibleTypes = [
-    ['text', 'email', 'url', 'tel', 'header'],
-    ['number', 'currency', 'rating'],
-    ['select', 'radio', 'dropdown'],
-    ['checkbox', 'multi-select'],
+    // Text-based fields can be joined with each other
+    ['text', 'textarea', 'email', 'url', 'tel', 'phone'],
+    // Numeric fields can be joined with each other  
+    ['number', 'currency', 'rating', 'slider', 'calculated'],
+    // Selection fields can be joined with text or each other
+    ['select', 'radio', 'dropdown', 'text', 'textarea'],
+    // Multi-value selection fields
+    ['multi-select', 'checkbox', 'tags'],
+    // Date/time fields
     ['date', 'datetime'],
-    ['file'],
-    ['textarea']
+    // Time field standalone
+    ['time'],
+    // Reference fields
+    ['cross-reference', 'child-cross-reference', 'text'],
+    // Country/location
+    ['country', 'text', 'select'],
+    // Toggle/boolean
+    ['toggle-switch', 'checkbox'],
+    // User-related fields can join with text
+    ['submission-access', 'user-picker', 'group-picker', 'text', 'email']
   ];
 
   // Check if both fields are in the same compatibility group
@@ -67,7 +104,7 @@ export function canFieldsBeJoined(field1: FormField, field2: FormField): boolean
     }
   }
 
-  // Also allow same-type matching
+  // Also allow same-type matching for any joinable type
   if (type1 === type2) {
     return true;
   }
