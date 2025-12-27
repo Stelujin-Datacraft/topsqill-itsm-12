@@ -479,15 +479,49 @@ export function ComponentConfigDialog({
           {/* Display Fields for Chart - shown when clicking on chart bars */}
           {componentType === 'chart' && config.formId && (
             formFields.length > 0 ? (
-              <GenericFieldSelector
-                formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-                selectedFields={config.displayFields || []}
-                onFieldsChange={(fields) => setConfig({ ...config, displayFields: fields })}
-                label="Fields to Display on Click"
-                description="Select which fields to show when clicking on chart bars"
-                selectionType="checkbox"
-                maxHeight="200px"
-              />
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm">Fields to Display on Click</CardTitle>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const allFields = joinEnabled ? [...formFields, ...secondaryFormFields] : formFields;
+                        const allFieldIds = allFields.map(f => f.id);
+                        const currentDisplayFields = config.displayFields || [];
+                        const allSelected = allFieldIds.length > 0 && currentDisplayFields.length === allFieldIds.length;
+                        setConfig({ ...config, displayFields: allSelected ? [] : allFieldIds });
+                      }}
+                      className="h-8"
+                    >
+                      {(config.displayFields?.length === (joinEnabled ? [...formFields, ...secondaryFormFields] : formFields).length) ? 'Deselect All' : 'Select All'}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {config.displayFields?.length || 0} fields selected. Drag to reorder display sequence.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <DraggableFieldSelector
+                    availableFields={(joinEnabled ? [...formFields, ...secondaryFormFields] : formFields).map(f => ({ 
+                      id: f.id, 
+                      label: f.label,
+                      type: (f as any).field_type || (f as any).type 
+                    }))}
+                    selectedFieldIds={config.displayFields || []}
+                    onFieldToggle={(fieldId, checked) => {
+                      const currentFields = config.displayFields || [];
+                      const newFields = checked
+                        ? [...currentFields, fieldId]
+                        : currentFields.filter(id => id !== fieldId);
+                      setConfig({ ...config, displayFields: newFields });
+                    }}
+                    onReorder={(newOrder) => setConfig({ ...config, displayFields: newOrder })}
+                    showFieldType={true}
+                  />
+                </CardContent>
+              </Card>
             ) : (
               <div className="p-4 text-center text-muted-foreground border rounded-md">
                 {loadingFields ? 'Loading form fields...' : 'No fields available'}
