@@ -15,6 +15,7 @@ import { ChartTypeSelector } from './ChartTypeSelector';
 import { ChartPreview } from './ChartPreview';
 import { ChartDataSection } from './ChartDataSection';
 import { ChartExamples } from './ChartExamples';
+import { DraggableFieldSelector } from './DraggableFieldSelector';
 import { 
   PieDonutDataSection, 
   LineAreaDataSection, 
@@ -240,7 +241,7 @@ export function ChartConfigurationTabs({
           </Select>
         </div>
 
-        {/* Display Fields Multi-Select */}
+        {/* Display Fields Multi-Select with Drag & Drop */}
         {config.formId && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -264,50 +265,30 @@ export function ChartConfigurationTabs({
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Select which fields to show when clicking on chart bars
+              {config.displayFields?.length || 0} of {formFields.length} fields selected. Drag to reorder.
             </p>
             {formFields.length === 0 ? (
               <div className="h-[100px] border rounded-md p-3 flex items-center justify-center text-muted-foreground text-sm">
                 Loading fields...
               </div>
             ) : (
-              <>
-                <ScrollArea className="h-[200px] border rounded-md p-3">
-                  <div className="space-y-2">
-                    {formFields.map((field) => {
-                      const isSelected = config.displayFields?.includes(field.id) || false;
-                      return (
-                        <div
-                          key={field.id}
-                          className="flex items-center space-x-2 p-2 rounded hover:bg-muted/50"
-                        >
-                          <Checkbox
-                            id={`display-field-${field.id}`}
-                            checked={isSelected}
-                            onCheckedChange={(checked) => {
-                              const currentFields = config.displayFields || [];
-                              const newFields = checked
-                                ? [...currentFields, field.id]
-                                : currentFields.filter(id => id !== field.id);
-                              handleConfigUpdate({ displayFields: newFields });
-                            }}
-                          />
-                          <label
-                            htmlFor={`display-field-${field.id}`}
-                            className="flex-1 text-sm cursor-pointer"
-                          >
-                            {field.label}
-                            <span className="text-xs text-muted-foreground ml-2">({field.type})</span>
-                          </label>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </ScrollArea>
-                <p className="text-xs text-muted-foreground">
-                  {config.displayFields?.length || 0} of {formFields.length} fields selected
-                </p>
-              </>
+              <DraggableFieldSelector
+                availableFields={formFields.map(f => ({ 
+                  id: f.id, 
+                  label: f.label,
+                  type: (f as any).field_type || f.type 
+                }))}
+                selectedFieldIds={config.displayFields || []}
+                onFieldToggle={(fieldId, checked) => {
+                  const currentFields = config.displayFields || [];
+                  const newFields = checked
+                    ? [...currentFields, fieldId]
+                    : currentFields.filter(id => id !== fieldId);
+                  handleConfigUpdate({ displayFields: newFields });
+                }}
+                onReorder={(newOrder) => handleConfigUpdate({ displayFields: newOrder })}
+                showFieldType={true}
+              />
             )}
           </div>
         )}
