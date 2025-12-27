@@ -198,7 +198,7 @@ export function useTableData(
     return undefined;
   };
 
-  // Helper to normalize join values for comparison - more flexible matching
+  // Helper to normalize join values for comparison - handles all field types
   const normalizeJoinValue = (value: any): string | null => {
     if (value === null || value === undefined || value === '') return null;
     
@@ -213,14 +213,20 @@ export function useTableData(
       return value.map(v => normalizeJoinValue(v)).filter(Boolean).sort().join('|');
     }
     
-    // Handle objects (like submission-access, address, etc.)
+    // Handle objects (like submission-access, cross-reference, address, etc.)
     if (typeof value === 'object') {
-      // Check for common patterns
+      // Check for common patterns in order of likelihood
       if (value.value !== undefined) return normalizeJoinValue(value.value);
       if (value.label !== undefined) return normalizeJoinValue(value.label);
       if (value.id !== undefined) return normalizeJoinValue(value.id);
       if (value.name !== undefined) return normalizeJoinValue(value.name);
       if (value.email !== undefined) return normalizeJoinValue(value.email);
+      if (value.submission_ref_id !== undefined) return normalizeJoinValue(value.submission_ref_id);
+      
+      // For date objects
+      if (value instanceof Date) {
+        return value.toISOString().split('T')[0]; // Use date part only for comparison
+      }
       
       // For other objects, stringify
       try {
@@ -230,8 +236,11 @@ export function useTableData(
       }
     }
     
-    // Handle numbers
+    // Handle numbers - preserve as string for exact matching
     if (typeof value === 'number') {
+      // Handle special numeric cases
+      if (isNaN(value)) return null;
+      if (!isFinite(value)) return null;
       return String(value);
     }
     
@@ -240,7 +249,9 @@ export function useTableData(
       return value ? 'true' : 'false';
     }
     
-    return String(value).toLowerCase().trim();
+    // Handle string values - normalize but keep original case for text matches
+    // Use lowercase for consistent matching
+    return String(value).trim().toLowerCase();
   };
 
   // Check if two normalized values match
@@ -248,7 +259,14 @@ export function useTableData(
     if (val1 === null || val2 === null) return false;
     if (val1 === val2) return true;
     
-    // Try partial matching for complex values
+    // Try numeric comparison for values that look like numbers
+    const num1 = parseFloat(val1);
+    const num2 = parseFloat(val2);
+    if (!isNaN(num1) && !isNaN(num2) && num1 === num2) {
+      return true;
+    }
+    
+    // Try partial matching for complex values (multi-select, arrays)
     if (val1.includes('|') || val2.includes('|')) {
       const parts1 = val1.split('|');
       const parts2 = val2.split('|');
