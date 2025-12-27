@@ -39,6 +39,7 @@ interface JoinDefinition {
   primaryFieldId: string;
   secondaryFieldId: string;
   alias?: string;
+  useCrossReference?: boolean; // When true, join via submission_ref_id
 }
 
 interface JoinConfig {
@@ -341,12 +342,43 @@ export function useTableData(
     secondaryData: any[], 
     joinDef: JoinDefinition
   ): SubmissionRow[] => {
-    const { joinType, primaryFieldId, secondaryFieldId, secondaryFormId } = joinDef;
+    const { joinType, primaryFieldId, secondaryFieldId, secondaryFormId, useCrossReference } = joinDef;
     // Use formId as prefix to match what EnhancedDynamicTable expects
     const prefix = `${secondaryFormId}.`;
 
+    // Helper to get cross-reference values from the primary field
+    // Cross-reference fields can store single value, array, or comma-separated string
+    const getCrossReferenceValues = (primaryRow: SubmissionRow): string[] => {
+      const rawValue = extractFieldValue(primaryRow.submission_data, primaryFieldId);
+      if (!rawValue) return [];
+      
+      // Handle array of submission_ref_ids
+      if (Array.isArray(rawValue)) {
+        return rawValue.map(v => String(v).trim()).filter(Boolean);
+      }
+      
+      // Handle comma-separated string
+      if (typeof rawValue === 'string') {
+        return rawValue.split(',').map(v => v.trim()).filter(Boolean);
+      }
+      
+      return [String(rawValue)];
+    };
+
     // Helper to find ALL matching secondary rows (not just the first one)
     const findAllMatchingSecondary = (primaryRow: SubmissionRow) => {
+      // For cross-reference joins, match against submission_ref_id
+      if (useCrossReference || secondaryFieldId === '__submission_ref_id__') {
+        const crossRefValues = getCrossReferenceValues(primaryRow);
+        if (crossRefValues.length === 0) return [];
+        
+        return secondaryData.filter(secondaryRow => {
+          const secondaryRefId = secondaryRow.submission_ref_id || '';
+          return crossRefValues.includes(secondaryRefId);
+        });
+      }
+      
+      // Standard field-to-field join
       const primaryValueRaw = extractFieldValue(primaryRow.submission_data, primaryFieldId);
       const primaryValue = normalizeJoinValue(primaryValueRaw);
       
@@ -359,6 +391,18 @@ export function useTableData(
 
     // Helper to find ALL matching primary rows
     const findAllMatchingPrimary = (secondaryRow: any) => {
+      // For cross-reference joins, match against submission_ref_id
+      if (useCrossReference || secondaryFieldId === '__submission_ref_id__') {
+        const secondaryRefId = secondaryRow.submission_ref_id || '';
+        if (!secondaryRefId) return [];
+        
+        return primaryData.filter(primaryRow => {
+          const crossRefValues = getCrossReferenceValues(primaryRow);
+          return crossRefValues.includes(secondaryRefId);
+        });
+      }
+      
+      // Standard field-to-field join
       const secondaryValueRaw = extractFieldValue(secondaryRow.submission_data, secondaryFieldId);
       const secondaryValue = normalizeJoinValue(secondaryValueRaw);
       
