@@ -59,20 +59,36 @@ export class WorkflowOrchestrator {
       // Execute the workflow starting from the start node
       const result = await this.executeNode(execution.id, startNodeId, triggerData, context);
 
-      // Update execution status
-      await supabase
+      // Check current execution status before updating
+      // A wait node may have already set status to 'waiting' - don't overwrite it!
+      const { data: currentExecution } = await supabase
         .from('workflow_executions')
-        .update({
-          status: result.success ? 'completed' : 'failed',
-          completed_at: new Date().toISOString(),
-          error_message: result.error
-        })
-        .eq('id', execution.id);
+        .select('status')
+        .eq('id', execution.id)
+        .single();
+
+      console.log('📊 Current execution status after nodes completed:', currentExecution?.status);
+
+      // Only update status if it's still 'running' (not 'waiting' from a wait node)
+      if (currentExecution?.status === 'running') {
+        console.log('✅ Workflow not paused, marking as', result.success ? 'completed' : 'failed');
+        await supabase
+          .from('workflow_executions')
+          .update({
+            status: result.success ? 'completed' : 'failed',
+            completed_at: new Date().toISOString(),
+            error_message: result.error
+          })
+          .eq('id', execution.id);
+      } else if (currentExecution?.status === 'waiting') {
+        console.log('⏸️ Workflow is paused by wait node, preserving waiting status');
+      }
 
       return {
         executionId: execution.id,
         success: result.success,
-        error: result.error
+        error: result.error,
+        isWaiting: currentExecution?.status === 'waiting'
       };
     } catch (error) {
       console.error('❌ Error in workflow execution:', error);
@@ -107,14 +123,32 @@ export class WorkflowOrchestrator {
 
     const result = await this.executeNode(executionId, nodeId, triggerData, context);
 
-    // Only mark as completed if there are no more nodes (not waiting)
-    if (!result.success) {
+    // Check current execution status before updating
+    const { data: currentExecution } = await supabase
+      .from('workflow_executions')
+      .select('status')
+      .eq('id', executionId)
+      .single();
+
+    console.log('📊 Continue from node - current status:', currentExecution?.status);
+
+    // Only mark as failed if execution failed AND status is not 'waiting'
+    if (!result.success && currentExecution?.status !== 'waiting') {
       await supabase
         .from('workflow_executions')
         .update({
           status: 'failed',
           completed_at: new Date().toISOString(),
           error_message: result.error
+        })
+        .eq('id', executionId);
+    } else if (result.success && currentExecution?.status === 'running') {
+      // Mark as completed only if we're still running (not waiting)
+      await supabase
+        .from('workflow_executions')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString()
         })
         .eq('id', executionId);
     }
