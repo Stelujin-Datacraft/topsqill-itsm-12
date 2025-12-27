@@ -105,7 +105,10 @@ export function SimpleTablePreview({
     const allFields = [...metadataFields, ...formFields];
     
     if (selectedColumns.length > 0) {
-      return allFields.filter(field => selectedColumns.includes(field.id));
+      // Preserve order from selectedColumns
+      return selectedColumns
+        .map((colId: string) => allFields.find(field => field.id === colId))
+        .filter((field): field is typeof allFields[0] => field !== undefined);
     }
     
     return allFields;

@@ -146,12 +146,17 @@ export function DynamicTable({
   const displayFields = useMemo(() => {
     let fields = [];
     
-    // If user has interacted with column selection, strictly respect their choices
-    if (hasUserInteractedWithColumns) {
-      fields = formFields.filter(field => selectedColumns.includes(field.id));
+    // If user has interacted with column selection, strictly respect their choices and order
+    if (hasUserInteractedWithColumns && selectedColumns.length > 0) {
+      // Preserve order from selectedColumns
+      fields = selectedColumns
+        .map((colId: string) => formFields.find(field => field.id === colId))
+        .filter((field): field is typeof formFields[0] => field !== undefined);
     } else if (config.selectedColumns && config.selectedColumns.length > 0) {
-      // Use config selected columns if provided
-      fields = formFields.filter(field => config.selectedColumns.includes(field.id));
+      // Preserve order from config.selectedColumns
+      fields = config.selectedColumns
+        .map((colId: string) => formFields.find(field => field.id === colId))
+        .filter((field): field is typeof formFields[0] => field !== undefined);
     } else {
       // Default fallback: show all available fields
       fields = formFields;
