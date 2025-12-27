@@ -19,6 +19,10 @@ import InvestorSection from '@/components/landing/InvestorSection';
 import FAQSection from '@/components/landing/FAQSection';
 import AnnouncementHistory from '@/components/landing/AnnouncementHistory';
 import DataTablePreview from '@/components/landing/DataTablePreview';
+import TestimonialsSection from '@/components/landing/TestimonialsSection';
+import PricingSection from '@/components/landing/PricingSection';
+import IntegrationsSection from '@/components/landing/IntegrationsSection';
+import TrustLogosSection from '@/components/landing/TrustLogosSection';
 
 const Index = () => {
   useEffect(() => {
@@ -47,6 +51,7 @@ const Index = () => {
             <div className="hidden md:flex items-center space-x-6">
               <a href="#features" className="text-foreground hover:text-primary transition-colors">Features</a>
               <a href="#showcase" className="text-foreground hover:text-primary transition-colors">Showcase</a>
+              <a href="#pricing" className="text-foreground hover:text-primary transition-colors">Pricing</a>
               <a href="#roadmap" className="text-foreground hover:text-primary transition-colors">AI Roadmap</a>
               <a href="#investors" className="text-foreground hover:text-primary transition-colors">Investors</a>
               <a href="#faq" className="text-foreground hover:text-primary transition-colors">FAQ</a>
@@ -121,6 +126,9 @@ const Index = () => {
               </div>
             </div>
           </section>
+
+          {/* Trust Logos */}
+          <TrustLogosSection />
 
           {/* Capabilities Showcase */}
           <section id="showcase" className="py-20 bg-gradient-to-br from-secondary/5 to-background">
@@ -231,6 +239,15 @@ const Index = () => {
               </div>
             </div>
           </section>
+
+          {/* Integrations */}
+          <IntegrationsSection />
+
+          {/* Testimonials */}
+          <TestimonialsSection />
+
+          {/* Pricing */}
+          <PricingSection />
 
           {/* Future Roadmap */}
           <section id="roadmap">
