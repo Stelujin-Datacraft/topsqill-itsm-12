@@ -87,6 +87,17 @@ export interface ChartConfig {
     secondaryFieldId: string;
   };
   
+  // Cross-reference configuration for using cross-reference field data in charts
+  crossRefConfig?: {
+    enabled: boolean;
+    crossRefFieldId: string; // The cross-reference field in the main form
+    targetFormId: string; // The form being referenced
+    mode: 'count' | 'aggregate'; // Count linked records or aggregate their data
+    targetMetricFieldId?: string; // For aggregate mode: which field to aggregate
+    targetAggregation?: 'sum' | 'avg' | 'min' | 'max' | 'count';
+    targetDimensionFieldId?: string; // For grouping by a field in the referenced form
+  };
+  
   // Fields to display when clicking on chart elements
   displayFields?: string[];
   
