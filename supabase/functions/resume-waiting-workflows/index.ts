@@ -228,23 +228,52 @@ Deno.serve(async (req) => {
               
               if (actionType === 'send_notification') {
                 // Execute notification action
-                const notificationConfig = config?.notification || {}
-                const recipientType = notificationConfig.recipientType || config?.recipientType || 'form_owner'
-                const title = notificationConfig.title || config?.notificationTitle || 'Workflow Notification'
+                const notificationConfig = config?.notificationConfig || config?.notification || {}
+                const recipientConfig = notificationConfig.recipientConfig || {}
+                const recipientType = recipientConfig.type || notificationConfig.recipientType || config?.recipientType || 'form_owner'
+                
+                // Get title/subject and message from config - check multiple possible locations
+                const title = notificationConfig.subject || notificationConfig.title || config?.notificationTitle || 'Workflow Notification'
                 const message = notificationConfig.message || config?.notificationMessage || 'You have a notification from a workflow'
                 
-                let recipientUserId: string | null = null
+                console.log(`📝 Notification config:`, JSON.stringify(notificationConfig))
+                console.log(`📝 Title: ${title}, Message: ${message}`)
+                console.log(`📝 Recipient type: ${recipientType}`)
+                
+                const recipientUserIds: string[] = []
                 
                 // Determine recipient based on type
                 if (recipientType === 'form_owner') {
-                  recipientUserId = execution.trigger_data?.formOwnerId || null
+                  const ownerId = execution.trigger_data?.formOwnerId
+                  if (ownerId) recipientUserIds.push(ownerId)
                 } else if (recipientType === 'submitter') {
-                  recipientUserId = execution.submitter_id || execution.trigger_data?.submitterId || null
+                  const submitterId = execution.submitter_id || execution.trigger_data?.submitterId
+                  if (submitterId) recipientUserIds.push(submitterId)
                 } else if (recipientType === 'specific_user') {
-                  recipientUserId = notificationConfig.specificUserId || config?.specificUserId || null
+                  const specificId = notificationConfig.specificUserId || recipientConfig.specificUserId || config?.specificUserId
+                  if (specificId) recipientUserIds.push(specificId)
+                } else if (recipientType === 'static') {
+                  // Handle static emails - look up users by email
+                  const emails = recipientConfig.emails || notificationConfig.emails || []
+                  console.log(`📧 Looking up users by emails:`, emails)
+                  
+                  for (const email of emails) {
+                    const { data: userByEmail } = await supabase
+                      .from('user_profiles')
+                      .select('id')
+                      .eq('email', email.toLowerCase().trim())
+                      .single()
+                    
+                    if (userByEmail) {
+                      console.log(`✅ Found user for email ${email}: ${userByEmail.id}`)
+                      recipientUserIds.push(userByEmail.id)
+                    } else {
+                      console.log(`⚠️ No user found for email: ${email}`)
+                    }
+                  }
                 } else if (recipientType === 'dynamic_field') {
                   // Try to get from submission data
-                  const fieldId = notificationConfig.dynamicFieldId || config?.dynamicFieldId
+                  const fieldId = notificationConfig.dynamicFieldId || recipientConfig.dynamicFieldId || config?.dynamicFieldId
                   const submissionData = execution.trigger_data?.submissionData
                   if (fieldId && submissionData) {
                     const fieldValue = submissionData[fieldId]
@@ -252,7 +281,7 @@ Deno.serve(async (req) => {
                       // Check if it's a UUID (user ID) or email
                       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
                       if (uuidRegex.test(fieldValue)) {
-                        recipientUserId = fieldValue
+                        recipientUserIds.push(fieldValue)
                       } else {
                         // Try to find user by email
                         const { data: userByEmail } = await supabase
@@ -261,20 +290,21 @@ Deno.serve(async (req) => {
                           .eq('email', fieldValue.toLowerCase())
                           .single()
                         if (userByEmail) {
-                          recipientUserId = userByEmail.id
+                          recipientUserIds.push(userByEmail.id)
                         }
                       }
                     }
                   }
                 }
                 
-                console.log(`📨 Sending notification to user: ${recipientUserId}`)
+                console.log(`📨 Sending notification to ${recipientUserIds.length} user(s):`, recipientUserIds)
                 
-                if (recipientUserId) {
+                let notificationsSent = 0
+                for (const userId of recipientUserIds) {
                   const { error: notifError } = await supabase
                     .from('notifications')
                     .insert({
-                      user_id: recipientUserId,
+                      user_id: userId,
                       title: title,
                       message: message,
                       type: 'workflow',
@@ -287,9 +317,10 @@ Deno.serve(async (req) => {
                     })
                   
                   if (notifError) {
-                    console.error('❌ Error sending notification:', notifError)
+                    console.error(`❌ Error sending notification to ${userId}:`, notifError)
                   } else {
-                    console.log('✅ Notification sent successfully')
+                    console.log(`✅ Notification sent to ${userId}`)
+                    notificationsSent++
                   }
                 }
                 
@@ -300,8 +331,8 @@ Deno.serve(async (req) => {
                     status: 'completed',
                     completed_at: new Date().toISOString(),
                     output_data: { 
-                      notificationSent: !!recipientUserId,
-                      recipientUserId,
+                      notificationsSent,
+                      recipientUserIds,
                       title,
                       message
                     }
@@ -327,9 +358,28 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Check if all nodes have been executed and mark workflow as completed
+        // Check if all next nodes have been processed and mark workflow as completed
+        // If there's an end node, or if there are no more connections from the action nodes
         const hasEndNode = (nextNodes || []).some((n: any) => n.node_type === 'end')
-        if (hasEndNode) {
+        
+        // Also check if action nodes have no further connections (meaning they're terminal)
+        let allNodesTerminal = true
+        for (const nodeData of (nextNodes || []) as WorkflowNode[]) {
+          if (nodeData.node_type !== 'end') {
+            const { data: furtherConnections } = await supabase
+              .from('workflow_connections')
+              .select('id')
+              .eq('source_node_id', nodeData.id)
+            
+            if (furtherConnections && furtherConnections.length > 0) {
+              allNodesTerminal = false
+              break
+            }
+          }
+        }
+        
+        if (hasEndNode || allNodesTerminal) {
+          console.log('🏁 All nodes processed, marking workflow as completed')
           await supabase
             .from('workflow_executions')
             .update({
