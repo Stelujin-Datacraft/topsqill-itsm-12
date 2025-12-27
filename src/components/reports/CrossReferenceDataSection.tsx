@@ -134,11 +134,27 @@ export function CrossReferenceDataSection({
   const handleToggle = (enabled: boolean) => {
     setIsExpanded(enabled);
     if (enabled) {
+      // Get the first cross-ref field and extract its targetFormId
+      const firstField = crossRefFields[0];
+      let targetFormId = '';
+      
+      if (firstField) {
+        const customConfig = (firstField as any)?.customConfig || (firstField as any)?.custom_config;
+        if (customConfig) {
+          try {
+            const parsed = typeof customConfig === 'string' ? JSON.parse(customConfig) : customConfig;
+            targetFormId = parsed?.targetFormId || '';
+          } catch (e) {
+            console.error('Error parsing customConfig on toggle:', e);
+          }
+        }
+      }
+      
       onConfigChange({
         crossRefConfig: {
           enabled: true,
-          crossRefFieldId: crossRefFields[0]?.id || '',
-          targetFormId: '',
+          crossRefFieldId: firstField?.id || '',
+          targetFormId,
           mode: 'count',
         }
       });
