@@ -874,7 +874,7 @@ export function ComponentConfigDialog({
                   />
                 ) : (
                   <ChartPreview 
-                    key={`chart-preview-${JSON.stringify(config.metrics)}-${JSON.stringify(config.dimensions)}-${config.formId}`}
+                    key={`chart-preview-${JSON.stringify(config.metrics)}-${JSON.stringify(config.dimensions)}-${config.formId}-${config.aggregation}-${config.groupByField}-${JSON.stringify(config.filters)}-${JSON.stringify(config.metricAggregations)}-${config.chartType}-${JSON.stringify(config.columns)}`}
                     config={config}
                   />
                 )}

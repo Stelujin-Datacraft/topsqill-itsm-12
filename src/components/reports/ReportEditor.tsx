@@ -398,13 +398,16 @@ export function ReportEditor({
     });
   };
   const renderComponent = (component: ReportComponent) => {
+    // Create a config hash to force re-render when config changes
+    const configKey = JSON.stringify(component.config);
+    
     switch (component.type) {
       case 'chart':
-        return <ChartPreview config={component.config as any} hideControls={true} onDrilldown={(level, value) => handleDrilldown(component.id, level, value)} drilldownState={drilldownStates[component.id]} />;
+        return <ChartPreview key={`${component.id}-${configKey}`} config={component.config as any} hideControls={true} onDrilldown={(level, value) => handleDrilldown(component.id, level, value)} drilldownState={drilldownStates[component.id]} />;
       case 'table':
-        return <EnhancedDynamicTable config={component.config as any} onEdit={() => handleEditComponent(component)} onDrilldown={(level, value) => handleDrilldown(component.id, level, value)} drilldownState={drilldownStates[component.id]} />;
+        return <EnhancedDynamicTable key={`${component.id}-${configKey}`} config={component.config as any} onEdit={() => handleEditComponent(component)} onDrilldown={(level, value) => handleDrilldown(component.id, level, value)} drilldownState={drilldownStates[component.id]} />;
       case 'form-submissions':
-        return <FormSubmissionsTable config={component.config as any} />;
+        return <FormSubmissionsTable key={`${component.id}-${configKey}`} config={component.config as any} />;
       case 'metric-card':
         return <MetricCard config={component.config as any} />;
       case 'text':
