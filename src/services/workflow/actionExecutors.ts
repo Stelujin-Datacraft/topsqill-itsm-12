@@ -850,22 +850,96 @@ export class ActionExecutors {
       } else if (recipientConfig.type === 'dynamic' && recipientConfig.dynamicFieldPath) {
         // Dynamic - get email from form field value
         const fieldValue = context.triggerData?.submissionData?.[recipientConfig.dynamicFieldPath];
-        console.log('📧 Dynamic field value:', fieldValue);
+        console.log('📧 Dynamic field value:', fieldValue, 'type:', typeof fieldValue);
         
         if (fieldValue) {
-          // Handle different field value formats
-          const emails = this.extractEmailsFromFieldValue(fieldValue);
-          for (const email of emails) {
-            const { data: userProfile } = await supabase
-              .from('user_profiles')
-              .select('id')
-              .eq('email', email)
-              .single();
+          // Check if this is a submission-access field format: { users: [...], groups: [...] }
+          const isSubmissionAccessFormat = fieldValue && typeof fieldValue === 'object' && 
+            !Array.isArray(fieldValue) && 
+            (Array.isArray(fieldValue.users) || Array.isArray(fieldValue.groups));
+          
+          if (isSubmissionAccessFormat) {
+            console.log('📧 Detected submission-access field format');
             
-            recipients.push({
-              userId: userProfile?.id || null,
-              email: email
-            });
+            // Resolve user IDs from the users array
+            if (fieldValue.users && Array.isArray(fieldValue.users)) {
+              for (const userId of fieldValue.users) {
+                if (typeof userId === 'string' && userId.length > 0) {
+                  // Check if it's an email or a UUID
+                  if (userId.includes('@')) {
+                    // It's already an email
+                    const { data: userProfile } = await supabase
+                      .from('user_profiles')
+                      .select('id')
+                      .eq('email', userId)
+                      .single();
+                    
+                    recipients.push({
+                      userId: userProfile?.id || null,
+                      email: userId
+                    });
+                  } else {
+                    // It's a user ID - look up email
+                    const { data: userProfile } = await supabase
+                      .from('user_profiles')
+                      .select('id, email')
+                      .eq('id', userId)
+                      .single();
+                    
+                    if (userProfile?.email) {
+                      recipients.push({
+                        userId: userProfile.id,
+                        email: userProfile.email
+                      });
+                      console.log(`📧 Resolved user ID ${userId} to email: ${userProfile.email}`);
+                    }
+                  }
+                }
+              }
+            }
+            
+            // Resolve group members from the groups array
+            if (fieldValue.groups && Array.isArray(fieldValue.groups)) {
+              for (const groupId of fieldValue.groups) {
+                if (typeof groupId === 'string' && groupId.length > 0) {
+                  // Get group members
+                  const { data: groupMembers } = await supabase
+                    .rpc('get_group_members', { _group_id: groupId });
+                  
+                  if (groupMembers && Array.isArray(groupMembers)) {
+                    for (const member of groupMembers) {
+                      if (member.member_type === 'user' && member.member_email) {
+                        // Avoid duplicates
+                        if (!recipients.some(r => r.email === member.member_email)) {
+                          recipients.push({
+                            userId: member.member_id,
+                            email: member.member_email
+                          });
+                          console.log(`📧 Resolved group member: ${member.member_email}`);
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          } else {
+            // Handle other field value formats (email fields, text fields, etc.)
+            const emails = this.extractEmailsFromFieldValue(fieldValue);
+            console.log('📧 Extracted emails:', emails);
+            
+            for (const email of emails) {
+              const { data: userProfile } = await supabase
+                .from('user_profiles')
+                .select('id')
+                .eq('email', email)
+                .single();
+              
+              recipients.push({
+                userId: userProfile?.id || null,
+                email: email
+              });
+            }
           }
         }
       }
