@@ -394,6 +394,222 @@ export function ChartPreview({
     }
   };
 
+  // Process cross-reference data for charts
+  const processCrossReferenceData = async (
+    submissions: any[],
+    crossRefConfig: {
+      enabled: boolean;
+      crossRefFieldId: string;
+      targetFormId: string;
+      mode: 'count' | 'aggregate';
+      targetMetricFieldId?: string;
+      targetAggregation?: 'sum' | 'avg' | 'min' | 'max' | 'count';
+      targetDimensionFieldId?: string;
+    }
+  ): Promise<any[]> => {
+    if (!crossRefConfig.crossRefFieldId || !crossRefConfig.targetFormId) {
+      console.warn('Incomplete cross-reference configuration');
+      return [];
+    }
+
+    try {
+      // Fetch all submissions from the target form
+      const targetSubmissions = await getFormSubmissionData(crossRefConfig.targetFormId);
+      console.log(`📊 Cross-ref: Loaded ${targetSubmissions?.length || 0} records from target form`);
+
+      if (!targetSubmissions || targetSubmissions.length === 0) {
+        console.log('📊 Cross-ref: No target submissions found');
+        return [];
+      }
+
+      // Build a lookup map: submission_ref_id -> target submissions
+      const targetByRefId = new Map<string, any[]>();
+      targetSubmissions.forEach(sub => {
+        const refId = sub.submission_ref_id;
+        if (refId) {
+          if (!targetByRefId.has(refId)) {
+            targetByRefId.set(refId, []);
+          }
+          targetByRefId.get(refId)!.push(sub);
+        }
+      });
+
+      // Process each parent submission
+      const result: any[] = [];
+
+      submissions.forEach(parentSub => {
+        const crossRefValue = parentSub.submission_data?.[crossRefConfig.crossRefFieldId];
+        
+        // Normalize cross-reference value to array of ref IDs
+        let linkedRefIds: string[] = [];
+        if (typeof crossRefValue === 'string') {
+          linkedRefIds = crossRefValue.split(',').map(s => s.trim()).filter(Boolean);
+        } else if (Array.isArray(crossRefValue)) {
+          linkedRefIds = crossRefValue.flatMap(v => {
+            if (typeof v === 'string') return v.split(',').map(s => s.trim());
+            if (v?.submission_ref_id) return [v.submission_ref_id];
+            return [];
+          }).filter(Boolean);
+        } else if (crossRefValue?.submission_ref_id) {
+          linkedRefIds = [crossRefValue.submission_ref_id];
+        }
+
+        // Get all linked target submissions
+        const linkedSubmissions: any[] = [];
+        linkedRefIds.forEach(refId => {
+          const matches = targetByRefId.get(refId) || [];
+          linkedSubmissions.push(...matches);
+        });
+
+        if (crossRefConfig.mode === 'count') {
+          // Count mode: count linked records
+          const dimensionValue = crossRefConfig.targetDimensionFieldId
+            ? linkedSubmissions.reduce((acc, sub) => {
+                const dimVal = sub.submission_data?.[crossRefConfig.targetDimensionFieldId!] || 'Unknown';
+                const key = typeof dimVal === 'object' ? JSON.stringify(dimVal) : String(dimVal);
+                acc[key] = (acc[key] || 0) + 1;
+                return acc;
+              }, {} as Record<string, number>)
+            : { count: linkedSubmissions.length };
+
+          if (crossRefConfig.targetDimensionFieldId) {
+            // Multiple data points per parent (grouped by dimension)
+            Object.entries(dimensionValue).forEach(([dimVal, count]) => {
+              result.push({
+                name: dimVal,
+                value: count,
+                count: count,
+                parentId: parentSub.id,
+                parentRefId: parentSub.submission_ref_id
+              });
+            });
+          } else {
+            // Single data point per parent
+            result.push({
+              name: parentSub.submission_ref_id || parentSub.id.slice(0, 8),
+              value: linkedSubmissions.length,
+              count: linkedSubmissions.length,
+              parentId: parentSub.id
+            });
+          }
+        } else {
+          // Aggregate mode
+          if (!crossRefConfig.targetMetricFieldId) {
+            console.warn('Aggregate mode requires targetMetricFieldId');
+            return;
+          }
+
+          const aggregation = crossRefConfig.targetAggregation || 'sum';
+          
+          // Extract numeric values from linked submissions
+          const values = linkedSubmissions
+            .map(sub => {
+              const val = sub.submission_data?.[crossRefConfig.targetMetricFieldId!];
+              if (typeof val === 'number') return val;
+              if (typeof val === 'object' && val?.amount) return Number(val.amount) || 0;
+              return Number(val) || 0;
+            })
+            .filter(v => !isNaN(v));
+
+          let aggregatedValue = 0;
+          if (values.length > 0) {
+            switch (aggregation) {
+              case 'sum':
+                aggregatedValue = values.reduce((a, b) => a + b, 0);
+                break;
+              case 'avg':
+                aggregatedValue = values.reduce((a, b) => a + b, 0) / values.length;
+                break;
+              case 'min':
+                aggregatedValue = Math.min(...values);
+                break;
+              case 'max':
+                aggregatedValue = Math.max(...values);
+                break;
+              case 'count':
+                aggregatedValue = values.length;
+                break;
+            }
+          }
+
+          if (crossRefConfig.targetDimensionFieldId) {
+            // Group by dimension in target form
+            const groupedValues: Record<string, number[]> = {};
+            linkedSubmissions.forEach(sub => {
+              const dimVal = sub.submission_data?.[crossRefConfig.targetDimensionFieldId!] || 'Unknown';
+              const key = typeof dimVal === 'object' ? JSON.stringify(dimVal) : String(dimVal);
+              const val = sub.submission_data?.[crossRefConfig.targetMetricFieldId!];
+              const numVal = typeof val === 'number' ? val : (typeof val === 'object' && val?.amount ? Number(val.amount) : Number(val)) || 0;
+              
+              if (!groupedValues[key]) groupedValues[key] = [];
+              groupedValues[key].push(numVal);
+            });
+
+            Object.entries(groupedValues).forEach(([dimVal, vals]) => {
+              let aggVal = 0;
+              if (vals.length > 0) {
+                switch (aggregation) {
+                  case 'sum':
+                    aggVal = vals.reduce((a, b) => a + b, 0);
+                    break;
+                  case 'avg':
+                    aggVal = vals.reduce((a, b) => a + b, 0) / vals.length;
+                    break;
+                  case 'min':
+                    aggVal = Math.min(...vals);
+                    break;
+                  case 'max':
+                    aggVal = Math.max(...vals);
+                    break;
+                  case 'count':
+                    aggVal = vals.length;
+                    break;
+                }
+              }
+              result.push({
+                name: dimVal,
+                value: aggVal,
+                [crossRefConfig.targetMetricFieldId!]: aggVal,
+                parentId: parentSub.id
+              });
+            });
+          } else {
+            result.push({
+              name: parentSub.submission_ref_id || parentSub.id.slice(0, 8),
+              value: aggregatedValue,
+              [crossRefConfig.targetMetricFieldId!]: aggregatedValue,
+              parentId: parentSub.id
+            });
+          }
+        }
+      });
+
+      // If grouped by dimension, aggregate across all parents
+      if (crossRefConfig.targetDimensionFieldId && result.length > 0) {
+        const aggregatedByDimension: Record<string, { value: number; count: number }> = {};
+        result.forEach(item => {
+          if (!aggregatedByDimension[item.name]) {
+            aggregatedByDimension[item.name] = { value: 0, count: 0 };
+          }
+          aggregatedByDimension[item.name].value += item.value;
+          aggregatedByDimension[item.name].count += 1;
+        });
+
+        return Object.entries(aggregatedByDimension).map(([name, data]) => ({
+          name,
+          value: data.value,
+          count: data.count
+        }));
+      }
+
+      console.log(`📊 Cross-ref: Processed ${result.length} data points`);
+      return result;
+    } catch (error) {
+      console.error('Error processing cross-reference data:', error);
+      return [];
+    }
+  };
+
   useEffect(() => {
     const loadChartData = async () => {
       // Use sample data if provided, otherwise fetch from form
@@ -511,6 +727,16 @@ export function ChartPreview({
           let submissions = await getFormSubmissionData(config.formId);
           console.log('Received submissions:', submissions?.length || 0);
           
+          // Apply cross-reference data processing if configured
+          if (config.crossRefConfig?.enabled && config.crossRefConfig?.crossRefFieldId) {
+            console.log('📊 Processing cross-reference data');
+            const crossRefData = await processCrossReferenceData(submissions, config.crossRefConfig);
+            console.log('📊 Cross-reference data processed:', crossRefData?.length || 0);
+            setChartData(crossRefData);
+            setLoading(false);
+            return;
+          }
+          
           // Apply joins if configured
           if (config.joinConfig?.enabled && config.joinConfig?.secondaryFormId) {
             console.log('📊 Applying join with secondary form:', config.joinConfig.secondaryFormId);
@@ -536,7 +762,7 @@ export function ChartPreview({
       }
     };
     loadChartData();
-  }, [config.formId, config.dimensions, config.metrics, config.filters, config.xAxis, config.yAxis, config.aggregation, config.aggregationType, config.groupByField, config.drilldownConfig?.enabled, config.drilldownConfig?.drilldownLevels, drilldownState?.values, (config as any).data, config.joinConfig?.enabled, config.joinConfig?.secondaryFormId, getFormSubmissionData, getChartData]);
+  }, [config.formId, config.dimensions, config.metrics, config.filters, config.xAxis, config.yAxis, config.aggregation, config.aggregationType, config.groupByField, config.drilldownConfig?.enabled, config.drilldownConfig?.drilldownLevels, drilldownState?.values, (config as any).data, config.joinConfig?.enabled, config.joinConfig?.secondaryFormId, config.crossRefConfig?.enabled, config.crossRefConfig?.crossRefFieldId, config.crossRefConfig?.mode, config.crossRefConfig?.targetMetricFieldId, config.crossRefConfig?.targetDimensionFieldId, getFormSubmissionData, getChartData]);
   const processSubmissionData = (submissions: any[]) => {
     if (!submissions.length) {
       console.log('No submissions to process');

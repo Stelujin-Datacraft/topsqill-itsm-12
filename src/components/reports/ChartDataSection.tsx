@@ -16,6 +16,7 @@ import {
   DIMENSION_FIELD_TYPES, 
   METRIC_FIELD_TYPES 
 } from '@/utils/chartConfig';
+import { CrossReferenceDataSection } from './CrossReferenceDataSection';
 
 interface ChartDataSectionProps {
   config: ChartConfig;
@@ -258,6 +259,13 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
           Configure your chart data in 3 simple steps: choose what to show, select your values, and pick how to group them.
         </AlertDescription>
       </Alert>
+
+      {/* Cross-Reference Data Section - shown when form has cross-reference fields */}
+      <CrossReferenceDataSection
+        config={config}
+        formFields={formFields}
+        onConfigChange={onConfigChange}
+      />
 
       {/* STEP 1: Choose Chart Purpose */}
       <Card>
