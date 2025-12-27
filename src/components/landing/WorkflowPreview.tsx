@@ -130,7 +130,7 @@ export default function WorkflowPreview() {
         <CardHeader className="bg-gradient-to-r from-primary/5 to-secondary/5">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle id="workflow-preview-heading" className="text-2xl bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              <CardTitle id="workflow-preview-heading" className="text-2xl text-foreground">
                 Visual Workflow Automation
               </CardTitle>
               <CardDescription className="text-lg">

@@ -71,7 +71,7 @@ export default function FormBuilderMini() {
         <CardHeader className="bg-gradient-to-r from-primary/5 to-secondary/5">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle id="builder-mini-heading" className="text-2xl bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              <CardTitle id="builder-mini-heading" className="text-2xl text-foreground">
                 Drag-and-Drop Form Builder
               </CardTitle>
               <CardDescription className="text-lg">
@@ -193,18 +193,18 @@ export default function FormBuilderMini() {
               </div>
               
               {selectedField ? (
-                <div className="space-y-4">
+                <div className="space-y-4" key={selectedField}>
                   <div>
                     <label className="text-sm font-medium">Field Label</label>
-                    <Input className="mt-1" defaultValue={canvasFields.find(f => f.id === selectedField)?.label} />
+                    <Input className="mt-1" value={canvasFields.find(f => f.id === selectedField)?.label || ''} readOnly />
                   </div>
                   <div>
                     <label className="text-sm font-medium">Placeholder</label>
-                    <Input className="mt-1" defaultValue={canvasFields.find(f => f.id === selectedField)?.placeholder} />
+                    <Input className="mt-1" value={canvasFields.find(f => f.id === selectedField)?.placeholder || ''} readOnly />
                   </div>
                   <div className="flex items-center gap-2">
-                    <input type="checkbox" id="required" defaultChecked={canvasFields.find(f => f.id === selectedField)?.required} />
-                    <label htmlFor="required" className="text-sm">Required field</label>
+                    <input type="checkbox" id={`required-${selectedField}`} checked={canvasFields.find(f => f.id === selectedField)?.required || false} readOnly />
+                    <label htmlFor={`required-${selectedField}`} className="text-sm">Required field</label>
                   </div>
                   <div className="pt-2 border-t">
                     <span className="text-xs text-muted-foreground">Validation Rules</span>
