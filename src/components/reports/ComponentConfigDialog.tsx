@@ -142,20 +142,38 @@ export function ComponentConfigDialog({
         return [];
       };
 
+      // Helper to parse custom_config from various formats (JSON string, object, or null)
+      const parseCustomConfig = (config: any): Record<string, any> => {
+        if (!config) return {};
+        if (typeof config === 'object' && config !== null) return config;
+        if (typeof config === 'string') {
+          try {
+            const parsed = JSON.parse(config);
+            if (typeof parsed === 'object' && parsed !== null) return parsed;
+          } catch (e) {
+            // Not valid JSON
+          }
+        }
+        return {};
+      };
+
       // Transform fields to match FormField interface with proper type casting
-      const transformedFields: FormField[] = (fields || []).map(field => ({
-        id: field.id,
-        type: field.field_type as FormField['type'],
-        label: field.label,
-        placeholder: field.placeholder || '',
-        required: field.required || false,
-        options: parseOptions(field.options),
-        validation: typeof field.validation === 'object' && field.validation !== null ? field.validation as Record<string, any> : {},
-        customConfig: typeof field.custom_config === 'object' && field.custom_config !== null ? field.custom_config as Record<string, any> : {},
-        tooltip: field.tooltip || '',
-        isVisible: field.is_visible !== false,
-        isEnabled: field.is_enabled !== false
-      }));
+      const transformedFields: FormField[] = (fields || []).map(field => {
+        const customConfig = parseCustomConfig(field.custom_config);
+        return {
+          id: field.id,
+          type: field.field_type as FormField['type'],
+          label: field.label,
+          placeholder: field.placeholder || '',
+          required: field.required || false,
+          options: parseOptions(field.options),
+          validation: typeof field.validation === 'object' && field.validation !== null ? field.validation as Record<string, any> : {},
+          customConfig,
+          tooltip: field.tooltip || '',
+          isVisible: field.is_visible !== false,
+          isEnabled: field.is_enabled !== false
+        };
+      });
 
       setFormFields(transformedFields);
       return transformedFields;
