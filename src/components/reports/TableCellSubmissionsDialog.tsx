@@ -151,12 +151,15 @@ export function TableCellSubmissionsDialog({
       console.log('📊 Group filter:', { groupField, groupValue });
 
       // Apply dimension filter using getDimensionValue for proper matching
+      // Normalize both values to strings for comparison (handles number/string mismatches)
       if (dimensionField && dimensionValue) {
+        const normalizedDimensionValue = String(dimensionValue).trim();
         filteredData = filteredData.filter(submission => {
           const extractedValue = getDimensionValue(submission.submission_data, dimensionField);
-          const matches = extractedValue === dimensionValue;
+          const normalizedExtracted = String(extractedValue).trim();
+          const matches = normalizedExtracted === normalizedDimensionValue;
           if (!matches && filteredData.length < 10) {
-            console.log('📊 No match:', { extractedValue, expected: dimensionValue, submission_id: submission.id });
+            console.log('📊 No match:', { extractedValue: normalizedExtracted, expected: normalizedDimensionValue, submission_id: submission.id });
           }
           return matches;
         });
@@ -164,12 +167,15 @@ export function TableCellSubmissionsDialog({
       }
 
       // Apply group filter if exists (for heatmap column dimension)
+      // Normalize both values to strings for comparison (handles number/string mismatches)
       if (groupField && groupValue) {
+        const normalizedGroupValue = String(groupValue).trim();
         filteredData = filteredData.filter(submission => {
           const extractedValue = getDimensionValue(submission.submission_data, groupField);
-          const matches = extractedValue === groupValue;
+          const normalizedExtracted = String(extractedValue).trim();
+          const matches = normalizedExtracted === normalizedGroupValue;
           if (!matches && filteredData.length < 10) {
-            console.log('📊 Group no match:', { extractedValue, expected: groupValue, submission_id: submission.id });
+            console.log('📊 Group no match:', { extractedValue: normalizedExtracted, expected: normalizedGroupValue, submission_id: submission.id });
           }
           return matches;
         });
