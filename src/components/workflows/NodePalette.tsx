@@ -21,13 +21,6 @@ const nodeDefinitions = [
     label: 'Action',
     icon: Settings,
     description: 'Perform actions like assign, notify, update status',
-    color: 'bg-slate-100 text-slate-800 border-slate-200',
-  },
-  {
-    type: 'approval',
-    label: 'Approval',
-    icon: FileCheck,
-    description: 'Approve or disapprove form submissions',
     color: 'bg-blue-100 text-blue-800 border-blue-200',
   },
   {

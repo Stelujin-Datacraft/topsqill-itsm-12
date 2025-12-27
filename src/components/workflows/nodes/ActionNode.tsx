@@ -78,7 +78,7 @@ const getActionColor = (actionType: string) => {
     case 'update_linked_records':
       return 'bg-teal-100 text-teal-800 border-teal-200';
     default:
-      return 'bg-slate-100 text-slate-800 border-slate-200';
+      return 'bg-blue-100 text-blue-800 border-blue-200';
   }
 };
 

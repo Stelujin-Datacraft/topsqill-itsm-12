@@ -36,13 +36,12 @@ import { ConditionNode } from '@/components/workflows/nodes/ConditionNode';
 import { WaitNode } from '@/components/workflows/nodes/WaitNode';
 import { EndNode } from '@/components/workflows/nodes/EndNode';
 import { ActionNode } from '@/components/workflows/nodes/ActionNode';
-import { ApprovalNode } from '@/components/workflows/nodes/ApprovalNode';
+
 import { LabeledEdge } from '@/components/workflows/edges/LabeledEdge';
 
 const nodeTypes: NodeTypes = {
   'start': StartNode,
   'action': ActionNode,
-  'approval': ApprovalNode,
   'condition': ConditionNode,
   'wait': WaitNode,
   'end': EndNode,
