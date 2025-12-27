@@ -266,7 +266,17 @@ export function CrossReferenceDataSection({
             )}
           </div>
 
-          {/* Step 2: Choose Mode */}
+          {/* Show warning if cross-reference field doesn't have a target form configured */}
+          {crossRefConfig.crossRefFieldId && !crossRefConfig.targetFormId && !targetFormIdFromField && (
+            <Alert className="bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/50">
+              <Info className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-xs">
+                This cross-reference field doesn't have a target form configured. Please configure the target form in the Form Builder first, or select a different cross-reference field.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Step 2: Choose Mode - show when field is selected AND has target form */}
           {crossRefConfig.crossRefFieldId && (crossRefConfig.targetFormId || targetFormIdFromField) && (
             <div className="space-y-3">
               <Label className="text-sm font-medium">What do you want to show?</Label>
