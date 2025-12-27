@@ -28,7 +28,7 @@ import { ConditionNode } from './nodes/ConditionNode';
 import { WaitNode } from './nodes/WaitNode';
 import { EndNode } from './nodes/EndNode';
 import { ActionNode } from './nodes/ActionNode';
-import { ApprovalNode } from './nodes/ApprovalNode';
+
 import { NodePalette } from './NodePalette';
 import { NodeConfigPanel } from './NodeConfigPanel';
 import { useFormFields } from '@/hooks/useConditionFormData';
@@ -37,7 +37,6 @@ import { supabase } from '@/integrations/supabase/client';
 const nodeTypes: NodeTypes = {
   'start': StartNode,
   'action': ActionNode,
-  'approval': ApprovalNode,
   'condition': ConditionNode,
   'wait': WaitNode,
   'end': EndNode,
