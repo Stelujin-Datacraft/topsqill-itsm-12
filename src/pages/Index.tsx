@@ -253,7 +253,7 @@ const Index = () => {
           </section>
 
           {/* Final CTA Section */}
-          <section className="py-20 bg-gradient-to-r from-primary via-primary/90 to-secondary text-primary-foreground">
+          <section className="py-20 bg-foreground text-background">
             <div className="container mx-auto px-4 text-center">
               <h2 className="text-3xl md:text-4xl font-bold mb-4">
                 Ready to transform your forms?
@@ -268,7 +268,7 @@ const Index = () => {
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </Link>
-                <Button size="lg" variant="outline" className="w-full sm:w-auto border-white text-white hover:bg-white hover:text-primary">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto border-background bg-background text-foreground hover:bg-background/90">
                   Schedule Enterprise Demo
                 </Button>
               </div>
