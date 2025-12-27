@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -14,15 +14,11 @@ interface Notification {
   read: boolean;
 }
 
-let globalChannel: any = null;
-let subscriptionCount = 0;
-
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const { userProfile } = useAuth();
   const { currentOrganization } = useOrganization();
-  const hasSubscribed = useRef(false);
 
   const loadNotifications = async () => {
     if (!userProfile) {
@@ -99,79 +95,74 @@ export function useNotifications() {
 
   useEffect(() => {
     loadNotifications();
+  }, [userProfile?.id, userProfile?.role, currentOrganization?.id]);
 
-    // Set up real-time subscription only once
-    if (userProfile && !hasSubscribed.current) {
-      const channelName = `notifications-${userProfile.id}`;
-      
-      // Clean up existing global channel if it exists
-      if (globalChannel) {
-        console.log('Removing existing notification channel');
-        supabase.removeChannel(globalChannel);
-        globalChannel = null;
-      }
+  // Separate effect for real-time subscription
+  useEffect(() => {
+    if (!userProfile?.id) return;
 
-      console.log('Setting up notification subscription for user:', userProfile.id);
+    const channelName = `notifications-realtime-${userProfile.id}-${Date.now()}`;
+    
+    console.log('Setting up real-time notification subscription for user:', userProfile.id);
 
-      globalChannel = supabase
-        .channel(channelName)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'notifications',
-            filter: `user_id=eq.${userProfile.id}`
-          },
-          (payload) => {
-            console.log('Notification change detected:', payload);
-            loadNotifications();
-          }
-        );
-
-      // Also listen to organization requests if admin
-      if (userProfile.role === 'admin' && currentOrganization?.id) {
-        globalChannel.on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'organization_requests',
-            filter: `organization_id=eq.${currentOrganization.id}`
-          },
-          (payload) => {
-            console.log('Organization request change detected:', payload);
-            loadNotifications();
-          }
-        );
-      }
-
-      globalChannel.subscribe((status: string) => {
-        console.log('Notification subscription status:', status);
-        if (status === 'SUBSCRIBED') {
-          hasSubscribed.current = true;
-          subscriptionCount++;
-        } else if (status === 'CLOSED') {
-          console.log('Notification subscription closed');
-          hasSubscribed.current = false;
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userProfile.id}`
+        },
+        (payload) => {
+          console.log('🔔 New notification received:', payload);
+          // Directly add the new notification to state for instant update
+          const newNotif = payload.new as any;
+          setNotifications(prev => [{
+            id: newNotif.id,
+            type: newNotif.type,
+            title: newNotif.title,
+            message: newNotif.message,
+            data: newNotif.data,
+            created_at: newNotif.created_at,
+            read: newNotif.read || false
+          }, ...prev]);
+          setUnreadCount(prev => prev + 1);
         }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userProfile.id}`
+        },
+        (payload) => {
+          console.log('🔔 Notification updated:', payload);
+          const updatedNotif = payload.new as any;
+          setNotifications(prev => prev.map(n => 
+            n.id === updatedNotif.id 
+              ? { ...n, read: updatedNotif.read, title: updatedNotif.title, message: updatedNotif.message }
+              : n
+          ));
+          // Recalculate unread count
+          setNotifications(prev => {
+            setUnreadCount(prev.filter(n => !n.read).length);
+            return prev;
+          });
+        }
+      )
+      .subscribe((status) => {
+        console.log('🔔 Notification subscription status:', status);
       });
 
-      return () => {
-        subscriptionCount--;
-        console.log('Component unmounting, subscription count:', subscriptionCount);
-        
-        // Only remove channel when no components are using it
-        if (subscriptionCount <= 0 && globalChannel) {
-          console.log('Cleaning up global notification subscription');
-          supabase.removeChannel(globalChannel);
-          globalChannel = null;
-          hasSubscribed.current = false;
-          subscriptionCount = 0;
-        }
-      };
-    }
-  }, [userProfile?.id, userProfile?.role, currentOrganization?.id]);
+    return () => {
+      console.log('🔔 Cleaning up notification subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [userProfile?.id]);
 
   const markAsRead = async (notificationId: string) => {
     // Update local state immediately
