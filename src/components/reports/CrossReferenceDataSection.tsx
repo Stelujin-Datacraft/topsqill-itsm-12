@@ -248,15 +248,24 @@ export function CrossReferenceDataSection({
                 <SelectValue placeholder="Select a cross-reference field..." />
               </SelectTrigger>
               <SelectContent>
-                {crossRefFields.map((field) => (
-                  <SelectItem key={field.id} value={field.id}>
-                    <div className="flex items-center gap-2">
-                      <Link2 className="h-3 w-3 text-muted-foreground" />
-                      <span>{field.label}</span>
-                      <Badge variant="secondary" className="text-xs">{getFieldType(field)}</Badge>
-                    </div>
-                  </SelectItem>
-                ))}
+                {crossRefFields.map((field) => {
+                  // Check if field has target form configured
+                  const customCfg = (field as any).customConfig || (field as any).custom_config;
+                  const hasTargetForm = customCfg && (typeof customCfg === 'object' ? customCfg.targetFormId : false);
+                  
+                  return (
+                    <SelectItem key={field.id} value={field.id}>
+                      <div className="flex items-center gap-2">
+                        <Link2 className={`h-3 w-3 ${hasTargetForm ? 'text-green-600' : 'text-muted-foreground'}`} />
+                        <span>{field.label}</span>
+                        <Badge variant="secondary" className="text-xs">{getFieldType(field)}</Badge>
+                        {!hasTargetForm && (
+                          <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">Not configured</Badge>
+                        )}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
             {targetFormName && (
