@@ -121,27 +121,43 @@ export class RecordActionExecutors {
 
         console.log(`📊 Found ${targetSubmissions.length} submissions to update`);
 
-        let updatedCount = 0;
+        // Batch update using Promise.all for parallel execution
+        const BATCH_SIZE = 50; // Process in batches to avoid overwhelming the DB
         const updatedIds: string[] = [];
+        let updatedCount = 0;
 
-        // Update each submission
-        for (const submission of targetSubmissions) {
-          const currentData = submission.submission_data || {};
-          const updatedData = {
-            ...(typeof currentData === 'object' ? currentData : {}),
-            [config.targetFieldId]: newValue
-          };
+        // Split submissions into batches
+        for (let i = 0; i < targetSubmissions.length; i += BATCH_SIZE) {
+          const batch = targetSubmissions.slice(i, i + BATCH_SIZE);
+          
+          const updatePromises = batch.map(async (submission) => {
+            const currentData = submission.submission_data || {};
+            const updatedData = {
+              ...(typeof currentData === 'object' ? currentData : {}),
+              [config.targetFieldId]: newValue
+            };
 
-          const { error: updateError } = await supabase
-            .from('form_submissions')
-            .update({ submission_data: updatedData })
-            .eq('id', submission.id);
+            const { error: updateError } = await supabase
+              .from('form_submissions')
+              .update({ submission_data: updatedData })
+              .eq('id', submission.id);
 
-          if (!updateError) {
-            updatedCount++;
-            updatedIds.push(submission.id);
-          } else {
-            console.error(`❌ Failed to update submission ${submission.id}:`, updateError);
+            if (!updateError) {
+              return { success: true, id: submission.id };
+            } else {
+              console.error(`❌ Failed to update submission ${submission.id}:`, updateError);
+              return { success: false, id: submission.id };
+            }
+          });
+
+          // Execute batch in parallel
+          const results = await Promise.all(updatePromises);
+          
+          for (const result of results) {
+            if (result.success) {
+              updatedCount++;
+              updatedIds.push(result.id);
+            }
           }
         }
 
