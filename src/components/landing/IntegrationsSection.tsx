@@ -1,48 +1,34 @@
 import { Badge } from "@/components/ui/badge";
 import { 
-  MessageSquare, Mail, Database, Cloud, FileSpreadsheet, 
-  Calendar, CreditCard, Bell, GitBranch, Webhook, 
-  Users, FileText, Lock, BarChart3, Zap, 
-  Send, Video, Headphones, FolderOpen, Shield,
-  Settings, Globe, Smartphone, Building2, Layers
+  MessageSquare, Mail, Database, FileSpreadsheet, 
+  Calendar, CreditCard, Bell, Webhook, 
+  Users, FolderOpen, Send, Zap, Cloud
 } from "lucide-react";
 
-const currentIntegrations = [
-  { name: "Slack", icon: MessageSquare, color: "bg-purple-100 text-purple-700" },
-  { name: "Gmail", icon: Mail, color: "bg-red-100 text-red-700" },
-  { name: "PostgreSQL", icon: Database, color: "bg-blue-100 text-blue-700" },
-  { name: "AWS", icon: Cloud, color: "bg-orange-100 text-orange-700" },
-  { name: "Google Sheets", icon: FileSpreadsheet, color: "bg-green-100 text-green-700" },
-  { name: "Google Calendar", icon: Calendar, color: "bg-cyan-100 text-cyan-700" },
-  { name: "Stripe", icon: CreditCard, color: "bg-indigo-100 text-indigo-700" },
-  { name: "Push Notifications", icon: Bell, color: "bg-amber-100 text-amber-700" },
-  { name: "GitHub", icon: GitBranch, color: "bg-gray-100 text-gray-700" },
-  { name: "Webhooks", icon: Webhook, color: "bg-pink-100 text-pink-700" },
-  { name: "Microsoft Teams", icon: Users, color: "bg-blue-100 text-blue-700" },
-  { name: "Outlook", icon: Mail, color: "bg-sky-100 text-sky-700" },
-  { name: "OneDrive", icon: FolderOpen, color: "bg-blue-100 text-blue-700" },
-  { name: "Dropbox", icon: FolderOpen, color: "bg-blue-100 text-blue-700" },
-  { name: "Notion", icon: FileText, color: "bg-stone-100 text-stone-700" },
-  { name: "Jira", icon: Layers, color: "bg-blue-100 text-blue-700" },
-  { name: "Salesforce", icon: Cloud, color: "bg-cyan-100 text-cyan-700" },
-  { name: "HubSpot", icon: BarChart3, color: "bg-orange-100 text-orange-700" },
-  { name: "Zapier", icon: Zap, color: "bg-orange-100 text-orange-700" },
-  { name: "SendGrid", icon: Send, color: "bg-blue-100 text-blue-700" },
-];
-
-const upcomingIntegrations = [
-  { name: "Zoom", icon: Video, color: "bg-blue-100 text-blue-700" },
-  { name: "Zendesk", icon: Headphones, color: "bg-green-100 text-green-700" },
-  { name: "Okta SSO", icon: Lock, color: "bg-indigo-100 text-indigo-700" },
-  { name: "Azure AD", icon: Shield, color: "bg-blue-100 text-blue-700" },
-  { name: "SAP", icon: Building2, color: "bg-blue-100 text-blue-700" },
-  { name: "Oracle", icon: Database, color: "bg-red-100 text-red-700" },
-  { name: "Twilio", icon: Smartphone, color: "bg-red-100 text-red-700" },
-  { name: "Power BI", icon: BarChart3, color: "bg-yellow-100 text-yellow-700" },
-  { name: "Tableau", icon: BarChart3, color: "bg-orange-100 text-orange-700" },
-  { name: "ServiceNow", icon: Settings, color: "bg-green-100 text-green-700" },
-  { name: "REST APIs", icon: Globe, color: "bg-emerald-100 text-emerald-700" },
-  { name: "GraphQL", icon: Webhook, color: "bg-pink-100 text-pink-700" },
+const integrations = [
+  // Communication & Notifications
+  { name: "Slack", icon: MessageSquare, color: "bg-purple-100 text-purple-700", category: "Notifications" },
+  { name: "Microsoft Teams", icon: Users, color: "bg-blue-100 text-blue-700", category: "Notifications" },
+  { name: "Email (SMTP)", icon: Mail, color: "bg-red-100 text-red-700", category: "Notifications" },
+  { name: "SendGrid", icon: Send, color: "bg-blue-100 text-blue-700", category: "Notifications" },
+  { name: "Push Notifications", icon: Bell, color: "bg-amber-100 text-amber-700", category: "Notifications" },
+  
+  // Data & Storage
+  { name: "Google Sheets", icon: FileSpreadsheet, color: "bg-green-100 text-green-700", category: "Data" },
+  { name: "Google Drive", icon: FolderOpen, color: "bg-yellow-100 text-yellow-700", category: "Storage" },
+  { name: "Dropbox", icon: FolderOpen, color: "bg-blue-100 text-blue-700", category: "Storage" },
+  { name: "OneDrive", icon: FolderOpen, color: "bg-sky-100 text-sky-700", category: "Storage" },
+  { name: "PostgreSQL", icon: Database, color: "bg-blue-100 text-blue-700", category: "Database" },
+  { name: "Supabase", icon: Database, color: "bg-emerald-100 text-emerald-700", category: "Database" },
+  
+  // Automation & APIs
+  { name: "Webhooks", icon: Webhook, color: "bg-pink-100 text-pink-700", category: "Automation" },
+  { name: "Zapier", icon: Zap, color: "bg-orange-100 text-orange-700", category: "Automation" },
+  { name: "REST API", icon: Cloud, color: "bg-indigo-100 text-indigo-700", category: "Automation" },
+  
+  // Business Tools
+  { name: "Google Calendar", icon: Calendar, color: "bg-cyan-100 text-cyan-700", category: "Scheduling" },
+  { name: "Stripe", icon: CreditCard, color: "bg-indigo-100 text-indigo-700", category: "Payments" },
 ];
 
 export default function IntegrationsSection() {
@@ -57,48 +43,22 @@ export default function IntegrationsSection() {
             Connects with Your Favorite Tools
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Seamlessly integrate with 50+ popular apps and services to streamline your workflows
+            Extend your workflows with powerful integrations for notifications, data sync, and automation
           </p>
         </div>
 
-        {/* Current Integrations */}
-        <div className="mb-12">
-          <h3 className="text-center text-sm font-semibold uppercase tracking-wider text-primary mb-6">
-            Available Now
-          </h3>
-          <div className="flex flex-wrap justify-center gap-3 max-w-5xl mx-auto">
-            {currentIntegrations.map((integration, index) => (
-              <div
-                key={index}
-                className="group flex items-center gap-2 px-4 py-2 rounded-full bg-background border border-border/50 hover:border-primary/30 hover:shadow-md transition-all duration-300 hover:-translate-y-1 cursor-pointer"
-              >
-                <div className={`p-1.5 rounded-full ${integration.color} group-hover:scale-110 transition-transform duration-300`}>
-                  <integration.icon className="h-3.5 w-3.5" />
-                </div>
-                <span className="font-medium text-sm text-foreground">{integration.name}</span>
+        <div className="flex flex-wrap justify-center gap-3 max-w-4xl mx-auto">
+          {integrations.map((integration, index) => (
+            <div
+              key={index}
+              className="group flex items-center gap-2 px-4 py-2.5 rounded-full bg-background border border-border/50 hover:border-primary/30 hover:shadow-md transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+            >
+              <div className={`p-1.5 rounded-full ${integration.color} group-hover:scale-110 transition-transform duration-300`}>
+                <integration.icon className="h-4 w-4" />
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Upcoming Integrations */}
-        <div>
-          <h3 className="text-center text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-6">
-            Coming Soon
-          </h3>
-          <div className="flex flex-wrap justify-center gap-3 max-w-4xl mx-auto">
-            {upcomingIntegrations.map((integration, index) => (
-              <div
-                key={index}
-                className="group flex items-center gap-2 px-4 py-2 rounded-full bg-muted/30 border border-dashed border-border/50 hover:border-muted-foreground/30 transition-all duration-300 cursor-default opacity-70 hover:opacity-100"
-              >
-                <div className={`p-1.5 rounded-full ${integration.color} opacity-60`}>
-                  <integration.icon className="h-3.5 w-3.5" />
-                </div>
-                <span className="font-medium text-sm text-muted-foreground">{integration.name}</span>
-              </div>
-            ))}
-          </div>
+              <span className="font-medium text-sm text-foreground">{integration.name}</span>
+            </div>
+          ))}
         </div>
 
         <div className="text-center mt-10">
