@@ -108,12 +108,12 @@ export function EnhancedConditionBuilder({ value, onChange }: EnhancedConditionB
     }
     return [{
       id: `condition-${Date.now()}`,
-      systemType: 'form_level',
-      formLevelCondition: {
-        id: `form-level-${Date.now()}`,
-        conditionType: 'form_status',
+      systemType: 'field_level',
+      fieldCondition: {
+        id: `field-${Date.now()}`,
+        fieldId: '',
         operator: '==',
-        value: 'submitted'
+        value: ''
       },
       logicalOperatorWithNext: 'AND'
     }];
@@ -407,25 +407,11 @@ function SingleConditionBuilder({ condition, forms, index, canRemove, onChange, 
             <Badge variant="secondary" className="h-5 w-5 flex items-center justify-center p-0 text-xs">
               {index + 1}
             </Badge>
-            <Select value={condition.systemType} onValueChange={(v) => handleSystemTypeChange(v as ConditionSystemType)}>
-              <SelectTrigger className="w-32 h-7 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="form_level">
-                  <div className="flex items-center gap-1">
-                    <FileText className="h-3 w-3" />
-                    Form-Level
-                  </div>
-                </SelectItem>
-                <SelectItem value="field_level">
-                  <div className="flex items-center gap-1">
-                    <Database className="h-3 w-3" />
-                    Field-Level
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Form Level hidden - Field Level is the only option */}
+            <div className="flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs">
+              <Database className="h-3 w-3" />
+              Field-Level
+            </div>
           </div>
           {canRemove && (
             <Button
