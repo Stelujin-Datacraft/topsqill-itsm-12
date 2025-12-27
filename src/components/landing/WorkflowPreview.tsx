@@ -176,7 +176,7 @@ export default function WorkflowPreview() {
                 <p className="text-sm text-muted-foreground">Form submissions, webhooks, schedules</p>
               </div>
               <div>
-                <Badge variant="secondary" className="mb-2 bg-secondary/10 text-secondary">Actions</Badge>
+                <Badge variant="secondary" className="mb-2 bg-orange-100 text-orange-700">Actions</Badge>
                 <p className="text-sm text-muted-foreground">Approvals, calculations, transformations</p>
               </div>
               <div>
