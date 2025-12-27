@@ -5,9 +5,11 @@ export interface ChangeFieldValueConfig {
   targetFormName?: string;
   targetFieldId: string;
   targetFieldName?: string;
+  targetFieldType?: string;
   valueType: 'static' | 'dynamic';
   staticValue?: any;
   dynamicValuePath?: string; // e.g., "email" or "userDetails.phoneNumber"
+  dynamicFieldType?: string; // Type of the source field for value normalization
   submissionSource: 'trigger' | 'specific'; // Use submission from trigger or specify an ID
   specificSubmissionId?: string;
 }
