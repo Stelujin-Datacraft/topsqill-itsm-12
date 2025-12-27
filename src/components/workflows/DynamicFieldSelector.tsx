@@ -15,7 +15,7 @@ interface DynamicFieldSelectorProps {
   targetFormId?: string;
   targetFieldType?: string;
   value: string;
-  onValueChange: (fieldId: string, fieldName: string, sourceForm: 'trigger' | 'target') => void;
+  onValueChange: (fieldId: string, fieldName: string, sourceForm: 'trigger' | 'target', fieldType?: string) => void;
   placeholder?: string;
 }
 
@@ -188,7 +188,7 @@ export function DynamicFieldSelector({
         onValueChange={(fieldId) => {
           const selectedField = compatibleFields.find(f => f.id === fieldId);
           if (selectedField) {
-            onValueChange(fieldId, selectedField.label, selectedField.sourceForm);
+            onValueChange(fieldId, selectedField.label, selectedField.sourceForm, selectedField.type);
           }
         }}
       >

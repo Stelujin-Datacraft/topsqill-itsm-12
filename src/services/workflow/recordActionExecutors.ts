@@ -49,6 +49,25 @@ export class RecordActionExecutors {
             actionDetails
           };
         }
+        
+        // Normalize numeric values for number and currency field types
+        // Check both source field type (dynamicFieldType) and handle potential string values
+        const numericTypes = ['number', 'currency', 'slider', 'rating'];
+        const sourceFieldType = config.dynamicFieldType?.toLowerCase() || '';
+        
+        if (numericTypes.includes(sourceFieldType) || typeof newValue === 'string') {
+          // Try to convert string values to numbers if the value looks numeric
+          if (typeof newValue === 'string' && newValue.trim() !== '') {
+            // Remove currency symbols, commas, and whitespace for parsing
+            const cleanedValue = newValue.replace(/[,$€£¥₹\s]/g, '').trim();
+            const parsedNumber = parseFloat(cleanedValue);
+            
+            if (!isNaN(parsedNumber)) {
+              newValue = parsedNumber;
+              console.log(`🔢 Normalized string "${submissionData[config.dynamicValuePath]}" to number: ${newValue}`);
+            }
+          }
+        }
       }
 
       console.log('💾 New value determined:', { newValue, valueType: config.valueType });
@@ -70,6 +89,23 @@ export class RecordActionExecutors {
 
       if (fieldError) {
         console.error('⚠️ Could not fetch target field config:', fieldError);
+      }
+
+      // Normalize value based on target field type for number/currency fields
+      if (targetField) {
+        const targetFieldType = targetField.field_type?.toLowerCase();
+        const numericTargetTypes = ['number', 'currency', 'slider', 'rating'];
+        
+        if (numericTargetTypes.includes(targetFieldType) && typeof newValue === 'string' && newValue.trim() !== '') {
+          // Remove currency symbols, commas, and whitespace for parsing
+          const cleanedValue = newValue.replace(/[,$€£¥₹\s]/g, '').trim();
+          const parsedNumber = parseFloat(cleanedValue);
+          
+          if (!isNaN(parsedNumber)) {
+            console.log(`🔢 Normalized string "${newValue}" to number ${parsedNumber} for target field type: ${targetFieldType}`);
+            newValue = parsedNumber;
+          }
+        }
       }
 
       // Validate submission-access field value if applicable

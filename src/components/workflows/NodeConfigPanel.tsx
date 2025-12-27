@@ -642,12 +642,13 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                     targetFormId={localConfig?.targetFormId}
                     targetFieldType={localConfig?.targetFieldType}
                     value={localConfig?.dynamicValuePath || ''}
-                    onValueChange={(fieldId, fieldName, sourceForm) => {
+                    onValueChange={(fieldId, fieldName, sourceForm, fieldType) => {
                       handleFullConfigUpdate({
                         ...localConfig,
                         dynamicValuePath: fieldId,
                         dynamicFieldName: fieldName,
-                        dynamicSourceForm: sourceForm
+                        dynamicSourceForm: sourceForm,
+                        dynamicFieldType: fieldType
                       });
                     }}
                     placeholder="Select compatible field"
