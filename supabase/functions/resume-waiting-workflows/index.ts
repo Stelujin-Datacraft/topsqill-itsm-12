@@ -214,9 +214,132 @@ Deno.serve(async (req) => {
           }
         }
 
-        console.log(`✅ Workflow execution ${execution.id} resumed successfully`)
-        console.log(`   Status set to 'running'`)
-        console.log(`   Next nodes marked as pending: ${nextNodeIds.join(', ')}`)
+        // Also directly execute action nodes right here in the edge function
+        // to ensure they run even without frontend intervention
+        for (const nodeData of (nextNodes || []) as WorkflowNode[]) {
+          console.log(`🎯 Executing resumed node: ${nodeData.label} (${nodeData.node_type})`)
+          
+          if (nodeData.node_type === 'action') {
+            try {
+              const config = nodeData.config as any
+              const actionType = config?.actionType
+              
+              console.log(`📝 Action type: ${actionType}`)
+              
+              if (actionType === 'send_notification') {
+                // Execute notification action
+                const notificationConfig = config?.notification || {}
+                const recipientType = notificationConfig.recipientType || config?.recipientType || 'form_owner'
+                const title = notificationConfig.title || config?.notificationTitle || 'Workflow Notification'
+                const message = notificationConfig.message || config?.notificationMessage || 'You have a notification from a workflow'
+                
+                let recipientUserId: string | null = null
+                
+                // Determine recipient based on type
+                if (recipientType === 'form_owner') {
+                  recipientUserId = execution.trigger_data?.formOwnerId || null
+                } else if (recipientType === 'submitter') {
+                  recipientUserId = execution.submitter_id || execution.trigger_data?.submitterId || null
+                } else if (recipientType === 'specific_user') {
+                  recipientUserId = notificationConfig.specificUserId || config?.specificUserId || null
+                } else if (recipientType === 'dynamic_field') {
+                  // Try to get from submission data
+                  const fieldId = notificationConfig.dynamicFieldId || config?.dynamicFieldId
+                  const submissionData = execution.trigger_data?.submissionData
+                  if (fieldId && submissionData) {
+                    const fieldValue = submissionData[fieldId]
+                    if (fieldValue) {
+                      // Check if it's a UUID (user ID) or email
+                      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+                      if (uuidRegex.test(fieldValue)) {
+                        recipientUserId = fieldValue
+                      } else {
+                        // Try to find user by email
+                        const { data: userByEmail } = await supabase
+                          .from('user_profiles')
+                          .select('id')
+                          .eq('email', fieldValue.toLowerCase())
+                          .single()
+                        if (userByEmail) {
+                          recipientUserId = userByEmail.id
+                        }
+                      }
+                    }
+                  }
+                }
+                
+                console.log(`📨 Sending notification to user: ${recipientUserId}`)
+                
+                if (recipientUserId) {
+                  const { error: notifError } = await supabase
+                    .from('notifications')
+                    .insert({
+                      user_id: recipientUserId,
+                      title: title,
+                      message: message,
+                      type: 'workflow',
+                      data: {
+                        workflowId: execution.workflow_id,
+                        executionId: execution.id,
+                        resumedFromWait: true
+                      },
+                      read: false
+                    })
+                  
+                  if (notifError) {
+                    console.error('❌ Error sending notification:', notifError)
+                  } else {
+                    console.log('✅ Notification sent successfully')
+                  }
+                }
+                
+                // Update log to completed
+                await supabase
+                  .from('workflow_instance_logs')
+                  .update({
+                    status: 'completed',
+                    completed_at: new Date().toISOString(),
+                    output_data: { 
+                      notificationSent: !!recipientUserId,
+                      recipientUserId,
+                      title,
+                      message
+                    }
+                  })
+                  .eq('execution_id', execution.id)
+                  .eq('node_id', nodeData.id)
+              }
+            } catch (actionError) {
+              console.error(`❌ Error executing action node:`, actionError)
+            }
+          } else if (nodeData.node_type === 'end') {
+            console.log('🏁 End node reached, marking workflow as completed')
+            // Update log to completed
+            await supabase
+              .from('workflow_instance_logs')
+              .update({
+                status: 'completed',
+                completed_at: new Date().toISOString(),
+                output_data: { message: 'Workflow completed' }
+              })
+              .eq('execution_id', execution.id)
+              .eq('node_id', nodeData.id)
+          }
+        }
+
+        // Check if all nodes have been executed and mark workflow as completed
+        const hasEndNode = (nextNodes || []).some((n: any) => n.node_type === 'end')
+        if (hasEndNode) {
+          await supabase
+            .from('workflow_executions')
+            .update({
+              status: 'completed',
+              completed_at: new Date().toISOString()
+            })
+            .eq('id', execution.id)
+        }
+
+        console.log(`✅ Workflow execution ${execution.id} resumed and actions executed successfully`)
         
         resumedCount++
         resumedExecutions.push(execution.id)
