@@ -292,7 +292,7 @@ export function LifecycleStatusBar({
             const canTransition = isTransitionAllowed(value, optionValue);
             
             return (
-              <React.Fragment key={optionValue}>
+              <div key={optionValue} className="flex items-center">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -322,7 +322,7 @@ export function LifecycleStatusBar({
                 {index < options.length - 1 && (
                   <ChevronRight className={`h-4 w-4 mx-0.5 ${index < currentIndex ? color.text : 'text-muted-foreground/50'}`} />
                 )}
-              </React.Fragment>
+              </div>
             );
           })}
         </div>
