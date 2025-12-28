@@ -191,9 +191,24 @@ export function CrossReferenceDataSection({
         targetFormId,
         targetMetricFieldId: undefined,
         targetDimensionFieldId: undefined,
+        sourceLabelFieldId: undefined, // Reset label field when cross-ref field changes
       }
     });
   };
+
+  // Get text/display fields from the source form for labeling
+  const sourceLabelFields = useMemo(() => {
+    return formFields.filter(f => {
+      const type = getFieldType(f);
+      return ['text', 'select', 'dropdown', 'email', 'url'].includes(type);
+    });
+  }, [formFields]);
+
+  // Get selected label field name for summary
+  const selectedSourceLabelField = useMemo(() => {
+    if (!crossRefConfig?.sourceLabelFieldId) return null;
+    return formFields.find(f => f.id === crossRefConfig.sourceLabelFieldId);
+  }, [formFields, crossRefConfig?.sourceLabelFieldId]);
 
   // Handle mode change
   const handleModeChange = (mode: 'count' | 'aggregate') => {
@@ -464,24 +479,84 @@ export function CrossReferenceDataSection({
             </div>
           )}
 
+          {/* Label Field Selector - choose which field to use for chart labels */}
+          {crossRefConfig.crossRefFieldId && (crossRefConfig.targetFormId || targetFormIdFromField) && !crossRefConfig.targetDimensionFieldId && sourceLabelFields.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">
+                Chart Label Field <span className="text-muted-foreground font-normal">(Optional)</span>
+              </Label>
+              <Select
+                value={crossRefConfig.sourceLabelFieldId || '_ref_id'}
+                onValueChange={(value) => onConfigChange({
+                  crossRefConfig: {
+                    ...crossRefConfig,
+                    sourceLabelFieldId: value === '_ref_id' ? undefined : value
+                  }
+                })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Use Reference ID" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_ref_id">Use Reference ID (e.g., C241228001)</SelectItem>
+                  {sourceLabelFields.map((field) => (
+                    <SelectItem key={field.id} value={field.id}>
+                      <div className="flex items-center gap-2">
+                        <span>{field.label}</span>
+                        <Badge variant="outline" className="text-xs">{getFieldType(field)}</Badge>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Choose which field from the current form to use as the chart X-axis label.
+              </p>
+            </div>
+          )}
+
           {/* Summary */}
           {crossRefConfig.crossRefFieldId && (
-            <div className="p-3 bg-muted/50 rounded-lg text-xs">
-              <p className="font-medium mb-1">Configuration Summary:</p>
-              <p className="text-muted-foreground">
-                {crossRefConfig.mode === 'count' ? (
-                  <>Count linked records from <span className="font-medium">{targetFormName || 'referenced form'}</span> via "{selectedCrossRefField?.label}"</>
-                ) : (
-                  <>
-                    {crossRefConfig.targetAggregation?.toUpperCase() || 'SUM'} of "
-                    {targetFormFields.find(f => f.id === crossRefConfig.targetMetricFieldId)?.label || 'field'}" from{' '}
-                    <span className="font-medium">{targetFormName || 'referenced form'}</span>
-                  </>
-                )}
-                {crossRefConfig.targetDimensionFieldId && (
-                  <>, grouped by "{targetFormFields.find(f => f.id === crossRefConfig.targetDimensionFieldId)?.label}"</>
-                )}
-              </p>
+            <div className="p-3 bg-muted/50 rounded-lg text-xs space-y-2">
+              <p className="font-medium">Chart Will Show:</p>
+              
+              {/* X-Axis explanation */}
+              <div className="flex items-start gap-2">
+                <span className="text-muted-foreground shrink-0">X-Axis:</span>
+                <span>
+                  {crossRefConfig.targetDimensionFieldId ? (
+                    <>Values from "{targetFormFields.find(f => f.id === crossRefConfig.targetDimensionFieldId)?.label}" in {targetFormName}</>
+                  ) : (
+                    <>Each record from current form (labeled by {selectedSourceLabelField?.label || 'Reference ID'})</>
+                  )}
+                </span>
+              </div>
+              
+              {/* Y-Axis explanation */}
+              <div className="flex items-start gap-2">
+                <span className="text-muted-foreground shrink-0">Y-Axis:</span>
+                <span>
+                  {crossRefConfig.mode === 'count' ? (
+                    <>Number of linked records in <span className="font-medium">{targetFormName || 'referenced form'}</span></>
+                  ) : (
+                    <>
+                      {crossRefConfig.targetAggregation?.toUpperCase() || 'SUM'} of "
+                      {targetFormFields.find(f => f.id === crossRefConfig.targetMetricFieldId)?.label || 'field'}" 
+                      from <span className="font-medium">{targetFormName || 'referenced form'}</span>
+                    </>
+                  )}
+                </span>
+              </div>
+              
+              {/* Example */}
+              <div className="pt-1 border-t border-border/50">
+                <span className="text-muted-foreground italic">
+                  {crossRefConfig.mode === 'count' 
+                    ? `Example: "Record 2" bar shows how many ${targetFormName} records are linked to it`
+                    : `Example: "Record 2" bar shows the ${crossRefConfig.targetAggregation || 'sum'} of ${targetFormFields.find(f => f.id === crossRefConfig.targetMetricFieldId)?.label || 'values'} from linked ${targetFormName} records`
+                  }
+                </span>
+              </div>
             </div>
           )}
         </CardContent>

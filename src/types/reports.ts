@@ -96,6 +96,7 @@ export interface ChartConfig {
     targetMetricFieldId?: string; // For aggregate mode: which field to aggregate
     targetAggregation?: 'sum' | 'avg' | 'min' | 'max' | 'count';
     targetDimensionFieldId?: string; // For grouping by a field in the referenced form
+    sourceLabelFieldId?: string; // Field from source form to use as chart label (instead of ref ID)
   };
   
   // Fields to display when clicking on chart elements
