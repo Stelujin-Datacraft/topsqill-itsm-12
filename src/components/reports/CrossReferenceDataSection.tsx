@@ -570,29 +570,6 @@ export function CrossReferenceDataSection({
                 </div>
               </div>
               
-              {/* Visual mini-preview */}
-              <div className="mt-4 p-3 bg-background rounded border">
-                <div className="text-xs text-muted-foreground mb-2">Preview:</div>
-                <div className="flex items-end gap-2 h-16">
-                  <div className="flex flex-col items-center gap-1">
-                    <div className="w-8 bg-primary/70 rounded-t" style={{ height: '60%' }}></div>
-                    <span className="text-[10px] text-muted-foreground">Record 1</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <div className="w-8 bg-primary/70 rounded-t" style={{ height: '100%' }}></div>
-                    <span className="text-[10px] text-muted-foreground">Record 2</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <div className="w-8 bg-primary/70 rounded-t" style={{ height: '40%' }}></div>
-                    <span className="text-[10px] text-muted-foreground">Record 3</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-1 ml-2">
-                    <div className="text-[10px] text-muted-foreground text-center">
-                      ← {crossRefConfig.mode === 'count' ? 'Linked records count' : 'Calculated value'}
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
         </CardContent>
