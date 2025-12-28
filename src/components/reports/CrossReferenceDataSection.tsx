@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
-import { Link2, Calculator, Hash, Info, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Link2, Calculator, Hash, Info, ChevronDown, ChevronUp, BarChart3, ArrowRight, CheckCircle2, Tag } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useFormsData } from '@/hooks/useFormsData';
 import { METRIC_FIELD_TYPES, DIMENSION_FIELD_TYPES } from '@/utils/chartConfig';
@@ -36,20 +36,20 @@ export function CrossReferenceDataSection({
   const [loadingFields, setLoadingFields] = useState(false);
 
   // Get cross-reference fields from the current form
-  // Get cross-reference fields from the current form
   const crossRefFields = useMemo(() => {
-    console.log('CrossReferenceDataSection: formFields received:', formFields);
     return formFields.filter(f => {
       const type = getFieldType(f);
-      const isMatch = type === 'cross-reference' || type === 'child-cross-reference';
-      if (isMatch) {
-        console.log('CrossReferenceDataSection: Found cross-ref field:', f.label, 'type:', type, 'customConfig:', (f as any).customConfig);
-      }
-      return isMatch;
+      return type === 'cross-reference' || type === 'child-cross-reference';
     });
   }, [formFields]);
 
   const crossRefConfig = config.crossRefConfig;
+
+  // Get current form name
+  const currentFormName = useMemo(() => {
+    if (!config.formId) return 'Current Form';
+    return forms.find(f => f.id === config.formId)?.name || 'Current Form';
+  }, [forms, config.formId]);
 
   // When a cross-reference field is selected, get its target form
   const selectedCrossRefField = useMemo(() => {
@@ -60,14 +60,11 @@ export function CrossReferenceDataSection({
   // Extract target form ID from the cross-reference field's customConfig
   const targetFormIdFromField = useMemo(() => {
     if (!selectedCrossRefField) return null;
-    // Check both camelCase (from transformed fields) and snake_case (from raw DB)
     const customConfig = (selectedCrossRefField as any).customConfig || (selectedCrossRefField as any).custom_config;
-    console.log('CrossReferenceDataSection: selectedCrossRefField:', selectedCrossRefField?.label, 'customConfig:', customConfig);
     if (!customConfig) return null;
     
     try {
       const parsed = typeof customConfig === 'string' ? JSON.parse(customConfig) : customConfig;
-      console.log('CrossReferenceDataSection: parsed targetFormId:', parsed?.targetFormId);
       return parsed?.targetFormId;
     } catch (e) {
       console.error('Error parsing customConfig:', e);
@@ -93,7 +90,6 @@ export function CrossReferenceDataSection({
 
         if (error) throw error;
         
-        // Map to FormField-like type for our purposes
         const fields = (data || []).map(f => ({
           id: f.id,
           label: f.label,
@@ -127,14 +123,13 @@ export function CrossReferenceDataSection({
   const targetFormName = useMemo(() => {
     const targetId = crossRefConfig?.targetFormId || targetFormIdFromField;
     if (!targetId) return null;
-    return forms.find(f => f.id === targetId)?.name;
+    return forms.find(f => f.id === targetId)?.name || 'Linked Form';
   }, [forms, crossRefConfig?.targetFormId, targetFormIdFromField]);
 
   // Handle enabling/disabling cross-reference mode
   const handleToggle = (enabled: boolean) => {
     setIsExpanded(enabled);
     if (enabled) {
-      // Get the first cross-ref field and extract its targetFormId
       const firstField = crossRefFields[0];
       let targetFormId = '';
       
@@ -168,17 +163,13 @@ export function CrossReferenceDataSection({
   // Handle cross-reference field selection
   const handleCrossRefFieldChange = (fieldId: string) => {
     const field = formFields.find(f => f.id === fieldId);
-    // Check both camelCase (from transformed fields) and snake_case (from raw DB)
     const customConfig = (field as any)?.customConfig || (field as any)?.custom_config;
     let targetFormId = '';
-    
-    console.log('CrossReferenceDataSection: handleCrossRefFieldChange - field:', field?.label, 'customConfig:', customConfig);
     
     if (customConfig) {
       try {
         const parsed = typeof customConfig === 'string' ? JSON.parse(customConfig) : customConfig;
         targetFormId = parsed?.targetFormId || '';
-        console.log('CrossReferenceDataSection: extracted targetFormId:', targetFormId);
       } catch (e) {
         console.error('Error parsing customConfig:', e);
       }
@@ -191,7 +182,7 @@ export function CrossReferenceDataSection({
         targetFormId,
         targetMetricFieldId: undefined,
         targetDimensionFieldId: undefined,
-        sourceLabelFieldId: undefined, // Reset label field when cross-ref field changes
+        sourceLabelFieldId: undefined,
       }
     });
   };
@@ -222,23 +213,37 @@ export function CrossReferenceDataSection({
     });
   };
 
+  // Calculate step completion status
+  const isStep1Complete = !!crossRefConfig?.crossRefFieldId && !!(crossRefConfig.targetFormId || targetFormIdFromField);
+  const isStep2Complete = !!crossRefConfig?.mode;
+  const isStep3Complete = crossRefConfig?.mode === 'count' || (crossRefConfig?.mode === 'aggregate' && !!crossRefConfig?.targetMetricFieldId);
+
+  // Get selected metric field label
+  const selectedMetricField = useMemo(() => {
+    if (!crossRefConfig?.targetMetricFieldId) return null;
+    return targetFormFields.find(f => f.id === crossRefConfig.targetMetricFieldId);
+  }, [targetFormFields, crossRefConfig?.targetMetricFieldId]);
+
   // If no cross-reference fields exist, show info message
   if (crossRefFields.length === 0) {
     return null;
   }
 
   return (
-    <Card className="border-dashed">
+    <Card className="border-2 border-dashed border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary shrink-0">
-              <Link2 className="h-4 w-4" />
+            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 text-primary shrink-0">
+              <Link2 className="h-5 w-5" />
             </div>
             <div>
-              <CardTitle className="text-base">Cross-Reference Data</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2">
+                Cross-Reference Chart
+                <Badge variant="secondary" className="text-xs">Advanced</Badge>
+              </CardTitle>
               <CardDescription className="text-xs mt-0.5">
-                Use data from linked records in your chart
+                Analyze relationships between linked forms
               </CardDescription>
             </div>
           </div>
@@ -260,27 +265,46 @@ export function CrossReferenceDataSection({
       </CardHeader>
       
       {isExpanded && crossRefConfig?.enabled && (
-        <CardContent className="space-y-4">
-          <Alert className="bg-blue-50/50 dark:bg-blue-950/20 border-blue-200/50">
-            <Info className="h-4 w-4 text-blue-600" />
-            <AlertDescription className="text-xs">
-              Cross-reference fields link to records in other forms. You can count linked records or aggregate their numeric data.
-            </AlertDescription>
-          </Alert>
+        <CardContent className="space-y-5">
+          {/* Visual explanation of what this does */}
+          <div className="p-4 bg-muted/30 rounded-lg border">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center gap-2">
+                <div className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-md text-sm font-medium text-blue-700 dark:text-blue-300">
+                  {currentFormName}
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                <div className="px-3 py-1.5 bg-green-100 dark:bg-green-900/30 rounded-md text-sm font-medium text-green-700 dark:text-green-300">
+                  {targetFormName || 'Linked Form'}
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Create a chart that shows data about the relationship between these two forms. 
+              Each bar/point represents a record from <span className="font-medium">{currentFormName}</span>, 
+              and shows information from its linked records in <span className="font-medium">{targetFormName || 'the linked form'}</span>.
+            </p>
+          </div>
 
           {/* Step 1: Select Cross-Reference Field */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Cross-Reference Field</Label>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                isStep1Complete ? 'bg-green-500 text-white' : 'bg-primary text-primary-foreground'
+              }`}>
+                {isStep1Complete ? <CheckCircle2 className="h-4 w-4" /> : '1'}
+              </div>
+              <Label className="text-sm font-medium">Which link field connects the forms?</Label>
+            </div>
             <Select
               value={crossRefConfig.crossRefFieldId || ''}
               onValueChange={handleCrossRefFieldChange}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a cross-reference field..." />
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder="Select the cross-reference field..." />
               </SelectTrigger>
               <SelectContent>
                 {crossRefFields.map((field) => {
-                  // Check if field has target form configured
                   const customCfg = (field as any).customConfig || (field as any).custom_config;
                   const hasTargetForm = customCfg && (typeof customCfg === 'object' ? customCfg.targetFormId : false);
                   
@@ -289,9 +313,8 @@ export function CrossReferenceDataSection({
                       <div className="flex items-center gap-2">
                         <Link2 className={`h-3 w-3 ${hasTargetForm ? 'text-green-600' : 'text-muted-foreground'}`} />
                         <span>{field.label}</span>
-                        <Badge variant="secondary" className="text-xs">{getFieldType(field)}</Badge>
                         {!hasTargetForm && (
-                          <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">Not configured</Badge>
+                          <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">Not linked</Badge>
                         )}
                       </div>
                     </SelectItem>
@@ -299,263 +322,276 @@ export function CrossReferenceDataSection({
                 })}
               </SelectContent>
             </Select>
-            {targetFormName && (
-              <p className="text-xs text-muted-foreground">
-                Links to: <span className="font-medium">{targetFormName}</span>
-              </p>
+            
+            {/* Warning if not configured */}
+            {crossRefConfig.crossRefFieldId && !crossRefConfig.targetFormId && !targetFormIdFromField && (
+              <Alert className="bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/50">
+                <Info className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-xs">
+                  This field doesn't have a linked form configured. Set up the link in Form Builder first.
+                </AlertDescription>
+              </Alert>
             )}
           </div>
 
-          {/* Show warning if cross-reference field doesn't have a target form configured */}
-          {crossRefConfig.crossRefFieldId && !crossRefConfig.targetFormId && !targetFormIdFromField && (
-            <Alert className="bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/50">
-              <Info className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-xs">
-                This cross-reference field doesn't have a target form configured. Please configure the target form in the Form Builder first, or select a different cross-reference field.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Step 2: Choose Mode - show when field is selected AND has target form */}
-          {crossRefConfig.crossRefFieldId && (crossRefConfig.targetFormId || targetFormIdFromField) && (
+          {/* Step 2: Choose what to measure */}
+          {isStep1Complete && (
             <div className="space-y-3">
-              <Label className="text-sm font-medium">What do you want to show?</Label>
-              <RadioGroup 
-                value={crossRefConfig.mode || 'count'} 
-                onValueChange={(v) => handleModeChange(v as 'count' | 'aggregate')}
-                className="grid gap-2"
-              >
-                {/* Count Mode */}
+              <div className="flex items-center gap-2">
+                <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                  isStep2Complete ? 'bg-green-500 text-white' : 'bg-primary text-primary-foreground'
+                }`}>
+                  {isStep2Complete ? <CheckCircle2 className="h-4 w-4" /> : '2'}
+                </div>
+                <Label className="text-sm font-medium">What do you want to measure?</Label>
+              </div>
+              
+              <div className="grid gap-3">
+                {/* Count Mode Card */}
                 <div 
                   onClick={() => handleModeChange('count')}
-                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
                     crossRefConfig.mode === 'count' 
-                      ? 'border-primary bg-primary/5' 
-                      : 'border-border hover:border-muted-foreground/50'
+                      ? 'border-primary bg-primary/5 shadow-sm' 
+                      : 'border-border hover:border-primary/50 bg-background'
                   }`}
                 >
-                  <RadioGroupItem value="count" id="mode-count" className="mt-0.5" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <Hash className="h-3.5 w-3.5 text-primary" />
-                      <span className="font-medium text-sm">Count Linked Records</span>
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-lg ${crossRefConfig.mode === 'count' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                      <Hash className="h-5 w-5" />
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Show how many records are linked to each parent record.
-                      <br />
-                      <span className="italic">Example: "Orders per Customer"</span>
-                    </p>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm mb-1">Count Linked Records</div>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Count how many <span className="font-medium text-green-600 dark:text-green-400">{targetFormName}</span> records 
+                        are linked to each <span className="font-medium text-blue-600 dark:text-blue-400">{currentFormName}</span> record.
+                      </p>
+                      <div className="flex items-center gap-2 text-xs bg-muted/50 p-2 rounded">
+                        <BarChart3 className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-muted-foreground">Example:</span>
+                        <span>"Customer A has 5 orders, Customer B has 3 orders"</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Aggregate Mode */}
+                {/* Aggregate Mode Card */}
                 <div 
                   onClick={() => handleModeChange('aggregate')}
-                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
                     crossRefConfig.mode === 'aggregate' 
-                      ? 'border-primary bg-primary/5' 
-                      : 'border-border hover:border-muted-foreground/50'
+                      ? 'border-primary bg-primary/5 shadow-sm' 
+                      : 'border-border hover:border-primary/50 bg-background'
                   }`}
                 >
-                  <RadioGroupItem value="aggregate" id="mode-aggregate" className="mt-0.5" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <Calculator className="h-3.5 w-3.5 text-primary" />
-                      <span className="font-medium text-sm">Aggregate Referenced Data</span>
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-lg ${crossRefConfig.mode === 'aggregate' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                      <Calculator className="h-5 w-5" />
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Sum, average, or calculate values from linked records.
-                      <br />
-                      <span className="italic">Example: "Total Order Amount per Customer"</span>
-                    </p>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm mb-1">Calculate Values</div>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Sum, average, or calculate a numeric field from <span className="font-medium text-green-600 dark:text-green-400">{targetFormName}</span> records 
+                        for each <span className="font-medium text-blue-600 dark:text-blue-400">{currentFormName}</span> record.
+                      </p>
+                      <div className="flex items-center gap-2 text-xs bg-muted/50 p-2 rounded">
+                        <BarChart3 className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-muted-foreground">Example:</span>
+                        <span>"Customer A total: $1,500, Customer B total: $800"</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </RadioGroup>
+              </div>
             </div>
           )}
 
-          {/* Step 3: For Aggregate Mode - Select field and aggregation */}
-          {crossRefConfig.mode === 'aggregate' && (crossRefConfig.targetFormId || targetFormIdFromField) && (
-            <div className="space-y-3 pl-4 border-l-2 border-primary/20">
+          {/* Step 3: Configure aggregation (only for aggregate mode) */}
+          {isStep1Complete && crossRefConfig.mode === 'aggregate' && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                  isStep3Complete ? 'bg-green-500 text-white' : 'bg-primary text-primary-foreground'
+                }`}>
+                  {isStep3Complete ? <CheckCircle2 className="h-4 w-4" /> : '3'}
+                </div>
+                <Label className="text-sm font-medium">Which value to calculate?</Label>
+              </div>
+              
               {loadingFields ? (
-                <p className="text-xs text-muted-foreground">Loading fields...</p>
+                <div className="p-4 text-center text-sm text-muted-foreground">Loading fields...</div>
               ) : numericTargetFields.length === 0 ? (
                 <Alert>
                   <Info className="h-4 w-4" />
                   <AlertDescription className="text-xs">
-                    The referenced form has no numeric fields to aggregate. Use "Count Linked Records" instead.
+                    <span className="font-medium">{targetFormName}</span> has no numeric fields. 
+                    Use "Count Linked Records" instead, or add numeric fields to that form.
                   </AlertDescription>
                 </Alert>
               ) : (
-                <>
-                  <div className="space-y-2">
-                    <Label className="text-sm">Field to Aggregate</Label>
-                    <Select
-                      value={crossRefConfig.targetMetricFieldId || ''}
-                      onValueChange={(value) => onConfigChange({
-                        crossRefConfig: {
-                          ...crossRefConfig,
-                          targetMetricFieldId: value
-                        }
-                      })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a numeric field..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {numericTargetFields.map((field) => (
-                          <SelectItem key={field.id} value={field.id}>
-                            <div className="flex items-center gap-2">
-                              <span>{field.label}</span>
-                              <Badge variant="outline" className="text-xs">{getFieldType(field)}</Badge>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <div className="grid gap-3 p-4 bg-muted/30 rounded-lg border">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Calculation</Label>
+                      <Select
+                        value={crossRefConfig.targetAggregation || 'sum'}
+                        onValueChange={(value) => onConfigChange({
+                          crossRefConfig: {
+                            ...crossRefConfig,
+                            targetAggregation: value as any
+                          }
+                        })}
+                      >
+                        <SelectTrigger className="bg-background">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sum">Sum (Total)</SelectItem>
+                          <SelectItem value="avg">Average</SelectItem>
+                          <SelectItem value="min">Minimum</SelectItem>
+                          <SelectItem value="max">Maximum</SelectItem>
+                          <SelectItem value="count">Count</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">of Field</Label>
+                      <Select
+                        value={crossRefConfig.targetMetricFieldId || ''}
+                        onValueChange={(value) => onConfigChange({
+                          crossRefConfig: {
+                            ...crossRefConfig,
+                            targetMetricFieldId: value
+                          }
+                        })}
+                      >
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder="Select field..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {numericTargetFields.map((field) => (
+                            <SelectItem key={field.id} value={field.id}>
+                              {field.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm">Aggregation Type</Label>
-                    <Select
-                      value={crossRefConfig.targetAggregation || 'sum'}
-                      onValueChange={(value) => onConfigChange({
-                        crossRefConfig: {
-                          ...crossRefConfig,
-                          targetAggregation: value as any
-                        }
-                      })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="sum">Sum</SelectItem>
-                        <SelectItem value="avg">Average</SelectItem>
-                        <SelectItem value="min">Minimum</SelectItem>
-                        <SelectItem value="max">Maximum</SelectItem>
-                        <SelectItem value="count">Count</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
+                  
+                  {selectedMetricField && (
+                    <p className="text-xs text-muted-foreground">
+                      Will calculate the <span className="font-medium">{crossRefConfig.targetAggregation || 'sum'}</span> of "
+                      <span className="font-medium">{selectedMetricField.label}</span>" from all linked {targetFormName} records.
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           )}
 
-          {/* Optional: Group by field from referenced form */}
-          {crossRefConfig.crossRefFieldId && (crossRefConfig.targetFormId || targetFormIdFromField) && !loadingFields && dimensionTargetFields.length > 0 && (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
-                Group by Referenced Field <span className="text-muted-foreground font-normal">(Optional)</span>
-              </Label>
-              <Select
-                value={crossRefConfig.targetDimensionFieldId || '_none'}
-                onValueChange={(value) => onConfigChange({
-                  crossRefConfig: {
-                    ...crossRefConfig,
-                    targetDimensionFieldId: value === '_none' ? undefined : value
-                  }
-                })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="No grouping" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none">No grouping</SelectItem>
-                  {dimensionTargetFields.map((field) => (
-                    <SelectItem key={field.id} value={field.id}>
-                      <div className="flex items-center gap-2">
-                        <span>{field.label}</span>
-                        <Badge variant="outline" className="text-xs">{getFieldType(field)}</Badge>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Break down the data by a category from the referenced form.
-              </p>
+          {/* Step 4: Customize labels (optional) */}
+          {isStep1Complete && isStep3Complete && sourceLabelFields.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold bg-muted text-muted-foreground">
+                  <Tag className="h-3 w-3" />
+                </div>
+                <Label className="text-sm font-medium">
+                  Customize chart labels <span className="text-muted-foreground font-normal">(optional)</span>
+                </Label>
+              </div>
+              
+              <div className="p-4 bg-muted/30 rounded-lg border">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Show each bar labeled by</Label>
+                  <Select
+                    value={crossRefConfig.sourceLabelFieldId || '_ref_id'}
+                    onValueChange={(value) => onConfigChange({
+                      crossRefConfig: {
+                        ...crossRefConfig,
+                        sourceLabelFieldId: value === '_ref_id' ? undefined : value
+                      }
+                    })}
+                  >
+                    <SelectTrigger className="bg-background">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_ref_id">Reference ID (C241228001)</SelectItem>
+                      {sourceLabelFields.map((field) => (
+                        <SelectItem key={field.id} value={field.id}>
+                          {field.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Choose a field from <span className="font-medium">{currentFormName}</span> to label each bar in the chart.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Label Field Selector - choose which field to use for chart labels */}
-          {crossRefConfig.crossRefFieldId && (crossRefConfig.targetFormId || targetFormIdFromField) && !crossRefConfig.targetDimensionFieldId && sourceLabelFields.length > 0 && (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
-                Chart Label Field <span className="text-muted-foreground font-normal">(Optional)</span>
-              </Label>
-              <Select
-                value={crossRefConfig.sourceLabelFieldId || '_ref_id'}
-                onValueChange={(value) => onConfigChange({
-                  crossRefConfig: {
-                    ...crossRefConfig,
-                    sourceLabelFieldId: value === '_ref_id' ? undefined : value
-                  }
-                })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Use Reference ID" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_ref_id">Use Reference ID (e.g., C241228001)</SelectItem>
-                  {sourceLabelFields.map((field) => (
-                    <SelectItem key={field.id} value={field.id}>
-                      <div className="flex items-center gap-2">
-                        <span>{field.label}</span>
-                        <Badge variant="outline" className="text-xs">{getFieldType(field)}</Badge>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Choose which field from the current form to use as the chart X-axis label.
-              </p>
-            </div>
-          )}
-
-          {/* Summary */}
-          {crossRefConfig.crossRefFieldId && (
-            <div className="p-3 bg-muted/50 rounded-lg text-xs space-y-2">
-              <p className="font-medium">Chart Will Show:</p>
-              
-              {/* X-Axis explanation */}
-              <div className="flex items-start gap-2">
-                <span className="text-muted-foreground shrink-0">X-Axis:</span>
-                <span>
-                  {crossRefConfig.targetDimensionFieldId ? (
-                    <>Values from "{targetFormFields.find(f => f.id === crossRefConfig.targetDimensionFieldId)?.label}" in {targetFormName}</>
-                  ) : (
-                    <>Each record from current form (labeled by {selectedSourceLabelField?.label || 'Reference ID'})</>
-                  )}
-                </span>
+          {/* Chart Preview Summary */}
+          {isStep1Complete && isStep3Complete && (
+            <div className="p-4 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/30 dark:to-blue-950/30 rounded-lg border border-green-200/50 dark:border-green-800/50">
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <span className="font-medium text-sm">Your Chart Configuration</span>
               </div>
               
-              {/* Y-Axis explanation */}
-              <div className="flex items-start gap-2">
-                <span className="text-muted-foreground shrink-0">Y-Axis:</span>
-                <span>
-                  {crossRefConfig.mode === 'count' ? (
-                    <>Number of linked records in <span className="font-medium">{targetFormName || 'referenced form'}</span></>
-                  ) : (
-                    <>
-                      {crossRefConfig.targetAggregation?.toUpperCase() || 'SUM'} of "
-                      {targetFormFields.find(f => f.id === crossRefConfig.targetMetricFieldId)?.label || 'field'}" 
-                      from <span className="font-medium">{targetFormName || 'referenced form'}</span>
-                    </>
-                  )}
-                </span>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-3">
+                  <div className="w-20 text-xs text-muted-foreground">Each bar:</div>
+                  <div className="flex-1">
+                    One record from <span className="font-medium text-blue-600 dark:text-blue-400">{currentFormName}</span>
+                    {selectedSourceLabelField && (
+                      <span className="text-muted-foreground"> (labeled by "{selectedSourceLabelField.label}")</span>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <div className="w-20 text-xs text-muted-foreground">Bar height:</div>
+                  <div className="flex-1">
+                    {crossRefConfig.mode === 'count' ? (
+                      <>Number of linked <span className="font-medium text-green-600 dark:text-green-400">{targetFormName}</span> records</>
+                    ) : (
+                      <>
+                        {crossRefConfig.targetAggregation?.toUpperCase() || 'SUM'} of "
+                        <span className="font-medium">{selectedMetricField?.label || 'field'}</span>" 
+                        from linked <span className="font-medium text-green-600 dark:text-green-400">{targetFormName}</span> records
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
               
-              {/* Example */}
-              <div className="pt-1 border-t border-border/50">
-                <span className="text-muted-foreground italic">
-                  {crossRefConfig.mode === 'count' 
-                    ? `Example: "Record 2" bar shows how many ${targetFormName} records are linked to it`
-                    : `Example: "Record 2" bar shows the ${crossRefConfig.targetAggregation || 'sum'} of ${targetFormFields.find(f => f.id === crossRefConfig.targetMetricFieldId)?.label || 'values'} from linked ${targetFormName} records`
-                  }
-                </span>
+              {/* Visual mini-preview */}
+              <div className="mt-4 p-3 bg-background rounded border">
+                <div className="text-xs text-muted-foreground mb-2">Preview:</div>
+                <div className="flex items-end gap-2 h-16">
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="w-8 bg-primary/70 rounded-t" style={{ height: '60%' }}></div>
+                    <span className="text-[10px] text-muted-foreground">Record 1</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="w-8 bg-primary/70 rounded-t" style={{ height: '100%' }}></div>
+                    <span className="text-[10px] text-muted-foreground">Record 2</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="w-8 bg-primary/70 rounded-t" style={{ height: '40%' }}></div>
+                    <span className="text-[10px] text-muted-foreground">Record 3</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1 ml-2">
+                    <div className="text-[10px] text-muted-foreground text-center">
+                      ← {crossRefConfig.mode === 'count' ? 'Linked records count' : 'Calculated value'}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
