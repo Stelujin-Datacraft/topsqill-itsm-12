@@ -121,8 +121,8 @@ export function LifecycleStatusBar({
     createInitialHistory();
   }, [submissionId, value, historyLoading, history.length, user, addHistoryEntry, refetchHistory]);
 
-  // Send email notification on stage change
-  const sendStageChangeEmail = async (fromStage: string | null, toStage: string) => {
+  // Send in-app notification on stage change
+  const sendStageChangeNotification = async (fromStage: string | null, toStage: string) => {
     if (!submissionId) return;
     
     try {
@@ -132,46 +132,31 @@ export function LifecycleStatusBar({
         .eq('id', submissionId)
         .single();
       
-      if (subError || !submission) return;
+      if (subError || !submission) {
+        console.log('Could not fetch submission for notification');
+        return;
+      }
 
       if (submission.submitted_by) {
-        const { data: submitterProfile } = await supabase
-          .from('user_profiles')
-          .select('email, first_name')
-          .eq('id', submission.submitted_by)
-          .single();
-
-        if (submitterProfile?.email) {
-          await supabase.from('notifications').insert({
-            user_id: submission.submitted_by,
-            type: 'lifecycle_stage_change',
-            title: 'Record Stage Updated',
-            message: `Your submission has moved from "${fromStage || 'Initial'}" to "${toStage}" for field "${field.label}".`,
-            data: { submissionId, fieldId: field.id, fromStage, toStage }
-          });
-
-          try {
-            await supabase.functions.invoke('send-template-email', {
-              body: {
-                recipients: [submitterProfile.email],
-                subject: `Stage Update: ${field.label} - ${toStage}`,
-                htmlContent: `
-                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                    <h2 style="color: #333;">Record Stage Updated</h2>
-                    <p>Hello ${submitterProfile.first_name || 'User'},</p>
-                    <p>The status of your submission has been updated:</p>
-                    <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                      <p style="margin: 0;"><strong>Field:</strong> ${field.label}</p>
-                      <p style="margin: 10px 0 0;"><strong>Previous Stage:</strong> ${fromStage || 'Initial'}</p>
-                      <p style="margin: 10px 0 0;"><strong>New Stage:</strong> ${toStage}</p>
-                    </div>
-                  </div>
-                `
-              }
-            });
-          } catch (emailErr) {
-            console.log('Email notification skipped');
+        const { error: notifError } = await supabase.from('notifications').insert({
+          user_id: submission.submitted_by,
+          type: 'lifecycle_stage_change',
+          title: 'Record Stage Updated',
+          message: `Your submission has moved from "${fromStage || 'Initial'}" to "${toStage}" for field "${field.label}".`,
+          data: { 
+            submissionId, 
+            fieldId: field.id, 
+            fieldLabel: field.label,
+            fromStage, 
+            toStage,
+            changedAt: new Date().toISOString()
           }
+        });
+
+        if (notifError) {
+          console.error('Error creating notification:', notifError);
+        } else {
+          console.log('In-app notification sent to submitter');
         }
       }
     } catch (err) {
@@ -268,7 +253,7 @@ export function LifecycleStatusBar({
       if (submissionId) {
         await addHistoryEntry(previousStage, newStage, comment || undefined);
         await refetchHistory();
-        await sendStageChangeEmail(previousStage, newStage);
+        await sendStageChangeNotification(previousStage, newStage);
         toast({ title: "Stage Updated", description: `Changed to "${newStage}"` });
       }
     }
