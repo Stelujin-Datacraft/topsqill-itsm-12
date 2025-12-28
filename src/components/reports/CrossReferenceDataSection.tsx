@@ -535,6 +535,66 @@ export function CrossReferenceDataSection({
             </div>
           )}
 
+          {/* Chart Preview Summary */}
+          {isStep1Complete && isStep3Complete && (
+            <div className="p-4 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/30 dark:to-blue-950/30 rounded-lg border border-green-200/50 dark:border-green-800/50">
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <span className="font-medium text-sm">Your Chart Configuration</span>
+              </div>
+              
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-3">
+                  <div className="w-20 text-xs text-muted-foreground">Each bar:</div>
+                  <div className="flex-1">
+                    One record from <span className="font-medium text-blue-600 dark:text-blue-400">{currentFormName}</span>
+                    {selectedSourceLabelField && (
+                      <span className="text-muted-foreground"> (labeled by "{selectedSourceLabelField.label}")</span>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <div className="w-20 text-xs text-muted-foreground">Bar height:</div>
+                  <div className="flex-1">
+                    {crossRefConfig.mode === 'count' ? (
+                      <>Number of linked <span className="font-medium text-green-600 dark:text-green-400">{targetFormName}</span> records</>
+                    ) : (
+                      <>
+                        {crossRefConfig.targetAggregation?.toUpperCase() || 'SUM'} of "
+                        <span className="font-medium">{selectedMetricField?.label || 'field'}</span>" 
+                        from linked <span className="font-medium text-green-600 dark:text-green-400">{targetFormName}</span> records
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Visual mini-preview */}
+              <div className="mt-4 p-3 bg-background rounded border">
+                <div className="text-xs text-muted-foreground mb-2">Preview:</div>
+                <div className="flex items-end gap-2 h-16">
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="w-8 bg-primary/70 rounded-t" style={{ height: '60%' }}></div>
+                    <span className="text-[10px] text-muted-foreground">Record 1</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="w-8 bg-primary/70 rounded-t" style={{ height: '100%' }}></div>
+                    <span className="text-[10px] text-muted-foreground">Record 2</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="w-8 bg-primary/70 rounded-t" style={{ height: '40%' }}></div>
+                    <span className="text-[10px] text-muted-foreground">Record 3</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1 ml-2">
+                    <div className="text-[10px] text-muted-foreground text-center">
+                      ← {crossRefConfig.mode === 'count' ? 'Linked records count' : 'Calculated value'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       )}
     </Card>
