@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/types/form';
-import { Check, Clock, Circle, ChevronRight, History, AlertTriangle, Mail } from 'lucide-react';
+import { Check, Clock, Circle, ChevronRight, History, AlertTriangle } from 'lucide-react';
 import { StageChangeDialog } from './StageChangeDialog';
 import { useLifecycleHistory } from '@/hooks/useLifecycleHistory';
 import { useSLANotification } from '@/hooks/useSLANotification';
@@ -413,17 +413,6 @@ export function LifecycleStatusBar({
             </div>
           </PopoverContent>
         </Popover>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge variant="outline" className="h-6 w-6 p-0 flex items-center justify-center">
-              <Mail className="h-3 w-3 text-muted-foreground" />
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Email notifications sent on stage change</p>
-          </TooltipContent>
-        </Tooltip>
 
         <StageChangeDialog
           open={dialogOpen}
