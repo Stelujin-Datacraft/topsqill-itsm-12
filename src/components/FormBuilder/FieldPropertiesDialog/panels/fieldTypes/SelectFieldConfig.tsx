@@ -4,11 +4,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { EnhancedOptionConfig } from './EnhancedOptionConfig';
 import { FieldConfiguration } from '../../hooks/useFieldConfiguration';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronRight, Plus, X, Settings2, Activity, MessageSquare, AlertTriangle, GitBranch, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Settings2, Activity, MessageSquare, AlertTriangle, GitBranch, Trash2, Workflow } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 
 interface SelectFieldConfigProps {
   config: FieldConfiguration;
@@ -22,7 +24,6 @@ export function SelectFieldConfig({ config, onUpdate, errors, fieldType }: Selec
   const [transitionFrom, setTransitionFrom] = useState('');
   const [transitionTo, setTransitionTo] = useState('');
 
-  // Ensure options is always an array
   const ensureOptionsArray = (opts: any): any[] => {
     if (Array.isArray(opts)) return opts;
     if (typeof opts === 'string') {
@@ -42,7 +43,6 @@ export function SelectFieldConfig({ config, onUpdate, errors, fieldType }: Selec
   const displayAsLifecycle = customConfig.displayAsLifecycle || false;
 
   const handleOptionsChange = (newOptions: any[]) => {
-    console.log('SelectFieldConfig: Options changed:', newOptions);
     onUpdate({ options: newOptions });
   };
 
@@ -101,213 +101,233 @@ export function SelectFieldConfig({ config, onUpdate, errors, fieldType }: Selec
     onUpdate({ customConfig: { ...customConfig, transitionRules: rules } });
   };
 
-  // Only show lifecycle option for select/dropdown fields
   const showLifecycleOption = fieldType === 'select';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <EnhancedOptionConfig
         options={options}
         onChange={handleOptionsChange}
         fieldType={fieldType}
       />
 
-      {/* General Options Section */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 pb-2 border-b">
-          <Settings2 className="h-4 w-4 text-muted-foreground" />
-          <h4 className="font-medium text-sm">General Options</h4>
-        </div>
-        
-        <div className="space-y-3 pl-1">
-          <div className="flex items-center space-x-2">
-            <Checkbox
+      {/* General Options Card */}
+      <Card className="border-muted">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
+              <Settings2 className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div>
+              <CardTitle className="text-sm font-medium">General Options</CardTitle>
+              <CardDescription className="text-xs">Configure dropdown behavior</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3 pt-0">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="searchable" className="text-sm font-normal">Enable search</Label>
+            <Switch
               id="searchable"
               checked={customConfig.searchable || false}
               onCheckedChange={(checked) => onUpdate({ customConfig: { ...customConfig, searchable: checked } })}
             />
-            <Label htmlFor="searchable">Enable search</Label>
           </div>
           
-          <div className="flex items-center space-x-2">
-            <Checkbox
+          <div className="flex items-center justify-between">
+            <Label htmlFor="clearable" className="text-sm font-normal">Allow clearing selection</Label>
+            <Switch
               id="clearable"
               checked={customConfig.clearable !== false}
               onCheckedChange={(checked) => onUpdate({ customConfig: { ...customConfig, clearable: checked } })}
             />
-            <Label htmlFor="clearable">Allow clearing selection</Label>
           </div>
           
-          <div className="flex items-center space-x-2">
-            <Checkbox
+          <div className="flex items-center justify-between">
+            <Label htmlFor="allowOther" className="text-sm font-normal">Allow "Other" option</Label>
+            <Switch
               id="allowOther"
               checked={customConfig.allowOther || false}
               onCheckedChange={(checked) => onUpdate({ customConfig: { ...customConfig, allowOther: checked } })}
             />
-            <Label htmlFor="allowOther">Allow "Other" option</Label>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* Lifecycle Status Section */}
+      {/* Lifecycle Status Card */}
       {showLifecycleOption && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 pb-2 border-b">
-            <Activity className="h-4 w-4 text-primary" />
-            <h4 className="font-medium text-sm">Lifecycle Status</h4>
-            {displayAsLifecycle && (
-              <Badge variant="default" className="text-xs ml-auto">Enabled</Badge>
-            )}
-          </div>
-          
-          <p className="text-xs text-muted-foreground pl-1">
-            Track record progress through stages with visual indicators, comments, and SLA monitoring.
-          </p>
-
-          <div className="space-y-3 pl-1">
-            {/* Lifecycle Display Toggle */}
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="displayAsLifecycle"
+        <Card className={`border-muted transition-all ${displayAsLifecycle ? 'ring-2 ring-primary/20 border-primary/30' : ''}`}>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${displayAsLifecycle ? 'bg-primary/10' : 'bg-muted'}`}>
+                  <Activity className={`h-4 w-4 ${displayAsLifecycle ? 'text-primary' : 'text-muted-foreground'}`} />
+                </div>
+                <div>
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    Lifecycle Status
+                    {displayAsLifecycle && (
+                      <Badge className="text-[10px] h-5">Active</Badge>
+                    )}
+                  </CardTitle>
+                  <CardDescription className="text-xs">Track progress through stages</CardDescription>
+                </div>
+              </div>
+              <Switch
                 checked={displayAsLifecycle}
                 onCheckedChange={(checked) => onUpdate({ customConfig: { ...customConfig, displayAsLifecycle: checked } })}
               />
-              <Label htmlFor="displayAsLifecycle" className="cursor-pointer">
-                Display as Lifecycle Status Bar
-              </Label>
             </div>
+          </CardHeader>
 
-            {/* Advanced Lifecycle Settings */}
-            {displayAsLifecycle && (
-              <div className="space-y-4 mt-3 pl-4 border-l-2 border-primary/30">
-                {/* Require Comment on Stage Change */}
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="requireCommentOnChange"
-                    checked={customConfig.requireCommentOnChange || false}
-                    onCheckedChange={(checked) => onUpdate({ customConfig: { ...customConfig, requireCommentOnChange: checked } })}
-                  />
-                  <Label htmlFor="requireCommentOnChange" className="flex items-center gap-2 cursor-pointer">
-                    <MessageSquare className="h-4 w-4 text-blue-500" />
-                    Require comment on stage change
-                  </Label>
-                </div>
-
-                {/* SLA Warning Hours */}
-                <div className="space-y-2">
-                  <Label htmlFor="slaWarningHours" className="flex items-center gap-2 text-sm">
-                    <AlertTriangle className="h-4 w-4 text-amber-500" />
-                    SLA Warning (hours)
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="slaWarningHours"
-                      type="number"
-                      min="0"
-                      placeholder="e.g., 24"
-                      value={customConfig.slaWarningHours || ''}
-                      onChange={(e) => onUpdate({ customConfig: { ...customConfig, slaWarningHours: e.target.value ? parseInt(e.target.value) : null } })}
-                      className="w-24 h-8"
-                    />
-                    <span className="text-xs text-muted-foreground">hours before alert</span>
+          {displayAsLifecycle && (
+            <CardContent className="space-y-4 pt-0">
+              {/* Comment Requirement */}
+              <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
+                <div className="flex items-center gap-3">
+                  <MessageSquare className="h-4 w-4 text-blue-500" />
+                  <div>
+                    <Label htmlFor="requireComment" className="text-sm font-normal">Require comment</Label>
+                    <p className="text-xs text-muted-foreground">Users must add a note on stage change</p>
                   </div>
                 </div>
+                <Switch
+                  id="requireComment"
+                  checked={customConfig.requireCommentOnChange || false}
+                  onCheckedChange={(checked) => onUpdate({ customConfig: { ...customConfig, requireCommentOnChange: checked } })}
+                />
+              </div>
 
-                {/* Stage Transition Rules */}
-                <Collapsible open={rulesOpen} onOpenChange={setRulesOpen}>
-                  <CollapsibleTrigger className="flex items-center gap-2 text-sm hover:text-foreground w-full py-1">
-                    {rulesOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              {/* SLA Warning */}
+              <div className="rounded-lg bg-muted/50 p-3 space-y-2">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  <div>
+                    <Label className="text-sm font-normal">SLA Warning</Label>
+                    <p className="text-xs text-muted-foreground">Alert when record stays too long in a stage</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 pl-7">
+                  <Input
+                    type="number"
+                    min="0"
+                    placeholder="24"
+                    value={customConfig.slaWarningHours || ''}
+                    onChange={(e) => onUpdate({ customConfig: { ...customConfig, slaWarningHours: e.target.value ? parseInt(e.target.value) : null } })}
+                    className="w-20 h-8 text-sm"
+                  />
+                  <span className="text-xs text-muted-foreground">hours</span>
+                </div>
+              </div>
+
+              {/* Transition Rules */}
+              <Collapsible open={rulesOpen} onOpenChange={setRulesOpen}>
+                <CollapsibleTrigger className="flex items-center justify-between w-full rounded-lg bg-muted/50 p-3 hover:bg-muted transition-colors">
+                  <div className="flex items-center gap-3">
                     <GitBranch className="h-4 w-4 text-purple-500" />
-                    <span>Stage Transition Rules</span>
+                    <div className="text-left">
+                      <div className="text-sm font-normal">Transition Rules</div>
+                      <p className="text-xs text-muted-foreground">Control allowed stage transitions</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
                     {Object.keys(transitionRules).length > 0 && (
-                      <Badge variant="secondary" className="ml-auto text-xs">
-                        {Object.keys(transitionRules).length} rules
+                      <Badge variant="secondary" className="text-xs">
+                        {Object.keys(transitionRules).length}
                       </Badge>
                     )}
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-3 pt-3 pl-2">
-                    <p className="text-xs text-muted-foreground">
-                      Define allowed stage transitions. If empty, all transitions are allowed.
-                    </p>
-                    
-                    {/* Existing Rules */}
-                    {Object.entries(transitionRules).map(([fromStage, toStages]: [string, any]) => (
-                      <div key={fromStage} className="space-y-1 bg-muted/50 p-2 rounded border">
-                        <div className="text-xs font-medium">{fromStage} →</div>
-                        <div className="flex flex-wrap gap-1">
-                          {(toStages as string[]).map((toStage: string) => (
-                            <Badge key={toStage} variant="secondary" className="flex items-center gap-1 text-xs">
-                              {toStage}
-                              <button
-                                onClick={() => removeTransitionRule(fromStage, toStage)}
-                                className="ml-1 hover:text-destructive"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </Badge>
-                          ))}
+                    {rulesOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3 space-y-3">
+                  {/* Existing Rules */}
+                  {Object.keys(transitionRules).length > 0 ? (
+                    <div className="space-y-2">
+                      {Object.entries(transitionRules).map(([fromStage, toStages]: [string, any]) => (
+                        <div key={fromStage} className="rounded-md border bg-background p-2">
+                          <div className="flex items-center gap-2 text-xs">
+                            <Badge variant="outline" className="font-normal">{fromStage}</Badge>
+                            <Workflow className="h-3 w-3 text-muted-foreground" />
+                            <div className="flex flex-wrap gap-1">
+                              {(toStages as string[]).map((toStage: string) => (
+                                <Badge key={toStage} variant="secondary" className="font-normal flex items-center gap-1">
+                                  {toStage}
+                                  <button
+                                    onClick={() => removeTransitionRule(fromStage, toStage)}
+                                    className="hover:text-destructive ml-1"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </button>
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground text-center py-2">
+                      No rules set. All transitions are allowed.
+                    </p>
+                  )}
 
-                    {/* Add New Rule */}
-                    {options.length >= 2 && (
-                      <div className="flex items-center gap-2 pt-2 border-t">
-                        <Select value={transitionFrom} onValueChange={setTransitionFrom}>
-                          <SelectTrigger className="w-28 h-7 text-xs">
-                            <SelectValue placeholder="From" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {options.map((opt) => (
-                              <SelectItem key={getOptionValue(opt)} value={getOptionValue(opt)}>
-                                {getOptionLabel(opt)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <span className="text-muted-foreground text-xs">→</span>
-                        <Select value={transitionTo} onValueChange={setTransitionTo}>
-                          <SelectTrigger className="w-28 h-7 text-xs">
-                            <SelectValue placeholder="To" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {options.map((opt) => (
-                              <SelectItem key={getOptionValue(opt)} value={getOptionValue(opt)}>
-                                {getOptionLabel(opt)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2"
-                          onClick={addTransitionRule}
-                          disabled={!transitionFrom || !transitionTo || transitionFrom === transitionTo}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* Quick Add Sequential */}
-                    {options.length >= 2 && (
+                  {/* Add New Rule */}
+                  {options.length >= 2 && (
+                    <div className="flex items-center gap-2 pt-2 border-t">
+                      <Select value={transitionFrom} onValueChange={setTransitionFrom}>
+                        <SelectTrigger className="flex-1 h-8 text-xs">
+                          <SelectValue placeholder="From stage" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {options.map((opt) => (
+                            <SelectItem key={getOptionValue(opt)} value={getOptionValue(opt)}>
+                              {getOptionLabel(opt)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Workflow className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <Select value={transitionTo} onValueChange={setTransitionTo}>
+                        <SelectTrigger className="flex-1 h-8 text-xs">
+                          <SelectValue placeholder="To stage" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {options.map((opt) => (
+                            <SelectItem key={getOptionValue(opt)} value={getOptionValue(opt)}>
+                              {getOptionLabel(opt)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <Button
                         variant="outline"
-                        size="sm"
-                        className="w-full text-xs h-7"
-                        onClick={setSequentialFlow}
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={addTransitionRule}
+                        disabled={!transitionFrom || !transitionTo || transitionFrom === transitionTo}
                       >
-                        <Plus className="h-3 w-3 mr-1" />
-                        Set Sequential Flow
+                        <Plus className="h-4 w-4" />
                       </Button>
-                    )}
-                  </CollapsibleContent>
-                </Collapsible>
-              </div>
-            )}
-          </div>
-        </div>
+                    </div>
+                  )}
+
+                  {/* Quick Actions */}
+                  {options.length >= 2 && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="w-full text-xs"
+                      onClick={setSequentialFlow}
+                    >
+                      <Workflow className="h-3 w-3 mr-2" />
+                      Set Sequential Flow
+                    </Button>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            </CardContent>
+          )}
+        </Card>
       )}
     </div>
   );
