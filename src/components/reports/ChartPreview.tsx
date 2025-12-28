@@ -51,6 +51,7 @@ export function ChartPreview({
     crossRefParentId?: string;
     crossRefTargetFormId?: string;
     crossRefLinkFieldId?: string;
+    crossRefLinkedIds?: string[]; // Direct list of linked submission IDs
   }>({
     open: false,
     dimensionField: '',
@@ -480,13 +481,23 @@ export function ChartPreview({
 
           if (crossRefConfig.targetDimensionFieldId) {
             // Multiple data points per parent (grouped by dimension)
+            // Build a map of dimension value -> linked IDs for this parent
+            const dimToLinkedIds: Record<string, string[]> = {};
+            linkedSubmissions.forEach(sub => {
+              const dimVal = sub.submission_data?.[crossRefConfig.targetDimensionFieldId!] || 'Unknown';
+              const key = typeof dimVal === 'object' ? JSON.stringify(dimVal) : String(dimVal);
+              if (!dimToLinkedIds[key]) dimToLinkedIds[key] = [];
+              dimToLinkedIds[key].push(sub.id);
+            });
+            
             Object.entries(dimensionValue).forEach(([dimVal, count]) => {
               result.push({
                 name: dimVal,
                 value: count,
                 count: count,
                 parentId: parentSub.id,
-                parentRefId: parentSub.submission_ref_id
+                parentRefId: parentSub.submission_ref_id,
+                linkedIds: dimToLinkedIds[dimVal] || []
               });
             });
           } else {
@@ -503,7 +514,8 @@ export function ChartPreview({
               value: linkedSubmissions.length,
               count: linkedSubmissions.length,
               parentId: parentSub.id,
-              parentRefId: parentSub.submission_ref_id
+              parentRefId: parentSub.submission_ref_id,
+              linkedIds: linkedSubmissions.map(s => s.id)
             });
           }
         } else {
@@ -549,6 +561,7 @@ export function ChartPreview({
           if (crossRefConfig.targetDimensionFieldId) {
             // Group by dimension in target form
             const groupedValues: Record<string, number[]> = {};
+            const dimToLinkedIds: Record<string, string[]> = {};
             linkedSubmissions.forEach(sub => {
               const dimVal = sub.submission_data?.[crossRefConfig.targetDimensionFieldId!] || 'Unknown';
               const key = typeof dimVal === 'object' ? JSON.stringify(dimVal) : String(dimVal);
@@ -556,7 +569,9 @@ export function ChartPreview({
               const numVal = typeof val === 'number' ? val : (typeof val === 'object' && val?.amount ? Number(val.amount) : Number(val)) || 0;
               
               if (!groupedValues[key]) groupedValues[key] = [];
+              if (!dimToLinkedIds[key]) dimToLinkedIds[key] = [];
               groupedValues[key].push(numVal);
+              dimToLinkedIds[key].push(sub.id);
             });
 
             Object.entries(groupedValues).forEach(([dimVal, vals]) => {
@@ -584,7 +599,8 @@ export function ChartPreview({
                 name: dimVal,
                 value: aggVal,
                 [crossRefConfig.targetMetricFieldId!]: aggVal,
-                parentId: parentSub.id
+                parentId: parentSub.id,
+                linkedIds: dimToLinkedIds[dimVal] || []
               });
             });
           } else {
@@ -601,7 +617,8 @@ export function ChartPreview({
               value: aggregatedValue,
               [crossRefConfig.targetMetricFieldId!]: aggregatedValue,
               parentId: parentSub.id,
-              parentRefId: parentSub.submission_ref_id
+              parentRefId: parentSub.submission_ref_id,
+              linkedIds: linkedSubmissions.map(s => s.id)
             });
           }
         }
@@ -1645,7 +1662,7 @@ export function ChartPreview({
       console.log('🔗 Cross-ref pie click:', {
         parentId: payload.parentId,
         targetFormId: config.crossRefConfig.targetFormId,
-        crossRefFieldId: config.crossRefConfig.crossRefFieldId,
+        linkedIds: payload.linkedIds,
         clickedValue
       });
       
@@ -1658,6 +1675,7 @@ export function ChartPreview({
         crossRefParentId: payload.parentId,
         crossRefTargetFormId: config.crossRefConfig.targetFormId,
         crossRefLinkFieldId: config.crossRefConfig.crossRefFieldId,
+        crossRefLinkedIds: payload.linkedIds || [],
       });
       return;
     }
@@ -1716,7 +1734,7 @@ export function ChartPreview({
       console.log('🔗 Cross-ref bar click:', {
         parentId: payload.parentId,
         targetFormId: config.crossRefConfig.targetFormId,
-        crossRefFieldId: config.crossRefConfig.crossRefFieldId,
+        linkedIds: payload.linkedIds,
         dimensionValue
       });
       
@@ -1729,6 +1747,7 @@ export function ChartPreview({
         crossRefParentId: payload.parentId,
         crossRefTargetFormId: config.crossRefConfig.targetFormId,
         crossRefLinkFieldId: config.crossRefConfig.crossRefFieldId,
+        crossRefLinkedIds: payload.linkedIds || [],
       });
       return;
     }
@@ -4178,6 +4197,7 @@ export function ChartPreview({
         crossRefParentId={cellSubmissionsDialog.crossRefParentId}
         crossRefTargetFormId={cellSubmissionsDialog.crossRefTargetFormId}
         crossRefLinkFieldId={cellSubmissionsDialog.crossRefLinkFieldId}
+        crossRefLinkedIds={cellSubmissionsDialog.crossRefLinkedIds}
       />
     </div>;
 }
