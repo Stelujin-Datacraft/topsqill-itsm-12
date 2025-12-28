@@ -26,7 +26,7 @@ export function ChartBuilder({ config, onConfigChange, hideControls = false }: C
 
   useEffect(() => {
     loadForms();
-  }, []);
+  }, [getAvailableForms]);
 
   // Sync local config with external config changes
   useEffect(() => {
@@ -59,6 +59,7 @@ export function ChartBuilder({ config, onConfigChange, hideControls = false }: C
       setAvailableFields(fields);
     } catch (error) {
       console.error('Error loading form fields:', error);
+      setAvailableFields([]);
     }
   };
 

@@ -169,8 +169,10 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
       formAccessResult.data?.forEach(f => accessibleIds.add(f.form_id));
 
       // Filter forms - user can see: their own forms, forms with access, public forms
+      // Note: created_by can be either email or UUID string, so check both
       const filteredForms = (formsResult.data || []).filter(form => 
         form.created_by === user.id || 
+        form.created_by === user.email ||
         form.is_public || 
         accessibleIds.has(form.id)
       );
