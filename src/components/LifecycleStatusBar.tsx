@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/types/form';
-import { Check, Clock, Circle, ChevronRight, History, AlertTriangle } from 'lucide-react';
+import { Check, Clock, Circle, ChevronRight, History, AlertTriangle, Mail } from 'lucide-react';
 import { StageChangeDialog } from './StageChangeDialog';
 import { useLifecycleHistory } from '@/hooks/useLifecycleHistory';
 import { useSLANotification } from '@/hooks/useSLANotification';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import {
   Tooltip,
   TooltipContent,
@@ -19,6 +21,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/AuthContext';
+import { Separator } from '@/components/ui/separator';
 
 interface LifecycleStatusBarProps {
   field: FormField;
@@ -39,15 +42,27 @@ export function LifecycleStatusBar({
 }: LifecycleStatusBarProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pendingStage, setPendingStage] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const { user } = useAuth();
+  const { toast } = useToast();
+  const initialHistoryCreated = useRef(false);
   
   const { 
     history, 
     loading: historyLoading,
+    lastChange,
     addHistoryEntry, 
     getTimeInCurrentStage,
     refetch: refetchHistory
   } = useLifecycleHistory(submissionId || '', field.id);
+
+  // Update time every minute for time in stage
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Parse options from the field
   const options = Array.isArray(field.options) 
@@ -68,7 +83,7 @@ export function LifecycleStatusBar({
     fieldLabel: field.label,
     currentStage: value,
     slaWarningHours,
-    lastChangedAt: history[0]?.changed_at || null
+    lastChangedAt: lastChange?.changed_at || null
   });
 
   const getOptionLabel = (option: any): string => {
@@ -90,13 +105,102 @@ export function LifecycleStatusBar({
   // Create initial history entry if value exists but no history
   useEffect(() => {
     const createInitialHistory = async () => {
-      if (submissionId && value && !historyLoading && history.length === 0 && user) {
+      if (
+        submissionId && 
+        value && 
+        !historyLoading && 
+        history.length === 0 && 
+        user &&
+        !initialHistoryCreated.current
+      ) {
+        initialHistoryCreated.current = true;
         console.log('Creating initial lifecycle history entry for:', value);
         await addHistoryEntry(null, value, 'Initial stage');
+        await refetchHistory();
       }
     };
     createInitialHistory();
-  }, [submissionId, value, historyLoading, history.length, user]);
+  }, [submissionId, value, historyLoading, history.length, user, addHistoryEntry, refetchHistory]);
+
+  // Send email notification on stage change
+  const sendStageChangeEmail = async (fromStage: string | null, toStage: string) => {
+    if (!submissionId) return;
+    
+    try {
+      // Get submission details to find the submitter
+      const { data: submission, error: subError } = await supabase
+        .from('form_submissions')
+        .select('submitted_by, form_id')
+        .eq('id', submissionId)
+        .single();
+      
+      if (subError || !submission) {
+        console.error('Error fetching submission:', subError);
+        return;
+      }
+
+      // Get submitter's email
+      if (submission.submitted_by) {
+        const { data: submitterProfile } = await supabase
+          .from('user_profiles')
+          .select('email, first_name')
+          .eq('id', submission.submitted_by)
+          .single();
+
+        if (submitterProfile?.email) {
+          // Create in-app notification
+          await supabase
+            .from('notifications')
+            .insert({
+              user_id: submission.submitted_by,
+              type: 'lifecycle_stage_change',
+              title: 'Record Stage Updated',
+              message: `Your submission has moved from "${fromStage || 'Initial'}" to "${toStage}" for field "${field.label}".`,
+              data: {
+                submissionId,
+                fieldId: field.id,
+                fieldLabel: field.label,
+                fromStage,
+                toStage,
+                changedAt: new Date().toISOString()
+              }
+            });
+
+          // Try to send email notification
+          try {
+            const { error: emailError } = await supabase.functions.invoke('send-template-email', {
+              body: {
+                recipients: [submitterProfile.email],
+                subject: `Stage Update: ${field.label} - ${toStage}`,
+                htmlContent: `
+                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #333;">Record Stage Updated</h2>
+                    <p>Hello ${submitterProfile.first_name || 'User'},</p>
+                    <p>The status of your submission has been updated:</p>
+                    <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                      <p style="margin: 0;"><strong>Field:</strong> ${field.label}</p>
+                      <p style="margin: 10px 0 0;"><strong>Previous Stage:</strong> ${fromStage || 'Initial'}</p>
+                      <p style="margin: 10px 0 0;"><strong>New Stage:</strong> ${toStage}</p>
+                      <p style="margin: 10px 0 0;"><strong>Changed At:</strong> ${new Date().toLocaleString()}</p>
+                    </div>
+                    <p style="color: #666; font-size: 12px;">This is an automated notification. Please do not reply to this email.</p>
+                  </div>
+                `
+              }
+            });
+
+            if (!emailError) {
+              console.log('Stage change email sent successfully');
+            }
+          } catch (emailErr) {
+            console.log('Email notification skipped (no email service configured):', emailErr);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error sending stage change notification:', err);
+    }
+  };
 
   // Check if transition is allowed
   const isTransitionAllowed = (fromStage: string, toStage: string): boolean => {
@@ -108,29 +212,21 @@ export function LifecycleStatusBar({
 
   // Check if SLA is exceeded
   const isSLAExceeded = (): boolean => {
-    if (!slaWarningHours || !history.length) return false;
-    const lastChange = history[0];
-    if (!lastChange) return false;
-    
+    if (!slaWarningHours || !lastChange) return false;
     const lastChangeDate = new Date(lastChange.changed_at);
-    const now = new Date();
-    const diffHours = (now.getTime() - lastChangeDate.getTime()) / (1000 * 60 * 60);
+    const diffHours = (currentTime.getTime() - lastChangeDate.getTime()) / (1000 * 60 * 60);
     return diffHours >= slaWarningHours;
   };
 
   // Get time remaining before SLA warning
   const getTimeToSLAWarning = (): string | null => {
-    if (!slaWarningHours || !history.length) return null;
-    const lastChange = history[0];
-    if (!lastChange) return null;
-    
+    if (!slaWarningHours || !lastChange) return null;
     const lastChangeDate = new Date(lastChange.changed_at);
     const warningDate = new Date(lastChangeDate.getTime() + (slaWarningHours * 60 * 60 * 1000));
-    const now = new Date();
     
-    if (now >= warningDate) return 'Exceeded';
+    if (currentTime >= warningDate) return 'Exceeded';
     
-    const diffMs = warningDate.getTime() - now.getTime();
+    const diffMs = warningDate.getTime() - currentTime.getTime();
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
     const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
     
@@ -138,50 +234,54 @@ export function LifecycleStatusBar({
     return `${minutes}m left`;
   };
 
-  // Get color based on option label (semantic colors for common statuses)
-  const getColorForOption = (optionLabel: string, index: number) => {
-    const label = optionLabel.toLowerCase();
+  // Calculate time in current stage dynamically
+  const calculateTimeInStage = (): string | null => {
+    if (!lastChange) return null;
     
-    if (label.includes('complete') || label.includes('done') || label.includes('approved') || label.includes('success')) {
-      return { bg: 'bg-green-600', hover: 'hover:bg-green-700', border: 'border-green-500', text: 'text-green-600' };
-    }
-    if (label.includes('reject') || label.includes('cancel') || label.includes('fail') || label.includes('error')) {
-      return { bg: 'bg-red-600', hover: 'hover:bg-red-700', border: 'border-red-500', text: 'text-red-600' };
-    }
-    if (label.includes('pending') || label.includes('wait') || label.includes('hold') || label.includes('new')) {
-      return { bg: 'bg-amber-600', hover: 'hover:bg-amber-700', border: 'border-amber-500', text: 'text-amber-600' };
-    }
-    if (label.includes('progress') || label.includes('review') || label.includes('process') || label.includes('active')) {
-      return { bg: 'bg-blue-600', hover: 'hover:bg-blue-700', border: 'border-blue-500', text: 'text-blue-600' };
-    }
+    const lastChangeDate = new Date(lastChange.changed_at);
+    const diffMs = currentTime.getTime() - lastChangeDate.getTime();
     
-    const colors = [
-      { bg: 'bg-slate-600', hover: 'hover:bg-slate-700', border: 'border-slate-500', text: 'text-slate-600' },
-      { bg: 'bg-indigo-600', hover: 'hover:bg-indigo-700', border: 'border-indigo-500', text: 'text-indigo-600' },
-      { bg: 'bg-purple-600', hover: 'hover:bg-purple-700', border: 'border-purple-500', text: 'text-purple-600' },
-      { bg: 'bg-teal-600', hover: 'hover:bg-teal-700', border: 'border-teal-500', text: 'text-teal-600' },
-      { bg: 'bg-pink-600', hover: 'hover:bg-pink-700', border: 'border-pink-500', text: 'text-pink-600' },
-    ];
-    
-    return colors[index % colors.length];
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (days > 0) {
+      return `${days}d ${hours}h`;
+    } else if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else {
+      return `${minutes}m`;
+    }
   };
 
-  // Get stage icon based on position relative to current
-  const getStageIcon = (optionValue: string, index: number, currentIndex: number) => {
-    if (optionValue === value) {
-      return <Circle className="h-4 w-4 fill-current" />;
+  // Get color based on option label
+  const getStageStyles = (optionLabel: string, index: number, isSelected: boolean, isPast: boolean) => {
+    const label = optionLabel.toLowerCase();
+    
+    let baseColor = 'slate';
+    if (label.includes('complete') || label.includes('done') || label.includes('approved') || label.includes('success')) {
+      baseColor = 'emerald';
+    } else if (label.includes('reject') || label.includes('cancel') || label.includes('fail') || label.includes('error')) {
+      baseColor = 'red';
+    } else if (label.includes('pending') || label.includes('wait') || label.includes('hold') || label.includes('new')) {
+      baseColor = 'amber';
+    } else if (label.includes('progress') || label.includes('review') || label.includes('process') || label.includes('active')) {
+      baseColor = 'blue';
+    } else {
+      const colors = ['slate', 'indigo', 'purple', 'teal', 'pink'];
+      baseColor = colors[index % colors.length];
     }
-    if (index < currentIndex) {
-      return <Check className="h-4 w-4" />;
+
+    if (isSelected) {
+      return `bg-${baseColor}-600 text-white border-${baseColor}-500 shadow-md`;
+    } else if (isPast) {
+      return `bg-${baseColor}-100 dark:bg-${baseColor}-900/30 text-${baseColor}-700 dark:text-${baseColor}-300 border-${baseColor}-300 dark:border-${baseColor}-700`;
     }
-    return <Circle className="h-4 w-4" />;
+    return 'bg-muted text-muted-foreground border-border';
   };
 
   const handleOptionClick = (optionValue: string, optionLabel: string) => {
     if (!disabled && isEditing && onChange && optionValue !== value) {
-      const currentLabel = options.find((o: any) => getOptionValue(o) === value);
-      const currentLabelStr = currentLabel ? getOptionLabel(currentLabel) : value;
-      
       // Check transition rules
       if (!isTransitionAllowed(value, optionValue)) {
         setPendingStage(optionValue);
@@ -197,28 +297,43 @@ export function LifecycleStatusBar({
       }
 
       // Direct change
-      onChange(optionValue);
+      handleStageChange(optionValue, '');
+    }
+  };
+
+  const handleStageChange = async (newStage: string, comment: string) => {
+    if (onChange) {
+      const previousStage = value;
+      onChange(newStage);
+      
       if (submissionId) {
-        addHistoryEntry(value, optionValue);
+        await addHistoryEntry(previousStage, newStage, comment || undefined);
+        await refetchHistory();
+        
+        // Send email notification
+        await sendStageChangeEmail(previousStage, newStage);
+        
+        toast({
+          title: "Stage Updated",
+          description: `Changed from "${previousStage || 'Initial'}" to "${newStage}"`,
+        });
       }
     }
   };
 
   const handleDialogConfirm = async (comment: string) => {
-    if (pendingStage && onChange) {
-      onChange(pendingStage);
-      if (submissionId) {
-        await addHistoryEntry(value, pendingStage, comment);
-      }
+    if (pendingStage) {
+      await handleStageChange(pendingStage, comment);
     }
     setDialogOpen(false);
     setPendingStage(null);
   };
 
   const currentIndex = options.findIndex((o: any) => getOptionValue(o) === value);
-  const timeInStage = getTimeInCurrentStage();
+  const timeInStage = calculateTimeInStage();
   const slaExceeded = isSLAExceeded();
   const slaTimeRemaining = getTimeToSLAWarning();
+  
   const pendingStageLabel = pendingStage 
     ? getOptionLabel(options.find((o: any) => getOptionValue(o) === pendingStage) || pendingStage)
     : '';
@@ -226,168 +341,248 @@ export function LifecycleStatusBar({
     ? getOptionLabel(options.find((o: any) => getOptionValue(o) === value) || value)
     : '';
 
+  // Progress percentage
+  const progressPercent = options.length > 0 ? ((currentIndex + 1) / options.length) * 100 : 0;
+
   return (
     <TooltipProvider>
-      <div className="flex items-center gap-2">
-        {/* Connected Progress Bar */}
-        <div className="flex items-center bg-muted/30 rounded-lg p-1">
-          {options.map((option: any, index: number) => {
-            const optionValue = getOptionValue(option);
-            const optionLabel = getOptionLabel(option);
-            const isSelected = value === optionValue;
-            const isPast = index < currentIndex;
-            const color = getColorForOption(optionLabel, index);
-            const canTransition = isTransitionAllowed(value, optionValue);
-            
-            return (
-              <React.Fragment key={optionValue}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={isSelected ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => handleOptionClick(optionValue, optionLabel)}
-                      disabled={disabled || !isEditing || isSelected}
-                      className={`text-xs px-3 py-1 flex items-center gap-1.5 transition-all ${
-                        isSelected 
-                          ? `${color.bg} ${color.hover} text-white ${color.border} font-semibold` 
-                          : isPast 
-                            ? `${color.text} bg-muted/50` 
-                            : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-                      } ${!canTransition && isEditing && !isSelected ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      {getStageIcon(optionValue, index, currentIndex)}
-                      {optionLabel}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{optionLabel}</p>
-                    {!canTransition && isEditing && !isSelected && (
-                      <p className="text-xs text-red-400">Transition not allowed</p>
-                    )}
-                  </TooltipContent>
-                </Tooltip>
-                
-                {/* Connector line between stages */}
-                {index < options.length - 1 && (
-                  <ChevronRight className={`h-4 w-4 mx-0.5 ${
-                    index < currentIndex ? color.text : 'text-muted-foreground/50'
-                  }`} />
-                )}
-              </React.Fragment>
-            );
-          })}
+      <div className="space-y-3">
+        {/* Main Status Bar Container */}
+        <div className="bg-card border rounded-xl p-4 shadow-sm">
+          {/* Progress bar */}
+          <div className="relative h-1.5 bg-muted rounded-full mb-4 overflow-hidden">
+            <div 
+              className="absolute left-0 top-0 h-full bg-gradient-to-r from-primary to-primary/80 rounded-full transition-all duration-500"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+
+          {/* Stage buttons */}
+          <div className="flex items-center justify-between gap-1">
+            {options.map((option: any, index: number) => {
+              const optionValue = getOptionValue(option);
+              const optionLabel = getOptionLabel(option);
+              const isSelected = value === optionValue;
+              const isPast = index < currentIndex;
+              const canTransition = isTransitionAllowed(value, optionValue);
+              
+              return (
+                <React.Fragment key={optionValue}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => handleOptionClick(optionValue, optionLabel)}
+                        disabled={disabled || !isEditing || isSelected}
+                        className={`
+                          flex-1 flex flex-col items-center gap-1.5 py-3 px-2 rounded-lg border transition-all
+                          ${isSelected 
+                            ? 'bg-primary text-primary-foreground border-primary shadow-lg scale-105' 
+                            : isPast 
+                              ? 'bg-primary/10 text-primary border-primary/30' 
+                              : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted hover:border-border'
+                          }
+                          ${!canTransition && isEditing && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}
+                          ${disabled || !isEditing || isSelected ? '' : 'cursor-pointer hover:shadow-md'}
+                        `}
+                      >
+                        {/* Stage icon */}
+                        <div className={`
+                          w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all
+                          ${isSelected 
+                            ? 'bg-primary-foreground text-primary border-primary-foreground' 
+                            : isPast 
+                              ? 'bg-primary text-primary-foreground border-primary' 
+                              : 'bg-background text-muted-foreground border-muted-foreground/30'
+                          }
+                        `}>
+                          {isPast ? (
+                            <Check className="h-4 w-4" />
+                          ) : isSelected ? (
+                            <Circle className="h-4 w-4 fill-current" />
+                          ) : (
+                            <span className="text-xs font-medium">{index + 1}</span>
+                          )}
+                        </div>
+                        
+                        {/* Stage label */}
+                        <span className={`text-xs font-medium text-center leading-tight ${isSelected ? 'font-semibold' : ''}`}>
+                          {optionLabel}
+                        </span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="font-medium">{optionLabel}</p>
+                      {!canTransition && isEditing && !isSelected && (
+                        <p className="text-xs text-destructive mt-1">Transition not allowed from current stage</p>
+                      )}
+                    </TooltipContent>
+                  </Tooltip>
+                  
+                  {/* Connector */}
+                  {index < options.length - 1 && (
+                    <div className={`w-4 h-0.5 ${index < currentIndex ? 'bg-primary' : 'bg-muted-foreground/20'}`} />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Time in current stage with clock icon */}
-        {timeInStage && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge 
-                variant="outline" 
-                className={`text-xs flex items-center gap-1 ${
-                  slaExceeded ? 'border-red-500 text-red-600 bg-red-50 dark:bg-red-950' : ''
-                }`}
-              >
-                <Clock className="h-3 w-3" />
-                {timeInStage}
-                {slaExceeded && <AlertTriangle className="h-3 w-3 ml-1" />}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-              <div className="space-y-1">
-                <p>Time in current stage: {timeInStage}</p>
-                {slaWarningHours && (
-                  <p className={slaExceeded ? 'text-red-400' : 'text-amber-400'}>
-                    SLA: {slaTimeRemaining}
-                  </p>
+        {/* Info Bar */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Time in current stage */}
+          {timeInStage && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge 
+                  variant="secondary" 
+                  className={`
+                    flex items-center gap-1.5 px-3 py-1.5 font-medium
+                    ${slaExceeded 
+                      ? 'bg-destructive/10 text-destructive border-destructive/30' 
+                      : 'bg-muted'
+                    }
+                  `}
+                >
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>In stage: {timeInStage}</span>
+                  {slaExceeded && <AlertTriangle className="h-3.5 w-3.5 ml-1" />}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="space-y-1">
+                  <p className="font-medium">Time in current stage</p>
+                  <p className="text-muted-foreground">{timeInStage}</p>
+                  {slaWarningHours && (
+                    <p className={slaExceeded ? 'text-destructive' : 'text-amber-500'}>
+                      SLA: {slaTimeRemaining}
+                    </p>
+                  )}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {/* SLA Warning Badge */}
+          {slaExceeded && (
+            <Badge variant="destructive" className="flex items-center gap-1.5 px-3 py-1.5 animate-pulse">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              SLA Exceeded
+            </Badge>
+          )}
+
+          {/* History popover */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                <History className="h-3.5 w-3.5" />
+                History
+                {history.length > 0 && (
+                  <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-xs">
+                    {history.length}
+                  </Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-96" align="start">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold text-sm flex items-center gap-2">
+                    <History className="h-4 w-4" />
+                    Stage Change History
+                  </h4>
+                  <Badge variant="outline" className="text-xs">
+                    {history.length} changes
+                  </Badge>
+                </div>
+                
+                <Separator />
+                
+                {historyLoading ? (
+                  <div className="py-8 text-center text-muted-foreground text-sm">
+                    Loading history...
+                  </div>
+                ) : history.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <Clock className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      No stage changes recorded yet
+                    </p>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-64">
+                    <div className="space-y-3 pr-4">
+                      {history.map((entry, idx) => (
+                        <div 
+                          key={entry.id} 
+                          className="relative pl-6 pb-3 last:pb-0"
+                        >
+                          {/* Timeline line */}
+                          {idx < history.length - 1 && (
+                            <div className="absolute left-[9px] top-6 bottom-0 w-0.5 bg-border" />
+                          )}
+                          
+                          {/* Timeline dot */}
+                          <div className="absolute left-0 top-1.5 h-5 w-5 rounded-full bg-primary/10 border-2 border-primary flex items-center justify-center">
+                            <div className="h-2 w-2 rounded-full bg-primary" />
+                          </div>
+                          
+                          {/* Content */}
+                          <div className="space-y-1.5">
+                            {/* Stage transition */}
+                            <div className="flex items-center gap-2 text-sm font-medium">
+                              <span className="text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                                {entry.from_stage || 'Initial'}
+                              </span>
+                              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="text-foreground bg-primary/10 text-primary px-2 py-0.5 rounded">
+                                {entry.to_stage}
+                              </span>
+                            </div>
+                            
+                            {/* Timestamp */}
+                            <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                              <Clock className="h-3 w-3" />
+                              {new Date(entry.changed_at).toLocaleString()}
+                            </div>
+                            
+                            {/* Duration in previous stage */}
+                            {entry.duration_in_previous_stage && (
+                              <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                <span className="font-medium">Duration in previous:</span> 
+                                {entry.duration_in_previous_stage}
+                              </div>
+                            )}
+                            
+                            {/* Comment */}
+                            {entry.comment && (
+                              <div className="text-xs bg-muted/50 rounded-md px-3 py-2 mt-2 italic text-muted-foreground border-l-2 border-primary/30">
+                                "{entry.comment}"
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 )}
               </div>
-            </TooltipContent>
-          </Tooltip>
-        )}
+            </PopoverContent>
+          </Popover>
 
-        {/* SLA Warning Badge */}
-        {slaExceeded && (
+          {/* Email notification indicator */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <Badge variant="destructive" className="text-xs flex items-center gap-1 animate-pulse">
-                <AlertTriangle className="h-3 w-3" />
-                SLA Exceeded
+              <Badge variant="outline" className="flex items-center gap-1.5 px-2 py-1 text-muted-foreground">
+                <Mail className="h-3 w-3" />
+                <span className="text-xs">Auto-notify</span>
               </Badge>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Record has been in this stage for over {slaWarningHours} hours</p>
+              <p>Email notifications are sent to the submitter when the stage changes</p>
             </TooltipContent>
           </Tooltip>
-        )}
-
-        {/* History popover */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 relative">
-              <History className="h-4 w-4" />
-              {history.length > 0 && (
-                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] text-primary-foreground flex items-center justify-center">
-                  {history.length}
-                </span>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-80">
-            <div className="space-y-2">
-              <h4 className="font-medium text-sm flex items-center gap-2">
-                <History className="h-4 w-4" />
-                Stage History
-              </h4>
-              {history.length === 0 ? (
-                <p className="text-xs text-muted-foreground py-4 text-center">
-                  No stage changes recorded yet
-                </p>
-              ) : (
-                <ScrollArea className="h-48">
-                  <div className="space-y-3">
-                    {history.map((entry, idx) => (
-                      <div key={entry.id} className="text-xs border-l-2 border-primary/30 pl-3 py-1 relative">
-                        {/* Timeline dot */}
-                        <div className="absolute -left-[5px] top-2 h-2 w-2 rounded-full bg-primary" />
-                        
-                        {/* Stage transition */}
-                        <div className="flex items-center gap-2 font-medium">
-                          <span className="text-muted-foreground">
-                            {entry.from_stage || 'Initial'}
-                          </span>
-                          <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-foreground">{entry.to_stage}</span>
-                        </div>
-                        
-                        {/* Timestamp */}
-                        <div className="text-muted-foreground mt-1 flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {new Date(entry.changed_at).toLocaleString()}
-                        </div>
-                        
-                        {/* Comment */}
-                        {entry.comment && (
-                          <div className="mt-1 text-muted-foreground bg-muted/50 rounded px-2 py-1 italic">
-                            "{entry.comment}"
-                          </div>
-                        )}
-                        
-                        {/* Duration in previous stage */}
-                        {entry.duration_in_previous_stage && (
-                          <div className="text-muted-foreground mt-1 flex items-center gap-1">
-                            <span className="font-medium">Duration:</span> {entry.duration_in_previous_stage}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              )}
-            </div>
-          </PopoverContent>
-        </Popover>
+        </div>
 
         {/* Stage Change Dialog */}
         <StageChangeDialog
