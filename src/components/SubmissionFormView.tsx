@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { FormFieldsRenderer } from './FormFieldsRenderer';
 import { FormPagination } from './FormPagination';
 import { FormNavigationPanel } from './FormNavigationPanel';
 import { SubmissionFormRenderer } from './SubmissionFormRenderer';
+import { LifecycleStatusBar } from './LifecycleStatusBar';
 import { Form, FormField } from '@/types/form';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -426,6 +427,14 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
     : [{ id: 'default', name: 'Form', order: 0, fields: form?.fields.map(f => f.id) || [] }];
   const currentPageIndex = pages.findIndex(p => p.id === currentPageId);
 
+  // Find lifecycle dropdown fields (select fields with displayAsLifecycle enabled)
+  const lifecycleFields = useMemo(() => {
+    if (!form?.fields) return [];
+    return form.fields.filter(
+      (field) => field.type === 'select' && (field.customConfig as any)?.displayAsLifecycle === true
+    );
+  }, [form?.fields]);
+
   const handlePageChange = (pageId: string) => {
     setCurrentPageId(pageId);
   };
@@ -486,34 +495,18 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
             </div>
           </div>
           
-            {/* Approval Status Toggle */}
-          <div className="flex items-center gap-2 ml-4">
-            {canManageApproval && (
-              <div className="flex items-center gap-1 bg-muted/30 rounded-lg p-1">
-                {['pending', 'under_review', 'approved', 'rejected'].map((status) => (
-                  <Button
-                    key={status}
-                    variant={submission.approval_status === status ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => handleApprovalStatusChange(status)}
-                    disabled={saving}
-                    className={`text-xs px-3 py-1 ${
-                      submission.approval_status === status 
-                        ? getApprovalStatusBadge(status).className
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                  </Button>
-                ))}
-              </div>
-            )}
-            
-            {!canManageApproval && (
-              <Badge {...getApprovalStatusBadge(submission.approval_status || 'pending')}>
-                Status: {(submission.approval_status || 'pending').replace('_', ' ').toUpperCase()}
-              </Badge>
-            )}
+            {/* Lifecycle Dropdown Fields */}
+          <div className="flex items-center gap-4 ml-4">
+            {lifecycleFields.map((field) => (
+              <LifecycleStatusBar
+                key={field.id}
+                field={field}
+                value={formData[field.id] || ''}
+                onChange={(value) => handleFieldChange(field.id, value)}
+                disabled={saving}
+                isEditing={isEditing}
+              />
+            ))}
           </div>
           
           {isEditing && (
