@@ -48,6 +48,9 @@ interface OptimizedFormDataTableProps {
   onChange?: (selectedRecords: any[]) => void;
   autoSelectedRecords?: SelectedRecord[];
   isAutoSelectionLoading?: boolean;
+  onCreateRecord?: () => void;
+  canCreateRecord?: boolean;
+  createRecordDisabled?: boolean;
 }
 interface SelectedRecord {
   id: string;
@@ -61,7 +64,10 @@ export function OptimizedFormDataTable({
   value = [],
   onChange,
   autoSelectedRecords = [],
-  isAutoSelectionLoading = false
+  isAutoSelectionLoading = false,
+  onCreateRecord,
+  canCreateRecord = false,
+  createRecordDisabled = false
 }: OptimizedFormDataTableProps) {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
@@ -380,6 +386,18 @@ export function OptimizedFormDataTable({
             <Badge variant="outline">
               {isCrossReference ? selectedRecords.length : totalRecords} record{(isCrossReference ? selectedRecords.length : totalRecords) !== 1 ? 's' : ''}
             </Badge>
+            {canCreateRecord && onCreateRecord && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onCreateRecord}
+                disabled={createRecordDisabled}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create Record
+              </Button>
+            )}
             {isCrossReference && <Dialog open={isSelectionModalOpen} onOpenChange={setIsSelectionModalOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm" onClick={handleModalOpen}>

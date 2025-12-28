@@ -146,27 +146,15 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
   // Show the optimized data table for both preview and actual form view
   return (
     <div className="w-full space-y-2">
-      {canCreateRecord && (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleCreateRecord}
-            disabled={disabled}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Create Record
-          </Button>
-        </div>
-      )}
-      
       <OptimizedFormDataTable
         config={tableConfig}
         fieldType="cross-reference"
         value={value}
         onChange={handleSelectionChange}
         key={refreshTrigger}
+        canCreateRecord={canCreateRecord}
+        onCreateRecord={handleCreateRecord}
+        createRecordDisabled={disabled}
       />
       
       {error && <p className="text-sm text-red-500">{error}</p>}
