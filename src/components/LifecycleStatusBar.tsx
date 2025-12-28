@@ -128,7 +128,7 @@ export function LifecycleStatusBar({
     try {
       const { data: submission, error: subError } = await supabase
         .from('form_submissions')
-        .select('submitted_by, form_id, submission_ref_id')
+        .select('submitted_by, form_id')
         .eq('id', submissionId)
         .single();
       
@@ -138,17 +138,15 @@ export function LifecycleStatusBar({
       }
 
       if (submission.submitted_by) {
-        const recordId = submission.submission_ref_id || submissionId.slice(0, 8);
         const { error: notifError } = await supabase.from('notifications').insert({
           user_id: submission.submitted_by,
           type: 'lifecycle_stage_change',
           title: 'Record Stage Updated',
-          message: `Record ${recordId} status changed from "${fromStage || 'Initial'}" to "${toStage}".`,
+          message: `Your submission has moved from "${fromStage || 'Initial'}" to "${toStage}" for field "${field.label}".`,
           data: { 
             submissionId, 
             fieldId: field.id, 
             fieldLabel: field.label,
-            recordId,
             fromStage, 
             toStage,
             changedAt: new Date().toISOString()
@@ -253,14 +251,10 @@ export function LifecycleStatusBar({
       const previousStage = value;
       onChange(newStage);
       if (submissionId) {
-        const success = await addHistoryEntry(previousStage, newStage, comment || undefined);
-        if (success) {
-          await refetchHistory();
-          await sendStageChangeNotification(previousStage, newStage);
-          toast({ title: "Stage Updated", description: `Changed to "${newStage}"` });
-        } else {
-          toast({ title: "Warning", description: "Stage updated but history could not be saved", variant: "destructive" });
-        }
+        await addHistoryEntry(previousStage, newStage, comment || undefined);
+        await refetchHistory();
+        await sendStageChangeNotification(previousStage, newStage);
+        toast({ title: "Stage Updated", description: `Changed to "${newStage}"` });
       }
     }
   };
@@ -292,7 +286,7 @@ export function LifecycleStatusBar({
             const canTransition = isTransitionAllowed(value, optionValue);
             
             return (
-              <div key={optionValue} className="flex items-center">
+              <React.Fragment key={optionValue}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -322,7 +316,7 @@ export function LifecycleStatusBar({
                 {index < options.length - 1 && (
                   <ChevronRight className={`h-4 w-4 mx-0.5 ${index < currentIndex ? color.text : 'text-muted-foreground/50'}`} />
                 )}
-              </div>
+              </React.Fragment>
             );
           })}
         </div>
