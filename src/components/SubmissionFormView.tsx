@@ -505,6 +505,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
                 onChange={(value) => handleFieldChange(field.id, value)}
                 disabled={saving}
                 isEditing={isEditing}
+                submissionId={submission.id}
               />
             ))}
           </div>

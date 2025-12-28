@@ -629,6 +629,57 @@ export type Database = {
           },
         ]
       }
+      lifecycle_stage_history: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          comment: string | null
+          duration_in_previous_stage: unknown
+          field_id: string
+          from_stage: string | null
+          id: string
+          submission_id: string
+          to_stage: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          comment?: string | null
+          duration_in_previous_stage?: unknown
+          field_id: string
+          from_stage?: string | null
+          id?: string
+          submission_id: string
+          to_stage: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          comment?: string | null
+          duration_in_previous_stage?: unknown
+          field_id?: string
+          from_stage?: string | null
+          id?: string
+          submission_id?: string
+          to_stage?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lifecycle_stage_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lifecycle_stage_history_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string | null
