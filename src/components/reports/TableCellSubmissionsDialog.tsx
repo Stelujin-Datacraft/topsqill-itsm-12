@@ -73,6 +73,9 @@ export function TableCellSubmissionsDialog({
 
   // Determine which form to use for field types and fetching
   const effectiveFormId = crossRefMode && crossRefTargetFormId ? crossRefTargetFormId : formId;
+  
+  // Stringify linkedIds to prevent reference-based re-renders
+  const linkedIdsKey = crossRefLinkedIds.join(',');
 
   useEffect(() => {
     if (open && effectiveFormId) {
@@ -84,7 +87,8 @@ export function TableCellSubmissionsDialog({
       setSortField('_submission_ref');
       setSortDirection('desc');
     }
-  }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId, crossRefMode, crossRefParentId, crossRefTargetFormId, crossRefLinkFieldId, crossRefLinkedIds]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId, crossRefMode, crossRefParentId, crossRefTargetFormId, crossRefLinkFieldId, linkedIdsKey]);
 
   const loadFieldTypes = async () => {
     try {
