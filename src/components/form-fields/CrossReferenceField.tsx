@@ -121,25 +121,6 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
   if (!tableConfig || !tableConfig.displayColumns || tableConfig.displayColumns.length === 0) {
     return (
       <div className="w-full space-y-2">
-        <div className="flex items-center justify-between">
-          <label className="block text-sm font-medium">
-            {field.label}
-            {field.required && <span className="text-red-500 ml-1">*</span>}
-          </label>
-        {/* {!isPreview && (
-  <Button
-    type="button"   // <-- Add this line
-    variant="outline"
-    size="sm"
-    onClick={() => setConfigOpen(true)}
-  >
-    <Settings className="h-4 w-4 mr-2" />
-    Configure
-  </Button>
-)} */}
-
-
-        </div>
         
         <div className="w-full p-4 border-2 border-dashed border-muted-foreground/30 rounded-lg text-center">
           <p className="text-muted-foreground mb-2">Cross Reference: {field.label}</p>
@@ -165,12 +146,8 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
   // Show the optimized data table for both preview and actual form view
   return (
     <div className="w-full space-y-2">
-      <div className="flex items-center justify-between">
-        <label className="block text-sm font-medium">
-          {field.label}
-          {field.required && <span className="text-red-500 ml-1">*</span>}
-        </label>
-        {canCreateRecord && (
+      {canCreateRecord && (
+        <div className="flex justify-end">
           <Button
             type="button"
             variant="outline"
@@ -181,20 +158,8 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
             <Plus className="h-4 w-4 mr-2" />
             Create Record
           </Button>
-        )}
-       {/* {!isPreview && (
-  <Button
-    type="button"   // <-- Add this line
-    variant="outline"
-    size="sm"
-    onClick={() => setConfigOpen(true)}
-  >
-    <Settings className="h-4 w-4 mr-2" />
-    Configure
-  </Button>
-)} */}
-
-      </div>
+        </div>
+      )}
       
       <OptimizedFormDataTable
         config={tableConfig}
