@@ -1801,9 +1801,76 @@ export function ChartPreview({
     return { title, formName, dimensionName, metricName, aggregation, groupByName, chartType };
   };
 
+  // Generate cross-reference specific tooltip content
+  const getCrossRefTooltipContent = (payload: any, label: string): React.ReactNode => {
+    if (!payload || payload.length === 0) return null;
+    
+    const crossRefConfig = config.crossRefConfig;
+    const isCountMode = crossRefConfig?.mode === 'count';
+    
+    // Get source and target form names
+    const sourceFormName = config.formId ? getFormName(config.formId) : 'Source Form';
+    const targetFormName = crossRefConfig?.targetFormId ? getFormName(crossRefConfig.targetFormId) : 'Referenced Form';
+    
+    // Get field names for better labels
+    const sourceLabelFieldName = crossRefConfig?.sourceLabelFieldId 
+      ? getFormFieldName(crossRefConfig.sourceLabelFieldId) 
+      : 'Record';
+    const targetMetricFieldName = crossRefConfig?.targetMetricFieldId 
+      ? getFormFieldName(crossRefConfig.targetMetricFieldId) 
+      : 'Value';
+    
+    const aggregation = crossRefConfig?.targetAggregation || 'sum';
+    const aggLabel = aggregation.charAt(0).toUpperCase() + aggregation.slice(1);
+    
+    const data = payload[0]?.payload;
+    const value = payload[0]?.value;
+    
+    return (
+      <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[220px]">
+        {/* Header - Source record */}
+        <div className="font-medium text-sm mb-2 pb-2 border-b border-border">
+          {label}
+        </div>
+        
+        {/* Value display */}
+        <div className="space-y-2">
+          {isCountMode ? (
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Linked Records:</span>
+              <span className="font-semibold text-lg">{value?.toLocaleString()}</span>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">{aggLabel} of {targetMetricFieldName}:</span>
+                <span className="font-semibold text-lg">{typeof value === 'number' ? value.toLocaleString() : value}</span>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Context info */}
+        <div className="text-xs text-muted-foreground mt-3 pt-2 border-t border-border space-y-1">
+          <div>From: <span className="text-foreground">{sourceFormName}</span></div>
+          <div>Linked to: <span className="text-foreground">{targetFormName}</span></div>
+        </div>
+        
+        <div className="text-[11px] text-muted-foreground mt-2 pt-1 border-t border-border">
+          Click to view linked records
+        </div>
+      </div>
+    );
+  };
+
   // Generate enhanced tooltip content
   const getEnhancedTooltipContent = (payload: any, label: string): React.ReactNode => {
     if (!payload || payload.length === 0) return null;
+    
+    // Use cross-reference tooltip if in cross-ref mode
+    if (config.crossRefConfig?.enabled) {
+      return getCrossRefTooltipContent(payload, label);
+    }
     
     const formName = config.formId ? getFormName(config.formId) : 'Form';
     const dimensionField = config.dimensions?.[0] || config.xAxis;
