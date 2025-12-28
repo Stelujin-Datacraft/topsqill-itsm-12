@@ -92,77 +92,76 @@ export function SelectFieldConfig({ field, onConfigChange }: SelectFieldConfigPr
 
       {/* General Options Section */}
       <div className="space-y-3">
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="searchable"
-            checked={config.searchable || false}
-            onCheckedChange={(checked) => onConfigChange({ searchable: checked })}
-          />
-          <Label htmlFor="searchable">Enable search</Label>
+        <div className="flex items-center gap-2 pb-2 border-b">
+          <Settings2 className="h-4 w-4 text-muted-foreground" />
+          <h4 className="font-medium text-sm">General Options</h4>
         </div>
         
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="clearable"
-            checked={config.clearable !== false}
-            onCheckedChange={(checked) => onConfigChange({ clearable: checked })}
-          />
-          <Label htmlFor="clearable">Allow clearing selection</Label>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="allowOther"
-            checked={config.allowOther || false}
-            onCheckedChange={(checked) => onConfigChange({ allowOther: checked })}
-          />
-          <Label htmlFor="allowOther">Allow "Other" option</Label>
+        <div className="space-y-3 pl-1">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="searchable"
+              checked={config.searchable || false}
+              onCheckedChange={(checked) => onConfigChange({ searchable: checked })}
+            />
+            <Label htmlFor="searchable">Enable search</Label>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="clearable"
+              checked={config.clearable !== false}
+              onCheckedChange={(checked) => onConfigChange({ clearable: checked })}
+            />
+            <Label htmlFor="clearable">Allow clearing selection</Label>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="allowOther"
+              checked={config.allowOther || false}
+              onCheckedChange={(checked) => onConfigChange({ allowOther: checked })}
+            />
+            <Label htmlFor="allowOther">Allow "Other" option</Label>
+          </div>
         </div>
       </div>
 
-      {/* Status Configuration Section - Separate & Prominent */}
-      <Separator className="my-4" />
-      
-      <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-4">
-        <div className="flex items-center gap-2">
-          <Activity className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold text-sm text-foreground">Status Configuration</h3>
+      {/* Lifecycle Status Section */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 pb-2 border-b">
+          <Activity className="h-4 w-4 text-primary" />
+          <h4 className="font-medium text-sm">Lifecycle Status</h4>
           {config.displayAsLifecycle && (
-            <Badge variant="default" className="text-xs ml-auto">Active</Badge>
+            <Badge variant="default" className="text-xs ml-auto">Enabled</Badge>
           )}
         </div>
         
-        <p className="text-xs text-muted-foreground">
-          Enable lifecycle status to track record progress through stages with visual indicators, comments, and SLA monitoring.
+        <p className="text-xs text-muted-foreground pl-1">
+          Track record progress through stages with visual indicators, comments, and SLA monitoring.
         </p>
 
-        {/* Lifecycle Display Toggle */}
-        <div className="flex items-center space-x-2 bg-background rounded-md p-3 border">
-          <Checkbox
-            id="displayAsLifecycle"
-            checked={config.displayAsLifecycle || false}
-            onCheckedChange={(checked) => {
-              onConfigChange({ displayAsLifecycle: checked });
-              setLifecycleOpen(!!checked);
-            }}
-          />
-          <Label htmlFor="displayAsLifecycle" className="flex items-center gap-2 cursor-pointer flex-1">
-            <Settings2 className="h-4 w-4 text-muted-foreground" />
-            Display as Lifecycle Status Bar
-          </Label>
-        </div>
+        <div className="space-y-3 pl-1">
+          {/* Lifecycle Display Toggle */}
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="displayAsLifecycle"
+              checked={config.displayAsLifecycle || false}
+              onCheckedChange={(checked) => {
+                onConfigChange({ displayAsLifecycle: checked });
+                setLifecycleOpen(!!checked);
+              }}
+            />
+            <Label htmlFor="displayAsLifecycle" className="cursor-pointer">
+              Display as Lifecycle Status Bar
+            </Label>
+          </div>
 
-        {/* Advanced Lifecycle Settings */}
-        {config.displayAsLifecycle && (
-          <Collapsible open={lifecycleOpen} onOpenChange={setLifecycleOpen}>
-            <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground w-full py-2 px-3 bg-background rounded-md border">
-              {lifecycleOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              Advanced Status Settings
-              <Badge variant="outline" className="ml-auto text-xs">Configure</Badge>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-4 pt-4 px-1">
+          {/* Advanced Lifecycle Settings */}
+          {config.displayAsLifecycle && (
+            <div className="space-y-3 mt-3 pl-4 border-l-2 border-primary/30">
               {/* Require Comment on Stage Change */}
-              <div className="flex items-center space-x-2 bg-background p-3 rounded-md border">
+              <div className="flex items-center space-x-2">
                 <Checkbox
                   id="requireCommentOnChange"
                   checked={config.requireCommentOnChange || false}
@@ -175,10 +174,10 @@ export function SelectFieldConfig({ field, onConfigChange }: SelectFieldConfigPr
               </div>
 
               {/* SLA Warning Hours */}
-              <div className="space-y-2 bg-background p-3 rounded-md border">
-                <Label htmlFor="slaWarningHours" className="flex items-center gap-2">
+              <div className="space-y-2">
+                <Label htmlFor="slaWarningHours" className="flex items-center gap-2 text-sm">
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
-                  SLA Warning (hours before alert)
+                  SLA Warning (hours)
                 </Label>
                 <div className="flex items-center gap-2">
                   <Input
@@ -188,39 +187,36 @@ export function SelectFieldConfig({ field, onConfigChange }: SelectFieldConfigPr
                     placeholder="e.g., 24"
                     value={config.slaWarningHours || ''}
                     onChange={(e) => onConfigChange({ slaWarningHours: e.target.value ? parseInt(e.target.value) : null })}
-                    className="w-32"
+                    className="w-24 h-8"
                   />
-                  <span className="text-sm text-muted-foreground">hours</span>
+                  <span className="text-xs text-muted-foreground">hours before alert</span>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Notifies creator/admin when record exceeds this time in a stage
-                </p>
               </div>
 
               {/* Stage Transition Rules */}
               <Collapsible open={rulesOpen} onOpenChange={setRulesOpen}>
-                <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium hover:text-foreground w-full py-2 px-3 bg-background rounded-md border">
+                <CollapsibleTrigger className="flex items-center gap-2 text-sm hover:text-foreground w-full py-1">
                   {rulesOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   <GitBranch className="h-4 w-4 text-purple-500" />
-                  Stage Transition Rules
+                  <span>Stage Transition Rules</span>
                   {Object.keys(transitionRules).length > 0 && (
                     <Badge variant="secondary" className="ml-auto text-xs">
                       {Object.keys(transitionRules).length} rules
                     </Badge>
                   )}
                 </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-3 pt-3 pl-3">
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Define which stages can transition to other stages. If no rules are set, all transitions are allowed.
+                <CollapsibleContent className="space-y-3 pt-3 pl-2">
+                  <p className="text-xs text-muted-foreground">
+                    Define allowed stage transitions. If empty, all transitions are allowed.
                   </p>
                   
                   {/* Existing Rules */}
                   {Object.entries(transitionRules).map(([fromStage, toStages]: [string, any]) => (
-                    <div key={fromStage} className="space-y-1 bg-background p-2 rounded border">
-                      <div className="text-sm font-medium">{fromStage} can transition to:</div>
-                      <div className="flex flex-wrap gap-1 pl-4">
+                    <div key={fromStage} className="space-y-1 bg-muted/50 p-2 rounded border">
+                      <div className="text-xs font-medium">{fromStage} →</div>
+                      <div className="flex flex-wrap gap-1">
                         {(toStages as string[]).map((toStage: string) => (
-                          <Badge key={toStage} variant="secondary" className="flex items-center gap-1">
+                          <Badge key={toStage} variant="secondary" className="flex items-center gap-1 text-xs">
                             {toStage}
                             <button
                               onClick={() => handleRemoveTransitionRule(fromStage, toStage)}
@@ -245,8 +241,8 @@ export function SelectFieldConfig({ field, onConfigChange }: SelectFieldConfigPr
                           }
                         }}
                       >
-                        <SelectTrigger className="w-32 h-8 text-xs">
-                          <SelectValue placeholder="From stage" />
+                        <SelectTrigger className="w-28 h-7 text-xs">
+                          <SelectValue placeholder="From" />
                         </SelectTrigger>
                         <SelectContent>
                           {options.map((opt) => (
@@ -256,15 +252,10 @@ export function SelectFieldConfig({ field, onConfigChange }: SelectFieldConfigPr
                           ))}
                         </SelectContent>
                       </Select>
-                      <span className="text-muted-foreground">→</span>
-                      <Select
-                        onValueChange={(toStage) => {
-                          const fromSelect = document.querySelector('[data-from-stage]') as HTMLElement;
-                          // This is simplified - in practice you'd use state
-                        }}
-                      >
-                        <SelectTrigger className="w-32 h-8 text-xs" id="toStageSelect">
-                          <SelectValue placeholder="To stage" />
+                      <span className="text-muted-foreground text-xs">→</span>
+                      <Select>
+                        <SelectTrigger className="w-28 h-7 text-xs" id="toStageSelect">
+                          <SelectValue placeholder="To" />
                         </SelectTrigger>
                         <SelectContent>
                           {options.map((opt) => (
@@ -277,12 +268,12 @@ export function SelectFieldConfig({ field, onConfigChange }: SelectFieldConfigPr
                     </div>
                   )}
 
-                  {/* Quick Add All Sequential Transitions */}
+                  {/* Quick Add Sequential */}
                   {options.length >= 2 && (
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full text-xs"
+                      className="w-full text-xs h-7"
                       onClick={() => {
                         const rules: Record<string, string[]> = {};
                         options.forEach((opt, idx) => {
@@ -296,14 +287,14 @@ export function SelectFieldConfig({ field, onConfigChange }: SelectFieldConfigPr
                       }}
                     >
                       <Plus className="h-3 w-3 mr-1" />
-                      Set Sequential Flow (each stage → next stage only)
+                      Set Sequential Flow
                     </Button>
                   )}
                 </CollapsibleContent>
               </Collapsible>
-            </CollapsibleContent>
-          </Collapsible>
-        )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
