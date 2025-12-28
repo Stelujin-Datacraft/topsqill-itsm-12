@@ -180,18 +180,66 @@ export function useReports() {
     return data || [];
   }, []);
 
-  const getFormFields = (formId: string) => {
+  const getFormFields = useCallback(async (formId: string) => {
+    // First try to get from cached forms
     const form = forms.find(f => f.id === formId);
-    return form?.fields || [];
-  };
+    if (form?.fields && form.fields.length > 0) {
+      return form.fields;
+    }
+    
+    // If not in cache, fetch directly from database
+    // This handles cases where user has report access but not direct form access
+    const { data, error } = await supabase
+      .from('form_fields')
+      .select('*')
+      .eq('form_id', formId)
+      .order('field_order', { ascending: true });
+    
+    if (error) {
+      console.error('Error fetching form fields:', error);
+      return [];
+    }
+    
+    return data || [];
+  }, [forms]);
 
-  const getAvailableForms = async () => {
-    return forms.map(form => ({
+  const getAvailableForms = useCallback(async () => {
+    // Return forms from context
+    const contextForms = forms.map(form => ({
       id: form.id,
       name: form.name,
       description: form.description
     }));
-  };
+    
+    // Also fetch forms directly that the user can access via RLS
+    // This ensures all accessible forms are available for report charts
+    if (!currentProject) return contextForms;
+    
+    const { data, error } = await supabase
+      .from('forms')
+      .select('id, name, description')
+      .eq('project_id', currentProject.id)
+      .order('name', { ascending: true });
+    
+    if (error) {
+      console.error('Error fetching forms:', error);
+      return contextForms;
+    }
+    
+    // Merge and deduplicate
+    const allForms = [...contextForms];
+    (data || []).forEach(form => {
+      if (!allForms.some(f => f.id === form.id)) {
+        allForms.push({
+          id: form.id,
+          name: form.name,
+          description: form.description || undefined
+        });
+      }
+    });
+    
+    return allForms;
+  }, [forms, currentProject]);
 
   return {
     reports,
