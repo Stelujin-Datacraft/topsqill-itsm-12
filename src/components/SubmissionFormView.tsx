@@ -45,6 +45,15 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
   const [selectedField, setSelectedField] = useState<FormField | null>(null);
   const [navigationVisible, setNavigationVisible] = useState(true);
 
+  // Find lifecycle dropdown fields (select fields with displayAsLifecycle enabled)
+  // Must be called before any early returns to follow Rules of Hooks
+  const lifecycleFields = useMemo(() => {
+    if (!form?.fields) return [];
+    return form.fields.filter(
+      (field) => field.type === 'select' && (field.customConfig as any)?.displayAsLifecycle === true
+    );
+  }, [form?.fields]);
+
   // Load submission and form data
   const loadSubmissionAndForm = async () => {
     try {
@@ -426,15 +435,6 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
     ? form.pages 
     : [{ id: 'default', name: 'Form', order: 0, fields: form?.fields.map(f => f.id) || [] }];
   const currentPageIndex = pages.findIndex(p => p.id === currentPageId);
-
-  // Find lifecycle dropdown fields (select fields with displayAsLifecycle enabled)
-  const lifecycleFields = useMemo(() => {
-    if (!form?.fields) return [];
-    return form.fields.filter(
-      (field) => field.type === 'select' && (field.customConfig as any)?.displayAsLifecycle === true
-    );
-  }, [form?.fields]);
-
   const handlePageChange = (pageId: string) => {
     setCurrentPageId(pageId);
   };
