@@ -84,15 +84,15 @@ export function useLifecycleHistory(submissionId: string, fieldId: string) {
     fromStage: string | null,
     toStage: string,
     comment?: string
-  ) => {
+  ): Promise<boolean> => {
     if (!submissionId || !fieldId || !user) {
       console.log('Cannot add history entry - missing data:', { submissionId, fieldId, user: !!user });
-      return;
+      return false;
     }
 
     try {
-      // Calculate duration in previous stage
-      let duration: string | null = null;
+      // Calculate duration in previous stage as PostgreSQL interval format
+      let durationInterval: string | null = null;
       if (lastChange) {
         const lastChangeDate = new Date(lastChange.changed_at);
         const now = new Date();
@@ -101,14 +101,10 @@ export function useLifecycleHistory(submissionId: string, fieldId: string) {
         const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
         const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
         
-        if (days > 0) {
-          duration = `${days} days ${hours} hours`;
-        } else if (hours > 0) {
-          duration = `${hours} hours ${minutes} minutes`;
-        } else {
-          duration = `${minutes} minutes`;
-        }
+        // Format as PostgreSQL interval: 'X days Y hours Z minutes W seconds'
+        durationInterval = `${days} days ${hours} hours ${minutes} minutes ${seconds} seconds`;
       }
 
       console.log('Adding lifecycle history entry:', {
@@ -118,7 +114,7 @@ export function useLifecycleHistory(submissionId: string, fieldId: string) {
         to_stage: toStage,
         changed_by: user.id,
         comment: comment || null,
-        duration_in_previous_stage: duration
+        duration_in_previous_stage: durationInterval
       });
 
       const { data, error } = await supabase
@@ -130,19 +126,21 @@ export function useLifecycleHistory(submissionId: string, fieldId: string) {
           to_stage: toStage,
           changed_by: user.id,
           comment: comment || null,
-          duration_in_previous_stage: duration
+          duration_in_previous_stage: durationInterval
         })
         .select()
         .single();
 
       if (error) {
         console.error('Error adding lifecycle history entry:', error);
-        return;
+        return false;
       }
 
       console.log('Successfully added lifecycle history entry:', data);
+      return true;
     } catch (err) {
       console.error('Error in addHistoryEntry:', err);
+      return false;
     }
   }, [submissionId, fieldId, user, lastChange]);
 
