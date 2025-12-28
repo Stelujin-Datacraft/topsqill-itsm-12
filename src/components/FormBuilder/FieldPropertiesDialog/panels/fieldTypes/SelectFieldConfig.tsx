@@ -34,6 +34,9 @@ export function SelectFieldConfig({ config, onUpdate, errors, fieldType }: Selec
     onUpdate({ options: newOptions });
   };
 
+  // Only show lifecycle option for select/dropdown fields
+  const showLifecycleOption = fieldType === 'select';
+
   return (
     <div className="space-y-4">
       <EnhancedOptionConfig
@@ -43,6 +46,22 @@ export function SelectFieldConfig({ config, onUpdate, errors, fieldType }: Selec
       />
 
       <div className="space-y-3">
+        {showLifecycleOption && (
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="displayAsLifecycle"
+              checked={config.customConfig?.displayAsLifecycle || false}
+              onCheckedChange={(checked) => onUpdate({ customConfig: { ...config.customConfig, displayAsLifecycle: checked } })}
+            />
+            <Label htmlFor="displayAsLifecycle" className="flex flex-col">
+              <span>Display as Lifecycle</span>
+              <span className="text-xs text-muted-foreground font-normal">
+                Shows options as a status bar at the top of the record
+              </span>
+            </Label>
+          </div>
+        )}
+        
         <div className="flex items-center space-x-2">
           <Checkbox
             id="searchable"
