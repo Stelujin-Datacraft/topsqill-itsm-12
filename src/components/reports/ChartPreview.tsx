@@ -46,6 +46,11 @@ export function ChartPreview({
     dimensionLabel?: string;
     groupLabel?: string;
     submissionId?: string;
+    // Cross-reference specific fields
+    crossRefMode?: boolean;
+    crossRefParentId?: string;
+    crossRefTargetFormId?: string;
+    crossRefLinkFieldId?: string;
   }>({
     open: false,
     dimensionField: '',
@@ -1632,6 +1637,31 @@ export function ChartPreview({
     const clickedValue = data?.name || data;
     if (!clickedValue || clickedValue === 'Not Specified') return;
     
+    // Get the full payload including parentId for cross-reference
+    const payload = data?.payload || data;
+    
+    // Check if this is cross-reference mode
+    if (config.crossRefConfig?.enabled && payload?.parentId) {
+      console.log('🔗 Cross-ref pie click:', {
+        parentId: payload.parentId,
+        targetFormId: config.crossRefConfig.targetFormId,
+        crossRefFieldId: config.crossRefConfig.crossRefFieldId,
+        clickedValue
+      });
+      
+      setCellSubmissionsDialog({
+        open: true,
+        dimensionField: '',
+        dimensionValue: clickedValue,
+        dimensionLabel: 'Linked Records',
+        crossRefMode: true,
+        crossRefParentId: payload.parentId,
+        crossRefTargetFormId: config.crossRefConfig.targetFormId,
+        crossRefLinkFieldId: config.crossRefConfig.crossRefFieldId,
+      });
+      return;
+    }
+    
     // Get dimension field for the pie chart
     const dimensionField = config.dimensions?.[0] || '';
     const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Category';
@@ -1680,6 +1710,28 @@ export function ChartPreview({
     const dimensionValue = payload?.name || data?.name;
     
     if (!dimensionValue) return;
+    
+    // Check if this is cross-reference mode
+    if (config.crossRefConfig?.enabled && payload?.parentId) {
+      console.log('🔗 Cross-ref bar click:', {
+        parentId: payload.parentId,
+        targetFormId: config.crossRefConfig.targetFormId,
+        crossRefFieldId: config.crossRefConfig.crossRefFieldId,
+        dimensionValue
+      });
+      
+      setCellSubmissionsDialog({
+        open: true,
+        dimensionField: '',
+        dimensionValue,
+        dimensionLabel: 'Linked Records',
+        crossRefMode: true,
+        crossRefParentId: payload.parentId,
+        crossRefTargetFormId: config.crossRefConfig.targetFormId,
+        crossRefLinkFieldId: config.crossRefConfig.crossRefFieldId,
+      });
+      return;
+    }
     
     // Get dimensionField from the data payload (xFieldName) or fallback to config
     const dimensionField = payload?.xFieldName || config.dimensions?.[0] || config.xAxis || '';
@@ -4122,6 +4174,10 @@ export function ChartPreview({
           acc[field.id] = field.label || field.id;
           return acc;
         }, {} as Record<string, string>)}
+        crossRefMode={cellSubmissionsDialog.crossRefMode}
+        crossRefParentId={cellSubmissionsDialog.crossRefParentId}
+        crossRefTargetFormId={cellSubmissionsDialog.crossRefTargetFormId}
+        crossRefLinkFieldId={cellSubmissionsDialog.crossRefLinkFieldId}
       />
     </div>;
 }

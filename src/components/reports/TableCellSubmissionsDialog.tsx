@@ -27,6 +27,11 @@ interface TableCellSubmissionsDialogProps {
   submissionId?: string;
   displayFields?: string[];
   fieldLabels?: Record<string, string>;
+  // Cross-reference specific props
+  crossRefMode?: boolean;
+  crossRefParentId?: string;
+  crossRefTargetFormId?: string;
+  crossRefLinkFieldId?: string;
 }
 
 interface SubmissionRecord {
@@ -47,7 +52,11 @@ export function TableCellSubmissionsDialog({
   groupLabel,
   submissionId,
   displayFields = [],
-  fieldLabels = {}
+  fieldLabels = {},
+  crossRefMode = false,
+  crossRefParentId,
+  crossRefTargetFormId,
+  crossRefLinkFieldId,
 }: TableCellSubmissionsDialogProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -60,8 +69,11 @@ export function TableCellSubmissionsDialog({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [fieldTypeMap, setFieldTypeMap] = useState<Record<string, string>>({});
 
+  // Determine which form to use for field types and fetching
+  const effectiveFormId = crossRefMode && crossRefTargetFormId ? crossRefTargetFormId : formId;
+
   useEffect(() => {
-    if (open && formId) {
+    if (open && effectiveFormId) {
       loadSubmissions();
       loadFieldTypes();
       setExpandedSubmissions(new Set());
@@ -70,14 +82,14 @@ export function TableCellSubmissionsDialog({
       setSortField('_submission_ref');
       setSortDirection('desc');
     }
-  }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId]);
+  }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId, crossRefMode, crossRefParentId, crossRefTargetFormId, crossRefLinkFieldId]);
 
   const loadFieldTypes = async () => {
     try {
       const { data: fields, error } = await supabase
         .from('form_fields')
         .select('id, field_type')
-        .eq('form_id', formId);
+        .eq('form_id', effectiveFormId);
       
       if (error) throw error;
       
@@ -129,9 +141,61 @@ export function TableCellSubmissionsDialog({
         return;
       }
 
-      // Fetch all submissions for the form, then filter client-side
-      // This is necessary because dimension values may be processed/stringified
-      // and the DB contains raw values (numbers, objects, etc.)
+      // CROSS-REFERENCE MODE: Fetch linked records from target form
+      if (crossRefMode && crossRefParentId && crossRefTargetFormId && crossRefLinkFieldId) {
+        console.log('📊 Cross-ref dialog - Fetching linked records:', {
+          parentId: crossRefParentId,
+          targetFormId: crossRefTargetFormId,
+          linkFieldId: crossRefLinkFieldId
+        });
+
+        // Fetch all submissions from the target form
+        const { data, error } = await supabase
+          .from('form_submissions')
+          .select('id, submission_ref_id, submission_data')
+          .eq('form_id', crossRefTargetFormId)
+          .order('submitted_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Filter to only submissions that link to the clicked parent record
+        const linkedSubmissions = (data || []).filter(sub => {
+          const linkValue = (sub.submission_data as Record<string, any>)?.[crossRefLinkFieldId];
+          
+          // Handle different link value formats
+          if (!linkValue) return false;
+          
+          // Direct ID match
+          if (linkValue === crossRefParentId) return true;
+          
+          // Object with id property
+          if (typeof linkValue === 'object') {
+            if (linkValue.id === crossRefParentId) return true;
+            if (linkValue.value === crossRefParentId) return true;
+            if (linkValue.submission_id === crossRefParentId) return true;
+          }
+          
+          // Array of values (multi-select cross-reference)
+          if (Array.isArray(linkValue)) {
+            return linkValue.some(v => 
+              v === crossRefParentId || 
+              v?.id === crossRefParentId || 
+              v?.value === crossRefParentId
+            );
+          }
+          
+          return false;
+        }).map(d => ({
+          ...d,
+          submission_data: (d.submission_data as Record<string, any>) || {}
+        }));
+
+        console.log('📊 Cross-ref dialog - Found linked records:', linkedSubmissions.length);
+        setSubmissions(linkedSubmissions);
+        return;
+      }
+
+      // STANDARD MODE: Fetch all submissions for the form, then filter client-side
       const { data, error } = await supabase
         .from('form_submissions')
         .select('id, submission_ref_id, submission_data')
@@ -356,6 +420,13 @@ export function TableCellSubmissionsDialog({
   };
 
   const getDialogTitle = () => {
+    // Cross-reference mode - show linked records context
+    if (crossRefMode) {
+      const recordLabel = dimensionValue || 'Selected Record';
+      return `Linked Records for "${recordLabel}" (${filteredAndSortedSubmissions.length}${searchQuery ? ` of ${submissions.length}` : ''})`;
+    }
+    
+    // Standard mode
     let title = `Submissions`;
     if (dimensionLabel && dimensionValue) {
       title += ` - ${dimensionLabel}: ${dimensionValue}`;
