@@ -405,6 +405,7 @@ export function ChartPreview({
       targetMetricFieldId?: string;
       targetAggregation?: 'sum' | 'avg' | 'min' | 'max' | 'count';
       targetDimensionFieldId?: string;
+      sourceLabelFieldId?: string;
     }
   ): Promise<any[]> => {
     if (!crossRefConfig.crossRefFieldId || !crossRefConfig.targetFormId) {
@@ -484,12 +485,20 @@ export function ChartPreview({
               });
             });
           } else {
-            // Single data point per parent
+            // Single data point per parent - use sourceLabelFieldId if available
+            const labelValue = crossRefConfig.sourceLabelFieldId 
+              ? parentSub.submission_data?.[crossRefConfig.sourceLabelFieldId]
+              : null;
+            const displayName = labelValue 
+              ? (typeof labelValue === 'object' ? JSON.stringify(labelValue) : String(labelValue))
+              : (parentSub.submission_ref_id || parentSub.id.slice(0, 8));
+            
             result.push({
-              name: parentSub.submission_ref_id || parentSub.id.slice(0, 8),
+              name: displayName,
               value: linkedSubmissions.length,
               count: linkedSubmissions.length,
-              parentId: parentSub.id
+              parentId: parentSub.id,
+              parentRefId: parentSub.submission_ref_id
             });
           }
         } else {
@@ -574,11 +583,20 @@ export function ChartPreview({
               });
             });
           } else {
+            // Use sourceLabelFieldId if available for better labels
+            const labelValue = crossRefConfig.sourceLabelFieldId 
+              ? parentSub.submission_data?.[crossRefConfig.sourceLabelFieldId]
+              : null;
+            const displayName = labelValue 
+              ? (typeof labelValue === 'object' ? JSON.stringify(labelValue) : String(labelValue))
+              : (parentSub.submission_ref_id || parentSub.id.slice(0, 8));
+            
             result.push({
-              name: parentSub.submission_ref_id || parentSub.id.slice(0, 8),
+              name: displayName,
               value: aggregatedValue,
               [crossRefConfig.targetMetricFieldId!]: aggregatedValue,
-              parentId: parentSub.id
+              parentId: parentSub.id,
+              parentRefId: parentSub.submission_ref_id
             });
           }
         }
