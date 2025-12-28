@@ -128,7 +128,7 @@ export function LifecycleStatusBar({
     try {
       const { data: submission, error: subError } = await supabase
         .from('form_submissions')
-        .select('submitted_by, form_id')
+        .select('submitted_by, form_id, submission_ref_id')
         .eq('id', submissionId)
         .single();
       
@@ -138,15 +138,17 @@ export function LifecycleStatusBar({
       }
 
       if (submission.submitted_by) {
+        const recordId = submission.submission_ref_id || submissionId.slice(0, 8);
         const { error: notifError } = await supabase.from('notifications').insert({
           user_id: submission.submitted_by,
           type: 'lifecycle_stage_change',
           title: 'Record Stage Updated',
-          message: `Your submission has moved from "${fromStage || 'Initial'}" to "${toStage}" for field "${field.label}".`,
+          message: `Record ${recordId} status changed from "${fromStage || 'Initial'}" to "${toStage}".`,
           data: { 
             submissionId, 
             fieldId: field.id, 
             fieldLabel: field.label,
+            recordId,
             fromStage, 
             toStage,
             changedAt: new Date().toISOString()
@@ -251,10 +253,14 @@ export function LifecycleStatusBar({
       const previousStage = value;
       onChange(newStage);
       if (submissionId) {
-        await addHistoryEntry(previousStage, newStage, comment || undefined);
-        await refetchHistory();
-        await sendStageChangeNotification(previousStage, newStage);
-        toast({ title: "Stage Updated", description: `Changed to "${newStage}"` });
+        const success = await addHistoryEntry(previousStage, newStage, comment || undefined);
+        if (success) {
+          await refetchHistory();
+          await sendStageChangeNotification(previousStage, newStage);
+          toast({ title: "Stage Updated", description: `Changed to "${newStage}"` });
+        } else {
+          toast({ title: "Warning", description: "Stage updated but history could not be saved", variant: "destructive" });
+        }
       }
     }
   };
