@@ -246,13 +246,21 @@ export function LifecycleStatusBar({
     console.log('handleStageChange called:', { newStage, comment, submissionId, hasOnChange: !!onChange });
     if (onChange) {
       const previousStage = value;
+      // Update UI immediately
       onChange(newStage);
+      toast({ title: "Stage Updated", description: `Changed to "${newStage}"` });
+      
       if (submissionId) {
         console.log('Adding history entry with comment:', comment);
-        await addHistoryEntry(previousStage, newStage, comment || undefined);
-        await refetchHistory();
-        await sendStageChangeNotification(previousStage, newStage);
-        toast({ title: "Stage Updated", description: `Changed to "${newStage}"` });
+        // Run all async operations in parallel for speed
+        Promise.all([
+          addHistoryEntry(previousStage, newStage, comment || undefined),
+          sendStageChangeNotification(previousStage, newStage)
+        ]).then(() => {
+          refetchHistory();
+        }).catch(err => {
+          console.error('Error in stage change operations:', err);
+        });
       } else {
         console.log('No submissionId, skipping history entry');
       }
