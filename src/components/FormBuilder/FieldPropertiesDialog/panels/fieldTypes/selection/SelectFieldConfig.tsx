@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { EnhancedOptionConfig } from '../EnhancedOptionConfig';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronRight, Clock, GitBranch, MessageSquare, Trash2, Plus, AlertTriangle } from 'lucide-react';
+import { ChevronDown, ChevronRight, GitBranch, MessageSquare, Trash2, Plus, AlertTriangle, Settings2, Activity } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 
 interface SelectFieldConfigProps {
   field: FormField;
@@ -89,6 +90,7 @@ export function SelectFieldConfig({ field, onConfigChange }: SelectFieldConfigPr
         fieldType="select"
       />
 
+      {/* General Options Section */}
       <div className="space-y-3">
         <div className="flex items-center space-x-2">
           <Checkbox
@@ -116,9 +118,26 @@ export function SelectFieldConfig({ field, onConfigChange }: SelectFieldConfigPr
           />
           <Label htmlFor="allowOther">Allow "Other" option</Label>
         </div>
+      </div>
+
+      {/* Status Configuration Section - Separate & Prominent */}
+      <Separator className="my-4" />
+      
+      <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-4">
+        <div className="flex items-center gap-2">
+          <Activity className="h-5 w-5 text-primary" />
+          <h3 className="font-semibold text-sm text-foreground">Status Configuration</h3>
+          {config.displayAsLifecycle && (
+            <Badge variant="default" className="text-xs ml-auto">Active</Badge>
+          )}
+        </div>
+        
+        <p className="text-xs text-muted-foreground">
+          Enable lifecycle status to track record progress through stages with visual indicators, comments, and SLA monitoring.
+        </p>
 
         {/* Lifecycle Display Toggle */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 bg-background rounded-md p-3 border">
           <Checkbox
             id="displayAsLifecycle"
             checked={config.displayAsLifecycle || false}
@@ -127,166 +146,165 @@ export function SelectFieldConfig({ field, onConfigChange }: SelectFieldConfigPr
               setLifecycleOpen(!!checked);
             }}
           />
-          <Label htmlFor="displayAsLifecycle" className="flex items-center gap-2">
+          <Label htmlFor="displayAsLifecycle" className="flex items-center gap-2 cursor-pointer flex-1">
+            <Settings2 className="h-4 w-4 text-muted-foreground" />
             Display as Lifecycle Status Bar
-            {config.displayAsLifecycle && (
-              <Badge variant="secondary" className="text-xs">Enabled</Badge>
-            )}
           </Label>
         </div>
-      </div>
 
-      {/* Advanced Lifecycle Settings */}
-      {config.displayAsLifecycle && (
-        <Collapsible open={lifecycleOpen} onOpenChange={setLifecycleOpen}>
-          <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground w-full py-2 border-t pt-4">
-            {lifecycleOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            Advanced Lifecycle Settings
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-4 pt-4">
-            {/* Require Comment on Stage Change */}
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="requireCommentOnChange"
-                checked={config.requireCommentOnChange || false}
-                onCheckedChange={(checked) => onConfigChange({ requireCommentOnChange: checked })}
-              />
-              <Label htmlFor="requireCommentOnChange" className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4" />
-                Require comment on stage change
-              </Label>
-            </div>
-
-            {/* SLA Warning Hours */}
-            <div className="space-y-2">
-              <Label htmlFor="slaWarningHours" className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
-                SLA Warning (hours before alert)
-              </Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="slaWarningHours"
-                  type="number"
-                  min="0"
-                  placeholder="e.g., 24"
-                  value={config.slaWarningHours || ''}
-                  onChange={(e) => onConfigChange({ slaWarningHours: e.target.value ? parseInt(e.target.value) : null })}
-                  className="w-32"
+        {/* Advanced Lifecycle Settings */}
+        {config.displayAsLifecycle && (
+          <Collapsible open={lifecycleOpen} onOpenChange={setLifecycleOpen}>
+            <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground w-full py-2 px-3 bg-background rounded-md border">
+              {lifecycleOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              Advanced Status Settings
+              <Badge variant="outline" className="ml-auto text-xs">Configure</Badge>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-4 pt-4 px-1">
+              {/* Require Comment on Stage Change */}
+              <div className="flex items-center space-x-2 bg-background p-3 rounded-md border">
+                <Checkbox
+                  id="requireCommentOnChange"
+                  checked={config.requireCommentOnChange || false}
+                  onCheckedChange={(checked) => onConfigChange({ requireCommentOnChange: checked })}
                 />
-                <span className="text-sm text-muted-foreground">hours</span>
+                <Label htmlFor="requireCommentOnChange" className="flex items-center gap-2 cursor-pointer">
+                  <MessageSquare className="h-4 w-4 text-blue-500" />
+                  Require comment on stage change
+                </Label>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Notifies creator/admin when record exceeds this time in a stage
-              </p>
-            </div>
 
-            {/* Stage Transition Rules */}
-            <Collapsible open={rulesOpen} onOpenChange={setRulesOpen}>
-              <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium hover:text-foreground w-full py-2">
-                {rulesOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                <GitBranch className="h-4 w-4" />
-                Stage Transition Rules
-                {Object.keys(transitionRules).length > 0 && (
-                  <Badge variant="outline" className="ml-2 text-xs">
-                    {Object.keys(transitionRules).length} rules
-                  </Badge>
-                )}
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-3 pt-3 pl-6">
-                <p className="text-xs text-muted-foreground mb-2">
-                  Define which stages can transition to other stages. If no rules are set, all transitions are allowed.
+              {/* SLA Warning Hours */}
+              <div className="space-y-2 bg-background p-3 rounded-md border">
+                <Label htmlFor="slaWarningHours" className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  SLA Warning (hours before alert)
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="slaWarningHours"
+                    type="number"
+                    min="0"
+                    placeholder="e.g., 24"
+                    value={config.slaWarningHours || ''}
+                    onChange={(e) => onConfigChange({ slaWarningHours: e.target.value ? parseInt(e.target.value) : null })}
+                    className="w-32"
+                  />
+                  <span className="text-sm text-muted-foreground">hours</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Notifies creator/admin when record exceeds this time in a stage
                 </p>
-                
-                {/* Existing Rules */}
-                {Object.entries(transitionRules).map(([fromStage, toStages]: [string, any]) => (
-                  <div key={fromStage} className="space-y-1">
-                    <div className="text-sm font-medium">{fromStage} can transition to:</div>
-                    <div className="flex flex-wrap gap-1 pl-4">
-                      {(toStages as string[]).map((toStage: string) => (
-                        <Badge key={toStage} variant="secondary" className="flex items-center gap-1">
-                          {toStage}
-                          <button
-                            onClick={() => handleRemoveTransitionRule(fromStage, toStage)}
-                            className="ml-1 hover:text-destructive"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </Badge>
-                      ))}
+              </div>
+
+              {/* Stage Transition Rules */}
+              <Collapsible open={rulesOpen} onOpenChange={setRulesOpen}>
+                <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium hover:text-foreground w-full py-2 px-3 bg-background rounded-md border">
+                  {rulesOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  <GitBranch className="h-4 w-4 text-purple-500" />
+                  Stage Transition Rules
+                  {Object.keys(transitionRules).length > 0 && (
+                    <Badge variant="secondary" className="ml-auto text-xs">
+                      {Object.keys(transitionRules).length} rules
+                    </Badge>
+                  )}
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-3 pt-3 pl-3">
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Define which stages can transition to other stages. If no rules are set, all transitions are allowed.
+                  </p>
+                  
+                  {/* Existing Rules */}
+                  {Object.entries(transitionRules).map(([fromStage, toStages]: [string, any]) => (
+                    <div key={fromStage} className="space-y-1 bg-background p-2 rounded border">
+                      <div className="text-sm font-medium">{fromStage} can transition to:</div>
+                      <div className="flex flex-wrap gap-1 pl-4">
+                        {(toStages as string[]).map((toStage: string) => (
+                          <Badge key={toStage} variant="secondary" className="flex items-center gap-1">
+                            {toStage}
+                            <button
+                              onClick={() => handleRemoveTransitionRule(fromStage, toStage)}
+                              className="ml-1 hover:text-destructive"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
 
-                {/* Add New Rule */}
-                {options.length >= 2 && (
-                  <div className="flex items-center gap-2 pt-2 border-t">
-                    <Select
-                      onValueChange={(fromStage) => {
-                        const select = document.getElementById('toStageSelect') as HTMLSelectElement;
-                        if (select?.dataset.value && fromStage !== select.dataset.value) {
-                          handleAddTransitionRule(fromStage, select.dataset.value);
-                        }
+                  {/* Add New Rule */}
+                  {options.length >= 2 && (
+                    <div className="flex items-center gap-2 pt-2 border-t">
+                      <Select
+                        onValueChange={(fromStage) => {
+                          const select = document.getElementById('toStageSelect') as HTMLSelectElement;
+                          if (select?.dataset.value && fromStage !== select.dataset.value) {
+                            handleAddTransitionRule(fromStage, select.dataset.value);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-32 h-8 text-xs">
+                          <SelectValue placeholder="From stage" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {options.map((opt) => (
+                            <SelectItem key={getOptionValue(opt)} value={getOptionValue(opt)}>
+                              {getOptionLabel(opt)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <span className="text-muted-foreground">→</span>
+                      <Select
+                        onValueChange={(toStage) => {
+                          const fromSelect = document.querySelector('[data-from-stage]') as HTMLElement;
+                          // This is simplified - in practice you'd use state
+                        }}
+                      >
+                        <SelectTrigger className="w-32 h-8 text-xs" id="toStageSelect">
+                          <SelectValue placeholder="To stage" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {options.map((opt) => (
+                            <SelectItem key={getOptionValue(opt)} value={getOptionValue(opt)}>
+                              {getOptionLabel(opt)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {/* Quick Add All Sequential Transitions */}
+                  {options.length >= 2 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-xs"
+                      onClick={() => {
+                        const rules: Record<string, string[]> = {};
+                        options.forEach((opt, idx) => {
+                          if (idx < options.length - 1) {
+                            const fromVal = getOptionValue(opt);
+                            const toVal = getOptionValue(options[idx + 1]);
+                            rules[fromVal] = [toVal];
+                          }
+                        });
+                        onConfigChange({ transitionRules: rules });
                       }}
                     >
-                      <SelectTrigger className="w-32 h-8 text-xs">
-                        <SelectValue placeholder="From stage" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {options.map((opt) => (
-                          <SelectItem key={getOptionValue(opt)} value={getOptionValue(opt)}>
-                            {getOptionLabel(opt)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <span className="text-muted-foreground">→</span>
-                    <Select
-                      onValueChange={(toStage) => {
-                        const fromSelect = document.querySelector('[data-from-stage]') as HTMLElement;
-                        // This is simplified - in practice you'd use state
-                      }}
-                    >
-                      <SelectTrigger className="w-32 h-8 text-xs" id="toStageSelect">
-                        <SelectValue placeholder="To stage" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {options.map((opt) => (
-                          <SelectItem key={getOptionValue(opt)} value={getOptionValue(opt)}>
-                            {getOptionLabel(opt)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {/* Quick Add All Sequential Transitions */}
-                {options.length >= 2 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full text-xs"
-                    onClick={() => {
-                      const rules: Record<string, string[]> = {};
-                      options.forEach((opt, idx) => {
-                        if (idx < options.length - 1) {
-                          const fromVal = getOptionValue(opt);
-                          const toVal = getOptionValue(options[idx + 1]);
-                          rules[fromVal] = [toVal];
-                        }
-                      });
-                      onConfigChange({ transitionRules: rules });
-                    }}
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Set Sequential Flow (each stage → next stage only)
-                  </Button>
-                )}
-              </CollapsibleContent>
-            </Collapsible>
-          </CollapsibleContent>
-        </Collapsible>
-      )}
+                      <Plus className="h-3 w-3 mr-1" />
+                      Set Sequential Flow (each stage → next stage only)
+                    </Button>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+      </div>
     </div>
   );
 }
