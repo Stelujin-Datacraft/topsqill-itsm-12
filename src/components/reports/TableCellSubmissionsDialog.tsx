@@ -27,12 +27,6 @@ interface TableCellSubmissionsDialogProps {
   submissionId?: string;
   displayFields?: string[];
   fieldLabels?: Record<string, string>;
-  // Cross-reference specific props
-  crossRefMode?: boolean;
-  crossRefParentId?: string;
-  crossRefTargetFormId?: string;
-  crossRefLinkFieldId?: string;
-  crossRefLinkedIds?: string[]; // Direct list of linked submission IDs
 }
 
 interface SubmissionRecord {
@@ -53,12 +47,7 @@ export function TableCellSubmissionsDialog({
   groupLabel,
   submissionId,
   displayFields = [],
-  fieldLabels = {},
-  crossRefMode = false,
-  crossRefParentId,
-  crossRefTargetFormId,
-  crossRefLinkFieldId,
-  crossRefLinkedIds = [],
+  fieldLabels = {}
 }: TableCellSubmissionsDialogProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -71,14 +60,8 @@ export function TableCellSubmissionsDialog({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [fieldTypeMap, setFieldTypeMap] = useState<Record<string, string>>({});
 
-  // Determine which form to use for field types and fetching
-  const effectiveFormId = crossRefMode && crossRefTargetFormId ? crossRefTargetFormId : formId;
-  
-  // Stringify linkedIds to prevent reference-based re-renders
-  const linkedIdsKey = crossRefLinkedIds.join(',');
-
   useEffect(() => {
-    if (open && effectiveFormId) {
+    if (open && formId) {
       loadSubmissions();
       loadFieldTypes();
       setExpandedSubmissions(new Set());
@@ -87,15 +70,14 @@ export function TableCellSubmissionsDialog({
       setSortField('_submission_ref');
       setSortDirection('desc');
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId, crossRefMode, crossRefParentId, crossRefTargetFormId, crossRefLinkFieldId, linkedIdsKey]);
+  }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId]);
 
   const loadFieldTypes = async () => {
     try {
       const { data: fields, error } = await supabase
         .from('form_fields')
         .select('id, field_type')
-        .eq('form_id', effectiveFormId);
+        .eq('form_id', formId);
       
       if (error) throw error;
       
@@ -147,42 +129,9 @@ export function TableCellSubmissionsDialog({
         return;
       }
 
-      // CROSS-REFERENCE MODE: Use direct linkedIds if available, otherwise fallback
-      if (crossRefMode && crossRefTargetFormId) {
-        console.log('📊 Cross-ref dialog - Fetching linked records:', {
-          parentId: crossRefParentId,
-          targetFormId: crossRefTargetFormId,
-          linkedIds: crossRefLinkedIds,
-          hasDirectIds: crossRefLinkedIds.length > 0
-        });
-
-        // If we have direct IDs, fetch those specific submissions
-        if (crossRefLinkedIds.length > 0) {
-          const { data, error } = await supabase
-            .from('form_submissions')
-            .select('id, submission_ref_id, submission_data')
-            .in('id', crossRefLinkedIds)
-            .order('submitted_at', { ascending: false });
-
-          if (error) throw error;
-
-          const linkedSubmissions = (data || []).map(d => ({
-            ...d,
-            submission_data: (d.submission_data as Record<string, any>) || {}
-          }));
-
-          console.log('📊 Cross-ref dialog - Found linked records (direct IDs):', linkedSubmissions.length);
-          setSubmissions(linkedSubmissions);
-          return;
-        }
-
-        // Fallback: No linked records for this item
-        console.log('📊 Cross-ref dialog - No linked IDs provided, showing empty');
-        setSubmissions([]);
-        return;
-      }
-
-      // STANDARD MODE: Fetch all submissions for the form, then filter client-side
+      // Fetch all submissions for the form, then filter client-side
+      // This is necessary because dimension values may be processed/stringified
+      // and the DB contains raw values (numbers, objects, etc.)
       const { data, error } = await supabase
         .from('form_submissions')
         .select('id, submission_ref_id, submission_data')
@@ -407,13 +356,6 @@ export function TableCellSubmissionsDialog({
   };
 
   const getDialogTitle = () => {
-    // Cross-reference mode - show linked records context
-    if (crossRefMode) {
-      const recordLabel = dimensionValue || 'Selected Record';
-      return `Linked Records for "${recordLabel}" (${filteredAndSortedSubmissions.length}${searchQuery ? ` of ${submissions.length}` : ''})`;
-    }
-    
-    // Standard mode
     let title = `Submissions`;
     if (dimensionLabel && dimensionValue) {
       title += ` - ${dimensionLabel}: ${dimensionValue}`;
