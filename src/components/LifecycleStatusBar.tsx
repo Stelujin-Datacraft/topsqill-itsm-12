@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/types/form';
-import { Check, Clock, Circle, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Check, Clock, Circle, ChevronRight, AlertTriangle, MessageCircle } from 'lucide-react';
 import { StageChangeDialog } from './StageChangeDialog';
 import { useLifecycleHistory } from '@/hooks/useLifecycleHistory';
 import { useSLANotification } from '@/hooks/useSLANotification';
@@ -343,12 +343,21 @@ export function LifecycleStatusBar({
           )}
         </div>
 
-        {/* Latest Comment Display */}
+        {/* Latest Comment Icon with Tooltip */}
         {lastChange?.comment && (
-          <div className="text-xs text-muted-foreground bg-muted/50 rounded px-3 py-1.5 flex items-start gap-2 border-l-2 border-primary/50">
-            <span className="font-medium text-foreground">Latest comment:</span>
-            <span className="italic">"{lastChange.comment}"</span>
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 bg-slate-700 hover:bg-slate-600">
+                <MessageCircle className="h-4 w-4 text-slate-200" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs">
+              <div className="space-y-1">
+                <p className="font-medium text-xs">Latest Comment</p>
+                <p className="text-xs italic">"{lastChange.comment}"</p>
+              </div>
+            </TooltipContent>
+          </Tooltip>
         )}
 
         <StageChangeDialog
