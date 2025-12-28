@@ -638,6 +638,18 @@ export function DynamicTable({
         }
       };
 
+      // Parse pages first to determine field-to-page mapping
+      const parsedPages = safeParseJson(formData.pages, [{ id: 'default', name: 'Page 1', order: 0, fields: [] }]);
+      
+      // Build a map of fieldId -> pageId
+      const fieldToPageMap = new Map<string, string>();
+      parsedPages.forEach((page: any) => {
+        const pageFields = page.fields || [];
+        pageFields.forEach((fieldId: string) => {
+          fieldToPageMap.set(fieldId, page.id);
+        });
+      });
+
       const transformedForm: Form = {
         id: formData.id,
         name: formData.name,
@@ -650,6 +662,7 @@ export function DynamicTable({
           type: field.field_type as any,
           label: field.label,
           customConfig: field.custom_config ? safeParseJson(field.custom_config, {}) : undefined,
+          pageId: fieldToPageMap.get(field.id) || parsedPages[0]?.id || 'default',
         })),
         permissions: safeParseJson(formData.permissions, { view: [], submit: [], edit: [] }),
         createdAt: formData.created_at,
@@ -660,7 +673,7 @@ export function DynamicTable({
         fieldRules: safeParseJson(formData.field_rules, []),
         formRules: safeParseJson(formData.form_rules, []),
         layout: safeParseJson(formData.layout, { columns: 1 }),
-        pages: safeParseJson(formData.pages, []),
+        pages: parsedPages,
       };
 
       setCurrentForm(transformedForm);
