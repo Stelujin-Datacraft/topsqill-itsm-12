@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/types/form';
-import { Check, Clock, Circle, ChevronRight, AlertTriangle, MessageCircle } from 'lucide-react';
+import { Check, Clock, Circle, ChevronRight, History, AlertTriangle } from 'lucide-react';
 import { StageChangeDialog } from './StageChangeDialog';
 import { useLifecycleHistory } from '@/hooks/useLifecycleHistory';
 import { useSLANotification } from '@/hooks/useSLANotification';
@@ -13,7 +13,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface LifecycleStatusBarProps {
@@ -122,7 +128,7 @@ export function LifecycleStatusBar({
     try {
       const { data: submission, error: subError } = await supabase
         .from('form_submissions')
-        .select('submitted_by, form_id, submission_ref_id')
+        .select('submitted_by, form_id')
         .eq('id', submissionId)
         .single();
       
@@ -132,15 +138,13 @@ export function LifecycleStatusBar({
       }
 
       if (submission.submitted_by) {
-        const recordRef = submission.submission_ref_id || submissionId.slice(0, 8);
         const { error: notifError } = await supabase.from('notifications').insert({
           user_id: submission.submitted_by,
           type: 'lifecycle_stage_change',
           title: 'Record Stage Updated',
-          message: `Record ${recordRef} has moved from "${fromStage || 'Initial'}" to "${toStage}" for field "${field.label}".`,
+          message: `Your submission has moved from "${fromStage || 'Initial'}" to "${toStage}" for field "${field.label}".`,
           data: { 
             submissionId, 
-            submissionRefId: submission.submission_ref_id,
             fieldId: field.id, 
             fieldLabel: field.label,
             fromStage, 
@@ -243,18 +247,14 @@ export function LifecycleStatusBar({
   };
 
   const handleStageChange = async (newStage: string, comment: string) => {
-    console.log('handleStageChange called:', { newStage, comment, submissionId, hasOnChange: !!onChange });
     if (onChange) {
       const previousStage = value;
       onChange(newStage);
       if (submissionId) {
-        console.log('Adding history entry with comment:', comment);
         await addHistoryEntry(previousStage, newStage, comment || undefined);
         await refetchHistory();
         await sendStageChangeNotification(previousStage, newStage);
         toast({ title: "Stage Updated", description: `Changed to "${newStage}"` });
-      } else {
-        console.log('No submissionId, skipping history entry');
       }
     }
   };
@@ -275,8 +275,8 @@ export function LifecycleStatusBar({
   return (
     <TooltipProvider>
       <div className="flex items-center gap-2">
-        {/* Connected Progress Bar - White background */}
-        <div className="flex items-center bg-white dark:bg-slate-100 rounded-lg p-1 shadow-sm border border-border">
+        {/* Connected Progress Bar */}
+        <div className="flex items-center bg-muted/30 rounded-lg p-1">
           {options.map((option: any, index: number) => {
             const optionValue = getOptionValue(option);
             const optionLabel = getOptionLabel(option);
@@ -296,10 +296,10 @@ export function LifecycleStatusBar({
                       disabled={disabled || !isEditing || isSelected}
                       className={`text-xs px-3 py-1 flex items-center gap-1.5 transition-all ${
                         isSelected 
-                          ? `${color.bg} ${color.hover} text-white ${color.border} font-semibold shadow-md` 
+                          ? `${color.bg} ${color.hover} text-white ${color.border} font-semibold` 
                           : isPast 
-                            ? `${color.bg} text-white opacity-90` 
-                            : `bg-slate-200 text-slate-700 hover:bg-slate-300`
+                            ? `${color.text} bg-muted/50` 
+                            : 'bg-muted/50 text-muted-foreground hover:bg-muted'
                       } ${!canTransition && isEditing && !isSelected ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {getStageIcon(optionValue, index, currentIndex)}
@@ -314,7 +314,7 @@ export function LifecycleStatusBar({
                   </TooltipContent>
                 </Tooltip>
                 {index < options.length - 1 && (
-                  <ChevronRight className={`h-4 w-4 mx-0.5 ${index <= currentIndex ? color.text : 'text-slate-400'}`} />
+                  <ChevronRight className={`h-4 w-4 mx-0.5 ${index < currentIndex ? color.text : 'text-muted-foreground/50'}`} />
                 )}
               </React.Fragment>
             );
@@ -325,7 +325,7 @@ export function LifecycleStatusBar({
         {timeInStage && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Badge variant="outline" className={`text-xs flex items-center gap-1 ${slaExceeded ? 'border-red-500 text-red-600 bg-red-50 dark:bg-red-950' : 'bg-white text-slate-700 border-slate-300'}`}>
+              <Badge variant="outline" className={`text-xs flex items-center gap-1 ${slaExceeded ? 'border-red-500 text-red-600 bg-red-50 dark:bg-red-950' : ''}`}>
                 <Clock className="h-3 w-3" />
                 {timeInStage}
                 {slaExceeded && <AlertTriangle className="h-3 w-3 ml-1" />}
@@ -347,22 +347,57 @@ export function LifecycleStatusBar({
           </Badge>
         )}
 
-        {/* Latest Comment Icon with Tooltip */}
-        {lastChange?.comment && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" size="sm" className="h-7 w-7 p-0 bg-white border-slate-300 hover:bg-slate-100">
-                <MessageCircle className="h-4 w-4 text-primary" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-xs">
-              <div className="space-y-1">
-                <p className="font-medium text-xs">Latest Comment</p>
-                <p className="text-xs italic">"{lastChange.comment}"</p>
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        )}
+        {/* History popover */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 relative">
+              <History className="h-4 w-4" />
+              {history.length > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] text-primary-foreground flex items-center justify-center">
+                  {history.length}
+                </span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80">
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm flex items-center gap-2">
+                <History className="h-4 w-4" />
+                Stage History
+              </h4>
+              {historyLoading ? (
+                <p className="text-xs text-muted-foreground py-4 text-center">Loading...</p>
+              ) : history.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-4 text-center">No stage changes recorded yet</p>
+              ) : (
+                <ScrollArea className="h-48">
+                  <div className="space-y-3">
+                    {history.map((entry) => (
+                      <div key={entry.id} className="text-xs border-l-2 border-primary/30 pl-3 py-1 relative">
+                        <div className="absolute -left-[5px] top-2 h-2 w-2 rounded-full bg-primary" />
+                        <div className="flex items-center gap-2 font-medium">
+                          <span className="text-muted-foreground">{entry.from_stage || 'Initial'}</span>
+                          <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-foreground">{entry.to_stage}</span>
+                        </div>
+                        <div className="text-muted-foreground mt-1 flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {new Date(entry.changed_at).toLocaleString()}
+                        </div>
+                        {entry.comment && (
+                          <div className="mt-1 text-muted-foreground bg-muted/50 rounded px-2 py-1 italic">"{entry.comment}"</div>
+                        )}
+                        {entry.duration_in_previous_stage && (
+                          <div className="text-muted-foreground mt-1"><span className="font-medium">Duration:</span> {entry.duration_in_previous_stage}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
 
         <StageChangeDialog
           open={dialogOpen}

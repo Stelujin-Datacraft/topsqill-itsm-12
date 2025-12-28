@@ -137,21 +137,10 @@ export function useLifecycleHistory(submissionId: string, fieldId: string) {
 
       if (error) {
         console.error('Error adding lifecycle history entry:', error);
-        console.error('Error details:', JSON.stringify(error, null, 2));
         return;
       }
 
       console.log('Successfully added lifecycle history entry:', data);
-      
-      // Update local state immediately
-      if (data) {
-        const typedData = {
-          ...data,
-          duration_in_previous_stage: data.duration_in_previous_stage as string | null
-        } as LifecycleHistoryEntry;
-        setHistory(prev => [typedData, ...prev]);
-        setLastChange(typedData);
-      }
     } catch (err) {
       console.error('Error in addHistoryEntry:', err);
     }
