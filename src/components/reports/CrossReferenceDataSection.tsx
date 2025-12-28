@@ -187,11 +187,13 @@ export function CrossReferenceDataSection({
     });
   };
 
-  // Get text/display fields from the source form for labeling
+  // Get all fields from the source form for labeling (exclude cross-reference and file types)
   const sourceLabelFields = useMemo(() => {
     return formFields.filter(f => {
       const type = getFieldType(f);
-      return ['text', 'select', 'dropdown', 'email', 'url'].includes(type);
+      // Exclude only cross-reference and file upload types that don't make sense as labels
+      const excludeTypes = ['cross-reference', 'child-cross-reference', 'file', 'image', 'signature'];
+      return !excludeTypes.includes(type);
     });
   }, [formFields]);
 
