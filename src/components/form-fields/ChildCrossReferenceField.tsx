@@ -117,32 +117,8 @@ export function ChildCrossReferenceField({
   // Show configuration prompt only if no auto-configuration exists
   if (!hasAutoConfig) {
     return <div className="w-full space-y-2">
-        {/* Parent Form Indicator */}
-        <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-md border-l-4 border-blue-400">
-          <ArrowUp className="h-4 w-4 text-blue-600" />
-          <div className="flex-1">
-            <div className="text-sm font-medium text-blue-800">
-              Child Reference from: {parentForm?.name || 'Unknown Parent Form'}
-            </div>
-            <div className="text-xs text-blue-600">
-              This field is automatically managed and references the parent form
-            </div>
-          </div>
-          <Badge variant="secondary" className="text-xs">
-            Auto-generated
-          </Badge>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <label className="block text-sm font-medium">
-            {field.label}
-            {field.required && <span className="text-red-500 ml-1">*</span>}
-          </label>
-        </div>
-        
         <div className="w-full p-4 border-2 border-dashed border-muted-foreground/30 rounded-lg text-center">
           <Link className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-          <p className="text-muted-foreground mb-2">Child Cross Reference: {field.label}</p>
           <p className="text-sm text-muted-foreground">
             {isPreview ? 'Shows related data from parent form' : 'Waiting for configuration to be auto-generated...'}
           </p>
@@ -156,24 +132,8 @@ export function ChildCrossReferenceField({
 
   // Show the optimized data table with auto-generated configuration
   return <div className="w-full space-y-2">
-      {/* Parent Form Indicator */}
-      <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-md border-l-4 border-blue-400">
-        <ArrowUp className="h-4 w-4 text-blue-600" />
-        <div className="flex-1">
-          <div className="text-sm font-medium text-blue-800">
-            Child Reference from: {parentForm?.name || 'Unknown Parent Form'}
-          </div>
-          <div className="text-xs text-blue-600">
-            This field is automatically managed and references the parent form
-          </div>
-        </div>
-        <Badge variant="secondary" className="text-xs">
-          Auto-generated
-        </Badge>
-      </div>
-
-      <div className="flex items-center justify-end">
-        {canCreateRecord && (
+      {canCreateRecord && (
+        <div className="flex justify-end">
           <Button
             type="button"
             variant="outline"
@@ -184,8 +144,8 @@ export function ChildCrossReferenceField({
             <Plus className="h-4 w-4 mr-2" />
             Create Record
           </Button>
-        )}
-      </div>
+        </div>
+      )}
       
       <OptimizedFormDataTable config={tableConfig} fieldType="child-cross-reference" value={value} onChange={handleSelectionChange} autoSelectedRecords={autoSelectedRecords} isAutoSelectionLoading={autoSelectionLoading} key={refreshTrigger} />
       
