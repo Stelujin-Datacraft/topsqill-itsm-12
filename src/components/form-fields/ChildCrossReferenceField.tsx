@@ -132,22 +132,7 @@ export function ChildCrossReferenceField({
 
   // Show the optimized data table with auto-generated configuration
   return <div className="w-full space-y-2">
-      {canCreateRecord && (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleCreateRecord}
-            disabled={disabled}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Create Record
-          </Button>
-        </div>
-      )}
-      
-      <OptimizedFormDataTable config={tableConfig} fieldType="child-cross-reference" value={value} onChange={handleSelectionChange} autoSelectedRecords={autoSelectedRecords} isAutoSelectionLoading={autoSelectionLoading} key={refreshTrigger} />
+      <OptimizedFormDataTable config={tableConfig} fieldType="child-cross-reference" value={value} onChange={handleSelectionChange} autoSelectedRecords={autoSelectedRecords} isAutoSelectionLoading={autoSelectionLoading} key={refreshTrigger} canCreateRecord={canCreateRecord} onCreateRecord={handleCreateRecord} createRecordDisabled={disabled} />
       
       {error && <p className="text-sm text-red-500">{error}</p>}
 
