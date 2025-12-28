@@ -32,6 +32,7 @@ interface TableCellSubmissionsDialogProps {
   crossRefParentId?: string;
   crossRefTargetFormId?: string;
   crossRefLinkFieldId?: string;
+  crossRefLinkedIds?: string[]; // Direct list of linked submission IDs
 }
 
 interface SubmissionRecord {
@@ -57,6 +58,7 @@ export function TableCellSubmissionsDialog({
   crossRefParentId,
   crossRefTargetFormId,
   crossRefLinkFieldId,
+  crossRefLinkedIds = [],
 }: TableCellSubmissionsDialogProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -82,7 +84,7 @@ export function TableCellSubmissionsDialog({
       setSortField('_submission_ref');
       setSortDirection('desc');
     }
-  }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId, crossRefMode, crossRefParentId, crossRefTargetFormId, crossRefLinkFieldId]);
+  }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId, crossRefMode, crossRefParentId, crossRefTargetFormId, crossRefLinkFieldId, crossRefLinkedIds]);
 
   const loadFieldTypes = async () => {
     try {
@@ -141,57 +143,38 @@ export function TableCellSubmissionsDialog({
         return;
       }
 
-      // CROSS-REFERENCE MODE: Fetch linked records from target form
-      if (crossRefMode && crossRefParentId && crossRefTargetFormId && crossRefLinkFieldId) {
+      // CROSS-REFERENCE MODE: Use direct linkedIds if available, otherwise fallback
+      if (crossRefMode && crossRefTargetFormId) {
         console.log('📊 Cross-ref dialog - Fetching linked records:', {
           parentId: crossRefParentId,
           targetFormId: crossRefTargetFormId,
-          linkFieldId: crossRefLinkFieldId
+          linkedIds: crossRefLinkedIds,
+          hasDirectIds: crossRefLinkedIds.length > 0
         });
 
-        // Fetch all submissions from the target form
-        const { data, error } = await supabase
-          .from('form_submissions')
-          .select('id, submission_ref_id, submission_data')
-          .eq('form_id', crossRefTargetFormId)
-          .order('submitted_at', { ascending: false });
+        // If we have direct IDs, fetch those specific submissions
+        if (crossRefLinkedIds.length > 0) {
+          const { data, error } = await supabase
+            .from('form_submissions')
+            .select('id, submission_ref_id, submission_data')
+            .in('id', crossRefLinkedIds)
+            .order('submitted_at', { ascending: false });
 
-        if (error) throw error;
+          if (error) throw error;
 
-        // Filter to only submissions that link to the clicked parent record
-        const linkedSubmissions = (data || []).filter(sub => {
-          const linkValue = (sub.submission_data as Record<string, any>)?.[crossRefLinkFieldId];
-          
-          // Handle different link value formats
-          if (!linkValue) return false;
-          
-          // Direct ID match
-          if (linkValue === crossRefParentId) return true;
-          
-          // Object with id property
-          if (typeof linkValue === 'object') {
-            if (linkValue.id === crossRefParentId) return true;
-            if (linkValue.value === crossRefParentId) return true;
-            if (linkValue.submission_id === crossRefParentId) return true;
-          }
-          
-          // Array of values (multi-select cross-reference)
-          if (Array.isArray(linkValue)) {
-            return linkValue.some(v => 
-              v === crossRefParentId || 
-              v?.id === crossRefParentId || 
-              v?.value === crossRefParentId
-            );
-          }
-          
-          return false;
-        }).map(d => ({
-          ...d,
-          submission_data: (d.submission_data as Record<string, any>) || {}
-        }));
+          const linkedSubmissions = (data || []).map(d => ({
+            ...d,
+            submission_data: (d.submission_data as Record<string, any>) || {}
+          }));
 
-        console.log('📊 Cross-ref dialog - Found linked records:', linkedSubmissions.length);
-        setSubmissions(linkedSubmissions);
+          console.log('📊 Cross-ref dialog - Found linked records (direct IDs):', linkedSubmissions.length);
+          setSubmissions(linkedSubmissions);
+          return;
+        }
+
+        // Fallback: No linked records for this item
+        console.log('📊 Cross-ref dialog - No linked IDs provided, showing empty');
+        setSubmissions([]);
         return;
       }
 
