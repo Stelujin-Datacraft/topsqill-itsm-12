@@ -243,14 +243,18 @@ export function LifecycleStatusBar({
   };
 
   const handleStageChange = async (newStage: string, comment: string) => {
+    console.log('handleStageChange called:', { newStage, comment, submissionId, hasOnChange: !!onChange });
     if (onChange) {
       const previousStage = value;
       onChange(newStage);
       if (submissionId) {
+        console.log('Adding history entry with comment:', comment);
         await addHistoryEntry(previousStage, newStage, comment || undefined);
         await refetchHistory();
         await sendStageChangeNotification(previousStage, newStage);
         toast({ title: "Stage Updated", description: `Changed to "${newStage}"` });
+      } else {
+        console.log('No submissionId, skipping history entry');
       }
     }
   };
