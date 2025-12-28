@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/types/form';
-import { Check, Clock, Circle, ChevronRight, History } from 'lucide-react';
+import { Check, Clock, Circle, ChevronRight, History, AlertTriangle } from 'lucide-react';
 import { StageChangeDialog } from './StageChangeDialog';
 import { useLifecycleHistory } from '@/hooks/useLifecycleHistory';
+import { useSLANotification } from '@/hooks/useSLANotification';
 import {
   Tooltip,
   TooltipContent,
@@ -17,6 +18,7 @@ import {
 } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LifecycleStatusBarProps {
   field: FormField;
@@ -37,11 +39,14 @@ export function LifecycleStatusBar({
 }: LifecycleStatusBarProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pendingStage, setPendingStage] = useState<string | null>(null);
+  const { user } = useAuth();
   
   const { 
     history, 
+    loading: historyLoading,
     addHistoryEntry, 
-    getTimeInCurrentStage 
+    getTimeInCurrentStage,
+    refetch: refetchHistory
   } = useLifecycleHistory(submissionId || '', field.id);
 
   // Parse options from the field
@@ -51,9 +56,20 @@ export function LifecycleStatusBar({
       ? (() => { try { return JSON.parse(field.options); } catch { return []; } })()
       : [];
 
-  const customConfig = (field.customConfig as any) || {};
+  const customConfig = ((field.customConfig as any) || {}) as Record<string, any>;
   const transitionRules = customConfig.transitionRules || {};
   const requireCommentOnChange = customConfig.requireCommentOnChange || false;
+  const slaWarningHours = customConfig.slaWarningHours || null;
+
+  // SLA Notification hook
+  useSLANotification({
+    submissionId: submissionId || '',
+    fieldId: field.id,
+    fieldLabel: field.label,
+    currentStage: value,
+    slaWarningHours,
+    lastChangedAt: history[0]?.changed_at || null
+  });
 
   const getOptionLabel = (option: any): string => {
     if (typeof option === 'string') return option;
@@ -71,12 +87,55 @@ export function LifecycleStatusBar({
     return String(option);
   };
 
+  // Create initial history entry if value exists but no history
+  useEffect(() => {
+    const createInitialHistory = async () => {
+      if (submissionId && value && !historyLoading && history.length === 0 && user) {
+        console.log('Creating initial lifecycle history entry for:', value);
+        await addHistoryEntry(null, value, 'Initial stage');
+      }
+    };
+    createInitialHistory();
+  }, [submissionId, value, historyLoading, history.length, user]);
+
   // Check if transition is allowed
   const isTransitionAllowed = (fromStage: string, toStage: string): boolean => {
     if (!transitionRules || Object.keys(transitionRules).length === 0) return true;
     const allowedTransitions = transitionRules[fromStage];
     if (!allowedTransitions) return true;
     return allowedTransitions.includes(toStage);
+  };
+
+  // Check if SLA is exceeded
+  const isSLAExceeded = (): boolean => {
+    if (!slaWarningHours || !history.length) return false;
+    const lastChange = history[0];
+    if (!lastChange) return false;
+    
+    const lastChangeDate = new Date(lastChange.changed_at);
+    const now = new Date();
+    const diffHours = (now.getTime() - lastChangeDate.getTime()) / (1000 * 60 * 60);
+    return diffHours >= slaWarningHours;
+  };
+
+  // Get time remaining before SLA warning
+  const getTimeToSLAWarning = (): string | null => {
+    if (!slaWarningHours || !history.length) return null;
+    const lastChange = history[0];
+    if (!lastChange) return null;
+    
+    const lastChangeDate = new Date(lastChange.changed_at);
+    const warningDate = new Date(lastChangeDate.getTime() + (slaWarningHours * 60 * 60 * 1000));
+    const now = new Date();
+    
+    if (now >= warningDate) return 'Exceeded';
+    
+    const diffMs = warningDate.getTime() - now.getTime();
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) return `${hours}h ${minutes}m left`;
+    return `${minutes}m left`;
   };
 
   // Get color based on option label (semantic colors for common statuses)
@@ -158,6 +217,8 @@ export function LifecycleStatusBar({
 
   const currentIndex = options.findIndex((o: any) => getOptionValue(o) === value);
   const timeInStage = getTimeInCurrentStage();
+  const slaExceeded = isSLAExceeded();
+  const slaTimeRemaining = getTimeToSLAWarning();
   const pendingStageLabel = pendingStage 
     ? getOptionLabel(options.find((o: any) => getOptionValue(o) === pendingStage) || pendingStage)
     : '';
@@ -218,64 +279,115 @@ export function LifecycleStatusBar({
           })}
         </div>
 
-        {/* Time in current stage */}
+        {/* Time in current stage with clock icon */}
         {timeInStage && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Badge variant="outline" className="text-xs flex items-center gap-1">
+              <Badge 
+                variant="outline" 
+                className={`text-xs flex items-center gap-1 ${
+                  slaExceeded ? 'border-red-500 text-red-600 bg-red-50 dark:bg-red-950' : ''
+                }`}
+              >
                 <Clock className="h-3 w-3" />
                 {timeInStage}
+                {slaExceeded && <AlertTriangle className="h-3 w-3 ml-1" />}
               </Badge>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Time in current stage</p>
+              <div className="space-y-1">
+                <p>Time in current stage: {timeInStage}</p>
+                {slaWarningHours && (
+                  <p className={slaExceeded ? 'text-red-400' : 'text-amber-400'}>
+                    SLA: {slaTimeRemaining}
+                  </p>
+                )}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* SLA Warning Badge */}
+        {slaExceeded && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant="destructive" className="text-xs flex items-center gap-1 animate-pulse">
+                <AlertTriangle className="h-3 w-3" />
+                SLA Exceeded
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Record has been in this stage for over {slaWarningHours} hours</p>
             </TooltipContent>
           </Tooltip>
         )}
 
         {/* History popover */}
-        {history.length > 0 && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 relative">
+              <History className="h-4 w-4" />
+              {history.length > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] text-primary-foreground flex items-center justify-center">
+                  {history.length}
+                </span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80">
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm flex items-center gap-2">
                 <History className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80">
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm">Stage History</h4>
+                Stage History
+              </h4>
+              {history.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-4 text-center">
+                  No stage changes recorded yet
+                </p>
+              ) : (
                 <ScrollArea className="h-48">
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {history.map((entry, idx) => (
-                      <div key={entry.id} className="text-xs border-l-2 border-muted pl-3 py-1">
-                        <div className="flex items-center gap-2">
+                      <div key={entry.id} className="text-xs border-l-2 border-primary/30 pl-3 py-1 relative">
+                        {/* Timeline dot */}
+                        <div className="absolute -left-[5px] top-2 h-2 w-2 rounded-full bg-primary" />
+                        
+                        {/* Stage transition */}
+                        <div className="flex items-center gap-2 font-medium">
                           <span className="text-muted-foreground">
                             {entry.from_stage || 'Initial'}
                           </span>
-                          <ChevronRight className="h-3 w-3" />
-                          <span className="font-medium">{entry.to_stage}</span>
+                          <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-foreground">{entry.to_stage}</span>
                         </div>
-                        <div className="text-muted-foreground mt-1">
+                        
+                        {/* Timestamp */}
+                        <div className="text-muted-foreground mt-1 flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
                           {new Date(entry.changed_at).toLocaleString()}
                         </div>
+                        
+                        {/* Comment */}
                         {entry.comment && (
-                          <div className="mt-1 text-muted-foreground italic">
+                          <div className="mt-1 text-muted-foreground bg-muted/50 rounded px-2 py-1 italic">
                             "{entry.comment}"
                           </div>
                         )}
+                        
+                        {/* Duration in previous stage */}
                         {entry.duration_in_previous_stage && (
-                          <div className="text-muted-foreground">
-                            Duration: {entry.duration_in_previous_stage}
+                          <div className="text-muted-foreground mt-1 flex items-center gap-1">
+                            <span className="font-medium">Duration:</span> {entry.duration_in_previous_stage}
                           </div>
                         )}
                       </div>
                     ))}
                   </div>
                 </ScrollArea>
-              </div>
-            </PopoverContent>
-          </Popover>
-        )}
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
 
         {/* Stage Change Dialog */}
         <StageChangeDialog
