@@ -114,6 +114,18 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
         }
       };
 
+      // Parse pages first to determine field-to-page mapping
+      const parsedPages = safeParseJson(formData.pages, [{ id: 'default', name: 'Page 1', order: 0, fields: [] }]);
+      
+      // Build a map of fieldId -> pageId
+      const fieldToPageMap = new Map<string, string>();
+      parsedPages.forEach((page: any) => {
+        const pageFields = page.fields || [];
+        pageFields.forEach((fieldId: string) => {
+          fieldToPageMap.set(fieldId, page.id);
+        });
+      });
+
       // Transform form data to match Form type
       const transformedForm: Form = {
         id: formData.id,
@@ -140,7 +152,8 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
           currentValue: field.current_value || undefined,
           tooltip: field.tooltip || undefined,
           errorMessage: field.error_message || undefined,
-          pageId: 'default',
+          // Assign correct pageId based on which page contains this field
+          pageId: fieldToPageMap.get(field.id) || parsedPages[0]?.id || 'default',
           customConfig: field.custom_config ? safeParseJson(field.custom_config, {}) : undefined,
         })),
         permissions: safeParseJson(formData.permissions, { view: [], submit: [], edit: [] }),
@@ -152,7 +165,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
         fieldRules: safeParseJson(formData.field_rules, []),
         formRules: safeParseJson(formData.form_rules, []),
         layout: safeParseJson(formData.layout, { columns: 1 }),
-        pages: safeParseJson(formData.pages, [{ id: 'default', name: 'Page 1', order: 0, fields: [] }]),
+        pages: parsedPages,
       };
 
       setForm(transformedForm);
