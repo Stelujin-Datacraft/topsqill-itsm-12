@@ -122,7 +122,7 @@ export function LifecycleStatusBar({
     try {
       const { data: submission, error: subError } = await supabase
         .from('form_submissions')
-        .select('submitted_by, form_id')
+        .select('submitted_by, form_id, submission_ref_id')
         .eq('id', submissionId)
         .single();
       
@@ -132,13 +132,15 @@ export function LifecycleStatusBar({
       }
 
       if (submission.submitted_by) {
+        const recordRef = submission.submission_ref_id || submissionId.slice(0, 8);
         const { error: notifError } = await supabase.from('notifications').insert({
           user_id: submission.submitted_by,
           type: 'lifecycle_stage_change',
           title: 'Record Stage Updated',
-          message: `Your submission has moved from "${fromStage || 'Initial'}" to "${toStage}" for field "${field.label}".`,
+          message: `Record ${recordRef} has moved from "${fromStage || 'Initial'}" to "${toStage}" for field "${field.label}".`,
           data: { 
             submissionId, 
+            submissionRefId: submission.submission_ref_id,
             fieldId: field.id, 
             fieldLabel: field.label,
             fromStage, 
@@ -268,87 +270,85 @@ export function LifecycleStatusBar({
 
   return (
     <TooltipProvider>
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          {/* Connected Progress Bar - Always dark/solid visual */}
-          <div className="flex items-center bg-muted rounded-lg p-1">
-            {options.map((option: any, index: number) => {
-              const optionValue = getOptionValue(option);
-              const optionLabel = getOptionLabel(option);
-              const isSelected = value === optionValue;
-              const isPast = index < currentIndex;
-              const color = getColorForOption(optionLabel, index);
-              const canTransition = isTransitionAllowed(value, optionValue);
-              
-              return (
-                <React.Fragment key={optionValue}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={isSelected ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => handleOptionClick(optionValue)}
-                        disabled={disabled || !isEditing || isSelected}
-                        className={`text-xs px-3 py-1 flex items-center gap-1.5 transition-all ${
-                          isSelected 
-                            ? `${color.bg} ${color.hover} text-white ${color.border} font-semibold shadow-md` 
-                            : isPast 
-                              ? `${color.bg} text-white opacity-80` 
-                              : `bg-slate-700 text-slate-200 hover:bg-slate-600`
-                        } ${!canTransition && isEditing && !isSelected ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        {getStageIcon(optionValue, index, currentIndex)}
-                        {optionLabel}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{optionLabel}</p>
-                      {!canTransition && isEditing && !isSelected && (
-                        <p className="text-xs text-red-400">Transition not allowed</p>
-                      )}
-                    </TooltipContent>
-                  </Tooltip>
-                  {index < options.length - 1 && (
-                    <ChevronRight className={`h-4 w-4 mx-0.5 ${index <= currentIndex ? 'text-white' : 'text-slate-400'}`} />
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </div>
-
-          {/* Time in current stage */}
-          {timeInStage && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Badge variant="outline" className={`text-xs flex items-center gap-1 ${slaExceeded ? 'border-red-500 text-red-600 bg-red-50 dark:bg-red-950' : 'bg-slate-800 text-slate-200 border-slate-600'}`}>
-                  <Clock className="h-3 w-3" />
-                  {timeInStage}
-                  {slaExceeded && <AlertTriangle className="h-3 w-3 ml-1" />}
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>
-                <div className="space-y-1">
-                  <p>Time in current stage: {timeInStage}</p>
-                  {slaWarningHours && <p className={slaExceeded ? 'text-red-400' : 'text-amber-400'}>SLA: {slaTimeRemaining}</p>}
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          )}
-
-          {slaExceeded && (
-            <Badge variant="destructive" className="text-xs flex items-center gap-1 animate-pulse">
-              <AlertTriangle className="h-3 w-3" />
-              SLA Exceeded
-            </Badge>
-          )}
+      <div className="flex items-center gap-2">
+        {/* Connected Progress Bar - White background */}
+        <div className="flex items-center bg-white dark:bg-slate-100 rounded-lg p-1 shadow-sm border border-border">
+          {options.map((option: any, index: number) => {
+            const optionValue = getOptionValue(option);
+            const optionLabel = getOptionLabel(option);
+            const isSelected = value === optionValue;
+            const isPast = index < currentIndex;
+            const color = getColorForOption(optionLabel, index);
+            const canTransition = isTransitionAllowed(value, optionValue);
+            
+            return (
+              <React.Fragment key={optionValue}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={isSelected ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => handleOptionClick(optionValue)}
+                      disabled={disabled || !isEditing || isSelected}
+                      className={`text-xs px-3 py-1 flex items-center gap-1.5 transition-all ${
+                        isSelected 
+                          ? `${color.bg} ${color.hover} text-white ${color.border} font-semibold shadow-md` 
+                          : isPast 
+                            ? `${color.bg} text-white opacity-90` 
+                            : `bg-slate-200 text-slate-700 hover:bg-slate-300`
+                      } ${!canTransition && isEditing && !isSelected ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {getStageIcon(optionValue, index, currentIndex)}
+                      {optionLabel}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{optionLabel}</p>
+                    {!canTransition && isEditing && !isSelected && (
+                      <p className="text-xs text-red-400">Transition not allowed</p>
+                    )}
+                  </TooltipContent>
+                </Tooltip>
+                {index < options.length - 1 && (
+                  <ChevronRight className={`h-4 w-4 mx-0.5 ${index <= currentIndex ? color.text : 'text-slate-400'}`} />
+                )}
+              </React.Fragment>
+            );
+          })}
         </div>
+
+        {/* Time in current stage */}
+        {timeInStage && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant="outline" className={`text-xs flex items-center gap-1 ${slaExceeded ? 'border-red-500 text-red-600 bg-red-50 dark:bg-red-950' : 'bg-white text-slate-700 border-slate-300'}`}>
+                <Clock className="h-3 w-3" />
+                {timeInStage}
+                {slaExceeded && <AlertTriangle className="h-3 w-3 ml-1" />}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <div className="space-y-1">
+                <p>Time in current stage: {timeInStage}</p>
+                {slaWarningHours && <p className={slaExceeded ? 'text-red-400' : 'text-amber-400'}>SLA: {slaTimeRemaining}</p>}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        )}
+
+        {slaExceeded && (
+          <Badge variant="destructive" className="text-xs flex items-center gap-1 animate-pulse">
+            <AlertTriangle className="h-3 w-3" />
+            SLA Exceeded
+          </Badge>
+        )}
 
         {/* Latest Comment Icon with Tooltip */}
         {lastChange?.comment && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 bg-slate-700 hover:bg-slate-600">
-                <MessageCircle className="h-4 w-4 text-slate-200" />
+              <Button variant="outline" size="sm" className="h-7 w-7 p-0 bg-white border-slate-300 hover:bg-slate-100">
+                <MessageCircle className="h-4 w-4 text-primary" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-xs">
