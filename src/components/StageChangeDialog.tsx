@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { AlertCircle, ArrowRight } from 'lucide-react';
+import { AlertCircle, ArrowRight, X } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface StageChangeDialogProps {
@@ -102,8 +102,8 @@ export function StageChangeDialog({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>
-            Cancel
+          <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleClose}>
+            <X className="h-4 w-4" />
           </Button>
           {!transitionBlocked && (
             <Button onClick={handleConfirm}>
