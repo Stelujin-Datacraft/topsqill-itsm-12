@@ -16,7 +16,6 @@ import {
   DIMENSION_FIELD_TYPES, 
   METRIC_FIELD_TYPES 
 } from '@/utils/chartConfig';
-import { CrossReferenceDataSection } from './CrossReferenceDataSection';
 
 interface ChartDataSectionProps {
   config: ChartConfig;
@@ -250,28 +249,15 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
     return false;
   };
 
-  // Check if cross-reference mode is enabled
-  const isCrossRefEnabled = config.crossRefConfig?.enabled;
-
   return (
     <div className="space-y-6">
-      {/* Cross-Reference Data Section - shown when form has cross-reference fields */}
-      <CrossReferenceDataSection
-        config={config}
-        formFields={formFields}
-        onConfigChange={onConfigChange}
-      />
-
-      {/* Only show default data options when cross-reference mode is NOT enabled */}
-      {!isCrossRefEnabled && (
-        <>
-          {/* Introduction */}
-          <Alert className="bg-primary/5 border-primary/20">
-            <Info className="h-4 w-4 text-primary" />
-            <AlertDescription className="text-sm">
-              Configure your chart data in 3 simple steps: choose what to show, select your values, and pick how to group them.
-            </AlertDescription>
-          </Alert>
+      {/* Introduction */}
+      <Alert className="bg-primary/5 border-primary/20">
+        <Info className="h-4 w-4 text-primary" />
+        <AlertDescription className="text-sm">
+          Configure your chart data in 3 simple steps: choose what to show, select your values, and pick how to group them.
+        </AlertDescription>
+      </Alert>
 
       {/* STEP 1: Choose Chart Purpose */}
       <Card>
@@ -864,8 +850,6 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
           </div>
         </CardContent>
       </Card>
-        </>
-      )}
     </div>
   );
 }
