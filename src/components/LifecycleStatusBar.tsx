@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/types/form';
-import { Check, Clock, Circle, ChevronRight, AlertTriangle, MessageCircle, History } from 'lucide-react';
+import { Check, Clock, Circle, ChevronRight, AlertTriangle, MessageCircle } from 'lucide-react';
 import { StageChangeDialog } from './StageChangeDialog';
-import { LifecycleHistoryDialog } from './LifecycleHistoryDialog';
 import { useLifecycleHistory } from '@/hooks/useLifecycleHistory';
 import { useSLANotification } from '@/hooks/useSLANotification';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,7 +34,6 @@ export function LifecycleStatusBar({
   submissionId
 }: LifecycleStatusBarProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [pendingStage, setPendingStage] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const { user } = useAuth();
@@ -369,29 +367,10 @@ export function LifecycleStatusBar({
               <div className="space-y-1">
                 <p className="font-medium text-xs">Latest Comment</p>
                 <p className="text-xs italic">"{lastChange.comment}"</p>
-                {lastChange.changed_by_name && (
-                  <p className="text-xs text-muted-foreground">by {lastChange.changed_by_name}</p>
-                )}
               </div>
             </TooltipContent>
           </Tooltip>
         )}
-
-        {/* View History Button */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="h-7 px-2 bg-white border-slate-300 hover:bg-slate-100"
-              onClick={() => setHistoryDialogOpen(true)}
-            >
-              <History className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs ml-1 hidden sm:inline">History</span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>View stage history</TooltipContent>
-        </Tooltip>
 
         <StageChangeDialog
           open={dialogOpen}
@@ -402,14 +381,6 @@ export function LifecycleStatusBar({
           requireComment={requireCommentOnChange}
           transitionBlocked={pendingStage ? !isTransitionAllowed(value, pendingStage) : false}
           blockReason={`Transition from "${currentStageLabel}" to "${pendingStageLabel}" is not allowed.`}
-        />
-
-        <LifecycleHistoryDialog
-          open={historyDialogOpen}
-          onClose={() => setHistoryDialogOpen(false)}
-          history={history}
-          loading={historyLoading}
-          fieldLabel={field.label}
         />
       </div>
     </TooltipProvider>
