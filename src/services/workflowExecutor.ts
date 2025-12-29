@@ -284,6 +284,18 @@ export class WorkflowExecutor {
   }
 
   private static async markExecutionCompleted(executionId: string) {
+    // Check if execution is in 'waiting' status - don't mark as completed if so
+    const { data: currentExecution } = await supabase
+      .from('workflow_executions')
+      .select('status')
+      .eq('id', executionId)
+      .single();
+
+    if (currentExecution?.status === 'waiting') {
+      console.log('⏸️ Execution is in waiting state, not marking as completed');
+      return;
+    }
+
     await supabase
       .from('workflow_executions')
       .update({
