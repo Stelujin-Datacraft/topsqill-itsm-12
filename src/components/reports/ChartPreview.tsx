@@ -966,7 +966,7 @@ export function ChartPreview({
       }
     };
     loadChartData();
-  }, [config.formId, config.dimensions, config.metrics, config.filters, config.xAxis, config.yAxis, config.aggregation, config.aggregationType, config.groupByField, config.drilldownConfig?.enabled, config.drilldownConfig?.drilldownLevels, drilldownState?.values, (config as any).data, config.joinConfig?.enabled, config.joinConfig?.secondaryFormId, config.crossRefConfig?.enabled, config.crossRefConfig?.crossRefFieldId, config.crossRefConfig?.mode, config.crossRefConfig?.targetMetricFieldId, config.crossRefConfig?.targetDimensionFieldId, getFormSubmissionData, getChartData]);
+  }, [config.formId, config.dimensions, config.metrics, config.filters, config.xAxis, config.yAxis, config.aggregation, config.aggregationType, config.groupByField, config.drilldownConfig?.enabled, config.drilldownConfig?.drilldownLevels, drilldownState?.values, (config as any).data, config.joinConfig?.enabled, config.joinConfig?.secondaryFormId, config.crossRefConfig?.enabled, config.crossRefConfig?.crossRefFieldId, config.crossRefConfig?.mode, config.crossRefConfig?.targetMetricFieldId, config.crossRefConfig?.targetDimensionFieldId, config.crossRefConfig?.drilldownEnabled, config.crossRefConfig?.drilldownLevels, getFormSubmissionData, getChartData]);
   const processSubmissionData = (submissions: any[]) => {
     if (!submissions.length) {
       console.log('No submissions to process');
@@ -1822,8 +1822,9 @@ export function ChartPreview({
     if (config.crossRefConfig?.enabled && data?.parentId) {
       const crossRefConfig = config.crossRefConfig;
       
-      // If drilldown mode is OFF, always show records directly
-      if (!isDrilldownModeActive || !crossRefConfig.drilldownEnabled) {
+      // Compare mode doesn't support drilldown - always show records directly
+      // Also show records directly if drilldown mode is OFF or not enabled
+      if (crossRefConfig.mode === 'compare' || !isDrilldownModeActive || !crossRefConfig.drilldownEnabled) {
         setCellSubmissionsDialog({
           open: true,
           dimensionField: '',
@@ -1930,8 +1931,9 @@ export function ChartPreview({
     if (config.crossRefConfig?.enabled && payload?.parentId) {
       const crossRefConfig = config.crossRefConfig;
       
-      // If drilldown mode is OFF, always show records directly
-      if (!isDrilldownModeActive || !crossRefConfig.drilldownEnabled) {
+      // Compare mode doesn't support drilldown - always show records directly
+      // Also show records directly if drilldown mode is OFF or not enabled
+      if (crossRefConfig.mode === 'compare' || !isDrilldownModeActive || !crossRefConfig.drilldownEnabled) {
         setCellSubmissionsDialog({
           open: true,
           dimensionField: '',
@@ -4084,8 +4086,8 @@ export function ChartPreview({
           )}
         </div>
         
-        {/* Drilldown Mode Toggle - shown when drilldown is enabled */}
-        {(config.drilldownConfig?.enabled || config.crossRefConfig?.drilldownEnabled) && (
+        {/* Drilldown Mode Toggle - shown when drilldown is enabled (not for Compare mode) */}
+        {(config.drilldownConfig?.enabled || (config.crossRefConfig?.drilldownEnabled && config.crossRefConfig?.mode !== 'compare')) && (
           <div className="flex items-center gap-3 mt-3 p-2 bg-muted/50 rounded-lg border">
             <div className="flex items-center gap-2">
               <Switch

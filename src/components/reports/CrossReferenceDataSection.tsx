@@ -731,8 +731,8 @@ export function CrossReferenceDataSection({
             </div>
           )}
 
-          {/* Optional: Drilldown to Linked Records - available for all modes */}
-          {isStep1Complete && (
+          {/* Optional: Drilldown to Linked Records - available for Count and Aggregate modes only (not Compare) */}
+          {isStep1Complete && crossRefConfig.mode !== 'compare' && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold bg-muted text-muted-foreground">
@@ -764,42 +764,78 @@ export function CrossReferenceDataSection({
                   />
                 </div>
                 
-                {/* Drilldown Levels - hierarchical filtering */}
+                {/* Drilldown Levels - hierarchical filtering with ordered selection */}
                 {crossRefConfig.drilldownEnabled && targetFormFields.length > 0 && (
-                  <div className="space-y-2 pt-2 border-t">
-                    <Label className="text-xs text-muted-foreground">Drilldown filter levels (click to filter by these fields)</Label>
-                    <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-                      {targetFormFields.map(field => {
-                        const isSelected = (crossRefConfig.drilldownLevels || []).includes(field.id);
-                        return (
-                          <div key={field.id} className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              id={`drill-level-${field.id}`}
-                              checked={isSelected}
-                              onChange={(e) => {
-                                const currentLevels = crossRefConfig.drilldownLevels || [];
-                                const newLevels = e.target.checked
-                                  ? [...currentLevels, field.id]
-                                  : currentLevels.filter(id => id !== field.id);
-                                onConfigChange({
-                                  crossRefConfig: {
-                                    ...crossRefConfig,
-                                    drilldownLevels: newLevels
-                                  }
-                                });
-                              }}
-                              className="rounded border-input h-4 w-4"
-                            />
-                            <label htmlFor={`drill-level-${field.id}`} className="text-xs cursor-pointer">
+                  <div className="space-y-3 pt-2 border-t">
+                    <Label className="text-xs text-muted-foreground">
+                      Drilldown hierarchy (add levels in order - first field is filtered first)
+                    </Label>
+                    
+                    {/* Current drilldown levels - ordered list */}
+                    {(crossRefConfig.drilldownLevels || []).length > 0 && (
+                      <div className="space-y-1">
+                        {(crossRefConfig.drilldownLevels || []).map((fieldId, index) => {
+                          const field = targetFormFields.find(f => f.id === fieldId);
+                          return (
+                            <div key={fieldId} className="flex items-center gap-2 p-2 bg-background rounded border">
+                              <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">
+                                {index + 1}
+                              </span>
+                              <span className="flex-1 text-sm">{field?.label || fieldId}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newLevels = (crossRefConfig.drilldownLevels || []).filter(id => id !== fieldId);
+                                  onConfigChange({
+                                    crossRefConfig: {
+                                      ...crossRefConfig,
+                                      drilldownLevels: newLevels
+                                    }
+                                  });
+                                }}
+                                className="text-muted-foreground hover:text-destructive p-1"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    
+                    {/* Add new level dropdown */}
+                    <Select
+                      value=""
+                      onValueChange={(fieldId) => {
+                        if (fieldId) {
+                          const currentLevels = crossRefConfig.drilldownLevels || [];
+                          if (!currentLevels.includes(fieldId)) {
+                            onConfigChange({
+                              crossRefConfig: {
+                                ...crossRefConfig,
+                                drilldownLevels: [...currentLevels, fieldId]
+                              }
+                            });
+                          }
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="+ Add drilldown level..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover border shadow-md z-50">
+                        {targetFormFields
+                          .filter(field => !(crossRefConfig.drilldownLevels || []).includes(field.id))
+                          .map(field => (
+                            <SelectItem key={field.id} value={field.id}>
                               {field.label}
-                            </label>
-                          </div>
-                        );
-                      })}
-                    </div>
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    
                     <p className="text-xs text-muted-foreground">
-                      Select fields to create a hierarchical drill path (click bar → filter by first field → click again → filter by next)
+                      Click bar → filter by Level 1 → click again → filter by Level 2, etc.
                     </p>
                   </div>
                 )}
