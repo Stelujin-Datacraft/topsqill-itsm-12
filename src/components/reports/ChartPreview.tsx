@@ -421,6 +421,11 @@ export function ChartPreview({
       drilldownEnabled?: boolean;
       drilldownLevels?: string[];
       drilldownDisplayFields?: string[];
+      _drilldownState?: {
+        currentLevel: number;
+        values: string[];
+        currentDimensionField?: string;
+      };
     }
   ): Promise<any[]> => {
     if (!crossRefConfig.crossRefFieldId || !crossRefConfig.targetFormId) {
@@ -437,6 +442,21 @@ export function ChartPreview({
         console.log('📊 Cross-ref: No target submissions found');
         return [];
       }
+
+      // Get drilldown state if available
+      const drilldownState = crossRefConfig._drilldownState;
+      const drilldownLevels = crossRefConfig.drilldownLevels || [];
+      const currentLevel = drilldownState?.currentLevel || 0;
+      const drilldownValues = drilldownState?.values || [];
+      const currentDimensionField = drilldownLevels[currentLevel];
+      
+      console.log('📊 Cross-ref drilldown processing:', {
+        drilldownEnabled: crossRefConfig.drilldownEnabled,
+        currentLevel,
+        currentDimensionField,
+        drilldownValues,
+        totalLevels: drilldownLevels.length
+      });
 
       // Build a lookup map: submission_ref_id -> target submissions
       const targetByRefId = new Map<string, any[]>();
@@ -887,7 +907,28 @@ export function ChartPreview({
           // Apply cross-reference data processing if configured
           if (config.crossRefConfig?.enabled && config.crossRefConfig?.crossRefFieldId) {
             console.log('📊 Processing cross-reference data');
-            const crossRefData = await processCrossReferenceData(submissions, config.crossRefConfig);
+            
+            // Get cross-ref drilldown configuration
+            const crossRefDrilldownLevels = config.crossRefConfig.drilldownLevels || [];
+            const crossRefDrilldownEnabled = config.crossRefConfig.drilldownEnabled && crossRefDrilldownLevels.length > 0;
+            const currentDrilldownLevel = drilldownState?.values?.length || 0;
+            
+            console.log('📊 Cross-ref drilldown config:', {
+              enabled: crossRefDrilldownEnabled,
+              levels: crossRefDrilldownLevels,
+              currentLevel: currentDrilldownLevel,
+              drilldownValues: drilldownState?.values
+            });
+            
+            // Pass drilldown state to processCrossReferenceData
+            const crossRefData = await processCrossReferenceData(submissions, {
+              ...config.crossRefConfig,
+              _drilldownState: crossRefDrilldownEnabled ? {
+                currentLevel: currentDrilldownLevel,
+                values: drilldownState?.values || [],
+                currentDimensionField: crossRefDrilldownLevels[currentDrilldownLevel]
+              } : undefined
+            });
             console.log('📊 Cross-reference data processed:', crossRefData?.length || 0);
             
             // Transform cross-reference data based on chart type

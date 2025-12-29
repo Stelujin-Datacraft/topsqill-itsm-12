@@ -12,6 +12,9 @@ interface DrilldownTabProps {
 export function DrilldownTab({ component, formFields, onUpdateComponent }: DrilldownTabProps) {
   const config = component.config as any;
   
+  // Check if cross-reference mode is enabled
+  const isCrossRefEnabled = config.crossRefConfig?.enabled;
+  
   const handleDrilldownEnabledChange = (enabled: boolean) => {
     onUpdateComponent(component.id, {
       config: {
@@ -37,6 +40,20 @@ export function DrilldownTab({ component, formFields, onUpdateComponent }: Drill
       }
     });
   };
+
+  // When cross-reference is enabled, show message to use cross-ref drilldown
+  if (isCrossRefEnabled) {
+    return (
+      <div className="p-4 text-center border border-dashed rounded-lg bg-muted/50">
+        <div className="text-muted-foreground mb-2">
+          Cross-Reference mode is enabled.
+        </div>
+        <div className="text-sm text-muted-foreground">
+          Please configure drilldown in the <span className="font-medium">Data → Cross-Reference</span> section instead.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <DrilldownConfig
