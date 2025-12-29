@@ -97,13 +97,15 @@ export interface ChartConfig {
     targetAggregation?: 'sum' | 'avg' | 'min' | 'max' | 'count';
     targetDimensionFieldId?: string; // For grouping by a field in the referenced form
     sourceLabelFieldId?: string; // Field from source form to use as chart label (instead of ref ID)
-    // Compare mode specific
-    compareField1Id?: string; // First field to compare
-    compareField2Id?: string; // Second field to compare
+    // Compare mode specific - X/Y axis style like normal compare mode
+    compareXFieldId?: string; // X-axis field (from target form)
+    compareYFieldId?: string; // Y-axis field (from target form) - supports text with legend
     // Group by source field
     sourceGroupByFieldId?: string; // Group chart data by a field from the source form
-    // Drilldown to linked records
+    // Drilldown configuration - like normal drilldown with levels and filters
     drilldownEnabled?: boolean; // Enable drill-down to view linked records
+    drilldownLevels?: string[]; // Field IDs from target form for hierarchical drilldown
+    drilldownDisplayFields?: string[]; // Fields to show in drilldown dialog
   };
   
   // Fields to display when clicking on chart elements
