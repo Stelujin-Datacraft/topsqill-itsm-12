@@ -268,6 +268,27 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
           }
         }
       }
+
+      if (actionType === 'update_linked_records') {
+        if (!localConfig?.crossReferenceFieldId) {
+          toast({ title: "Error", description: "Please select a cross-reference field", variant: "destructive" });
+          return false;
+        }
+        if (!localConfig?.targetFormId) {
+          toast({ title: "Error", description: "Target form is required. Please ensure the cross-reference field has a target form configured.", variant: "destructive" });
+          return false;
+        }
+        if (!localConfig?.fieldMappings || localConfig.fieldMappings.length === 0) {
+          toast({ title: "Error", description: "Please add at least one field mapping", variant: "destructive" });
+          return false;
+        }
+        const mappings = localConfig?.fieldMappings || [];
+        const hasIncompleteMappings = mappings.some((m: any) => !m.sourceFieldId || !m.targetFieldId);
+        if (hasIncompleteMappings) {
+          toast({ title: "Error", description: "Please complete all field mappings or remove incomplete ones", variant: "destructive" });
+          return false;
+        }
+      }
     }
     return true;
   }, [node.type, localConfig, toast]);
