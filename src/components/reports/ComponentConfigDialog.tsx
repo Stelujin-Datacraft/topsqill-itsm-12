@@ -706,7 +706,17 @@ export function ComponentConfigDialog({
         </TabsContent>
 
         <TabsContent value="drilldown" className="space-y-4">
-          {config.formId && formFields.length > 0 ? (
+          {/* When cross-reference is enabled, disable outer drilldown and show message */}
+          {config.crossRefConfig?.enabled ? (
+            <div className="p-4 text-center border border-dashed rounded-lg bg-muted/50">
+              <div className="text-muted-foreground mb-2">
+                Cross-Reference mode is enabled.
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Please configure drilldown in the <span className="font-medium">Data → Cross-Reference</span> section instead.
+              </div>
+            </div>
+          ) : config.formId && formFields.length > 0 ? (
             <DrilldownConfig
               formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
               enabled={config.drilldownConfig?.enabled || false}
