@@ -164,22 +164,22 @@ export function LifecycleStatusBar({
   const getColorForOption = (optionLabel: string, index: number) => {
     const label = optionLabel.toLowerCase();
     if (label.includes('complete') || label.includes('done') || label.includes('approved') || label.includes('success')) {
-      return { bg: 'bg-emerald-500', hover: 'hover:bg-emerald-600', border: 'border-emerald-400', text: 'text-emerald-500' };
+      return { bg: 'bg-green-600', hover: 'hover:bg-green-700', border: 'border-green-500', text: 'text-green-600' };
     }
     if (label.includes('reject') || label.includes('cancel') || label.includes('fail') || label.includes('error')) {
-      return { bg: 'bg-rose-500', hover: 'hover:bg-rose-600', border: 'border-rose-400', text: 'text-rose-500' };
+      return { bg: 'bg-red-600', hover: 'hover:bg-red-700', border: 'border-red-500', text: 'text-red-600' };
     }
     if (label.includes('pending') || label.includes('wait') || label.includes('hold') || label.includes('new')) {
-      return { bg: 'bg-amber-500', hover: 'hover:bg-amber-600', border: 'border-amber-400', text: 'text-amber-500' };
+      return { bg: 'bg-amber-600', hover: 'hover:bg-amber-700', border: 'border-amber-500', text: 'text-amber-600' };
     }
     if (label.includes('progress') || label.includes('review') || label.includes('process') || label.includes('active')) {
-      return { bg: 'bg-sky-500', hover: 'hover:bg-sky-600', border: 'border-sky-400', text: 'text-sky-500' };
+      return { bg: 'bg-blue-600', hover: 'hover:bg-blue-700', border: 'border-blue-500', text: 'text-blue-600' };
     }
     const colors = [
-      { bg: 'bg-slate-500', hover: 'hover:bg-slate-600', border: 'border-slate-400', text: 'text-slate-500' },
-      { bg: 'bg-violet-500', hover: 'hover:bg-violet-600', border: 'border-violet-400', text: 'text-violet-500' },
-      { bg: 'bg-fuchsia-500', hover: 'hover:bg-fuchsia-600', border: 'border-fuchsia-400', text: 'text-fuchsia-500' },
-      { bg: 'bg-cyan-500', hover: 'hover:bg-cyan-600', border: 'border-cyan-400', text: 'text-cyan-500' },
+      { bg: 'bg-slate-600', hover: 'hover:bg-slate-700', border: 'border-slate-500', text: 'text-slate-600' },
+      { bg: 'bg-indigo-600', hover: 'hover:bg-indigo-700', border: 'border-indigo-500', text: 'text-indigo-600' },
+      { bg: 'bg-purple-600', hover: 'hover:bg-purple-700', border: 'border-purple-500', text: 'text-purple-600' },
+      { bg: 'bg-teal-600', hover: 'hover:bg-teal-700', border: 'border-teal-500', text: 'text-teal-600' },
     ];
     return colors[index % colors.length];
   };
