@@ -517,12 +517,12 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
             <>
               <Button 
                 variant="outline" 
-                size="sm" 
+                size="icon"
+                className="h-8 w-8"
                 onClick={handleCancel}
                 disabled={saving}
               >
-                <X className="h-4 w-4 mr-1" />
-                Cancel
+                <X className="h-4 w-4" />
               </Button>
               <Button 
                 size="sm" 
