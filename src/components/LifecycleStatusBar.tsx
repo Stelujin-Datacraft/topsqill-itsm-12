@@ -297,16 +297,16 @@ export function LifecycleStatusBar({
         <Tooltip>
           <TooltipTrigger asChild>
             <Button 
-              variant="outline" 
+              variant="ghost" 
               size="sm" 
-              className="h-7 px-2 bg-white border-slate-300 hover:bg-slate-100"
+              className="h-7 px-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950"
               onClick={() => setHistoryDialogOpen(true)}
             >
-              <History className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs ml-1 hidden sm:inline">History</span>
+              <History className="h-4 w-4" />
+              <span className="text-xs ml-1 hidden sm:inline font-medium">Timeline</span>
             </Button>
           </TooltipTrigger>
-          <TooltipContent>View stage history</TooltipContent>
+          <TooltipContent>View stage timeline</TooltipContent>
         </Tooltip>
 
         <StageChangeDialog

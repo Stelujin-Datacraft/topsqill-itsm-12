@@ -510,9 +510,6 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
             ))}
           </div>
           
-          {isEditing && (
-            <Badge variant="secondary" className="ml-4">Edit Mode</Badge>
-          )}
         </div>
         
         <div className="flex items-center gap-2">
@@ -524,7 +521,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
                 onClick={handleCancel}
                 disabled={saving}
               >
-                <X className="h-4 w-4 mr-2" />
+                <X className="h-4 w-4 mr-1" />
                 Cancel
               </Button>
               <Button 
@@ -532,14 +529,14 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
                 onClick={handleSave}
                 disabled={saving}
               >
-                <Save className="h-4 w-4 mr-2" />
-                {saving ? 'Saving...' : 'Save Changes'}
+                <Save className="h-4 w-4 mr-1" />
+                {saving ? 'Saving...' : 'Save'}
               </Button>
             </>
           ) : (
             <Button size="sm" onClick={() => setIsEditing(true)}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Submission
+              <Edit className="h-4 w-4 mr-1" />
+              Edit
             </Button>
           )}
         </div>
