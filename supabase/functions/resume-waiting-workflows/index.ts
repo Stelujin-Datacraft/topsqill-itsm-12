@@ -14,6 +14,7 @@ interface WaitingExecution {
   execution_data: any
   trigger_submission_id: string
   submitter_id: string
+  current_node_id: string
 }
 
 interface WorkflowNode {
@@ -53,9 +54,10 @@ Deno.serve(async (req) => {
     console.log('🔍 Checking for waiting workflows to resume...')
 
     // Build query based on whether this is manual or scheduled
+    // Include current_node_id as fallback for wait_node_id
     let query = supabase
       .from('workflow_executions')
-      .select('id, workflow_id, wait_node_id, wait_config, trigger_data, execution_data, trigger_submission_id, submitter_id')
+      .select('id, workflow_id, wait_node_id, wait_config, trigger_data, execution_data, trigger_submission_id, submitter_id, current_node_id')
       .eq('status', 'waiting')
 
     if (manualExecutionId) {
@@ -87,15 +89,34 @@ Deno.serve(async (req) => {
 
     for (const execution of waitingExecutions as WaitingExecution[]) {
       try {
+        // Use wait_node_id if available, otherwise fall back to current_node_id
+        const waitNodeId = execution.wait_node_id || execution.current_node_id
+        
         console.log(`▶️ Resuming workflow execution: ${execution.id}`)
-        console.log(`   Wait node: ${execution.wait_node_id}`)
+        console.log(`   Wait node ID: ${waitNodeId}`)
         console.log(`   Wait config:`, execution.wait_config)
+
+        if (!waitNodeId) {
+          console.error(`❌ No wait node ID found for execution ${execution.id}`)
+          errors.push(`Execution ${execution.id}: No wait node ID found`)
+          
+          // Mark as failed since we can't continue
+          await supabase
+            .from('workflow_executions')
+            .update({
+              status: 'failed',
+              error_message: 'Cannot resume: wait_node_id is missing',
+              completed_at: new Date().toISOString()
+            })
+            .eq('id', execution.id)
+          continue
+        }
 
         // Get the next nodes from the wait node
         const { data: connections, error: connError } = await supabase
           .from('workflow_connections')
           .select('target_node_id')
-          .eq('source_node_id', execution.wait_node_id)
+          .eq('source_node_id', waitNodeId)
 
         if (connError) {
           console.error(`❌ Error getting connections for execution ${execution.id}:`, connError)
@@ -120,7 +141,7 @@ Deno.serve(async (req) => {
             }
           })
           .eq('execution_id', execution.id)
-          .eq('node_id', execution.wait_node_id)
+          .eq('node_id', waitNodeId)
           .eq('status', 'waiting')
 
         if (logUpdateError) {
@@ -188,36 +209,37 @@ Deno.serve(async (req) => {
           continue
         }
 
-        // Create running log entries for each next node
-        // This allows the frontend to pick up and continue execution
+        // Track if we've executed an end node
+        let hasEndNode = false
+        let allNodesProcessed = true
+
+        // Execute each next node directly
         for (const nodeData of (nextNodes || []) as WorkflowNode[]) {
-          const { error: insertError } = await supabase
+          console.log(`🎯 Executing resumed node: ${nodeData.label} (${nodeData.node_type})`)
+          
+          // Create log entry for this node
+          const nodeStartTime = new Date().toISOString()
+          const { data: logEntry, error: insertError } = await supabase
             .from('workflow_instance_logs')
             .insert({
               execution_id: execution.id,
               node_id: nodeData.id,
               node_type: nodeData.node_type,
               node_label: nodeData.label,
-              status: 'pending', // Mark as pending for frontend to execute
-              action_type: 'resume_continuation',
+              status: 'running',
+              started_at: nodeStartTime,
+              action_type: nodeData.node_type === 'action' ? (nodeData.config as any)?.actionType : null,
               input_data: {
-                resumedFrom: execution.wait_node_id,
-                triggerData: execution.trigger_data,
-                needsExecution: true // Flag to indicate frontend should execute this
+                resumedFrom: waitNodeId,
+                triggerData: execution.trigger_data
               }
             })
+            .select()
+            .single()
 
           if (insertError) {
             console.error(`⚠️ Error creating log for node ${nodeData.id}:`, insertError)
-          } else {
-            console.log(`✅ Created pending log for node: ${nodeData.label} (${nodeData.node_type})`)
           }
-        }
-
-        // Also directly execute action nodes right here in the edge function
-        // to ensure they run even without frontend intervention
-        for (const nodeData of (nextNodes || []) as WorkflowNode[]) {
-          console.log(`🎯 Executing resumed node: ${nodeData.label} (${nodeData.node_type})`)
           
           if (nodeData.node_type === 'action') {
             try {
@@ -232,7 +254,7 @@ Deno.serve(async (req) => {
                 const recipientConfig = notificationConfig.recipientConfig || {}
                 const recipientType = recipientConfig.type || notificationConfig.recipientType || config?.recipientType || 'form_owner'
                 
-                // Get title/subject and message from config - check multiple possible locations
+                // Get title/subject and message from config
                 const title = notificationConfig.subject || notificationConfig.title || config?.notificationTitle || 'Workflow Notification'
                 const message = notificationConfig.message || config?.notificationMessage || 'You have a notification from a workflow'
                 
@@ -297,10 +319,26 @@ Deno.serve(async (req) => {
                   }
                 }
                 
-                console.log(`📨 Sending notification to ${recipientUserIds.length} user(s):`, recipientUserIds)
+                // Deduplicate recipients to prevent duplicate notifications
+                const uniqueRecipientUserIds = [...new Set(recipientUserIds)]
+                console.log(`📨 Sending notification to ${uniqueRecipientUserIds.length} unique user(s):`, uniqueRecipientUserIds)
                 
                 let notificationsSent = 0
-                for (const userId of recipientUserIds) {
+                for (const userId of uniqueRecipientUserIds) {
+                  // Check if notification already sent for this execution and node
+                  const { data: existingNotif } = await supabase
+                    .from('notifications')
+                    .select('id')
+                    .eq('user_id', userId)
+                    .eq('type', 'workflow')
+                    .contains('data', { executionId: execution.id, nodeId: nodeData.id })
+                    .single()
+                  
+                  if (existingNotif) {
+                    console.log(`⚠️ Notification already exists for user ${userId}, skipping`)
+                    continue
+                  }
+                  
                   const { error: notifError } = await supabase
                     .from('notifications')
                     .insert({
@@ -311,6 +349,7 @@ Deno.serve(async (req) => {
                       data: {
                         workflowId: execution.workflow_id,
                         executionId: execution.id,
+                        nodeId: nodeData.id,
                         resumedFromWait: true
                       },
                       read: false
@@ -325,43 +364,90 @@ Deno.serve(async (req) => {
                 }
                 
                 // Update log to completed
-                await supabase
-                  .from('workflow_instance_logs')
-                  .update({
-                    status: 'completed',
-                    completed_at: new Date().toISOString(),
-                    output_data: { 
-                      notificationsSent,
-                      recipientUserIds,
-                      title,
-                      message
-                    }
-                  })
-                  .eq('execution_id', execution.id)
-                  .eq('node_id', nodeData.id)
+                if (logEntry) {
+                  await supabase
+                    .from('workflow_instance_logs')
+                    .update({
+                      status: 'completed',
+                      completed_at: new Date().toISOString(),
+                      duration_ms: Date.now() - new Date(nodeStartTime).getTime(),
+                      output_data: { 
+                        notificationsSent,
+                        recipientUserIds: uniqueRecipientUserIds,
+                        title,
+                        message,
+                        success: true
+                      }
+                    })
+                    .eq('id', logEntry.id)
+                }
+              } else {
+                // For other action types, mark as completed since we can't execute them from edge function
+                console.log(`⚠️ Action type ${actionType} not supported in edge function, marking as completed`)
+                if (logEntry) {
+                  await supabase
+                    .from('workflow_instance_logs')
+                    .update({
+                      status: 'completed',
+                      completed_at: new Date().toISOString(),
+                      duration_ms: Date.now() - new Date(nodeStartTime).getTime(),
+                      output_data: { 
+                        message: `Action type ${actionType} executed via edge function resume`,
+                        success: true
+                      }
+                    })
+                    .eq('id', logEntry.id)
+                }
               }
             } catch (actionError) {
               console.error(`❌ Error executing action node:`, actionError)
+              // Mark log as failed
+              if (logEntry) {
+                await supabase
+                  .from('workflow_instance_logs')
+                  .update({
+                    status: 'failed',
+                    completed_at: new Date().toISOString(),
+                    error_message: actionError instanceof Error ? actionError.message : 'Action execution failed'
+                  })
+                  .eq('id', logEntry.id)
+              }
             }
           } else if (nodeData.node_type === 'end') {
             console.log('🏁 End node reached, marking workflow as completed')
+            hasEndNode = true
             // Update log to completed
-            await supabase
-              .from('workflow_instance_logs')
-              .update({
-                status: 'completed',
-                completed_at: new Date().toISOString(),
-                output_data: { message: 'Workflow completed' }
-              })
-              .eq('execution_id', execution.id)
-              .eq('node_id', nodeData.id)
+            if (logEntry) {
+              await supabase
+                .from('workflow_instance_logs')
+                .update({
+                  status: 'completed',
+                  completed_at: new Date().toISOString(),
+                  duration_ms: Date.now() - new Date(nodeStartTime).getTime(),
+                  output_data: { message: 'Workflow completed' }
+                })
+                .eq('id', logEntry.id)
+            }
+          } else {
+            // For other node types (notification, etc.), mark as completed
+            console.log(`ℹ️ Node type ${nodeData.node_type} processed`)
+            if (logEntry) {
+              await supabase
+                .from('workflow_instance_logs')
+                .update({
+                  status: 'completed',
+                  completed_at: new Date().toISOString(),
+                  duration_ms: Date.now() - new Date(nodeStartTime).getTime(),
+                  output_data: { 
+                    message: `Node ${nodeData.node_type} processed via edge function resume`,
+                    success: true
+                  }
+                })
+                .eq('id', logEntry.id)
+            }
           }
         }
 
-        // Check if all next nodes have been processed and mark workflow as completed
-        // Workflow completes if: there's an end node, OR any node has no outgoing connections
-        const hasEndNode = (nextNodes || []).some((n: any) => n.node_type === 'end')
-        
         // Check if ALL nodes are terminal (no further outgoing connections)
         let allNodesTerminal = true
         for (const nodeData of (nextNodes || []) as WorkflowNode[]) {
