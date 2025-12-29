@@ -41,6 +41,7 @@ import {
 import { ChartConfigurationTabs } from './ChartConfigurationTabs';
 import { ChartPreview } from './ChartPreview';
 import { ChartDataSection } from './ChartDataSection';
+import { CrossReferenceDataSection } from './CrossReferenceDataSection';
 import { DraggableFieldSelector } from './DraggableFieldSelector';
 import {
   PieDonutDataSection,
@@ -549,82 +550,94 @@ export function ComponentConfigDialog({
         </TabsContent>
 
         <TabsContent value="data" className="space-y-4">
-          {/* Bar and Column charts use the original flexible data section */}
-          {(config.chartType === 'bar' || config.chartType === 'column') && (
-            <ChartDataSection
-              config={config}
-              formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-              onConfigChange={(updates) => setConfig({ ...config, ...updates })}
-            />
-          )}
+          {/* Cross-Reference Data Section - shown for all chart types when form has cross-reference fields */}
+          <CrossReferenceDataSection
+            config={config}
+            formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
+            onConfigChange={(updates) => setConfig({ ...config, ...updates })}
+          />
 
-          {/* Pie and Donut charts */}
-          {(config.chartType === 'pie' || config.chartType === 'donut') && (
-            <PieDonutDataSection
-              config={config}
-              formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-              onConfigChange={(updates) => setConfig({ ...config, ...updates })}
-              chartType={config.chartType}
-            />
-          )}
+          {/* Only show chart-specific data options when cross-reference mode is NOT enabled */}
+          {!config.crossRefConfig?.enabled && (
+            <>
+              {/* Bar and Column charts use the original flexible data section */}
+              {(config.chartType === 'bar' || config.chartType === 'column') && (
+                <ChartDataSection
+                  config={config}
+                  formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
+                  onConfigChange={(updates) => setConfig({ ...config, ...updates })}
+                />
+              )}
 
-          {/* Line and Area charts */}
-          {(config.chartType === 'line' || config.chartType === 'area') && (
-            <LineAreaDataSection
-              config={config}
-              formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-              onConfigChange={(updates) => setConfig({ ...config, ...updates })}
-              chartType={config.chartType}
-            />
-          )}
+              {/* Pie and Donut charts */}
+              {(config.chartType === 'pie' || config.chartType === 'donut') && (
+                <PieDonutDataSection
+                  config={config}
+                  formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
+                  onConfigChange={(updates) => setConfig({ ...config, ...updates })}
+                  chartType={config.chartType}
+                />
+              )}
 
-          {/* Scatter chart */}
-          {config.chartType === 'scatter' && (
-            <ScatterDataSection
-              config={config}
-              formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-              onConfigChange={(updates) => setConfig({ ...config, ...updates })}
-            />
-          )}
+              {/* Line and Area charts */}
+              {(config.chartType === 'line' || config.chartType === 'area') && (
+                <LineAreaDataSection
+                  config={config}
+                  formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
+                  onConfigChange={(updates) => setConfig({ ...config, ...updates })}
+                  chartType={config.chartType}
+                />
+              )}
 
-          {/* Bubble chart */}
-          {config.chartType === 'bubble' && (
-            <BubbleDataSection
-              config={config}
-              formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-              onConfigChange={(updates) => setConfig({ ...config, ...updates })}
-            />
-          )}
+              {/* Scatter chart */}
+              {config.chartType === 'scatter' && (
+                <ScatterDataSection
+                  config={config}
+                  formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
+                  onConfigChange={(updates) => setConfig({ ...config, ...updates })}
+                />
+              )}
 
-          {/* Heatmap chart */}
-          {config.chartType === 'heatmap' && (
-            <HeatmapDataSection
-              config={config}
-              formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-              onConfigChange={(updates) => setConfig({ ...config, ...updates })}
-            />
-          )}
+              {/* Bubble chart */}
+              {config.chartType === 'bubble' && (
+                <BubbleDataSection
+                  config={config}
+                  formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
+                  onConfigChange={(updates) => setConfig({ ...config, ...updates })}
+                />
+              )}
 
-          {/* Table type */}
-          {config.chartType === 'table' && (
-            config.formId && formFields.length > 0 ? (
-              <GenericFieldSelector
-                formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-                selectedFields={config.selectedColumns || []}
-                onFieldsChange={(fields) => setConfig({ ...config, selectedColumns: fields })}
-                label="Table Columns"
-                description="Select columns to display in the table (from joined forms)"
-                selectionType="checkbox"
-                maxHeight="300px"
-              />
-            ) : (
-              <div className="p-4 text-center text-muted-foreground">
-                {config.formId ? 
-                  (loadingFields ? 'Loading form fields...' : 'The selected form has no fields configured yet.') :
-                  'Please select a form to configure data fields.'
-                }
-              </div>
-            )
+              {/* Heatmap chart */}
+              {config.chartType === 'heatmap' && (
+                <HeatmapDataSection
+                  config={config}
+                  formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
+                  onConfigChange={(updates) => setConfig({ ...config, ...updates })}
+                />
+              )}
+
+              {/* Table type */}
+              {config.chartType === 'table' && (
+                config.formId && formFields.length > 0 ? (
+                  <GenericFieldSelector
+                    formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
+                    selectedFields={config.selectedColumns || []}
+                    onFieldsChange={(fields) => setConfig({ ...config, selectedColumns: fields })}
+                    label="Table Columns"
+                    description="Select columns to display in the table (from joined forms)"
+                    selectionType="checkbox"
+                    maxHeight="300px"
+                  />
+                ) : (
+                  <div className="p-4 text-center text-muted-foreground">
+                    {config.formId ? 
+                      (loadingFields ? 'Loading form fields...' : 'The selected form has no fields configured yet.') :
+                      'Please select a form to configure data fields.'
+                    }
+                  </div>
+                )
+              )}
+            </>
           )}
         </TabsContent>
 

@@ -14,6 +14,7 @@ import { FormField } from '@/types/form';
 import { ChartTypeSelector } from './ChartTypeSelector';
 import { ChartPreview } from './ChartPreview';
 import { ChartDataSection } from './ChartDataSection';
+import { CrossReferenceDataSection } from './CrossReferenceDataSection';
 import { ChartExamples } from './ChartExamples';
 import { DraggableFieldSelector } from './DraggableFieldSelector';
 import { 
@@ -295,60 +296,72 @@ export function ChartConfigurationTabs({
       </TabsContent>
 
       <TabsContent value="data" className="space-y-6">
-        {/* Bar charts use the original flexible data section */}
-        {config.chartType === 'bar' && (
-          <ChartDataSection
-            config={config}
-            formFields={formFields}
-            onConfigChange={handleConfigUpdate}
-          />
-        )}
+        {/* Cross-Reference Data Section - shown for all chart types when form has cross-reference fields */}
+        <CrossReferenceDataSection
+          config={config}
+          formFields={formFields}
+          onConfigChange={handleConfigUpdate}
+        />
 
-        {/* Pie and Donut charts */}
-        {(config.chartType === 'pie' || config.chartType === 'donut') && (
-          <PieDonutDataSection
-            config={config}
-            formFields={formFields}
-            onConfigChange={handleConfigUpdate}
-            chartType={config.chartType}
-          />
-        )}
+        {/* Only show chart-specific data options when cross-reference mode is NOT enabled */}
+        {!config.crossRefConfig?.enabled && (
+          <>
+            {/* Bar charts use the original flexible data section */}
+            {config.chartType === 'bar' && (
+              <ChartDataSection
+                config={config}
+                formFields={formFields}
+                onConfigChange={handleConfigUpdate}
+              />
+            )}
 
-        {/* Line and Area charts */}
-        {(config.chartType === 'line' || config.chartType === 'area') && (
-          <LineAreaDataSection
-            config={config}
-            formFields={formFields}
-            onConfigChange={handleConfigUpdate}
-            chartType={config.chartType}
-          />
-        )}
+            {/* Pie and Donut charts */}
+            {(config.chartType === 'pie' || config.chartType === 'donut') && (
+              <PieDonutDataSection
+                config={config}
+                formFields={formFields}
+                onConfigChange={handleConfigUpdate}
+                chartType={config.chartType}
+              />
+            )}
 
-        {/* Scatter chart */}
-        {config.chartType === 'scatter' && (
-          <ScatterDataSection
-            config={config}
-            formFields={formFields}
-            onConfigChange={handleConfigUpdate}
-          />
-        )}
+            {/* Line and Area charts */}
+            {(config.chartType === 'line' || config.chartType === 'area') && (
+              <LineAreaDataSection
+                config={config}
+                formFields={formFields}
+                onConfigChange={handleConfigUpdate}
+                chartType={config.chartType}
+              />
+            )}
 
-        {/* Bubble chart */}
-        {config.chartType === 'bubble' && (
-          <BubbleDataSection
-            config={config}
-            formFields={formFields}
-            onConfigChange={handleConfigUpdate}
-          />
-        )}
+            {/* Scatter chart */}
+            {config.chartType === 'scatter' && (
+              <ScatterDataSection
+                config={config}
+                formFields={formFields}
+                onConfigChange={handleConfigUpdate}
+              />
+            )}
 
-        {/* Heatmap chart */}
-        {config.chartType === 'heatmap' && (
-          <HeatmapDataSection
-            config={config}
-            formFields={formFields}
-            onConfigChange={handleConfigUpdate}
-          />
+            {/* Bubble chart */}
+            {config.chartType === 'bubble' && (
+              <BubbleDataSection
+                config={config}
+                formFields={formFields}
+                onConfigChange={handleConfigUpdate}
+              />
+            )}
+
+            {/* Heatmap chart */}
+            {config.chartType === 'heatmap' && (
+              <HeatmapDataSection
+                config={config}
+                formFields={formFields}
+                onConfigChange={handleConfigUpdate}
+              />
+            )}
+          </>
         )}
       </TabsContent>
 
