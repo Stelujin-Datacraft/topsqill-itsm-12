@@ -109,9 +109,11 @@ export function CrossReferenceDataSection({
     fetchTargetFormFields();
   }, [crossRefConfig?.targetFormId, targetFormIdFromField]);
 
-  // Get numeric fields from target form (for aggregation)
+  // Get numeric fields from target form (for aggregation and compare)
   const numericTargetFields = useMemo(() => {
-    return targetFormFields.filter(f => METRIC_FIELD_TYPES.includes(getFieldType(f)));
+    const filtered = targetFormFields.filter(f => METRIC_FIELD_TYPES.includes(getFieldType(f)));
+    console.log('📊 CrossRef: Target form fields:', targetFormFields.length, 'Numeric fields:', filtered.length, filtered.map(f => `${f.label}(${getFieldType(f)})`));
+    return filtered;
   }, [targetFormFields]);
 
   // Get dimension fields from target form (for grouping)
@@ -564,14 +566,73 @@ export function CrossReferenceDataSection({
               
               {loadingFields ? (
                 <div className="p-4 text-center text-sm text-muted-foreground">Loading fields...</div>
-              ) : numericTargetFields.length < 2 ? (
+              ) : targetFormFields.length < 2 ? (
                 <Alert>
                   <Info className="h-4 w-4" />
                   <AlertDescription className="text-xs">
-                    <span className="font-medium">{targetFormName}</span> needs at least 2 numeric fields to compare. 
-                    Add more numeric fields to that form or use a different mode.
+                    <span className="font-medium">{targetFormName}</span> needs at least 2 fields to compare. 
+                    Add more fields to that form or use a different mode.
                   </AlertDescription>
                 </Alert>
+              ) : numericTargetFields.length < 2 ? (
+                // Allow comparing non-numeric fields too with a note
+                <div className="grid gap-3 p-4 bg-muted/30 rounded-lg border">
+                  <Alert className="mb-2">
+                    <Info className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      Limited numeric fields available. You can compare any two fields below.
+                    </AlertDescription>
+                  </Alert>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">First Field (Y-axis primary)</Label>
+                      <Select
+                        value={crossRefConfig.compareField1Id || ''}
+                        onValueChange={(value) => onConfigChange({
+                          crossRefConfig: {
+                            ...crossRefConfig,
+                            compareField1Id: value
+                          }
+                        })}
+                      >
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder="Select field..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {targetFormFields.map((field) => (
+                            <SelectItem key={field.id} value={field.id} disabled={field.id === crossRefConfig.compareField2Id}>
+                              {field.label} ({getFieldType(field)})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Second Field (Y-axis secondary)</Label>
+                      <Select
+                        value={crossRefConfig.compareField2Id || ''}
+                        onValueChange={(value) => onConfigChange({
+                          crossRefConfig: {
+                            ...crossRefConfig,
+                            compareField2Id: value
+                          }
+                        })}
+                      >
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder="Select field..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {targetFormFields.map((field) => (
+                            <SelectItem key={field.id} value={field.id} disabled={field.id === crossRefConfig.compareField1Id}>
+                              {field.label} ({getFieldType(field)})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <div className="grid gap-3 p-4 bg-muted/30 rounded-lg border">
                   <div className="grid grid-cols-2 gap-3">
@@ -635,8 +696,8 @@ export function CrossReferenceDataSection({
             </div>
           )}
 
-          {/* Step 4: Customize labels (optional) */}
-          {isStep1Complete && isStep3Complete && sourceLabelFields.length > 0 && (
+          {/* Step 4: Customize labels (optional) - available once cross-ref field is selected */}
+          {isStep1Complete && sourceLabelFields.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold bg-muted text-muted-foreground">
@@ -679,8 +740,8 @@ export function CrossReferenceDataSection({
             </div>
           )}
 
-          {/* Optional: Group By Source Field */}
-          {isStep1Complete && isStep3Complete && sourceGroupByFields.length > 0 && (
+          {/* Optional: Group By Source Field - available for all modes */}
+          {isStep1Complete && sourceGroupByFields.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold bg-muted text-muted-foreground">
@@ -723,8 +784,8 @@ export function CrossReferenceDataSection({
             </div>
           )}
 
-          {/* Optional: Drilldown to Linked Records */}
-          {isStep1Complete && isStep3Complete && (
+          {/* Optional: Drilldown to Linked Records - available for all modes */}
+          {isStep1Complete && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold bg-muted text-muted-foreground">
