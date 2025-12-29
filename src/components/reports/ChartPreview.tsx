@@ -406,10 +406,12 @@ export function ChartPreview({
       targetAggregation?: 'sum' | 'avg' | 'min' | 'max' | 'count';
       targetDimensionFieldId?: string;
       sourceLabelFieldId?: string;
-      compareField1Id?: string;
-      compareField2Id?: string;
+      compareXFieldId?: string; // X-axis field for compare mode
+      compareYFieldId?: string; // Y-axis field for compare mode
       sourceGroupByFieldId?: string;
       drilldownEnabled?: boolean;
+      drilldownLevels?: string[];
+      drilldownDisplayFields?: string[];
     }
   ): Promise<any[]> => {
     if (!crossRefConfig.crossRefFieldId || !crossRefConfig.targetFormId) {
@@ -506,48 +508,66 @@ export function ChartPreview({
             });
           }
         } else if (crossRefConfig.mode === 'compare') {
-          // Compare mode: compare two numeric fields from linked records
-          if (!crossRefConfig.compareField1Id || !crossRefConfig.compareField2Id) {
-            console.warn('Compare mode requires both compareField1Id and compareField2Id');
+          // Compare mode: X/Y axis style comparison like normal compare mode
+          if (!crossRefConfig.compareXFieldId || !crossRefConfig.compareYFieldId) {
+            console.warn('Compare mode requires both compareXFieldId and compareYFieldId');
             return;
           }
 
-          // Extract values for both fields from linked submissions
-          let field1Values: number[] = [];
-          let field2Values: number[] = [];
-          
-          linkedSubmissions.forEach(sub => {
-            const val1 = sub.submission_data?.[crossRefConfig.compareField1Id!];
-            const val2 = sub.submission_data?.[crossRefConfig.compareField2Id!];
+          // Process each linked submission as a data point with X and Y values
+          linkedSubmissions.forEach((sub, idx) => {
+            const xVal = sub.submission_data?.[crossRefConfig.compareXFieldId!];
+            const yVal = sub.submission_data?.[crossRefConfig.compareYFieldId!];
             
-            const numVal1 = typeof val1 === 'number' ? val1 : (typeof val1 === 'object' && val1?.amount ? Number(val1.amount) : Number(val1)) || 0;
-            const numVal2 = typeof val2 === 'number' ? val2 : (typeof val2 === 'object' && val2?.amount ? Number(val2.amount) : Number(val2)) || 0;
+            // Get X value - convert to number if possible
+            let xNumeric: number;
+            if (typeof xVal === 'number') {
+              xNumeric = xVal;
+            } else if (typeof xVal === 'object' && xVal?.amount) {
+              xNumeric = Number(xVal.amount) || 0;
+            } else {
+              xNumeric = Number(xVal) || 0;
+            }
             
-            field1Values.push(numVal1);
-            field2Values.push(numVal2);
-          });
+            // Get Y value - can be numeric or text (for legend mode)
+            let yNumeric: number;
+            let yRawValue: string = '';
+            const isYText = typeof yVal === 'string' && isNaN(Number(yVal));
+            
+            if (isYText) {
+              // Text Y-axis - will use encoded legend mode
+              yRawValue = String(yVal || 'Unknown');
+              yNumeric = 0; // Will be encoded later
+            } else if (typeof yVal === 'number') {
+              yNumeric = yVal;
+            } else if (typeof yVal === 'object' && yVal?.amount) {
+              yNumeric = Number(yVal.amount) || 0;
+            } else {
+              yNumeric = Number(yVal) || 0;
+            }
 
-          // Calculate sums for both fields
-          const field1Sum = field1Values.reduce((a, b) => a + b, 0);
-          const field2Sum = field2Values.reduce((a, b) => a + b, 0);
+            // Use sourceLabelFieldId if available for better labels
+            const labelValue = crossRefConfig.sourceLabelFieldId 
+              ? parentSub.submission_data?.[crossRefConfig.sourceLabelFieldId]
+              : null;
+            const displayName = labelValue 
+              ? (typeof labelValue === 'object' ? JSON.stringify(labelValue) : String(labelValue))
+              : (parentSub.submission_ref_id || parentSub.id.slice(0, 8));
 
-          // Use sourceLabelFieldId if available for better labels
-          const labelValue = crossRefConfig.sourceLabelFieldId 
-            ? parentSub.submission_data?.[crossRefConfig.sourceLabelFieldId]
-            : null;
-          const displayName = labelValue 
-            ? (typeof labelValue === 'object' ? JSON.stringify(labelValue) : String(labelValue))
-            : (parentSub.submission_ref_id || parentSub.id.slice(0, 8));
-
-          result.push({
-            name: displayName,
-            [crossRefConfig.compareField1Id]: field1Sum,
-            [crossRefConfig.compareField2Id]: field2Sum,
-            field1: field1Sum,
-            field2: field2Sum,
-            value: field1Sum, // Primary value for chart sizing
-            parentId: parentSub.id,
-            parentRefId: parentSub.submission_ref_id
+            result.push({
+              name: `${displayName} #${idx + 1}`,
+              x: xNumeric,
+              y: yNumeric,
+              value: xNumeric,
+              rawYValue: yRawValue || String(yVal),
+              xFieldId: crossRefConfig.compareXFieldId,
+              yFieldId: crossRefConfig.compareYFieldId,
+              parentId: parentSub.id,
+              parentRefId: parentSub.submission_ref_id,
+              linkedSubmissionId: sub.id,
+              _isCrossRefCompare: true,
+              _isYText: isYText
+            });
           });
         } else {
           // Aggregate mode

@@ -213,8 +213,8 @@ export function CrossReferenceDataSection({
         mode,
         targetMetricFieldId: mode === 'aggregate' ? crossRefConfig?.targetMetricFieldId : undefined,
         targetAggregation: mode === 'aggregate' ? (crossRefConfig?.targetAggregation || 'sum') : undefined,
-        compareField1Id: mode === 'compare' ? crossRefConfig?.compareField1Id : undefined,
-        compareField2Id: mode === 'compare' ? crossRefConfig?.compareField2Id : undefined,
+        compareXFieldId: mode === 'compare' ? crossRefConfig?.compareXFieldId : undefined,
+        compareYFieldId: mode === 'compare' ? crossRefConfig?.compareYFieldId : undefined,
       }
     });
   };
@@ -224,7 +224,7 @@ export function CrossReferenceDataSection({
   const isStep2Complete = !!crossRefConfig?.mode;
   const isStep3Complete = crossRefConfig?.mode === 'count' || 
     (crossRefConfig?.mode === 'aggregate' && !!crossRefConfig?.targetMetricFieldId) ||
-    (crossRefConfig?.mode === 'compare' && !!crossRefConfig?.compareField1Id && !!crossRefConfig?.compareField2Id);
+    (crossRefConfig?.mode === 'compare' && !!crossRefConfig?.compareXFieldId && !!crossRefConfig?.compareYFieldId);
 
   // Get selected metric field label
   const selectedMetricField = useMemo(() => {
@@ -232,16 +232,16 @@ export function CrossReferenceDataSection({
     return targetFormFields.find(f => f.id === crossRefConfig.targetMetricFieldId);
   }, [targetFormFields, crossRefConfig?.targetMetricFieldId]);
 
-  // Get selected compare fields
-  const selectedCompareField1 = useMemo(() => {
-    if (!crossRefConfig?.compareField1Id) return null;
-    return targetFormFields.find(f => f.id === crossRefConfig.compareField1Id);
-  }, [targetFormFields, crossRefConfig?.compareField1Id]);
+  // Get selected compare fields (X-axis and Y-axis)
+  const selectedCompareXField = useMemo(() => {
+    if (!crossRefConfig?.compareXFieldId) return null;
+    return targetFormFields.find(f => f.id === crossRefConfig.compareXFieldId);
+  }, [targetFormFields, crossRefConfig?.compareXFieldId]);
 
-  const selectedCompareField2 = useMemo(() => {
-    if (!crossRefConfig?.compareField2Id) return null;
-    return targetFormFields.find(f => f.id === crossRefConfig.compareField2Id);
-  }, [targetFormFields, crossRefConfig?.compareField2Id]);
+  const selectedCompareYField = useMemo(() => {
+    if (!crossRefConfig?.compareYFieldId) return null;
+    return targetFormFields.find(f => f.id === crossRefConfig.compareYFieldId);
+  }, [targetFormFields, crossRefConfig?.compareYFieldId]);
 
   // Get source form dimension fields for grouping
   const sourceGroupByFields = useMemo(() => {
@@ -561,7 +561,7 @@ export function CrossReferenceDataSection({
                 }`}>
                   {isStep3Complete ? <CheckCircle2 className="h-4 w-4" /> : '3'}
                 </div>
-                <Label className="text-sm font-medium">Select two fields to compare</Label>
+                <Label className="text-sm font-medium">Select X-axis and Y-axis fields</Label>
               </div>
               
               {loadingFields ? (
@@ -574,86 +574,30 @@ export function CrossReferenceDataSection({
                     Add more fields to that form or use a different mode.
                   </AlertDescription>
                 </Alert>
-              ) : numericTargetFields.length < 2 ? (
-                // Allow comparing non-numeric fields too with a note
-                <div className="grid gap-3 p-4 bg-muted/30 rounded-lg border">
-                  <Alert className="mb-2">
-                    <Info className="h-4 w-4" />
-                    <AlertDescription className="text-xs">
-                      Limited numeric fields available. You can compare any two fields below.
-                    </AlertDescription>
-                  </Alert>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">First Field (Y-axis primary)</Label>
-                      <Select
-                        value={crossRefConfig.compareField1Id || ''}
-                        onValueChange={(value) => onConfigChange({
-                          crossRefConfig: {
-                            ...crossRefConfig,
-                            compareField1Id: value
-                          }
-                        })}
-                      >
-                        <SelectTrigger className="bg-background">
-                          <SelectValue placeholder="Select field..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {targetFormFields.map((field) => (
-                            <SelectItem key={field.id} value={field.id} disabled={field.id === crossRefConfig.compareField2Id}>
-                              {field.label} ({getFieldType(field)})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Second Field (Y-axis secondary)</Label>
-                      <Select
-                        value={crossRefConfig.compareField2Id || ''}
-                        onValueChange={(value) => onConfigChange({
-                          crossRefConfig: {
-                            ...crossRefConfig,
-                            compareField2Id: value
-                          }
-                        })}
-                      >
-                        <SelectTrigger className="bg-background">
-                          <SelectValue placeholder="Select field..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {targetFormFields.map((field) => (
-                            <SelectItem key={field.id} value={field.id} disabled={field.id === crossRefConfig.compareField1Id}>
-                              {field.label} ({getFieldType(field)})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
               ) : (
                 <div className="grid gap-3 p-4 bg-muted/30 rounded-lg border">
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Select fields for X and Y axes. If Y-axis is a text field, a legend will be shown.
+                  </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">First Field (Y-axis primary)</Label>
+                      <Label className="text-xs text-muted-foreground">X-Axis Field (horizontal)</Label>
                       <Select
-                        value={crossRefConfig.compareField1Id || ''}
+                        value={crossRefConfig.compareXFieldId || ''}
                         onValueChange={(value) => onConfigChange({
                           crossRefConfig: {
                             ...crossRefConfig,
-                            compareField1Id: value
+                            compareXFieldId: value
                           }
                         })}
                       >
                         <SelectTrigger className="bg-background">
-                          <SelectValue placeholder="Select field..." />
+                          <SelectValue placeholder="Select X-axis field..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {numericTargetFields.map((field) => (
-                            <SelectItem key={field.id} value={field.id} disabled={field.id === crossRefConfig.compareField2Id}>
-                              {field.label}
+                          {targetFormFields.map((field) => (
+                            <SelectItem key={field.id} value={field.id} disabled={field.id === crossRefConfig.compareYFieldId}>
+                              {field.label} ({getFieldType(field)})
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -661,23 +605,23 @@ export function CrossReferenceDataSection({
                     </div>
                     
                     <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Second Field (Y-axis secondary)</Label>
+                      <Label className="text-xs text-muted-foreground">Y-Axis Field (vertical)</Label>
                       <Select
-                        value={crossRefConfig.compareField2Id || ''}
+                        value={crossRefConfig.compareYFieldId || ''}
                         onValueChange={(value) => onConfigChange({
                           crossRefConfig: {
                             ...crossRefConfig,
-                            compareField2Id: value
+                            compareYFieldId: value
                           }
                         })}
                       >
                         <SelectTrigger className="bg-background">
-                          <SelectValue placeholder="Select field..." />
+                          <SelectValue placeholder="Select Y-axis field..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {numericTargetFields.map((field) => (
-                            <SelectItem key={field.id} value={field.id} disabled={field.id === crossRefConfig.compareField1Id}>
-                              {field.label}
+                          {targetFormFields.map((field) => (
+                            <SelectItem key={field.id} value={field.id} disabled={field.id === crossRefConfig.compareXFieldId}>
+                              {field.label} ({getFieldType(field)})
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -685,10 +629,13 @@ export function CrossReferenceDataSection({
                     </div>
                   </div>
                   
-                  {selectedCompareField1 && selectedCompareField2 && (
+                  {selectedCompareXField && selectedCompareYField && (
                     <p className="text-xs text-muted-foreground">
-                      Will compare "<span className="font-medium">{selectedCompareField1.label}</span>" vs "
-                      <span className="font-medium">{selectedCompareField2.label}</span>" from linked {targetFormName} records (with legend).
+                      X-Axis: "<span className="font-medium">{selectedCompareXField.label}</span>" | 
+                      Y-Axis: "<span className="font-medium">{selectedCompareYField.label}</span>" 
+                      {!METRIC_FIELD_TYPES.includes(getFieldType(selectedCompareYField)) && (
+                        <span className="text-blue-600 dark:text-blue-400 ml-1">(with legend for text values)</span>
+                      )}
                     </p>
                   )}
                 </div>
@@ -796,12 +743,12 @@ export function CrossReferenceDataSection({
                 </Label>
               </div>
               
-              <div className="p-4 bg-muted/30 rounded-lg border">
+              <div className="p-4 bg-muted/30 rounded-lg border space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
                     <Label className="text-sm">Enable drill-down to linked records</Label>
                     <p className="text-xs text-muted-foreground">
-                      Click a chart bar to view all linked <span className="font-medium text-green-600 dark:text-green-400">{targetFormName}</span> records
+                      Click a chart bar to view and filter linked <span className="font-medium text-green-600 dark:text-green-400">{targetFormName}</span> records
                     </p>
                   </div>
                   <Switch
@@ -809,11 +756,90 @@ export function CrossReferenceDataSection({
                     onCheckedChange={(checked) => onConfigChange({
                       crossRefConfig: {
                         ...crossRefConfig,
-                        drilldownEnabled: checked
+                        drilldownEnabled: checked,
+                        drilldownLevels: checked ? crossRefConfig.drilldownLevels : undefined,
+                        drilldownDisplayFields: checked ? crossRefConfig.drilldownDisplayFields : undefined
                       }
                     })}
                   />
                 </div>
+                
+                {/* Drilldown Levels - hierarchical filtering */}
+                {crossRefConfig.drilldownEnabled && targetFormFields.length > 0 && (
+                  <div className="space-y-2 pt-2 border-t">
+                    <Label className="text-xs text-muted-foreground">Drilldown filter levels (click to filter by these fields)</Label>
+                    <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                      {targetFormFields.map(field => {
+                        const isSelected = (crossRefConfig.drilldownLevels || []).includes(field.id);
+                        return (
+                          <div key={field.id} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={`drill-level-${field.id}`}
+                              checked={isSelected}
+                              onChange={(e) => {
+                                const currentLevels = crossRefConfig.drilldownLevels || [];
+                                const newLevels = e.target.checked
+                                  ? [...currentLevels, field.id]
+                                  : currentLevels.filter(id => id !== field.id);
+                                onConfigChange({
+                                  crossRefConfig: {
+                                    ...crossRefConfig,
+                                    drilldownLevels: newLevels
+                                  }
+                                });
+                              }}
+                              className="rounded border-input h-4 w-4"
+                            />
+                            <label htmlFor={`drill-level-${field.id}`} className="text-xs cursor-pointer">
+                              {field.label}
+                            </label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Select fields to create a hierarchical drill path (click bar → filter by first field → click again → filter by next)
+                    </p>
+                  </div>
+                )}
+
+                {/* Display fields in drilldown dialog */}
+                {crossRefConfig.drilldownEnabled && targetFormFields.length > 0 && (
+                  <div className="space-y-2 pt-2 border-t">
+                    <Label className="text-xs text-muted-foreground">Fields to show in drilldown dialog</Label>
+                    <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                      {targetFormFields.map(field => {
+                        const isSelected = (crossRefConfig.drilldownDisplayFields || []).includes(field.id);
+                        return (
+                          <div key={field.id} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={`drill-display-${field.id}`}
+                              checked={isSelected}
+                              onChange={(e) => {
+                                const currentFields = crossRefConfig.drilldownDisplayFields || [];
+                                const newFields = e.target.checked
+                                  ? [...currentFields, field.id]
+                                  : currentFields.filter(id => id !== field.id);
+                                onConfigChange({
+                                  crossRefConfig: {
+                                    ...crossRefConfig,
+                                    drilldownDisplayFields: newFields
+                                  }
+                                });
+                              }}
+                              className="rounded border-input h-4 w-4"
+                            />
+                            <label htmlFor={`drill-display-${field.id}`} className="text-xs cursor-pointer">
+                              {field.label}
+                            </label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -844,9 +870,9 @@ export function CrossReferenceDataSection({
                       <>Number of linked <span className="font-medium text-green-600 dark:text-green-400">{targetFormName}</span> records</>
                     ) : crossRefConfig.mode === 'compare' ? (
                       <>
-                        Compare "<span className="font-medium">{selectedCompareField1?.label || 'field 1'}</span>" vs "
-                        <span className="font-medium">{selectedCompareField2?.label || 'field 2'}</span>" 
-                        from linked <span className="font-medium text-green-600 dark:text-green-400">{targetFormName}</span> records (with legend)
+                        X-Axis: "<span className="font-medium">{selectedCompareXField?.label || 'X field'}</span>" | 
+                        Y-Axis: "<span className="font-medium">{selectedCompareYField?.label || 'Y field'}</span>" 
+                        from linked <span className="font-medium text-green-600 dark:text-green-400">{targetFormName}</span> records
                       </>
                     ) : (
                       <>
