@@ -46,6 +46,10 @@ export function ChartPreview({
     dimensionLabel?: string;
     groupLabel?: string;
     submissionId?: string;
+    // Cross-reference drilldown support
+    crossRefTargetFormId?: string;
+    crossRefDisplayFields?: string[];
+    crossRefLinkedIds?: string[];
   }>({
     open: false,
     dimensionField: '',
@@ -514,8 +518,21 @@ export function ChartPreview({
             return;
           }
 
-          // Process each linked submission as a data point with X and Y values
-          linkedSubmissions.forEach((sub, idx) => {
+          // Use sourceLabelFieldId if available for better labels
+          const labelValue = crossRefConfig.sourceLabelFieldId 
+            ? parentSub.submission_data?.[crossRefConfig.sourceLabelFieldId]
+            : null;
+          const displayName = labelValue 
+            ? (typeof labelValue === 'object' ? JSON.stringify(labelValue) : String(labelValue))
+            : (parentSub.submission_ref_id || parentSub.id.slice(0, 8));
+
+          // Collect all X and Y values from linked submissions
+          const xValues: number[] = [];
+          const yValues: number[] = [];
+          const yTextValues: string[] = [];
+          let hasTextY = false;
+
+          linkedSubmissions.forEach((sub) => {
             const xVal = sub.submission_data?.[crossRefConfig.compareXFieldId!];
             const yVal = sub.submission_data?.[crossRefConfig.compareYFieldId!];
             
@@ -528,46 +545,42 @@ export function ChartPreview({
             } else {
               xNumeric = Number(xVal) || 0;
             }
+            xValues.push(xNumeric);
             
             // Get Y value - can be numeric or text (for legend mode)
-            let yNumeric: number;
-            let yRawValue: string = '';
             const isYText = typeof yVal === 'string' && isNaN(Number(yVal));
-            
             if (isYText) {
-              // Text Y-axis - will use encoded legend mode
-              yRawValue = String(yVal || 'Unknown');
-              yNumeric = 0; // Will be encoded later
+              hasTextY = true;
+              yTextValues.push(String(yVal || 'Unknown'));
+              yValues.push(0);
             } else if (typeof yVal === 'number') {
-              yNumeric = yVal;
+              yValues.push(yVal);
             } else if (typeof yVal === 'object' && yVal?.amount) {
-              yNumeric = Number(yVal.amount) || 0;
+              yValues.push(Number(yVal.amount) || 0);
             } else {
-              yNumeric = Number(yVal) || 0;
+              yValues.push(Number(yVal) || 0);
             }
+          });
 
-            // Use sourceLabelFieldId if available for better labels
-            const labelValue = crossRefConfig.sourceLabelFieldId 
-              ? parentSub.submission_data?.[crossRefConfig.sourceLabelFieldId]
-              : null;
-            const displayName = labelValue 
-              ? (typeof labelValue === 'object' ? JSON.stringify(labelValue) : String(labelValue))
-              : (parentSub.submission_ref_id || parentSub.id.slice(0, 8));
-
-            result.push({
-              name: `${displayName} #${idx + 1}`,
-              x: xNumeric,
-              y: yNumeric,
-              value: xNumeric,
-              rawYValue: yRawValue || String(yVal),
-              xFieldId: crossRefConfig.compareXFieldId,
-              yFieldId: crossRefConfig.compareYFieldId,
-              parentId: parentSub.id,
-              parentRefId: parentSub.submission_ref_id,
-              linkedSubmissionId: sub.id,
-              _isCrossRefCompare: true,
-              _isYText: isYText
-            });
+          // Aggregate values for bar chart display
+          const xSum = xValues.reduce((a, b) => a + b, 0);
+          const ySum = yValues.reduce((a, b) => a + b, 0);
+          
+          result.push({
+            name: displayName,
+            value: xSum, // Primary value for bar height
+            x: xSum,
+            y: ySum,
+            xFieldId: crossRefConfig.compareXFieldId,
+            yFieldId: crossRefConfig.compareYFieldId,
+            parentId: parentSub.id,
+            parentRefId: parentSub.submission_ref_id,
+            linkedCount: linkedSubmissions.length,
+            _isCrossRefCompare: true,
+            _hasTextY: hasTextY,
+            _yTextValues: yTextValues,
+            // Store linked submission IDs for drilldown
+            _linkedSubmissionIds: linkedSubmissions.map(s => s.id)
           });
         } else {
           // Aggregate mode
@@ -1815,14 +1828,49 @@ export function ChartPreview({
     
     if (!dimensionValue) return;
     
-    // Check if this is a cross-reference chart - use parentId for direct record lookup
+    // Check if this is a cross-reference chart - handle drilldown to linked records
     if (config.crossRefConfig?.enabled && payload?.parentId) {
+      const crossRefConfig = config.crossRefConfig;
+      
+      // Check if cross-ref drilldown is enabled with levels
+      if (crossRefConfig.drilldownEnabled && crossRefConfig.drilldownLevels && crossRefConfig.drilldownLevels.length > 0) {
+        // Use cross-ref drilldown levels to filter the linked records
+        const drilldownLevels = crossRefConfig.drilldownLevels;
+        const currentLevel = drilldownState?.values?.length || 0;
+        
+        if (currentLevel >= drilldownLevels.length) {
+          // At final level - show submissions dialog with all linked records
+          setCellSubmissionsDialog({
+            open: true,
+            dimensionField: '',
+            dimensionValue: dimensionValue,
+            dimensionLabel: 'Linked Records',
+            submissionId: payload.parentId,
+            crossRefTargetFormId: crossRefConfig.targetFormId,
+            crossRefDisplayFields: crossRefConfig.drilldownDisplayFields,
+            crossRefLinkedIds: payload._linkedSubmissionIds,
+          });
+          return;
+        }
+        
+        // Drill into the next level
+        const nextLevel = drilldownLevels[currentLevel];
+        if (nextLevel && onDrilldown) {
+          onDrilldown(nextLevel, dimensionValue);
+          return;
+        }
+      }
+      
+      // Simple drilldown enabled - show linked records directly
       setCellSubmissionsDialog({
         open: true,
         dimensionField: '',
         dimensionValue: dimensionValue,
-        dimensionLabel: 'Record',
-        submissionId: payload.parentId, // Direct lookup by parent submission ID
+        dimensionLabel: 'Linked Records',
+        submissionId: payload.parentId,
+        crossRefTargetFormId: crossRefConfig.targetFormId,
+        crossRefDisplayFields: crossRefConfig.drilldownDisplayFields,
+        crossRefLinkedIds: payload._linkedSubmissionIds,
       });
       return;
     }
@@ -4268,6 +4316,9 @@ export function ChartPreview({
           acc[field.id] = field.label || field.id;
           return acc;
         }, {} as Record<string, string>)}
+        crossRefTargetFormId={cellSubmissionsDialog.crossRefTargetFormId}
+        crossRefDisplayFields={cellSubmissionsDialog.crossRefDisplayFields}
+        crossRefLinkedIds={cellSubmissionsDialog.crossRefLinkedIds}
       />
     </div>;
 }

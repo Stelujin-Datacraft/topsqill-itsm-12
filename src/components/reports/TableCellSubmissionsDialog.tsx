@@ -27,6 +27,10 @@ interface TableCellSubmissionsDialogProps {
   submissionId?: string;
   displayFields?: string[];
   fieldLabels?: Record<string, string>;
+  // Cross-reference drilldown support
+  crossRefTargetFormId?: string;
+  crossRefDisplayFields?: string[];
+  crossRefLinkedIds?: string[];
 }
 
 interface SubmissionRecord {
@@ -47,7 +51,10 @@ export function TableCellSubmissionsDialog({
   groupLabel,
   submissionId,
   displayFields = [],
-  fieldLabels = {}
+  fieldLabels = {},
+  crossRefTargetFormId,
+  crossRefDisplayFields,
+  crossRefLinkedIds
 }: TableCellSubmissionsDialogProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -62,7 +69,7 @@ export function TableCellSubmissionsDialog({
   const [formFields, setFormFields] = useState<any[]>([]);
 
   useEffect(() => {
-    if (open && formId) {
+    if (open && (formId || crossRefTargetFormId)) {
       loadSubmissions();
       loadFieldTypes();
       setExpandedSubmissions(new Set());
@@ -71,14 +78,18 @@ export function TableCellSubmissionsDialog({
       setSortField('_submission_ref');
       setSortDirection('desc');
     }
-  }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId]);
+  }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId, crossRefTargetFormId, crossRefLinkedIds]);
 
   const loadFieldTypes = async () => {
+    // Use crossRefTargetFormId if available (for cross-reference drilldown)
+    const targetFormId = crossRefTargetFormId || formId;
+    if (!targetFormId) return;
+    
     try {
       const { data: fields, error } = await supabase
         .from('form_fields')
         .select('id, field_type, label, custom_config, options')
-        .eq('form_id', formId);
+        .eq('form_id', targetFormId);
       
       if (error) throw error;
       
@@ -111,6 +122,22 @@ export function TableCellSubmissionsDialog({
   const loadSubmissions = async () => {
     setLoading(true);
     try {
+      // If we have cross-reference linked IDs, fetch those specific records from the target form
+      if (crossRefTargetFormId && crossRefLinkedIds && crossRefLinkedIds.length > 0) {
+        const { data, error } = await supabase
+          .from('form_submissions')
+          .select('id, submission_ref_id, submission_data')
+          .eq('form_id', crossRefTargetFormId)
+          .in('id', crossRefLinkedIds);
+
+        if (error) throw error;
+        setSubmissions((data || []).map(d => ({
+          ...d,
+          submission_data: (d.submission_data as Record<string, any>) || {}
+        })));
+        return;
+      }
+
       // If we have a direct submissionId, fetch that specific record
       if (submissionId) {
         const { data, error } = await supabase
