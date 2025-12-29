@@ -92,11 +92,18 @@ export interface ChartConfig {
     enabled: boolean;
     crossRefFieldId: string; // The cross-reference field in the main form
     targetFormId: string; // The form being referenced
-    mode: 'count' | 'aggregate'; // Count linked records or aggregate their data
+    mode: 'count' | 'aggregate' | 'compare'; // Count linked records, aggregate their data, or compare two fields
     targetMetricFieldId?: string; // For aggregate mode: which field to aggregate
     targetAggregation?: 'sum' | 'avg' | 'min' | 'max' | 'count';
     targetDimensionFieldId?: string; // For grouping by a field in the referenced form
     sourceLabelFieldId?: string; // Field from source form to use as chart label (instead of ref ID)
+    // Compare mode specific
+    compareField1Id?: string; // First field to compare
+    compareField2Id?: string; // Second field to compare
+    // Group by source field
+    sourceGroupByFieldId?: string; // Group chart data by a field from the source form
+    // Drilldown to linked records
+    drilldownEnabled?: boolean; // Enable drill-down to view linked records
   };
   
   // Fields to display when clicking on chart elements

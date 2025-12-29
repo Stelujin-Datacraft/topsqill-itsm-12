@@ -401,11 +401,15 @@ export function ChartPreview({
       enabled: boolean;
       crossRefFieldId: string;
       targetFormId: string;
-      mode: 'count' | 'aggregate';
+      mode: 'count' | 'aggregate' | 'compare';
       targetMetricFieldId?: string;
       targetAggregation?: 'sum' | 'avg' | 'min' | 'max' | 'count';
       targetDimensionFieldId?: string;
       sourceLabelFieldId?: string;
+      compareField1Id?: string;
+      compareField2Id?: string;
+      sourceGroupByFieldId?: string;
+      drilldownEnabled?: boolean;
     }
   ): Promise<any[]> => {
     if (!crossRefConfig.crossRefFieldId || !crossRefConfig.targetFormId) {
@@ -501,6 +505,50 @@ export function ChartPreview({
               parentRefId: parentSub.submission_ref_id
             });
           }
+        } else if (crossRefConfig.mode === 'compare') {
+          // Compare mode: compare two numeric fields from linked records
+          if (!crossRefConfig.compareField1Id || !crossRefConfig.compareField2Id) {
+            console.warn('Compare mode requires both compareField1Id and compareField2Id');
+            return;
+          }
+
+          // Extract values for both fields from linked submissions
+          let field1Values: number[] = [];
+          let field2Values: number[] = [];
+          
+          linkedSubmissions.forEach(sub => {
+            const val1 = sub.submission_data?.[crossRefConfig.compareField1Id!];
+            const val2 = sub.submission_data?.[crossRefConfig.compareField2Id!];
+            
+            const numVal1 = typeof val1 === 'number' ? val1 : (typeof val1 === 'object' && val1?.amount ? Number(val1.amount) : Number(val1)) || 0;
+            const numVal2 = typeof val2 === 'number' ? val2 : (typeof val2 === 'object' && val2?.amount ? Number(val2.amount) : Number(val2)) || 0;
+            
+            field1Values.push(numVal1);
+            field2Values.push(numVal2);
+          });
+
+          // Calculate sums for both fields
+          const field1Sum = field1Values.reduce((a, b) => a + b, 0);
+          const field2Sum = field2Values.reduce((a, b) => a + b, 0);
+
+          // Use sourceLabelFieldId if available for better labels
+          const labelValue = crossRefConfig.sourceLabelFieldId 
+            ? parentSub.submission_data?.[crossRefConfig.sourceLabelFieldId]
+            : null;
+          const displayName = labelValue 
+            ? (typeof labelValue === 'object' ? JSON.stringify(labelValue) : String(labelValue))
+            : (parentSub.submission_ref_id || parentSub.id.slice(0, 8));
+
+          result.push({
+            name: displayName,
+            [crossRefConfig.compareField1Id]: field1Sum,
+            [crossRefConfig.compareField2Id]: field2Sum,
+            field1: field1Sum,
+            field2: field2Sum,
+            value: field1Sum, // Primary value for chart sizing
+            parentId: parentSub.id,
+            parentRefId: parentSub.submission_ref_id
+          });
         } else {
           // Aggregate mode
           if (!crossRefConfig.targetMetricFieldId) {
