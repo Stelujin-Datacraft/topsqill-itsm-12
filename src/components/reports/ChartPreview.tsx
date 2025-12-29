@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Edit, ArrowLeft, ChevronRight, Filter, RotateCcw } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Edit, ArrowLeft, ChevronRight, Filter, RotateCcw, Layers, Eye } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, PieChart as RechartsPieChart, Pie, Cell, LineChart as RechartsLineChart, Line, AreaChart as RechartsAreaChart, Area, ScatterChart as RechartsScatterChart, Scatter, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, FunnelChart, Funnel, Treemap, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { useReports } from '@/hooks/useReports';
@@ -36,6 +38,9 @@ export function ChartPreview({
   const [showFormFields, setShowFormFields] = useState(false);
   
   const [showDrilldownPanel, setShowDrilldownPanel] = useState(false);
+  
+  // Drilldown mode toggle: when ON, clicking chart performs drilldown; when OFF, shows records
+  const [isDrilldownModeActive, setIsDrilldownModeActive] = useState(true);
   
   const [cellSubmissionsDialog, setCellSubmissionsDialog] = useState<{
     open: boolean;
@@ -491,7 +496,8 @@ export function ChartPreview({
                 value: count,
                 count: count,
                 parentId: parentSub.id,
-                parentRefId: parentSub.submission_ref_id
+                parentRefId: parentSub.submission_ref_id,
+                _linkedSubmissionIds: linkedSubmissions.map(s => s.id)
               });
             });
           } else {
@@ -508,7 +514,8 @@ export function ChartPreview({
               value: linkedSubmissions.length,
               count: linkedSubmissions.length,
               parentId: parentSub.id,
-              parentRefId: parentSub.submission_ref_id
+              parentRefId: parentSub.submission_ref_id,
+              _linkedSubmissionIds: linkedSubmissions.map(s => s.id)
             });
           }
         } else if (crossRefConfig.mode === 'compare') {
@@ -660,7 +667,9 @@ export function ChartPreview({
                 name: dimVal,
                 value: aggVal,
                 [crossRefConfig.targetMetricFieldId!]: aggVal,
-                parentId: parentSub.id
+                parentId: parentSub.id,
+                parentRefId: parentSub.submission_ref_id,
+                _linkedSubmissionIds: linkedSubmissions.map(s => s.id)
               });
             });
           } else {
@@ -677,7 +686,8 @@ export function ChartPreview({
               value: aggregatedValue,
               [crossRefConfig.targetMetricFieldId!]: aggregatedValue,
               parentId: parentSub.id,
-              parentRefId: parentSub.submission_ref_id
+              parentRefId: parentSub.submission_ref_id,
+              _linkedSubmissionIds: linkedSubmissions.map(s => s.id)
             });
           }
         }
@@ -1769,12 +1779,59 @@ export function ChartPreview({
     
     // Check if this is a cross-reference chart - use parentId for direct record lookup
     if (config.crossRefConfig?.enabled && data?.parentId) {
+      const crossRefConfig = config.crossRefConfig;
+      
+      // If drilldown mode is OFF, always show records directly
+      if (!isDrilldownModeActive || !crossRefConfig.drilldownEnabled) {
+        setCellSubmissionsDialog({
+          open: true,
+          dimensionField: '',
+          dimensionValue: clickedValue,
+          dimensionLabel: 'Record',
+          submissionId: String(data.parentId),
+          crossRefTargetFormId: crossRefConfig.targetFormId,
+          crossRefDisplayFields: crossRefConfig.drilldownDisplayFields,
+          crossRefLinkedIds: data._linkedSubmissionIds,
+        });
+        return;
+      }
+      
+      // Drilldown mode is ON - handle hierarchical drilldown
+      if (crossRefConfig.drilldownLevels && crossRefConfig.drilldownLevels.length > 0) {
+        const drilldownLevels = crossRefConfig.drilldownLevels;
+        const currentLevel = drilldownState?.values?.length || 0;
+        
+        if (currentLevel >= drilldownLevels.length) {
+          setCellSubmissionsDialog({
+            open: true,
+            dimensionField: '',
+            dimensionValue: clickedValue,
+            dimensionLabel: 'Record',
+            submissionId: String(data.parentId),
+            crossRefTargetFormId: crossRefConfig.targetFormId,
+            crossRefDisplayFields: crossRefConfig.drilldownDisplayFields,
+            crossRefLinkedIds: data._linkedSubmissionIds,
+          });
+          return;
+        }
+        
+        const nextLevel = drilldownLevels[currentLevel];
+        if (nextLevel && onDrilldown) {
+          onDrilldown(nextLevel, clickedValue);
+          return;
+        }
+      }
+      
+      // Fallback - show records
       setCellSubmissionsDialog({
         open: true,
         dimensionField: '',
         dimensionValue: clickedValue,
         dimensionLabel: 'Record',
-        submissionId: data.parentId, // Direct lookup by parent submission ID
+        submissionId: String(data.parentId),
+        crossRefTargetFormId: crossRefConfig.targetFormId,
+        crossRefDisplayFields: crossRefConfig.drilldownDisplayFields,
+        crossRefLinkedIds: data._linkedSubmissionIds,
       });
       return;
     }
@@ -1783,9 +1840,9 @@ export function ChartPreview({
     const dimensionField = config.dimensions?.[0] || '';
     const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Category';
     
-    // Check if drilldown is enabled
+    // Check if drilldown is enabled and drilldown mode toggle is ON
     const drilldownLevels = getDrilldownLevels();
-    if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0) {
+    if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0 && isDrilldownModeActive) {
       const currentLevel = drilldownState?.values?.length || 0;
       
       if (currentLevel >= drilldownLevels.length) {
@@ -1813,7 +1870,7 @@ export function ChartPreview({
       }
     }
     
-    // No drilldown enabled - open submissions dialog
+    // Drilldown mode is OFF or not enabled - open submissions dialog
     setCellSubmissionsDialog({
       open: true,
       dimensionField,
@@ -1832,9 +1889,23 @@ export function ChartPreview({
     if (config.crossRefConfig?.enabled && payload?.parentId) {
       const crossRefConfig = config.crossRefConfig;
       
-      // Check if cross-ref drilldown is enabled with levels
-      if (crossRefConfig.drilldownEnabled && crossRefConfig.drilldownLevels && crossRefConfig.drilldownLevels.length > 0) {
-        // Use cross-ref drilldown levels to filter the linked records
+      // If drilldown mode is OFF, always show records directly
+      if (!isDrilldownModeActive || !crossRefConfig.drilldownEnabled) {
+        setCellSubmissionsDialog({
+          open: true,
+          dimensionField: '',
+          dimensionValue: dimensionValue,
+          dimensionLabel: 'Linked Records',
+          submissionId: String(payload.parentId),
+          crossRefTargetFormId: crossRefConfig.targetFormId,
+          crossRefDisplayFields: crossRefConfig.drilldownDisplayFields,
+          crossRefLinkedIds: payload._linkedSubmissionIds,
+        });
+        return;
+      }
+      
+      // Drilldown mode is ON and drilldown is enabled with levels
+      if (crossRefConfig.drilldownLevels && crossRefConfig.drilldownLevels.length > 0) {
         const drilldownLevels = crossRefConfig.drilldownLevels;
         const currentLevel = drilldownState?.values?.length || 0;
         
@@ -1845,7 +1916,7 @@ export function ChartPreview({
             dimensionField: '',
             dimensionValue: dimensionValue,
             dimensionLabel: 'Linked Records',
-            submissionId: payload.parentId,
+            submissionId: String(payload.parentId),
             crossRefTargetFormId: crossRefConfig.targetFormId,
             crossRefDisplayFields: crossRefConfig.drilldownDisplayFields,
             crossRefLinkedIds: payload._linkedSubmissionIds,
@@ -1861,13 +1932,13 @@ export function ChartPreview({
         }
       }
       
-      // Simple drilldown enabled - show linked records directly
+      // No levels configured - show linked records directly
       setCellSubmissionsDialog({
         open: true,
         dimensionField: '',
         dimensionValue: dimensionValue,
         dimensionLabel: 'Linked Records',
-        submissionId: payload.parentId,
+        submissionId: String(payload.parentId),
         crossRefTargetFormId: crossRefConfig.targetFormId,
         crossRefDisplayFields: crossRefConfig.drilldownDisplayFields,
         crossRefLinkedIds: payload._linkedSubmissionIds,
@@ -1879,9 +1950,9 @@ export function ChartPreview({
     const dimensionField = payload?.xFieldName || config.dimensions?.[0] || config.xAxis || '';
     const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Field';
     
-    // Check if drilldown is enabled - if so, trigger drilldown instead of dialog
+    // Check if drilldown is enabled and drilldown mode toggle is ON
     const drilldownLevels = getDrilldownLevels();
-    if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0) {
+    if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0 && isDrilldownModeActive) {
       if (event) {
         event.stopPropagation();
       }
@@ -1904,7 +1975,7 @@ export function ChartPreview({
       }
     }
     
-    // No drilldown enabled - open submissions dialog (always show list with view button)
+    // Drilldown mode is OFF or not enabled - open submissions dialog (always show list with view button)
     setCellSubmissionsDialog({
       open: true,
       dimensionField,
@@ -3971,6 +4042,37 @@ export function ChartPreview({
             </span>
           )}
         </div>
+        
+        {/* Drilldown Mode Toggle - shown when drilldown is enabled */}
+        {(config.drilldownConfig?.enabled || config.crossRefConfig?.drilldownEnabled) && (
+          <div className="flex items-center gap-3 mt-3 p-2 bg-muted/50 rounded-lg border">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="drilldown-mode-toggle"
+                checked={isDrilldownModeActive}
+                onCheckedChange={setIsDrilldownModeActive}
+              />
+              <Label htmlFor="drilldown-mode-toggle" className="text-sm font-medium cursor-pointer">
+                {isDrilldownModeActive ? (
+                  <span className="flex items-center gap-1.5">
+                    <Layers className="h-3.5 w-3.5 text-primary" />
+                    Drilldown Mode
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5">
+                    <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                    View Records Mode
+                  </span>
+                )}
+              </Label>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {isDrilldownModeActive 
+                ? 'Click chart to filter data by hierarchy' 
+                : 'Click chart to view underlying records'}
+            </span>
+          </div>
+        )}
         
         {/* Drilldown Active Filter */}
         {drilldownState?.values && drilldownState.values.length > 0 && <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700 mt-3">
