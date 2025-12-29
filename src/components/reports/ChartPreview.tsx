@@ -628,6 +628,54 @@ export function ChartPreview({
     }
   };
 
+  // Transform cross-reference data to match the expected format for each chart type
+  const transformCrossRefDataForChartType = (crossRefData: any[], chartType: string): any[] => {
+    if (!crossRefData || crossRefData.length === 0) return [];
+    
+    switch (chartType) {
+      case 'bar':
+      case 'column':
+      case 'pie':
+      case 'donut':
+        // These chart types work with { name, value } format - no transformation needed
+        return crossRefData;
+      
+      case 'line':
+      case 'area':
+        // Line/Area charts use the same { name, value } format for single series
+        // The data is already in the correct format
+        return crossRefData;
+      
+      case 'scatter':
+      case 'bubble':
+        // Scatter/Bubble charts need { x, y, name } format
+        // Transform by assigning index as x coordinate and value as y coordinate
+        return crossRefData.map((item, index) => ({
+          ...item,
+          x: index + 1, // Use sequential index as X coordinate
+          y: item.value || 0,
+          name: item.name || `Point ${index + 1}`,
+          xFieldName: 'Record',
+          yFieldName: 'Value'
+        }));
+      
+      case 'heatmap':
+        // Heatmap needs special handling - if we only have { name, value }, 
+        // create a simple row/column structure
+        // Group by name as rows and use a single column
+        const uniqueNames = [...new Set(crossRefData.map(item => item.name))];
+        return crossRefData.map((item, index) => ({
+          ...item,
+          row: item.name || `Row ${index + 1}`,
+          column: 'Value',
+          intensity: item.value || 0
+        }));
+      
+      default:
+        return crossRefData;
+    }
+  };
+
   useEffect(() => {
     const loadChartData = async () => {
       // Use sample data if provided, otherwise fetch from form
@@ -750,7 +798,13 @@ export function ChartPreview({
             console.log('📊 Processing cross-reference data');
             const crossRefData = await processCrossReferenceData(submissions, config.crossRefConfig);
             console.log('📊 Cross-reference data processed:', crossRefData?.length || 0);
-            setChartData(crossRefData);
+            
+            // Transform cross-reference data based on chart type
+            const currentChartType = config.type || config.chartType || 'bar';
+            const transformedData = transformCrossRefDataForChartType(crossRefData, currentChartType);
+            console.log('📊 Cross-reference data transformed for', currentChartType, ':', transformedData?.length || 0);
+            
+            setChartData(transformedData);
             setLoading(false);
             return;
           }
