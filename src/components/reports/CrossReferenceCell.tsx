@@ -1,7 +1,13 @@
-// import React from 'react';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, Loader2 } from 'lucide-react';
+import { ExternalLink, Loader2, ChevronDown } from 'lucide-react';
 import { useCrossReferenceData } from '@/hooks/useCrossReferenceData';
+import { useNavigate } from 'react-router-dom';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface CrossReferenceCellProps {
   submissionRefIds: string[] | string; // can be string (comma-separated) or array
@@ -9,6 +15,8 @@ interface CrossReferenceCellProps {
 }
 
 export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCellProps) {
+  const navigate = useNavigate();
+  
   // Parse custom_config if it's a JSON string (from database)
   let customConfig: any = field?.customConfig;
   if (!customConfig && field?.custom_config) {
@@ -60,27 +68,21 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
     displayFieldIds
   );
 
+  const handleViewRecord = (recordId: string) => {
+    navigate(`/submission/${recordId}`);
+  };
+
   const handleClick = () => {
-    if (!targetFormId) {
-      console.error('No valid target form ID configured for cross-reference field');
+    // If we have exactly one record, navigate directly
+    if (records.length === 1) {
+      handleViewRecord(records[0].id);
       return;
     }
     
-    const dynamicTable = document.querySelector('[data-dynamic-table="main"]');
-
-    if (dynamicTable) {
-      const event = new CustomEvent('showCrossReference', {
-        detail: {
-          submissionIds: normalizedSubmissionRefIds,
-          fieldName: field?.label || 'Cross Reference',
-          targetFormId,
-          displayFieldIds,
-        },
-      });
-
-      dynamicTable.dispatchEvent(event);
-    } else {
-      console.error('Dynamic table element not found');
+    // For multiple records, the dropdown will handle it
+    // This is a fallback for when dropdown doesn't work
+    if (records.length > 0) {
+      handleViewRecord(records[0].id);
     }
   };
 
@@ -108,20 +110,62 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
     );
   }
 
-  // Display button with count
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1 px-2"
-      onClick={handleClick}
-    >
-      <div className="text-sm">
-        <span className="text-primary font-medium">
-          View ({normalizedSubmissionRefIds.length})
-        </span>
+  // No records found
+  if (records.length === 0 && !loading) {
+    return (
+      <div className="text-xs text-muted-foreground italic">
+        No linked records
       </div>
-      <ExternalLink className="h-3 w-3 ml-2 opacity-50" />
-    </Button>
+    );
+  }
+
+  // Single record - show simple View button that navigates directly
+  if (records.length === 1) {
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1 px-2"
+        onClick={() => handleViewRecord(records[0].id)}
+      >
+        <ExternalLink className="h-3 w-3 mr-1 opacity-50" />
+        <span className="text-sm text-primary font-medium truncate max-w-[150px]">
+          {records[0].displayData || records[0].submission_ref_id}
+        </span>
+      </Button>
+    );
+  }
+
+  // Multiple records - show dropdown with all linked records
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1 px-2"
+        >
+          <ExternalLink className="h-3 w-3 mr-1 opacity-50" />
+          <span className="text-sm text-primary font-medium">
+            View ({records.length})
+          </span>
+          <ChevronDown className="h-3 w-3 ml-1 opacity-50" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="max-h-[300px] overflow-y-auto">
+        {records.map((record) => (
+          <DropdownMenuItem
+            key={record.id}
+            onClick={() => handleViewRecord(record.id)}
+            className="cursor-pointer"
+          >
+            <ExternalLink className="h-3 w-3 mr-2 opacity-50" />
+            <span className="truncate max-w-[200px]">
+              {record.displayData || record.submission_ref_id}
+            </span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
