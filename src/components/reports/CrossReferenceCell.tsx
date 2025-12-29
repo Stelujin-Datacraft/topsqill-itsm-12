@@ -129,8 +129,8 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
         onClick={() => handleViewRecord(records[0].id)}
       >
         <ExternalLink className="h-3 w-3 mr-1 opacity-50" />
-        <span className="text-sm text-primary font-medium truncate max-w-[150px]">
-          {records[0].displayData || records[0].submission_ref_id}
+        <span className="text-sm text-primary font-medium">
+          #{records[0].submission_ref_id}
         </span>
       </Button>
     );
@@ -160,9 +160,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
             className="cursor-pointer"
           >
             <ExternalLink className="h-3 w-3 mr-2 opacity-50" />
-            <span className="truncate max-w-[200px]">
-              {record.displayData || record.submission_ref_id}
-            </span>
+            <span>#{record.submission_ref_id}</span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
