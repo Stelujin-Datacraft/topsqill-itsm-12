@@ -1686,6 +1686,18 @@ export function ChartPreview({
     const clickedValue = data?.name || data;
     if (!clickedValue || clickedValue === 'Not Specified') return;
     
+    // Check if this is a cross-reference chart - use parentId for direct record lookup
+    if (config.crossRefConfig?.enabled && data?.parentId) {
+      setCellSubmissionsDialog({
+        open: true,
+        dimensionField: '',
+        dimensionValue: clickedValue,
+        dimensionLabel: 'Record',
+        submissionId: data.parentId, // Direct lookup by parent submission ID
+      });
+      return;
+    }
+    
     // Get dimension field for the pie chart
     const dimensionField = config.dimensions?.[0] || '';
     const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Category';
@@ -1734,6 +1746,18 @@ export function ChartPreview({
     const dimensionValue = payload?.name || data?.name;
     
     if (!dimensionValue) return;
+    
+    // Check if this is a cross-reference chart - use parentId for direct record lookup
+    if (config.crossRefConfig?.enabled && payload?.parentId) {
+      setCellSubmissionsDialog({
+        open: true,
+        dimensionField: '',
+        dimensionValue: dimensionValue,
+        dimensionLabel: 'Record',
+        submissionId: payload.parentId, // Direct lookup by parent submission ID
+      });
+      return;
+    }
     
     // Get dimensionField from the data payload (xFieldName) or fallback to config
     const dimensionField = payload?.xFieldName || config.dimensions?.[0] || config.xAxis || '';
