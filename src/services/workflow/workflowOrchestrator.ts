@@ -67,15 +67,17 @@ export class WorkflowOrchestrator {
         .eq('id', execution.id)
         .single();
 
-      console.log('📊 Current execution status after nodes completed:', currentExecution?.status);
+      console.log('📊 Current execution status after nodes completed:', currentExecution?.status, 'isTerminal:', result.isTerminal);
 
       // Only update status if it's still 'running' (not 'waiting' from a wait node)
       if (currentExecution?.status === 'running') {
-        console.log('✅ Workflow not paused, marking as', result.success ? 'completed' : 'failed');
+        // If result has isTerminal flag or success, mark as completed
+        const shouldComplete = result.success && (result.isTerminal || result.isTerminal === undefined);
+        console.log('✅ Workflow not paused, marking as', shouldComplete ? 'completed' : 'failed');
         await supabase
           .from('workflow_executions')
           .update({
-            status: result.success ? 'completed' : 'failed',
+            status: shouldComplete ? 'completed' : 'failed',
             completed_at: new Date().toISOString(),
             error_message: result.error
           })
@@ -130,7 +132,7 @@ export class WorkflowOrchestrator {
       .eq('id', executionId)
       .single();
 
-    console.log('📊 Continue from node - current status:', currentExecution?.status);
+    console.log('📊 Continue from node - current status:', currentExecution?.status, 'isTerminal:', result.isTerminal);
 
     // Only mark as failed if execution failed AND status is not 'waiting'
     if (!result.success && currentExecution?.status !== 'waiting') {
@@ -143,20 +145,23 @@ export class WorkflowOrchestrator {
         })
         .eq('id', executionId);
     } else if (result.success && currentExecution?.status === 'running') {
-      // Mark as completed only if we're still running (not waiting)
-      await supabase
-        .from('workflow_executions')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString()
-        })
-        .eq('id', executionId);
+      // Mark as completed if we're still running (not waiting) and reached a terminal state
+      const shouldComplete = result.isTerminal || result.isTerminal === undefined;
+      if (shouldComplete) {
+        await supabase
+          .from('workflow_executions')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString()
+          })
+          .eq('id', executionId);
+      }
     }
 
     return result;
   }
 
-  private static async executeNode(executionId: string, nodeId: string, inputData: any, context: WorkflowExecutionContext) {
+  private static async executeNode(executionId: string, nodeId: string, inputData: any, context: WorkflowExecutionContext): Promise<{ success: boolean; error?: string; isTerminal?: boolean }> {
     console.log(`🔄 Executing node ${nodeId} for execution ${executionId}`);
 
     try {
@@ -246,26 +251,37 @@ export class WorkflowOrchestrator {
           .eq('id', nodeExecution.id);
       }
 
-      // If this is an end node, stop execution
+      // If this is an end node, stop execution and mark as terminal
       if (node.node_type === 'end') {
         console.log('🏁 Workflow completed - end node reached');
-        return { success: true };
+        return { success: true, isTerminal: true };
+      }
+
+      // Check if this is a wait node that paused the workflow
+      if (node.node_type === 'wait' && result.output?.waited === true) {
+        console.log('⏸️ Workflow paused at wait node');
+        return { success: true, isTerminal: false };
       }
 
       // Execute next nodes if the current node was successful
       if (result.success && result.nextNodeIds && result.nextNodeIds.length > 0) {
         console.log(`➡️ Executing ${result.nextNodeIds.length} next nodes`);
         for (const nextNodeId of result.nextNodeIds) {
-          await this.executeNode(executionId, nextNodeId, result.output || inputData, context);
+          const childResult = await this.executeNode(executionId, nextNodeId, result.output || inputData, context);
+          // If any child returns terminal, propagate it
+          if (childResult.isTerminal) {
+            return { success: true, isTerminal: true };
+          }
         }
+        return { success: true };
       } else if (!result.success) {
         console.error('❌ Node execution failed, stopping workflow');
         return { success: false, error: result.error };
       } else {
-        console.log('ℹ️ No next nodes to execute, workflow path completed');
+        // No next nodes and node executed successfully - this is a terminal node (like action at end of branch)
+        console.log('ℹ️ No next nodes to execute, branch path completed - treating as terminal');
+        return { success: true, isTerminal: true };
       }
-
-      return { success: true };
     } catch (error) {
       console.error(`❌ Error executing node ${nodeId}:`, error);
       return { 
