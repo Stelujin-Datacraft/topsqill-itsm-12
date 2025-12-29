@@ -374,8 +374,11 @@ export function ReportEditor({
       const component = components.find(c => c.id === componentId);
       const config = component?.config as any;
       
-      // Support both drilldownLevels and levels for backward compatibility
-      const drilldownLevels = config?.drilldownConfig?.drilldownLevels || config?.drilldownConfig?.levels || [];
+      // Support both drilldownConfig and crossRefConfig drilldown levels
+      const drilldownLevels = config?.drilldownConfig?.drilldownLevels || 
+                              config?.drilldownConfig?.levels || 
+                              config?.crossRefConfig?.drilldownLevels || 
+                              [];
       if (drilldownLevels.length === 0) return prev;
 
       // Find the current level
