@@ -164,22 +164,22 @@ export function LifecycleStatusBar({
   const getColorForOption = (optionLabel: string, index: number) => {
     const label = optionLabel.toLowerCase();
     if (label.includes('complete') || label.includes('done') || label.includes('approved') || label.includes('success')) {
-      return { bg: 'bg-green-500', hover: 'hover:bg-green-600', border: 'border-green-400', text: 'text-green-500' };
+      return { bg: 'bg-green-400', hover: 'hover:bg-green-500', border: 'border-green-300', text: 'text-green-400' };
     }
     if (label.includes('reject') || label.includes('cancel') || label.includes('fail') || label.includes('error')) {
-      return { bg: 'bg-red-500', hover: 'hover:bg-red-600', border: 'border-red-400', text: 'text-red-500' };
+      return { bg: 'bg-red-400', hover: 'hover:bg-red-500', border: 'border-red-300', text: 'text-red-400' };
     }
     if (label.includes('pending') || label.includes('wait') || label.includes('hold') || label.includes('new')) {
-      return { bg: 'bg-amber-500', hover: 'hover:bg-amber-600', border: 'border-amber-400', text: 'text-amber-500' };
+      return { bg: 'bg-amber-400', hover: 'hover:bg-amber-500', border: 'border-amber-300', text: 'text-amber-400' };
     }
     if (label.includes('progress') || label.includes('review') || label.includes('process') || label.includes('active')) {
-      return { bg: 'bg-blue-500', hover: 'hover:bg-blue-600', border: 'border-blue-400', text: 'text-blue-500' };
+      return { bg: 'bg-blue-400', hover: 'hover:bg-blue-500', border: 'border-blue-300', text: 'text-blue-400' };
     }
     const colors = [
-      { bg: 'bg-slate-500', hover: 'hover:bg-slate-600', border: 'border-slate-400', text: 'text-slate-500' },
-      { bg: 'bg-indigo-500', hover: 'hover:bg-indigo-600', border: 'border-indigo-400', text: 'text-indigo-500' },
-      { bg: 'bg-purple-500', hover: 'hover:bg-purple-600', border: 'border-purple-400', text: 'text-purple-500' },
-      { bg: 'bg-teal-500', hover: 'hover:bg-teal-600', border: 'border-teal-400', text: 'text-teal-500' },
+      { bg: 'bg-slate-400', hover: 'hover:bg-slate-500', border: 'border-slate-300', text: 'text-slate-400' },
+      { bg: 'bg-indigo-400', hover: 'hover:bg-indigo-500', border: 'border-indigo-300', text: 'text-indigo-400' },
+      { bg: 'bg-purple-400', hover: 'hover:bg-purple-500', border: 'border-purple-300', text: 'text-purple-400' },
+      { bg: 'bg-teal-400', hover: 'hover:bg-teal-500', border: 'border-teal-300', text: 'text-teal-400' },
     ];
     return colors[index % colors.length];
   };
