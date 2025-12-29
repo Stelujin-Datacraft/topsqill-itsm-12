@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
-import { Link2, Calculator, Hash, Info, ChevronDown, ChevronUp, BarChart3, ArrowRight, CheckCircle2, Tag } from 'lucide-react';
+import { Link2, Calculator, Hash, Info, ChevronDown, ChevronUp, BarChart3, ArrowRight, CheckCircle2, Tag, GitCompare, Layers, MousePointerClick } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useFormsData } from '@/hooks/useFormsData';
 import { METRIC_FIELD_TYPES, DIMENSION_FIELD_TYPES } from '@/utils/chartConfig';
@@ -204,13 +204,15 @@ export function CrossReferenceDataSection({
   }, [formFields, crossRefConfig?.sourceLabelFieldId]);
 
   // Handle mode change
-  const handleModeChange = (mode: 'count' | 'aggregate') => {
+  const handleModeChange = (mode: 'count' | 'aggregate' | 'compare') => {
     onConfigChange({
       crossRefConfig: {
         ...crossRefConfig!,
         mode,
         targetMetricFieldId: mode === 'aggregate' ? crossRefConfig?.targetMetricFieldId : undefined,
         targetAggregation: mode === 'aggregate' ? (crossRefConfig?.targetAggregation || 'sum') : undefined,
+        compareField1Id: mode === 'compare' ? crossRefConfig?.compareField1Id : undefined,
+        compareField2Id: mode === 'compare' ? crossRefConfig?.compareField2Id : undefined,
       }
     });
   };
@@ -218,13 +220,40 @@ export function CrossReferenceDataSection({
   // Calculate step completion status
   const isStep1Complete = !!crossRefConfig?.crossRefFieldId && !!(crossRefConfig.targetFormId || targetFormIdFromField);
   const isStep2Complete = !!crossRefConfig?.mode;
-  const isStep3Complete = crossRefConfig?.mode === 'count' || (crossRefConfig?.mode === 'aggregate' && !!crossRefConfig?.targetMetricFieldId);
+  const isStep3Complete = crossRefConfig?.mode === 'count' || 
+    (crossRefConfig?.mode === 'aggregate' && !!crossRefConfig?.targetMetricFieldId) ||
+    (crossRefConfig?.mode === 'compare' && !!crossRefConfig?.compareField1Id && !!crossRefConfig?.compareField2Id);
 
   // Get selected metric field label
   const selectedMetricField = useMemo(() => {
     if (!crossRefConfig?.targetMetricFieldId) return null;
     return targetFormFields.find(f => f.id === crossRefConfig.targetMetricFieldId);
   }, [targetFormFields, crossRefConfig?.targetMetricFieldId]);
+
+  // Get selected compare fields
+  const selectedCompareField1 = useMemo(() => {
+    if (!crossRefConfig?.compareField1Id) return null;
+    return targetFormFields.find(f => f.id === crossRefConfig.compareField1Id);
+  }, [targetFormFields, crossRefConfig?.compareField1Id]);
+
+  const selectedCompareField2 = useMemo(() => {
+    if (!crossRefConfig?.compareField2Id) return null;
+    return targetFormFields.find(f => f.id === crossRefConfig.compareField2Id);
+  }, [targetFormFields, crossRefConfig?.compareField2Id]);
+
+  // Get source form dimension fields for grouping
+  const sourceGroupByFields = useMemo(() => {
+    return formFields.filter(f => {
+      const type = getFieldType(f);
+      return DIMENSION_FIELD_TYPES.includes(type) && type !== 'cross-reference' && type !== 'child-cross-reference';
+    });
+  }, [formFields]);
+
+  // Get selected group by field
+  const selectedSourceGroupByField = useMemo(() => {
+    if (!crossRefConfig?.sourceGroupByFieldId) return null;
+    return formFields.find(f => f.id === crossRefConfig.sourceGroupByFieldId);
+  }, [formFields, crossRefConfig?.sourceGroupByFieldId]);
 
   // If no cross-reference fields exist, show info message
   if (crossRefFields.length === 0) {
@@ -404,6 +433,34 @@ export function CrossReferenceDataSection({
                     </div>
                   </div>
                 </div>
+
+                {/* Compare Mode Card */}
+                <div 
+                  onClick={() => handleModeChange('compare')}
+                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                    crossRefConfig.mode === 'compare' 
+                      ? 'border-primary bg-primary/5 shadow-sm' 
+                      : 'border-border hover:border-primary/50 bg-background'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-lg ${crossRefConfig.mode === 'compare' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                      <GitCompare className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm mb-1">Compare Two Fields</div>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Compare two numeric fields side-by-side from <span className="font-medium text-green-600 dark:text-green-400">{targetFormName}</span> records 
+                        for each <span className="font-medium text-blue-600 dark:text-blue-400">{currentFormName}</span> record.
+                      </p>
+                      <div className="flex items-center gap-2 text-xs bg-muted/50 p-2 rounded">
+                        <BarChart3 className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-muted-foreground">Example:</span>
+                        <span>"Customer A: Revenue $1500 vs Cost $800"</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -493,6 +550,91 @@ export function CrossReferenceDataSection({
             </div>
           )}
 
+          {/* Step 3: Configure compare fields (only for compare mode) */}
+          {isStep1Complete && crossRefConfig.mode === 'compare' && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                  isStep3Complete ? 'bg-green-500 text-white' : 'bg-primary text-primary-foreground'
+                }`}>
+                  {isStep3Complete ? <CheckCircle2 className="h-4 w-4" /> : '3'}
+                </div>
+                <Label className="text-sm font-medium">Select two fields to compare</Label>
+              </div>
+              
+              {loadingFields ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">Loading fields...</div>
+              ) : numericTargetFields.length < 2 ? (
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    <span className="font-medium">{targetFormName}</span> needs at least 2 numeric fields to compare. 
+                    Add more numeric fields to that form or use a different mode.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <div className="grid gap-3 p-4 bg-muted/30 rounded-lg border">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">First Field (Y-axis primary)</Label>
+                      <Select
+                        value={crossRefConfig.compareField1Id || ''}
+                        onValueChange={(value) => onConfigChange({
+                          crossRefConfig: {
+                            ...crossRefConfig,
+                            compareField1Id: value
+                          }
+                        })}
+                      >
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder="Select field..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {numericTargetFields.map((field) => (
+                            <SelectItem key={field.id} value={field.id} disabled={field.id === crossRefConfig.compareField2Id}>
+                              {field.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Second Field (Y-axis secondary)</Label>
+                      <Select
+                        value={crossRefConfig.compareField2Id || ''}
+                        onValueChange={(value) => onConfigChange({
+                          crossRefConfig: {
+                            ...crossRefConfig,
+                            compareField2Id: value
+                          }
+                        })}
+                      >
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder="Select field..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {numericTargetFields.map((field) => (
+                            <SelectItem key={field.id} value={field.id} disabled={field.id === crossRefConfig.compareField1Id}>
+                              {field.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  {selectedCompareField1 && selectedCompareField2 && (
+                    <p className="text-xs text-muted-foreground">
+                      Will compare "<span className="font-medium">{selectedCompareField1.label}</span>" vs "
+                      <span className="font-medium">{selectedCompareField2.label}</span>" from linked {targetFormName} records (with legend).
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Step 4: Customize labels (optional) */}
           {isStep1Complete && isStep3Complete && sourceLabelFields.length > 0 && (
             <div className="space-y-3">
@@ -537,6 +679,84 @@ export function CrossReferenceDataSection({
             </div>
           )}
 
+          {/* Optional: Group By Source Field */}
+          {isStep1Complete && isStep3Complete && sourceGroupByFields.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold bg-muted text-muted-foreground">
+                  <Layers className="h-3 w-3" />
+                </div>
+                <Label className="text-sm font-medium">
+                  Group chart data <span className="text-muted-foreground font-normal">(optional)</span>
+                </Label>
+              </div>
+              
+              <div className="p-4 bg-muted/30 rounded-lg border">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Group results by field from {currentFormName}</Label>
+                  <Select
+                    value={crossRefConfig.sourceGroupByFieldId || '_none'}
+                    onValueChange={(value) => onConfigChange({
+                      crossRefConfig: {
+                        ...crossRefConfig,
+                        sourceGroupByFieldId: value === '_none' ? undefined : value
+                      }
+                    })}
+                  >
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="No grouping" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">No grouping</SelectItem>
+                      {sourceGroupByFields.map((field) => (
+                        <SelectItem key={field.id} value={field.id}>
+                          {field.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Aggregate chart data by grouping parent records from <span className="font-medium">{currentFormName}</span>.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Optional: Drilldown to Linked Records */}
+          {isStep1Complete && isStep3Complete && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold bg-muted text-muted-foreground">
+                  <MousePointerClick className="h-3 w-3" />
+                </div>
+                <Label className="text-sm font-medium">
+                  Click-to-drilldown <span className="text-muted-foreground font-normal">(optional)</span>
+                </Label>
+              </div>
+              
+              <div className="p-4 bg-muted/30 rounded-lg border">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label className="text-sm">Enable drill-down to linked records</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Click a chart bar to view all linked <span className="font-medium text-green-600 dark:text-green-400">{targetFormName}</span> records
+                    </p>
+                  </div>
+                  <Switch
+                    checked={crossRefConfig.drilldownEnabled || false}
+                    onCheckedChange={(checked) => onConfigChange({
+                      crossRefConfig: {
+                        ...crossRefConfig,
+                        drilldownEnabled: checked
+                      }
+                    })}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Chart Preview Summary */}
           {isStep1Complete && isStep3Complete && (
             <div className="p-4 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/30 dark:to-blue-950/30 rounded-lg border border-green-200/50 dark:border-green-800/50">
@@ -561,6 +781,12 @@ export function CrossReferenceDataSection({
                   <div className="flex-1">
                     {crossRefConfig.mode === 'count' ? (
                       <>Number of linked <span className="font-medium text-green-600 dark:text-green-400">{targetFormName}</span> records</>
+                    ) : crossRefConfig.mode === 'compare' ? (
+                      <>
+                        Compare "<span className="font-medium">{selectedCompareField1?.label || 'field 1'}</span>" vs "
+                        <span className="font-medium">{selectedCompareField2?.label || 'field 2'}</span>" 
+                        from linked <span className="font-medium text-green-600 dark:text-green-400">{targetFormName}</span> records (with legend)
+                      </>
                     ) : (
                       <>
                         {crossRefConfig.targetAggregation?.toUpperCase() || 'SUM'} of "
@@ -570,6 +796,24 @@ export function CrossReferenceDataSection({
                     )}
                   </div>
                 </div>
+                
+                {crossRefConfig.sourceGroupByFieldId && selectedSourceGroupByField && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-20 text-xs text-muted-foreground">Grouped by:</div>
+                    <div className="flex-1">
+                      <span className="font-medium">{selectedSourceGroupByField.label}</span>
+                    </div>
+                  </div>
+                )}
+                
+                {crossRefConfig.drilldownEnabled && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-20 text-xs text-muted-foreground">Drilldown:</div>
+                    <div className="flex-1 text-green-600 dark:text-green-400">
+                      Click bars to view linked records
+                    </div>
+                  </div>
+                )}
               </div>
               
             </div>
