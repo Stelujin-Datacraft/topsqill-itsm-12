@@ -266,11 +266,9 @@ export function LifecycleStatusBar({
                       className={`text-xs px-3 py-1 flex items-center gap-1.5 transition-all ${
                         isSelected 
                           ? `${color.bg} ${color.hover} text-white ${color.border} font-semibold shadow-md` 
-                          : isEditing
-                            ? `${color.bg} ${color.hover} text-white ${isPast ? '' : 'opacity-80'}` 
-                            : isPast 
-                              ? `${color.bg} text-white opacity-90` 
-                              : `bg-slate-200 text-slate-700`
+                          : isPast
+                            ? `${color.bg} ${color.hover} text-white opacity-90`
+                            : `bg-slate-200 text-slate-500 ${isEditing ? 'hover:bg-slate-300' : ''}`
                       } ${!canTransition && isEditing && !isSelected ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
                       {getStageIcon(optionValue, index, currentIndex)}
