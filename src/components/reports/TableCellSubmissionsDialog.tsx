@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { extractComparableValue, extractNumericValue } from '@/utils/filterUtils';
-
+import { FormDataCell } from './FormDataCell';
 interface TableCellSubmissionsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -59,6 +59,7 @@ export function TableCellSubmissionsDialog({
   const [sortField, setSortField] = useState<string>('_submission_ref');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [fieldTypeMap, setFieldTypeMap] = useState<Record<string, string>>({});
+  const [formFields, setFormFields] = useState<any[]>([]);
 
   useEffect(() => {
     if (open && formId) {
@@ -76,7 +77,7 @@ export function TableCellSubmissionsDialog({
     try {
       const { data: fields, error } = await supabase
         .from('form_fields')
-        .select('id, field_type')
+        .select('id, field_type, label, custom_config, options')
         .eq('form_id', formId);
       
       if (error) throw error;
@@ -86,6 +87,7 @@ export function TableCellSubmissionsDialog({
         typeMap[field.id] = field.field_type;
       });
       setFieldTypeMap(typeMap);
+      setFormFields(fields || []);
     } catch (error) {
       console.error('Error loading field types:', error);
     }
@@ -388,13 +390,25 @@ export function TableCellSubmissionsDialog({
             <TableRow className="hover:bg-transparent">
               {displayFields.map((fieldId) => {
                 const value = submission.submission_data[fieldId];
+                const formField = formFields.find(f => f.id === fieldId);
+                const fieldType = fieldTypeMap[fieldId] || '';
+                
                 return (
                   <TableCell 
                     key={fieldId} 
-                    className="px-3 py-2 whitespace-nowrap max-w-[200px] truncate"
-                    title={formatFieldValue(value)}
+                    className="px-3 py-2 max-w-[250px]"
                   >
-                    {formatFieldValue(value)}
+                    {formField ? (
+                      <FormDataCell 
+                        value={value} 
+                        fieldType={fieldType} 
+                        field={formField}
+                      />
+                    ) : (
+                      <span title={formatFieldValue(value)}>
+                        {formatFieldValue(value)}
+                      </span>
+                    )}
                   </TableCell>
                 );
               })}
