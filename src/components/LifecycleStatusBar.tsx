@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/types/form';
-import { Check, Clock, Circle, ChevronRight, AlertTriangle, MessageCircle, History } from 'lucide-react';
+import { Check, Circle, ChevronRight, History } from 'lucide-react';
 import { StageChangeDialog } from './StageChangeDialog';
 import { LifecycleHistoryDialog } from './LifecycleHistoryDialog';
 import { useLifecycleHistory } from '@/hooks/useLifecycleHistory';
@@ -14,7 +14,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface LifecycleStatusBarProps {
@@ -37,7 +36,6 @@ export function LifecycleStatusBar({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [pendingStage, setPendingStage] = useState<string | null>(null);
-  const [currentTime, setCurrentTime] = useState(new Date());
   const { user } = useAuth();
   const { toast } = useToast();
   const initialHistoryCreated = useRef(false);
@@ -51,13 +49,6 @@ export function LifecycleStatusBar({
     refetch: refetchHistory
   } = useLifecycleHistory(submissionId || '', field.id);
 
-  // Update time every minute for time in stage
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Parse options from the field
   const options = Array.isArray(field.options) 
@@ -169,35 +160,6 @@ export function LifecycleStatusBar({
     return allowedTransitions.includes(toStage);
   };
 
-  const isSLAExceeded = (): boolean => {
-    if (!slaWarningHours || !lastChange) return false;
-    const lastChangeDate = new Date(lastChange.changed_at);
-    const diffHours = (currentTime.getTime() - lastChangeDate.getTime()) / (1000 * 60 * 60);
-    return diffHours >= slaWarningHours;
-  };
-
-  const getTimeToSLAWarning = (): string | null => {
-    if (!slaWarningHours || !lastChange) return null;
-    const lastChangeDate = new Date(lastChange.changed_at);
-    const warningDate = new Date(lastChangeDate.getTime() + (slaWarningHours * 60 * 60 * 1000));
-    if (currentTime >= warningDate) return 'Exceeded';
-    const diffMs = warningDate.getTime() - currentTime.getTime();
-    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    return hours > 0 ? `${hours}h ${minutes}m left` : `${minutes}m left`;
-  };
-
-  const calculateTimeInStage = (): string | null => {
-    if (!lastChange) return null;
-    const lastChangeDate = new Date(lastChange.changed_at);
-    const diffMs = currentTime.getTime() - lastChangeDate.getTime();
-    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    if (days > 0) return `${days}d ${hours}h`;
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    return `${minutes}m`;
-  };
 
   const getColorForOption = (optionLabel: string, index: number) => {
     const label = optionLabel.toLowerCase();
@@ -276,9 +238,6 @@ export function LifecycleStatusBar({
   };
 
   const currentIndex = options.findIndex((o: any) => getOptionValue(o) === value);
-  const timeInStage = calculateTimeInStage();
-  const slaExceeded = isSLAExceeded();
-  const slaTimeRemaining = getTimeToSLAWarning();
   const pendingStageLabel = pendingStage ? getOptionLabel(options.find((o: any) => getOptionValue(o) === pendingStage) || pendingStage) : '';
   const currentStageLabel = value ? getOptionLabel(options.find((o: any) => getOptionValue(o) === value) || value) : '';
 
@@ -331,51 +290,6 @@ export function LifecycleStatusBar({
           })}
         </div>
 
-        {/* Time in current stage */}
-        {timeInStage && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge variant="outline" className={`text-xs flex items-center gap-1 ${slaExceeded ? 'border-red-500 text-red-600 bg-red-50 dark:bg-red-950' : 'bg-white text-slate-700 border-slate-300'}`}>
-                <Clock className="h-3 w-3" />
-                {timeInStage}
-                {slaExceeded && <AlertTriangle className="h-3 w-3 ml-1" />}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-              <div className="space-y-1">
-                <p>Time in current stage: {timeInStage}</p>
-                {slaWarningHours && <p className={slaExceeded ? 'text-red-400' : 'text-amber-400'}>SLA: {slaTimeRemaining}</p>}
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        )}
-
-        {slaExceeded && (
-          <Badge variant="destructive" className="text-xs flex items-center gap-1 animate-pulse">
-            <AlertTriangle className="h-3 w-3" />
-            SLA Exceeded
-          </Badge>
-        )}
-
-        {/* Latest Comment Icon with Tooltip */}
-        {lastChange?.comment && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" size="sm" className="h-7 w-7 p-0 bg-white border-slate-300 hover:bg-slate-100">
-                <MessageCircle className="h-4 w-4 text-primary" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-xs">
-              <div className="space-y-1">
-                <p className="font-medium text-xs">Latest Comment</p>
-                <p className="text-xs italic">"{lastChange.comment}"</p>
-                {lastChange.changed_by_name && (
-                  <p className="text-xs text-muted-foreground">by {lastChange.changed_by_name}</p>
-                )}
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        )}
 
         {/* View History Button */}
         <Tooltip>
