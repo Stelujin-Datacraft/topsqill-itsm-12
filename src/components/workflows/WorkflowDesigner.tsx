@@ -104,20 +104,41 @@ function WorkflowDesignerInner({ workflowId, projectId, initialNodes, initialCon
   }, [selectedNodeId, workflowNodes]);
 
   // Get trigger form ID from start node - check multiple possible locations
+  // Also check ReactFlow nodes for the most up-to-date config
   const startNodeTriggerFormId = useMemo(() => {
+    // First check workflowNodes (source of truth)
     const startNode = workflowNodes.find(n => n.type === 'start');
-    return startNode?.data?.config?.triggerFormId || 
+    const fromWorkflowNodes = startNode?.data?.config?.triggerFormId || 
            startNode?.data?.config?.formId ||
            startNode?.data?.config?.sourceFormId;
-  }, [workflowNodes]);
+    
+    if (fromWorkflowNodes) {
+      return fromWorkflowNodes;
+    }
+    
+    // Fallback: check ReactFlow nodes which may have more recent state
+    const rfStartNode = reactFlowNodes.find(n => n.type === 'start');
+    const rfNodeData = rfStartNode?.data as any;
+    return rfNodeData?.config?.triggerFormId || 
+           rfNodeData?.config?.formId ||
+           rfNodeData?.config?.sourceFormId;
+  }, [workflowNodes, reactFlowNodes]);
 
   // Fallback: fetch trigger form ID from workflow_triggers table if not in start node
   const [triggerFormIdFromDB, setTriggerFormIdFromDB] = useState<string | undefined>();
   
   useEffect(() => {
     const fetchTriggerFormId = async () => {
-      if (startNodeTriggerFormId || !workflowId) {
-        setTriggerFormIdFromDB(undefined);
+      // Only fetch from DB if we don't have a trigger form ID from nodes
+      if (startNodeTriggerFormId) {
+        // Clear DB fallback if we have a node-based ID
+        if (triggerFormIdFromDB) {
+          setTriggerFormIdFromDB(undefined);
+        }
+        return;
+      }
+      
+      if (!workflowId) {
         return;
       }
       
@@ -141,10 +162,19 @@ function WorkflowDesignerInner({ workflowId, projectId, initialNodes, initialCon
     };
     
     fetchTriggerFormId();
-  }, [workflowId, startNodeTriggerFormId]);
+  }, [workflowId, startNodeTriggerFormId, triggerFormIdFromDB]);
 
   // Use start node config first, fallback to DB
   const triggerFormId = startNodeTriggerFormId || triggerFormIdFromDB;
+  
+  // Debug logging for trigger form ID resolution
+  useEffect(() => {
+    console.log('🔍 Trigger Form ID Resolution:', {
+      startNodeTriggerFormId,
+      triggerFormIdFromDB,
+      resolved: triggerFormId
+    });
+  }, [startNodeTriggerFormId, triggerFormIdFromDB, triggerFormId]);
 
   // Load form fields for the trigger form
   const { fields: formFields } = useFormFields(triggerFormId);

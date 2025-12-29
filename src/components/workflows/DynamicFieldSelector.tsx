@@ -40,38 +40,47 @@ export function DynamicFieldSelector({
 
   useEffect(() => {
     const fetchFields = async () => {
+      // Clear fields if no trigger form ID
+      if (!triggerFormId) {
+        setTriggerFields([]);
+        setTriggerFormName('');
+        setTargetFields([]);
+        setTargetFormName('');
+        return;
+      }
+      
       setLoading(true);
       try {
         // Fetch trigger form fields
-        if (triggerFormId) {
-          const { data: triggerFieldsData, error: triggerFieldsError } = await supabase
-            .from('form_fields')
-            .select('*')
-            .eq('form_id', triggerFormId)
-            .order('field_order', { ascending: true });
+        console.log('📋 DynamicFieldSelector: Fetching fields for triggerFormId:', triggerFormId);
+        const { data: triggerFieldsData, error: triggerFieldsError } = await supabase
+          .from('form_fields')
+          .select('*')
+          .eq('form_id', triggerFormId)
+          .order('field_order', { ascending: true });
 
         if (!triggerFieldsError && triggerFieldsData) {
-            // Use centralized static field filtering
-            const dataFields = triggerFieldsData
-              .filter(field => !STATIC_LAYOUT_FIELD_TYPES.includes(field.field_type as any))
-              .map(field => ({
-                id: field.id,
-                type: field.field_type,
-                label: field.label,
-                options: field.options || [],
-              } as FormField));
-            setTriggerFields(dataFields);
-          }
+          // Use centralized static field filtering
+          const dataFields = triggerFieldsData
+            .filter(field => !STATIC_LAYOUT_FIELD_TYPES.includes(field.field_type as any))
+            .map(field => ({
+              id: field.id,
+              type: field.field_type,
+              label: field.label,
+              options: field.options || [],
+            } as FormField));
+          console.log('📋 DynamicFieldSelector: Found', dataFields.length, 'trigger fields');
+          setTriggerFields(dataFields);
+        }
 
-          const { data: triggerFormData } = await supabase
-            .from('forms')
-            .select('name')
-            .eq('id', triggerFormId)
-            .single();
+        const { data: triggerFormData } = await supabase
+          .from('forms')
+          .select('name')
+          .eq('id', triggerFormId)
+          .single();
 
-          if (triggerFormData) {
-            setTriggerFormName(triggerFormData.name);
-          }
+        if (triggerFormData) {
+          setTriggerFormName(triggerFormData.name);
         }
 
         // Fetch target form fields (if different from trigger)
@@ -167,6 +176,18 @@ export function DynamicFieldSelector({
 
     return groups;
   }, [compatibleFields]);
+
+  // Show message if no trigger form is configured
+  if (!triggerFormId) {
+    return (
+      <div className="space-y-2">
+        <Label>Select Source Field *</Label>
+        <div className="p-3 text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 rounded-md border border-amber-200 dark:border-amber-800">
+          ⚠️ Please configure a trigger form in the Start node first to enable dynamic field selection.
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
