@@ -20,6 +20,8 @@ export function SelectFieldConfig({ field, onConfigChange }: SelectFieldConfigPr
   const config = (field.customConfig || {}) as Record<string, any>;
   const [lifecycleOpen, setLifecycleOpen] = useState(config.displayAsLifecycle || false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [newRuleFrom, setNewRuleFrom] = useState('');
+  const [newRuleTo, setNewRuleTo] = useState('');
   
   // Ensure options is always an array
   const ensureOptionsArray = (opts: any): any[] => {
@@ -232,39 +234,50 @@ export function SelectFieldConfig({ field, onConfigChange }: SelectFieldConfigPr
 
                   {/* Add New Rule */}
                   {options.length >= 2 && (
-                    <div className="flex items-center gap-2 pt-2 border-t">
-                      <Select
-                        onValueChange={(fromStage) => {
-                          const select = document.getElementById('toStageSelect') as HTMLSelectElement;
-                          if (select?.dataset.value && fromStage !== select.dataset.value) {
-                            handleAddTransitionRule(fromStage, select.dataset.value);
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="w-28 h-7 text-xs">
-                          <SelectValue placeholder="From" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {options.map((opt) => (
-                            <SelectItem key={getOptionValue(opt)} value={getOptionValue(opt)}>
-                              {getOptionLabel(opt)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <span className="text-muted-foreground text-xs">→</span>
-                      <Select>
-                        <SelectTrigger className="w-28 h-7 text-xs" id="toStageSelect">
-                          <SelectValue placeholder="To" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {options.map((opt) => (
-                            <SelectItem key={getOptionValue(opt)} value={getOptionValue(opt)}>
-                              {getOptionLabel(opt)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="space-y-2 pt-2 border-t">
+                      <Label className="text-xs">Add Transition Rule</Label>
+                      <div className="flex items-center gap-2">
+                        <Select value={newRuleFrom} onValueChange={setNewRuleFrom}>
+                          <SelectTrigger className="w-28 h-7 text-xs">
+                            <SelectValue placeholder="From" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {options.map((opt) => (
+                              <SelectItem key={getOptionValue(opt)} value={getOptionValue(opt)}>
+                                {getOptionLabel(opt)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <span className="text-muted-foreground text-xs">→</span>
+                        <Select value={newRuleTo} onValueChange={setNewRuleTo}>
+                          <SelectTrigger className="w-28 h-7 text-xs">
+                            <SelectValue placeholder="To" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {options.filter((opt) => getOptionValue(opt) !== newRuleFrom).map((opt) => (
+                              <SelectItem key={getOptionValue(opt)} value={getOptionValue(opt)}>
+                                {getOptionLabel(opt)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          disabled={!newRuleFrom || !newRuleTo}
+                          onClick={() => {
+                            if (newRuleFrom && newRuleTo) {
+                              handleAddTransitionRule(newRuleFrom, newRuleTo);
+                              setNewRuleFrom('');
+                              setNewRuleTo('');
+                            }
+                          }}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   )}
 

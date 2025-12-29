@@ -33,7 +33,14 @@ export function useLifecycleHistory(submissionId: string, fieldId: string) {
       
       const { data, error } = await supabase
         .from('lifecycle_stage_history')
-        .select('*')
+        .select(`
+          *,
+          changed_by_user:user_profiles!lifecycle_stage_history_changed_by_fkey(
+            first_name,
+            last_name,
+            email
+          )
+        `)
         .eq('submission_id', submissionId)
         .eq('field_id', fieldId)
         .order('changed_at', { ascending: false });
@@ -45,11 +52,18 @@ export function useLifecycleHistory(submissionId: string, fieldId: string) {
 
       console.log('Fetched lifecycle history:', data);
 
-      // Cast data to our type
-      const typedData = (data || []).map(item => ({
-        ...item,
-        duration_in_previous_stage: item.duration_in_previous_stage as string | null
-      })) as LifecycleHistoryEntry[];
+      // Cast data to our type and extract user name
+      const typedData = (data || []).map(item => {
+        const userProfile = item.changed_by_user as { first_name?: string; last_name?: string; email?: string } | null;
+        const userName = userProfile 
+          ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || userProfile.email 
+          : null;
+        return {
+          ...item,
+          duration_in_previous_stage: item.duration_in_previous_stage as string | null,
+          changed_by_name: userName || undefined
+        };
+      }) as LifecycleHistoryEntry[];
 
       setHistory(typedData);
       if (typedData.length > 0) {
