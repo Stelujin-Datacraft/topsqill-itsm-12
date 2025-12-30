@@ -588,7 +588,15 @@ export function CrossReferenceEmbeddedChart({
               fill={colors[index % colors.length]}
               radius={[4, 4, 0, 0]}
               name={key}
-            />
+            >
+              {/* Apply individual colors to each bar for single-series charts */}
+              {!isMultiSeries && chartData.map((entry, entryIndex) => (
+                <Cell 
+                  key={`cell-${entryIndex}`} 
+                  fill={colors[entryIndex % colors.length]} 
+                />
+              ))}
+            </Bar>
           ))}
         </BarChart>
       </ResponsiveContainer>
