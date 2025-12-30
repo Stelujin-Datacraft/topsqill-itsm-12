@@ -14,10 +14,12 @@ interface CrossReferenceEmbeddedChartProps {
 
 const NUMERIC_FIELD_TYPES = ['number', 'currency', 'rating', 'star-rating', 'slider'];
 
-const CHART_COLORS = [
-  '#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1', '#a4de6c',
-  '#d084d0', '#ffb347', '#87ceeb', '#98fb98', '#dda0dd', '#f0e68c'
-];
+const COLOR_THEMES: Record<string, string[]> = {
+  default: ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1', '#a4de6c', '#d084d0', '#ffb347', '#87ceeb', '#98fb98'],
+  vibrant: ['#FF6B6B', '#4ECDC4', '#FFE66D', '#95E1D3', '#F38181', '#AA96DA', '#FCBAD3', '#A8D8EA', '#FF9F43', '#6C5CE7'],
+  pastel: ['#B5EAD7', '#FFDAC1', '#E2F0CB', '#C7CEEA', '#FFB7B2', '#F0E6EF', '#D4F1F9', '#FFF5BA', '#E8D5B7', '#CBAACB'],
+  monochrome: ['#2C3E50', '#34495E', '#5D6D7E', '#85929E', '#ABB2B9', '#BFC9CA', '#D5DBDB', '#E5E8E8', '#F2F3F4', '#FDFEFE']
+};
 
 export function CrossReferenceEmbeddedChart({
   config,
@@ -301,7 +303,7 @@ export function CrossReferenceEmbeddedChart({
     return { chartData: [], dataKeys: ['value'], isMultiSeries: false, recordsMap: {} };
   }, [records, config, targetFormFields]);
 
-  const colors = CHART_COLORS;
+  const colors = COLOR_THEMES[config.colorTheme || 'default'] || COLOR_THEMES.default;
   const chartHeight = config.height || 300;
 
   if (!config.enabled) return null;
