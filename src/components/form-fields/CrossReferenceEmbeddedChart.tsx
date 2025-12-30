@@ -196,17 +196,21 @@ export function CrossReferenceEmbeddedChart({
       const yLabel = getFieldLabel(yFieldId);
 
       if (isXNumeric && isYNumeric) {
-        // Both numeric - show each record with both values
-        const data = records.map((record, index) => ({
-          name: record.submission_ref_id || `Record ${index + 1}`,
-          [xLabel]: extractNumericValue(getFieldValue(record, xFieldId)),
-          [yLabel]: extractNumericValue(getFieldValue(record, yFieldId))
-        }));
+        // Both numeric - show each record with X value as name, both field values as bars
+        const data = records.map((record, index) => {
+          const xVal = extractNumericValue(getFieldValue(record, xFieldId));
+          const yVal = extractNumericValue(getFieldValue(record, yFieldId));
+          return {
+            name: `${xLabel}: ${xVal}`,
+            [xLabel]: xVal,
+            [yLabel]: yVal
+          };
+        });
         return { chartData: data, dataKeys: [xLabel, yLabel], isMultiSeries: true };
       }
 
       if (!isXNumeric && isYNumeric) {
-        // X is text (category), Y is numeric - group by X, aggregate Y
+        // X is text (category), Y is numeric - X values as categories, Y as bars
         const groups: Record<string, number[]> = {};
         records.forEach(record => {
           const xVal = formatDisplayValue(getFieldValue(record, xFieldId));
@@ -216,28 +220,44 @@ export function CrossReferenceEmbeddedChart({
         });
 
         const data = Object.entries(groups).map(([name, values]) => ({
-          name,
-          [yLabel]: Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 100) / 100
+          name, // X field value as category name
+          [yLabel]: Math.round((values.reduce((a, b) => a + b, 0)) * 100) / 100
         }));
         return { chartData: data, dataKeys: [yLabel], isMultiSeries: false };
       }
 
       if (isXNumeric && !isYNumeric) {
-        // X is numeric, Y is text - use Y as legend categories
+        // X is numeric, Y is text - X values shown, Y values as legend
         const allYValues = new Set<string>();
         records.forEach(record => {
           allYValues.add(formatDisplayValue(getFieldValue(record, yFieldId)));
         });
 
         const yValuesArr = Array.from(allYValues);
-        const data = records.map((record, index) => {
-          const entry: Record<string, any> = {
-            name: record.submission_ref_id || `Record ${index + 1}`
-          };
+        
+        // Group by Y value, show X values
+        const groupedByY: Record<string, { xValues: number[], records: any[] }> = {};
+        yValuesArr.forEach(yVal => {
+          groupedByY[yVal] = { xValues: [], records: [] };
+        });
+
+        records.forEach((record, index) => {
           const yVal = formatDisplayValue(getFieldValue(record, yFieldId));
           const xVal = extractNumericValue(getFieldValue(record, xFieldId));
+          groupedByY[yVal].xValues.push(xVal);
+          groupedByY[yVal].records.push(record);
+        });
+
+        // Create data points - each record shown with its X value, colored by Y
+        const data = records.map((record, index) => {
+          const xVal = extractNumericValue(getFieldValue(record, xFieldId));
+          const yVal = formatDisplayValue(getFieldValue(record, yFieldId));
           
-          // Set the value only for the matching Y category
+          const entry: Record<string, any> = {
+            name: `#${index + 1}`
+          };
+          
+          // Only the matching Y category gets the X value
           yValuesArr.forEach(yKey => {
             entry[yKey] = yVal === yKey ? xVal : 0;
           });
@@ -247,7 +267,7 @@ export function CrossReferenceEmbeddedChart({
         return { chartData: data, dataKeys: yValuesArr, isMultiSeries: true };
       }
 
-      // Both text - group by X, stack by Y (count occurrences)
+      // Both text - X values as categories, Y values as legend (stacked count)
       const groups: Record<string, Record<string, number>> = {};
       const allYValues = new Set<string>();
 
@@ -261,7 +281,7 @@ export function CrossReferenceEmbeddedChart({
 
       const yValuesArr = Array.from(allYValues);
       const data = Object.entries(groups).map(([xValue, yValues]) => {
-        const entry: Record<string, any> = { name: xValue };
+        const entry: Record<string, any> = { name: xValue }; // X field value as name
         yValuesArr.forEach(yVal => {
           entry[yVal] = yValues[yVal] || 0;
         });
