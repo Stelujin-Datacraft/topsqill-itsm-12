@@ -793,6 +793,13 @@ export function ChartPreview({
           
           filteredLinkedSubmissions = filteredLinkedSubmissions.filter(sub => {
             const fieldValue = sub.submission_data?.[levelFieldId];
+            // Handle array fields - check if expectedValue is in the array
+            if (Array.isArray(fieldValue)) {
+              return fieldValue.some(v => {
+                const strVal = typeof v === 'object' ? JSON.stringify(v) : String(v || '');
+                return strVal === expectedValue;
+              });
+            }
             const normalizedFieldValue = typeof fieldValue === 'object' 
               ? JSON.stringify(fieldValue) 
               : String(fieldValue || '');
@@ -802,10 +809,21 @@ export function ChartPreview({
           console.log('📊 Cross-ref drilldown: Filtered by field', levelFieldId, '=', expectedValue,
             '- remaining:', filteredLinkedSubmissions.length);
         }
+        
+        // Deduplicate by submission ID
+        const seenIds = new Set<string>();
+        filteredLinkedSubmissions = filteredLinkedSubmissions.filter(sub => {
+          if (seenIds.has(sub.id)) return false;
+          seenIds.add(sub.id);
+          return true;
+        });
+        console.log('📊 Cross-ref drilldown: After deduplication:', filteredLinkedSubmissions.length);
       }
       
       if (isDrilldownActive && currentDimensionField && hasStartedDrilling && currentFieldLevel < drilldownLevels.length) {
         console.log('📊 Cross-ref drilldown: Grouping by level field', currentDimensionField, 'at level', currentFieldLevel);
+        console.log('📊 Cross-ref drilldown: filteredLinkedSubmissions count:', filteredLinkedSubmissions.length);
+        console.log('📊 Cross-ref drilldown: Sample submission data:', filteredLinkedSubmissions[0]?.submission_data);
         
         // Get field options for the current drilldown field
         const dimFieldOptions = targetFieldOptionsLookup.get(currentDimensionField);
@@ -2246,6 +2264,7 @@ export function ChartPreview({
           valuesCount,
           currentFieldLevel,
           totalLevels: drilldownLevels.length,
+          checkFinalLevel: `${currentFieldLevel} >= ${drilldownLevels.length - 1} && ${valuesCount} > 0 = ${currentFieldLevel >= drilldownLevels.length - 1 && valuesCount > 0}`,
           dimensionValue,
           drilldownValue: payload?._drilldownValue,
           payload
