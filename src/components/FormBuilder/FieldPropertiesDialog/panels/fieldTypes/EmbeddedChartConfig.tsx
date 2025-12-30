@@ -146,7 +146,7 @@ export function EmbeddedChartConfigPanel({
                       <span className="font-medium">Compare Two Fields</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Show two numeric fields side by side
+                      Show two fields side by side (text fields show as legend)
                     </p>
                   </Label>
                 </div>
@@ -272,7 +272,7 @@ export function EmbeddedChartConfigPanel({
             {currentConfig.mode === 'compare' && (
               <div className="space-y-4 p-4 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-800">
                 <div className="space-y-2">
-                  <Label>First Field (X) *</Label>
+                  <Label>First Field (X-Axis / Category) *</Label>
                   <Select
                     value={currentConfig.compareXFieldId || ''}
                     onValueChange={(value) => updateField('compareXFieldId', value)}
@@ -281,21 +281,20 @@ export function EmbeddedChartConfigPanel({
                       <SelectValue placeholder="Select first field" />
                     </SelectTrigger>
                     <SelectContent>
-                      {numericFields.length === 0 ? (
-                        <SelectItem value="" disabled>No numeric fields available</SelectItem>
-                      ) : (
-                        numericFields.map(field => (
+                      {targetFormFields
+                        .filter(f => !['header', 'description', 'section-break', 'file', 'image', 'signature'].includes(f.field_type))
+                        .map(field => (
                           <SelectItem key={field.id} value={field.id}>
-                            {field.label}
+                            {field.label} ({field.field_type})
                           </SelectItem>
                         ))
-                      )}
+                      }
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Second Field (Y) *</Label>
+                  <Label>Second Field (Y-Axis / Legend) *</Label>
                   <Select
                     value={currentConfig.compareYFieldId || ''}
                     onValueChange={(value) => updateField('compareYFieldId', value)}
@@ -304,17 +303,21 @@ export function EmbeddedChartConfigPanel({
                       <SelectValue placeholder="Select second field" />
                     </SelectTrigger>
                     <SelectContent>
-                      {numericFields
-                        .filter(f => f.id !== currentConfig.compareXFieldId)
+                      {targetFormFields
+                        .filter(f => f.id !== currentConfig.compareXFieldId && !['header', 'description', 'section-break', 'file', 'image', 'signature'].includes(f.field_type))
                         .map(field => (
                           <SelectItem key={field.id} value={field.id}>
-                            {field.label}
+                            {field.label} ({field.field_type})
                           </SelectItem>
                         ))
                       }
                     </SelectContent>
                   </Select>
                 </div>
+
+                <p className="text-xs text-muted-foreground">
+                  Numeric fields show values directly. Text fields are encoded as legend with color-coded bars.
+                </p>
               </div>
             )}
 
