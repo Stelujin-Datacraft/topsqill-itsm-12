@@ -740,21 +740,45 @@ export function ChartPreview({
         }
       });
 
-      // If grouped by dimension, aggregate across all parents
+      // If grouped by dimension, aggregate across all parents - preserve IDs for drilldown
       if (crossRefConfig.targetDimensionFieldId && result.length > 0) {
-        const aggregatedByDimension: Record<string, { value: number; count: number }> = {};
+        const aggregatedByDimension: Record<string, { 
+          value: number; 
+          count: number; 
+          parentIds: string[];
+          parentRefIds: string[];
+          linkedSubmissionIds: string[];
+        }> = {};
         result.forEach(item => {
           if (!aggregatedByDimension[item.name]) {
-            aggregatedByDimension[item.name] = { value: 0, count: 0 };
+            aggregatedByDimension[item.name] = { 
+              value: 0, 
+              count: 0,
+              parentIds: [],
+              parentRefIds: [],
+              linkedSubmissionIds: []
+            };
           }
           aggregatedByDimension[item.name].value += item.value;
           aggregatedByDimension[item.name].count += 1;
+          // Collect all parent and linked IDs for drilldown
+          if (item.parentId) aggregatedByDimension[item.name].parentIds.push(String(item.parentId));
+          if (item.parentRefId) aggregatedByDimension[item.name].parentRefIds.push(String(item.parentRefId));
+          if (item._linkedSubmissionIds) {
+            aggregatedByDimension[item.name].linkedSubmissionIds.push(...item._linkedSubmissionIds);
+          }
         });
 
         return Object.entries(aggregatedByDimension).map(([name, data]) => ({
           name,
           value: data.value,
-          count: data.count
+          count: data.count,
+          // Use first parentId for drilldown reference, store all for potential future use
+          parentId: data.parentIds[0] || '',
+          parentRefId: data.parentRefIds[0] || '',
+          _linkedSubmissionIds: [...new Set(data.linkedSubmissionIds)], // Deduplicate
+          _allParentIds: data.parentIds,
+          _allParentRefIds: data.parentRefIds
         }));
       }
 
@@ -2356,7 +2380,7 @@ export function ChartPreview({
 
     // Sanitize chart data - ensure all numeric values are valid numbers (not NaN/undefined)
     // Preserve string values for display fields (xRaw, yRaw, field names, IDs, cross-ref parent IDs)
-    const preserveAsStringKeys = ['name', '_drilldownData', 'xRaw', 'yRaw', 'xFieldName', 'yFieldName', 'xFieldLabel', 'yFieldLabel', 'submissionId', '_legendMapping', 'rawSecondaryValue', 'rawYValue', '_isCompareEncoded', '_isCrossRefCompare', '_hasTextX', '_hasTextY', 'parentId', 'parentRefId', 'linkedSubmissionId', '_linkedSubmissionIds', '_optionColor', '_optionImage', '_xOptionColor', '_yOptionColor', '_xOptionImage', '_yOptionImage'];
+    const preserveAsStringKeys = ['name', '_drilldownData', 'xRaw', 'yRaw', 'xFieldName', 'yFieldName', 'xFieldLabel', 'yFieldLabel', 'submissionId', '_legendMapping', 'rawSecondaryValue', 'rawYValue', '_isCompareEncoded', '_isCrossRefCompare', '_hasTextX', '_hasTextY', 'parentId', 'parentRefId', 'linkedSubmissionId', '_linkedSubmissionIds', '_allParentIds', '_allParentRefIds', '_optionColor', '_optionImage', '_xOptionColor', '_yOptionColor', '_xOptionImage', '_yOptionImage'];
     let sanitizedChartData = chartData.map(item => {
       const sanitized: any = { name: item.name || 'Unknown' };
       Object.keys(item).forEach(key => {
