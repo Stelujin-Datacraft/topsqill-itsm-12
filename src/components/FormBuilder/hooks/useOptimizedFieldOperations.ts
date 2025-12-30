@@ -131,16 +131,19 @@ export function useOptimizedFieldOperations(
   const handleFieldDelete = async (fieldId: string) => {
     console.log('Deleting field from snapshot:', fieldId);
     
-    // Check if the field is a child-cross-reference - these are managed by parent
+    // Check if the field is a child-cross-reference - warn user but allow deletion
     const fieldToDelete = snapshot.form?.fields.find(f => f.id === fieldId);
     if (fieldToDelete?.type === 'child-cross-reference') {
       const parentFormName = fieldToDelete.customConfig?.parentFormName || 'the parent form';
-      toast({
-        title: "Cannot delete managed field",
-        description: `This field is automatically managed by a cross-reference field in "${parentFormName}". To remove it, delete the parent cross-reference field instead.`,
-        variant: "destructive",
-      });
-      return;
+      const confirmed = window.confirm(
+        `This field is automatically managed by a cross-reference field in "${parentFormName}".\n\n` +
+        `Deleting it here will remove it, but it may be recreated if the parent cross-reference field still exists.\n\n` +
+        `To permanently remove this field, delete the parent cross-reference field in "${parentFormName}".\n\n` +
+        `Do you want to delete it anyway?`
+      );
+      if (!confirmed) {
+        return;
+      }
     }
     
     try {
