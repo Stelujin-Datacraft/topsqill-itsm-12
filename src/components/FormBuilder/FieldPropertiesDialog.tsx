@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, X, Loader2 } from 'lucide-react';
+import { Plus, X, Loader2, Trash2 } from 'lucide-react';
 import { FormField } from '@/types/form';
 import { RecordFieldConfigPanel } from '../form-fields/RecordFieldConfigPanel';
 import { useFormAccess } from './FieldPropertiesDialog/hooks/useFormAccess';
@@ -39,6 +39,7 @@ interface FieldPropertiesDialogProps {
   open: boolean;
   onClose: () => void;
   onSave: (fieldId: string, updates: Partial<FormField>) => Promise<void>;
+  onDelete?: (fieldId: string) => void;
 }
 interface FormFieldOption {
   id: string;
@@ -66,7 +67,8 @@ export function FieldPropertiesDialog({
   selectedField,
   open,
   onClose,
-  onSave
+  onSave,
+  onDelete
 }: FieldPropertiesDialogProps) {
   const [fieldForConfig, setFieldForConfig] = React.useState<FormField | null>(null);
   const [localConfig, setLocalConfig] = React.useState<Partial<FormField>>({});
@@ -820,13 +822,29 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
             </Card>
           </div>}
 
-        <div className="flex justify-end space-x-3 pt-4 border-t">
-          <Button variant="outline" onClick={handleClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={isSaving || loadingFieldData}>
-            {isSaving ? 'Saving...' : 'Save Configuration'}
-          </Button>
+        <div className="flex justify-between pt-4 border-t">
+          <div>
+            {onDelete && selectedField?.id && (
+              <Button 
+                variant="destructive" 
+                onClick={() => {
+                  onDelete(selectedField.id);
+                  onClose();
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Field
+              </Button>
+            )}
+          </div>
+          <div className="flex space-x-3">
+            <Button variant="outline" onClick={handleClose}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={isSaving || loadingFieldData}>
+              {isSaving ? 'Saving...' : 'Save Configuration'}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>;

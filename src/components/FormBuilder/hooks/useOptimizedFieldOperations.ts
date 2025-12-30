@@ -5,6 +5,7 @@ import { FormField, FormPage } from '@/types/form';
 import { fieldTypes } from '@/data/fieldTypes';
 import { toast } from '@/hooks/use-toast';
 import { useFormSnapshotContext } from '../contexts/FormSnapshotContext';
+import { useCrossReferenceSync } from '@/hooks/useCrossReferenceSync';
 
 export function useOptimizedFieldOperations(
   currentPageId: string,
@@ -28,6 +29,8 @@ export function useOptimizedFieldOperations(
     deleteFieldFromSnapshot,
     reorderFieldsInSnapshot
   } = useFormSnapshotContext();
+  
+  const { removeChildCrossReferenceField } = useCrossReferenceSync();
 
   const handleAddField = async (type: string) => {
     console.log('Adding field of type:', type, 'to snapshot, page:', currentPageId);
@@ -131,8 +134,9 @@ export function useOptimizedFieldOperations(
   const handleFieldDelete = async (fieldId: string) => {
     console.log('Deleting field from snapshot:', fieldId);
     
-    // Check if the field is a child-cross-reference - warn user but allow deletion
     const fieldToDelete = snapshot.form?.fields.find(f => f.id === fieldId);
+    
+    // Check if the field is a child-cross-reference - warn user but allow deletion
     if (fieldToDelete?.type === 'child-cross-reference') {
       const parentFormName = fieldToDelete.customConfig?.parentFormName || 'the parent form';
       const confirmed = window.confirm(
@@ -147,6 +151,22 @@ export function useOptimizedFieldOperations(
     }
     
     try {
+      // If it's a cross-reference field, clean up child fields immediately
+      if (fieldToDelete?.type === 'cross-reference' && fieldToDelete.customConfig?.targetFormId && snapshot.form) {
+        console.log('Deleting cross-reference field, cleaning up child field in target form:', fieldToDelete.customConfig.targetFormId);
+        try {
+          await removeChildCrossReferenceField({
+            parentFormId: snapshot.form.id,
+            parentFieldId: fieldId,
+            targetFormId: fieldToDelete.customConfig.targetFormId
+          });
+          console.log('Successfully cleaned up child cross-reference field');
+        } catch (error) {
+          console.error('Error cleaning up child cross-reference field:', error);
+          // Continue with deletion even if cleanup fails
+        }
+      }
+      
       deleteFieldFromSnapshot(fieldId);
       
       toast({
