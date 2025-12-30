@@ -2167,8 +2167,14 @@ export function ChartPreview({
     const metricName = metricField ? getFormFieldName(metricField) : 'Records';
 
     // In compare mode, show "Compare" as aggregation type instead of count
-    const isCompareMode = config.compareMode && config.metrics && config.metrics.length === 2;
-    const aggregation = isCompareMode ? 'compare' : (config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count');
+    // Also handle cross-reference mode
+    let aggregation: string;
+    if (config.crossRefConfig?.enabled) {
+      aggregation = config.crossRefConfig.mode || 'count';
+    } else {
+      const isCompareMode = config.compareMode && config.metrics && config.metrics.length === 2;
+      aggregation = isCompareMode ? 'compare' : (config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count');
+    }
     const groupByName = config.groupByField ? getFormFieldName(config.groupByField) : null;
     const chartType = config.type || config.chartType || 'bar';
     
@@ -2197,7 +2203,9 @@ export function ChartPreview({
     if (!payload || payload.length === 0) return null;
     
     const crossRefConfig = config.crossRefConfig;
-    const isCountMode = crossRefConfig?.mode === 'count';
+    const mode = crossRefConfig?.mode;
+    const isCountMode = mode === 'count';
+    const isCompareMode = mode === 'compare';
     
     // Get source and target form names
     const sourceFormName = config.formId ? getFormName(config.formId) : 'Source Form';
@@ -2224,12 +2232,23 @@ export function ChartPreview({
           {label}
         </div>
         
-        {/* Value display */}
+        {/* Value display based on mode */}
         <div className="space-y-2">
           {isCountMode ? (
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Linked Records:</span>
               <span className="font-semibold text-lg">{value?.toLocaleString()}</span>
+            </div>
+          ) : isCompareMode ? (
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">{data?.xFieldLabel || 'X-Axis'}:</span>
+                <span className="font-semibold">{data?.xRaw || data?.name}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">{data?.yFieldLabel || 'Y-Axis'}:</span>
+                <span className="font-semibold">{data?.yRaw || data?.rawYValue || value}</span>
+              </div>
             </div>
           ) : (
             <div className="space-y-1">
@@ -4137,10 +4156,24 @@ export function ChartPreview({
           
           {/* Aggregation Badge */}
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-            {chartInfo.aggregation === 'compare' ? (
-              <>Compare: {config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'Field 1'} - {config.metrics?.[1] ? getFormFieldName(config.metrics[1]) : 'Field 2'}</>
-            ) : chartInfo.aggregation === 'count' ? 'Count' : (
-              <>{chartInfo.aggregation.charAt(0).toUpperCase() + chartInfo.aggregation.slice(1)}: {config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'Records'}</>
+            {config.crossRefConfig?.enabled ? (
+              // Cross-reference mode badges
+              chartInfo.aggregation === 'compare' ? (
+                <>Compare: {config.crossRefConfig?.compareXFieldId ? getFormFieldName(config.crossRefConfig.compareXFieldId) : 'X'} vs {config.crossRefConfig?.compareYFieldId ? getFormFieldName(config.crossRefConfig.compareYFieldId) : 'Y'}</>
+              ) : chartInfo.aggregation === 'count' ? (
+                'Count Linked Records'
+              ) : chartInfo.aggregation === 'aggregate' ? (
+                <>{(config.crossRefConfig?.targetAggregation || 'Sum').charAt(0).toUpperCase() + (config.crossRefConfig?.targetAggregation || 'sum').slice(1)}: {config.crossRefConfig?.targetMetricFieldId ? getFormFieldName(config.crossRefConfig.targetMetricFieldId) : 'Value'}</>
+              ) : (
+                chartInfo.aggregation.charAt(0).toUpperCase() + chartInfo.aggregation.slice(1)
+              )
+            ) : (
+              // Regular mode badges
+              chartInfo.aggregation === 'compare' ? (
+                <>Compare: {config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'Field 1'} - {config.metrics?.[1] ? getFormFieldName(config.metrics[1]) : 'Field 2'}</>
+              ) : chartInfo.aggregation === 'count' ? 'Count' : (
+                <>{chartInfo.aggregation.charAt(0).toUpperCase() + chartInfo.aggregation.slice(1)}: {config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'Records'}</>
+              )
             )}
           </span>
           
