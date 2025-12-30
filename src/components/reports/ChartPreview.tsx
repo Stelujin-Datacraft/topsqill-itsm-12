@@ -776,10 +776,11 @@ export function ChartPreview({
         }
       });
 
-      // DRILLDOWN GROUPING: If drilldown is active and we have a current level field,
-      // override the normal result and group ALL linked submissions by the current drilldown field
-      if (isDrilldownActive && currentDimensionField && currentLevel < drilldownLevels.length) {
-        console.log('📊 Cross-ref drilldown: Grouping by level field', currentDimensionField);
+      // DRILLDOWN GROUPING: Only group by drilldown field AFTER user has clicked (drilldownValues.length > 0)
+      // At level 0 (initial view), show normal chart. Drilldown grouping starts at level 1+
+      const hasStartedDrilling = drilldownValues.length > 0;
+      if (isDrilldownActive && currentDimensionField && hasStartedDrilling && currentLevel < drilldownLevels.length) {
+        console.log('📊 Cross-ref drilldown: Grouping by level field', currentDimensionField, 'at level', currentLevel);
         
         // Get field options for the current drilldown field
         const dimFieldOptions = targetFieldOptionsLookup.get(currentDimensionField);
