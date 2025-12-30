@@ -2285,10 +2285,13 @@ export function ChartPreview({
         
         // Check if we've drilled through ALL levels
         // valuesCount includes parentRefId + one value per drilled level
-        // At valuesCount = drilldownLevels.length, we're SHOWING the final level's grouped data
-        // Clicking on that should show the dialog (so use >= not >)
-        if (valuesCount >= drilldownLevels.length) {
-          // At final level - show submissions dialog with the filtered linked records
+        // drilldownLevels.length = N means we have N levels to show
+        // valuesCount = 0: showing parents, click goes to level 0
+        // valuesCount = 1: showing level 0, click goes to level 1
+        // valuesCount = N: showing level N-1, click goes to level N (if exists) or dialog
+        // So dialog should open when valuesCount > drilldownLevels.length (after last level data shown and clicked)
+        if (valuesCount > drilldownLevels.length) {
+          // Past final level - show submissions dialog with the filtered linked records
           setCellSubmissionsDialog({
             open: true,
             dimensionField: '',
@@ -3056,6 +3059,111 @@ export function ChartPreview({
                   onClick={(data: any) => handleBarClick(data?.payload || data, 0)}
                 />
               </RechartsScatterChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      );
+    }
+    
+    // Cross-Reference Compare Mode with "Show records separately" - group bars by parent record
+    const hasShowSeparately = sanitizedChartData.length > 0 && sanitizedChartData[0]._showSeparately;
+    if (hasShowSeparately && sanitizedChartData[0]._isCrossRefCompare) {
+      // Group data by parent record (name contains parentDisplayName|value format)
+      const parentGroups = new Map<string, Array<{ xValue: string; yValue: number; color?: string; entry: any }>>();
+      
+      sanitizedChartData.forEach(entry => {
+        const nameParts = String(entry.name).split('|');
+        const parentName = nameParts.length > 1 ? nameParts[0] : 'Unknown';
+        const xValue = nameParts.length > 1 ? nameParts[1] : String(entry.name);
+        
+        if (!parentGroups.has(parentName)) {
+          parentGroups.set(parentName, []);
+        }
+        parentGroups.get(parentName)!.push({
+          xValue,
+          yValue: entry.value || entry.y || 0,
+          color: entry._yOptionColor,
+          entry
+        });
+      });
+      
+      // Get all unique X values for consistent bar positioning
+      const allXValues = [...new Set(sanitizedChartData.map(entry => {
+        const nameParts = String(entry.name).split('|');
+        return nameParts.length > 1 ? nameParts[1] : String(entry.name);
+      }))];
+      
+      // Build grouped chart data
+      const groupedData = Array.from(parentGroups.entries()).map(([parentName, items]) => {
+        const dataPoint: Record<string, any> = { name: parentName, _parentName: parentName };
+        items.forEach(item => {
+          dataPoint[item.xValue] = item.yValue;
+          dataPoint[`_color_${item.xValue}`] = item.color;
+          dataPoint[`_entry_${item.xValue}`] = item.entry;
+        });
+        return dataPoint;
+      });
+      
+      const xFieldLabel = sanitizedChartData[0].xFieldLabel || 'X Field';
+      const yFieldLabel = sanitizedChartData[0].yFieldLabel || 'Y Field';
+      
+      return (
+        <div className="relative w-full h-full min-h-[300px]">
+          <div className="absolute inset-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={groupedData} margin={{ top: 20, right: 30, left: 60, bottom: 80 }}>
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fontSize: 11 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  interval={0}
+                  label={{ value: 'Parent Record', position: 'insideBottom', offset: -5 }}
+                />
+                <YAxis 
+                  tick={{ fontSize: 11 }}
+                  label={{ value: yFieldLabel, angle: -90, position: 'insideLeft' }}
+                />
+                <Tooltip 
+                  content={({ payload, label }) => {
+                    if (!payload || payload.length === 0) return null;
+                    return (
+                      <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
+                        <div className="font-medium mb-2">{label}</div>
+                        <div className="space-y-1 text-sm">
+                          {payload.map((p: any, i: number) => (
+                            <div key={i} className="flex justify-between gap-4">
+                              <span className="text-muted-foreground flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.fill || p.color }}></span>
+                                {p.dataKey}:
+                              </span>
+                              <span className="font-semibold">{p.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
+                <Legend />
+                {allXValues.map((xVal, index) => (
+                  <Bar 
+                    key={xVal}
+                    dataKey={xVal}
+                    name={xVal}
+                    fill={colors[index % colors.length]}
+                    style={{ cursor: 'pointer' }}
+                    onClick={(data, idx) => {
+                      const entry = data?.payload?.[`_entry_${xVal}`];
+                      if (entry) {
+                        handleBarClick(entry, idx);
+                      }
+                    }}
+                    activeBar={{ fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
+                  />
+                ))}
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
