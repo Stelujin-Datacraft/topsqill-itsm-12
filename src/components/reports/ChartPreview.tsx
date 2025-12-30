@@ -2266,31 +2266,27 @@ export function ChartPreview({
       if (crossRefConfig.drilldownLevels && crossRefConfig.drilldownLevels.length > 0) {
         const drilldownLevels = crossRefConfig.drilldownLevels;
         const valuesCount = drilldownState?.values?.length || 0;
-        // valuesCount includes parentRefId at position 0
-        // valuesCount = 0: initial view, click drills to show level 0 grouped data
-        // valuesCount = 1: showing level 0, click drills to show level 1 grouped data
-        // valuesCount = N: showing level N-1, click drills to show level N grouped data
-        // When valuesCount = drilldownLevels.length + 1, we've gone through all levels
-        const currentFieldLevel = valuesCount > 0 ? valuesCount - 1 : -1;
+        // valuesCount structure: [parentRefId, level0Value, level1Value, ...]
+        // valuesCount = 0: initial view (showing parent records), first click stores parentRefId
+        // valuesCount = 1: have parentRefId, showing level 0 grouped data
+        // valuesCount = 2: have parentRefId + level0Value, showing level 1 grouped data
+        // Field level count = valuesCount - 1 (excluding parentRefId)
+        const fieldLevelCount = valuesCount > 0 ? valuesCount - 1 : 0;
         
         console.log('📊 Cross-ref drilldown click:', {
           valuesCount,
-          currentFieldLevel,
+          fieldLevelCount,
           totalLevels: drilldownLevels.length,
-          checkFinalLevel: `${valuesCount} > ${drilldownLevels.length} = ${valuesCount > drilldownLevels.length}`,
+          checkFinalLevel: `${fieldLevelCount} >= ${drilldownLevels.length} = ${fieldLevelCount >= drilldownLevels.length}`,
           dimensionValue,
           drilldownValue: payload?._drilldownValue,
           payload
         });
         
         // Check if we've drilled through ALL levels
-        // valuesCount includes parentRefId + one value per drilled level
-        // drilldownLevels.length = N means we have N levels to show
-        // valuesCount = 0: showing parents, click goes to level 0
-        // valuesCount = 1: showing level 0, click goes to level 1
-        // valuesCount = N: showing level N-1, click goes to level N (if exists) or dialog
-        // So dialog should open when valuesCount > drilldownLevels.length (after last level data shown and clicked)
-        if (valuesCount > drilldownLevels.length) {
+        // fieldLevelCount = actual number of field levels we've drilled through (excluding parentRefId)
+        // If fieldLevelCount >= drilldownLevels.length, we've shown all levels and should show dialog
+        if (fieldLevelCount >= drilldownLevels.length) {
           // Past final level - show submissions dialog with the filtered linked records
           setCellSubmissionsDialog({
             open: true,
@@ -2306,8 +2302,9 @@ export function ChartPreview({
         }
         
         // Drill into the next level
-        // For initial click (valuesCount=0), we pass parentRefId; otherwise pass the field value
-        const nextFieldIndex = valuesCount; // After storing this value, we'll show data grouped by this field index
+        // For initial click (valuesCount=0), we pass parentRefId to filter linked records
+        // For subsequent clicks, we pass field values to drill deeper
+        const nextFieldIndex = fieldLevelCount; // The field level we're drilling into
         const nextLevel = drilldownLevels[nextFieldIndex] || '';
         const valueToPass = valuesCount === 0 
           ? (payload?.parentRefId || dimensionValue) // First click passes parentRefId
@@ -3107,11 +3104,21 @@ export function ChartPreview({
       const xFieldLabel = sanitizedChartData[0].xFieldLabel || 'X Field';
       const yFieldLabel = sanitizedChartData[0].yFieldLabel || 'Y Field';
       
+      // Add gaps between parent groups by inserting empty entries
+      const groupedDataWithGaps: typeof groupedData = [];
+      groupedData.forEach((item, index) => {
+        groupedDataWithGaps.push(item);
+        // Add empty gap entry after each group except the last
+        if (index < groupedData.length - 1) {
+          groupedDataWithGaps.push({ name: '', _isGap: true });
+        }
+      });
+      
       return (
         <div className="relative w-full h-full min-h-[300px]">
           <div className="absolute inset-0">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={groupedData} margin={{ top: 20, right: 30, left: 60, bottom: 80 }}>
+              <BarChart data={groupedDataWithGaps} margin={{ top: 20, right: 30, left: 60, bottom: 80 }} barCategoryGap="20%">
                 <XAxis 
                   dataKey="name" 
                   tick={{ fontSize: 11 }}
