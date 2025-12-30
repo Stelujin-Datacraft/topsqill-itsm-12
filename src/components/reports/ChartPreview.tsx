@@ -1926,7 +1926,8 @@ export function ChartPreview({
     if (!clickedValue || clickedValue === 'Not Specified') return;
     
     // Check if this is a cross-reference chart - use parentId for direct record lookup
-    if (config.crossRefConfig?.enabled && data?.parentId) {
+    // Check for parentId OR _linkedSubmissionIds to identify cross-ref data
+    if (config.crossRefConfig?.enabled && (data?.parentId || data?._linkedSubmissionIds)) {
       const crossRefConfig = config.crossRefConfig;
       
       // Compare mode doesn't support drilldown - always show records directly
@@ -2035,8 +2036,18 @@ export function ChartPreview({
     if (!dimensionValue) return;
     
     // Check if this is a cross-reference chart - handle drilldown to linked records
-    if (config.crossRefConfig?.enabled && payload?.parentId) {
+    // Check for parentId OR _linkedSubmissionIds to identify cross-ref data
+    if (config.crossRefConfig?.enabled && (payload?.parentId || payload?._linkedSubmissionIds)) {
       const crossRefConfig = config.crossRefConfig;
+      
+      console.log('📊 Cross-ref bar click:', {
+        mode: crossRefConfig.mode,
+        drilldownEnabled: crossRefConfig.drilldownEnabled,
+        isDrilldownModeActive,
+        drilldownLevels: crossRefConfig.drilldownLevels,
+        currentDrilldownValues: drilldownState?.values,
+        payload: { parentId: payload.parentId, _linkedSubmissionIds: payload._linkedSubmissionIds }
+      });
       
       // Compare mode doesn't support drilldown - always show records directly
       // Also show records directly if drilldown mode is OFF or not enabled
