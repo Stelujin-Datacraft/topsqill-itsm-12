@@ -417,7 +417,6 @@ export function ChartPreview({
       sourceLabelFieldId?: string;
       compareXFieldId?: string; // X-axis field for compare mode
       compareYFieldId?: string; // Y-axis field for compare mode
-      compareShowSeparately?: boolean; // Show each parent record's data separately
       sourceGroupByFieldId?: string;
       drilldownEnabled?: boolean;
       drilldownLevels?: string[];
@@ -471,17 +470,12 @@ export function ChartPreview({
       const drilldownState = crossRefConfig._drilldownState;
       const drilldownLevels = crossRefConfig.drilldownLevels || [];
       const drilldownValues = drilldownState?.values || [];
-      // currentFieldLevel: which drilldown level's data we're currently showing
-      // drilldownValues[0] = parentRefId (the clicked parent record)
-      // drilldownValues[1] = value from drilldownLevels[0], drilldownValues[2] = value from drilldownLevels[1], etc.
-      // When drilldownValues.length = 0: Show parent records (initial view, no drilldown yet)
-      // When drilldownValues.length = 1: Show grouped by drilldownLevels[0] (first click stores parentRefId)
-      // When drilldownValues.length = 2: Show grouped by drilldownLevels[1] (have parentRefId + level0 value)
-      // So: currentFieldLevel = drilldownValues.length - 1, but -1 means we haven't drilled yet
-      const currentFieldLevel = drilldownValues.length > 0 ? drilldownValues.length - 1 : -1;
-      const currentDimensionField = currentFieldLevel >= 0 && currentFieldLevel < drilldownLevels.length 
-        ? drilldownLevels[currentFieldLevel] 
-        : undefined;
+      // currentLevel is derived from drilldownValues.length
+      // drilldownValues[0] = parentRefId, so actual field level = drilldownValues.length - 1
+      // When drilldownValues.length = 1, we show data grouped by drilldownLevels[0]
+      // When drilldownValues.length = 2, we show data grouped by drilldownLevels[1]
+      const currentFieldLevel = drilldownValues.length > 0 ? drilldownValues.length - 1 : 0;
+      const currentDimensionField = drilldownLevels[currentFieldLevel];
       
       // Determine if drilldown is actively being used (has levels and at least started drilling)
       const isDrilldownActive = crossRefConfig.drilldownEnabled && drilldownLevels.length > 0;
@@ -623,9 +617,6 @@ export function ChartPreview({
             : (parentSub.submission_ref_id || parentSub.id.slice(0, 8));
 
           // Process each linked submission as a separate data point for text compare
-          // If compareShowSeparately is enabled, group by parent record
-          const showSeparately = crossRefConfig.compareShowSeparately || false;
-          
           linkedSubmissions.forEach((sub) => {
             const xVal = sub.submission_data?.[crossRefConfig.compareXFieldId!];
             const yVal = sub.submission_data?.[crossRefConfig.compareYFieldId!];
@@ -649,14 +640,8 @@ export function ChartPreview({
             const xOptionInfo = xFieldOptions?.get(String(xVal));
             const yOptionInfo = yFieldOptions?.get(String(yVal));
             
-            // When showing separately, prefix the name with parent display name
-            const nameValue = xOptionInfo?.label || String(xDisplay);
-            const finalName = showSeparately 
-              ? `${displayName}|${nameValue}` // Use pipe separator for grouping
-              : nameValue;
-            
             result.push({
-              name: finalName,
+              name: xOptionInfo?.label || String(xDisplay), // Use option label if available
               xRaw: xOptionInfo?.label || String(xDisplay),
               yRaw: yOptionInfo?.label || String(yDisplay),
               x: isXText ? 0 : Number(xDisplay) || 0,
@@ -668,10 +653,8 @@ export function ChartPreview({
               yFieldLabel: yFieldLabel,
               parentId: String(parentSub.id),
               parentRefId: String(parentSub.submission_ref_id || ''),
-              parentDisplayName: displayName, // Include parent display name for grouping
               linkedSubmissionId: sub.id,
               _isCrossRefCompare: true,
-              _showSeparately: showSeparately,
               _hasTextX: isXText,
               _hasTextY: isYText,
               _linkedSubmissionIds: [sub.id],
@@ -2271,28 +2254,25 @@ export function ChartPreview({
       if (crossRefConfig.drilldownLevels && crossRefConfig.drilldownLevels.length > 0) {
         const drilldownLevels = crossRefConfig.drilldownLevels;
         const valuesCount = drilldownState?.values?.length || 0;
-        // valuesCount structure: [parentRefId, level0Value, level1Value, ...]
-        // valuesCount = 0: initial view (showing parent records), first click stores parentRefId
-        // valuesCount = 1: have parentRefId, showing level 0 grouped data
-        // valuesCount = 2: have parentRefId + level0Value, showing level 1 grouped data
-        // Field level count = valuesCount - 1 (excluding parentRefId)
-        const fieldLevelCount = valuesCount > 0 ? valuesCount - 1 : 0;
+        // valuesCount includes parentRefId at position 0, so actual field level = valuesCount - 1
+        // When valuesCount = 0: initial view, first click drills to level 0
+        // When valuesCount = 1: showing level 0, next click drills to level 1
+        // When valuesCount = N: showing level N-1, check if N-1 >= levels.length means we're at final
+        const currentFieldLevel = valuesCount > 0 ? valuesCount - 1 : 0;
         
         console.log('📊 Cross-ref drilldown click:', {
           valuesCount,
-          fieldLevelCount,
+          currentFieldLevel,
           totalLevels: drilldownLevels.length,
-          checkFinalLevel: `${fieldLevelCount} >= ${drilldownLevels.length} = ${fieldLevelCount >= drilldownLevels.length}`,
+          checkFinalLevel: `${currentFieldLevel} >= ${drilldownLevels.length - 1} && ${valuesCount} > 0 = ${currentFieldLevel >= drilldownLevels.length - 1 && valuesCount > 0}`,
           dimensionValue,
           drilldownValue: payload?._drilldownValue,
           payload
         });
         
-        // Check if we've drilled through ALL levels
-        // fieldLevelCount = actual number of field levels we've drilled through (excluding parentRefId)
-        // If fieldLevelCount >= drilldownLevels.length, we've shown all levels and should show dialog
-        if (fieldLevelCount >= drilldownLevels.length) {
-          // Past final level - show submissions dialog with the filtered linked records
+        // Check if we've drilled through all levels (currentFieldLevel = last field shown, so if it equals length-1, next click should show dialog)
+        if (currentFieldLevel >= drilldownLevels.length - 1 && valuesCount > 0) {
+          // At final level - show submissions dialog with the filtered linked records
           setCellSubmissionsDialog({
             open: true,
             dimensionField: '',
@@ -2306,18 +2286,18 @@ export function ChartPreview({
           return;
         }
         
-        // Drill into the next level
-        // For initial click (valuesCount=0), we pass parentRefId to filter linked records
-        // For subsequent clicks, we pass field values to drill deeper
-        const nextFieldIndex = fieldLevelCount; // The field level we're drilling into
-        const nextLevel = drilldownLevels[nextFieldIndex] || '';
+        // Drill into the next level - use _drilldownValue if available (raw value for filtering)
+        // Otherwise fall back to dimensionValue (display name)
+        // For initial click (valuesCount=0), we pass parentRefId; otherwise pass the field value
+        const nextFieldIndex = valuesCount > 0 ? currentFieldLevel + 1 : 0;
+        const nextLevel = drilldownLevels[nextFieldIndex];
         const valueToPass = valuesCount === 0 
           ? (payload?.parentRefId || dimensionValue) // First click passes parentRefId
           : (payload?._drilldownValue || dimensionValue); // Subsequent clicks pass field value
         
         if (onDrilldown) {
           console.log('📊 Cross-ref drilldown: Drilling into field level', nextFieldIndex, 'with value', valueToPass);
-          onDrilldown(nextLevel, valueToPass);
+          onDrilldown(nextLevel || '', valueToPass);
           return;
         }
       }
@@ -3061,121 +3041,6 @@ export function ChartPreview({
                   onClick={(data: any) => handleBarClick(data?.payload || data, 0)}
                 />
               </RechartsScatterChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      );
-    }
-    
-    // Cross-Reference Compare Mode with "Show records separately" - group bars by parent record
-    const hasShowSeparately = sanitizedChartData.length > 0 && sanitizedChartData[0]._showSeparately;
-    if (hasShowSeparately && sanitizedChartData[0]._isCrossRefCompare) {
-      // Group data by parent record (name contains parentDisplayName|value format)
-      const parentGroups = new Map<string, Array<{ xValue: string; yValue: number; color?: string; entry: any }>>();
-      
-      sanitizedChartData.forEach(entry => {
-        const nameParts = String(entry.name).split('|');
-        const parentName = nameParts.length > 1 ? nameParts[0] : 'Unknown';
-        const xValue = nameParts.length > 1 ? nameParts[1] : String(entry.name);
-        
-        if (!parentGroups.has(parentName)) {
-          parentGroups.set(parentName, []);
-        }
-        parentGroups.get(parentName)!.push({
-          xValue,
-          yValue: entry.value || entry.y || 0,
-          color: entry._yOptionColor,
-          entry
-        });
-      });
-      
-      // Get all unique X values for consistent bar positioning
-      const allXValues = [...new Set(sanitizedChartData.map(entry => {
-        const nameParts = String(entry.name).split('|');
-        return nameParts.length > 1 ? nameParts[1] : String(entry.name);
-      }))];
-      
-      // Build grouped chart data
-      const groupedData = Array.from(parentGroups.entries()).map(([parentName, items]) => {
-        const dataPoint: Record<string, any> = { name: parentName, _parentName: parentName };
-        items.forEach(item => {
-          dataPoint[item.xValue] = item.yValue;
-          dataPoint[`_color_${item.xValue}`] = item.color;
-          dataPoint[`_entry_${item.xValue}`] = item.entry;
-        });
-        return dataPoint;
-      });
-      
-      const xFieldLabel = sanitizedChartData[0].xFieldLabel || 'X Field';
-      const yFieldLabel = sanitizedChartData[0].yFieldLabel || 'Y Field';
-      
-      // Add gaps between parent groups by inserting empty entries
-      const groupedDataWithGaps: typeof groupedData = [];
-      groupedData.forEach((item, index) => {
-        groupedDataWithGaps.push(item);
-        // Add empty gap entry after each group except the last
-        if (index < groupedData.length - 1) {
-          groupedDataWithGaps.push({ name: '', _isGap: true });
-        }
-      });
-      
-      return (
-        <div className="relative w-full h-full min-h-[300px]">
-          <div className="absolute inset-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={groupedDataWithGaps} margin={{ top: 20, right: 30, left: 60, bottom: 80 }} barCategoryGap="20%">
-                <XAxis 
-                  dataKey="name" 
-                  tick={{ fontSize: 11 }}
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                  interval={0}
-                  label={{ value: 'Parent Record', position: 'insideBottom', offset: -5 }}
-                />
-                <YAxis 
-                  tick={{ fontSize: 11 }}
-                  label={{ value: yFieldLabel, angle: -90, position: 'insideLeft' }}
-                />
-                <Tooltip 
-                  content={({ payload, label, active }) => {
-                    if (!active || !payload || payload.length === 0 || !label) return null;
-                    return (
-                      <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
-                        <div className="font-medium mb-2">{label}</div>
-                        <div className="space-y-1 text-sm">
-                          {payload.map((p: any, i: number) => (
-                            <div key={i} className="flex justify-between gap-4">
-                              <span className="text-muted-foreground flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.fill || p.color }}></span>
-                                {p.dataKey}:
-                              </span>
-                              <span className="font-semibold">{p.value}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  }}
-                />
-                <Legend />
-                {allXValues.map((xVal, index) => (
-                  <Bar 
-                    key={xVal}
-                    dataKey={xVal}
-                    name={xVal}
-                    fill={colors[index % colors.length]}
-                    style={{ cursor: 'pointer' }}
-                    onClick={(data, idx) => {
-                      const entry = data?.payload?.[`_entry_${xVal}`];
-                      if (entry) {
-                        handleBarClick(entry, idx);
-                      }
-                    }}
-                    activeBar={{ fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
-                  />
-                ))}
-              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>

@@ -638,29 +638,6 @@ export function CrossReferenceDataSection({
                       )}
                     </p>
                   )}
-                  
-                  {/* Display Mode Toggle */}
-                  <div className="mt-4 p-3 bg-muted/50 rounded-lg border">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label className="text-sm font-medium">Show records separately</Label>
-                        <p className="text-xs text-muted-foreground">
-                          {crossRefConfig.compareShowSeparately 
-                            ? "Each parent record shown with its own bar group" 
-                            : "All linked records combined in one chart"}
-                        </p>
-                      </div>
-                      <Switch
-                        checked={crossRefConfig.compareShowSeparately || false}
-                        onCheckedChange={(checked) => onConfigChange({
-                          crossRefConfig: {
-                            ...crossRefConfig,
-                            compareShowSeparately: checked
-                          }
-                        })}
-                      />
-                    </div>
-                  </div>
                 </div>
               )}
             </div>
