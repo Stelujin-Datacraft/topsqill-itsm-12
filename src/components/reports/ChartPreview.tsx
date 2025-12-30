@@ -524,12 +524,17 @@ export function ChartPreview({
           linkedRefIds = [crossRefValue.submission_ref_id];
         }
 
-        // Get all linked target submissions
-        let linkedSubmissions: any[] = [];
+        // Get all linked target submissions (deduplicated by ID)
+        const linkedSubmissionMap = new Map<string, any>();
         linkedRefIds.forEach(refId => {
           const matches = targetByRefId.get(refId) || [];
-          linkedSubmissions.push(...matches);
+          matches.forEach(sub => {
+            if (!linkedSubmissionMap.has(sub.id)) {
+              linkedSubmissionMap.set(sub.id, sub);
+            }
+          });
         });
+        const linkedSubmissions = Array.from(linkedSubmissionMap.values());
         
         // NOTE: Drilldown filtering is NOT done here at the per-parent level
         // The drilldown filtering is handled AFTER allLinkedSubmissions is populated,
@@ -815,34 +820,57 @@ export function ChartPreview({
         }> = {};
         
         filteredLinkedSubmissions.forEach(sub => {
-          const fieldVal = sub.submission_data?.[currentDimensionField] || 'Unknown';
-          const key = typeof fieldVal === 'object' ? JSON.stringify(fieldVal) : String(fieldVal);
+          let fieldVal = sub.submission_data?.[currentDimensionField];
           
-          if (!groupedByDrilldownField[key]) {
-            groupedByDrilldownField[key] = {
-              count: 0,
-              value: 0,
-              linkedSubmissionIds: [],
-              parentIds: [],
-              parentRefIds: []
-            };
-          }
-          
-          groupedByDrilldownField[key].count += 1;
-          groupedByDrilldownField[key].linkedSubmissionIds.push(sub.id);
-          if (sub._parentId) groupedByDrilldownField[key].parentIds.push(String(sub._parentId));
-          if (sub._parentRefId) groupedByDrilldownField[key].parentRefIds.push(String(sub._parentRefId));
-          
-          // For aggregate mode, also accumulate metric values
-          if (crossRefConfig.mode === 'aggregate' && crossRefConfig.targetMetricFieldId) {
-            const metricVal = sub.submission_data?.[crossRefConfig.targetMetricFieldId];
-            const numVal = typeof metricVal === 'number' ? metricVal : 
-              (typeof metricVal === 'object' && metricVal?.amount ? Number(metricVal.amount) : Number(metricVal)) || 0;
-            groupedByDrilldownField[key].value += numVal;
+          // Handle array/multi-select fields - each value gets its own group
+          const valuesToProcess: string[] = [];
+          if (Array.isArray(fieldVal)) {
+            fieldVal.forEach(v => {
+              const strVal = typeof v === 'object' ? JSON.stringify(v) : String(v || 'Unknown');
+              valuesToProcess.push(strVal);
+            });
           } else {
-            // For count mode, value equals count
-            groupedByDrilldownField[key].value = groupedByDrilldownField[key].count;
+            const strVal = fieldVal === null || fieldVal === undefined 
+              ? 'Unknown' 
+              : (typeof fieldVal === 'object' ? JSON.stringify(fieldVal) : String(fieldVal));
+            valuesToProcess.push(strVal);
           }
+          
+          // Process each value (usually just one, unless multi-select)
+          valuesToProcess.forEach(key => {
+            if (!groupedByDrilldownField[key]) {
+              groupedByDrilldownField[key] = {
+                count: 0,
+                value: 0,
+                linkedSubmissionIds: [],
+                parentIds: [],
+                parentRefIds: []
+              };
+            }
+            
+            groupedByDrilldownField[key].count += 1;
+            // Avoid duplicate submission IDs in the same group
+            if (!groupedByDrilldownField[key].linkedSubmissionIds.includes(sub.id)) {
+              groupedByDrilldownField[key].linkedSubmissionIds.push(sub.id);
+            }
+            if (sub._parentId && !groupedByDrilldownField[key].parentIds.includes(String(sub._parentId))) {
+              groupedByDrilldownField[key].parentIds.push(String(sub._parentId));
+            }
+            if (sub._parentRefId && !groupedByDrilldownField[key].parentRefIds.includes(String(sub._parentRefId))) {
+              groupedByDrilldownField[key].parentRefIds.push(String(sub._parentRefId));
+            }
+            
+            // For aggregate mode, also accumulate metric values
+            if (crossRefConfig.mode === 'aggregate' && crossRefConfig.targetMetricFieldId) {
+              const metricVal = sub.submission_data?.[crossRefConfig.targetMetricFieldId];
+              const numVal = typeof metricVal === 'number' ? metricVal : 
+                (typeof metricVal === 'object' && metricVal?.amount ? Number(metricVal.amount) : Number(metricVal)) || 0;
+              groupedByDrilldownField[key].value += numVal;
+            } else {
+              // For count mode, value equals count
+              groupedByDrilldownField[key].value = groupedByDrilldownField[key].count;
+            }
+          });
         });
         
         // Convert to result array
