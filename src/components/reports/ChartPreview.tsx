@@ -417,6 +417,7 @@ export function ChartPreview({
       sourceLabelFieldId?: string;
       compareXFieldId?: string; // X-axis field for compare mode
       compareYFieldId?: string; // Y-axis field for compare mode
+      compareShowSeparately?: boolean; // Show each parent record's data separately
       sourceGroupByFieldId?: string;
       drilldownEnabled?: boolean;
       drilldownLevels?: string[];
@@ -617,6 +618,9 @@ export function ChartPreview({
             : (parentSub.submission_ref_id || parentSub.id.slice(0, 8));
 
           // Process each linked submission as a separate data point for text compare
+          // If compareShowSeparately is enabled, group by parent record
+          const showSeparately = crossRefConfig.compareShowSeparately || false;
+          
           linkedSubmissions.forEach((sub) => {
             const xVal = sub.submission_data?.[crossRefConfig.compareXFieldId!];
             const yVal = sub.submission_data?.[crossRefConfig.compareYFieldId!];
@@ -640,8 +644,14 @@ export function ChartPreview({
             const xOptionInfo = xFieldOptions?.get(String(xVal));
             const yOptionInfo = yFieldOptions?.get(String(yVal));
             
+            // When showing separately, prefix the name with parent display name
+            const nameValue = xOptionInfo?.label || String(xDisplay);
+            const finalName = showSeparately 
+              ? `${displayName}|${nameValue}` // Use pipe separator for grouping
+              : nameValue;
+            
             result.push({
-              name: xOptionInfo?.label || String(xDisplay), // Use option label if available
+              name: finalName,
               xRaw: xOptionInfo?.label || String(xDisplay),
               yRaw: yOptionInfo?.label || String(yDisplay),
               x: isXText ? 0 : Number(xDisplay) || 0,
@@ -653,8 +663,10 @@ export function ChartPreview({
               yFieldLabel: yFieldLabel,
               parentId: String(parentSub.id),
               parentRefId: String(parentSub.submission_ref_id || ''),
+              parentDisplayName: displayName, // Include parent display name for grouping
               linkedSubmissionId: sub.id,
               _isCrossRefCompare: true,
+              _showSeparately: showSeparately,
               _hasTextX: isXText,
               _hasTextY: isYText,
               _linkedSubmissionIds: [sub.id],
@@ -2273,8 +2285,9 @@ export function ChartPreview({
         
         // Check if we've drilled through ALL levels
         // valuesCount includes parentRefId + one value per drilled level
-        // Show dialog when valuesCount > drilldownLevels.length (all levels have been drilled)
-        if (valuesCount > drilldownLevels.length) {
+        // At valuesCount = drilldownLevels.length, we're SHOWING the final level's grouped data
+        // Clicking on that should show the dialog (so use >= not >)
+        if (valuesCount >= drilldownLevels.length) {
           // At final level - show submissions dialog with the filtered linked records
           setCellSubmissionsDialog({
             open: true,
