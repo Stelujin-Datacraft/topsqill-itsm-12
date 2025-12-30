@@ -438,11 +438,27 @@ export function ChartPreview({
       const targetSubmissions = await getFormSubmissionData(crossRefConfig.targetFormId);
       console.log(`📊 Cross-ref: Loaded ${targetSubmissions?.length || 0} records from target form`);
       
-      // Also fetch target form fields for proper label resolution
+      // Also fetch target form fields for proper label resolution and option colors
       const targetFormFields = await getFormFields(crossRefConfig.targetFormId);
       const targetFieldLookup = new Map<string, string>();
+      const targetFieldOptionsLookup = new Map<string, Map<string, { label: string; color?: string; image?: string }>>();
+      
       targetFormFields?.forEach((field: any) => {
         targetFieldLookup.set(field.id, field.label || field.id);
+        
+        // Build options lookup for fields with options (select, radio, multi-select, etc.)
+        if (field.options && Array.isArray(field.options)) {
+          const optionsMap = new Map<string, { label: string; color?: string; image?: string }>();
+          field.options.forEach((opt: any) => {
+            const optValue = opt.value || opt.label || '';
+            optionsMap.set(optValue, {
+              label: opt.label || opt.value || optValue,
+              color: opt.color,
+              image: opt.image
+            });
+          });
+          targetFieldOptionsLookup.set(field.id, optionsMap);
+        }
       });
 
       if (!targetSubmissions || targetSubmissions.length === 0) {
@@ -517,14 +533,22 @@ export function ChartPreview({
 
           if (crossRefConfig.targetDimensionFieldId) {
             // Multiple data points per parent (grouped by dimension)
+            // Get options lookup for the dimension field
+            const dimFieldOptions = targetFieldOptionsLookup.get(crossRefConfig.targetDimensionFieldId);
+            
             Object.entries(dimensionValue).forEach(([dimVal, count]) => {
+              // Look up option color if available
+              const optionInfo = dimFieldOptions?.get(dimVal);
+              
               result.push({
-                name: dimVal,
+                name: optionInfo?.label || dimVal,
                 value: count,
                 count: count,
                 parentId: parentSub.id,
                 parentRefId: parentSub.submission_ref_id,
-                _linkedSubmissionIds: linkedSubmissions.map(s => s.id)
+                _linkedSubmissionIds: linkedSubmissions.map(s => s.id),
+                _optionColor: optionInfo?.color,
+                _optionImage: optionInfo?.image
               });
             });
           } else {
@@ -582,10 +606,16 @@ export function ChartPreview({
               (typeof yVal === 'number' ? yVal : 
                 (typeof yVal === 'object' && yVal?.amount ? Number(yVal.amount) : Number(yVal) || 0));
             
+            // Get option colors for X and Y values if they're from option fields
+            const xFieldOptions = targetFieldOptionsLookup.get(crossRefConfig.compareXFieldId!);
+            const yFieldOptions = targetFieldOptionsLookup.get(crossRefConfig.compareYFieldId!);
+            const xOptionInfo = xFieldOptions?.get(String(xVal));
+            const yOptionInfo = yFieldOptions?.get(String(yVal));
+            
             result.push({
-              name: String(xDisplay), // X field value as the name for bar chart
-              xRaw: String(xDisplay),
-              yRaw: String(yDisplay),
+              name: xOptionInfo?.label || String(xDisplay), // Use option label if available
+              xRaw: xOptionInfo?.label || String(xDisplay),
+              yRaw: yOptionInfo?.label || String(yDisplay),
               x: isXText ? 0 : Number(xDisplay) || 0,
               y: isYText ? 0 : Number(yDisplay) || 0,
               value: isYText ? 1 : (Number(yDisplay) || 0), // For text Y, use count of 1
@@ -599,7 +629,11 @@ export function ChartPreview({
               _isCrossRefCompare: true,
               _hasTextX: isXText,
               _hasTextY: isYText,
-              _linkedSubmissionIds: [sub.id]
+              _linkedSubmissionIds: [sub.id],
+              _xOptionColor: xOptionInfo?.color,
+              _yOptionColor: yOptionInfo?.color,
+              _xOptionImage: xOptionInfo?.image,
+              _yOptionImage: yOptionInfo?.image
             });
           });
         } else {
@@ -746,14 +780,22 @@ export function ChartPreview({
       const xFieldName = crossRefData[0]?.xFieldLabel || 'X Field';
       const yFieldName = crossRefData[0]?.yFieldLabel || 'Y Field';
       
-      // Build unique legend mapping for Y text values
+      // Build unique legend mapping for Y text values with option colors
+      const yColorLookup = new Map<string, string | undefined>();
+      crossRefData.forEach(item => {
+        if (item.yRaw && item._yOptionColor) {
+          yColorLookup.set(String(item.yRaw), item._yOptionColor);
+        }
+      });
+      
       const uniqueYValues = new Set<string>();
       crossRefData.forEach(item => {
         if (item.yRaw) uniqueYValues.add(String(item.yRaw));
       });
       const legendMapping = Array.from(uniqueYValues).map((label, index) => ({
         number: index + 1,
-        label: label
+        label: label,
+        color: yColorLookup.get(label) // Include option color if available
       }));
       
       // Create legend lookup for encoding
@@ -778,7 +820,9 @@ export function ChartPreview({
         _linkedSubmissionIds: item._linkedSubmissionIds,
         _legendMapping: legendMapping,
         _isCompareEncoded: true,
-        _isCrossRefCompare: true
+        _isCrossRefCompare: true,
+        _yOptionColor: item._yOptionColor,
+        _xOptionColor: item._xOptionColor
       }));
     }
     
@@ -2293,7 +2337,7 @@ export function ChartPreview({
 
     // Sanitize chart data - ensure all numeric values are valid numbers (not NaN/undefined)
     // Preserve string values for display fields (xRaw, yRaw, field names, IDs, cross-ref parent IDs)
-    const preserveAsStringKeys = ['name', '_drilldownData', 'xRaw', 'yRaw', 'xFieldName', 'yFieldName', 'xFieldLabel', 'yFieldLabel', 'submissionId', '_legendMapping', 'rawSecondaryValue', 'rawYValue', '_isCompareEncoded', '_isCrossRefCompare', '_hasTextX', '_hasTextY', 'parentId', 'parentRefId', 'linkedSubmissionId', '_linkedSubmissionIds'];
+    const preserveAsStringKeys = ['name', '_drilldownData', 'xRaw', 'yRaw', 'xFieldName', 'yFieldName', 'xFieldLabel', 'yFieldLabel', 'submissionId', '_legendMapping', 'rawSecondaryValue', 'rawYValue', '_isCompareEncoded', '_isCrossRefCompare', '_hasTextX', '_hasTextY', 'parentId', 'parentRefId', 'linkedSubmissionId', '_linkedSubmissionIds', '_optionColor', '_optionImage', '_xOptionColor', '_yOptionColor', '_xOptionImage', '_yOptionImage'];
     let sanitizedChartData = chartData.map(item => {
       const sanitized: any = { name: item.name || 'Unknown' };
       Object.keys(item).forEach(key => {
@@ -2741,7 +2785,7 @@ export function ChartPreview({
     // Encoded Legend Mode: special rendering with legend sidebar (for both Count and Compare modes)
     // Auto-detect by checking if data has _legendMapping property
     if (sanitizedChartData.length > 0 && sanitizedChartData[0]._legendMapping) {
-      const legendMapping = sanitizedChartData[0]._legendMapping as { number: number; label: string }[];
+      const legendMapping = sanitizedChartData[0]._legendMapping as { number: number; label: string; color?: string }[];
       const maxEncodedValue = Math.max(...sanitizedChartData.map(d => d.encodedValue || 0), 1);
       const isCompareEncoded = sanitizedChartData[0]._isCompareEncoded;
       
@@ -2836,13 +2880,17 @@ export function ChartPreview({
                   onClick={(data, idx) => handleBarClick(data, idx)}
                   activeBar={{ fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
                 >
-                  {sanitizedChartData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={colors[index % colors.length]} 
-                      style={{ cursor: 'pointer' }}
-                    />
-                  ))}
+                  {sanitizedChartData.map((entry, index) => {
+                    // Use Y-axis option color if available, otherwise fallback to default colors
+                    const barColor = entry._yOptionColor || colors[index % colors.length];
+                    return (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={barColor} 
+                        style={{ cursor: 'pointer' }}
+                      />
+                    );
+                  })}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -2852,13 +2900,22 @@ export function ChartPreview({
           <div className="w-40 shrink-0 border-l border-border pl-4">
             <div className="text-sm font-semibold mb-3 text-foreground">{yAxisFieldName} Legend</div>
             <div className="space-y-2 max-h-[250px] overflow-y-auto">
-              {legendMapping.map(({ number, label }) => (
+              {legendMapping.map(({ number, label, color }) => (
                 <div key={number} className="flex items-center gap-2 text-sm">
-                  <div 
-                    className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold bg-muted text-foreground border border-border shrink-0"
-                  >
-                    {number}
-                  </div>
+                  {/* Show color dot if option has a color, otherwise show number */}
+                  {color ? (
+                    <div 
+                      className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 border border-border"
+                      style={{ backgroundColor: color }}
+                      title={`Color: ${color}`}
+                    />
+                  ) : (
+                    <div 
+                      className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold bg-muted text-foreground border border-border shrink-0"
+                    >
+                      {number}
+                    </div>
+                  )}
                   <span className="text-foreground truncate" title={label}>{label}</span>
                 </div>
               ))}
