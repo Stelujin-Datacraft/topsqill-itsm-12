@@ -473,8 +473,12 @@ export function ChartPreview({
       const drilldownValues = drilldownState?.values || [];
       const currentDimensionField = drilldownLevels[currentLevel];
       
+      // Determine if drilldown is actively being used (has levels and at least started drilling)
+      const isDrilldownActive = crossRefConfig.drilldownEnabled && drilldownLevels.length > 0;
+      
       console.log('📊 Cross-ref drilldown processing:', {
         drilldownEnabled: crossRefConfig.drilldownEnabled,
+        isDrilldownActive,
         currentLevel,
         currentDimensionField,
         drilldownValues,
@@ -495,6 +499,9 @@ export function ChartPreview({
 
       // Process each parent submission
       const result: any[] = [];
+      
+      // Collect ALL linked submissions across all parents for drilldown grouping
+      let allLinkedSubmissions: any[] = [];
 
       submissions.forEach(parentSub => {
         const crossRefValue = parentSub.submission_data?.[crossRefConfig.crossRefFieldId];
@@ -514,11 +521,40 @@ export function ChartPreview({
         }
 
         // Get all linked target submissions
-        const linkedSubmissions: any[] = [];
+        let linkedSubmissions: any[] = [];
         linkedRefIds.forEach(refId => {
           const matches = targetByRefId.get(refId) || [];
           linkedSubmissions.push(...matches);
         });
+        
+        // Apply drilldown filters to linked submissions if drilldown is active
+        if (isDrilldownActive && drilldownValues.length > 0) {
+          linkedSubmissions = linkedSubmissions.filter(sub => {
+            // Check each drilldown level's filter
+            for (let i = 0; i < drilldownValues.length; i++) {
+              const levelFieldId = drilldownLevels[i];
+              const expectedValue = drilldownValues[i];
+              if (!levelFieldId || !expectedValue) continue;
+              
+              const fieldValue = sub.submission_data?.[levelFieldId];
+              const normalizedFieldValue = typeof fieldValue === 'object' 
+                ? JSON.stringify(fieldValue) 
+                : String(fieldValue || '');
+              
+              if (normalizedFieldValue !== expectedValue) {
+                return false; // Filter out records that don't match
+              }
+            }
+            return true;
+          });
+        }
+        
+        // Add to all linked submissions for drilldown grouping
+        allLinkedSubmissions.push(...linkedSubmissions.map(sub => ({
+          ...sub,
+          _parentId: parentSub.id,
+          _parentRefId: parentSub.submission_ref_id
+        })));
 
         if (crossRefConfig.mode === 'count') {
           // Count mode: count linked records
@@ -739,6 +775,77 @@ export function ChartPreview({
           }
         }
       });
+
+      // DRILLDOWN GROUPING: If drilldown is active and we have a current level field,
+      // override the normal result and group ALL linked submissions by the current drilldown field
+      if (isDrilldownActive && currentDimensionField && currentLevel < drilldownLevels.length) {
+        console.log('📊 Cross-ref drilldown: Grouping by level field', currentDimensionField);
+        
+        // Get field options for the current drilldown field
+        const dimFieldOptions = targetFieldOptionsLookup.get(currentDimensionField);
+        
+        // Group all linked submissions by the current drilldown field
+        const groupedByDrilldownField: Record<string, { 
+          count: number;
+          value: number;
+          linkedSubmissionIds: string[];
+          parentIds: string[];
+          parentRefIds: string[];
+        }> = {};
+        
+        allLinkedSubmissions.forEach(sub => {
+          const fieldVal = sub.submission_data?.[currentDimensionField] || 'Unknown';
+          const key = typeof fieldVal === 'object' ? JSON.stringify(fieldVal) : String(fieldVal);
+          
+          if (!groupedByDrilldownField[key]) {
+            groupedByDrilldownField[key] = {
+              count: 0,
+              value: 0,
+              linkedSubmissionIds: [],
+              parentIds: [],
+              parentRefIds: []
+            };
+          }
+          
+          groupedByDrilldownField[key].count += 1;
+          groupedByDrilldownField[key].linkedSubmissionIds.push(sub.id);
+          if (sub._parentId) groupedByDrilldownField[key].parentIds.push(String(sub._parentId));
+          if (sub._parentRefId) groupedByDrilldownField[key].parentRefIds.push(String(sub._parentRefId));
+          
+          // For aggregate mode, also accumulate metric values
+          if (crossRefConfig.mode === 'aggregate' && crossRefConfig.targetMetricFieldId) {
+            const metricVal = sub.submission_data?.[crossRefConfig.targetMetricFieldId];
+            const numVal = typeof metricVal === 'number' ? metricVal : 
+              (typeof metricVal === 'object' && metricVal?.amount ? Number(metricVal.amount) : Number(metricVal)) || 0;
+            groupedByDrilldownField[key].value += numVal;
+          } else {
+            // For count mode, value equals count
+            groupedByDrilldownField[key].value = groupedByDrilldownField[key].count;
+          }
+        });
+        
+        // Convert to result array
+        const drilldownResult = Object.entries(groupedByDrilldownField).map(([name, data]) => {
+          const optionInfo = dimFieldOptions?.get(name);
+          return {
+            name: optionInfo?.label || name,
+            value: data.value,
+            count: data.count,
+            parentId: data.parentIds[0] || '',
+            parentRefId: data.parentRefIds[0] || '',
+            _linkedSubmissionIds: [...new Set(data.linkedSubmissionIds)],
+            _allParentIds: data.parentIds,
+            _allParentRefIds: data.parentRefIds,
+            _optionColor: optionInfo?.color,
+            _optionImage: optionInfo?.image,
+            _drilldownField: currentDimensionField,
+            _drilldownValue: name // Store the raw value for filtering on next click
+          };
+        });
+        
+        console.log(`📊 Cross-ref drilldown: Grouped into ${drilldownResult.length} values`);
+        return drilldownResult;
+      }
 
       // If grouped by dimension, aggregate across all parents - preserve IDs for drilldown
       if (crossRefConfig.targetDimensionFieldId && result.length > 0) {
@@ -1951,6 +2058,13 @@ export function ChartPreview({
         const drilldownLevels = crossRefConfig.drilldownLevels;
         const currentLevel = drilldownState?.values?.length || 0;
         
+        console.log('📊 Cross-ref pie drilldown click:', {
+          currentLevel,
+          totalLevels: drilldownLevels.length,
+          clickedValue,
+          drilldownValue: data?._drilldownValue
+        });
+        
         if (currentLevel >= drilldownLevels.length) {
           setCellSubmissionsDialog({
             open: true,
@@ -1965,9 +2079,13 @@ export function ChartPreview({
           return;
         }
         
+        // Use _drilldownValue if available (raw value for filtering)
         const nextLevel = drilldownLevels[currentLevel];
+        const valueToPass = data?._drilldownValue || clickedValue;
+        
         if (nextLevel && onDrilldown) {
-          onDrilldown(nextLevel, clickedValue);
+          console.log('📊 Cross-ref pie drilldown: Drilling into level', currentLevel, 'with value', valueToPass);
+          onDrilldown(nextLevel, valueToPass);
           return;
         }
       }
@@ -2070,6 +2188,14 @@ export function ChartPreview({
         const drilldownLevels = crossRefConfig.drilldownLevels;
         const currentLevel = drilldownState?.values?.length || 0;
         
+        console.log('📊 Cross-ref drilldown click:', {
+          currentLevel,
+          totalLevels: drilldownLevels.length,
+          dimensionValue,
+          drilldownValue: payload?._drilldownValue,
+          payload
+        });
+        
         if (currentLevel >= drilldownLevels.length) {
           // At final level - show submissions dialog with all linked records
           setCellSubmissionsDialog({
@@ -2085,10 +2211,14 @@ export function ChartPreview({
           return;
         }
         
-        // Drill into the next level
+        // Drill into the next level - use _drilldownValue if available (raw value for filtering)
+        // Otherwise fall back to dimensionValue (display name)
         const nextLevel = drilldownLevels[currentLevel];
+        const valueToPass = payload?._drilldownValue || dimensionValue;
+        
         if (nextLevel && onDrilldown) {
-          onDrilldown(nextLevel, dimensionValue);
+          console.log('📊 Cross-ref drilldown: Drilling into level', currentLevel, 'with value', valueToPass);
+          onDrilldown(nextLevel, valueToPass);
           return;
         }
       }
