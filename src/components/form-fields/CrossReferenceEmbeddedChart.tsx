@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import { BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
 import { Loader2, BarChart3 } from 'lucide-react';
 import { useCrossReferenceData } from '@/hooks/useCrossReferenceData';
 import { EmbeddedChartConfig } from '@/types/reports';
@@ -15,7 +15,7 @@ interface CrossReferenceEmbeddedChartProps {
 const NUMERIC_FIELD_TYPES = ['number', 'currency', 'rating', 'star-rating', 'slider'];
 
 const CHART_COLORS = {
-  default: ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', '#8884d8', '#82ca9d', '#ffc658'],
+  default: ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1', '#a4de6c'],
   vibrant: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'],
   pastel: ['#FFB3BA', '#BAFFC9', '#BAE1FF', '#FFFFBA', '#FFE4BA', '#E8BAFF'],
   monochrome: ['#2C3E50', '#34495E', '#5D6D7E', '#85929E', '#ABB2B9', '#D5D8DC'],
@@ -27,298 +27,264 @@ export function CrossReferenceEmbeddedChart({
   selectedRefIds,
   targetFormFields
 }: CrossReferenceEmbeddedChartProps) {
-  // Fetch the actual data for selected cross-reference records
   const { records, loading, error } = useCrossReferenceData(
     targetFormId,
     selectedRefIds,
-    [] // We'll process all fields from submission_data
+    []
   );
 
+  const getFieldValue = (record: any, fieldId: string) => {
+    return record.submission_data?.[fieldId];
+  };
+
+  const getFieldLabel = (fieldId: string) => {
+    const field = targetFormFields.find(f => f.id === fieldId);
+    return field?.label || fieldId;
+  };
+
+  const getFieldType = (fieldId: string) => {
+    const field = targetFormFields.find(f => f.id === fieldId);
+    return field?.field_type || 'text';
+  };
+
+  const extractNumericValue = (val: any): number => {
+    if (val === null || val === undefined) return 0;
+    if (typeof val === 'number') return val;
+    if (typeof val === 'object' && val.amount) return parseFloat(val.amount) || 0;
+    if (typeof val === 'string') {
+      // Handle currency format like "USD:100"
+      if (val.includes(':')) {
+        const parts = val.split(':');
+        return parseFloat(parts[1]) || 0;
+      }
+      return parseFloat(val) || 0;
+    }
+    return 0;
+  };
+
+  const formatDisplayValue = (val: any): string => {
+    if (val === null || val === undefined) return 'Unknown';
+    if (Array.isArray(val)) return val.join(', ');
+    if (typeof val === 'object') return JSON.stringify(val);
+    return String(val);
+  };
+
   // Process data based on mode
-  const chartData = useMemo(() => {
-    if (!records || records.length === 0) return [];
-
-    const getFieldValue = (record: any, fieldId: string) => {
-      return record.submission_data?.[fieldId];
-    };
-
-    const getFieldLabel = (fieldId: string) => {
-      const field = targetFormFields.find(f => f.id === fieldId);
-      return field?.label || fieldId;
-    };
-
-    const getFieldOptions = (fieldId: string) => {
-      const field = targetFormFields.find(f => f.id === fieldId);
-      return field?.options || [];
-    };
+  const { chartData, dataKeys, isMultiSeries } = useMemo(() => {
+    if (!records || records.length === 0) {
+      return { chartData: [], dataKeys: ['value'], isMultiSeries: false };
+    }
 
     if (config.mode === 'count') {
-      // Count mode: group by field and count occurrences
       const groupByField = config.groupByFieldId;
       if (!groupByField) {
-        return [{ name: 'Total Records', value: records.length }];
+        return {
+          chartData: [{ name: 'Total Records', value: records.length }],
+          dataKeys: ['value'],
+          isMultiSeries: false
+        };
       }
 
       const groups: Record<string, { count: number; stacks: Record<string, number> }> = {};
       
       records.forEach(record => {
-        let groupValue = getFieldValue(record, groupByField);
-        // Handle array values (multi-select)
-        if (Array.isArray(groupValue)) {
-          groupValue = groupValue.join(', ');
-        }
-        const groupKey = String(groupValue || 'Unknown');
+        const groupValue = formatDisplayValue(getFieldValue(record, groupByField));
         
-        if (!groups[groupKey]) {
-          groups[groupKey] = { count: 0, stacks: {} };
+        if (!groups[groupValue]) {
+          groups[groupValue] = { count: 0, stacks: {} };
         }
-        groups[groupKey].count++;
+        groups[groupValue].count++;
 
-        // Handle stacking
         if (config.stackByFieldId) {
-          let stackValue = getFieldValue(record, config.stackByFieldId);
-          if (Array.isArray(stackValue)) {
-            stackValue = stackValue.join(', ');
-          }
-          const stackKey = String(stackValue || 'Unknown');
-          groups[groupKey].stacks[stackKey] = (groups[groupKey].stacks[stackKey] || 0) + 1;
+          const stackValue = formatDisplayValue(getFieldValue(record, config.stackByFieldId));
+          groups[groupValue].stacks[stackValue] = (groups[groupValue].stacks[stackValue] || 0) + 1;
         }
       });
 
       if (config.stackByFieldId) {
-        // Get all unique stack values
         const allStackValues = new Set<string>();
         Object.values(groups).forEach(g => {
           Object.keys(g.stacks).forEach(k => allStackValues.add(k));
         });
         
-        return Object.entries(groups).map(([name, data]) => {
+        const stackKeysArr = Array.from(allStackValues);
+        const data = Object.entries(groups).map(([name, d]) => {
           const entry: Record<string, any> = { name };
-          allStackValues.forEach(stackValue => {
-            entry[stackValue] = data.stacks[stackValue] || 0;
+          stackKeysArr.forEach(sv => {
+            entry[sv] = d.stacks[sv] || 0;
           });
           return entry;
         });
+
+        return { chartData: data, dataKeys: stackKeysArr, isMultiSeries: true };
       }
 
-      return Object.entries(groups).map(([name, data]) => ({
-        name,
-        value: data.count
-      }));
+      return {
+        chartData: Object.entries(groups).map(([name, d]) => ({ name, value: d.count })),
+        dataKeys: ['value'],
+        isMultiSeries: false
+      };
     }
 
     if (config.mode === 'calculate') {
-      // Calculate mode: aggregate numeric values
       const metricField = config.metricFieldId;
       const groupByField = config.groupByFieldId;
       const aggregationType = config.aggregationType || 'sum';
 
       if (!metricField) {
-        return [];
+        return { chartData: [], dataKeys: ['value'], isMultiSeries: false };
       }
+
+      const aggregate = (values: number[]): number => {
+        if (values.length === 0) return 0;
+        switch (aggregationType) {
+          case 'sum': return values.reduce((a, b) => a + b, 0);
+          case 'avg': return values.reduce((a, b) => a + b, 0) / values.length;
+          case 'min': return Math.min(...values);
+          case 'max': return Math.max(...values);
+          case 'median':
+            const sorted = [...values].sort((a, b) => a - b);
+            const mid = Math.floor(sorted.length / 2);
+            return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+          default: return values.reduce((a, b) => a + b, 0);
+        }
+      };
 
       if (!groupByField) {
-        // Single aggregated value
-        const values = records
-          .map(r => {
-            const val = getFieldValue(r, metricField);
-            // Handle currency objects
-            if (val && typeof val === 'object' && val.amount) {
-              return parseFloat(val.amount);
-            }
-            return parseFloat(val);
-          })
-          .filter(v => !isNaN(v));
-
-        let aggregatedValue = 0;
-        switch (aggregationType) {
-          case 'sum':
-            aggregatedValue = values.reduce((a, b) => a + b, 0);
-            break;
-          case 'avg':
-            aggregatedValue = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
-            break;
-          case 'min':
-            aggregatedValue = values.length > 0 ? Math.min(...values) : 0;
-            break;
-          case 'max':
-            aggregatedValue = values.length > 0 ? Math.max(...values) : 0;
-            break;
-          case 'median':
-            const sorted = [...values].sort((a, b) => a - b);
-            const mid = Math.floor(sorted.length / 2);
-            aggregatedValue = sorted.length > 0
-              ? sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
-              : 0;
-            break;
-        }
-
-        return [{
-          name: getFieldLabel(metricField),
-          value: Math.round(aggregatedValue * 100) / 100
-        }];
+        const values = records.map(r => extractNumericValue(getFieldValue(r, metricField))).filter(v => !isNaN(v));
+        return {
+          chartData: [{ name: getFieldLabel(metricField), value: Math.round(aggregate(values) * 100) / 100 }],
+          dataKeys: ['value'],
+          isMultiSeries: false
+        };
       }
 
-      // Grouped aggregation
       const groups: Record<string, number[]> = {};
       records.forEach(record => {
-        let groupValue = getFieldValue(record, groupByField);
-        if (Array.isArray(groupValue)) {
-          groupValue = groupValue.join(', ');
-        }
-        const groupKey = String(groupValue || 'Unknown');
-        
-        const val = getFieldValue(record, metricField);
-        let numVal: number;
-        if (val && typeof val === 'object' && val.amount) {
-          numVal = parseFloat(val.amount);
-        } else {
-          numVal = parseFloat(val);
-        }
-
+        const groupValue = formatDisplayValue(getFieldValue(record, groupByField));
+        const numVal = extractNumericValue(getFieldValue(record, metricField));
         if (!isNaN(numVal)) {
-          if (!groups[groupKey]) groups[groupKey] = [];
-          groups[groupKey].push(numVal);
+          if (!groups[groupValue]) groups[groupValue] = [];
+          groups[groupValue].push(numVal);
         }
       });
 
-      return Object.entries(groups).map(([name, values]) => {
-        let aggregatedValue = 0;
-        switch (aggregationType) {
-          case 'sum':
-            aggregatedValue = values.reduce((a, b) => a + b, 0);
-            break;
-          case 'avg':
-            aggregatedValue = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
-            break;
-          case 'min':
-            aggregatedValue = values.length > 0 ? Math.min(...values) : 0;
-            break;
-          case 'max':
-            aggregatedValue = values.length > 0 ? Math.max(...values) : 0;
-            break;
-          case 'median':
-            const sorted = [...values].sort((a, b) => a - b);
-            const mid = Math.floor(sorted.length / 2);
-            aggregatedValue = sorted.length > 0
-              ? sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
-              : 0;
-            break;
-        }
-        return {
+      return {
+        chartData: Object.entries(groups).map(([name, values]) => ({
           name,
-          value: Math.round(aggregatedValue * 100) / 100
-        };
-      });
+          value: Math.round(aggregate(values) * 100) / 100
+        })),
+        dataKeys: ['value'],
+        isMultiSeries: false
+      };
     }
 
     if (config.mode === 'compare') {
-      // Compare mode: show two fields side by side
       const xFieldId = config.compareXFieldId;
       const yFieldId = config.compareYFieldId;
 
       if (!xFieldId || !yFieldId) {
-        return [];
+        return { chartData: [], dataKeys: ['value'], isMultiSeries: false };
       }
 
-      const xField = targetFormFields.find(f => f.id === xFieldId);
-      const yField = targetFormFields.find(f => f.id === yFieldId);
-      const isYFieldNumeric = yField && NUMERIC_FIELD_TYPES.includes(yField.field_type);
+      const xFieldType = getFieldType(xFieldId);
+      const yFieldType = getFieldType(yFieldId);
+      const isXNumeric = NUMERIC_FIELD_TYPES.includes(xFieldType);
+      const isYNumeric = NUMERIC_FIELD_TYPES.includes(yFieldType);
+      
+      const xLabel = getFieldLabel(xFieldId);
+      const yLabel = getFieldLabel(yFieldId);
 
-      if (isYFieldNumeric) {
-        // Both fields numeric - show side by side values
-        return records.map((record, index) => {
-          let xVal = getFieldValue(record, xFieldId);
-          let yVal = getFieldValue(record, yFieldId);
+      if (isXNumeric && isYNumeric) {
+        // Both numeric - show each record with both values
+        const data = records.map((record, index) => ({
+          name: record.submission_ref_id || `Record ${index + 1}`,
+          [xLabel]: extractNumericValue(getFieldValue(record, xFieldId)),
+          [yLabel]: extractNumericValue(getFieldValue(record, yFieldId))
+        }));
+        return { chartData: data, dataKeys: [xLabel, yLabel], isMultiSeries: true };
+      }
 
-          // Handle currency
-          if (xVal && typeof xVal === 'object' && xVal.amount) xVal = parseFloat(xVal.amount);
-          if (yVal && typeof yVal === 'object' && yVal.amount) yVal = parseFloat(yVal.amount);
-
-          const xLabel = getFieldLabel(xFieldId);
-          const yLabel = getFieldLabel(yFieldId);
-
-          return {
-            name: record.submission_ref_id || `Record ${index + 1}`,
-            [xLabel]: typeof xVal === 'number' ? xVal : parseFloat(xVal) || 0,
-            [yLabel]: typeof yVal === 'number' ? yVal : parseFloat(yVal) || 0
-          };
-        });
-      } else {
-        // Y field is text - use encoded legend transformation (group by X, stack by Y values)
-        const groups: Record<string, Record<string, number>> = {};
-        const allYValues = new Set<string>();
-
+      if (!isXNumeric && isYNumeric) {
+        // X is text (category), Y is numeric - group by X, aggregate Y
+        const groups: Record<string, number[]> = {};
         records.forEach(record => {
-          let xVal = getFieldValue(record, xFieldId);
-          let yVal = getFieldValue(record, yFieldId);
-
-          // Handle arrays
-          if (Array.isArray(xVal)) xVal = xVal.join(', ');
-          if (Array.isArray(yVal)) yVal = yVal.join(', ');
-
-          const xKey = String(xVal || 'Unknown');
-          const yKey = String(yVal || 'Unknown');
-
-          allYValues.add(yKey);
-
-          if (!groups[xKey]) {
-            groups[xKey] = {};
-          }
-          groups[xKey][yKey] = (groups[xKey][yKey] || 0) + 1;
+          const xVal = formatDisplayValue(getFieldValue(record, xFieldId));
+          const yVal = extractNumericValue(getFieldValue(record, yFieldId));
+          if (!groups[xVal]) groups[xVal] = [];
+          groups[xVal].push(yVal);
         });
 
-        // Transform to chart data with each Y value as a separate bar/series
-        return Object.entries(groups).map(([xValue, yValues]) => {
-          const entry: Record<string, any> = { name: xValue };
-          allYValues.forEach(yVal => {
-            entry[yVal] = yValues[yVal] || 0;
+        const data = Object.entries(groups).map(([name, values]) => ({
+          name,
+          [yLabel]: Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 100) / 100
+        }));
+        return { chartData: data, dataKeys: [yLabel], isMultiSeries: false };
+      }
+
+      if (isXNumeric && !isYNumeric) {
+        // X is numeric, Y is text - use Y as legend categories
+        const allYValues = new Set<string>();
+        records.forEach(record => {
+          allYValues.add(formatDisplayValue(getFieldValue(record, yFieldId)));
+        });
+
+        const yValuesArr = Array.from(allYValues);
+        const data = records.map((record, index) => {
+          const entry: Record<string, any> = {
+            name: record.submission_ref_id || `Record ${index + 1}`
+          };
+          const yVal = formatDisplayValue(getFieldValue(record, yFieldId));
+          const xVal = extractNumericValue(getFieldValue(record, xFieldId));
+          
+          // Set the value only for the matching Y category
+          yValuesArr.forEach(yKey => {
+            entry[yKey] = yVal === yKey ? xVal : 0;
           });
           return entry;
         });
+
+        return { chartData: data, dataKeys: yValuesArr, isMultiSeries: true };
       }
+
+      // Both text - group by X, stack by Y (count occurrences)
+      const groups: Record<string, Record<string, number>> = {};
+      const allYValues = new Set<string>();
+
+      records.forEach(record => {
+        const xVal = formatDisplayValue(getFieldValue(record, xFieldId));
+        const yVal = formatDisplayValue(getFieldValue(record, yFieldId));
+        allYValues.add(yVal);
+        if (!groups[xVal]) groups[xVal] = {};
+        groups[xVal][yVal] = (groups[xVal][yVal] || 0) + 1;
+      });
+
+      const yValuesArr = Array.from(allYValues);
+      const data = Object.entries(groups).map(([xValue, yValues]) => {
+        const entry: Record<string, any> = { name: xValue };
+        yValuesArr.forEach(yVal => {
+          entry[yVal] = yValues[yVal] || 0;
+        });
+        return entry;
+      });
+
+      return { chartData: data, dataKeys: yValuesArr, isMultiSeries: true };
     }
 
-    return [];
+    return { chartData: [], dataKeys: ['value'], isMultiSeries: false };
   }, [records, config, targetFormFields]);
 
-  // Check if compare mode uses text Y field (for legend)
-  const compareUsesTextLegend = useMemo(() => {
-    if (config.mode !== 'compare' || !config.compareYFieldId) return false;
-    const yField = targetFormFields.find(f => f.id === config.compareYFieldId);
-    return yField && !NUMERIC_FIELD_TYPES.includes(yField.field_type);
-  }, [config.mode, config.compareYFieldId, targetFormFields]);
-
   const colors = CHART_COLORS[config.colorTheme || 'default'];
-  const chartHeight = config.height || 300;
+  const chartHeight = config.height || 250;
 
-  // Get stack keys for stacked bar charts
-  const stackKeys = useMemo(() => {
-    if (config.mode === 'count' && config.stackByFieldId && chartData.length > 0) {
-      const keys = Object.keys(chartData[0]).filter(k => k !== 'name');
-      return keys;
-    }
-    return [];
-  }, [chartData, config.mode, config.stackByFieldId]);
-
-  // Get compare field labels (for numeric compare mode or text legend mode)
-  const compareFieldLabels = useMemo(() => {
-    if (config.mode === 'compare' && chartData.length > 0) {
-      return Object.keys(chartData[0]).filter(k => k !== 'name');
-    }
-    return [];
-  }, [chartData, config.mode]);
-
-  if (!config.enabled) {
-    return null;
-  }
+  if (!config.enabled) return null;
 
   if (selectedRefIds.length === 0) {
     return (
-      <Card className="mt-4">
-        <CardContent className="py-8 text-center text-muted-foreground">
-          <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>Select records to view chart</p>
+      <Card className="mt-3 border-dashed">
+        <CardContent className="py-6 text-center text-muted-foreground">
+          <BarChart3 className="h-6 w-6 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">Select records to view chart</p>
         </CardContent>
       </Card>
     );
@@ -326,10 +292,10 @@ export function CrossReferenceEmbeddedChart({
 
   if (loading) {
     return (
-      <Card className="mt-4">
-        <CardContent className="py-8 flex items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin mr-2" />
-          <span>Loading chart data...</span>
+      <Card className="mt-3">
+        <CardContent className="py-6 flex items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin mr-2" />
+          <span className="text-sm">Loading chart...</span>
         </CardContent>
       </Card>
     );
@@ -337,8 +303,8 @@ export function CrossReferenceEmbeddedChart({
 
   if (error) {
     return (
-      <Card className="mt-4 border-destructive">
-        <CardContent className="py-4 text-center text-destructive">
+      <Card className="mt-3 border-destructive">
+        <CardContent className="py-4 text-center text-destructive text-sm">
           {error}
         </CardContent>
       </Card>
@@ -347,8 +313,8 @@ export function CrossReferenceEmbeddedChart({
 
   if (chartData.length === 0) {
     return (
-      <Card className="mt-4">
-        <CardContent className="py-8 text-center text-muted-foreground">
+      <Card className="mt-3">
+        <CardContent className="py-6 text-center text-muted-foreground text-sm">
           No data available for chart
         </CardContent>
       </Card>
@@ -357,43 +323,72 @@ export function CrossReferenceEmbeddedChart({
 
   const renderChart = () => {
     const chartType = config.chartType || 'bar';
+    const showLegend = isMultiSeries && dataKeys.length > 1;
+
+    // Common chart margins - reduced for tighter layout
+    const margins = { top: 10, right: showLegend ? 120 : 20, left: 10, bottom: 5 };
 
     if (chartType === 'pie' || chartType === 'donut') {
       return (
         <ResponsiveContainer width="100%" height={chartHeight}>
-          <PieChart>
+          <PieChart margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
             <Pie
               data={chartData}
               dataKey="value"
               nameKey="name"
               cx="50%"
               cy="50%"
-              outerRadius={chartType === 'donut' ? 80 : 100}
-              innerRadius={chartType === 'donut' ? 50 : 0}
-              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+              outerRadius={chartType === 'donut' ? 70 : 85}
+              innerRadius={chartType === 'donut' ? 40 : 0}
+              paddingAngle={2}
+              label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+              labelLine={false}
             >
               {chartData.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
               ))}
             </Pie>
-            <Tooltip />
-            <Legend />
+            <Tooltip 
+              formatter={(value: number) => [value, 'Value']}
+              contentStyle={{ fontSize: '12px' }}
+            />
+            <Legend 
+              layout="vertical" 
+              align="right" 
+              verticalAlign="middle"
+              wrapperStyle={{ fontSize: '11px', paddingLeft: '10px' }}
+            />
           </PieChart>
         </ResponsiveContainer>
       );
     }
 
     if (chartType === 'line') {
-      const hasMultipleFields = stackKeys.length > 0 || compareFieldLabels.length > 0;
-      const dataKeys = hasMultipleFields ? (stackKeys.length > 0 ? stackKeys : compareFieldLabels) : ['value'];
-
       return (
         <ResponsiveContainer width="100%" height={chartHeight}>
-          <LineChart data={chartData}>
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
+          <LineChart data={chartData} margin={margins}>
+            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+            <XAxis 
+              dataKey="name" 
+              tick={{ fontSize: 11 }}
+              tickLine={false}
+              axisLine={{ stroke: '#e5e7eb' }}
+            />
+            <YAxis 
+              tick={{ fontSize: 11 }}
+              tickLine={false}
+              axisLine={false}
+              width={40}
+            />
+            <Tooltip contentStyle={{ fontSize: '12px' }} />
+            {showLegend && (
+              <Legend 
+                layout="vertical" 
+                align="right" 
+                verticalAlign="middle"
+                wrapperStyle={{ fontSize: '11px', paddingLeft: '10px' }}
+              />
+            )}
             {dataKeys.map((key, index) => (
               <Line
                 key={key}
@@ -401,7 +396,8 @@ export function CrossReferenceEmbeddedChart({
                 dataKey={key}
                 stroke={colors[index % colors.length]}
                 strokeWidth={2}
-                dot={{ fill: colors[index % colors.length] }}
+                dot={{ r: 3, fill: colors[index % colors.length] }}
+                activeDot={{ r: 5 }}
               />
             ))}
           </LineChart>
@@ -410,16 +406,31 @@ export function CrossReferenceEmbeddedChart({
     }
 
     if (chartType === 'area') {
-      const hasMultipleFields = stackKeys.length > 0 || compareFieldLabels.length > 0;
-      const dataKeys = hasMultipleFields ? (stackKeys.length > 0 ? stackKeys : compareFieldLabels) : ['value'];
-
       return (
         <ResponsiveContainer width="100%" height={chartHeight}>
-          <AreaChart data={chartData}>
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
+          <AreaChart data={chartData} margin={margins}>
+            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+            <XAxis 
+              dataKey="name" 
+              tick={{ fontSize: 11 }}
+              tickLine={false}
+              axisLine={{ stroke: '#e5e7eb' }}
+            />
+            <YAxis 
+              tick={{ fontSize: 11 }}
+              tickLine={false}
+              axisLine={false}
+              width={40}
+            />
+            <Tooltip contentStyle={{ fontSize: '12px' }} />
+            {showLegend && (
+              <Legend 
+                layout="vertical" 
+                align="right" 
+                verticalAlign="middle"
+                wrapperStyle={{ fontSize: '11px', paddingLeft: '10px' }}
+              />
+            )}
             {dataKeys.map((key, index) => (
               <Area
                 key={key}
@@ -436,22 +447,38 @@ export function CrossReferenceEmbeddedChart({
     }
 
     // Default: Bar chart
-    const hasMultipleFields = stackKeys.length > 0 || compareFieldLabels.length > 0;
-    const dataKeys = hasMultipleFields ? (stackKeys.length > 0 ? stackKeys : compareFieldLabels) : ['value'];
-
     return (
       <ResponsiveContainer width="100%" height={chartHeight}>
-        <BarChart data={chartData}>
-          <XAxis dataKey="name" />
-          <YAxis />
-          <Tooltip />
-          <Legend />
+        <BarChart data={chartData} margin={margins} barCategoryGap="15%" barGap={2}>
+          <CartesianGrid strokeDasharray="3 3" opacity={0.3} vertical={false} />
+          <XAxis 
+            dataKey="name" 
+            tick={{ fontSize: 11 }}
+            tickLine={false}
+            axisLine={{ stroke: '#e5e7eb' }}
+          />
+          <YAxis 
+            tick={{ fontSize: 11 }}
+            tickLine={false}
+            axisLine={false}
+            width={40}
+          />
+          <Tooltip contentStyle={{ fontSize: '12px' }} />
+          {showLegend && (
+            <Legend 
+              layout="vertical" 
+              align="right" 
+              verticalAlign="middle"
+              wrapperStyle={{ fontSize: '11px', paddingLeft: '10px' }}
+            />
+          )}
           {dataKeys.map((key, index) => (
             <Bar
               key={key}
               dataKey={key}
               fill={colors[index % colors.length]}
-              radius={[4, 4, 0, 0]}
+              radius={[3, 3, 0, 0]}
+              maxBarSize={50}
             />
           ))}
         </BarChart>
@@ -460,16 +487,16 @@ export function CrossReferenceEmbeddedChart({
   };
 
   return (
-    <Card className="mt-4">
+    <Card className="mt-3">
       {config.title && (
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
+        <CardHeader className="py-3 pb-1">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
             {config.title}
           </CardTitle>
         </CardHeader>
       )}
-      <CardContent className={config.title ? 'pt-0' : ''}>
+      <CardContent className={config.title ? 'pt-1 pb-3' : 'py-3'}>
         {renderChart()}
       </CardContent>
     </Card>
