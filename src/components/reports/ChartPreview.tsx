@@ -437,6 +437,13 @@ export function ChartPreview({
       // Fetch all submissions from the target form
       const targetSubmissions = await getFormSubmissionData(crossRefConfig.targetFormId);
       console.log(`📊 Cross-ref: Loaded ${targetSubmissions?.length || 0} records from target form`);
+      
+      // Also fetch target form fields for proper label resolution
+      const targetFormFields = await getFormFields(crossRefConfig.targetFormId);
+      const targetFieldLookup = new Map<string, string>();
+      targetFormFields?.forEach((field: any) => {
+        targetFieldLookup.set(field.id, field.label || field.id);
+      });
 
       if (!targetSubmissions || targetSubmissions.length === 0) {
         console.log('📊 Cross-ref: No target submissions found');
@@ -545,6 +552,10 @@ export function ChartPreview({
             return;
           }
 
+          // Get field labels from target form lookup
+          const xFieldLabel = targetFieldLookup.get(crossRefConfig.compareXFieldId) || crossRefConfig.compareXFieldId;
+          const yFieldLabel = targetFieldLookup.get(crossRefConfig.compareYFieldId) || crossRefConfig.compareYFieldId;
+
           // Use sourceLabelFieldId if available for better labels
           const labelValue = crossRefConfig.sourceLabelFieldId 
             ? parentSub.submission_data?.[crossRefConfig.sourceLabelFieldId]
@@ -580,6 +591,8 @@ export function ChartPreview({
               value: isYText ? 1 : (Number(yDisplay) || 0), // For text Y, use count of 1
               xFieldId: crossRefConfig.compareXFieldId,
               yFieldId: crossRefConfig.compareYFieldId,
+              xFieldLabel: xFieldLabel, // Include resolved field labels
+              yFieldLabel: yFieldLabel,
               parentId: String(parentSub.id),
               parentRefId: String(parentSub.submission_ref_id || ''),
               linkedSubmissionId: sub.id,
@@ -729,11 +742,9 @@ export function ChartPreview({
     if (hasTextCompare) {
       console.log('📊 Cross-ref: Applying text compare transformation (encoded legend mode)');
       
-      // Get X field name for labeling
-      const xFieldId = crossRefData[0]?.xFieldId;
-      const yFieldId = crossRefData[0]?.yFieldId;
-      const xFieldName = xFieldId ? getFormFieldName(xFieldId) : 'X Field';
-      const yFieldName = yFieldId ? getFormFieldName(yFieldId) : 'Y Field';
+      // Get X/Y field names from pre-resolved labels in data
+      const xFieldName = crossRefData[0]?.xFieldLabel || 'X Field';
+      const yFieldName = crossRefData[0]?.yFieldLabel || 'Y Field';
       
       // Build unique legend mapping for Y text values
       const uniqueYValues = new Set<string>();
@@ -2282,7 +2293,7 @@ export function ChartPreview({
 
     // Sanitize chart data - ensure all numeric values are valid numbers (not NaN/undefined)
     // Preserve string values for display fields (xRaw, yRaw, field names, IDs, cross-ref parent IDs)
-    const preserveAsStringKeys = ['name', '_drilldownData', 'xRaw', 'yRaw', 'xFieldName', 'yFieldName', 'submissionId', '_legendMapping', 'rawSecondaryValue', 'rawYValue', '_isCompareEncoded', '_isCrossRefCompare', '_hasTextX', '_hasTextY', 'parentId', 'parentRefId', 'linkedSubmissionId', '_linkedSubmissionIds'];
+    const preserveAsStringKeys = ['name', '_drilldownData', 'xRaw', 'yRaw', 'xFieldName', 'yFieldName', 'xFieldLabel', 'yFieldLabel', 'submissionId', '_legendMapping', 'rawSecondaryValue', 'rawYValue', '_isCompareEncoded', '_isCrossRefCompare', '_hasTextX', '_hasTextY', 'parentId', 'parentRefId', 'linkedSubmissionId', '_linkedSubmissionIds'];
     let sanitizedChartData = chartData.map(item => {
       const sanitized: any = { name: item.name || 'Unknown' };
       Object.keys(item).forEach(key => {
