@@ -2787,7 +2787,8 @@ export function ChartPreview({
       // Render based on selected chart type
       if (chartType === 'line') {
         return (
-          <div className="w-full h-[350px]">
+          <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsLineChart data={sortedData} margin={{ top: 20, right: 30, left: 60, bottom: 60 }}>
                   <XAxis 
@@ -2808,13 +2809,15 @@ export function ChartPreview({
                   <Line type="monotone" dataKey="y" stroke={colors[0]} strokeWidth={2} dot={{ fill: colors[0], r: 4, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} activeDot={{ r: 8, stroke: colors[0], strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} />
                 </RechartsLineChart>
               </ResponsiveContainer>
+            </div>
           </div>
         );
       }
 
       if (chartType === 'area') {
         return (
-          <div className="w-full h-[350px]">
+          <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsAreaChart data={sortedData} margin={{ top: 20, right: 30, left: 60, bottom: 60 }}>
                   <XAxis 
@@ -2835,6 +2838,7 @@ export function ChartPreview({
                   <Area type="monotone" dataKey="y" stroke={colors[0]} fill={colors[0]} fillOpacity={0.3} dot={{ r: 4, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} activeDot={{ r: 8, stroke: colors[0], strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} />
                 </RechartsAreaChart>
               </ResponsiveContainer>
+            </div>
           </div>
         );
       }
@@ -3208,7 +3212,8 @@ export function ChartPreview({
     switch (chartType) {
       case 'bar':
         // Bar chart = vertical bars (categories on X-axis, values on Y-axis)
-        return <div className="w-full h-[350px]">
+        return <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={sanitizedChartData} margin={{
                 top: 20,
@@ -3307,9 +3312,11 @@ export function ChartPreview({
                 </>}
                 </BarChart>
               </ResponsiveContainer>
+            </div>
           </div>;
       case 'column':
-        return <div className="w-full h-[350px]">
+        return <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={sanitizedChartData} margin={{
                 top: 20,
@@ -3396,9 +3403,11 @@ export function ChartPreview({
                 </>}
                 </BarChart>
               </ResponsiveContainer>
+            </div>
           </div>;
       case 'pie':
-        return <div className="w-full h-[350px]">
+        return <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPieChart>
                   <Pie data={sanitizedChartData} cx="50%" cy="50%" outerRadius={120} fill="#8884d8" dataKey={primaryMetric} label={({
@@ -3443,9 +3452,11 @@ export function ChartPreview({
                    
               </RechartsPieChart>
               </ResponsiveContainer>
+            </div>
           </div>;
       case 'donut':
-        return <div className="w-full h-[350px]">
+        return <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPieChart>
                   <Pie data={sanitizedChartData} cx="50%" cy="50%" innerRadius={config.innerRadius || 60} outerRadius={120} fill="#8884d8" dataKey={primaryMetric} label={({
@@ -3486,9 +3497,11 @@ export function ChartPreview({
                    
                 </RechartsPieChart>
               </ResponsiveContainer>
+            </div>
           </div>;
       case 'line':
-        return <div className="w-full h-[350px]">
+        return <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsLineChart data={sanitizedChartData} margin={{
                 top: 20,
@@ -3602,9 +3615,11 @@ export function ChartPreview({
                      </>}
                 </RechartsLineChart>
               </ResponsiveContainer>
+            </div>
           </div>;
       case 'area':
-        return <div className="w-full h-[350px]">
+        return <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsAreaChart data={sanitizedChartData} margin={{
                 top: 20,
@@ -3680,13 +3695,15 @@ export function ChartPreview({
                 )} />)}
                 </RechartsAreaChart>
               </ResponsiveContainer>
+            </div>
           </div>;
       case 'scatter':
         // Scatter plot always uses x and y from processCompareData
         const scatterXLabel = config.xAxisLabel || (config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'X-Axis');
         const scatterYLabel = config.yAxisLabel || (config.metrics?.[1] ? getFormFieldName(config.metrics[1]) : 'Y-Axis');
         
-        return <div className="w-full h-[350px]">
+        return <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsScatterChart margin={{
                 top: 20,
@@ -3752,6 +3769,7 @@ export function ChartPreview({
                   />
                 </RechartsScatterChart>
               </ResponsiveContainer>
+            </div>
           </div>;
       case 'bubble':
         // Bubble chart uses x, y from processCompareData and sizeField for bubble size
@@ -3776,7 +3794,8 @@ export function ChartPreview({
           return 5 + normalized * 25; // Size range from 5 to 30
         };
         
-        return <div className="w-full h-[350px]">
+        return <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsScatterChart margin={{ top: 20, right: 30, left: 60, bottom: 80 }}>
                     <XAxis 
@@ -3842,6 +3861,7 @@ export function ChartPreview({
                     </Scatter>
                 </RechartsScatterChart>
               </ResponsiveContainer>
+            </div>
           </div>;
       case 'heatmap':
         // Heatmap uses two dimensions (rows and columns) and an intensity value
