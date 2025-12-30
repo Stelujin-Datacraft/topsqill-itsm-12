@@ -2254,24 +2254,27 @@ export function ChartPreview({
       if (crossRefConfig.drilldownLevels && crossRefConfig.drilldownLevels.length > 0) {
         const drilldownLevels = crossRefConfig.drilldownLevels;
         const valuesCount = drilldownState?.values?.length || 0;
-        // valuesCount includes parentRefId at position 0, so actual field level = valuesCount - 1
-        // When valuesCount = 0: initial view, first click drills to level 0
-        // When valuesCount = 1: showing level 0, next click drills to level 1
-        // When valuesCount = N: showing level N-1, check if N-1 >= levels.length means we're at final
-        const currentFieldLevel = valuesCount > 0 ? valuesCount - 1 : 0;
+        // valuesCount includes parentRefId at position 0
+        // valuesCount = 0: initial view, click drills to show level 0 grouped data
+        // valuesCount = 1: showing level 0, click drills to show level 1 grouped data
+        // valuesCount = N: showing level N-1, click drills to show level N grouped data
+        // When valuesCount = drilldownLevels.length + 1, we've gone through all levels
+        const currentFieldLevel = valuesCount > 0 ? valuesCount - 1 : -1;
         
         console.log('📊 Cross-ref drilldown click:', {
           valuesCount,
           currentFieldLevel,
           totalLevels: drilldownLevels.length,
-          checkFinalLevel: `${currentFieldLevel} >= ${drilldownLevels.length - 1} && ${valuesCount} > 0 = ${currentFieldLevel >= drilldownLevels.length - 1 && valuesCount > 0}`,
+          checkFinalLevel: `${valuesCount} > ${drilldownLevels.length} = ${valuesCount > drilldownLevels.length}`,
           dimensionValue,
           drilldownValue: payload?._drilldownValue,
           payload
         });
         
-        // Check if we've drilled through all levels (currentFieldLevel = last field shown, so if it equals length-1, next click should show dialog)
-        if (currentFieldLevel >= drilldownLevels.length - 1 && valuesCount > 0) {
+        // Check if we've drilled through ALL levels
+        // valuesCount includes parentRefId + one value per drilled level
+        // Show dialog when valuesCount > drilldownLevels.length (all levels have been drilled)
+        if (valuesCount > drilldownLevels.length) {
           // At final level - show submissions dialog with the filtered linked records
           setCellSubmissionsDialog({
             open: true,
@@ -2286,18 +2289,17 @@ export function ChartPreview({
           return;
         }
         
-        // Drill into the next level - use _drilldownValue if available (raw value for filtering)
-        // Otherwise fall back to dimensionValue (display name)
+        // Drill into the next level
         // For initial click (valuesCount=0), we pass parentRefId; otherwise pass the field value
-        const nextFieldIndex = valuesCount > 0 ? currentFieldLevel + 1 : 0;
-        const nextLevel = drilldownLevels[nextFieldIndex];
+        const nextFieldIndex = valuesCount; // After storing this value, we'll show data grouped by this field index
+        const nextLevel = drilldownLevels[nextFieldIndex] || '';
         const valueToPass = valuesCount === 0 
           ? (payload?.parentRefId || dimensionValue) // First click passes parentRefId
           : (payload?._drilldownValue || dimensionValue); // Subsequent clicks pass field value
         
         if (onDrilldown) {
           console.log('📊 Cross-ref drilldown: Drilling into field level', nextFieldIndex, 'with value', valueToPass);
-          onDrilldown(nextLevel || '', valueToPass);
+          onDrilldown(nextLevel, valueToPass);
           return;
         }
       }
