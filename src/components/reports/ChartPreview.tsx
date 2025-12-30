@@ -4394,12 +4394,14 @@ export function ChartPreview({
           </div>
         )}
         
-        {/* Drilldown Active Filter */}
+        {/* Drilldown Active Filter - supports both normal and cross-reference drilldown */}
         {drilldownState?.values && drilldownState.values.length > 0 && <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700 mt-3">
             <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Filtered by:</span>
             <div className="flex items-center gap-1 flex-wrap">
               {drilldownState.values.map((value, index) => {
-                const fieldName = getFormFieldName(config.drilldownConfig?.drilldownLevels?.[index] || '');
+                // Support both normal drilldownConfig and crossRefConfig drilldown levels
+                const drilldownLevels = config.drilldownConfig?.drilldownLevels || config.crossRefConfig?.drilldownLevels || [];
+                const fieldName = getFormFieldName(drilldownLevels[index] || '');
                 return <React.Fragment key={index}>
                     {index > 0 && <ChevronRight className="h-4 w-4 text-blue-500" />}
                     <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-2 py-1 rounded border">
@@ -4419,7 +4421,8 @@ export function ChartPreview({
           {showFormFields ? 'Hide' : 'Show'} Form Details ({getFormName(config.formId)})
         </Button>
         
-        {config.drilldownConfig?.enabled && <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setShowDrilldownPanel(!showDrilldownPanel)}>
+        {/* Show drilldown button for both normal and cross-ref drilldown */}
+        {(config.drilldownConfig?.enabled || (config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownEnabled)) && <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setShowDrilldownPanel(!showDrilldownPanel)}>
             {showDrilldownPanel ? 'Hide' : 'Show'} Drilldown
           </Button>}
         
@@ -4433,11 +4436,14 @@ export function ChartPreview({
           </Button>}
       </div>
           
-      {config.drilldownConfig?.enabled && showDrilldownPanel && <div className="mb-4 p-3 bg-muted/30 rounded-lg border flex-shrink-0">
+      {/* Drilldown Panel - supports both normal and cross-reference drilldown */}
+      {(config.drilldownConfig?.enabled || (config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownEnabled)) && showDrilldownPanel && <div className="mb-4 p-3 bg-muted/30 rounded-lg border flex-shrink-0">
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-2">
                   <Filter className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Drilldown Controls</span>
+                  <span className="text-sm font-medium">
+                    {config.crossRefConfig?.enabled ? 'Cross-Reference Drilldown' : 'Drilldown Controls'}
+                  </span>
                 </div>
                 
                 {/* Drilldown Path Breadcrumb */}
@@ -4451,8 +4457,8 @@ export function ChartPreview({
                     </React.Fragment>)}
                 </div>
                 
-                {/* Drilldown Level Selector */}
-                {currentLevelInfo && <div className="flex items-center gap-2">
+                {/* Drilldown Level Selector - only for normal drilldown */}
+                {!config.crossRefConfig?.enabled && currentLevelInfo && <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Drill down by {currentLevelInfo.fieldName}:</span>
                     {currentLevelInfo.availableValues.length > 0 ? <Select onValueChange={handleDrilldownSelect}>
                         <SelectTrigger className="w-48 h-8">
@@ -4466,6 +4472,19 @@ export function ChartPreview({
                       </Select> : <span className="text-sm text-muted-foreground italic">No values available</span>}
                   </div>}
                 
+                {/* Cross-ref drilldown info */}
+                {config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownLevels && (
+                  <div className="text-sm text-muted-foreground">
+                    <span>Click chart bars to drill down through: </span>
+                    {config.crossRefConfig.drilldownLevels.map((levelId, idx) => (
+                      <span key={levelId}>
+                        {idx > 0 && ' → '}
+                        <span className="font-medium">{getFormFieldName(levelId)}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                
                 {/* Reset Drilldown Button */}
                 {drilldownState?.values?.length > 0 && <Button size="sm" variant="outline" onClick={resetDrilldown}>
                     Reset to All Records
@@ -4473,7 +4492,8 @@ export function ChartPreview({
               </div>
             </div>}
           
-      {config.drilldownConfig?.enabled && !showDrilldownPanel && <div className="flex items-center gap-2 flex-shrink-0 mb-4">
+      {/* Collapsed drilldown breadcrumb - supports both normal and cross-reference drilldown */}
+      {(config.drilldownConfig?.enabled || (config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownEnabled)) && !showDrilldownPanel && <div className="flex items-center gap-2 flex-shrink-0 mb-4">
           <Filter className="h-4 w-4 text-muted-foreground" />
           
           {/* Drilldown Path Breadcrumb */}
@@ -4486,6 +4506,13 @@ export function ChartPreview({
                 </span>
               </React.Fragment>)}
           </div>
+          
+          {/* Reset button in collapsed view */}
+          {drilldownState?.values?.length > 0 && (
+            <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={resetDrilldown}>
+              Reset
+            </Button>
+          )}
         </div>}
 
       {/* Form Fields Display */}
