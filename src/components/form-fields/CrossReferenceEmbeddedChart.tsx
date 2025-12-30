@@ -12,6 +12,8 @@ interface CrossReferenceEmbeddedChartProps {
   targetFormFields: Array<{ id: string; label: string; field_type: string; options?: any }>;
 }
 
+const NUMERIC_FIELD_TYPES = ['number', 'currency', 'rating', 'star-rating', 'slider'];
+
 const CHART_COLORS = {
   default: ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', '#8884d8', '#82ca9d', '#ffc658'],
   vibrant: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'],
@@ -286,8 +288,6 @@ export function CrossReferenceEmbeddedChart({
     const yField = targetFormFields.find(f => f.id === config.compareYFieldId);
     return yField && !NUMERIC_FIELD_TYPES.includes(yField.field_type);
   }, [config.mode, config.compareYFieldId, targetFormFields]);
-
-  const NUMERIC_FIELD_TYPES = ['number', 'currency', 'rating', 'star-rating', 'slider'];
 
   const colors = CHART_COLORS[config.colorTheme || 'default'];
   const chartHeight = config.height || 300;
