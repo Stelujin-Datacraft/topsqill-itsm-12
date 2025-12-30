@@ -369,12 +369,12 @@ export function CrossReferenceEmbeddedChart({
     const chartType = config.chartType || 'bar';
     const showLegend = isMultiSeries && dataKeys.length > 1;
 
-    // Chart margins with space for axis labels
+    // Chart margins - minimal for full width usage
     const margins = { 
-      top: 15, 
-      right: showLegend ? 130 : 25, 
-      left: 50, 
-      bottom: axisLabels.xLabel ? 40 : 25 
+      top: 20, 
+      right: showLegend ? 140 : 15, 
+      left: 15, 
+      bottom: axisLabels.xLabel ? 50 : 30 
     };
 
     if (chartType === 'pie' || chartType === 'donut') {
@@ -422,16 +422,22 @@ export function CrossReferenceEmbeddedChart({
               tick={{ fontSize: 11 }}
               tickLine={false}
               axisLine={{ stroke: '#e5e7eb' }}
-              label={axisLabels.xLabel ? { value: axisLabels.xLabel, position: 'bottom', offset: 0, fontSize: 12, fill: '#666' } : undefined}
+              interval={0}
+              angle={chartData.length > 5 ? -30 : 0}
+              textAnchor={chartData.length > 5 ? 'end' : 'middle'}
+              height={chartData.length > 5 ? 60 : 30}
             />
             <YAxis 
               tick={{ fontSize: 11 }}
               tickLine={false}
               axisLine={false}
-              width={45}
-              label={axisLabels.yLabel ? { value: axisLabels.yLabel, angle: -90, position: 'insideLeft', fontSize: 12, fill: '#666' } : undefined}
+              width={50}
+              tickFormatter={(value) => typeof value === 'number' && value >= 1000 ? `${(value/1000).toFixed(1)}k` : value}
             />
-            <Tooltip contentStyle={{ fontSize: '12px' }} />
+            <Tooltip 
+              contentStyle={{ fontSize: '12px', background: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+              formatter={(value: number, name: string) => [value, name]}
+            />
             {showLegend && (
               <Legend 
                 layout="vertical" 
@@ -447,8 +453,9 @@ export function CrossReferenceEmbeddedChart({
                 dataKey={key}
                 stroke={colors[index % colors.length]}
                 strokeWidth={2}
-                dot={{ r: 3, fill: colors[index % colors.length] }}
-                activeDot={{ r: 5 }}
+                dot={{ r: 4, fill: colors[index % colors.length] }}
+                activeDot={{ r: 6 }}
+                name={key}
               />
             ))}
           </LineChart>
@@ -466,16 +473,22 @@ export function CrossReferenceEmbeddedChart({
               tick={{ fontSize: 11 }}
               tickLine={false}
               axisLine={{ stroke: '#e5e7eb' }}
-              label={axisLabels.xLabel ? { value: axisLabels.xLabel, position: 'bottom', offset: 0, fontSize: 12, fill: '#666' } : undefined}
+              interval={0}
+              angle={chartData.length > 5 ? -30 : 0}
+              textAnchor={chartData.length > 5 ? 'end' : 'middle'}
+              height={chartData.length > 5 ? 60 : 30}
             />
             <YAxis 
               tick={{ fontSize: 11 }}
               tickLine={false}
               axisLine={false}
-              width={45}
-              label={axisLabels.yLabel ? { value: axisLabels.yLabel, angle: -90, position: 'insideLeft', fontSize: 12, fill: '#666' } : undefined}
+              width={50}
+              tickFormatter={(value) => typeof value === 'number' && value >= 1000 ? `${(value/1000).toFixed(1)}k` : value}
             />
-            <Tooltip contentStyle={{ fontSize: '12px' }} />
+            <Tooltip 
+              contentStyle={{ fontSize: '12px', background: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+              formatter={(value: number, name: string) => [value, name]}
+            />
             {showLegend && (
               <Legend 
                 layout="vertical" 
@@ -492,6 +505,7 @@ export function CrossReferenceEmbeddedChart({
                 fill={colors[index % colors.length]}
                 stroke={colors[index % colors.length]}
                 fillOpacity={0.6}
+                name={key}
               />
             ))}
           </AreaChart>
@@ -502,23 +516,29 @@ export function CrossReferenceEmbeddedChart({
     // Default: Bar chart
     return (
       <ResponsiveContainer width="100%" height={chartHeight}>
-        <BarChart data={chartData} margin={margins} barCategoryGap="20%" barGap={4}>
+        <BarChart data={chartData} margin={margins} barCategoryGap="25%" barGap={2}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.3} vertical={false} />
           <XAxis 
             dataKey="name" 
             tick={{ fontSize: 11 }}
             tickLine={false}
             axisLine={{ stroke: '#e5e7eb' }}
-            label={axisLabels.xLabel ? { value: axisLabels.xLabel, position: 'bottom', offset: 0, fontSize: 12, fill: '#666' } : undefined}
+            interval={0}
+            angle={chartData.length > 5 ? -30 : 0}
+            textAnchor={chartData.length > 5 ? 'end' : 'middle'}
+            height={chartData.length > 5 ? 60 : 30}
           />
           <YAxis 
             tick={{ fontSize: 11 }}
             tickLine={false}
             axisLine={false}
-            width={45}
-            label={axisLabels.yLabel ? { value: axisLabels.yLabel, angle: -90, position: 'insideLeft', fontSize: 12, fill: '#666' } : undefined}
+            width={50}
+            tickFormatter={(value) => typeof value === 'number' && value >= 1000 ? `${(value/1000).toFixed(1)}k` : value}
           />
-          <Tooltip contentStyle={{ fontSize: '12px' }} />
+          <Tooltip 
+            contentStyle={{ fontSize: '12px', background: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+            formatter={(value: number, name: string) => [value, name]}
+          />
           {showLegend && (
             <Legend 
               layout="vertical" 
@@ -533,7 +553,7 @@ export function CrossReferenceEmbeddedChart({
               dataKey={key}
               fill={colors[index % colors.length]}
               radius={[4, 4, 0, 0]}
-              maxBarSize={60}
+              name={key}
             />
           ))}
         </BarChart>
@@ -542,17 +562,32 @@ export function CrossReferenceEmbeddedChart({
   };
 
   return (
-    <Card className="w-full">
+    <Card className="w-full border">
       {config.title && (
-        <CardHeader className="py-3 pb-1">
+        <CardHeader className="py-2 px-4 border-b bg-muted/30">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            <BarChart3 className="h-4 w-4 text-primary" />
             {config.title}
           </CardTitle>
         </CardHeader>
       )}
-      <CardContent className={config.title ? 'pt-1 pb-4 px-4' : 'py-4 px-4'}>
-        {renderChart()}
+      <CardContent className="p-2">
+        <div className="w-full" style={{ minHeight: chartHeight }}>
+          {renderChart()}
+        </div>
+        {/* Axis labels below chart */}
+        <div className="flex justify-between items-center px-4 mt-1">
+          {axisLabels.yLabel && (
+            <span className="text-xs text-muted-foreground font-medium">
+              Y: {axisLabels.yLabel}
+            </span>
+          )}
+          {axisLabels.xLabel && (
+            <span className="text-xs text-muted-foreground font-medium ml-auto">
+              X: {axisLabels.xLabel}
+            </span>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
