@@ -910,7 +910,7 @@ export function ChartPreview({
           };
         });
         
-        console.log(`📊 Cross-ref drilldown: Grouped into ${drilldownResult.length} values`);
+        console.log(`📊 Cross-ref drilldown: Grouped into ${drilldownResult.length} values`, drilldownResult);
         return drilldownResult;
       }
 
@@ -2698,10 +2698,10 @@ export function ChartPreview({
     // Important: Must scan all items because different records may have different keys (e.g., John has Canada, George has Finland)
     const allNumericKeys = new Set<string>();
     // Keys to exclude from dimension detection (internal keys and duplicates)
-    const excludedKeys = new Set(['name', '_drilldownData', 'x', 'y', 'xFieldName', 'yFieldName', 'xRaw', 'yRaw', 'submissionId', 'value', '_isCompareEncoded', 'rawYValue', 'encodedValue']);
+    const excludedKeys = new Set(['name', '_drilldownData', 'x', 'y', 'xFieldName', 'yFieldName', 'xRaw', 'yRaw', 'submissionId', 'value', 'count', '_isCompareEncoded', 'rawYValue', 'encodedValue', 'parentId', 'parentRefId', '_linkedSubmissionIds', '_allParentIds', '_allParentRefIds', '_optionColor', '_optionImage', '_drilldownField', '_drilldownValue']);
     sanitizedChartData.forEach(item => {
       Object.keys(item).forEach(key => {
-        if (!excludedKeys.has(key) && typeof item[key] === 'number') {
+        if (!excludedKeys.has(key) && !key.startsWith('_') && typeof item[key] === 'number') {
           allNumericKeys.add(key);
         }
       });
@@ -2711,7 +2711,9 @@ export function ChartPreview({
     const isCompareMode = config.compareMode && config.metrics && config.metrics.length === 2;
     // For Calculate Values mode (single metric, no groupBy), treat as single-dimensional even if dimensionKeys > 1
     const isCalculateMode = !config.compareMode && config.metrics?.length === 1 && !config.groupByField;
-    const isMultiDimensional = !isCalculateMode && ((config.dimensions && config.dimensions.length > 1) || (config.groupByField && dimensionKeys.length > 1) || dimensionKeys.length > 1);
+    // Cross-reference drilldown should always be treated as single-dimensional
+    const isCrossRefDrilldown = config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownEnabled && drilldownState?.values?.length > 0;
+    const isMultiDimensional = !isCalculateMode && !isCrossRefDrilldown && ((config.dimensions && config.dimensions.length > 1) || (config.groupByField && dimensionKeys.length > 1) || dimensionKeys.length > 1);
 
     // For multi-dimensional charts, limit the number of series to avoid cluttered display
     if (isMultiDimensional && dimensionKeys.length > 8) {
