@@ -172,7 +172,17 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
 
   // Show the optimized data table for both preview and actual form view
   return (
-    <div className="w-full space-y-2">
+    <div className="w-full space-y-3">
+      {/* Embedded Chart for selected records - shown ABOVE the table */}
+      {embeddedChartConfig?.enabled && tableConfig?.targetFormId && selectedRefIds.length > 0 && (
+        <CrossReferenceEmbeddedChart
+          config={embeddedChartConfig}
+          targetFormId={tableConfig.targetFormId}
+          selectedRefIds={selectedRefIds}
+          targetFormFields={targetFormFields}
+        />
+      )}
+      
       <OptimizedFormDataTable
         config={tableConfig}
         fieldType="cross-reference"
@@ -183,16 +193,6 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
         onCreateRecord={handleCreateRecord}
         createRecordDisabled={disabled}
       />
-      
-      {/* Embedded Chart for selected records */}
-      {embeddedChartConfig?.enabled && tableConfig?.targetFormId && selectedRefIds.length > 0 && (
-        <CrossReferenceEmbeddedChart
-          config={embeddedChartConfig}
-          targetFormId={tableConfig.targetFormId}
-          selectedRefIds={selectedRefIds}
-          targetFormFields={targetFormFields}
-        />
-      )}
       
       {error && <p className="text-sm text-red-500">{error}</p>}
 

@@ -69,6 +69,29 @@ export function CrossReferenceEmbeddedChart({
     return String(val);
   };
 
+  // Get axis labels based on config
+  const getAxisLabels = () => {
+    if (config.mode === 'compare') {
+      return {
+        xLabel: config.compareXFieldId ? getFieldLabel(config.compareXFieldId) : '',
+        yLabel: config.compareYFieldId ? getFieldLabel(config.compareYFieldId) : ''
+      };
+    }
+    if (config.mode === 'calculate') {
+      return {
+        xLabel: config.groupByFieldId ? getFieldLabel(config.groupByFieldId) : '',
+        yLabel: config.metricFieldId ? getFieldLabel(config.metricFieldId) : 'Value'
+      };
+    }
+    if (config.mode === 'count') {
+      return {
+        xLabel: config.groupByFieldId ? getFieldLabel(config.groupByFieldId) : '',
+        yLabel: 'Count'
+      };
+    }
+    return { xLabel: '', yLabel: 'Value' };
+  };
+
   // Process data based on mode
   const { chartData, dataKeys, isMultiSeries } = useMemo(() => {
     if (!records || records.length === 0) {
@@ -295,7 +318,8 @@ export function CrossReferenceEmbeddedChart({
   }, [records, config, targetFormFields]);
 
   const colors = CHART_COLORS[config.colorTheme || 'default'];
-  const chartHeight = config.height || 250;
+  const chartHeight = config.height || 280;
+  const axisLabels = getAxisLabels();
 
   if (!config.enabled) return null;
 
@@ -345,8 +369,13 @@ export function CrossReferenceEmbeddedChart({
     const chartType = config.chartType || 'bar';
     const showLegend = isMultiSeries && dataKeys.length > 1;
 
-    // Common chart margins - reduced for tighter layout
-    const margins = { top: 10, right: showLegend ? 120 : 20, left: 10, bottom: 5 };
+    // Chart margins with space for axis labels
+    const margins = { 
+      top: 15, 
+      right: showLegend ? 130 : 25, 
+      left: 50, 
+      bottom: axisLabels.xLabel ? 40 : 25 
+    };
 
     if (chartType === 'pie' || chartType === 'donut') {
       return (
@@ -393,12 +422,14 @@ export function CrossReferenceEmbeddedChart({
               tick={{ fontSize: 11 }}
               tickLine={false}
               axisLine={{ stroke: '#e5e7eb' }}
+              label={axisLabels.xLabel ? { value: axisLabels.xLabel, position: 'bottom', offset: 0, fontSize: 12, fill: '#666' } : undefined}
             />
             <YAxis 
               tick={{ fontSize: 11 }}
               tickLine={false}
               axisLine={false}
-              width={40}
+              width={45}
+              label={axisLabels.yLabel ? { value: axisLabels.yLabel, angle: -90, position: 'insideLeft', fontSize: 12, fill: '#666' } : undefined}
             />
             <Tooltip contentStyle={{ fontSize: '12px' }} />
             {showLegend && (
@@ -435,12 +466,14 @@ export function CrossReferenceEmbeddedChart({
               tick={{ fontSize: 11 }}
               tickLine={false}
               axisLine={{ stroke: '#e5e7eb' }}
+              label={axisLabels.xLabel ? { value: axisLabels.xLabel, position: 'bottom', offset: 0, fontSize: 12, fill: '#666' } : undefined}
             />
             <YAxis 
               tick={{ fontSize: 11 }}
               tickLine={false}
               axisLine={false}
-              width={40}
+              width={45}
+              label={axisLabels.yLabel ? { value: axisLabels.yLabel, angle: -90, position: 'insideLeft', fontSize: 12, fill: '#666' } : undefined}
             />
             <Tooltip contentStyle={{ fontSize: '12px' }} />
             {showLegend && (
@@ -469,19 +502,21 @@ export function CrossReferenceEmbeddedChart({
     // Default: Bar chart
     return (
       <ResponsiveContainer width="100%" height={chartHeight}>
-        <BarChart data={chartData} margin={margins} barCategoryGap="15%" barGap={2}>
+        <BarChart data={chartData} margin={margins} barCategoryGap="20%" barGap={4}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.3} vertical={false} />
           <XAxis 
             dataKey="name" 
             tick={{ fontSize: 11 }}
             tickLine={false}
             axisLine={{ stroke: '#e5e7eb' }}
+            label={axisLabels.xLabel ? { value: axisLabels.xLabel, position: 'bottom', offset: 0, fontSize: 12, fill: '#666' } : undefined}
           />
           <YAxis 
             tick={{ fontSize: 11 }}
             tickLine={false}
             axisLine={false}
-            width={40}
+            width={45}
+            label={axisLabels.yLabel ? { value: axisLabels.yLabel, angle: -90, position: 'insideLeft', fontSize: 12, fill: '#666' } : undefined}
           />
           <Tooltip contentStyle={{ fontSize: '12px' }} />
           {showLegend && (
@@ -497,8 +532,8 @@ export function CrossReferenceEmbeddedChart({
               key={key}
               dataKey={key}
               fill={colors[index % colors.length]}
-              radius={[3, 3, 0, 0]}
-              maxBarSize={50}
+              radius={[4, 4, 0, 0]}
+              maxBarSize={60}
             />
           ))}
         </BarChart>
@@ -507,7 +542,7 @@ export function CrossReferenceEmbeddedChart({
   };
 
   return (
-    <Card className="mt-3">
+    <Card className="w-full">
       {config.title && (
         <CardHeader className="py-3 pb-1">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -516,7 +551,7 @@ export function CrossReferenceEmbeddedChart({
           </CardTitle>
         </CardHeader>
       )}
-      <CardContent className={config.title ? 'pt-1 pb-3' : 'py-3'}>
+      <CardContent className={config.title ? 'pt-1 pb-4 px-4' : 'py-4 px-4'}>
         {renderChart()}
       </CardContent>
     </Card>
