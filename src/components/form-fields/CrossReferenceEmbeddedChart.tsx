@@ -219,24 +219,75 @@ export function CrossReferenceEmbeddedChart({
         return [];
       }
 
-      return records.map((record, index) => {
-        let xVal = getFieldValue(record, xFieldId);
-        let yVal = getFieldValue(record, yFieldId);
+      const xField = targetFormFields.find(f => f.id === xFieldId);
+      const yField = targetFormFields.find(f => f.id === yFieldId);
+      const isYFieldNumeric = yField && NUMERIC_FIELD_TYPES.includes(yField.field_type);
 
-        // Handle currency
-        if (xVal && typeof xVal === 'object' && xVal.amount) xVal = parseFloat(xVal.amount);
-        if (yVal && typeof yVal === 'object' && yVal.amount) yVal = parseFloat(yVal.amount);
+      if (isYFieldNumeric) {
+        // Both fields numeric - show side by side values
+        return records.map((record, index) => {
+          let xVal = getFieldValue(record, xFieldId);
+          let yVal = getFieldValue(record, yFieldId);
 
-        return {
-          name: record.submission_ref_id || `Record ${index + 1}`,
-          [getFieldLabel(xFieldId)]: typeof xVal === 'number' ? xVal : parseFloat(xVal) || 0,
-          [getFieldLabel(yFieldId)]: typeof yVal === 'number' ? yVal : parseFloat(yVal) || 0
-        };
-      });
+          // Handle currency
+          if (xVal && typeof xVal === 'object' && xVal.amount) xVal = parseFloat(xVal.amount);
+          if (yVal && typeof yVal === 'object' && yVal.amount) yVal = parseFloat(yVal.amount);
+
+          const xLabel = getFieldLabel(xFieldId);
+          const yLabel = getFieldLabel(yFieldId);
+
+          return {
+            name: record.submission_ref_id || `Record ${index + 1}`,
+            [xLabel]: typeof xVal === 'number' ? xVal : parseFloat(xVal) || 0,
+            [yLabel]: typeof yVal === 'number' ? yVal : parseFloat(yVal) || 0
+          };
+        });
+      } else {
+        // Y field is text - use encoded legend transformation (group by X, stack by Y values)
+        const groups: Record<string, Record<string, number>> = {};
+        const allYValues = new Set<string>();
+
+        records.forEach(record => {
+          let xVal = getFieldValue(record, xFieldId);
+          let yVal = getFieldValue(record, yFieldId);
+
+          // Handle arrays
+          if (Array.isArray(xVal)) xVal = xVal.join(', ');
+          if (Array.isArray(yVal)) yVal = yVal.join(', ');
+
+          const xKey = String(xVal || 'Unknown');
+          const yKey = String(yVal || 'Unknown');
+
+          allYValues.add(yKey);
+
+          if (!groups[xKey]) {
+            groups[xKey] = {};
+          }
+          groups[xKey][yKey] = (groups[xKey][yKey] || 0) + 1;
+        });
+
+        // Transform to chart data with each Y value as a separate bar/series
+        return Object.entries(groups).map(([xValue, yValues]) => {
+          const entry: Record<string, any> = { name: xValue };
+          allYValues.forEach(yVal => {
+            entry[yVal] = yValues[yVal] || 0;
+          });
+          return entry;
+        });
+      }
     }
 
     return [];
   }, [records, config, targetFormFields]);
+
+  // Check if compare mode uses text Y field (for legend)
+  const compareUsesTextLegend = useMemo(() => {
+    if (config.mode !== 'compare' || !config.compareYFieldId) return false;
+    const yField = targetFormFields.find(f => f.id === config.compareYFieldId);
+    return yField && !NUMERIC_FIELD_TYPES.includes(yField.field_type);
+  }, [config.mode, config.compareYFieldId, targetFormFields]);
+
+  const NUMERIC_FIELD_TYPES = ['number', 'currency', 'rating', 'star-rating', 'slider'];
 
   const colors = CHART_COLORS[config.colorTheme || 'default'];
   const chartHeight = config.height || 300;
@@ -250,7 +301,7 @@ export function CrossReferenceEmbeddedChart({
     return [];
   }, [chartData, config.mode, config.stackByFieldId]);
 
-  // Get compare field labels
+  // Get compare field labels (for numeric compare mode or text legend mode)
   const compareFieldLabels = useMemo(() => {
     if (config.mode === 'compare' && chartData.length > 0) {
       return Object.keys(chartData[0]).filter(k => k !== 'name');
