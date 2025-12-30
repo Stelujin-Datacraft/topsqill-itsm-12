@@ -152,6 +152,23 @@ export function useFormLoader(formId: string | undefined) {
                 ...safeParsed
               };
             
+            case 'child-cross-reference':
+              return {
+                isChildField: safeParsed.isChildField || true,
+                parentFormId: safeParsed.parentFormId || '',
+                parentFieldId: safeParsed.parentFieldId || '',
+                parentFormName: safeParsed.parentFormName || '',
+                targetFormId: safeParsed.targetFormId || '',
+                targetFormName: safeParsed.targetFormName || '',
+                displayColumns: Array.isArray(safeParsed.displayColumns) ? safeParsed.displayColumns : [],
+                filters: Array.isArray(safeParsed.filters) ? safeParsed.filters : [],
+                enableSorting: safeParsed.enableSorting !== false,
+                enableSearch: safeParsed.enableSearch !== false,
+                pageSize: safeParsed.pageSize || 10,
+                isParentReference: safeParsed.isParentReference || false,
+                ...safeParsed
+              };
+            
             case 'select':
             case 'multi-select':
               return {
