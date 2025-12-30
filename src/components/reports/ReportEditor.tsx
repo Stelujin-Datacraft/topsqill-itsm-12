@@ -387,10 +387,12 @@ export function ReportEditor({
       });
       
       // Support both drilldownConfig and crossRefConfig drilldown levels
-      const drilldownLevels = config?.drilldownConfig?.drilldownLevels || 
-                              config?.drilldownConfig?.levels || 
-                              config?.crossRefConfig?.drilldownLevels || 
-                              [];
+      // Check for non-empty arrays, not just existence (empty array is truthy!)
+      const drilldownLevels = 
+        (config?.drilldownConfig?.drilldownLevels?.length > 0 ? config.drilldownConfig.drilldownLevels : null) ||
+        (config?.drilldownConfig?.levels?.length > 0 ? config.drilldownConfig.levels : null) ||
+        (config?.crossRefConfig?.drilldownLevels?.length > 0 ? config.crossRefConfig.drilldownLevels : null) ||
+        [];
       
       console.log('📊 Resolved drilldownLevels:', drilldownLevels, 'length:', drilldownLevels.length);
       
