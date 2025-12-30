@@ -227,6 +227,26 @@ export interface TextConfig {
   [key: string]: any;
 }
 
+// Embedded chart configuration for cross-reference fields
+export interface EmbeddedChartConfig {
+  enabled: boolean;
+  chartType: 'bar' | 'line' | 'area' | 'pie' | 'donut';
+  mode: 'count' | 'calculate' | 'compare';
+  title?: string;
+  // Count mode: group by field
+  groupByFieldId?: string;
+  stackByFieldId?: string;
+  // Calculate mode: numeric field with aggregation
+  metricFieldId?: string;
+  aggregationType?: 'sum' | 'avg' | 'min' | 'max' | 'median';
+  // Compare mode: two fields side by side
+  compareXFieldId?: string;
+  compareYFieldId?: string;
+  // Display options
+  colorTheme?: 'default' | 'vibrant' | 'pastel' | 'monochrome';
+  height?: number; // Chart height in pixels
+}
+
 export type ReportConfig = ChartConfig | TableConfig | MetricConfig | TextConfig | FormSubmissionsTableConfig | MetricCardConfig | DynamicTableConfig | Record<string, any>;
 
 export interface ReportAccess {

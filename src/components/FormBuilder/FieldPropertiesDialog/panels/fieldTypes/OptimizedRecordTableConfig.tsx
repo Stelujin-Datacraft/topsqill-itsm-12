@@ -11,6 +11,8 @@ import { Plus, X, Loader2 } from 'lucide-react';
 import { FieldConfiguration } from '../../hooks/useFieldConfiguration';
 import { useFormAccess } from '../../hooks/useFormAccess';
 import { supabase } from '@/integrations/supabase/client';
+import { EmbeddedChartConfigPanel } from './EmbeddedChartConfig';
+import { EmbeddedChartConfig } from '@/types/reports';
 
 interface OptimizedRecordTableConfigProps {
   config: FieldConfiguration;
@@ -500,6 +502,15 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
           </div>
         </CardContent>
       </Card>
+
+      {/* Embedded Chart Configuration - Only for cross-reference */}
+      {fieldType === 'cross-reference' && config.customConfig?.targetFormId && selectedFormFields.length > 0 && (
+        <EmbeddedChartConfigPanel
+          config={config.customConfig?.embeddedChart as EmbeddedChartConfig | undefined}
+          onUpdate={(chartConfig) => updateCustomConfig('embeddedChart', chartConfig)}
+          targetFormFields={selectedFormFields}
+        />
+      )}
 
       {/* Display Options */}
       <Card>

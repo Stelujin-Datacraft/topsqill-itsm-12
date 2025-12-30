@@ -1,16 +1,18 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormField } from '@/types/form';
 import { Button } from '@/components/ui/button';
 import { Settings, Plus } from 'lucide-react';
 import { FieldConfigurationDialog } from './FieldConfigurationDialog';
 import { OptimizedFormDataTable } from './OptimizedFormDataTable';
+import { CrossReferenceEmbeddedChart } from './CrossReferenceEmbeddedChart';
 import { useForm } from '@/contexts/FormContext';
 import { useCrossReferenceSync } from '@/hooks/useCrossReferenceSync';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useProject } from '@/contexts/ProjectContext';
 import { useFormAccess } from '@/components/FormBuilder/FieldPropertiesDialog/hooks/useFormAccess';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CrossReferenceFieldProps {
   field: FormField;
@@ -33,6 +35,24 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
   const { hasPermission } = useUnifiedAccessControl(currentProject?.id);
   const [configOpen, setConfigOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [targetFormFields, setTargetFormFields] = useState<Array<{ id: string; label: string; field_type: string; options?: any }>>([]);
+  
+  // Fetch target form fields for embedded chart
+  useEffect(() => {
+    const fetchTargetFields = async () => {
+      const targetFormId = field.customConfig?.targetFormId;
+      if (!targetFormId) return;
+      
+      const { data } = await supabase
+        .from('form_fields')
+        .select('id, label, field_type, options')
+        .eq('form_id', targetFormId)
+        .order('field_order');
+      
+      if (data) setTargetFormFields(data);
+    };
+    fetchTargetFields();
+  }, [field.customConfig?.targetFormId]);
   
   // Use accessible forms for finding target form
   const formsToUse = accessibleForms.length > 0 ? accessibleForms : forms;
@@ -143,6 +163,13 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
     );
   }
 
+  // Extract selected ref IDs from value
+  const selectedRefIds = Array.isArray(value) 
+    ? value.map((v: any) => v.submission_ref_id || v.id).filter(Boolean)
+    : [];
+
+  const embeddedChartConfig = (field.customConfig as any)?.embeddedChart;
+
   // Show the optimized data table for both preview and actual form view
   return (
     <div className="w-full space-y-2">
@@ -156,6 +183,16 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
         onCreateRecord={handleCreateRecord}
         createRecordDisabled={disabled}
       />
+      
+      {/* Embedded Chart for selected records */}
+      {embeddedChartConfig?.enabled && tableConfig?.targetFormId && selectedRefIds.length > 0 && (
+        <CrossReferenceEmbeddedChart
+          config={embeddedChartConfig}
+          targetFormId={tableConfig.targetFormId}
+          selectedRefIds={selectedRefIds}
+          targetFormFields={targetFormFields}
+        />
+      )}
       
       {error && <p className="text-sm text-red-500">{error}</p>}
 
