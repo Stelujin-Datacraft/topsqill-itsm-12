@@ -590,7 +590,7 @@ function FormBuilderContent({
               </div>
 
               {/* Field Properties Dialog */}
-              <FieldPropertiesDialog selectedField={state.selectedField} open={state.showFieldProperties} onClose={() => state.setShowFieldProperties(false)} onSave={handleSaveFieldConfiguration} />
+              <FieldPropertiesDialog selectedField={state.selectedField} open={state.showFieldProperties} onClose={() => state.setShowFieldProperties(false)} onSave={handleSaveFieldConfiguration} onDelete={fieldOperations.handleFieldDelete} />
             </TabsContent>
 
             <TabsContent value="rules">
