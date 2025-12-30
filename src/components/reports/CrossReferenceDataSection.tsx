@@ -638,6 +638,25 @@ export function CrossReferenceDataSection({
                       )}
                     </p>
                   )}
+                  
+                  {/* Toggle for showing records separately */}
+                  <div className="flex items-center justify-between pt-3 border-t mt-3">
+                    <div className="space-y-0.5">
+                      <Label className="text-sm font-medium">Show records separately</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Group bars by parent record to show each parent's linked data distinctly
+                      </p>
+                    </div>
+                    <Switch
+                      checked={crossRefConfig.showRecordsSeparately || false}
+                      onCheckedChange={(checked) => onConfigChange({
+                        crossRefConfig: {
+                          ...crossRefConfig,
+                          showRecordsSeparately: checked
+                        }
+                      })}
+                    />
+                  </div>
                 </div>
               )}
             </div>
