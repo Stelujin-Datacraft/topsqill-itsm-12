@@ -640,18 +640,14 @@ export function ChartPreview({
             const xOptionInfo = xFieldOptions?.get(String(xVal));
             const yOptionInfo = yFieldOptions?.get(String(yVal));
             
-            // When showRecordsSeparately is enabled, each linked record gets its own bar
-            // Use a unique identifier for the data point but keep the display label clean (X field value only)
+            // When showRecordsSeparately is enabled, prefix the name with parent display name
+            // This allows bars to be grouped by parent record in the chart
             const showSeparately = (crossRefConfig as any).showRecordsSeparately || false;
             const baseName = xOptionInfo?.label || String(xDisplay);
-            // For unique identification, use parent + linked submission ID (hidden from display)
-            // For display, show the X field value prefixed with parent display name
-            const uniqueKey = showSeparately ? `${parentSub.id}_${sub.id}` : baseName;
-            const displayLabel = showSeparately ? `${displayName} - ${baseName}` : baseName;
+            const chartName = showSeparately ? `${displayName}|${baseName}` : baseName;
             
             result.push({
-              name: uniqueKey, // Unique key for React/chart deduplication
-              displayLabel: displayLabel, // Clean label for X-axis: "ParentName - XValue"
+              name: chartName,
               xRaw: xOptionInfo?.label || String(xDisplay),
               yRaw: yOptionInfo?.label || String(yDisplay),
               x: isXText ? 0 : Number(xDisplay) || 0,
@@ -1017,7 +1013,6 @@ export function ChartPreview({
       // Transform data to encoded format
       return crossRefData.map(item => ({
         name: item.name || item.xRaw || 'Unknown',
-        displayLabel: item.displayLabel || item.xRaw || item.name || 'Unknown', // Preserve displayLabel for x-axis
         xRaw: item.xRaw,
         yRaw: item.yRaw,
         rawYValue: item.yRaw,
@@ -1028,13 +1023,10 @@ export function ChartPreview({
         yFieldName: yFieldName,
         parentId: item.parentId,
         parentRefId: item.parentRefId,
-        parentDisplayName: item.parentDisplayName,
-        linkedSubmissionId: item.linkedSubmissionId,
         _linkedSubmissionIds: item._linkedSubmissionIds,
         _legendMapping: legendMapping,
         _isCompareEncoded: true,
         _isCrossRefCompare: true,
-        _showRecordsSeparately: item._showRecordsSeparately,
         _yOptionColor: item._yOptionColor,
         _xOptionColor: item._xOptionColor
       }));
@@ -2853,11 +2845,9 @@ export function ChartPreview({
 
       if (chartType === 'bar') {
         // Bar chart = vertical bars in compare mode (X-axis field on horizontal, Y-axis field determines height)
-        // Use displayLabel for x-axis when showRecordsSeparately is enabled (shows "ParentName - XValue")
-        // Otherwise use xRaw for the clean X field value
         const barData = sortedData.map((item, idx) => ({
           ...item,
-          xLabel: item.displayLabel || item.xRaw || item.name || String(item.x),
+          xLabel: item.xRaw || item.name || String(item.x), // Use text value from Field 1 for X-axis label
         }));
 
         return (
@@ -2884,22 +2874,17 @@ export function ChartPreview({
                       if (!payload || payload.length === 0) return null;
                       const data = payload[0]?.payload;
                       if (!data) return null;
-                      // Show displayLabel or xRaw as the main name, not the internal unique key
-                      const displayName = data.displayLabel || data.xRaw || data.name;
                       return (
                         <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
-                          <div className="font-medium mb-2">{displayName}</div>
-                          {data.parentDisplayName && data._showRecordsSeparately && (
-                            <div className="text-xs text-muted-foreground mb-2">Parent: {data.parentDisplayName}</div>
-                          )}
+                          <div className="font-medium mb-2">{data.name}</div>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{field1Name} (X):</span>
-                              <span className="font-semibold">{data.xRaw || data.x}</span>
+                              <span className="font-semibold">{data.x}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{field2Name} (Y):</span>
-                              <span className="font-semibold">{data.yRaw || data.y}</span>
+                              <span className="font-semibold">{data.y}</span>
                             </div>
                           </div>
                         </div>
@@ -2959,10 +2944,9 @@ export function ChartPreview({
 
       if (chartType === 'column') {
         // Column chart = vertical bars in compare mode
-        // Use displayLabel for x-axis when showRecordsSeparately is enabled
         const barData = sortedData.map((item, idx) => ({
           ...item,
-          xLabel: item.displayLabel || item.xRaw || item.name || String(item.x),
+          xLabel: item.xRaw || item.name || String(item.x), // Use text value from Field 1 for X-axis label
         }));
 
         return (
@@ -2989,21 +2973,17 @@ export function ChartPreview({
                       if (!payload || payload.length === 0) return null;
                       const data = payload[0]?.payload;
                       if (!data) return null;
-                      const displayName = data.displayLabel || data.xRaw || data.name;
                       return (
                         <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
-                          <div className="font-medium mb-2">{displayName}</div>
-                          {data.parentDisplayName && data._showRecordsSeparately && (
-                            <div className="text-xs text-muted-foreground mb-2">Parent: {data.parentDisplayName}</div>
-                          )}
+                          <div className="font-medium mb-2">{data.name}</div>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{field1Name} (X):</span>
-                              <span className="font-semibold">{data.xRaw || data.x}</span>
+                              <span className="font-semibold">{data.x}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{field2Name} (Y):</span>
-                              <span className="font-semibold">{data.yRaw || data.y}</span>
+                              <span className="font-semibold">{data.y}</span>
                             </div>
                           </div>
                         </div>
