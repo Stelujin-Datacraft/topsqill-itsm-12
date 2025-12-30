@@ -386,15 +386,64 @@ export function CrossReferenceEmbeddedChart({
     );
   };
 
+  // Custom legend renderer for single-series charts with field name header
+  const renderCustomLegend = (props: any) => {
+    const { payload } = props;
+    
+    // For single-series charts, show each category with its color
+    if (!isMultiSeries && chartData.length > 0) {
+      const fieldLabel = axisLabels.xLabel || 'Category';
+      return (
+        <div className="flex flex-col gap-1.5 text-xs max-h-[200px] overflow-y-auto pl-4">
+          <div className="font-semibold text-foreground mb-1 border-b pb-1">{fieldLabel}</div>
+          {chartData.map((entry, index) => (
+            <div key={`legend-${index}`} className="flex items-center gap-2">
+              <div 
+                className="w-3 h-3 rounded-sm flex-shrink-0" 
+                style={{ backgroundColor: colors[index % colors.length] }}
+              />
+              <span className="text-muted-foreground truncate" title={entry.name}>
+                {entry.name.length > 20 ? `${entry.name.slice(0, 20)}...` : entry.name}
+              </span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    
+    // For multi-series, show each series with proper label
+    if (isMultiSeries && payload && payload.length > 0) {
+      const fieldLabel = config.stackByFieldId ? getFieldLabel(config.stackByFieldId) : 'Series';
+      return (
+        <div className="flex flex-col gap-1.5 text-xs max-h-[200px] overflow-y-auto pl-4">
+          <div className="font-semibold text-foreground mb-1 border-b pb-1">{fieldLabel}</div>
+          {payload.map((entry: any, index: number) => (
+            <div key={`legend-${index}`} className="flex items-center gap-2">
+              <div 
+                className="w-3 h-3 rounded-sm flex-shrink-0" 
+                style={{ backgroundColor: entry.color }}
+              />
+              <span className="text-muted-foreground truncate" title={entry.value}>
+                {entry.value.length > 20 ? `${entry.value.slice(0, 20)}...` : entry.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    
+    return null;
+  };
+
   const renderChart = () => {
     const chartType = config.chartType || 'bar';
-    const showLegend = isMultiSeries && dataKeys.length > 1;
+    const showLegend = chartData.length > 1;  // Show legend when there are multiple data points
     const barCount = chartData.length;
 
     // Margins with axis labels
     const margins = { 
       top: 20, 
-      right: showLegend ? 150 : 20, 
+      right: showLegend ? 180 : 20, 
       left: 60, 
       bottom: 60
     };
@@ -452,11 +501,10 @@ export function CrossReferenceEmbeddedChart({
             </Pie>
             <Tooltip content={<CustomTooltip />} />
             <Legend 
-              layout="horizontal" 
-              align="center" 
-              verticalAlign="bottom"
-              wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
-              formatter={(value) => <span className="text-foreground">{value}</span>}
+              layout="vertical" 
+              align="right" 
+              verticalAlign="middle"
+              content={renderCustomLegend}
             />
           </PieChart>
         </ResponsiveContainer>
@@ -487,7 +535,7 @@ export function CrossReferenceEmbeddedChart({
                 layout="vertical" 
                 align="right" 
                 verticalAlign="middle"
-                wrapperStyle={{ fontSize: '12px', paddingLeft: '15px' }}
+                content={renderCustomLegend}
               />
             )}
             {dataKeys.map((key, index) => (
@@ -531,7 +579,7 @@ export function CrossReferenceEmbeddedChart({
                 layout="vertical" 
                 align="right" 
                 verticalAlign="middle"
-                wrapperStyle={{ fontSize: '12px', paddingLeft: '15px' }}
+                content={renderCustomLegend}
               />
             )}
             {dataKeys.map((key, index) => (
@@ -578,7 +626,7 @@ export function CrossReferenceEmbeddedChart({
               layout="vertical" 
               align="right" 
               verticalAlign="middle"
-              wrapperStyle={{ fontSize: '12px', paddingLeft: '15px' }}
+              content={renderCustomLegend}
             />
           )}
           {dataKeys.map((key, index) => (
