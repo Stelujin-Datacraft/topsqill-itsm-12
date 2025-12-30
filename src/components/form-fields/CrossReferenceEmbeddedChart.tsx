@@ -145,8 +145,8 @@ export function CrossReferenceEmbeddedChart({
         });
         
         const stackKeysArr = Array.from(allStackValues);
-        const data = Object.entries(groups).map(([name, d]) => {
-          const entry: Record<string, any> = { name, _records: d.records };
+        const data = Object.entries(groups).map(([name, d], idx) => {
+          const entry: Record<string, any> = { name, _code: idx + 1, _records: d.records };
           stackKeysArr.forEach(sv => {
             entry[sv] = d.stacks[sv] || 0;
           });
@@ -157,7 +157,12 @@ export function CrossReferenceEmbeddedChart({
       }
 
       return {
-        chartData: Object.entries(groups).map(([name, d]) => ({ name, value: d.count, _records: d.records })),
+        chartData: Object.entries(groups).map(([name, d], idx) => ({ 
+          name, 
+          _code: idx + 1,
+          value: d.count, 
+          _records: d.records 
+        })),
         dataKeys: ['value'],
         isMultiSeries: false,
         recordsMap: rMap
@@ -191,7 +196,7 @@ export function CrossReferenceEmbeddedChart({
       if (!groupByField) {
         const values = records.map(r => extractNumericValue(getFieldValue(r, metricField))).filter(v => !isNaN(v));
         return {
-          chartData: [{ name: getFieldLabel(metricField), value: Math.round(aggregate(values) * 100) / 100, _records: records }],
+          chartData: [{ name: getFieldLabel(metricField), _code: 1, value: Math.round(aggregate(values) * 100) / 100, _records: records }],
           dataKeys: ['value'],
           isMultiSeries: false,
           recordsMap: { [getFieldLabel(metricField)]: records }
@@ -214,8 +219,9 @@ export function CrossReferenceEmbeddedChart({
       });
 
       return {
-        chartData: Object.entries(groups).map(([name, d]) => ({
+        chartData: Object.entries(groups).map(([name, d], idx) => ({
           name,
+          _code: idx + 1,
           value: Math.round(aggregate(d.values) * 100) / 100,
           _records: d.records
         })),
@@ -258,8 +264,9 @@ export function CrossReferenceEmbeddedChart({
           rMap[key] = val.records;
         });
 
-        const data = Object.entries(groups).map(([name, d]) => ({
+        const data = Object.entries(groups).map(([name, d], idx) => ({
           name, // X field actual value
+          _code: idx + 1,
           [yLabel]: d.values.length === 1 ? d.values[0] : Math.round((d.values.reduce((a, b) => a + b, 0)) * 100) / 100,
           _records: d.records
         }));
@@ -290,8 +297,8 @@ export function CrossReferenceEmbeddedChart({
         rMap[xKey] = allRecords;
       });
 
-      const data = Object.entries(groups).map(([xValue, yValues]) => {
-        const entry: Record<string, any> = { name: xValue }; // X field actual value
+      const data = Object.entries(groups).map(([xValue, yValues], idx) => {
+        const entry: Record<string, any> = { name: xValue, _code: idx + 1 }; // X field actual value
         const allRecords: any[] = [];
         yValuesArr.forEach(yVal => {
           entry[yVal] = yValues[yVal]?.count || 0;
@@ -386,24 +393,30 @@ export function CrossReferenceEmbeddedChart({
     );
   };
 
-  // Custom legend renderer for single-series charts with field name header
+  // Custom legend renderer - shows field name header with code:value pairs like reports
   const renderCustomLegend = (props: any) => {
     const { payload } = props;
     
-    // For single-series charts, show each category with its color
+    // For single-series charts, show each category with code number and color
     if (!isMultiSeries && chartData.length > 0) {
       const fieldLabel = axisLabels.xLabel || 'Category';
       return (
-        <div className="flex flex-col gap-1.5 text-xs max-h-[200px] overflow-y-auto pl-4">
-          <div className="font-semibold text-foreground mb-1 border-b pb-1">{fieldLabel}</div>
+        <div className="flex flex-col gap-1 text-xs max-h-[220px] overflow-y-auto pl-4">
+          <div className="font-semibold text-foreground mb-2 pb-1 border-b">{fieldLabel} Legend</div>
           {chartData.map((entry, index) => (
             <div key={`legend-${index}`} className="flex items-center gap-2">
               <div 
-                className="w-3 h-3 rounded-sm flex-shrink-0" 
-                style={{ backgroundColor: colors[index % colors.length] }}
-              />
-              <span className="text-muted-foreground truncate" title={entry.name}>
-                {entry.name.length > 20 ? `${entry.name.slice(0, 20)}...` : entry.name}
+                className="w-5 h-5 rounded flex items-center justify-center text-xs font-bold shrink-0 border"
+                style={{ 
+                  backgroundColor: colors[index % colors.length],
+                  color: '#fff',
+                  borderColor: 'rgba(255,255,255,0.2)'
+                }}
+              >
+                {index + 1}
+              </div>
+              <span className="text-foreground truncate" title={entry.name}>
+                {entry.name.length > 18 ? `${entry.name.slice(0, 18)}...` : entry.name}
               </span>
             </div>
           ))}
@@ -411,20 +424,26 @@ export function CrossReferenceEmbeddedChart({
       );
     }
     
-    // For multi-series, show each series with proper label
+    // For multi-series, show each series with proper label and color
     if (isMultiSeries && payload && payload.length > 0) {
       const fieldLabel = config.stackByFieldId ? getFieldLabel(config.stackByFieldId) : 'Series';
       return (
-        <div className="flex flex-col gap-1.5 text-xs max-h-[200px] overflow-y-auto pl-4">
-          <div className="font-semibold text-foreground mb-1 border-b pb-1">{fieldLabel}</div>
+        <div className="flex flex-col gap-1 text-xs max-h-[220px] overflow-y-auto pl-4">
+          <div className="font-semibold text-foreground mb-2 pb-1 border-b">{fieldLabel} Legend</div>
           {payload.map((entry: any, index: number) => (
             <div key={`legend-${index}`} className="flex items-center gap-2">
               <div 
-                className="w-3 h-3 rounded-sm flex-shrink-0" 
-                style={{ backgroundColor: entry.color }}
-              />
-              <span className="text-muted-foreground truncate" title={entry.value}>
-                {entry.value.length > 20 ? `${entry.value.slice(0, 20)}...` : entry.value}
+                className="w-5 h-5 rounded flex items-center justify-center text-xs font-bold shrink-0 border"
+                style={{ 
+                  backgroundColor: entry.color,
+                  color: '#fff',
+                  borderColor: 'rgba(255,255,255,0.2)'
+                }}
+              >
+                {index + 1}
+              </div>
+              <span className="text-foreground truncate" title={entry.value}>
+                {entry.value.length > 18 ? `${entry.value.slice(0, 18)}...` : entry.value}
               </span>
             </div>
           ))}
@@ -452,8 +471,8 @@ export function CrossReferenceEmbeddedChart({
       const outerR = Math.min(chartHeight * 0.35, 100);
       const innerR = chartType === 'donut' ? outerR * 0.6 : 0;
       
-      // Custom label renderer for outside labels
-      const renderCustomLabel = ({ cx, cy, midAngle, outerRadius, name, value, percent }: any) => {
+      // Custom label renderer for outside labels - show code number
+      const renderCustomLabel = ({ cx, cy, midAngle, outerRadius, value, percent, index }: any) => {
         const RADIAN = Math.PI / 180;
         const radius = outerRadius + 25;
         const x = cx + radius * Math.cos(-midAngle * RADIAN);
@@ -462,6 +481,8 @@ export function CrossReferenceEmbeddedChart({
         
         // Only show label if slice is big enough (>5%)
         if (percent < 0.05) return null;
+        
+        const code = chartData[index]?._code || (index + 1);
         
         return (
           <text
@@ -472,7 +493,7 @@ export function CrossReferenceEmbeddedChart({
             className="fill-foreground"
             style={{ fontSize: '11px', fontWeight: 500 }}
           >
-            {name.length > 12 ? `${name.slice(0, 12)}...` : name}
+            {code}
             <tspan x={x} dy="14" style={{ fontSize: '10px', fontWeight: 400 }} className="fill-muted-foreground">
               {value} ({(percent * 100).toFixed(0)}%)
             </tspan>
@@ -517,11 +538,12 @@ export function CrossReferenceEmbeddedChart({
           <LineChart data={chartData} margin={margins}>
             <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
             <XAxis 
-              dataKey="name" 
+              dataKey="_code" 
               tick={{ fontSize: 11 }}
               tickLine={false}
               axisLine={{ stroke: '#ccc' }}
               label={{ value: axisLabels.xLabel, position: 'bottom', offset: 40, fontSize: 12, fontWeight: 500 }}
+              tickFormatter={(value) => String(value)}
             />
             <YAxis 
               tick={{ fontSize: 11 }}
@@ -561,11 +583,12 @@ export function CrossReferenceEmbeddedChart({
           <AreaChart data={chartData} margin={margins}>
             <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
             <XAxis 
-              dataKey="name" 
+              dataKey="_code" 
               tick={{ fontSize: 11 }}
               tickLine={false}
               axisLine={{ stroke: '#ccc' }}
               label={{ value: axisLabels.xLabel, position: 'bottom', offset: 40, fontSize: 12, fontWeight: 500 }}
+              tickFormatter={(value) => String(value)}
             />
             <YAxis 
               tick={{ fontSize: 11 }}
@@ -608,11 +631,12 @@ export function CrossReferenceEmbeddedChart({
         >
           <CartesianGrid strokeDasharray="3 3" opacity={0.3} vertical={false} />
           <XAxis 
-            dataKey="name" 
+            dataKey="_code" 
             tick={{ fontSize: 11 }}
             tickLine={false}
             axisLine={{ stroke: '#ccc' }}
             label={{ value: axisLabels.xLabel, position: 'bottom', offset: 40, fontSize: 12, fontWeight: 500 }}
+            tickFormatter={(value) => String(value)}
           />
           <YAxis 
             tick={{ fontSize: 11 }}
