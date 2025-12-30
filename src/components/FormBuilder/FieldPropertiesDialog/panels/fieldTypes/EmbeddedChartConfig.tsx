@@ -324,20 +324,39 @@ export function EmbeddedChartConfigPanel({
             {/* Color Theme */}
             <div className="space-y-2">
               <Label>Color Theme</Label>
-              <Select
-                value={currentConfig.colorTheme || 'default'}
-                onValueChange={(value) => updateField('colorTheme', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="default">Default</SelectItem>
-                  <SelectItem value="vibrant">Vibrant</SelectItem>
-                  <SelectItem value="pastel">Pastel</SelectItem>
-                  <SelectItem value="monochrome">Monochrome</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: 'default', label: 'Default', colors: ['#8884d8', '#82ca9d', '#ffc658', '#ff7300'] },
+                  { value: 'vibrant', label: 'Vibrant', colors: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4'] },
+                  { value: 'pastel', label: 'Pastel', colors: ['#FFB3BA', '#BAFFC9', '#BAE1FF', '#FFFFBA'] },
+                  { value: 'monochrome', label: 'Mono', colors: ['#2C3E50', '#34495E', '#7F8C8D', '#95A5A6'] },
+                  { value: 'ocean', label: 'Ocean', colors: ['#006A6B', '#1B9AAA', '#40C9A2', '#9FFFCB'] },
+                  { value: 'sunset', label: 'Sunset', colors: ['#FF6B35', '#F7931E', '#FFD23F', '#F06292'] },
+                  { value: 'nature', label: 'Nature', colors: ['#8BC34A', '#4CAF50', '#009688', '#607D8B'] },
+                  { value: 'business', label: 'Business', colors: ['#1976D2', '#1565C0', '#0D47A1', '#42A5F5'] },
+                ].map((theme) => (
+                  <div
+                    key={theme.value}
+                    className={`p-2 border rounded-lg cursor-pointer transition-all hover:bg-muted/50 ${
+                      (currentConfig.colorTheme || 'default') === theme.value ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border'
+                    }`}
+                    onClick={() => updateField('colorTheme', theme.value)}
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex gap-1">
+                        {theme.colors.map((color, index) => (
+                          <div
+                            key={index}
+                            className="w-4 h-4 rounded-full border border-white/30"
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </div>
+                      <div className="text-xs font-medium">{theme.label}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Chart Height */}
