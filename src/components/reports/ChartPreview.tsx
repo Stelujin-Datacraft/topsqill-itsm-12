@@ -553,61 +553,41 @@ export function ChartPreview({
             ? (typeof labelValue === 'object' ? JSON.stringify(labelValue) : String(labelValue))
             : (parentSub.submission_ref_id || parentSub.id.slice(0, 8));
 
-          // Collect all X and Y values from linked submissions
-          const xValues: number[] = [];
-          const yValues: number[] = [];
-          const yTextValues: string[] = [];
-          let hasTextY = false;
-
+          // Process each linked submission as a separate data point for text compare
           linkedSubmissions.forEach((sub) => {
             const xVal = sub.submission_data?.[crossRefConfig.compareXFieldId!];
             const yVal = sub.submission_data?.[crossRefConfig.compareYFieldId!];
             
-            // Get X value - convert to number if possible
-            let xNumeric: number;
-            if (typeof xVal === 'number') {
-              xNumeric = xVal;
-            } else if (typeof xVal === 'object' && xVal?.amount) {
-              xNumeric = Number(xVal.amount) || 0;
-            } else {
-              xNumeric = Number(xVal) || 0;
-            }
-            xValues.push(xNumeric);
-            
-            // Get Y value - can be numeric or text (for legend mode)
+            // Check if X and Y are text types
+            const isXText = typeof xVal === 'string' && isNaN(Number(xVal));
             const isYText = typeof yVal === 'string' && isNaN(Number(yVal));
-            if (isYText) {
-              hasTextY = true;
-              yTextValues.push(String(yVal || 'Unknown'));
-              yValues.push(0);
-            } else if (typeof yVal === 'number') {
-              yValues.push(yVal);
-            } else if (typeof yVal === 'object' && yVal?.amount) {
-              yValues.push(Number(yVal.amount) || 0);
-            } else {
-              yValues.push(Number(yVal) || 0);
-            }
-          });
-
-          // Aggregate values for bar chart display
-          const xSum = xValues.reduce((a, b) => a + b, 0);
-          const ySum = yValues.reduce((a, b) => a + b, 0);
-          
-          result.push({
-            name: displayName,
-            value: xSum, // Primary value for bar height
-            x: xSum,
-            y: ySum,
-            xFieldId: crossRefConfig.compareXFieldId,
-            yFieldId: crossRefConfig.compareYFieldId,
-            parentId: parentSub.id,
-            parentRefId: parentSub.submission_ref_id,
-            linkedCount: linkedSubmissions.length,
-            _isCrossRefCompare: true,
-            _hasTextY: hasTextY,
-            _yTextValues: yTextValues,
-            // Store linked submission IDs for drilldown
-            _linkedSubmissionIds: linkedSubmissions.map(s => s.id)
+            
+            // Get display values (text or number)
+            const xDisplay = isXText ? String(xVal || 'Unknown') : 
+              (typeof xVal === 'number' ? xVal : 
+                (typeof xVal === 'object' && xVal?.amount ? Number(xVal.amount) : Number(xVal) || 0));
+            
+            const yDisplay = isYText ? String(yVal || 'Unknown') : 
+              (typeof yVal === 'number' ? yVal : 
+                (typeof yVal === 'object' && yVal?.amount ? Number(yVal.amount) : Number(yVal) || 0));
+            
+            result.push({
+              name: String(xDisplay), // X field value as the name for bar chart
+              xRaw: String(xDisplay),
+              yRaw: String(yDisplay),
+              x: isXText ? 0 : Number(xDisplay) || 0,
+              y: isYText ? 0 : Number(yDisplay) || 0,
+              value: isYText ? 1 : (Number(yDisplay) || 0), // For text Y, use count of 1
+              xFieldId: crossRefConfig.compareXFieldId,
+              yFieldId: crossRefConfig.compareYFieldId,
+              parentId: String(parentSub.id),
+              parentRefId: String(parentSub.submission_ref_id || ''),
+              linkedSubmissionId: sub.id,
+              _isCrossRefCompare: true,
+              _hasTextX: isXText,
+              _hasTextY: isYText,
+              _linkedSubmissionIds: [sub.id]
+            });
           });
         } else {
           // Aggregate mode
@@ -742,6 +722,54 @@ export function ChartPreview({
   // Transform cross-reference data to match the expected format for each chart type
   const transformCrossRefDataForChartType = (crossRefData: any[], chartType: string): any[] => {
     if (!crossRefData || crossRefData.length === 0) return [];
+    
+    // Check if this is cross-ref compare mode with text fields - apply encoded legend transformation
+    const hasTextCompare = crossRefData.some(item => item._isCrossRefCompare && (item._hasTextX || item._hasTextY));
+    
+    if (hasTextCompare) {
+      console.log('📊 Cross-ref: Applying text compare transformation (encoded legend mode)');
+      
+      // Get X field name for labeling
+      const xFieldId = crossRefData[0]?.xFieldId;
+      const yFieldId = crossRefData[0]?.yFieldId;
+      const xFieldName = xFieldId ? getFormFieldName(xFieldId) : 'X Field';
+      const yFieldName = yFieldId ? getFormFieldName(yFieldId) : 'Y Field';
+      
+      // Build unique legend mapping for Y text values
+      const uniqueYValues = new Set<string>();
+      crossRefData.forEach(item => {
+        if (item.yRaw) uniqueYValues.add(String(item.yRaw));
+      });
+      const legendMapping = Array.from(uniqueYValues).map((label, index) => ({
+        number: index + 1,
+        label: label
+      }));
+      
+      // Create legend lookup for encoding
+      const legendLookup = new Map<string, number>();
+      legendMapping.forEach(({ number, label }) => {
+        legendLookup.set(label, number);
+      });
+      
+      // Transform data to encoded format
+      return crossRefData.map(item => ({
+        name: item.name || item.xRaw || 'Unknown',
+        xRaw: item.xRaw,
+        yRaw: item.yRaw,
+        rawYValue: item.yRaw,
+        rawSecondaryValue: item.yRaw,
+        encodedValue: legendLookup.get(String(item.yRaw)) || 0,
+        value: legendLookup.get(String(item.yRaw)) || 0,
+        xFieldName: xFieldName,
+        yFieldName: yFieldName,
+        parentId: item.parentId,
+        parentRefId: item.parentRefId,
+        _linkedSubmissionIds: item._linkedSubmissionIds,
+        _legendMapping: legendMapping,
+        _isCompareEncoded: true,
+        _isCrossRefCompare: true
+      }));
+    }
     
     switch (chartType) {
       case 'bar':
@@ -2254,7 +2282,7 @@ export function ChartPreview({
 
     // Sanitize chart data - ensure all numeric values are valid numbers (not NaN/undefined)
     // Preserve string values for display fields (xRaw, yRaw, field names, IDs, cross-ref parent IDs)
-    const preserveAsStringKeys = ['name', '_drilldownData', 'xRaw', 'yRaw', 'xFieldName', 'yFieldName', 'submissionId', '_legendMapping', 'rawSecondaryValue', 'rawYValue', '_isCompareEncoded', 'parentId', 'parentRefId'];
+    const preserveAsStringKeys = ['name', '_drilldownData', 'xRaw', 'yRaw', 'xFieldName', 'yFieldName', 'submissionId', '_legendMapping', 'rawSecondaryValue', 'rawYValue', '_isCompareEncoded', '_isCrossRefCompare', '_hasTextX', '_hasTextY', 'parentId', 'parentRefId', 'linkedSubmissionId', '_linkedSubmissionIds'];
     let sanitizedChartData = chartData.map(item => {
       const sanitized: any = { name: item.name || 'Unknown' };
       Object.keys(item).forEach(key => {
@@ -2330,7 +2358,9 @@ export function ChartPreview({
     }
 
     // Final safety check: ensure we actually have some non-zero numeric data for the primary metric
-    const hasValidNumericData = sanitizedChartData.some(item => {
+    // Also check for encoded legend data (text compare mode) which has encodedValue field
+    const hasEncodedData = sanitizedChartData.some(item => item._legendMapping && item.encodedValue > 0);
+    const hasValidNumericData = hasEncodedData || sanitizedChartData.some(item => {
       const val = Number(item[primaryMetric]);
       return !isNaN(val) && isFinite(val) && val !== 0;
     });
