@@ -471,12 +471,17 @@ export function ChartPreview({
       const drilldownState = crossRefConfig._drilldownState;
       const drilldownLevels = crossRefConfig.drilldownLevels || [];
       const drilldownValues = drilldownState?.values || [];
-      // currentLevel is derived from drilldownValues.length
-      // drilldownValues[0] = parentRefId, so actual field level = drilldownValues.length - 1
-      // When drilldownValues.length = 1, we show data grouped by drilldownLevels[0]
-      // When drilldownValues.length = 2, we show data grouped by drilldownLevels[1]
-      const currentFieldLevel = drilldownValues.length > 0 ? drilldownValues.length - 1 : 0;
-      const currentDimensionField = drilldownLevels[currentFieldLevel];
+      // currentFieldLevel: which drilldown level's data we're currently showing
+      // drilldownValues[0] = parentRefId (the clicked parent record)
+      // drilldownValues[1] = value from drilldownLevels[0], drilldownValues[2] = value from drilldownLevels[1], etc.
+      // When drilldownValues.length = 0: Show parent records (initial view, no drilldown yet)
+      // When drilldownValues.length = 1: Show grouped by drilldownLevels[0] (first click stores parentRefId)
+      // When drilldownValues.length = 2: Show grouped by drilldownLevels[1] (have parentRefId + level0 value)
+      // So: currentFieldLevel = drilldownValues.length - 1, but -1 means we haven't drilled yet
+      const currentFieldLevel = drilldownValues.length > 0 ? drilldownValues.length - 1 : -1;
+      const currentDimensionField = currentFieldLevel >= 0 && currentFieldLevel < drilldownLevels.length 
+        ? drilldownLevels[currentFieldLevel] 
+        : undefined;
       
       // Determine if drilldown is actively being used (has levels and at least started drilling)
       const isDrilldownActive = crossRefConfig.drilldownEnabled && drilldownLevels.length > 0;
@@ -3133,8 +3138,8 @@ export function ChartPreview({
                   label={{ value: yFieldLabel, angle: -90, position: 'insideLeft' }}
                 />
                 <Tooltip 
-                  content={({ payload, label }) => {
-                    if (!payload || payload.length === 0) return null;
+                  content={({ payload, label, active }) => {
+                    if (!active || !payload || payload.length === 0 || !label) return null;
                     return (
                       <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
                         <div className="font-medium mb-2">{label}</div>
