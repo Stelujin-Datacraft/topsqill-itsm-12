@@ -151,19 +151,24 @@ export function useOptimizedFieldOperations(
     }
     
     try {
-      // If it's a cross-reference field, clean up child fields immediately
-      if (fieldToDelete?.type === 'cross-reference' && fieldToDelete.customConfig?.targetFormId && snapshot.form) {
-        console.log('Deleting cross-reference field, cleaning up child field in target form:', fieldToDelete.customConfig.targetFormId);
-        try {
-          await removeChildCrossReferenceField({
-            parentFormId: snapshot.form.id,
-            parentFieldId: fieldId,
-            targetFormId: fieldToDelete.customConfig.targetFormId
-          });
-          console.log('Successfully cleaned up child cross-reference field');
-        } catch (error) {
-          console.error('Error cleaning up child cross-reference field:', error);
-          // Continue with deletion even if cleanup fails
+      // If it's a cross-reference field, clean up child fields immediately in the target form
+      if (fieldToDelete?.type === 'cross-reference' && snapshot.form) {
+        const targetFormId = fieldToDelete.customConfig?.targetFormId;
+        if (targetFormId) {
+          console.log('Deleting cross-reference field, cleaning up child field in target form:', targetFormId);
+          try {
+            await removeChildCrossReferenceField({
+              parentFormId: snapshot.form.id,
+              parentFieldId: fieldId,
+              targetFormId: targetFormId
+            });
+            console.log('Successfully cleaned up child cross-reference field');
+          } catch (error) {
+            console.error('Error cleaning up child cross-reference field:', error);
+            // Continue with deletion even if cleanup fails
+          }
+        } else {
+          console.warn('Cross-reference field has no targetFormId configured:', fieldId);
         }
       }
       
