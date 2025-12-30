@@ -394,20 +394,51 @@ export function CrossReferenceEmbeddedChart({
     };
 
     if (chartType === 'pie' || chartType === 'donut') {
+      const outerR = Math.min(chartHeight * 0.35, 100);
+      const innerR = chartType === 'donut' ? outerR * 0.6 : 0;
+      
+      // Custom label renderer for outside labels
+      const renderCustomLabel = ({ cx, cy, midAngle, outerRadius, name, value, percent }: any) => {
+        const RADIAN = Math.PI / 180;
+        const radius = outerRadius + 25;
+        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+        const textAnchor = x > cx ? 'start' : 'end';
+        
+        // Only show label if slice is big enough (>5%)
+        if (percent < 0.05) return null;
+        
+        return (
+          <text
+            x={x}
+            y={y}
+            textAnchor={textAnchor}
+            dominantBaseline="central"
+            className="fill-foreground"
+            style={{ fontSize: '11px', fontWeight: 500 }}
+          >
+            {name.length > 12 ? `${name.slice(0, 12)}...` : name}
+            <tspan x={x} dy="14" style={{ fontSize: '10px', fontWeight: 400 }} className="fill-muted-foreground">
+              {value} ({(percent * 100).toFixed(0)}%)
+            </tspan>
+          </text>
+        );
+      };
+
       return (
         <ResponsiveContainer width="100%" height={chartHeight}>
-          <PieChart margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+          <PieChart margin={{ top: 30, right: 80, left: 80, bottom: 30 }}>
             <Pie
               data={chartData}
               dataKey={dataKeys[0] || 'value'}
               nameKey="name"
               cx="50%"
               cy="50%"
-              outerRadius={chartType === 'donut' ? 80 : 100}
-              innerRadius={chartType === 'donut' ? 50 : 0}
+              outerRadius={outerR}
+              innerRadius={innerR}
               paddingAngle={2}
-              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-              labelLine={{ stroke: '#666', strokeWidth: 1 }}
+              label={renderCustomLabel}
+              labelLine={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1, strokeOpacity: 0.5 }}
             >
               {chartData.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
@@ -415,10 +446,11 @@ export function CrossReferenceEmbeddedChart({
             </Pie>
             <Tooltip content={<CustomTooltip />} />
             <Legend 
-              layout="vertical" 
-              align="right" 
-              verticalAlign="middle"
-              wrapperStyle={{ fontSize: '12px', paddingLeft: '15px' }}
+              layout="horizontal" 
+              align="center" 
+              verticalAlign="bottom"
+              wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+              formatter={(value) => <span className="text-foreground">{value}</span>}
             />
           </PieChart>
         </ResponsiveContainer>
