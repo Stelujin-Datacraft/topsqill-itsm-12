@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
+import { BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { Loader2, BarChart3 } from 'lucide-react';
 import { useCrossReferenceData } from '@/hooks/useCrossReferenceData';
 import { EmbeddedChartConfig } from '@/types/reports';
@@ -98,10 +98,27 @@ export function CrossReferenceEmbeddedChart({
     return { xLabel: '', yLabel: 'Value' };
   }, [config, targetFormFields]);
 
+  // Get field options for color lookup
+  const getFieldOptions = (fieldId: string) => {
+    const field = targetFormFields.find(f => f.id === fieldId);
+    if (field?.options && Array.isArray(field.options)) {
+      const optionsMap = new Map<string, { label: string; color?: string }>();
+      field.options.forEach((opt: any) => {
+        const optValue = opt.value || opt.label || '';
+        optionsMap.set(optValue, {
+          label: opt.label || opt.value || optValue,
+          color: opt.color
+        });
+      });
+      return optionsMap;
+    }
+    return null;
+  };
+
   // Process data based on mode
-  const { chartData, dataKeys, isMultiSeries, recordsMap } = useMemo(() => {
+  const { chartData, dataKeys, isMultiSeries, recordsMap, legendMapping, legendFieldName, isEncodedMode } = useMemo(() => {
     if (!records || records.length === 0) {
-      return { chartData: [], dataKeys: ['value'], isMultiSeries: false, recordsMap: {} };
+      return { chartData: [], dataKeys: ['value'], isMultiSeries: false, recordsMap: {}, legendMapping: [], legendFieldName: '', isEncodedMode: false };
     }
 
     const rMap: Record<string, any[]> = {};
@@ -113,17 +130,23 @@ export function CrossReferenceEmbeddedChart({
           chartData: [{ name: 'Total Records', value: records.length, _records: records }],
           dataKeys: ['value'],
           isMultiSeries: false,
-          recordsMap: { 'Total Records': records }
+          recordsMap: { 'Total Records': records },
+          legendMapping: [],
+          legendFieldName: '',
+          isEncodedMode: false
         };
       }
 
-      const groups: Record<string, { count: number; stacks: Record<string, number>; records: any[] }> = {};
+      const fieldOptions = getFieldOptions(groupByField);
+      const groups: Record<string, { count: number; stacks: Record<string, number>; records: any[]; color?: string }> = {};
       
       records.forEach(record => {
-        const groupValue = formatDisplayValue(getFieldValue(record, groupByField));
+        const rawValue = getFieldValue(record, groupByField);
+        const groupValue = formatDisplayValue(rawValue);
+        const optionInfo = fieldOptions?.get(groupValue);
         
         if (!groups[groupValue]) {
-          groups[groupValue] = { count: 0, stacks: {}, records: [] };
+          groups[groupValue] = { count: 0, stacks: {}, records: [], color: optionInfo?.color };
         }
         groups[groupValue].count++;
         groups[groupValue].records.push(record);
@@ -138,13 +161,28 @@ export function CrossReferenceEmbeddedChart({
         rMap[key] = val.records;
       });
 
+      // Create legend mapping with codes
+      const sortedGroups = Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
+      const legendMap = sortedGroups.map(([label, data], index) => ({
+        code: index + 1,
+        label,
+        color: data.color
+      }));
+
       if (config.stackByFieldId) {
+        const stackFieldOptions = getFieldOptions(config.stackByFieldId);
         const allStackValues = new Set<string>();
         Object.values(groups).forEach(g => {
           Object.keys(g.stacks).forEach(k => allStackValues.add(k));
         });
         
-        const stackKeysArr = Array.from(allStackValues);
+        const stackKeysArr = Array.from(allStackValues).sort();
+        const stackLegendMap = stackKeysArr.map((label, index) => ({
+          code: index + 1,
+          label,
+          color: stackFieldOptions?.get(label)?.color
+        }));
+
         const data = Object.entries(groups).map(([name, d]) => {
           const entry: Record<string, any> = { name, _records: d.records };
           stackKeysArr.forEach(sv => {
@@ -153,14 +191,31 @@ export function CrossReferenceEmbeddedChart({
           return entry;
         });
 
-        return { chartData: data, dataKeys: stackKeysArr, isMultiSeries: true, recordsMap: rMap };
+        return { 
+          chartData: data, 
+          dataKeys: stackKeysArr, 
+          isMultiSeries: true, 
+          recordsMap: rMap,
+          legendMapping: stackLegendMap,
+          legendFieldName: getFieldLabel(config.stackByFieldId),
+          isEncodedMode: true
+        };
       }
 
       return {
-        chartData: Object.entries(groups).map(([name, d]) => ({ name, value: d.count, _records: d.records })),
+        chartData: sortedGroups.map(([name, d], index) => ({ 
+          name, 
+          value: d.count, 
+          _records: d.records,
+          _code: index + 1,
+          _color: d.color
+        })),
         dataKeys: ['value'],
         isMultiSeries: false,
-        recordsMap: rMap
+        recordsMap: rMap,
+        legendMapping: legendMap,
+        legendFieldName: getFieldLabel(groupByField),
+        isEncodedMode: true
       };
     }
 
@@ -170,7 +225,7 @@ export function CrossReferenceEmbeddedChart({
       const aggregationType = config.aggregationType || 'sum';
 
       if (!metricField) {
-        return { chartData: [], dataKeys: ['value'], isMultiSeries: false, recordsMap: {} };
+        return { chartData: [], dataKeys: ['value'], isMultiSeries: false, recordsMap: {}, legendMapping: [], legendFieldName: '', isEncodedMode: false };
       }
 
       const aggregate = (values: number[]): number => {
@@ -194,16 +249,21 @@ export function CrossReferenceEmbeddedChart({
           chartData: [{ name: getFieldLabel(metricField), value: Math.round(aggregate(values) * 100) / 100, _records: records }],
           dataKeys: ['value'],
           isMultiSeries: false,
-          recordsMap: { [getFieldLabel(metricField)]: records }
+          recordsMap: { [getFieldLabel(metricField)]: records },
+          legendMapping: [],
+          legendFieldName: '',
+          isEncodedMode: false
         };
       }
 
-      const groups: Record<string, { values: number[]; records: any[] }> = {};
+      const fieldOptions = getFieldOptions(groupByField);
+      const groups: Record<string, { values: number[]; records: any[]; color?: string }> = {};
       records.forEach(record => {
         const groupValue = formatDisplayValue(getFieldValue(record, groupByField));
+        const optionInfo = fieldOptions?.get(groupValue);
         const numVal = extractNumericValue(getFieldValue(record, metricField));
         if (!isNaN(numVal)) {
-          if (!groups[groupValue]) groups[groupValue] = { values: [], records: [] };
+          if (!groups[groupValue]) groups[groupValue] = { values: [], records: [], color: optionInfo?.color };
           groups[groupValue].values.push(numVal);
           groups[groupValue].records.push(record);
         }
@@ -213,15 +273,27 @@ export function CrossReferenceEmbeddedChart({
         rMap[key] = val.records;
       });
 
+      const sortedGroups = Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
+      const legendMap = sortedGroups.map(([label, data], index) => ({
+        code: index + 1,
+        label,
+        color: data.color
+      }));
+
       return {
-        chartData: Object.entries(groups).map(([name, d]) => ({
+        chartData: sortedGroups.map(([name, d], index) => ({
           name,
           value: Math.round(aggregate(d.values) * 100) / 100,
-          _records: d.records
+          _records: d.records,
+          _code: index + 1,
+          _color: d.color
         })),
         dataKeys: ['value'],
         isMultiSeries: false,
-        recordsMap: rMap
+        recordsMap: rMap,
+        legendMapping: legendMap,
+        legendFieldName: getFieldLabel(groupByField),
+        isEncodedMode: true
       };
     }
 
@@ -230,26 +302,28 @@ export function CrossReferenceEmbeddedChart({
       const yFieldId = config.compareYFieldId;
 
       if (!xFieldId || !yFieldId) {
-        return { chartData: [], dataKeys: ['value'], isMultiSeries: false, recordsMap: {} };
+        return { chartData: [], dataKeys: ['value'], isMultiSeries: false, recordsMap: {}, legendMapping: [], legendFieldName: '', isEncodedMode: false };
       }
 
       const xFieldType = getFieldType(xFieldId);
       const yFieldType = getFieldType(yFieldId);
-      const isXNumeric = NUMERIC_FIELD_TYPES.includes(xFieldType);
       const isYNumeric = NUMERIC_FIELD_TYPES.includes(yFieldType);
       
       const xLabel = getFieldLabel(xFieldId);
       const yLabel = getFieldLabel(yFieldId);
+      const xFieldOptions = getFieldOptions(xFieldId);
+      const yFieldOptions = getFieldOptions(yFieldId);
 
       if (isYNumeric) {
         // Y is numeric - X values on x-axis, Y values as bars
-        const groups: Record<string, { values: number[]; records: any[] }> = {};
+        const groups: Record<string, { values: number[]; records: any[]; color?: string }> = {};
         
         records.forEach(record => {
           const xVal = formatDisplayValue(getFieldValue(record, xFieldId));
           const yVal = extractNumericValue(getFieldValue(record, yFieldId));
+          const optionInfo = xFieldOptions?.get(xVal);
           
-          if (!groups[xVal]) groups[xVal] = { values: [], records: [] };
+          if (!groups[xVal]) groups[xVal] = { values: [], records: [], color: optionInfo?.color };
           groups[xVal].values.push(yVal);
           groups[xVal].records.push(record);
         });
@@ -258,16 +332,33 @@ export function CrossReferenceEmbeddedChart({
           rMap[key] = val.records;
         });
 
-        const data = Object.entries(groups).map(([name, d]) => ({
-          name, // X field actual value
-          [yLabel]: d.values.length === 1 ? d.values[0] : Math.round((d.values.reduce((a, b) => a + b, 0)) * 100) / 100,
-          _records: d.records
+        const sortedGroups = Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
+        const legendMap = sortedGroups.map(([label, data], index) => ({
+          code: index + 1,
+          label,
+          color: data.color
         }));
 
-        return { chartData: data, dataKeys: [yLabel], isMultiSeries: false, recordsMap: rMap };
+        const data = sortedGroups.map(([name, d], index) => ({
+          name,
+          [yLabel]: d.values.length === 1 ? d.values[0] : Math.round((d.values.reduce((a, b) => a + b, 0)) * 100) / 100,
+          _records: d.records,
+          _code: index + 1,
+          _color: d.color
+        }));
+
+        return { 
+          chartData: data, 
+          dataKeys: [yLabel], 
+          isMultiSeries: false, 
+          recordsMap: rMap,
+          legendMapping: legendMap,
+          legendFieldName: xLabel,
+          isEncodedMode: true
+        };
       }
 
-      // Y is text - show as legend with stacked bars
+      // Y is text - encode Y values as numeric codes
       const groups: Record<string, Record<string, { count: number; records: any[] }>> = {};
       const allYValues = new Set<string>();
 
@@ -282,7 +373,18 @@ export function CrossReferenceEmbeddedChart({
         groups[xVal][yVal].records.push(record);
       });
 
-      const yValuesArr = Array.from(allYValues);
+      // Sort Y values and create encoding map
+      const yValuesArr = Array.from(allYValues).sort();
+      const encodingMap: Record<string, number> = {};
+      const legendMap = yValuesArr.map((label, index) => {
+        const code = index + 1;
+        encodingMap[label] = code;
+        return {
+          code,
+          label,
+          color: yFieldOptions?.get(label)?.color
+        };
+      });
       
       Object.entries(groups).forEach(([xKey, yGroups]) => {
         const allRecords: any[] = [];
@@ -290,21 +392,39 @@ export function CrossReferenceEmbeddedChart({
         rMap[xKey] = allRecords;
       });
 
+      // Create encoded data - bars show the encoded number
       const data = Object.entries(groups).map(([xValue, yValues]) => {
-        const entry: Record<string, any> = { name: xValue }; // X field actual value
         const allRecords: any[] = [];
-        yValuesArr.forEach(yVal => {
-          entry[yVal] = yValues[yVal]?.count || 0;
-          if (yValues[yVal]?.records) allRecords.push(...yValues[yVal].records);
-        });
-        entry._records = allRecords;
-        return entry;
+        Object.values(yValues).forEach(g => allRecords.push(...g.records));
+        
+        // For text Y-axis, show the encoded value (first Y value's code for this X)
+        const yValKeys = Object.keys(yValues);
+        const primaryYVal = yValKeys.length > 0 ? yValKeys[0] : '';
+        const encodedValue = encodingMap[primaryYVal] || 0;
+        const yOptColor = yFieldOptions?.get(primaryYVal)?.color;
+        
+        return {
+          name: xValue,
+          value: encodedValue,
+          _rawYValue: primaryYVal,
+          _records: allRecords,
+          _code: encodedValue,
+          _color: yOptColor
+        };
       });
 
-      return { chartData: data, dataKeys: yValuesArr, isMultiSeries: true, recordsMap: rMap };
+      return { 
+        chartData: data, 
+        dataKeys: ['value'], 
+        isMultiSeries: false, 
+        recordsMap: rMap,
+        legendMapping: legendMap,
+        legendFieldName: yLabel,
+        isEncodedMode: true
+      };
     }
 
-    return { chartData: [], dataKeys: ['value'], isMultiSeries: false, recordsMap: {} };
+    return { chartData: [], dataKeys: ['value'], isMultiSeries: false, recordsMap: {}, legendMapping: [], legendFieldName: '', isEncodedMode: false };
   }, [records, config, targetFormFields]);
 
   const colors = COLOR_THEMES[config.colorTheme || 'default'] || COLOR_THEMES.default;
@@ -354,12 +474,13 @@ export function CrossReferenceEmbeddedChart({
     );
   }
 
-  // Custom tooltip component
+  // Custom tooltip component with decoded value display
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload || !payload.length) return null;
 
     const dataPoint = chartData.find(d => d.name === label);
     const recordCount = dataPoint?._records?.length || 0;
+    const rawYValue = (dataPoint as any)?._rawYValue;
 
     return (
       <div className="bg-popover border border-border rounded-lg shadow-lg p-3 text-sm max-w-xs">
@@ -375,7 +496,9 @@ export function CrossReferenceEmbeddedChart({
                 style={{ backgroundColor: entry.color }}
               />
               <span className="text-muted-foreground">{entry.name}:</span>
-              <span className="font-medium text-foreground">{entry.value}</span>
+              <span className="font-medium text-foreground">
+                {rawYValue ? `${entry.value} (${rawYValue})` : entry.value}
+              </span>
             </div>
           ))}
         </div>
@@ -386,48 +509,58 @@ export function CrossReferenceEmbeddedChart({
     );
   };
 
-  // Custom legend renderer for single-series charts with field name header
-  const renderCustomLegend = (props: any) => {
-    const { payload } = props;
-    
-    // For single-series charts, show each category with its color
-    if (!isMultiSeries && chartData.length > 0) {
-      const fieldLabel = axisLabels.xLabel || 'Category';
+  // Custom legend renderer with code-to-value mapping
+  const renderCustomLegend = () => {
+    // Show encoded legend with code -> value mapping
+    if (isEncodedMode && legendMapping.length > 0) {
       return (
-        <div className="flex flex-col gap-1.5 text-xs max-h-[200px] overflow-y-auto pl-4">
-          <div className="font-semibold text-foreground mb-1 border-b pb-1">{fieldLabel}</div>
-          {chartData.map((entry, index) => (
-            <div key={`legend-${index}`} className="flex items-center gap-2">
-              <div 
-                className="w-3 h-3 rounded-sm flex-shrink-0" 
-                style={{ backgroundColor: colors[index % colors.length] }}
-              />
-              <span className="text-muted-foreground truncate" title={entry.name}>
-                {entry.name.length > 20 ? `${entry.name.slice(0, 20)}...` : entry.name}
-              </span>
-            </div>
-          ))}
+        <div className="w-44 shrink-0 border-l border-border pl-4">
+          <div className="text-sm font-semibold mb-3 text-foreground">{legendFieldName} Legend</div>
+          <div className="space-y-2 max-h-[250px] overflow-y-auto">
+            {legendMapping.map(({ code, label, color }) => (
+              <div key={code} className="flex items-center gap-2 text-sm">
+                {/* Show color dot if option has a color, otherwise show number */}
+                {color ? (
+                  <div 
+                    className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 border border-border"
+                    style={{ backgroundColor: color }}
+                    title={`Color: ${color}`}
+                  />
+                ) : (
+                  <div 
+                    className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold bg-muted text-foreground border border-border shrink-0"
+                  >
+                    {code}
+                  </div>
+                )}
+                <span className="text-foreground truncate" title={label}>
+                  {label.length > 15 ? `${label.slice(0, 15)}...` : label}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       );
     }
     
-    // For multi-series, show each series with proper label
-    if (isMultiSeries && payload && payload.length > 0) {
-      const fieldLabel = config.stackByFieldId ? getFieldLabel(config.stackByFieldId) : 'Series';
+    // Fallback for multi-series without encoding
+    if (isMultiSeries && legendMapping.length > 0) {
       return (
-        <div className="flex flex-col gap-1.5 text-xs max-h-[200px] overflow-y-auto pl-4">
-          <div className="font-semibold text-foreground mb-1 border-b pb-1">{fieldLabel}</div>
-          {payload.map((entry: any, index: number) => (
-            <div key={`legend-${index}`} className="flex items-center gap-2">
-              <div 
-                className="w-3 h-3 rounded-sm flex-shrink-0" 
-                style={{ backgroundColor: entry.color }}
-              />
-              <span className="text-muted-foreground truncate" title={entry.value}>
-                {entry.value.length > 20 ? `${entry.value.slice(0, 20)}...` : entry.value}
-              </span>
-            </div>
-          ))}
+        <div className="w-44 shrink-0 border-l border-border pl-4">
+          <div className="text-sm font-semibold mb-3 text-foreground">{legendFieldName}</div>
+          <div className="space-y-2 max-h-[250px] overflow-y-auto">
+            {legendMapping.map(({ code, label, color }, index) => (
+              <div key={code} className="flex items-center gap-2 text-sm">
+                <div 
+                  className="w-4 h-4 rounded-sm shrink-0" 
+                  style={{ backgroundColor: color || colors[index % colors.length] }}
+                />
+                <span className="text-foreground truncate" title={label}>
+                  {label.length > 15 ? `${label.slice(0, 15)}...` : label}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       );
     }
@@ -437,15 +570,21 @@ export function CrossReferenceEmbeddedChart({
 
   const renderChart = () => {
     const chartType = config.chartType || 'bar';
-    const showLegend = chartData.length > 1;  // Show legend when there are multiple data points
+    const showLegend = isEncodedMode && legendMapping.length > 0;
     const barCount = chartData.length;
 
-    // Margins with axis labels
+    // Margins with axis labels - reduced right margin since legend is now external
     const margins = { 
       top: 20, 
-      right: showLegend ? 180 : 20, 
+      right: 20, 
       left: 60, 
       bottom: 60
+    };
+
+    // Get bar color - prefer option color, then use theme color
+    const getBarColor = (entry: any, index: number) => {
+      if (entry._color) return entry._color;
+      return colors[index % colors.length];
     };
 
     if (chartType === 'pie' || chartType === 'donut') {
@@ -481,173 +620,163 @@ export function CrossReferenceEmbeddedChart({
       };
 
       return (
-        <ResponsiveContainer width="100%" height={chartHeight}>
-          <PieChart margin={{ top: 30, right: 80, left: 80, bottom: 30 }}>
-            <Pie
-              data={chartData}
-              dataKey={dataKeys[0] || 'value'}
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              outerRadius={outerR}
-              innerRadius={innerR}
-              paddingAngle={2}
-              label={renderCustomLabel}
-              labelLine={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1, strokeOpacity: 0.5 }}
-            >
-              {chartData.map((_, index) => (
-                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-              ))}
-            </Pie>
-            <Tooltip content={<CustomTooltip />} />
-            <Legend 
-              layout="vertical" 
-              align="right" 
-              verticalAlign="middle"
-              content={renderCustomLegend}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+        <div className="flex h-full">
+          <div className="flex-1 min-w-0">
+            <ResponsiveContainer width="100%" height={chartHeight}>
+              <PieChart margin={{ top: 30, right: 30, left: 30, bottom: 30 }}>
+                <Pie
+                  data={chartData}
+                  dataKey={dataKeys[0] || 'value'}
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={outerR}
+                  innerRadius={innerR}
+                  paddingAngle={2}
+                  label={renderCustomLabel}
+                  labelLine={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1, strokeOpacity: 0.5 }}
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={getBarColor(entry, index)} />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          {showLegend && renderCustomLegend()}
+        </div>
       );
     }
 
     if (chartType === 'line') {
       return (
-        <ResponsiveContainer width="100%" height={chartHeight}>
-          <LineChart data={chartData} margin={margins}>
-            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-            <XAxis 
-              dataKey="name" 
-              tick={{ fontSize: 11 }}
-              tickLine={false}
-              axisLine={{ stroke: '#ccc' }}
-              label={{ value: axisLabels.xLabel, position: 'bottom', offset: 40, fontSize: 12, fontWeight: 500 }}
-            />
-            <YAxis 
-              tick={{ fontSize: 11 }}
-              tickLine={false}
-              axisLine={{ stroke: '#ccc' }}
-              label={{ value: axisLabels.yLabel, angle: -90, position: 'insideLeft', offset: -5, fontSize: 12, fontWeight: 500 }}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            {showLegend && (
-              <Legend 
-                layout="vertical" 
-                align="right" 
-                verticalAlign="middle"
-                content={renderCustomLegend}
-              />
-            )}
-            {dataKeys.map((key, index) => (
-              <Line
-                key={key}
-                type="monotone"
-                dataKey={key}
-                stroke={colors[index % colors.length]}
-                strokeWidth={2}
-                dot={{ r: 5, fill: colors[index % colors.length] }}
-                activeDot={{ r: 7 }}
-                name={key}
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
+        <div className="flex h-full">
+          <div className="flex-1 min-w-0">
+            <ResponsiveContainer width="100%" height={chartHeight}>
+              <LineChart data={chartData} margin={margins}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={{ stroke: '#ccc' }}
+                  label={{ value: axisLabels.xLabel, position: 'bottom', offset: 40, fontSize: 12, fontWeight: 500 }}
+                />
+                <YAxis 
+                  tick={{ fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={{ stroke: '#ccc' }}
+                  label={{ value: axisLabels.yLabel, angle: -90, position: 'insideLeft', offset: -5, fontSize: 12, fontWeight: 500 }}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                {dataKeys.map((key, index) => (
+                  <Line
+                    key={key}
+                    type="monotone"
+                    dataKey={key}
+                    stroke={colors[index % colors.length]}
+                    strokeWidth={2}
+                    dot={{ r: 5, fill: colors[index % colors.length] }}
+                    activeDot={{ r: 7 }}
+                    name={key}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          {showLegend && renderCustomLegend()}
+        </div>
       );
     }
 
     if (chartType === 'area') {
       return (
-        <ResponsiveContainer width="100%" height={chartHeight}>
-          <AreaChart data={chartData} margin={margins}>
-            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-            <XAxis 
-              dataKey="name" 
-              tick={{ fontSize: 11 }}
-              tickLine={false}
-              axisLine={{ stroke: '#ccc' }}
-              label={{ value: axisLabels.xLabel, position: 'bottom', offset: 40, fontSize: 12, fontWeight: 500 }}
-            />
-            <YAxis 
-              tick={{ fontSize: 11 }}
-              tickLine={false}
-              axisLine={{ stroke: '#ccc' }}
-              label={{ value: axisLabels.yLabel, angle: -90, position: 'insideLeft', offset: -5, fontSize: 12, fontWeight: 500 }}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            {showLegend && (
-              <Legend 
-                layout="vertical" 
-                align="right" 
-                verticalAlign="middle"
-                content={renderCustomLegend}
-              />
-            )}
-            {dataKeys.map((key, index) => (
-              <Area
-                key={key}
-                type="monotone"
-                dataKey={key}
-                fill={colors[index % colors.length]}
-                stroke={colors[index % colors.length]}
-                fillOpacity={0.6}
-                name={key}
-              />
-            ))}
-          </AreaChart>
-        </ResponsiveContainer>
+        <div className="flex h-full">
+          <div className="flex-1 min-w-0">
+            <ResponsiveContainer width="100%" height={chartHeight}>
+              <AreaChart data={chartData} margin={margins}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={{ stroke: '#ccc' }}
+                  label={{ value: axisLabels.xLabel, position: 'bottom', offset: 40, fontSize: 12, fontWeight: 500 }}
+                />
+                <YAxis 
+                  tick={{ fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={{ stroke: '#ccc' }}
+                  label={{ value: axisLabels.yLabel, angle: -90, position: 'insideLeft', offset: -5, fontSize: 12, fontWeight: 500 }}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                {dataKeys.map((key, index) => (
+                  <Area
+                    key={key}
+                    type="monotone"
+                    dataKey={key}
+                    fill={colors[index % colors.length]}
+                    stroke={colors[index % colors.length]}
+                    fillOpacity={0.6}
+                    name={key}
+                  />
+                ))}
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+          {showLegend && renderCustomLegend()}
+        </div>
       );
     }
 
-    // Default: Bar chart - full width, broad bars
+    // Default: Bar chart - with sidebar legend
     return (
-      <ResponsiveContainer width="100%" height={chartHeight}>
-        <BarChart 
-          data={chartData} 
-          margin={margins} 
-          barCategoryGap={barCount <= 3 ? '30%' : '15%'}
-        >
-          <CartesianGrid strokeDasharray="3 3" opacity={0.3} vertical={false} />
-          <XAxis 
-            dataKey="name" 
-            tick={{ fontSize: 11 }}
-            tickLine={false}
-            axisLine={{ stroke: '#ccc' }}
-            label={{ value: axisLabels.xLabel, position: 'bottom', offset: 40, fontSize: 12, fontWeight: 500 }}
-          />
-          <YAxis 
-            tick={{ fontSize: 11 }}
-            tickLine={false}
-            axisLine={{ stroke: '#ccc' }}
-            label={{ value: axisLabels.yLabel, angle: -90, position: 'insideLeft', offset: -5, fontSize: 12, fontWeight: 500 }}
-          />
-          <Tooltip content={<CustomTooltip />} />
-          {showLegend && (
-            <Legend 
-              layout="vertical" 
-              align="right" 
-              verticalAlign="middle"
-              content={renderCustomLegend}
-            />
-          )}
-          {dataKeys.map((key, index) => (
-            <Bar
-              key={key}
-              dataKey={key}
-              fill={colors[index % colors.length]}
-              radius={[4, 4, 0, 0]}
-              name={key}
+      <div className="flex h-full">
+        <div className="flex-1 min-w-0">
+          <ResponsiveContainer width="100%" height={chartHeight}>
+            <BarChart 
+              data={chartData} 
+              margin={margins} 
+              barCategoryGap={barCount <= 3 ? '30%' : '15%'}
             >
-              {/* Apply individual colors to each bar for single-series charts */}
-              {!isMultiSeries && chartData.map((entry, entryIndex) => (
-                <Cell 
-                  key={`cell-${entryIndex}`} 
-                  fill={colors[entryIndex % colors.length]} 
-                />
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} vertical={false} />
+              <XAxis 
+                dataKey="name" 
+                tick={{ fontSize: 11 }}
+                tickLine={false}
+                axisLine={{ stroke: '#ccc' }}
+                label={{ value: axisLabels.xLabel, position: 'bottom', offset: 40, fontSize: 12, fontWeight: 500 }}
+              />
+              <YAxis 
+                tick={{ fontSize: 11 }}
+                tickLine={false}
+                axisLine={{ stroke: '#ccc' }}
+                label={{ value: axisLabels.yLabel, angle: -90, position: 'insideLeft', offset: -5, fontSize: 12, fontWeight: 500 }}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              {dataKeys.map((key, index) => (
+                <Bar
+                  key={key}
+                  dataKey={key}
+                  fill={colors[index % colors.length]}
+                  radius={[4, 4, 0, 0]}
+                  name={key}
+                >
+                  {/* Apply individual colors to each bar - prefer option color */}
+                  {!isMultiSeries && chartData.map((entry, entryIndex) => (
+                    <Cell 
+                      key={`cell-${entryIndex}`} 
+                      fill={getBarColor(entry, entryIndex)} 
+                    />
+                  ))}
+                </Bar>
               ))}
-            </Bar>
-          ))}
-        </BarChart>
-      </ResponsiveContainer>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        {showLegend && renderCustomLegend()}
+      </div>
     );
   };
 
