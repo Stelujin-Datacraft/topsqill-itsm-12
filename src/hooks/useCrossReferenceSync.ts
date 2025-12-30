@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { FormField, Form } from '@/types/form';
 import { useFormsData } from './useFormsData';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface CrossReferenceSyncOptions {
   parentFormId: string;
@@ -120,36 +121,55 @@ export function useCrossReferenceSync() {
     
     console.log('Removing child cross-reference field:', options);
     
-    const targetForm = forms.find(f => f.id === targetFormId);
-    if (!targetForm) {
-      console.error('Target form not found:', targetFormId);
+    // Fetch directly from database to get fresh data instead of relying on cached forms
+    const { data: childFields, error: fetchError } = await supabase
+      .from('form_fields')
+      .select('id, custom_config')
+      .eq('form_id', targetFormId)
+      .eq('field_type', 'child-cross-reference');
+    
+    if (fetchError) {
+      console.error('Error fetching child fields from database:', fetchError);
       return;
     }
 
-    // Find existing child field
-    const existingChildField = targetForm.fields.find(
-      field => field.type === 'child-cross-reference' && 
-               field.customConfig?.parentFormId === parentFormId &&
-               field.customConfig?.parentFieldId === parentFieldId
-    );
+    // Find the child field that matches our parent
+    const existingChildField = childFields?.find(field => {
+      const config = typeof field.custom_config === 'string' 
+        ? JSON.parse(field.custom_config) 
+        : field.custom_config;
+      return config?.parentFormId === parentFormId && config?.parentFieldId === parentFieldId;
+    });
 
     if (existingChildField) {
       try {
         console.log('Deleting child cross-reference field:', existingChildField.id);
         await deleteField(existingChildField.id);
         
-        // Update target form's pages to remove the field
-        if (targetForm.pages && targetForm.pages.length > 0) {
-          const updatedPages = targetForm.pages.map(page => ({
-            ...page,
-            fields: (page.fields || []).filter(fieldId => fieldId !== existingChildField.id)
-          }));
+        // Fetch target form's pages and update them
+        const { data: targetFormData } = await supabase
+          .from('forms')
+          .select('pages')
+          .eq('id', targetFormId)
+          .single();
+        
+        if (targetFormData?.pages) {
+          const pages = typeof targetFormData.pages === 'string' 
+            ? JSON.parse(targetFormData.pages) 
+            : targetFormData.pages;
           
-          try {
-            await updateForm(targetFormId, { pages: updatedPages });
-            console.log('Updated target form pages after field removal');
-          } catch (pageUpdateError) {
-            console.warn('Could not update pages, but field was removed:', pageUpdateError);
+          if (Array.isArray(pages) && pages.length > 0) {
+            const updatedPages = pages.map((page: any) => ({
+              ...page,
+              fields: (page.fields || []).filter((fieldId: string) => fieldId !== existingChildField.id)
+            }));
+            
+            try {
+              await updateForm(targetFormId, { pages: updatedPages });
+              console.log('Updated target form pages after field removal');
+            } catch (pageUpdateError) {
+              console.warn('Could not update pages, but field was removed:', pageUpdateError);
+            }
           }
         }
         
@@ -161,7 +181,7 @@ export function useCrossReferenceSync() {
     } else {
       console.log('Child cross-reference field not found for removal');
     }
-  }, [forms, deleteField, updateForm]);
+  }, [deleteField, updateForm]);
 
   const syncCrossReferenceField = useCallback(async (options: CrossReferenceSyncOptions) => {
     const { targetFormId, previousTargetFormId } = options;
