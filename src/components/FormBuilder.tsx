@@ -342,15 +342,22 @@ function FormBuilderContent({
       });
     }
 
-    // Handle cross-reference field sync when targetFormId changes
-    if (currentField?.type === 'cross-reference' && updates.customConfig?.targetFormId) {
+    // Handle cross-reference field sync ONLY when targetFormId actually changes
+    // Note: The sync is also triggered from CrossReferenceField.handleConfigSave
+    // To prevent duplicates, we only sync here if the target form actually changed
+    const previousTargetFormId = currentField?.customConfig?.targetFormId;
+    const newTargetFormId = updates.customConfig?.targetFormId;
+    
+    if (currentField?.type === 'cross-reference' && 
+        newTargetFormId && 
+        previousTargetFormId !== newTargetFormId) {
       try {
         await syncCrossReferenceField({
           parentFormId: snapshot.form.id,
           parentFieldId: fieldId,
           parentFormName: snapshot.form.name,
-          targetFormId: updates.customConfig.targetFormId,
-          previousTargetFormId: currentField.customConfig?.targetFormId
+          targetFormId: newTargetFormId,
+          previousTargetFormId: previousTargetFormId
         });
       } catch (error) {
         console.error('Error syncing cross-reference field:', error);
@@ -360,20 +367,6 @@ function FormBuilderContent({
           variant: "destructive"
         });
         return;
-      }
-    }
-
-    // Handle target form change - remove from old target and add to new target
-    if (currentField?.type === 'cross-reference' && currentField.customConfig?.targetFormId && updates.customConfig?.targetFormId && currentField.customConfig.targetFormId !== updates.customConfig.targetFormId) {
-      try {
-        // Remove from previous target form
-        await removeChildCrossReferenceField({
-          parentFormId: snapshot.form.id,
-          parentFieldId: fieldId,
-          targetFormId: currentField.customConfig.targetFormId
-        });
-      } catch (error) {
-        console.error('Error removing child cross-reference field from previous target:', error);
       }
     }
     toast({
