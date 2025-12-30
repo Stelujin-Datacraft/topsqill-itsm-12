@@ -470,11 +470,11 @@ export function ChartPreview({
       const drilldownState = crossRefConfig._drilldownState;
       const drilldownLevels = crossRefConfig.drilldownLevels || [];
       const drilldownValues = drilldownState?.values || [];
-      // currentLevel is derived from drilldownValues.length
-      // drilldownValues[0] = parentRefId, so actual field level = drilldownValues.length - 1
-      // When drilldownValues.length = 1, we show data grouped by drilldownLevels[0]
-      // When drilldownValues.length = 2, we show data grouped by drilldownLevels[1]
-      const currentFieldLevel = drilldownValues.length > 0 ? drilldownValues.length - 1 : 0;
+      // IMPORTANT: drilldownValues does NOT include parentRefId anymore
+      // drilldownValues[0] = level 0 field value, drilldownValues[1] = level 1 field value, etc.
+      // When drilldownValues.length = 0, we show data grouped by drilldownLevels[0]
+      // When drilldownValues.length = 1, we show data grouped by drilldownLevels[1]
+      const currentFieldLevel = drilldownValues.length;
       const currentDimensionField = drilldownLevels[currentFieldLevel];
       
       // Determine if drilldown is actively being used (has levels and at least started drilling)
@@ -776,26 +776,18 @@ export function ChartPreview({
         }
       });
 
-      // DRILLDOWN GROUPING: Only group by drilldown field AFTER user has clicked (drilldownValues.length > 0)
-      // At level 0 (initial view), show normal chart. Drilldown grouping starts at level 1+
+      // DRILLDOWN GROUPING: Show initial chart at level 0, then drill through levels
+      // drilldownValues now contains only field values (no parentRefId)
+      // drilldownValues[0] = level 0 value, drilldownValues[1] = level 1 value, etc.
       const hasStartedDrilling = drilldownValues.length > 0;
       
       // Apply drilldown filtering to allLinkedSubmissions
       let filteredLinkedSubmissions = [...allLinkedSubmissions];
-      if (hasStartedDrilling && drilldownValues.length > 0) {
-        // First drilldown value is ALWAYS the parentRefId (clicked bar's parent)
-        const selectedParentRefId = drilldownValues[0];
-        filteredLinkedSubmissions = filteredLinkedSubmissions.filter(sub => 
-          sub._parentRefId === selectedParentRefId
-        );
-        
-        console.log('📊 Cross-ref drilldown: Filtered by parentRefId', selectedParentRefId, 
-          '- remaining:', filteredLinkedSubmissions.length);
-        
-        // Subsequent drilldown values filter by actual field values
-        // drilldownValues[1] corresponds to drilldownLevels[0], drilldownValues[2] to drilldownLevels[1], etc.
-        for (let i = 1; i < drilldownValues.length; i++) {
-          const levelFieldId = drilldownLevels[i - 1]; // Offset by 1 because drilldownValues[0] is parentRefId
+      if (hasStartedDrilling) {
+        // Filter by each drilldown level's value
+        // drilldownValues[i] corresponds to drilldownLevels[i]
+        for (let i = 0; i < drilldownValues.length; i++) {
+          const levelFieldId = drilldownLevels[i];
           const expectedValue = drilldownValues[i];
           if (!levelFieldId || !expectedValue) continue;
           
@@ -828,10 +820,15 @@ export function ChartPreview({
         console.log('📊 Cross-ref drilldown: After deduplication:', filteredLinkedSubmissions.length);
       }
       
-      if (isDrilldownActive && currentDimensionField && hasStartedDrilling && currentFieldLevel < drilldownLevels.length) {
+      // For drilldown: Show level 0 data initially (before any click), then drill through levels
+      // currentFieldLevel = drilldownValues.length, so at start it's 0
+      if (isDrilldownActive && currentDimensionField && currentFieldLevel < drilldownLevels.length) {
+        // Use allLinkedSubmissions for initial view (level 0), use filteredLinkedSubmissions for drilldown levels
+        const submissionsToGroup = hasStartedDrilling ? filteredLinkedSubmissions : allLinkedSubmissions;
+        
         console.log('📊 Cross-ref drilldown: Grouping by level field', currentDimensionField, 'at level', currentFieldLevel);
-        console.log('📊 Cross-ref drilldown: filteredLinkedSubmissions count:', filteredLinkedSubmissions.length);
-        console.log('📊 Cross-ref drilldown: Sample submission data:', filteredLinkedSubmissions[0]?.submission_data);
+        console.log('📊 Cross-ref drilldown: submissionsToGroup count:', submissionsToGroup.length);
+        console.log('📊 Cross-ref drilldown: Sample submission data:', submissionsToGroup[0]?.submission_data);
         
         // Get field options for the current drilldown field
         const dimFieldOptions = targetFieldOptionsLookup.get(currentDimensionField);
@@ -845,7 +842,7 @@ export function ChartPreview({
           parentRefIds: string[];
         }> = {};
         
-        filteredLinkedSubmissions.forEach(sub => {
+        submissionsToGroup.forEach(sub => {
           let fieldVal = sub.submission_data?.[currentDimensionField];
           
           // Handle array/multi-select fields - each value gets its own group
@@ -923,7 +920,8 @@ export function ChartPreview({
       }
 
       // If grouped by dimension, aggregate across all parents - preserve IDs for drilldown
-      if (crossRefConfig.targetDimensionFieldId && result.length > 0) {
+      // SKIP aggregation for compare mode - compare mode returns individual linked records
+      if (crossRefConfig.targetDimensionFieldId && result.length > 0 && crossRefConfig.mode !== 'compare') {
         const aggregatedByDimension: Record<string, { 
           value: number; 
           count: number; 
@@ -2274,10 +2272,10 @@ export function ChartPreview({
         });
         
         // Calculate the next field level we would drill into
-        // valuesCount = 0: will add parentRefId, then show level 0 data → nextFieldIndex = 0
-        // valuesCount = 1: parentRefId exists, will add level 0 value, then show level 1 data → nextFieldIndex = 1
-        // valuesCount = N: will add level N-1 value, then show level N data → nextFieldIndex = N
-        const nextFieldIndex = valuesCount;
+        // valuesCount directly maps to the next level index since we don't store parentRefId
+        // valuesCount = 0: clicking on level 0 data, will add level 0 value, then show level 1 data → nextFieldIndex = 1
+        // valuesCount = 1: clicking on level 1 data, will add level 1 value, then show level 2 data → nextFieldIndex = 2
+        const nextFieldIndex = valuesCount + 1;
         
         console.log('📊 Cross-ref drilldown: nextFieldIndex calculation', {
           valuesCount,
@@ -2304,11 +2302,9 @@ export function ChartPreview({
         
         // Drill into the next level - use _drilldownValue if available (raw value for filtering)
         // Otherwise fall back to dimensionValue (display name)
-        // For initial click (valuesCount=0), we pass parentRefId; otherwise pass the field value
+        // Always pass the field value now (no parentRefId in values array)
         const nextLevel = drilldownLevels[nextFieldIndex];
-        const valueToPass = valuesCount === 0 
-          ? (payload?.parentRefId || dimensionValue) // First click passes parentRefId
-          : (payload?._drilldownValue || dimensionValue); // Subsequent clicks pass field value
+        const valueToPass = payload?._drilldownValue || dimensionValue;
         
         if (onDrilldown) {
           console.log('📊 Cross-ref drilldown: Drilling into field level', nextFieldIndex, 'with value', valueToPass);
@@ -2727,7 +2723,8 @@ export function ChartPreview({
     // For Calculate Values mode (single metric, no groupBy), treat as single-dimensional even if dimensionKeys > 1
     const isCalculateMode = !config.compareMode && config.metrics?.length === 1 && !config.groupByField;
     // Cross-reference drilldown should always be treated as single-dimensional
-    const isCrossRefDrilldown = config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownEnabled && drilldownState?.values?.length > 0;
+    // For level 0 (initial view), drilldownState.values is empty but drilldown is still active
+    const isCrossRefDrilldown = config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownEnabled && config.crossRefConfig?.drilldownLevels?.length > 0;
     const isMultiDimensional = !isCalculateMode && !isCrossRefDrilldown && ((config.dimensions && config.dimensions.length > 1) || (config.groupByField && dimensionKeys.length > 1) || dimensionKeys.length > 1);
 
     // For multi-dimensional charts, limit the number of series to avoid cluttered display
