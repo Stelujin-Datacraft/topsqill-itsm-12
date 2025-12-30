@@ -374,12 +374,30 @@ export function ReportEditor({
       const component = components.find(c => c.id === componentId);
       const config = component?.config as any;
       
+      // Debug logging to trace the issue
+      console.log('📊 handleDrilldown called:', {
+        componentId,
+        drilldownLevel,
+        drilldownValue,
+        foundComponent: !!component,
+        config: config ? 'exists' : 'null',
+        drilldownConfig: config?.drilldownConfig,
+        crossRefConfig: config?.crossRefConfig,
+        crossRefDrilldownLevels: config?.crossRefConfig?.drilldownLevels
+      });
+      
       // Support both drilldownConfig and crossRefConfig drilldown levels
       const drilldownLevels = config?.drilldownConfig?.drilldownLevels || 
                               config?.drilldownConfig?.levels || 
                               config?.crossRefConfig?.drilldownLevels || 
                               [];
-      if (drilldownLevels.length === 0) return prev;
+      
+      console.log('📊 Resolved drilldownLevels:', drilldownLevels, 'length:', drilldownLevels.length);
+      
+      if (drilldownLevels.length === 0) {
+        console.warn('📊 No drilldown levels found, returning prev state');
+        return prev;
+      }
 
       // Find the current level
       const currentLevel = currentState.values.length;
@@ -391,13 +409,18 @@ export function ReportEditor({
         // Remove any values beyond the current level
         newValues.splice(currentLevel + 1);
       }
-      return {
+      
+      const newState = {
         ...prev,
         [componentId]: {
           path: drilldownLevels.slice(0, newValues.length),
           values: newValues
         }
       };
+      
+      console.log('📊 Updated drilldownState:', newState[componentId]);
+      
+      return newState;
     });
   };
   const renderComponent = (component: ReportComponent) => {
