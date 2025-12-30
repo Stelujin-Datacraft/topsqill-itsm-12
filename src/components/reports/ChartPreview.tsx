@@ -527,27 +527,10 @@ export function ChartPreview({
           linkedSubmissions.push(...matches);
         });
         
-        // Apply drilldown filters to linked submissions if drilldown is active
-        if (isDrilldownActive && drilldownValues.length > 0) {
-          linkedSubmissions = linkedSubmissions.filter(sub => {
-            // Check each drilldown level's filter
-            for (let i = 0; i < drilldownValues.length; i++) {
-              const levelFieldId = drilldownLevels[i];
-              const expectedValue = drilldownValues[i];
-              if (!levelFieldId || !expectedValue) continue;
-              
-              const fieldValue = sub.submission_data?.[levelFieldId];
-              const normalizedFieldValue = typeof fieldValue === 'object' 
-                ? JSON.stringify(fieldValue) 
-                : String(fieldValue || '');
-              
-              if (normalizedFieldValue !== expectedValue) {
-                return false; // Filter out records that don't match
-              }
-            }
-            return true;
-          });
-        }
+        // NOTE: Drilldown filtering is NOT done here at the per-parent level
+        // The drilldown filtering is handled AFTER allLinkedSubmissions is populated,
+        // because the first drilldown click filters by parent (parentRefId), 
+        // and subsequent clicks filter by field values across ALL linked submissions
         
         // Add to all linked submissions for drilldown grouping
         allLinkedSubmissions.push(...linkedSubmissions.map(sub => ({
@@ -779,13 +762,45 @@ export function ChartPreview({
       // DRILLDOWN GROUPING: Only group by drilldown field AFTER user has clicked (drilldownValues.length > 0)
       // At level 0 (initial view), show normal chart. Drilldown grouping starts at level 1+
       const hasStartedDrilling = drilldownValues.length > 0;
+      
+      // Apply drilldown filtering to allLinkedSubmissions
+      let filteredLinkedSubmissions = [...allLinkedSubmissions];
+      if (hasStartedDrilling && drilldownValues.length > 0) {
+        // First drilldown value is ALWAYS the parentRefId (clicked bar's parent)
+        const selectedParentRefId = drilldownValues[0];
+        filteredLinkedSubmissions = filteredLinkedSubmissions.filter(sub => 
+          sub._parentRefId === selectedParentRefId
+        );
+        
+        console.log('📊 Cross-ref drilldown: Filtered by parentRefId', selectedParentRefId, 
+          '- remaining:', filteredLinkedSubmissions.length);
+        
+        // Subsequent drilldown values filter by actual field values
+        for (let i = 1; i < drilldownValues.length; i++) {
+          const levelFieldId = drilldownLevels[i]; // Note: drilldownLevels[0] is first field, but drilldownValues[0] is parentRefId
+          const expectedValue = drilldownValues[i];
+          if (!levelFieldId || !expectedValue) continue;
+          
+          filteredLinkedSubmissions = filteredLinkedSubmissions.filter(sub => {
+            const fieldValue = sub.submission_data?.[levelFieldId];
+            const normalizedFieldValue = typeof fieldValue === 'object' 
+              ? JSON.stringify(fieldValue) 
+              : String(fieldValue || '');
+            return normalizedFieldValue === expectedValue;
+          });
+          
+          console.log('📊 Cross-ref drilldown: Filtered by field', levelFieldId, '=', expectedValue,
+            '- remaining:', filteredLinkedSubmissions.length);
+        }
+      }
+      
       if (isDrilldownActive && currentDimensionField && hasStartedDrilling && currentLevel < drilldownLevels.length) {
         console.log('📊 Cross-ref drilldown: Grouping by level field', currentDimensionField, 'at level', currentLevel);
         
         // Get field options for the current drilldown field
         const dimFieldOptions = targetFieldOptionsLookup.get(currentDimensionField);
         
-        // Group all linked submissions by the current drilldown field
+        // Group FILTERED linked submissions by the current drilldown field
         const groupedByDrilldownField: Record<string, { 
           count: number;
           value: number;
@@ -794,7 +809,7 @@ export function ChartPreview({
           parentRefIds: string[];
         }> = {};
         
-        allLinkedSubmissions.forEach(sub => {
+        filteredLinkedSubmissions.forEach(sub => {
           const fieldVal = sub.submission_data?.[currentDimensionField] || 'Unknown';
           const key = typeof fieldVal === 'object' ? JSON.stringify(fieldVal) : String(fieldVal);
           
