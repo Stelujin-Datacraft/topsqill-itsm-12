@@ -1273,7 +1273,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
             {localConfig?.actionType === 'create_combination_records' && (
               <div className="space-y-4 border-t pt-4">
                 <div className="text-xs text-fuchsia-700 bg-fuchsia-50 p-3 rounded border border-fuchsia-200 mb-4">
-                  <strong>Create Combination Records</strong> creates new records for each item in a cross-reference field. For example: if Entities form has 2 linked Risk records, this creates 2 Control records linking each Entity-Risk pair.
+                  <strong>Create Combination Records</strong> creates records in a target form for each linked record in the trigger form's cross-reference field.
                 </div>
 
                 {!triggerFormId ? (
@@ -1282,17 +1282,20 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                   </div>
                 ) : (
                   <>
-                    <div>
-                      <Label>Source Cross-Reference Field *</Label>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        Select the cross-reference field containing linked records (e.g., Entities → Risk)
+                    {/* Step 1: Source Cross-Reference Field */}
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <span className="bg-fuchsia-600 text-white text-xs px-2 py-0.5 rounded">1</span>
+                        Source Cross-Reference Field *
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Select the cross-reference field in {triggerFormName || 'trigger form'} that contains linked records
                       </p>
                       <FormFieldSelector
                         formId={triggerFormId}
                         value={localConfig?.sourceCrossRefFieldId || ''}
                         onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
                           console.log('🔗 Cross-ref field selected:', { fieldId, fieldName, customConfig });
-                          console.log('🎯 Target form from custom_config:', customConfig?.targetFormId, customConfig?.targetFormName);
                           handleFullConfigUpdate({
                             ...localConfig,
                             sourceCrossRefFieldId: fieldId,
@@ -1304,12 +1307,21 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                         placeholder="Select cross-reference field"
                         filterTypes={['cross-reference']}
                       />
+                      {localConfig?.sourceLinkedFormId && (
+                        <p className="text-xs text-green-600">
+                          ✓ Linked form detected: {localConfig.sourceLinkedFormName}
+                        </p>
+                      )}
                     </div>
 
-                    <div>
-                      <Label>Target Form *</Label>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        The form where combination records will be created (e.g., Control form)
+                    {/* Step 2: Target Form */}
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <span className="bg-fuchsia-600 text-white text-xs px-2 py-0.5 rounded">2</span>
+                        Target Form *
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        The form where new records will be created
                       </p>
                       <FormSelector
                         value={localConfig?.targetFormId || ''}
@@ -1318,8 +1330,8 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                             ...localConfig, 
                             targetFormId: formId,
                             targetFormName: formName,
-                            targetTriggerCrossRefFieldId: undefined,
-                            targetLinkedCrossRefFieldId: undefined
+                            fieldMappings: [],
+                            linkedFormFieldMappings: []
                           });
                         }}
                         placeholder="Select target form"
@@ -1329,105 +1341,33 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
 
                     {localConfig?.targetFormId && (
                       <>
-                        <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded border border-blue-200">
-                          <strong>Optional:</strong> If your target form has cross-reference fields back to the trigger and linked forms, configure them below. If not, you can skip these and just use field mappings.
-                        </div>
-
-                        <div>
-                          <Label>Cross-Ref Field for Trigger Form (Optional)</Label>
-                          <p className="text-xs text-muted-foreground mb-2">
-                            Field in target form that links back to trigger form (e.g., Control → Risk)
-                          </p>
-                          <FormFieldSelector
-                            formId={localConfig.targetFormId}
-                            value={localConfig?.targetTriggerCrossRefFieldId || ''}
-                            onValueChange={(fieldId, fieldName) => {
-                              handleFullConfigUpdate({
-                                ...localConfig,
-                                targetTriggerCrossRefFieldId: fieldId,
-                                targetTriggerCrossRefFieldName: fieldName
-                              });
-                            }}
-                            placeholder="Select cross-reference field (optional)"
-                            filterTypes={['cross-reference', 'child-cross-reference']}
-                          />
-                        </div>
-
-                        <div>
-                          <Label>Cross-Ref Field for Linked Records (Optional)</Label>
-                          <p className="text-xs text-muted-foreground mb-2">
-                            Field in target form that links to the source linked form (e.g., Control → Entity)
-                          </p>
-                          <FormFieldSelector
-                            formId={localConfig.targetFormId}
-                            value={localConfig?.targetLinkedCrossRefFieldId || ''}
-                            onValueChange={(fieldId, fieldName) => {
-                              handleFullConfigUpdate({
-                                ...localConfig,
-                                targetLinkedCrossRefFieldId: fieldId,
-                                targetLinkedCrossRefFieldName: fieldName
-                              });
-                            }}
-                            placeholder="Select cross-reference field (optional)"
-                            filterTypes={['cross-reference', 'child-cross-reference']}
-                          />
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="preventDuplicates"
-                            checked={localConfig?.preventDuplicates ?? true}
-                            onCheckedChange={(checked) => handleConfigUpdate('preventDuplicates', checked)}
-                          />
-                          <Label htmlFor="preventDuplicates" className="text-sm font-normal">
-                            Prevent duplicate combinations
+                        {/* Step 3: Field Mappings - From Trigger Form */}
+                        <div className="space-y-2 border-t pt-4">
+                          <Label className="flex items-center gap-2">
+                            <span className="bg-fuchsia-600 text-white text-xs px-2 py-0.5 rounded">3</span>
+                            Map Fields from {triggerFormName || 'Trigger Form'} (Optional)
                           </Label>
-                        </div>
-
-                        <div>
-                          <Label>Auto-Link Created Records Back to Trigger (Optional)</Label>
-                          <p className="text-xs text-muted-foreground mb-2">
-                            Select a cross-reference field in the trigger form to auto-populate with created records (e.g., Risk → Control)
-                          </p>
-                          <FormFieldSelector
-                            formId={triggerFormId}
-                            value={localConfig?.updateTriggerCrossRefFieldId || ''}
-                            onValueChange={(fieldId, fieldName) => {
-                              handleFullConfigUpdate({
-                                ...localConfig,
-                                updateTriggerCrossRefFieldId: fieldId,
-                                updateTriggerCrossRefFieldName: fieldName
-                              });
-                            }}
-                            placeholder="Select cross-reference field (optional)"
-                            filterTypes={['cross-reference']}
-                          />
-                          {localConfig?.updateTriggerCrossRefFieldId && (
-                            <p className="text-xs text-green-600 mt-1">
-                              Created records will be auto-linked to "{localConfig.updateTriggerCrossRefFieldName}"
-                            </p>
-                          )}
-                        </div>
-
-                        <div>
-                          <Label>Map Fields from Trigger Form (Optional)</Label>
-                          <p className="text-xs text-muted-foreground mb-2">
-                            Map fields from the trigger form ({triggerFormName || 'Risk'}) to the new combination records
+                          <p className="text-xs text-muted-foreground">
+                            Copy values from the trigger form to the new records
                           </p>
                           <FieldMappingConfig
                             triggerFormId={triggerFormId}
                             targetFormId={localConfig.targetFormId}
                             fieldMappings={localConfig?.fieldMappings || []}
                             onFieldMappingsChange={(mappings) => handleConfigUpdate('fieldMappings', mappings)}
-                            sourceLabel={`From ${triggerFormName || 'Trigger Form'}`}
-                            targetLabel={`To ${localConfig.targetFormName || 'Target Form'}`}
+                            sourceLabel={`From ${triggerFormName || 'Trigger'}`}
+                            targetLabel={`To ${localConfig.targetFormName || 'Target'}`}
                           />
                         </div>
 
-                        <div>
-                          <Label>Map Fields from Linked Form (Optional)</Label>
-                          <p className="text-xs text-muted-foreground mb-2">
-                            Map fields from the linked form ({localConfig?.sourceLinkedFormName || 'select cross-ref field first'}) to the new combination records
+                        {/* Step 4: Field Mappings - From Linked Form */}
+                        <div className="space-y-2 border-t pt-4">
+                          <Label className="flex items-center gap-2">
+                            <span className="bg-fuchsia-600 text-white text-xs px-2 py-0.5 rounded">4</span>
+                            Map Fields from {localConfig?.sourceLinkedFormName || 'Linked Form'} (Optional)
+                          </Label>
+                          <p className="text-xs text-muted-foreground">
+                            Copy values from each linked record to the new records
                           </p>
                           {localConfig?.sourceLinkedFormId ? (
                             <FieldMappingConfig
@@ -1435,27 +1375,64 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                               targetFormId={localConfig.targetFormId}
                               fieldMappings={localConfig?.linkedFormFieldMappings || []}
                               onFieldMappingsChange={(mappings) => handleConfigUpdate('linkedFormFieldMappings', mappings)}
-                              sourceLabel={`From ${localConfig.sourceLinkedFormName || 'Linked Form'}`}
-                              targetLabel={`To ${localConfig.targetFormName || 'Target Form'}`}
+                              sourceLabel={`From ${localConfig.sourceLinkedFormName || 'Linked'}`}
+                              targetLabel={`To ${localConfig.targetFormName || 'Target'}`}
                             />
                           ) : (
                             <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
-                              Please select the Source Cross-Reference Field first to enable linked form field mapping.
+                              Select the Source Cross-Reference Field in Step 1 to enable mapping from linked records.
                             </p>
                           )}
                         </div>
+
+                        {/* Advanced Options - Collapsible */}
+                        <details className="border-t pt-4">
+                          <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+                            Advanced Options
+                          </summary>
+                          <div className="space-y-4 mt-4">
+                            <div className="flex items-center space-x-2">
+                              <Checkbox
+                                id="preventDuplicates"
+                                checked={localConfig?.preventDuplicates ?? true}
+                                onCheckedChange={(checked) => handleConfigUpdate('preventDuplicates', checked)}
+                              />
+                              <Label htmlFor="preventDuplicates" className="text-sm font-normal">
+                                Prevent duplicate combinations
+                              </Label>
+                            </div>
+
+                            <div>
+                              <Label>Auto-Link Back to Trigger Form (Optional)</Label>
+                              <p className="text-xs text-muted-foreground mb-2">
+                                Update a cross-reference field in {triggerFormName || 'trigger form'} with created records
+                              </p>
+                              <FormFieldSelector
+                                formId={triggerFormId}
+                                value={localConfig?.updateTriggerCrossRefFieldId || ''}
+                                onValueChange={(fieldId, fieldName) => {
+                                  handleFullConfigUpdate({
+                                    ...localConfig,
+                                    updateTriggerCrossRefFieldId: fieldId,
+                                    updateTriggerCrossRefFieldName: fieldName
+                                  });
+                                }}
+                                placeholder="Select cross-reference field (optional)"
+                                filterTypes={['cross-reference']}
+                              />
+                            </div>
+                          </div>
+                        </details>
                       </>
                     )}
 
+                    {/* Summary */}
                     {localConfig?.sourceCrossRefFieldId && localConfig?.targetFormId && (
                       <div className="text-xs text-fuchsia-700 bg-fuchsia-50 p-3 rounded border border-fuchsia-200">
-                        <strong>Summary:</strong> For each record linked via "{localConfig.sourceCrossRefFieldName}", will create a record in "{localConfig.targetFormName}".
-                        {localConfig.targetTriggerCrossRefFieldId && ` Links to trigger via "${localConfig.targetTriggerCrossRefFieldName}".`}
-                        {localConfig.targetLinkedCrossRefFieldId && ` Links to source via "${localConfig.targetLinkedCrossRefFieldName}".`}
-                        {localConfig.preventDuplicates && ' Duplicates will be skipped.'}
-                        {localConfig.updateTriggerCrossRefFieldId && ` Created records will be auto-linked back to "${localConfig.updateTriggerCrossRefFieldName}".`}
-                        {(localConfig.fieldMappings?.length || 0) > 0 && ` With ${localConfig.fieldMappings.length} trigger form field mapping(s).`}
-                        {(localConfig.linkedFormFieldMappings?.length || 0) > 0 && ` With ${localConfig.linkedFormFieldMappings.length} linked form field mapping(s).`}
+                        <strong>Summary:</strong> For each record in "{localConfig.sourceCrossRefFieldName}" ({localConfig.sourceLinkedFormName}), create a record in "{localConfig.targetFormName}".
+                        {(localConfig.fieldMappings?.length || 0) > 0 && ` Map ${localConfig.fieldMappings.length} field(s) from ${triggerFormName || 'trigger'}.`}
+                        {(localConfig.linkedFormFieldMappings?.length || 0) > 0 && ` Map ${localConfig.linkedFormFieldMappings.length} field(s) from ${localConfig.sourceLinkedFormName}.`}
+                        {localConfig.preventDuplicates && ' Skip duplicates.'}
                       </div>
                     )}
                   </>
