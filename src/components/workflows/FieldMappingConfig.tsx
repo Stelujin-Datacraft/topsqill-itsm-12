@@ -26,6 +26,8 @@ interface FieldMappingConfigProps {
   fieldMappings: FieldMapping[];
   onFieldMappingsChange: (mappings: FieldMapping[]) => void;
   showTypeCompatibility?: boolean;
+  sourceLabel?: string; // Custom label for source fields (default: "From Trigger Form")
+  targetLabel?: string; // Custom label for target fields (default: "To Target Form")
 }
 
 interface FormField {
@@ -39,7 +41,9 @@ export function FieldMappingConfig({
   targetFormId,
   fieldMappings,
   onFieldMappingsChange,
-  showTypeCompatibility = true
+  showTypeCompatibility = true,
+  sourceLabel = "From Trigger Form",
+  targetLabel = "To Target Form"
 }: FieldMappingConfigProps) {
   const [triggerFields, setTriggerFields] = useState<FormField[]>([]);
   const [targetFields, setTargetFields] = useState<FormField[]>([]);
@@ -169,7 +173,7 @@ export function FieldMappingConfig({
         return (
           <div key={index} className="flex items-center gap-2 p-2 bg-muted/30 rounded">
             <div className="flex-1">
-              <Label className="text-xs text-muted-foreground mb-1 block">From Trigger Form</Label>
+              <Label className="text-xs text-muted-foreground mb-1 block">{sourceLabel}</Label>
               <Select
                 value={mapping.sourceFieldId}
                 onValueChange={(value) => handleMappingChange(index, 'sourceFieldId', value)}
@@ -210,7 +214,7 @@ export function FieldMappingConfig({
             </div>
             
             <div className="flex-1">
-              <Label className="text-xs text-muted-foreground mb-1 block">To Target Form</Label>
+              <Label className="text-xs text-muted-foreground mb-1 block">{targetLabel}</Label>
               <Select
                 value={mapping.targetFieldId}
                 onValueChange={(value) => handleMappingChange(index, 'targetFieldId', value)}

@@ -34,6 +34,7 @@ interface NodeConfigPanelProps {
   workflowId?: string;
   projectId?: string;
   triggerFormId?: string;
+  triggerFormName?: string;
   formFields?: Array<{ id: string; label: string; type: string }>;
   onConfigChange: (config: any) => void;
   onDelete: () => void;
@@ -41,7 +42,7 @@ interface NodeConfigPanelProps {
   onSave: () => void;
 }
 
-export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, formFields = [], onConfigChange, onDelete, onClose, onSave }: NodeConfigPanelProps) {
+export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, triggerFormName, formFields = [], onConfigChange, onDelete, onClose, onSave }: NodeConfigPanelProps) {
   const { createTrigger, deleteTrigger, loading } = useTriggerManagement();
   const { users: organizationUsers, loading: loadingUsers } = useOrganizationUsers();
   const { roles, loading: loadingRoles } = useRoles();
@@ -1249,6 +1250,8 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                         formId={triggerFormId}
                         value={localConfig?.sourceCrossRefFieldId || ''}
                         onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
+                          console.log('🔗 Cross-ref field selected:', { fieldId, fieldName, customConfig });
+                          console.log('🎯 Target form from custom_config:', customConfig?.targetFormId, customConfig?.targetFormName);
                           handleFullConfigUpdate({
                             ...localConfig,
                             sourceCrossRefFieldId: fieldId,
@@ -1368,20 +1371,22 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                         <div>
                           <Label>Map Fields from Trigger Form (Optional)</Label>
                           <p className="text-xs text-muted-foreground mb-2">
-                            Map fields from the trigger form (Risk) to the new combination records
+                            Map fields from the trigger form ({triggerFormName || 'Risk'}) to the new combination records
                           </p>
                           <FieldMappingConfig
                             triggerFormId={triggerFormId}
                             targetFormId={localConfig.targetFormId}
                             fieldMappings={localConfig?.fieldMappings || []}
                             onFieldMappingsChange={(mappings) => handleConfigUpdate('fieldMappings', mappings)}
+                            sourceLabel={`From ${triggerFormName || 'Trigger Form'}`}
+                            targetLabel={`To ${localConfig.targetFormName || 'Target Form'}`}
                           />
                         </div>
 
                         <div>
                           <Label>Map Fields from Linked Form (Optional)</Label>
                           <p className="text-xs text-muted-foreground mb-2">
-                            Map fields from the linked form ({localConfig?.sourceLinkedFormName || 'Entity'}) to the new combination records
+                            Map fields from the linked form ({localConfig?.sourceLinkedFormName || 'select cross-ref field first'}) to the new combination records
                           </p>
                           {localConfig?.sourceLinkedFormId ? (
                             <FieldMappingConfig
@@ -1389,6 +1394,8 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                               targetFormId={localConfig.targetFormId}
                               fieldMappings={localConfig?.linkedFormFieldMappings || []}
                               onFieldMappingsChange={(mappings) => handleConfigUpdate('linkedFormFieldMappings', mappings)}
+                              sourceLabel={`From ${localConfig.sourceLinkedFormName || 'Linked Form'}`}
+                              targetLabel={`To ${localConfig.targetFormName || 'Target Form'}`}
                             />
                           ) : (
                             <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">

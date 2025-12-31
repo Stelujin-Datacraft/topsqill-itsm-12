@@ -124,6 +124,21 @@ function WorkflowDesignerInner({ workflowId, projectId, initialNodes, initialCon
            rfNodeData?.config?.sourceFormId;
   }, [workflowNodes, reactFlowNodes]);
 
+  // Get trigger form name from start node config
+  const startNodeTriggerFormName = useMemo(() => {
+    const startNode = workflowNodes.find(n => n.type === 'start');
+    const fromWorkflowNodes = startNode?.data?.config?.triggerFormName;
+    
+    if (fromWorkflowNodes) {
+      return fromWorkflowNodes;
+    }
+    
+    // Fallback: check ReactFlow nodes
+    const rfStartNode = reactFlowNodes.find(n => n.type === 'start');
+    const rfNodeData = rfStartNode?.data as any;
+    return rfNodeData?.config?.triggerFormName;
+  }, [workflowNodes, reactFlowNodes]);
+
   // Fallback: fetch trigger form ID from workflow_triggers table if not in start node
   const [triggerFormIdFromDB, setTriggerFormIdFromDB] = useState<string | undefined>();
   
@@ -672,6 +687,7 @@ function WorkflowDesignerInner({ workflowId, projectId, initialNodes, initialCon
           workflowId={workflowId}
           projectId={projectId}
           triggerFormId={triggerFormId}
+          triggerFormName={startNodeTriggerFormName}
           formFields={formFields}
           onConfigChange={handleConfigChange}
           onDelete={handleDeleteNode}
