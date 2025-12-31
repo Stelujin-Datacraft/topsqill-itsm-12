@@ -199,6 +199,7 @@ export class WorkflowOrchestrator {
       // Execute node using NodeExecutors with enhanced conditional support
       let result;
       const nodeStartTime = Date.now();
+      let nodeEndTime = Date.now();
 
       try {
         console.log(`🎯 Executing ${node.node_type} node using NodeExecutors`);
@@ -212,7 +213,7 @@ export class WorkflowOrchestrator {
         };
       }
 
-      const nodeEndTime = Date.now();
+      nodeEndTime = Date.now();
       const duration = nodeEndTime - nodeStartTime;
 
       // Enhanced logging for conditional nodes
@@ -237,18 +238,22 @@ export class WorkflowOrchestrator {
         conditionalInfo
       });
 
-      // Update node execution log
+      // Update node execution log - always update even on failure
       if (nodeExecution) {
-        await supabase
-          .from('workflow_instance_logs')
-          .update({
-            status: result.success ? 'completed' : 'failed',
-            output_data: { ...result.output || {}, ...conditionalInfo },
-            completed_at: new Date().toISOString(),
-            duration_ms: duration,
-            error_message: result.error
-          })
-          .eq('id', nodeExecution.id);
+        try {
+          await supabase
+            .from('workflow_instance_logs')
+            .update({
+              status: result.success ? 'completed' : 'failed',
+              output_data: { ...result.output || {}, ...conditionalInfo },
+              completed_at: new Date().toISOString(),
+              duration_ms: duration,
+              error_message: result.error
+            })
+            .eq('id', nodeExecution.id);
+        } catch (logUpdateError) {
+          console.error('❌ Error updating node execution log:', logUpdateError);
+        }
       }
 
       // If this is an end node, stop execution and mark as terminal
