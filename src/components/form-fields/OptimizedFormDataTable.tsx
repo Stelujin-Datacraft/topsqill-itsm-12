@@ -130,17 +130,43 @@ export function OptimizedFormDataTable({
       if (value && Array.isArray(value) && value.length > 0) {
         // Check if value contains full objects or just ref IDs
         const firstItem = value[0];
-        const hasFullData = typeof firstItem === 'object' && firstItem !== null && 
-                            ('id' in firstItem || 'recordId' in firstItem);
+        const isObject = typeof firstItem === 'object' && firstItem !== null;
+        const hasFullData = isObject && 'id' in firstItem;
+        const hasRefIdOnly = isObject && !('id' in firstItem) && 'submission_ref_id' in firstItem;
         
         if (hasFullData) {
-          // Value already contains full record objects
+          // Value already contains full record objects with id
           manuallySelectedRecords = value.map(item => ({
             id: item.id || item.recordId,
             submission_ref_id: item.submission_ref_id || item.refId,
             form_id: item.form_id || config.targetFormId,
             displayData: item.displayData || item
           }));
+        } else if (hasRefIdOnly) {
+          // Value contains objects with submission_ref_id but no id - need to fetch full data
+          const refIds = value.map(item => item.submission_ref_id).filter(Boolean);
+          if (refIds.length > 0 && config.targetFormId) {
+            try {
+              console.log('📥 Fetching records by submission_ref_id:', refIds);
+              const { data: submissions, error } = await supabase
+                .from('form_submissions')
+                .select('id, submission_ref_id, submission_data')
+                .eq('form_id', config.targetFormId)
+                .in('submission_ref_id', refIds);
+              
+              if (error) throw error;
+              
+              manuallySelectedRecords = (submissions || []).map(sub => ({
+                id: sub.id,
+                submission_ref_id: sub.submission_ref_id || '',
+                form_id: config.targetFormId,
+                displayData: (sub.submission_data as Record<string, any>) || {}
+              }));
+              console.log('✅ Fetched full records:', manuallySelectedRecords.length);
+            } catch (error) {
+              console.error('Error fetching cross-reference records:', error);
+            }
+          }
         } else {
           // Value contains only submission_ref_ids (strings) - fetch full data
           const refIds = value.filter(id => typeof id === 'string' && id.trim());
