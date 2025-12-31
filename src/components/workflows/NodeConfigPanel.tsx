@@ -60,9 +60,6 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
     return config;
   });
   
-  // Track if linked form info needs to be fetched (for Create Combination Records)
-  const [linkedFormFetched, setLinkedFormFetched] = useState(false);
-  
   // Keep a ref to the onConfigChange to avoid stale closures
   const onConfigChangeRef = useRef(onConfigChange);
   onConfigChangeRef.current = onConfigChange;
@@ -111,32 +108,34 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
 
   // Auto-fetch linked form info when sourceCrossRefFieldId is set but sourceLinkedFormId is missing
   // This handles restoring the linked form info when config is loaded from saved state
+  const fetchedCrossRefIdRef = useRef<string | null>(null);
+  
   useEffect(() => {
-    // Only run once per panel open
-    if (linkedFormFetched) return;
-    
     const sourceCrossRefFieldId = localConfig?.sourceCrossRefFieldId;
     const sourceLinkedFormId = localConfig?.sourceLinkedFormId;
     const actionType = localConfig?.actionType;
     
-    console.log('📊 Create Combination Records - checking linked form:', { 
-      actionType, 
-      sourceCrossRefFieldId, 
-      sourceLinkedFormId,
-      linkedFormFetched,
-      shouldFetch: actionType === 'create_combination_records' && sourceCrossRefFieldId && !sourceLinkedFormId
-    });
-    
-    // Skip if not the right action type, no cross-ref selected, or already have linked form info
-    if (actionType !== 'create_combination_records' || !sourceCrossRefFieldId || sourceLinkedFormId) {
+    // Skip if not the right action type or no cross-ref selected
+    if (actionType !== 'create_combination_records' || !sourceCrossRefFieldId) {
       return;
     }
     
+    // Skip if we already have the linked form info
+    if (sourceLinkedFormId) {
+      console.log('📊 Create Combination Records - linked form already set:', sourceLinkedFormId);
+      return;
+    }
+    
+    // Skip if we already fetched for this cross-ref field
+    if (fetchedCrossRefIdRef.current === sourceCrossRefFieldId) {
+      return;
+    }
+    
+    console.log('📊 Create Combination Records - fetching linked form for:', sourceCrossRefFieldId);
+    fetchedCrossRefIdRef.current = sourceCrossRefFieldId;
+    
     const fetchLinkedFormInfo = async () => {
-      setLinkedFormFetched(true);
       try {
-        console.log('🔄 Auto-fetching linked form info for cross-ref field:', sourceCrossRefFieldId);
-        
         const { data: fieldData, error } = await supabase
           .from('form_fields')
           .select('custom_config')
@@ -176,7 +175,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
     };
 
     fetchLinkedFormInfo();
-  }, [localConfig?.actionType, localConfig?.sourceCrossRefFieldId, localConfig?.sourceLinkedFormId, linkedFormFetched, syncToParent]);
+  }, [localConfig?.actionType, localConfig?.sourceCrossRefFieldId, localConfig?.sourceLinkedFormId, syncToParent]);
 
   // Update local config and schedule parent sync
   const handleConfigUpdate = useCallback((key: string, value: any) => {
