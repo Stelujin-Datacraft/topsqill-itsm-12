@@ -1896,6 +1896,10 @@ export type Database = {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
       }
+      can_update_form_submission_via_workflow: {
+        Args: { _form_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_user_create_project: { Args: { org_id: string }; Returns: boolean }
       can_view_project: {
         Args: { _project_id: string; _user_id: string }
