@@ -1089,4 +1089,304 @@ export class RecordActionExecutors {
       };
     }
   }
+
+  static async executeCreateCombinationRecordsAction(context: NodeExecutionContext): Promise<ActionExecutionResult> {
+    console.log('🔗✨ EXECUTING CREATE COMBINATION RECORDS ACTION');
+    console.log('📋 Context:', JSON.stringify(context, null, 2));
+
+    const config = context.config;
+    const actionDetails = {
+      actionType: 'create_combination_records',
+      sourceCrossRefFieldId: config.sourceCrossRefFieldId,
+      targetFormId: config.targetFormId,
+      timestamp: new Date().toISOString()
+    };
+
+    try {
+      // Validate configuration
+      if (!config.sourceCrossRefFieldId) {
+        return {
+          success: false,
+          error: 'Missing source cross-reference field selection',
+          actionDetails
+        };
+      }
+
+      if (!config.targetFormId) {
+        return {
+          success: false,
+          error: 'Missing target form ID',
+          actionDetails
+        };
+      }
+
+      if (!config.targetTriggerCrossRefFieldId) {
+        return {
+          success: false,
+          error: 'Missing target form cross-reference field for trigger form',
+          actionDetails
+        };
+      }
+
+      if (!config.targetLinkedCrossRefFieldId) {
+        return {
+          success: false,
+          error: 'Missing target form cross-reference field for linked records',
+          actionDetails
+        };
+      }
+
+      // Get trigger data
+      const triggerSubmissionData = context.triggerData?.submissionData || context.triggerData || {};
+      const triggerSubmissionId = context.submissionId;
+      const triggerFormId = context.triggerData?.formId;
+
+      // Fetch the trigger submission's submission_ref_id
+      const { data: triggerSubmission, error: triggerFetchError } = await supabase
+        .from('form_submissions')
+        .select('id, submission_ref_id')
+        .eq('id', triggerSubmissionId)
+        .single();
+
+      if (triggerFetchError || !triggerSubmission) {
+        return {
+          success: false,
+          error: `Failed to fetch trigger submission: ${triggerFetchError?.message}`,
+          actionDetails
+        };
+      }
+
+      console.log('📋 Trigger submission:', triggerSubmission);
+
+      // Get the linked record refs from the source cross-reference field
+      const crossRefValue = triggerSubmissionData[config.sourceCrossRefFieldId];
+      
+      if (!crossRefValue) {
+        console.log('⚠️ No linked records found in source cross-reference field');
+        return {
+          success: true,
+          output: {
+            createdCount: 0,
+            message: 'No linked records found in source cross-reference field',
+            sourceCrossRefFieldId: config.sourceCrossRefFieldId
+          },
+          actionDetails
+        };
+      }
+
+      // Extract linked record refs
+      interface LinkedRecord {
+        refId: string;
+        formId: string;
+      }
+      
+      let linkedRecords: LinkedRecord[] = [];
+      
+      if (Array.isArray(crossRefValue)) {
+        linkedRecords = crossRefValue
+          .map(v => {
+            if (typeof v === 'string') {
+              return { refId: v, formId: config.sourceLinkedFormId };
+            }
+            if (v && typeof v === 'object' && v.submission_ref_id) {
+              return { 
+                refId: v.submission_ref_id, 
+                formId: v.form_id || config.sourceLinkedFormId 
+              };
+            }
+            return null;
+          })
+          .filter((v): v is LinkedRecord => v !== null && !!v.refId);
+      } else if (typeof crossRefValue === 'string') {
+        linkedRecords = [{ refId: crossRefValue, formId: config.sourceLinkedFormId }];
+      } else if (crossRefValue && typeof crossRefValue === 'object' && crossRefValue.submission_ref_id) {
+        linkedRecords = [{ 
+          refId: crossRefValue.submission_ref_id, 
+          formId: crossRefValue.form_id || config.sourceLinkedFormId 
+        }];
+      }
+
+      console.log(`📋 Found ${linkedRecords.length} linked records to create combinations with`);
+
+      if (linkedRecords.length === 0) {
+        return {
+          success: true,
+          output: {
+            createdCount: 0,
+            message: 'No valid linked records found in source cross-reference field'
+          },
+          actionDetails
+        };
+      }
+
+      // Determine submitter
+      let submittedBy: string | null = null;
+      if (config.setSubmittedBy === 'trigger_submitter' || !config.setSubmittedBy) {
+        submittedBy = context.submitterId || null;
+      } else if (config.setSubmittedBy === 'specific_user' && config.specificSubmitterId) {
+        submittedBy = config.specificSubmitterId;
+      }
+
+      // Determine initial status
+      const initialStatus = config.initialStatus || 'pending';
+
+      // Check for duplicates if enabled
+      let existingCombinations: Set<string> = new Set();
+      if (config.preventDuplicates) {
+        console.log('🔍 Checking for existing combinations...');
+        
+        const { data: existingRecords } = await supabase
+          .from('form_submissions')
+          .select('submission_data')
+          .eq('form_id', config.targetFormId);
+
+        if (existingRecords) {
+          for (const record of existingRecords) {
+            const data = record.submission_data as Record<string, any>;
+            const triggerRef = this.extractSubmissionRefId(data[config.targetTriggerCrossRefFieldId]);
+            const linkedRef = this.extractSubmissionRefId(data[config.targetLinkedCrossRefFieldId]);
+            
+            if (triggerRef && linkedRef) {
+              existingCombinations.add(`${triggerRef}|${linkedRef}`);
+            }
+          }
+        }
+        
+        console.log(`📋 Found ${existingCombinations.size} existing combinations`);
+      }
+
+      // Create combination records
+      const createdRecords: Array<{ id: string; submission_ref_id: string; linkedRecordRefId: string }> = [];
+      const skippedDuplicates: string[] = [];
+
+      for (const linkedRecord of linkedRecords) {
+        // Check for duplicate
+        if (config.preventDuplicates) {
+          const combinationKey = `${triggerSubmission.submission_ref_id}|${linkedRecord.refId}`;
+          if (existingCombinations.has(combinationKey)) {
+            console.log(`⏭️ Skipping duplicate combination: ${combinationKey}`);
+            skippedDuplicates.push(linkedRecord.refId);
+            continue;
+          }
+        }
+
+        // Build submission data for the new combination record
+        const combinationSubmissionData: Record<string, any> = {};
+
+        // Set cross-reference to trigger submission (storing as array with object format)
+        combinationSubmissionData[config.targetTriggerCrossRefFieldId] = [{
+          submission_ref_id: triggerSubmission.submission_ref_id,
+          form_id: triggerFormId
+        }];
+
+        // Set cross-reference to linked record
+        combinationSubmissionData[config.targetLinkedCrossRefFieldId] = [{
+          submission_ref_id: linkedRecord.refId,
+          form_id: linkedRecord.formId
+        }];
+
+        // Apply field mappings if configured
+        if (config.fieldMappings && config.fieldMappings.length > 0) {
+          for (const mapping of config.fieldMappings) {
+            if (mapping.sourceFieldId && mapping.targetFieldId) {
+              const sourceValue = triggerSubmissionData[mapping.sourceFieldId];
+              if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
+                combinationSubmissionData[mapping.targetFieldId] = sourceValue;
+              }
+            }
+          }
+        }
+
+        console.log('📝 Creating combination record:', {
+          triggerRef: triggerSubmission.submission_ref_id,
+          linkedRef: linkedRecord.refId,
+          data: combinationSubmissionData
+        });
+
+        const { data: newSubmission, error: createError } = await supabase
+          .from('form_submissions')
+          .insert({
+            form_id: config.targetFormId,
+            submission_data: combinationSubmissionData,
+            submitted_by: submittedBy,
+            approval_status: initialStatus
+          })
+          .select('id, submission_ref_id')
+          .single();
+
+        if (createError || !newSubmission) {
+          console.error('❌ Error creating combination record:', createError);
+          continue;
+        }
+
+        console.log('✅ Combination record created:', newSubmission);
+        createdRecords.push({
+          id: newSubmission.id,
+          submission_ref_id: newSubmission.submission_ref_id || '',
+          linkedRecordRefId: linkedRecord.refId
+        });
+
+        // Add to existing combinations set to prevent duplicates within same execution
+        if (config.preventDuplicates) {
+          existingCombinations.add(`${triggerSubmission.submission_ref_id}|${linkedRecord.refId}`);
+        }
+      }
+
+      if (createdRecords.length === 0 && skippedDuplicates.length === 0) {
+        return {
+          success: false,
+          error: 'Failed to create any combination records',
+          actionDetails
+        };
+      }
+
+      console.log(`✅ Successfully created ${createdRecords.length} combination records`);
+      if (skippedDuplicates.length > 0) {
+        console.log(`⏭️ Skipped ${skippedDuplicates.length} duplicates`);
+      }
+
+      return {
+        success: true,
+        output: {
+          createdCount: createdRecords.length,
+          requestedCount: linkedRecords.length,
+          skippedDuplicates: skippedDuplicates.length,
+          createdRecords,
+          targetFormId: config.targetFormId,
+          triggerSubmissionRefId: triggerSubmission.submission_ref_id,
+          createdAt: new Date().toISOString()
+        },
+        actionDetails
+      };
+
+    } catch (error) {
+      console.error('❌ Error in create combination records action:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        actionDetails
+      };
+    }
+  }
+
+  // Helper to extract submission_ref_id from various cross-reference value formats
+  private static extractSubmissionRefId(value: any): string | null {
+    if (!value) return null;
+    
+    if (typeof value === 'string') return value;
+    
+    if (Array.isArray(value)) {
+      const first = value[0];
+      if (typeof first === 'string') return first;
+      if (first && typeof first === 'object' && first.submission_ref_id) {
+        return first.submission_ref_id;
+      }
+    }
+    
+    if (typeof value === 'object' && value.submission_ref_id) {
+      return value.submission_ref_id;
+    }
+    
+    return null;
+  }
 }

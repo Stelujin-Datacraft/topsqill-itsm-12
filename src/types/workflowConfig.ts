@@ -88,3 +88,31 @@ export interface UpdateLinkedRecordsConfig {
   // Field mappings from current form to the linked records
   fieldMappings: FieldMapping[];
 }
+
+// New configuration for creating combination records
+export interface CreateCombinationRecordsConfig {
+  // The cross-reference field in the trigger form that contains linked records (e.g., Entity → Risk)
+  sourceCrossRefFieldId: string;
+  sourceCrossRefFieldName?: string;
+  // The form referenced by the source cross-reference field (e.g., Risk form)
+  sourceLinkedFormId: string;
+  sourceLinkedFormName?: string;
+  // The target form where combination records will be created (e.g., Control form)
+  targetFormId: string;
+  targetFormName?: string;
+  // Cross-reference field in target form that links back to trigger form (e.g., Control → Entity)
+  targetTriggerCrossRefFieldId: string;
+  targetTriggerCrossRefFieldName?: string;
+  // Cross-reference field in target form that links to the source linked form (e.g., Control → Risk)
+  targetLinkedCrossRefFieldId: string;
+  targetLinkedCrossRefFieldName?: string;
+  // Submitter settings
+  setSubmittedBy?: 'trigger_submitter' | 'system' | 'specific_user';
+  specificSubmitterId?: string;
+  // Initial status for the new records
+  initialStatus?: 'pending' | 'approved' | 'rejected' | 'in_review';
+  // Prevent duplicate combinations
+  preventDuplicates?: boolean;
+  // Optional field mappings from trigger form to target form
+  fieldMappings?: FieldMapping[];
+}

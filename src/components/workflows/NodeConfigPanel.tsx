@@ -424,6 +424,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                   <SelectItem value="create_record">Create Record</SelectItem>
                   <SelectItem value="create_linked_record">Create Linked Record</SelectItem>
                   <SelectItem value="update_linked_records">Update Linked Records</SelectItem>
+                  <SelectItem value="create_combination_records">Create Combination Records</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1219,6 +1220,128 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                     {localConfig?.crossReferenceFieldId && localConfig?.targetFormId && (localConfig?.fieldMappings?.length || 0) > 0 && (
                       <div className="text-xs text-teal-700 bg-teal-50 p-3 rounded border border-teal-200">
                         <strong>Summary:</strong> Will update {localConfig.updateScope === 'all' ? 'all' : localConfig.updateScope === 'first' ? 'the first' : 'the last'} linked record{localConfig.updateScope === 'all' ? 's' : ''} in "{localConfig.targetFormName}" using {localConfig.fieldMappings.length} field mapping{localConfig.fieldMappings.length !== 1 ? 's' : ''} from the trigger form
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Create Combination Records Configuration */}
+            {localConfig?.actionType === 'create_combination_records' && (
+              <div className="space-y-4 border-t pt-4">
+                <div className="text-xs text-fuchsia-700 bg-fuchsia-50 p-3 rounded border border-fuchsia-200 mb-4">
+                  <strong>Create Combination Records</strong> creates new records for each item in a cross-reference field. For example: if Entities form has 2 linked Risk records, this creates 2 Control records linking each Entity-Risk pair.
+                </div>
+
+                {!triggerFormId ? (
+                  <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded border border-amber-200">
+                    Please configure the Start Node with a trigger form first, then <strong>save the workflow</strong>.
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <Label>Source Cross-Reference Field *</Label>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Select the cross-reference field containing linked records (e.g., Entities → Risk)
+                      </p>
+                      <FormFieldSelector
+                        formId={triggerFormId}
+                        value={localConfig?.sourceCrossRefFieldId || ''}
+                        onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
+                          handleFullConfigUpdate({
+                            ...localConfig,
+                            sourceCrossRefFieldId: fieldId,
+                            sourceCrossRefFieldName: fieldName,
+                            sourceLinkedFormId: customConfig?.targetFormId,
+                            sourceLinkedFormName: customConfig?.targetFormName
+                          });
+                        }}
+                        placeholder="Select cross-reference field"
+                        filterTypes={['cross-reference']}
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Target Form *</Label>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        The form where combination records will be created (e.g., Control form)
+                      </p>
+                      <FormSelector
+                        value={localConfig?.targetFormId || ''}
+                        onValueChange={(formId, formName) => {
+                          handleFullConfigUpdate({ 
+                            ...localConfig, 
+                            targetFormId: formId,
+                            targetFormName: formName,
+                            targetTriggerCrossRefFieldId: undefined,
+                            targetLinkedCrossRefFieldId: undefined
+                          });
+                        }}
+                        placeholder="Select target form"
+                        projectId={projectId}
+                      />
+                    </div>
+
+                    {localConfig?.targetFormId && (
+                      <>
+                        <div>
+                          <Label>Cross-Ref Field for Trigger Form *</Label>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Field in target form that links back to trigger form (e.g., Control → Entities)
+                          </p>
+                          <FormFieldSelector
+                            formId={localConfig.targetFormId}
+                            value={localConfig?.targetTriggerCrossRefFieldId || ''}
+                            onValueChange={(fieldId, fieldName) => {
+                              handleFullConfigUpdate({
+                                ...localConfig,
+                                targetTriggerCrossRefFieldId: fieldId,
+                                targetTriggerCrossRefFieldName: fieldName
+                              });
+                            }}
+                            placeholder="Select cross-reference field"
+                            filterTypes={['cross-reference', 'child-cross-reference']}
+                          />
+                        </div>
+
+                        <div>
+                          <Label>Cross-Ref Field for Linked Records *</Label>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Field in target form that links to the source linked form (e.g., Control → Risk)
+                          </p>
+                          <FormFieldSelector
+                            formId={localConfig.targetFormId}
+                            value={localConfig?.targetLinkedCrossRefFieldId || ''}
+                            onValueChange={(fieldId, fieldName) => {
+                              handleFullConfigUpdate({
+                                ...localConfig,
+                                targetLinkedCrossRefFieldId: fieldId,
+                                targetLinkedCrossRefFieldName: fieldName
+                              });
+                            }}
+                            placeholder="Select cross-reference field"
+                            filterTypes={['cross-reference', 'child-cross-reference']}
+                          />
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="preventDuplicates"
+                            checked={localConfig?.preventDuplicates ?? true}
+                            onCheckedChange={(checked) => handleConfigUpdate('preventDuplicates', checked)}
+                          />
+                          <Label htmlFor="preventDuplicates" className="text-sm font-normal">
+                            Prevent duplicate combinations
+                          </Label>
+                        </div>
+                      </>
+                    )}
+
+                    {localConfig?.sourceCrossRefFieldId && localConfig?.targetFormId && localConfig?.targetTriggerCrossRefFieldId && localConfig?.targetLinkedCrossRefFieldId && (
+                      <div className="text-xs text-fuchsia-700 bg-fuchsia-50 p-3 rounded border border-fuchsia-200">
+                        <strong>Summary:</strong> For each record linked via "{localConfig.sourceCrossRefFieldName}", will create a record in "{localConfig.targetFormName}" linking both the trigger submission and the linked record.
+                        {localConfig.preventDuplicates && ' Duplicates will be skipped.'}
                       </div>
                     )}
                   </>

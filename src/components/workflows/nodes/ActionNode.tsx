@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { Settings, CheckCircle, XCircle, Mail, MessageSquare, Webhook, FileText, Edit, Activity, Bell, RefreshCw, Edit3, FileCheck, Link2, RefreshCcw } from 'lucide-react';
+import { Settings, CheckCircle, XCircle, Mail, MessageSquare, Webhook, FileText, Edit, Activity, Bell, RefreshCw, Edit3, FileCheck, Link2, RefreshCcw, GitMerge } from 'lucide-react';
 
 interface ActionNodeProps {
   data: {
@@ -41,6 +41,8 @@ const getActionIcon = (actionType: string) => {
       return Link2;
     case 'update_linked_records':
       return RefreshCcw;
+    case 'create_combination_records':
+      return GitMerge;
     default:
       return Settings;
   }
@@ -71,6 +73,8 @@ const getActionColor = (actionType: string) => {
       return 'bg-violet-100 text-violet-800 border-violet-200';
     case 'update_linked_records':
       return 'bg-teal-100 text-teal-800 border-teal-200';
+    case 'create_combination_records':
+      return 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200';
     default:
       return 'bg-blue-100 text-blue-800 border-blue-200';
   }
@@ -92,6 +96,7 @@ const getActionLabel = (actionType: string) => {
     case 'create_record': return 'Create Record';
     case 'create_linked_record': return 'Create Linked Record';
     case 'update_linked_records': return 'Update Linked Records';
+    case 'create_combination_records': return 'Create Combinations';
     default: return 'Action';
   }
 };
