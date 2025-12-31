@@ -1337,6 +1337,31 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                         </div>
 
                         <div>
+                          <Label>Auto-Link Created Records Back to Trigger (Optional)</Label>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Select a cross-reference field in the trigger form to auto-populate with created records (e.g., Risk → Control)
+                          </p>
+                          <FormFieldSelector
+                            formId={triggerFormId}
+                            value={localConfig?.updateTriggerCrossRefFieldId || ''}
+                            onValueChange={(fieldId, fieldName) => {
+                              handleFullConfigUpdate({
+                                ...localConfig,
+                                updateTriggerCrossRefFieldId: fieldId,
+                                updateTriggerCrossRefFieldName: fieldName
+                              });
+                            }}
+                            placeholder="Select cross-reference field (optional)"
+                            filterTypes={['cross-reference']}
+                          />
+                          {localConfig?.updateTriggerCrossRefFieldId && (
+                            <p className="text-xs text-green-600 mt-1">
+                              Created records will be auto-linked to "{localConfig.updateTriggerCrossRefFieldName}"
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
                           <Label>Map Fields from Trigger Form (Optional)</Label>
                           <p className="text-xs text-muted-foreground mb-2">
                             Map fields from the trigger form (e.g., Entity) to the new combination records
@@ -1370,6 +1395,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                       <div className="text-xs text-fuchsia-700 bg-fuchsia-50 p-3 rounded border border-fuchsia-200">
                         <strong>Summary:</strong> For each record linked via "{localConfig.sourceCrossRefFieldName}", will create a record in "{localConfig.targetFormName}" linking both the trigger submission and the linked record.
                         {localConfig.preventDuplicates && ' Duplicates will be skipped.'}
+                        {localConfig.updateTriggerCrossRefFieldId && ` Created records will be auto-linked back to "${localConfig.updateTriggerCrossRefFieldName}".`}
                         {(localConfig.fieldMappings?.length || 0) > 0 && ` With ${localConfig.fieldMappings.length} trigger form field mapping(s).`}
                         {(localConfig.linkedFormFieldMappings?.length || 0) > 0 && ` With ${localConfig.linkedFormFieldMappings.length} linked form field mapping(s).`}
                       </div>

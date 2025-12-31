@@ -1382,6 +1382,67 @@ export class RecordActionExecutors {
         console.log(`⏭️ Skipped ${skippedDuplicates.length} duplicates`);
       }
 
+      // Auto-link created records back to trigger form's cross-ref field if configured
+      if (config.updateTriggerCrossRefFieldId && createdRecords.length > 0 && triggerSubmissionId) {
+        console.log('🔗 Updating trigger form cross-ref field with created records...');
+        
+        // Build the cross-ref value array with created record refs
+        const newCrossRefValues = createdRecords.map(record => ({
+          submission_ref_id: record.submission_ref_id,
+          form_id: config.targetFormId
+        }));
+
+        // Fetch current trigger submission data
+        const { data: currentTriggerSubmission, error: fetchTriggerError } = await supabase
+          .from('form_submissions')
+          .select('submission_data')
+          .eq('id', triggerSubmissionId)
+          .single();
+
+        if (fetchTriggerError || !currentTriggerSubmission) {
+          console.error('⚠️ Could not fetch trigger submission to update cross-ref:', fetchTriggerError);
+        } else {
+          const currentData = currentTriggerSubmission.submission_data || {};
+          const existingCrossRefValue = (currentData as any)[config.updateTriggerCrossRefFieldId] || [];
+          
+          // Merge existing and new cross-ref values
+          let mergedCrossRefValues: any[] = [];
+          if (Array.isArray(existingCrossRefValue)) {
+            mergedCrossRefValues = [...existingCrossRefValue];
+          } else if (existingCrossRefValue && typeof existingCrossRefValue === 'object') {
+            mergedCrossRefValues = [existingCrossRefValue];
+          }
+          
+          // Add new values, avoiding duplicates
+          const existingRefIds = new Set(mergedCrossRefValues.map(v => 
+            typeof v === 'string' ? v : v.submission_ref_id
+          ));
+          
+          for (const newVal of newCrossRefValues) {
+            if (!existingRefIds.has(newVal.submission_ref_id)) {
+              mergedCrossRefValues.push(newVal);
+            }
+          }
+
+          // Update trigger submission
+          const updatedData = {
+            ...(typeof currentData === 'object' ? currentData : {}),
+            [config.updateTriggerCrossRefFieldId]: mergedCrossRefValues
+          };
+
+          const { error: updateTriggerError } = await supabase
+            .from('form_submissions')
+            .update({ submission_data: updatedData })
+            .eq('id', triggerSubmissionId);
+
+          if (updateTriggerError) {
+            console.error('⚠️ Error updating trigger cross-ref field:', updateTriggerError);
+          } else {
+            console.log(`✅ Updated trigger form cross-ref field with ${newCrossRefValues.length} new records`);
+          }
+        }
+      }
+
       return {
         success: true,
         output: {
@@ -1391,6 +1452,7 @@ export class RecordActionExecutors {
           createdRecords,
           targetFormId: config.targetFormId,
           triggerSubmissionRefId: triggerSubmission.submission_ref_id,
+          updatedTriggerCrossRef: config.updateTriggerCrossRefFieldId ? true : false,
           createdAt: new Date().toISOString()
         },
         actionDetails

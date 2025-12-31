@@ -117,4 +117,7 @@ export interface CreateCombinationRecordsConfig {
   fieldMappings?: FieldMapping[];
   // Optional field mappings from linked (source) form to target form
   linkedFormFieldMappings?: FieldMapping[];
+  // Auto-link created records back to trigger form's cross-ref field
+  updateTriggerCrossRefFieldId?: string;
+  updateTriggerCrossRefFieldName?: string;
 }
