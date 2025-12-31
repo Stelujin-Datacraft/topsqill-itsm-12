@@ -1337,9 +1337,9 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                         </div>
 
                         <div>
-                          <Label>Field Mappings (Optional)</Label>
+                          <Label>Map Fields from Trigger Form (Optional)</Label>
                           <p className="text-xs text-muted-foreground mb-2">
-                            Map additional fields from the trigger form to the new combination records
+                            Map fields from the trigger form (e.g., Entity) to the new combination records
                           </p>
                           <FieldMappingConfig
                             triggerFormId={triggerFormId}
@@ -1348,6 +1348,21 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                             onFieldMappingsChange={(mappings) => handleConfigUpdate('fieldMappings', mappings)}
                           />
                         </div>
+
+                        {localConfig?.sourceLinkedFormId && (
+                          <div>
+                            <Label>Map Fields from Linked Form (Optional)</Label>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Map fields from the linked form (e.g., Risk) to the new combination records
+                            </p>
+                            <FieldMappingConfig
+                              triggerFormId={localConfig.sourceLinkedFormId}
+                              targetFormId={localConfig.targetFormId}
+                              fieldMappings={localConfig?.linkedFormFieldMappings || []}
+                              onFieldMappingsChange={(mappings) => handleConfigUpdate('linkedFormFieldMappings', mappings)}
+                            />
+                          </div>
+                        )}
                       </>
                     )}
 
@@ -1355,7 +1370,8 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                       <div className="text-xs text-fuchsia-700 bg-fuchsia-50 p-3 rounded border border-fuchsia-200">
                         <strong>Summary:</strong> For each record linked via "{localConfig.sourceCrossRefFieldName}", will create a record in "{localConfig.targetFormName}" linking both the trigger submission and the linked record.
                         {localConfig.preventDuplicates && ' Duplicates will be skipped.'}
-                        {(localConfig.fieldMappings?.length || 0) > 0 && ` With ${localConfig.fieldMappings.length} field mapping(s).`}
+                        {(localConfig.fieldMappings?.length || 0) > 0 && ` With ${localConfig.fieldMappings.length} trigger form field mapping(s).`}
+                        {(localConfig.linkedFormFieldMappings?.length || 0) > 0 && ` With ${localConfig.linkedFormFieldMappings.length} linked form field mapping(s).`}
                       </div>
                     )}
                   </>
