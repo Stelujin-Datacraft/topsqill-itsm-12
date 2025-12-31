@@ -28,6 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRoles } from '@/hooks/useRoles';
 import { EnhancedCondition } from '@/types/conditions';
 import { FormFieldOption } from '@/types/conditions';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NodeConfigPanelProps {
   node: WorkflowNode;
@@ -104,6 +105,46 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
       onConfigChangeRef.current(localConfig);
     }
   }, [node.type, node.data.config?.triggerType, localConfig]);
+
+  // Auto-fetch linked form info when sourceCrossRefFieldId is set but sourceLinkedFormId is missing
+  // This handles restoring the linked form info when config is loaded from saved state
+  useEffect(() => {
+    const fetchLinkedFormInfo = async () => {
+      if (
+        localConfig?.actionType === 'create_combination_records' &&
+        localConfig?.sourceCrossRefFieldId &&
+        !localConfig?.sourceLinkedFormId
+      ) {
+        try {
+          console.log('🔄 Auto-fetching linked form info for cross-ref field:', localConfig.sourceCrossRefFieldId);
+          const { data: fieldData, error } = await supabase
+            .from('form_fields')
+            .select('custom_config')
+            .eq('id', localConfig.sourceCrossRefFieldId)
+            .single();
+
+          if (error) {
+            console.error('Error fetching cross-ref field:', error);
+            return;
+          }
+
+          const customConfig = fieldData?.custom_config as { targetFormId?: string; targetFormName?: string } | null;
+          if (customConfig?.targetFormId) {
+            console.log('✅ Found linked form:', customConfig.targetFormId, customConfig.targetFormName);
+            handleFullConfigUpdate({
+              ...localConfig,
+              sourceLinkedFormId: customConfig.targetFormId,
+              sourceLinkedFormName: customConfig.targetFormName || 'Unknown Form'
+            });
+          }
+        } catch (err) {
+          console.error('Error auto-fetching linked form info:', err);
+        }
+      }
+    };
+
+    fetchLinkedFormInfo();
+  }, [localConfig?.actionType, localConfig?.sourceCrossRefFieldId, localConfig?.sourceLinkedFormId]);
 
   // Update local config and schedule parent sync
   const handleConfigUpdate = useCallback((key: string, value: any) => {
