@@ -1249,29 +1249,17 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                         formId={triggerFormId}
                         value={localConfig?.sourceCrossRefFieldId || ''}
                         onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
-                          console.log('🔗 Cross-ref field selected, customConfig:', customConfig);
                           handleFullConfigUpdate({
                             ...localConfig,
                             sourceCrossRefFieldId: fieldId,
                             sourceCrossRefFieldName: fieldName,
-                            sourceLinkedFormId: customConfig?.targetFormId || '',
-                            sourceLinkedFormName: customConfig?.targetFormName || '',
-                            linkedFormFieldMappings: [] // Reset linked form mappings when source changes
+                            sourceLinkedFormId: customConfig?.targetFormId,
+                            sourceLinkedFormName: customConfig?.targetFormName
                           });
                         }}
                         placeholder="Select cross-reference field"
                         filterTypes={['cross-reference']}
                       />
-                      {localConfig?.sourceCrossRefFieldId && localConfig?.sourceLinkedFormId && (
-                        <p className="text-xs text-green-600 mt-1">
-                          ✓ Linked to: {localConfig.sourceLinkedFormName || localConfig.sourceLinkedFormId}
-                        </p>
-                      )}
-                      {localConfig?.sourceCrossRefFieldId && !localConfig?.sourceLinkedFormId && (
-                        <p className="text-xs text-amber-600 mt-1">
-                          ⚠ Re-select the field to detect linked form, or ensure the cross-reference has a target form configured
-                        </p>
-                      )}
                     </div>
 
                     <div>
