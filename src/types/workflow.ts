@@ -37,7 +37,8 @@ export type ActionType =
   | 'change_record_status'
   | 'create_record'
   | 'create_linked_record'
-  | 'update_linked_records';
+  | 'update_linked_records'
+  | 'create_combination_records';
 
 export type ConditionOperator = '==' | '!=' | '<' | '>' | '<=' | '>=' | 'contains' | 'in' | 'not_in' | 'exists' | 'not_exists';
 

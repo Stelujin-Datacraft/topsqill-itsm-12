@@ -84,6 +84,10 @@ export class NodeExecutors {
           console.log('🔄 CALLING RecordActionExecutors.executeUpdateLinkedRecordsAction');
           actionResult = await RecordActionExecutors.executeUpdateLinkedRecordsAction(nodeContext);
           break;
+        case 'create_combination_records':
+          console.log('🔗✨ CALLING RecordActionExecutors.executeCreateCombinationRecordsAction');
+          actionResult = await RecordActionExecutors.executeCreateCombinationRecordsAction(nodeContext);
+          break;
         default:
           console.error(`❌ Unknown action type: ${config.actionType}`);
           actionResult = {

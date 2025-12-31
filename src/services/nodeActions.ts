@@ -127,6 +127,14 @@ export class NodeActions {
           console.log('🔗 EXECUTING CREATE_LINKED_RECORD ACTION');
           actionResult = await RecordActionExecutors.executeCreateLinkedRecordAction(context);
           break;
+        case 'update_linked_records':
+          console.log('🔄 EXECUTING UPDATE_LINKED_RECORDS ACTION');
+          actionResult = await RecordActionExecutors.executeUpdateLinkedRecordsAction(context);
+          break;
+        case 'create_combination_records':
+          console.log('🔗✨ EXECUTING CREATE_COMBINATION_RECORDS ACTION');
+          actionResult = await RecordActionExecutors.executeCreateCombinationRecordsAction(context);
+          break;
         default:
           console.error(`❌ UNKNOWN ACTION TYPE: ${actionType}`);
           return {
