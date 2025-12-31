@@ -1892,6 +1892,10 @@ export type Database = {
         Args: { invitation_id_param: string }
         Returns: Json
       }
+      bulk_update_submission_field: {
+        Args: { _field_id: string; _form_id: string; _new_value: Json }
+        Returns: number
+      }
       can_create_asset_in_project: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean

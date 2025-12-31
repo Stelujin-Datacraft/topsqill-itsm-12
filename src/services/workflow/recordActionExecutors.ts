@@ -130,74 +130,28 @@ export class RecordActionExecutors {
       }
 
       if (isTargetFormDifferent) {
-        // Update ALL submissions in the target form
-        console.log('🔄 Updating ALL submissions in target form:', config.targetFormId);
+        // Update ALL submissions in the target form using bulk database function
+        console.log('🔄 Updating ALL submissions in target form using bulk update:', config.targetFormId);
         
-        // Fetch all submissions from the target form
-        const { data: targetSubmissions, error: fetchError } = await supabase
-          .from('form_submissions')
-          .select('id, submission_data')
-          .eq('form_id', config.targetFormId);
-
-        if (fetchError) {
-          return {
-            success: false,
-            error: `Failed to fetch target form submissions: ${fetchError.message}`,
-            actionDetails
-          };
-        }
-
-        if (!targetSubmissions || targetSubmissions.length === 0) {
-          return {
-            success: false,
-            error: 'No submissions found in target form to update',
-            actionDetails
-          };
-        }
-
-        console.log(`📊 Found ${targetSubmissions.length} submissions to update`);
-
-        // Batch update using Promise.all for parallel execution
-        const BATCH_SIZE = 50; // Process in batches to avoid overwhelming the DB
-        const updatedIds: string[] = [];
-        let updatedCount = 0;
-
-        // Split submissions into batches
-        for (let i = 0; i < targetSubmissions.length; i += BATCH_SIZE) {
-          const batch = targetSubmissions.slice(i, i + BATCH_SIZE);
-          
-          const updatePromises = batch.map(async (submission) => {
-            const currentData = submission.submission_data || {};
-            const updatedData = {
-              ...(typeof currentData === 'object' ? currentData : {}),
-              [config.targetFieldId]: newValue
-            };
-
-            const { error: updateError } = await supabase
-              .from('form_submissions')
-              .update({ submission_data: updatedData })
-              .eq('id', submission.id);
-
-            if (!updateError) {
-              return { success: true, id: submission.id };
-            } else {
-              console.error(`❌ Failed to update submission ${submission.id}:`, updateError);
-              return { success: false, id: submission.id };
-            }
+        // Use the database function for efficient bulk update
+        const { data: updatedCount, error: bulkError } = await supabase
+          .rpc('bulk_update_submission_field', {
+            _form_id: config.targetFormId,
+            _field_id: config.targetFieldId,
+            _new_value: JSON.stringify(newValue)
           });
 
-          // Execute batch in parallel
-          const results = await Promise.all(updatePromises);
-          
-          for (const result of results) {
-            if (result.success) {
-              updatedCount++;
-              updatedIds.push(result.id);
-            }
-          }
+        if (bulkError) {
+          console.error('❌ Bulk update failed:', bulkError);
+          return {
+            success: false,
+            error: `Failed to bulk update submissions: ${bulkError.message}`,
+            actionDetails
+          };
         }
 
-        console.log(`✅ Successfully updated ${updatedCount}/${targetSubmissions.length} submissions`);
+        const count = updatedCount || 0;
+        console.log(`✅ Successfully bulk updated ${count} submissions in a single operation`);
 
         return {
           success: true,
@@ -205,15 +159,14 @@ export class RecordActionExecutors {
             targetFormId: config.targetFormId,
             fieldId: config.targetFieldId,
             newValue,
-            updatedCount,
-            totalSubmissions: targetSubmissions.length,
-            updatedSubmissionIds: updatedIds,
+            updatedCount: count,
+            bulkUpdate: true,
             updatedAt: new Date().toISOString()
           },
           actionDetails: {
             ...actionDetails,
-            updatedCount,
-            totalSubmissions: targetSubmissions.length
+            updatedCount: count,
+            bulkUpdate: true
           }
         };
       } else {
