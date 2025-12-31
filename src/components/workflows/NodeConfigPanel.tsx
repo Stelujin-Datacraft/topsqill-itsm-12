@@ -125,37 +125,50 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
   const [linkedFormLoading, setLinkedFormLoading] = useState(false);
   
   useEffect(() => {
-    // Only for create_combination_records action
-    if (localConfig?.actionType !== 'create_combination_records') return;
-    // Need source cross-ref field but missing linked form info
-    if (!localConfig?.sourceCrossRefFieldId || localConfig?.sourceLinkedFormId) return;
+    const actionType = localConfig?.actionType;
+    const sourceCrossRefFieldId = localConfig?.sourceCrossRefFieldId;
+    const sourceLinkedFormId = localConfig?.sourceLinkedFormId;
     
+    // Only for create_combination_records action with cross-ref field but missing linked form
+    if (actionType !== 'create_combination_records' || !sourceCrossRefFieldId || sourceLinkedFormId) {
+      return;
+    }
+    
+    let cancelled = false;
     setLinkedFormLoading(true);
     
-    supabase
-      .from('form_fields')
-      .select('custom_config')
-      .eq('id', localConfig.sourceCrossRefFieldId)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (error || !data) {
-          setLinkedFormLoading(false);
-          return;
-        }
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('form_fields')
+          .select('custom_config')
+          .eq('id', sourceCrossRefFieldId)
+          .maybeSingle();
         
-        const customConfig = data.custom_config as { targetFormId?: string; targetFormName?: string } | null;
-        if (customConfig?.targetFormId) {
-          const newConfig = {
-            ...localConfig,
-            sourceLinkedFormId: customConfig.targetFormId,
-            sourceLinkedFormName: customConfig.targetFormName || 'Unknown Form'
-          };
-          setLocalConfig(newConfig);
-          syncToParent(newConfig);
+        if (cancelled) return;
+        
+        if (!error && data) {
+          const customConfig = data.custom_config as { targetFormId?: string; targetFormName?: string } | null;
+          if (customConfig?.targetFormId) {
+            setLocalConfig((prev: any) => {
+              const newConfig = {
+                ...prev,
+                sourceLinkedFormId: customConfig.targetFormId,
+                sourceLinkedFormName: customConfig.targetFormName || 'Unknown Form'
+              };
+              // Sync to parent after state update
+              setTimeout(() => syncToParent(newConfig), 0);
+              return newConfig;
+            });
+          }
         }
-        setLinkedFormLoading(false);
-      });
-  }, [localConfig?.actionType, localConfig?.sourceCrossRefFieldId, localConfig?.sourceLinkedFormId]);
+      } finally {
+        if (!cancelled) setLinkedFormLoading(false);
+      }
+    })();
+    
+    return () => { cancelled = true; };
+  }, [localConfig?.actionType, localConfig?.sourceCrossRefFieldId, localConfig?.sourceLinkedFormId, syncToParent]);
 
   // Update local config and schedule parent sync
   const handleConfigUpdate = useCallback((key: string, value: any) => {
