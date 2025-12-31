@@ -123,30 +123,22 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
 
   // Auto-fetch linked form info when sourceCrossRefFieldId is set but sourceLinkedFormId is missing
   // This handles restoring the linked form info when config is loaded from saved state
+  const [linkedFormLoading, setLinkedFormLoading] = useState(false);
+  const linkedFormFetchedRef = useRef<string | null>(null);
+  
+  // Immediately check if we need to fetch linked form info on render
+  const needsLinkedFormFetch = 
+    localConfig?.actionType === 'create_combination_records' && 
+    localConfig?.sourceCrossRefFieldId && 
+    !localConfig?.sourceLinkedFormId &&
+    linkedFormFetchedRef.current !== localConfig?.sourceCrossRefFieldId;
+  
   useEffect(() => {
+    if (!needsLinkedFormFetch) return;
+    
     const sourceCrossRefFieldId = localConfig?.sourceCrossRefFieldId;
-    const sourceLinkedFormId = localConfig?.sourceLinkedFormId;
-    const actionType = localConfig?.actionType;
-    
-    console.log('📊 Create Combination Records - checking:', { 
-      nodeId: node.id,
-      actionType, 
-      sourceCrossRefFieldId, 
-      sourceLinkedFormId,
-      shouldFetch: actionType === 'create_combination_records' && sourceCrossRefFieldId && !sourceLinkedFormId
-    });
-    
-    // Skip if not the right action type or no cross-ref selected
-    if (actionType !== 'create_combination_records' || !sourceCrossRefFieldId) {
-      return;
-    }
-    
-    // Skip if we already have the linked form info
-    if (sourceLinkedFormId) {
-      return;
-    }
-    
-    console.log('📊 Create Combination Records - fetching linked form for:', sourceCrossRefFieldId);
+    linkedFormFetchedRef.current = sourceCrossRefFieldId;
+    setLinkedFormLoading(true);
     
     const fetchLinkedFormInfo = async () => {
       try {
@@ -156,21 +148,14 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
           .eq('id', sourceCrossRefFieldId)
           .maybeSingle();
 
-        if (error) {
-          console.error('Error fetching cross-ref field:', error);
+        if (error || !fieldData) {
+          setLinkedFormLoading(false);
           return;
         }
 
-        if (!fieldData) {
-          console.warn('Cross-ref field not found:', sourceCrossRefFieldId);
-          return;
-        }
-
-        console.log('📋 Field data received:', fieldData);
         const customConfig = fieldData?.custom_config as { targetFormId?: string; targetFormName?: string } | null;
         
         if (customConfig?.targetFormId) {
-          console.log('✅ Found linked form:', customConfig.targetFormId, customConfig.targetFormName);
           setLocalConfig((prev: any) => {
             const newConfig = {
               ...prev,
@@ -180,16 +165,15 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
             syncToParent(newConfig);
             return newConfig;
           });
-        } else {
-          console.warn('No targetFormId in custom_config:', customConfig);
         }
+        setLinkedFormLoading(false);
       } catch (err) {
-        console.error('Error auto-fetching linked form info:', err);
+        setLinkedFormLoading(false);
       }
     };
 
     fetchLinkedFormInfo();
-  }, [node.id, localConfig?.actionType, localConfig?.sourceCrossRefFieldId, localConfig?.sourceLinkedFormId, syncToParent]);
+  }, [needsLinkedFormFetch, localConfig?.sourceCrossRefFieldId, syncToParent]);
 
   // Update local config and schedule parent sync
   const handleConfigUpdate = useCallback((key: string, value: any) => {
@@ -1414,7 +1398,11 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                           <p className="text-xs text-muted-foreground">
                             Copy values from each linked record to the new records
                           </p>
-                          {localConfig?.sourceLinkedFormId ? (
+                          {linkedFormLoading ? (
+                            <p className="text-xs text-blue-600 bg-blue-50 p-2 rounded border border-blue-200">
+                              Loading linked form fields...
+                            </p>
+                          ) : localConfig?.sourceLinkedFormId ? (
                             <FieldMappingConfig
                               triggerFormId={localConfig.sourceLinkedFormId}
                               targetFormId={localConfig.targetFormId}
@@ -1423,6 +1411,10 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                               sourceLabel={`From ${localConfig.sourceLinkedFormName || 'Linked'}`}
                               targetLabel={`To ${localConfig.targetFormName || 'Target'}`}
                             />
+                          ) : localConfig?.sourceCrossRefFieldId ? (
+                            <p className="text-xs text-blue-600 bg-blue-50 p-2 rounded border border-blue-200">
+                              Detecting linked form from cross-reference field...
+                            </p>
                           ) : (
                             <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
                               Select the Source Cross-Reference Field in Step 1 to enable mapping from linked records.
