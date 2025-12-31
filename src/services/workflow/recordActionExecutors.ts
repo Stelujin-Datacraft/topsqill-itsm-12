@@ -1120,21 +1120,9 @@ export class RecordActionExecutors {
         };
       }
 
-      if (!config.targetTriggerCrossRefFieldId) {
-        return {
-          success: false,
-          error: 'Missing target form cross-reference field for trigger form',
-          actionDetails
-        };
-      }
-
-      if (!config.targetLinkedCrossRefFieldId) {
-        return {
-          success: false,
-          error: 'Missing target form cross-reference field for linked records',
-          actionDetails
-        };
-      }
+      // Note: targetTriggerCrossRefFieldId and targetLinkedCrossRefFieldId are now OPTIONAL
+      // If not provided, records will be created without cross-ref links in the target form
+      // The updateTriggerCrossRefFieldId can still be used to link back to trigger form
 
       // Get trigger data
       const triggerSubmissionData = context.triggerData?.submissionData || context.triggerData || {};
@@ -1295,17 +1283,21 @@ export class RecordActionExecutors {
         // Build submission data for the new combination record
         const combinationSubmissionData: Record<string, any> = {};
 
-        // Set cross-reference to trigger submission (storing as array with object format)
-        combinationSubmissionData[config.targetTriggerCrossRefFieldId] = [{
-          submission_ref_id: triggerSubmission.submission_ref_id,
-          form_id: triggerFormId
-        }];
+        // Set cross-reference to trigger submission (only if field is configured)
+        if (config.targetTriggerCrossRefFieldId) {
+          combinationSubmissionData[config.targetTriggerCrossRefFieldId] = [{
+            submission_ref_id: triggerSubmission.submission_ref_id,
+            form_id: triggerFormId
+          }];
+        }
 
-        // Set cross-reference to linked record
-        combinationSubmissionData[config.targetLinkedCrossRefFieldId] = [{
-          submission_ref_id: linkedRecord.refId,
-          form_id: linkedRecord.formId
-        }];
+        // Set cross-reference to linked record (only if field is configured)
+        if (config.targetLinkedCrossRefFieldId) {
+          combinationSubmissionData[config.targetLinkedCrossRefFieldId] = [{
+            submission_ref_id: linkedRecord.refId,
+            form_id: linkedRecord.formId
+          }];
+        }
 
         // Apply field mappings from trigger form if configured
         if (config.fieldMappings && config.fieldMappings.length > 0) {
