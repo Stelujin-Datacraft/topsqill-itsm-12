@@ -108,43 +108,66 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
 
   // Auto-fetch linked form info when sourceCrossRefFieldId is set but sourceLinkedFormId is missing
   // This handles restoring the linked form info when config is loaded from saved state
+  const fetchedCrossRefRef = useRef<string | null>(null);
+  
   useEffect(() => {
+    const sourceCrossRefFieldId = localConfig?.sourceCrossRefFieldId;
+    const sourceLinkedFormId = localConfig?.sourceLinkedFormId;
+    const actionType = localConfig?.actionType;
+    
+    // Skip if not the right action type, no cross-ref selected, or already have linked form info
+    if (actionType !== 'create_combination_records' || !sourceCrossRefFieldId || sourceLinkedFormId) {
+      return;
+    }
+    
+    // Skip if we've already fetched for this cross-ref field
+    if (fetchedCrossRefRef.current === sourceCrossRefFieldId) {
+      return;
+    }
+    
     const fetchLinkedFormInfo = async () => {
-      if (
-        localConfig?.actionType === 'create_combination_records' &&
-        localConfig?.sourceCrossRefFieldId &&
-        !localConfig?.sourceLinkedFormId
-      ) {
-        try {
-          console.log('🔄 Auto-fetching linked form info for cross-ref field:', localConfig.sourceCrossRefFieldId);
-          const { data: fieldData, error } = await supabase
-            .from('form_fields')
-            .select('custom_config')
-            .eq('id', localConfig.sourceCrossRefFieldId)
-            .single();
+      try {
+        console.log('🔄 Auto-fetching linked form info for cross-ref field:', sourceCrossRefFieldId);
+        fetchedCrossRefRef.current = sourceCrossRefFieldId;
+        
+        const { data: fieldData, error } = await supabase
+          .from('form_fields')
+          .select('custom_config')
+          .eq('id', sourceCrossRefFieldId)
+          .maybeSingle();
 
-          if (error) {
-            console.error('Error fetching cross-ref field:', error);
-            return;
-          }
+        if (error) {
+          console.error('Error fetching cross-ref field:', error);
+          return;
+        }
 
-          const customConfig = fieldData?.custom_config as { targetFormId?: string; targetFormName?: string } | null;
-          if (customConfig?.targetFormId) {
-            console.log('✅ Found linked form:', customConfig.targetFormId, customConfig.targetFormName);
-            handleFullConfigUpdate({
-              ...localConfig,
+        if (!fieldData) {
+          console.warn('Cross-ref field not found:', sourceCrossRefFieldId);
+          return;
+        }
+
+        const customConfig = fieldData?.custom_config as { targetFormId?: string; targetFormName?: string } | null;
+        if (customConfig?.targetFormId) {
+          console.log('✅ Found linked form:', customConfig.targetFormId, customConfig.targetFormName);
+          setLocalConfig((prev: any) => {
+            const newConfig = {
+              ...prev,
               sourceLinkedFormId: customConfig.targetFormId,
               sourceLinkedFormName: customConfig.targetFormName || 'Unknown Form'
-            });
-          }
-        } catch (err) {
-          console.error('Error auto-fetching linked form info:', err);
+            };
+            syncToParent(newConfig);
+            return newConfig;
+          });
+        } else {
+          console.warn('No targetFormId in custom_config:', customConfig);
         }
+      } catch (err) {
+        console.error('Error auto-fetching linked form info:', err);
       }
     };
 
     fetchLinkedFormInfo();
-  }, [localConfig?.actionType, localConfig?.sourceCrossRefFieldId, localConfig?.sourceLinkedFormId]);
+  }, [localConfig?.actionType, localConfig?.sourceCrossRefFieldId, localConfig?.sourceLinkedFormId, syncToParent]);
 
   // Update local config and schedule parent sync
   const handleConfigUpdate = useCallback((key: string, value: any) => {
