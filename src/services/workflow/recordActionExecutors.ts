@@ -1255,6 +1255,28 @@ export class RecordActionExecutors {
         console.log(`📋 Found ${existingCombinations.size} existing combinations`);
       }
 
+      // Pre-fetch all linked records data if we have linked form field mappings
+      const linkedRecordsDataMap: Map<string, Record<string, any>> = new Map();
+      
+      if (config.linkedFormFieldMappings && config.linkedFormFieldMappings.length > 0) {
+        console.log('📋 Fetching linked records data for field mappings...');
+        const linkedRefIds = linkedRecords.map(lr => lr.refId);
+        
+        const { data: linkedSubmissions } = await supabase
+          .from('form_submissions')
+          .select('submission_ref_id, submission_data')
+          .in('submission_ref_id', linkedRefIds);
+        
+        if (linkedSubmissions) {
+          for (const sub of linkedSubmissions) {
+            if (sub.submission_ref_id) {
+              linkedRecordsDataMap.set(sub.submission_ref_id, sub.submission_data as Record<string, any>);
+            }
+          }
+        }
+        console.log(`📋 Fetched data for ${linkedRecordsDataMap.size} linked records`);
+      }
+
       // Create combination records
       const createdRecords: Array<{ id: string; submission_ref_id: string; linkedRecordRefId: string }> = [];
       const skippedDuplicates: string[] = [];
@@ -1285,13 +1307,28 @@ export class RecordActionExecutors {
           form_id: linkedRecord.formId
         }];
 
-        // Apply field mappings if configured
+        // Apply field mappings from trigger form if configured
         if (config.fieldMappings && config.fieldMappings.length > 0) {
           for (const mapping of config.fieldMappings) {
             if (mapping.sourceFieldId && mapping.targetFieldId) {
               const sourceValue = triggerSubmissionData[mapping.sourceFieldId];
               if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
                 combinationSubmissionData[mapping.targetFieldId] = sourceValue;
+              }
+            }
+          }
+        }
+
+        // Apply field mappings from linked form if configured
+        if (config.linkedFormFieldMappings && config.linkedFormFieldMappings.length > 0) {
+          const linkedRecordData = linkedRecordsDataMap.get(linkedRecord.refId);
+          if (linkedRecordData) {
+            for (const mapping of config.linkedFormFieldMappings) {
+              if (mapping.sourceFieldId && mapping.targetFieldId) {
+                const sourceValue = linkedRecordData[mapping.sourceFieldId];
+                if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
+                  combinationSubmissionData[mapping.targetFieldId] = sourceValue;
+                }
               }
             }
           }

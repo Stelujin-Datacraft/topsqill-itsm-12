@@ -115,4 +115,6 @@ export interface CreateCombinationRecordsConfig {
   preventDuplicates?: boolean;
   // Optional field mappings from trigger form to target form
   fieldMappings?: FieldMapping[];
+  // Optional field mappings from linked (source) form to target form
+  linkedFormFieldMappings?: FieldMapping[];
 }
