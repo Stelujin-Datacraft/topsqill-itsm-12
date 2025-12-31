@@ -105,7 +105,7 @@ export function useCrossReferenceSync() {
       if (newField) {
         console.log('Successfully created child cross-reference field:', newField.id);
         
-        // Update target form's pages to include the new field if pages exist
+        // Update target form's pages to include the new field at the end of the first page
         if (targetForm.pages && targetForm.pages.length > 0) {
           const updatedPages = targetForm.pages.map(page => 
             page.id === targetPageId 
@@ -115,7 +115,7 @@ export function useCrossReferenceSync() {
           
           try {
             await updateForm(targetFormId, { pages: updatedPages });
-            console.log('Updated target form pages with new field');
+            console.log('Updated target form pages with new field at the end');
           } catch (pageUpdateError) {
             console.warn('Could not update pages, but field was created:', pageUpdateError);
           }
