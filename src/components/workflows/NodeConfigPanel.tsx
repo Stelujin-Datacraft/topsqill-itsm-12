@@ -146,7 +146,6 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
     }
     
     console.log('🔄 Fetching linked form for cross-ref field:', sourceCrossRefFieldId);
-    let cancelled = false;
     setLinkedFormLoading(true);
     
     (async () => {
@@ -157,34 +156,37 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
           .eq('id', sourceCrossRefFieldId)
           .maybeSingle();
         
-        console.log('📦 Fetch result:', { data, error, cancelled });
+        console.log('📦 Fetch result:', { data, error });
         
-        if (cancelled) return;
-        
-        if (!error && data) {
-          const customConfig = data.custom_config as { targetFormId?: string; targetFormName?: string } | null;
-          console.log('📋 Custom config:', customConfig);
-          
-          if (customConfig?.targetFormId) {
-            console.log('✅ Setting sourceLinkedFormId:', customConfig.targetFormId);
-            setLocalConfig((prev: any) => {
-              const newConfig = {
-                ...prev,
-                sourceLinkedFormId: customConfig.targetFormId,
-                sourceLinkedFormName: customConfig.targetFormName || 'Unknown Form'
-              };
-              setTimeout(() => syncToParent(newConfig), 0);
-              return newConfig;
-            });
-          }
+        if (error || !data) {
+          console.log('❌ Fetch failed or no data');
+          setLinkedFormLoading(false);
+          return;
         }
-      } finally {
-        if (!cancelled) setLinkedFormLoading(false);
+        
+        const customConfig = data.custom_config as { targetFormId?: string; targetFormName?: string } | null;
+        console.log('📋 Custom config:', customConfig);
+        
+        if (customConfig?.targetFormId) {
+          console.log('✅ Setting sourceLinkedFormId:', customConfig.targetFormId);
+          setLocalConfig((prev: any) => ({
+            ...prev,
+            sourceLinkedFormId: customConfig.targetFormId,
+            sourceLinkedFormName: customConfig.targetFormName || 'Unknown Form'
+          }));
+          syncToParent({
+            ...localConfig,
+            sourceLinkedFormId: customConfig.targetFormId,
+            sourceLinkedFormName: customConfig.targetFormName || 'Unknown Form'
+          });
+        }
+        setLinkedFormLoading(false);
+      } catch (err) {
+        console.log('❌ Fetch error:', err);
+        setLinkedFormLoading(false);
       }
     })();
-    
-    return () => { cancelled = true; };
-  }, [localConfig?.actionType, localConfig?.sourceCrossRefFieldId, localConfig?.sourceLinkedFormId, syncToParent]);
+  }, [localConfig?.actionType, localConfig?.sourceCrossRefFieldId, localConfig?.sourceLinkedFormId, localConfig, syncToParent]);
 
   // Update local config and schedule parent sync
   const handleConfigUpdate = useCallback((key: string, value: any) => {
