@@ -148,7 +148,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
     console.log('🔄 Fetching linked form for cross-ref field:', sourceCrossRefFieldId);
     setLinkedFormLoading(true);
     
-    (async () => {
+    const fetchLinkedForm = async () => {
       try {
         const { data, error } = await supabase
           .from('form_fields')
@@ -174,19 +174,17 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
             sourceLinkedFormId: customConfig.targetFormId,
             sourceLinkedFormName: customConfig.targetFormName || 'Unknown Form'
           }));
-          syncToParent({
-            ...localConfig,
-            sourceLinkedFormId: customConfig.targetFormId,
-            sourceLinkedFormName: customConfig.targetFormName || 'Unknown Form'
-          });
         }
         setLinkedFormLoading(false);
       } catch (err) {
         console.log('❌ Fetch error:', err);
         setLinkedFormLoading(false);
       }
-    })();
-  }, [localConfig?.actionType, localConfig?.sourceCrossRefFieldId, localConfig?.sourceLinkedFormId, localConfig, syncToParent]);
+    };
+    
+    fetchLinkedForm();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localConfig?.actionType, localConfig?.sourceCrossRefFieldId, localConfig?.sourceLinkedFormId]);
 
   // Update local config and schedule parent sync
   const handleConfigUpdate = useCallback((key: string, value: any) => {
