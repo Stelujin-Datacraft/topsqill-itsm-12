@@ -19,6 +19,31 @@ export function useCrossReferenceSync() {
     
     console.log('Creating child cross-reference field:', options);
     
+    // Fetch fresh data from database instead of relying on potentially stale local state
+    const { data: existingChildFields, error: checkError } = await supabase
+      .from('form_fields')
+      .select('id, custom_config')
+      .eq('form_id', targetFormId)
+      .eq('field_type', 'child-cross-reference');
+    
+    if (checkError) {
+      console.error('Error checking for existing child fields:', checkError);
+      return;
+    }
+
+    // Check if child field already exists in database
+    const existingChildField = existingChildFields?.find(field => {
+      const config = typeof field.custom_config === 'string' 
+        ? JSON.parse(field.custom_config) 
+        : field.custom_config;
+      return config?.parentFormId === parentFormId && config?.parentFieldId === parentFieldId;
+    });
+
+    if (existingChildField) {
+      console.log('Child cross-reference field already exists in database:', existingChildField.id);
+      return;
+    }
+    
     const targetForm = forms.find(f => f.id === targetFormId);
     const parentForm = forms.find(f => f.id === parentFormId);
     
@@ -29,18 +54,6 @@ export function useCrossReferenceSync() {
 
     if (!parentForm) {
       console.error('Parent form not found:', parentFormId);
-      return;
-    }
-
-    // Check if child field already exists
-    const existingChildField = targetForm.fields.find(
-      field => field.type === 'child-cross-reference' && 
-               field.customConfig?.parentFormId === parentFormId &&
-               field.customConfig?.parentFieldId === parentFieldId
-    );
-
-    if (existingChildField) {
-      console.log('Child cross-reference field already exists');
       return;
     }
 
