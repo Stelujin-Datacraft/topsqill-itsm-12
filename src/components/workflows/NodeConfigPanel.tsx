@@ -1335,6 +1335,19 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                             Prevent duplicate combinations
                           </Label>
                         </div>
+
+                        <div>
+                          <Label>Field Mappings (Optional)</Label>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Map additional fields from the trigger form to the new combination records
+                          </p>
+                          <FieldMappingConfig
+                            triggerFormId={triggerFormId}
+                            targetFormId={localConfig.targetFormId}
+                            fieldMappings={localConfig?.fieldMappings || []}
+                            onFieldMappingsChange={(mappings) => handleConfigUpdate('fieldMappings', mappings)}
+                          />
+                        </div>
                       </>
                     )}
 
@@ -1342,6 +1355,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                       <div className="text-xs text-fuchsia-700 bg-fuchsia-50 p-3 rounded border border-fuchsia-200">
                         <strong>Summary:</strong> For each record linked via "{localConfig.sourceCrossRefFieldName}", will create a record in "{localConfig.targetFormName}" linking both the trigger submission and the linked record.
                         {localConfig.preventDuplicates && ' Duplicates will be skipped.'}
+                        {(localConfig.fieldMappings?.length || 0) > 0 && ` With ${localConfig.fieldMappings.length} field mapping(s).`}
                       </div>
                     )}
                   </>
