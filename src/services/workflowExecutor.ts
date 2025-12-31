@@ -155,42 +155,54 @@ export class WorkflowExecutor {
 
       let result: NodeExecutionResult;
       const nodeStartTime = Date.now();
+      let nodeEndTime = Date.now();
+      let executionCompleted = false;
 
-      // Execute nodes with enhanced conditional handling
-      switch (node.node_type) {
-        case 'start':
-          console.log('▶️ Executing start node');
-          result = await NodeActions.executeStartNode(context);
-          break;
-        case 'notification':
-          console.log('🔔 Executing notification node');
-          result = await NodeActions.executeNotificationNode(context);
-          break;
-        case 'action':
-          console.log('🎯 Executing action node');
-          result = await NodeActions.executeActionNode(context);
-          break;
-        case 'condition':
-          console.log('🔍 Executing condition node with conditional branching');
-          result = await NodeActions.executeConditionNode(context);
-          break;
-        case 'wait':
-          console.log('⏱️ Executing wait node');
-          result = await NodeActions.executeWaitNode(context);
-          break;
-        case 'end':
-          console.log('🏁 Executing end node');
-          result = await NodeActions.executeEndNode(context);
-          break;
-        default:
-          console.error(`❌ Unknown node type: ${node.node_type}`);
-          result = {
-            success: false,
-            error: `Unknown node type: ${node.node_type}`
-          };
+      try {
+        // Execute nodes with enhanced conditional handling
+        switch (node.node_type) {
+          case 'start':
+            console.log('▶️ Executing start node');
+            result = await NodeActions.executeStartNode(context);
+            break;
+          case 'notification':
+            console.log('🔔 Executing notification node');
+            result = await NodeActions.executeNotificationNode(context);
+            break;
+          case 'action':
+            console.log('🎯 Executing action node');
+            result = await NodeActions.executeActionNode(context);
+            break;
+          case 'condition':
+            console.log('🔍 Executing condition node with conditional branching');
+            result = await NodeActions.executeConditionNode(context);
+            break;
+          case 'wait':
+            console.log('⏱️ Executing wait node');
+            result = await NodeActions.executeWaitNode(context);
+            break;
+          case 'end':
+            console.log('🏁 Executing end node');
+            result = await NodeActions.executeEndNode(context);
+            break;
+          default:
+            console.error(`❌ Unknown node type: ${node.node_type}`);
+            result = {
+              success: false,
+              error: `Unknown node type: ${node.node_type}`
+            };
+        }
+        executionCompleted = true;
+      } catch (nodeExecError) {
+        console.error(`❌ Node execution threw error:`, nodeExecError);
+        result = {
+          success: false,
+          error: nodeExecError instanceof Error ? nodeExecError.message : 'Node execution failed unexpectedly'
+        };
+        executionCompleted = true;
       }
 
-      const nodeEndTime = Date.now();
+      nodeEndTime = Date.now();
       const duration = nodeEndTime - nodeStartTime;
 
       // Enhanced logging for conditional nodes
@@ -227,22 +239,26 @@ export class WorkflowExecutor {
         result.output?.waited === true && (!result.nextNodeIds || result.nextNodeIds.length === 0);
 
       if (!isWaitNodePausing) {
-        // Update log entry with results
-        await supabase
-          .from('workflow_instance_logs')
-          .update({
-            status: result.success ? 'completed' : 'failed',
-            completed_at: new Date().toISOString(),
-            duration_ms: duration,
-            output_data: { 
-              ...result.output || {}, 
-              ...conditionalInfo 
-            },
-            error_message: result.error,
-            action_type: actionType,
-            action_details: { ...actionDetails, ...conditionalInfo }
-          })
-          .eq('id', logEntry.id);
+        // Update log entry with results - always update even on failure
+        try {
+          await supabase
+            .from('workflow_instance_logs')
+            .update({
+              status: result.success ? 'completed' : 'failed',
+              completed_at: new Date().toISOString(),
+              duration_ms: duration,
+              output_data: { 
+                ...result.output || {}, 
+                ...conditionalInfo 
+              },
+              error_message: result.error,
+              action_type: actionType,
+              action_details: { ...actionDetails, ...conditionalInfo }
+            })
+            .eq('id', logEntry.id);
+        } catch (logUpdateError) {
+          console.error('❌ Error updating log entry:', logUpdateError);
+        }
       }
 
       console.log(`${result.success ? '✅' : '❌'} Node execution result:`, {
