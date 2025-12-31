@@ -108,27 +108,26 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
 
   // Auto-fetch linked form info when sourceCrossRefFieldId is set but sourceLinkedFormId is missing
   // This handles restoring the linked form info when config is loaded from saved state
-  const fetchedCrossRefRef = useRef<string | null>(null);
-  
   useEffect(() => {
     const sourceCrossRefFieldId = localConfig?.sourceCrossRefFieldId;
     const sourceLinkedFormId = localConfig?.sourceLinkedFormId;
     const actionType = localConfig?.actionType;
+    
+    console.log('📊 Create Combination Records check:', { 
+      actionType, 
+      sourceCrossRefFieldId, 
+      sourceLinkedFormId,
+      shouldFetch: actionType === 'create_combination_records' && sourceCrossRefFieldId && !sourceLinkedFormId
+    });
     
     // Skip if not the right action type, no cross-ref selected, or already have linked form info
     if (actionType !== 'create_combination_records' || !sourceCrossRefFieldId || sourceLinkedFormId) {
       return;
     }
     
-    // Skip if we've already fetched for this cross-ref field
-    if (fetchedCrossRefRef.current === sourceCrossRefFieldId) {
-      return;
-    }
-    
     const fetchLinkedFormInfo = async () => {
       try {
         console.log('🔄 Auto-fetching linked form info for cross-ref field:', sourceCrossRefFieldId);
-        fetchedCrossRefRef.current = sourceCrossRefFieldId;
         
         const { data: fieldData, error } = await supabase
           .from('form_fields')
@@ -146,7 +145,9 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
           return;
         }
 
+        console.log('📋 Field data received:', fieldData);
         const customConfig = fieldData?.custom_config as { targetFormId?: string; targetFormName?: string } | null;
+        
         if (customConfig?.targetFormId) {
           console.log('✅ Found linked form:', customConfig.targetFormId, customConfig.targetFormName);
           setLocalConfig((prev: any) => {
