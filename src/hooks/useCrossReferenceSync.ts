@@ -60,9 +60,9 @@ export function useCrossReferenceSync() {
     // Get the first page or create default page structure
     const targetPageId = targetForm.pages?.[0]?.id || 'default';
 
-    // Get all columns from parent form for displayColumns
+    // Get all columns from parent form for displayColumns, excluding cross-reference fields
     const parentFormColumns = parentForm.fields
-      .filter(field => !['header', 'description', 'section-break', 'horizontal-line'].includes(field.type))
+      .filter(field => !['header', 'description', 'section-break', 'horizontal-line', 'cross-reference', 'child-cross-reference'].includes(field.type))
       .map(field => field.id);
 
     // Create the child cross-reference field with proper structure
