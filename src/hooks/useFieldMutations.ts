@@ -153,6 +153,18 @@ export function useFieldMutations() {
         }
       }
       
+      // Get the max field_order to add new field at the end
+      const { data: existingFields } = await supabase
+        .from('form_fields')
+        .select('field_order')
+        .eq('form_id', formId)
+        .order('field_order', { ascending: false })
+        .limit(1);
+      
+      const maxOrder = existingFields && existingFields.length > 0 
+        ? (existingFields[0].field_order || 0) + 1 
+        : 0;
+      
       let defaultValueStr = '';
       if (fieldData.defaultValue !== undefined) {
         if (typeof fieldData.defaultValue === 'boolean') {
@@ -180,7 +192,7 @@ export function useFieldMutations() {
         current_value: fieldData.currentValue || '',
         tooltip: fieldData.tooltip || '',
         error_message: fieldData.errorMessage || '',
-        field_order: 0,
+        field_order: maxOrder,
         custom_config: fieldData.customConfig ? JSON.stringify(fieldData.customConfig) : null,
       };
 
