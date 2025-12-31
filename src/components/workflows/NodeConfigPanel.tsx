@@ -129,11 +129,23 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
     const sourceCrossRefFieldId = localConfig?.sourceCrossRefFieldId;
     const sourceLinkedFormId = localConfig?.sourceLinkedFormId;
     
+    console.log('🔍 Linked form check:', { actionType, sourceCrossRefFieldId, sourceLinkedFormId });
+    
     // Only for create_combination_records action with cross-ref field but missing linked form
-    if (actionType !== 'create_combination_records' || !sourceCrossRefFieldId || sourceLinkedFormId) {
+    if (actionType !== 'create_combination_records') {
+      console.log('⏭️ Skipping: not create_combination_records');
+      return;
+    }
+    if (!sourceCrossRefFieldId) {
+      console.log('⏭️ Skipping: no sourceCrossRefFieldId');
+      return;
+    }
+    if (sourceLinkedFormId) {
+      console.log('✅ Already has sourceLinkedFormId:', sourceLinkedFormId);
       return;
     }
     
+    console.log('🔄 Fetching linked form for cross-ref field:', sourceCrossRefFieldId);
     let cancelled = false;
     setLinkedFormLoading(true);
     
@@ -145,18 +157,22 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
           .eq('id', sourceCrossRefFieldId)
           .maybeSingle();
         
+        console.log('📦 Fetch result:', { data, error, cancelled });
+        
         if (cancelled) return;
         
         if (!error && data) {
           const customConfig = data.custom_config as { targetFormId?: string; targetFormName?: string } | null;
+          console.log('📋 Custom config:', customConfig);
+          
           if (customConfig?.targetFormId) {
+            console.log('✅ Setting sourceLinkedFormId:', customConfig.targetFormId);
             setLocalConfig((prev: any) => {
               const newConfig = {
                 ...prev,
                 sourceLinkedFormId: customConfig.targetFormId,
                 sourceLinkedFormName: customConfig.targetFormName || 'Unknown Form'
               };
-              // Sync to parent after state update
               setTimeout(() => syncToParent(newConfig), 0);
               return newConfig;
             });
