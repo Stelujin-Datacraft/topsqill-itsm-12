@@ -60,6 +60,21 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
     return config;
   });
   
+  // Re-sync local config when node changes (user clicks different node)
+  const prevNodeIdRef = useRef(node.id);
+  useEffect(() => {
+    if (prevNodeIdRef.current !== node.id) {
+      console.log('🔄 Node changed, re-initializing localConfig for:', node.id);
+      prevNodeIdRef.current = node.id;
+      const config = node.data.config || {};
+      if (node.type === 'start' && !config.triggerType) {
+        setLocalConfig({ ...config, triggerType: 'form_submission' });
+      } else {
+        setLocalConfig(config);
+      }
+    }
+  }, [node.id, node.data.config, node.type]);
+  
   // Keep a ref to the onConfigChange to avoid stale closures
   const onConfigChangeRef = useRef(onConfigChange);
   onConfigChangeRef.current = onConfigChange;
@@ -109,6 +124,11 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
   // Auto-fetch linked form info when sourceCrossRefFieldId is set but sourceLinkedFormId is missing
   // This handles restoring the linked form info when config is loaded from saved state
   const fetchedCrossRefIdRef = useRef<string | null>(null);
+  
+  // Reset the fetch ref when node changes
+  useEffect(() => {
+    fetchedCrossRefIdRef.current = null;
+  }, [node.id]);
   
   useEffect(() => {
     const sourceCrossRefFieldId = localConfig?.sourceCrossRefFieldId;
