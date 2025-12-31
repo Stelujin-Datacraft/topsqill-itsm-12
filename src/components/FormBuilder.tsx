@@ -260,25 +260,37 @@ function FormBuilderContent({
       await batchSaveFields(formId!, snapshot.form.fields, existingFieldIds);
 
       // Handle deleted fields - identify which fields to remove
+      // IMPORTANT: Only consider a field deleted if it exists in DB but not in snapshot
+      // AND the snapshot has been properly initialized with this form's data
       const snapshotFieldIds = new Set(snapshot.form.fields.map(f => f.id));
       const fieldsToDelete: string[] = [];
       const crossRefCleanupPromises: Promise<void>[] = [];
 
       for (const oldField of existingFields) {
+        // Only process deletion if field genuinely doesn't exist in snapshot
         if (!snapshotFieldIds.has(oldField.id)) {
-          // If it's a cross-reference field, clean up child fields first
-          if (oldField.type === 'cross-reference' && oldField.customConfig?.targetFormId) {
-            crossRefCleanupPromises.push(
-              removeChildCrossReferenceField({
-                parentFormId: formId!,
-                parentFieldId: oldField.id,
-                targetFormId: oldField.customConfig.targetFormId
-              }).catch(error => {
-                console.error('Error removing child cross-reference field:', error);
-              })
-            );
+          // Double-check: verify this field was actually in the snapshot at some point
+          // by checking if the snapshot was initialized from this same form
+          const isValidDeletion = snapshot.initializedFormId === formId;
+          
+          if (isValidDeletion) {
+            // If it's a cross-reference field, clean up child fields first
+            if (oldField.type === 'cross-reference' && oldField.customConfig?.targetFormId) {
+              console.log('Cleaning up child cross-reference field for deleted parent field:', oldField.id);
+              crossRefCleanupPromises.push(
+                removeChildCrossReferenceField({
+                  parentFormId: formId!,
+                  parentFieldId: oldField.id,
+                  targetFormId: oldField.customConfig.targetFormId
+                }).catch(error => {
+                  console.error('Error removing child cross-reference field:', error);
+                })
+              );
+            }
+            fieldsToDelete.push(oldField.id);
+          } else {
+            console.warn('Skipping field deletion - snapshot not initialized for this form:', oldField.id);
           }
-          fieldsToDelete.push(oldField.id);
         }
       }
 
