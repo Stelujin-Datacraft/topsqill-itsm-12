@@ -1285,10 +1285,14 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
 
                     {localConfig?.targetFormId && (
                       <>
+                        <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded border border-blue-200">
+                          <strong>Optional:</strong> If your target form has cross-reference fields back to the trigger and linked forms, configure them below. If not, you can skip these and just use field mappings.
+                        </div>
+
                         <div>
-                          <Label>Cross-Ref Field for Trigger Form *</Label>
+                          <Label>Cross-Ref Field for Trigger Form (Optional)</Label>
                           <p className="text-xs text-muted-foreground mb-2">
-                            Field in target form that links back to trigger form (e.g., Control → Entities)
+                            Field in target form that links back to trigger form (e.g., Control → Risk)
                           </p>
                           <FormFieldSelector
                             formId={localConfig.targetFormId}
@@ -1300,15 +1304,15 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                                 targetTriggerCrossRefFieldName: fieldName
                               });
                             }}
-                            placeholder="Select cross-reference field"
+                            placeholder="Select cross-reference field (optional)"
                             filterTypes={['cross-reference', 'child-cross-reference']}
                           />
                         </div>
 
                         <div>
-                          <Label>Cross-Ref Field for Linked Records *</Label>
+                          <Label>Cross-Ref Field for Linked Records (Optional)</Label>
                           <p className="text-xs text-muted-foreground mb-2">
-                            Field in target form that links to the source linked form (e.g., Control → Risk)
+                            Field in target form that links to the source linked form (e.g., Control → Entity)
                           </p>
                           <FormFieldSelector
                             formId={localConfig.targetFormId}
@@ -1320,7 +1324,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                                 targetLinkedCrossRefFieldName: fieldName
                               });
                             }}
-                            placeholder="Select cross-reference field"
+                            placeholder="Select cross-reference field (optional)"
                             filterTypes={['cross-reference', 'child-cross-reference']}
                           />
                         </div>
@@ -1391,9 +1395,11 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                       </>
                     )}
 
-                    {localConfig?.sourceCrossRefFieldId && localConfig?.targetFormId && localConfig?.targetTriggerCrossRefFieldId && localConfig?.targetLinkedCrossRefFieldId && (
+                    {localConfig?.sourceCrossRefFieldId && localConfig?.targetFormId && (
                       <div className="text-xs text-fuchsia-700 bg-fuchsia-50 p-3 rounded border border-fuchsia-200">
-                        <strong>Summary:</strong> For each record linked via "{localConfig.sourceCrossRefFieldName}", will create a record in "{localConfig.targetFormName}" linking both the trigger submission and the linked record.
+                        <strong>Summary:</strong> For each record linked via "{localConfig.sourceCrossRefFieldName}", will create a record in "{localConfig.targetFormName}".
+                        {localConfig.targetTriggerCrossRefFieldId && ` Links to trigger via "${localConfig.targetTriggerCrossRefFieldName}".`}
+                        {localConfig.targetLinkedCrossRefFieldId && ` Links to source via "${localConfig.targetLinkedCrossRefFieldName}".`}
                         {localConfig.preventDuplicates && ' Duplicates will be skipped.'}
                         {localConfig.updateTriggerCrossRefFieldId && ` Created records will be auto-linked back to "${localConfig.updateTriggerCrossRefFieldName}".`}
                         {(localConfig.fieldMappings?.length || 0) > 0 && ` With ${localConfig.fieldMappings.length} trigger form field mapping(s).`}
