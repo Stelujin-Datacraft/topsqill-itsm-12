@@ -1368,7 +1368,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                         <div>
                           <Label>Map Fields from Trigger Form (Optional)</Label>
                           <p className="text-xs text-muted-foreground mb-2">
-                            Map fields from the trigger form (e.g., Entity) to the new combination records
+                            Map fields from the trigger form (Risk) to the new combination records
                           </p>
                           <FieldMappingConfig
                             triggerFormId={triggerFormId}
@@ -1378,20 +1378,24 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, fo
                           />
                         </div>
 
-                        {localConfig?.sourceLinkedFormId && (
-                          <div>
-                            <Label>Map Fields from Linked Form (Optional)</Label>
-                            <p className="text-xs text-muted-foreground mb-2">
-                              Map fields from the linked form (e.g., Risk) to the new combination records
-                            </p>
+                        <div>
+                          <Label>Map Fields from Linked Form (Optional)</Label>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Map fields from the linked form ({localConfig?.sourceLinkedFormName || 'Entity'}) to the new combination records
+                          </p>
+                          {localConfig?.sourceLinkedFormId ? (
                             <FieldMappingConfig
                               triggerFormId={localConfig.sourceLinkedFormId}
                               targetFormId={localConfig.targetFormId}
                               fieldMappings={localConfig?.linkedFormFieldMappings || []}
                               onFieldMappingsChange={(mappings) => handleConfigUpdate('linkedFormFieldMappings', mappings)}
                             />
-                          </div>
-                        )}
+                          ) : (
+                            <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
+                              Please select the Source Cross-Reference Field first to enable linked form field mapping.
+                            </p>
+                          )}
+                        </div>
                       </>
                     )}
 
