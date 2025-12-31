@@ -164,7 +164,17 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
           return;
         }
         
-        const customConfig = data.custom_config as { targetFormId?: string; targetFormName?: string } | null;
+        // Handle case where custom_config might be a string (JSON) or already an object
+        let customConfig: { targetFormId?: string; targetFormName?: string } | null = null;
+        if (typeof data.custom_config === 'string') {
+          try {
+            customConfig = JSON.parse(data.custom_config);
+          } catch (e) {
+            console.log('❌ Failed to parse custom_config:', e);
+          }
+        } else {
+          customConfig = data.custom_config as { targetFormId?: string; targetFormName?: string } | null;
+        }
         console.log('📋 Custom config:', customConfig);
         
         if (customConfig?.targetFormId) {
