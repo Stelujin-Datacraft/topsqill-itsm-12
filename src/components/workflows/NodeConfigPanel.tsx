@@ -123,17 +123,18 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
 
   // Auto-fetch linked form info when sourceCrossRefFieldId is set but sourceLinkedFormId is missing
   // This handles restoring the linked form info when config is loaded from saved state
-  const fetchedCrossRefIdRef = useRef<string | null>(null);
-  
-  // Reset the fetch ref when node changes
-  useEffect(() => {
-    fetchedCrossRefIdRef.current = null;
-  }, [node.id]);
-  
   useEffect(() => {
     const sourceCrossRefFieldId = localConfig?.sourceCrossRefFieldId;
     const sourceLinkedFormId = localConfig?.sourceLinkedFormId;
     const actionType = localConfig?.actionType;
+    
+    console.log('📊 Create Combination Records - checking:', { 
+      nodeId: node.id,
+      actionType, 
+      sourceCrossRefFieldId, 
+      sourceLinkedFormId,
+      shouldFetch: actionType === 'create_combination_records' && sourceCrossRefFieldId && !sourceLinkedFormId
+    });
     
     // Skip if not the right action type or no cross-ref selected
     if (actionType !== 'create_combination_records' || !sourceCrossRefFieldId) {
@@ -142,17 +143,10 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
     
     // Skip if we already have the linked form info
     if (sourceLinkedFormId) {
-      console.log('📊 Create Combination Records - linked form already set:', sourceLinkedFormId);
-      return;
-    }
-    
-    // Skip if we already fetched for this cross-ref field
-    if (fetchedCrossRefIdRef.current === sourceCrossRefFieldId) {
       return;
     }
     
     console.log('📊 Create Combination Records - fetching linked form for:', sourceCrossRefFieldId);
-    fetchedCrossRefIdRef.current = sourceCrossRefFieldId;
     
     const fetchLinkedFormInfo = async () => {
       try {
@@ -195,7 +189,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
     };
 
     fetchLinkedFormInfo();
-  }, [localConfig?.actionType, localConfig?.sourceCrossRefFieldId, localConfig?.sourceLinkedFormId, syncToParent]);
+  }, [node.id, localConfig?.actionType, localConfig?.sourceCrossRefFieldId, localConfig?.sourceLinkedFormId, syncToParent]);
 
   // Update local config and schedule parent sync
   const handleConfigUpdate = useCallback((key: string, value: any) => {
