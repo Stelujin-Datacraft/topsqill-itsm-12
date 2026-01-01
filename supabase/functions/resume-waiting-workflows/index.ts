@@ -381,6 +381,308 @@ Deno.serve(async (req) => {
                     })
                     .eq('id', logEntry.id)
                 }
+              } else if (actionType === 'create_combination_records') {
+                // Execute create combination records action
+                console.log('🔗✨ Executing create_combination_records action in edge function')
+                
+                const combinationMode = config.combinationMode || 'single'
+                const triggerSubmissionData = execution.trigger_data?.submissionData || {}
+                const triggerSubmissionId = execution.trigger_data?.submissionId
+                const triggerFormId = execution.trigger_data?.formId
+                const submitterId = execution.submitter_id || execution.trigger_data?.submitterId
+                
+                console.log(`📋 Combination mode: ${combinationMode}`)
+                console.log(`📋 Trigger submission ID: ${triggerSubmissionId}`)
+                
+                // Helper function to extract linked records
+                const extractLinkedRecords = (crossRefValue: any, defaultFormId: string): Array<{refId: string, formId: string}> => {
+                  if (!crossRefValue) return []
+                  
+                  if (Array.isArray(crossRefValue)) {
+                    return crossRefValue
+                      .map(v => {
+                        if (typeof v === 'string') return { refId: v, formId: defaultFormId }
+                        if (v && typeof v === 'object' && v.submission_ref_id) {
+                          return { refId: v.submission_ref_id, formId: v.form_id || defaultFormId }
+                        }
+                        return null
+                      })
+                      .filter((v): v is {refId: string, formId: string} => v !== null && !!v.refId)
+                  } else if (typeof crossRefValue === 'string') {
+                    return [{ refId: crossRefValue, formId: defaultFormId }]
+                  } else if (crossRefValue && typeof crossRefValue === 'object' && crossRefValue.submission_ref_id) {
+                    return [{ refId: crossRefValue.submission_ref_id, formId: crossRefValue.form_id || defaultFormId }]
+                  }
+                  return []
+                }
+
+                // Extract linked records from first source
+                const firstSourceRecords = extractLinkedRecords(
+                  triggerSubmissionData[config.sourceCrossRefFieldId],
+                  config.sourceLinkedFormId
+                )
+                console.log(`📋 First source records: ${firstSourceRecords.length}`)
+
+                // Extract linked records from second source (dual mode)
+                let secondSourceRecords: Array<{refId: string, formId: string}> = []
+                if (combinationMode === 'dual') {
+                  secondSourceRecords = extractLinkedRecords(
+                    triggerSubmissionData[config.secondSourceCrossRefFieldId],
+                    config.secondSourceLinkedFormId
+                  )
+                  console.log(`📋 Second source records: ${secondSourceRecords.length}`)
+                }
+
+                if (firstSourceRecords.length === 0) {
+                  console.log('⚠️ No records in first source cross-reference field')
+                  if (logEntry) {
+                    await supabase
+                      .from('workflow_instance_logs')
+                      .update({
+                        status: 'completed',
+                        completed_at: new Date().toISOString(),
+                        duration_ms: Date.now() - new Date(nodeStartTime).getTime(),
+                        output_data: { 
+                          message: 'No linked records found in first source cross-reference field',
+                          createdCount: 0,
+                          success: true
+                        }
+                      })
+                      .eq('id', logEntry.id)
+                  }
+                } else if (combinationMode === 'dual' && secondSourceRecords.length === 0) {
+                  console.log('⚠️ No records in second source cross-reference field')
+                  if (logEntry) {
+                    await supabase
+                      .from('workflow_instance_logs')
+                      .update({
+                        status: 'completed',
+                        completed_at: new Date().toISOString(),
+                        duration_ms: Date.now() - new Date(nodeStartTime).getTime(),
+                        output_data: { 
+                          message: 'No linked records found in second source cross-reference field',
+                          createdCount: 0,
+                          success: true
+                        }
+                      })
+                      .eq('id', logEntry.id)
+                  }
+                } else {
+                  // Build combinations
+                  interface CombinationPair {
+                    first: {refId: string, formId: string}
+                    second?: {refId: string, formId: string}
+                  }
+                  
+                  let combinations: CombinationPair[] = []
+                  
+                  if (combinationMode === 'dual') {
+                    // Cartesian product
+                    for (const first of firstSourceRecords) {
+                      for (const second of secondSourceRecords) {
+                        combinations.push({ first, second })
+                      }
+                    }
+                    console.log(`📋 Cartesian product: ${combinations.length} combinations`)
+                  } else {
+                    combinations = firstSourceRecords.map(first => ({ first }))
+                  }
+
+                  // Fetch trigger submission's submission_ref_id
+                  const { data: triggerSubmission } = await supabase
+                    .from('form_submissions')
+                    .select('id, submission_ref_id')
+                    .eq('id', triggerSubmissionId)
+                    .single()
+
+                  // Pre-fetch linked records data for field mappings
+                  const linkedRecordsDataMap = new Map<string, Record<string, any>>()
+                  const allRefIds = [
+                    ...firstSourceRecords.map(r => r.refId),
+                    ...secondSourceRecords.map(r => r.refId)
+                  ]
+                  
+                  if (allRefIds.length > 0 && (
+                    (config.linkedFormFieldMappings && config.linkedFormFieldMappings.length > 0) ||
+                    (config.secondLinkedFormFieldMappings && config.secondLinkedFormFieldMappings.length > 0)
+                  )) {
+                    const { data: linkedSubmissions } = await supabase
+                      .from('form_submissions')
+                      .select('submission_ref_id, submission_data')
+                      .in('submission_ref_id', allRefIds)
+                    
+                    if (linkedSubmissions) {
+                      for (const sub of linkedSubmissions) {
+                        if (sub.submission_ref_id) {
+                          linkedRecordsDataMap.set(sub.submission_ref_id, sub.submission_data as Record<string, any>)
+                        }
+                      }
+                    }
+                    console.log(`📋 Fetched data for ${linkedRecordsDataMap.size} linked records`)
+                  }
+
+                  // Create combination records
+                  const createdRecords: Array<{id: string, submission_ref_id: string}> = []
+                  const initialStatus = config.initialStatus || 'pending'
+
+                  for (const combo of combinations) {
+                    const combinationSubmissionData: Record<string, any> = {}
+
+                    // Apply target link fields
+                    if (config.targetLinkFields && config.targetLinkFields.length > 0) {
+                      for (const linkField of config.targetLinkFields) {
+                        const sourceRecord = linkField.linkTo === 'second_source' ? combo.second : combo.first
+                        if (sourceRecord) {
+                          combinationSubmissionData[linkField.targetFieldId] = [{
+                            submission_ref_id: sourceRecord.refId,
+                            form_id: sourceRecord.formId
+                          }]
+                        }
+                      }
+                    }
+
+                    // Apply field mappings from trigger form
+                    if (config.fieldMappings && config.fieldMappings.length > 0) {
+                      for (const mapping of config.fieldMappings) {
+                        if (mapping.sourceFieldId && mapping.targetFieldId) {
+                          const sourceValue = triggerSubmissionData[mapping.sourceFieldId]
+                          if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
+                            combinationSubmissionData[mapping.targetFieldId] = sourceValue
+                          }
+                        }
+                      }
+                    }
+
+                    // Apply field mappings from first linked form
+                    if (config.linkedFormFieldMappings && config.linkedFormFieldMappings.length > 0) {
+                      const linkedRecordData = linkedRecordsDataMap.get(combo.first.refId)
+                      if (linkedRecordData) {
+                        for (const mapping of config.linkedFormFieldMappings) {
+                          if (mapping.sourceFieldId && mapping.targetFieldId) {
+                            const sourceValue = linkedRecordData[mapping.sourceFieldId]
+                            if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
+                              combinationSubmissionData[mapping.targetFieldId] = sourceValue
+                            }
+                          }
+                        }
+                      }
+                    }
+
+                    // Apply field mappings from second linked form (dual mode)
+                    if (combinationMode === 'dual' && combo.second && config.secondLinkedFormFieldMappings && config.secondLinkedFormFieldMappings.length > 0) {
+                      const secondLinkedRecordData = linkedRecordsDataMap.get(combo.second.refId)
+                      if (secondLinkedRecordData) {
+                        for (const mapping of config.secondLinkedFormFieldMappings) {
+                          if (mapping.sourceFieldId && mapping.targetFieldId) {
+                            const sourceValue = secondLinkedRecordData[mapping.sourceFieldId]
+                            if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
+                              combinationSubmissionData[mapping.targetFieldId] = sourceValue
+                            }
+                          }
+                        }
+                      }
+                    }
+
+                    console.log('📝 Creating combination record:', {
+                      firstRef: combo.first.refId,
+                      secondRef: combo.second?.refId,
+                      dataKeys: Object.keys(combinationSubmissionData)
+                    })
+
+                    const { data: newSubmission, error: createError } = await supabase
+                      .from('form_submissions')
+                      .insert({
+                        form_id: config.targetFormId,
+                        submission_data: combinationSubmissionData,
+                        submitted_by: submitterId,
+                        approval_status: initialStatus
+                      })
+                      .select('id, submission_ref_id')
+                      .single()
+
+                    if (createError || !newSubmission) {
+                      console.error('❌ Error creating combination record:', createError)
+                      continue
+                    }
+
+                    console.log('✅ Combination record created:', newSubmission.id)
+                    createdRecords.push({
+                      id: newSubmission.id,
+                      submission_ref_id: newSubmission.submission_ref_id || ''
+                    })
+                  }
+
+                  // Auto-link created records back to trigger form's cross-ref field if configured
+                  if (config.updateTriggerCrossRefFieldId && createdRecords.length > 0 && triggerSubmissionId) {
+                    console.log('🔗 Updating trigger form cross-ref field with created records...')
+                    
+                    const newCrossRefValues = createdRecords.map(record => ({
+                      submission_ref_id: record.submission_ref_id,
+                      form_id: config.targetFormId
+                    }))
+
+                    const { data: currentTriggerSubmission } = await supabase
+                      .from('form_submissions')
+                      .select('submission_data')
+                      .eq('id', triggerSubmissionId)
+                      .single()
+
+                    if (currentTriggerSubmission) {
+                      const currentData = currentTriggerSubmission.submission_data || {}
+                      const existingCrossRefValue = (currentData as any)[config.updateTriggerCrossRefFieldId] || []
+                      
+                      let mergedCrossRefValues: any[] = []
+                      if (Array.isArray(existingCrossRefValue)) {
+                        mergedCrossRefValues = [...existingCrossRefValue]
+                      } else if (existingCrossRefValue && typeof existingCrossRefValue === 'object') {
+                        mergedCrossRefValues = [existingCrossRefValue]
+                      }
+                      
+                      const existingRefIds = new Set(mergedCrossRefValues.map((v: any) => 
+                        typeof v === 'string' ? v : v.submission_ref_id
+                      ))
+                      
+                      for (const newVal of newCrossRefValues) {
+                        if (!existingRefIds.has(newVal.submission_ref_id)) {
+                          mergedCrossRefValues.push(newVal)
+                        }
+                      }
+
+                      const updatedData = {
+                        ...(typeof currentData === 'object' ? currentData : {}),
+                        [config.updateTriggerCrossRefFieldId]: mergedCrossRefValues
+                      }
+
+                      await supabase
+                        .from('form_submissions')
+                        .update({ submission_data: updatedData })
+                        .eq('id', triggerSubmissionId)
+                      
+                      console.log(`✅ Updated trigger form cross-ref field with ${newCrossRefValues.length} new records`)
+                    }
+                  }
+
+                  console.log(`✅ Successfully created ${createdRecords.length} combination records`)
+
+                  if (logEntry) {
+                    await supabase
+                      .from('workflow_instance_logs')
+                      .update({
+                        status: 'completed',
+                        completed_at: new Date().toISOString(),
+                        duration_ms: Date.now() - new Date(nodeStartTime).getTime(),
+                        output_data: { 
+                          createdCount: createdRecords.length,
+                          requestedCount: combinations.length,
+                          combinationMode,
+                          targetFormId: config.targetFormId,
+                          createdRecordIds: createdRecords.map(r => r.id),
+                          success: true
+                        }
+                      })
+                      .eq('id', logEntry.id)
+                  }
+                }
               } else {
                 // For other action types, mark as completed since we can't execute them from edge function
                 console.log(`⚠️ Action type ${actionType} not supported in edge function, marking as completed`)
