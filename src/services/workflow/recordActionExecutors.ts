@@ -1095,9 +1095,12 @@ export class RecordActionExecutors {
     console.log('📋 Context:', JSON.stringify(context, null, 2));
 
     const config = context.config;
+    const combinationMode = config.combinationMode || 'single';
     const actionDetails = {
       actionType: 'create_combination_records',
+      combinationMode,
       sourceCrossRefFieldId: config.sourceCrossRefFieldId,
+      secondSourceCrossRefFieldId: config.secondSourceCrossRefFieldId,
       targetFormId: config.targetFormId,
       timestamp: new Date().toISOString()
     };
@@ -1107,7 +1110,15 @@ export class RecordActionExecutors {
       if (!config.sourceCrossRefFieldId) {
         return {
           success: false,
-          error: 'Missing source cross-reference field selection',
+          error: 'Missing first source cross-reference field selection',
+          actionDetails
+        };
+      }
+
+      if (combinationMode === 'dual' && !config.secondSourceCrossRefFieldId) {
+        return {
+          success: false,
+          error: 'Missing second source cross-reference field for dual mode',
           actionDetails
         };
       }
@@ -1119,10 +1130,6 @@ export class RecordActionExecutors {
           actionDetails
         };
       }
-
-      // Note: targetTriggerCrossRefFieldId and targetLinkedCrossRefFieldId are now OPTIONAL
-      // If not provided, records will be created without cross-ref links in the target form
-      // The updateTriggerCrossRefFieldId can still be used to link back to trigger form
 
       // Get trigger data
       const triggerSubmissionData = context.triggerData?.submissionData || context.triggerData || {};
@@ -1146,65 +1153,70 @@ export class RecordActionExecutors {
 
       console.log('📋 Trigger submission:', triggerSubmission);
 
-      // Get the linked record refs from the source cross-reference field
-      const crossRefValue = triggerSubmissionData[config.sourceCrossRefFieldId];
-      
-      if (!crossRefValue) {
-        console.log('⚠️ No linked records found in source cross-reference field');
-        return {
-          success: true,
-          output: {
-            createdCount: 0,
-            message: 'No linked records found in source cross-reference field',
-            sourceCrossRefFieldId: config.sourceCrossRefFieldId
-          },
-          actionDetails
-        };
-      }
-
-      // Extract linked record refs
+      // === EXTRACT LINKED RECORDS FROM FIRST SOURCE ===
       interface LinkedRecord {
         refId: string;
         formId: string;
       }
       
-      let linkedRecords: LinkedRecord[] = [];
+      const extractLinkedRecords = (crossRefValue: any, defaultFormId: string): LinkedRecord[] => {
+        if (!crossRefValue) return [];
+        
+        if (Array.isArray(crossRefValue)) {
+          return crossRefValue
+            .map(v => {
+              if (typeof v === 'string') return { refId: v, formId: defaultFormId };
+              if (v && typeof v === 'object' && v.submission_ref_id) {
+                return { refId: v.submission_ref_id, formId: v.form_id || defaultFormId };
+              }
+              return null;
+            })
+            .filter((v): v is LinkedRecord => v !== null && !!v.refId);
+        } else if (typeof crossRefValue === 'string') {
+          return [{ refId: crossRefValue, formId: defaultFormId }];
+        } else if (crossRefValue && typeof crossRefValue === 'object' && crossRefValue.submission_ref_id) {
+          return [{ refId: crossRefValue.submission_ref_id, formId: crossRefValue.form_id || defaultFormId }];
+        }
+        return [];
+      };
+
+      const firstSourceRecords = extractLinkedRecords(
+        triggerSubmissionData[config.sourceCrossRefFieldId],
+        config.sourceLinkedFormId
+      );
       
-      if (Array.isArray(crossRefValue)) {
-        linkedRecords = crossRefValue
-          .map(v => {
-            if (typeof v === 'string') {
-              return { refId: v, formId: config.sourceLinkedFormId };
-            }
-            if (v && typeof v === 'object' && v.submission_ref_id) {
-              return { 
-                refId: v.submission_ref_id, 
-                formId: v.form_id || config.sourceLinkedFormId 
-              };
-            }
-            return null;
-          })
-          .filter((v): v is LinkedRecord => v !== null && !!v.refId);
-      } else if (typeof crossRefValue === 'string') {
-        linkedRecords = [{ refId: crossRefValue, formId: config.sourceLinkedFormId }];
-      } else if (crossRefValue && typeof crossRefValue === 'object' && crossRefValue.submission_ref_id) {
-        linkedRecords = [{ 
-          refId: crossRefValue.submission_ref_id, 
-          formId: crossRefValue.form_id || config.sourceLinkedFormId 
-        }];
-      }
+      console.log(`📋 First source: ${firstSourceRecords.length} linked records`);
 
-      console.log(`📋 Found ${linkedRecords.length} linked records to create combinations with`);
-
-      if (linkedRecords.length === 0) {
+      if (firstSourceRecords.length === 0) {
         return {
           success: true,
           output: {
             createdCount: 0,
-            message: 'No valid linked records found in source cross-reference field'
+            message: 'No linked records found in first source cross-reference field'
           },
           actionDetails
         };
+      }
+
+      // === EXTRACT LINKED RECORDS FROM SECOND SOURCE (DUAL MODE) ===
+      let secondSourceRecords: LinkedRecord[] = [];
+      if (combinationMode === 'dual') {
+        secondSourceRecords = extractLinkedRecords(
+          triggerSubmissionData[config.secondSourceCrossRefFieldId],
+          config.secondSourceLinkedFormId
+        );
+        console.log(`📋 Second source: ${secondSourceRecords.length} linked records`);
+        
+        if (secondSourceRecords.length === 0) {
+          return {
+            success: true,
+            output: {
+              createdCount: 0,
+              message: 'No linked records found in second source cross-reference field'
+            },
+            actionDetails
+          };
+        }
       }
 
       // Determine submitter
@@ -1215,12 +1227,32 @@ export class RecordActionExecutors {
         submittedBy = config.specificSubmitterId;
       }
 
-      // Determine initial status
       const initialStatus = config.initialStatus || 'pending';
 
-      // Check for duplicates if enabled
+      // === BUILD COMBINATIONS (Cartesian Product for dual mode) ===
+      interface CombinationPair {
+        first: LinkedRecord;
+        second?: LinkedRecord;
+      }
+
+      let combinations: CombinationPair[] = [];
+      
+      if (combinationMode === 'dual') {
+        // Cartesian product: first × second
+        for (const first of firstSourceRecords) {
+          for (const second of secondSourceRecords) {
+            combinations.push({ first, second });
+          }
+        }
+        console.log(`📋 Cartesian product: ${combinations.length} combinations`);
+      } else {
+        // Single mode: just iterate first source
+        combinations = firstSourceRecords.map(first => ({ first }));
+      }
+
+      // === CHECK FOR DUPLICATES ===
       let existingCombinations: Set<string> = new Set();
-      if (config.preventDuplicates) {
+      if (config.preventDuplicates && config.targetLinkFields && config.targetLinkFields.length > 0) {
         console.log('🔍 Checking for existing combinations...');
         
         const { data: existingRecords } = await supabase
@@ -1231,29 +1263,38 @@ export class RecordActionExecutors {
         if (existingRecords) {
           for (const record of existingRecords) {
             const data = record.submission_data as Record<string, any>;
-            const triggerRef = this.extractSubmissionRefId(data[config.targetTriggerCrossRefFieldId]);
-            const linkedRef = this.extractSubmissionRefId(data[config.targetLinkedCrossRefFieldId]);
-            
-            if (triggerRef && linkedRef) {
-              existingCombinations.add(`${triggerRef}|${linkedRef}`);
+            // Build combination key from all link fields
+            const keyParts: string[] = [];
+            for (const linkField of config.targetLinkFields) {
+              const refId = this.extractSubmissionRefId(data[linkField.targetFieldId]);
+              if (refId) keyParts.push(refId);
+            }
+            if (keyParts.length > 0) {
+              existingCombinations.add(keyParts.sort().join('|'));
             }
           }
         }
-        
         console.log(`📋 Found ${existingCombinations.size} existing combinations`);
       }
 
-      // Pre-fetch all linked records data if we have linked form field mappings
+      // === PRE-FETCH LINKED RECORDS DATA FOR FIELD MAPPINGS ===
       const linkedRecordsDataMap: Map<string, Record<string, any>> = new Map();
       
-      if (config.linkedFormFieldMappings && config.linkedFormFieldMappings.length > 0) {
+      const allRefIds = [
+        ...firstSourceRecords.map(r => r.refId),
+        ...secondSourceRecords.map(r => r.refId)
+      ];
+      
+      if (allRefIds.length > 0 && (
+        (config.linkedFormFieldMappings && config.linkedFormFieldMappings.length > 0) ||
+        (config.secondLinkedFormFieldMappings && config.secondLinkedFormFieldMappings.length > 0)
+      )) {
         console.log('📋 Fetching linked records data for field mappings...');
-        const linkedRefIds = linkedRecords.map(lr => lr.refId);
         
         const { data: linkedSubmissions } = await supabase
           .from('form_submissions')
           .select('submission_ref_id, submission_data')
-          .in('submission_ref_id', linkedRefIds);
+          .in('submission_ref_id', allRefIds);
         
         if (linkedSubmissions) {
           for (const sub of linkedSubmissions) {
@@ -1265,41 +1306,53 @@ export class RecordActionExecutors {
         console.log(`📋 Fetched data for ${linkedRecordsDataMap.size} linked records`);
       }
 
-      // Create combination records
-      const createdRecords: Array<{ id: string; submission_ref_id: string; linkedRecordRefId: string }> = [];
+      // === CREATE COMBINATION RECORDS ===
+      const createdRecords: Array<{ id: string; submission_ref_id: string; firstRefId: string; secondRefId?: string }> = [];
       const skippedDuplicates: string[] = [];
 
-      for (const linkedRecord of linkedRecords) {
-        // Check for duplicate
-        if (config.preventDuplicates) {
-          const combinationKey = `${triggerSubmission.submission_ref_id}|${linkedRecord.refId}`;
-          if (existingCombinations.has(combinationKey)) {
-            console.log(`⏭️ Skipping duplicate combination: ${combinationKey}`);
-            skippedDuplicates.push(linkedRecord.refId);
-            continue;
-          }
+      for (const combo of combinations) {
+        // Build combination key for duplicate check
+        const keyParts = [combo.first.refId];
+        if (combo.second) keyParts.push(combo.second.refId);
+        const combinationKey = keyParts.sort().join('|');
+
+        if (config.preventDuplicates && existingCombinations.has(combinationKey)) {
+          console.log(`⏭️ Skipping duplicate combination: ${combinationKey}`);
+          skippedDuplicates.push(combinationKey);
+          continue;
         }
 
         // Build submission data for the new combination record
         const combinationSubmissionData: Record<string, any> = {};
 
-        // Set cross-reference to trigger submission (only if field is configured)
+        // === APPLY TARGET LINK FIELDS ===
+        if (config.targetLinkFields && config.targetLinkFields.length > 0) {
+          for (const linkField of config.targetLinkFields) {
+            const sourceRecord = linkField.linkTo === 'second_source' ? combo.second : combo.first;
+            if (sourceRecord) {
+              combinationSubmissionData[linkField.targetFieldId] = [{
+                submission_ref_id: sourceRecord.refId,
+                form_id: sourceRecord.formId
+              }];
+            }
+          }
+        }
+
+        // === LEGACY LINK FIELDS (backward compatibility) ===
         if (config.targetTriggerCrossRefFieldId) {
           combinationSubmissionData[config.targetTriggerCrossRefFieldId] = [{
             submission_ref_id: triggerSubmission.submission_ref_id,
             form_id: triggerFormId
           }];
         }
-
-        // Set cross-reference to linked record (only if field is configured)
         if (config.targetLinkedCrossRefFieldId) {
           combinationSubmissionData[config.targetLinkedCrossRefFieldId] = [{
-            submission_ref_id: linkedRecord.refId,
-            form_id: linkedRecord.formId
+            submission_ref_id: combo.first.refId,
+            form_id: combo.first.formId
           }];
         }
 
-        // Apply field mappings from trigger form if configured
+        // === APPLY FIELD MAPPINGS FROM TRIGGER FORM ===
         if (config.fieldMappings && config.fieldMappings.length > 0) {
           for (const mapping of config.fieldMappings) {
             if (mapping.sourceFieldId && mapping.targetFieldId) {
@@ -1311,9 +1364,9 @@ export class RecordActionExecutors {
           }
         }
 
-        // Apply field mappings from linked form if configured
+        // === APPLY FIELD MAPPINGS FROM FIRST LINKED FORM ===
         if (config.linkedFormFieldMappings && config.linkedFormFieldMappings.length > 0) {
-          const linkedRecordData = linkedRecordsDataMap.get(linkedRecord.refId);
+          const linkedRecordData = linkedRecordsDataMap.get(combo.first.refId);
           if (linkedRecordData) {
             for (const mapping of config.linkedFormFieldMappings) {
               if (mapping.sourceFieldId && mapping.targetFieldId) {
@@ -1326,9 +1379,24 @@ export class RecordActionExecutors {
           }
         }
 
+        // === APPLY FIELD MAPPINGS FROM SECOND LINKED FORM (DUAL MODE) ===
+        if (combinationMode === 'dual' && combo.second && config.secondLinkedFormFieldMappings && config.secondLinkedFormFieldMappings.length > 0) {
+          const secondLinkedRecordData = linkedRecordsDataMap.get(combo.second.refId);
+          if (secondLinkedRecordData) {
+            for (const mapping of config.secondLinkedFormFieldMappings) {
+              if (mapping.sourceFieldId && mapping.targetFieldId) {
+                const sourceValue = secondLinkedRecordData[mapping.sourceFieldId];
+                if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
+                  combinationSubmissionData[mapping.targetFieldId] = sourceValue;
+                }
+              }
+            }
+          }
+        }
+
         console.log('📝 Creating combination record:', {
-          triggerRef: triggerSubmission.submission_ref_id,
-          linkedRef: linkedRecord.refId,
+          firstRef: combo.first.refId,
+          secondRef: combo.second?.refId,
           data: combinationSubmissionData
         });
 
@@ -1352,12 +1420,13 @@ export class RecordActionExecutors {
         createdRecords.push({
           id: newSubmission.id,
           submission_ref_id: newSubmission.submission_ref_id || '',
-          linkedRecordRefId: linkedRecord.refId
+          firstRefId: combo.first.refId,
+          secondRefId: combo.second?.refId
         });
 
         // Add to existing combinations set to prevent duplicates within same execution
         if (config.preventDuplicates) {
-          existingCombinations.add(`${triggerSubmission.submission_ref_id}|${linkedRecord.refId}`);
+          existingCombinations.add(combinationKey);
         }
       }
 
@@ -1378,13 +1447,11 @@ export class RecordActionExecutors {
       if (config.updateTriggerCrossRefFieldId && createdRecords.length > 0 && triggerSubmissionId) {
         console.log('🔗 Updating trigger form cross-ref field with created records...');
         
-        // Build the cross-ref value array with created record refs
         const newCrossRefValues = createdRecords.map(record => ({
           submission_ref_id: record.submission_ref_id,
           form_id: config.targetFormId
         }));
 
-        // Fetch current trigger submission data
         const { data: currentTriggerSubmission, error: fetchTriggerError } = await supabase
           .from('form_submissions')
           .select('submission_data')
@@ -1397,7 +1464,6 @@ export class RecordActionExecutors {
           const currentData = currentTriggerSubmission.submission_data || {};
           const existingCrossRefValue = (currentData as any)[config.updateTriggerCrossRefFieldId] || [];
           
-          // Merge existing and new cross-ref values
           let mergedCrossRefValues: any[] = [];
           if (Array.isArray(existingCrossRefValue)) {
             mergedCrossRefValues = [...existingCrossRefValue];
@@ -1405,7 +1471,6 @@ export class RecordActionExecutors {
             mergedCrossRefValues = [existingCrossRefValue];
           }
           
-          // Add new values, avoiding duplicates
           const existingRefIds = new Set(mergedCrossRefValues.map(v => 
             typeof v === 'string' ? v : v.submission_ref_id
           ));
@@ -1416,7 +1481,6 @@ export class RecordActionExecutors {
             }
           }
 
-          // Update trigger submission
           const updatedData = {
             ...(typeof currentData === 'object' ? currentData : {}),
             [config.updateTriggerCrossRefFieldId]: mergedCrossRefValues
@@ -1439,9 +1503,10 @@ export class RecordActionExecutors {
         success: true,
         output: {
           createdCount: createdRecords.length,
-          requestedCount: linkedRecords.length,
+          requestedCount: combinations.length,
           skippedDuplicates: skippedDuplicates.length,
           createdRecords,
+          combinationMode,
           targetFormId: config.targetFormId,
           triggerSubmissionRefId: triggerSubmission.submission_ref_id,
           updatedTriggerCrossRef: config.updateTriggerCrossRefFieldId ? true : false,

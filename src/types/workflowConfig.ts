@@ -90,34 +90,78 @@ export interface UpdateLinkedRecordsConfig {
 }
 
 // New configuration for creating combination records
+// Supports combining TWO cross-reference fields from trigger form (Cartesian product)
 export interface CreateCombinationRecordsConfig {
-  // The cross-reference field in the trigger form that contains linked records (e.g., Entity → Risk)
+  // --- MODE SELECTION ---
+  // 'single' = Combine trigger form with ONE cross-ref field (legacy behavior)
+  // 'dual' = Combine TWO cross-ref fields from trigger form (Cartesian product)
+  combinationMode?: 'single' | 'dual';
+
+  // --- FIRST SOURCE CROSS-REFERENCE FIELD ---
+  // The cross-reference field in the trigger form that contains linked records (e.g., Entity)
   sourceCrossRefFieldId: string;
   sourceCrossRefFieldName?: string;
-  // The form referenced by the source cross-reference field (e.g., Risk form)
+  // The form referenced by the first source cross-reference field (e.g., Entity form)
   sourceLinkedFormId: string;
   sourceLinkedFormName?: string;
+
+  // --- SECOND SOURCE CROSS-REFERENCE FIELD (for dual mode) ---
+  // The second cross-reference field in the trigger form (e.g., Control Objective)
+  secondSourceCrossRefFieldId?: string;
+  secondSourceCrossRefFieldName?: string;
+  // The form referenced by the second source cross-reference field
+  secondSourceLinkedFormId?: string;
+  secondSourceLinkedFormName?: string;
+
+  // --- TARGET FORM ---
   // The target form where combination records will be created (e.g., Control form)
   targetFormId: string;
   targetFormName?: string;
+
+  // --- TARGET FORM LINK FIELDS (User-selectable) ---
+  // Array of target cross-reference fields to auto-link
+  targetLinkFields?: TargetLinkFieldConfig[];
+
+  // Legacy fields (kept for backward compatibility, prefer targetLinkFields)
   // Cross-reference field in target form that links back to trigger form (e.g., Control → Entity)
-  targetTriggerCrossRefFieldId: string;
+  targetTriggerCrossRefFieldId?: string;
   targetTriggerCrossRefFieldName?: string;
   // Cross-reference field in target form that links to the source linked form (e.g., Control → Risk)
-  targetLinkedCrossRefFieldId: string;
+  targetLinkedCrossRefFieldId?: string;
   targetLinkedCrossRefFieldName?: string;
-  // Submitter settings
+
+  // --- SUBMITTER SETTINGS ---
   setSubmittedBy?: 'trigger_submitter' | 'system' | 'specific_user';
   specificSubmitterId?: string;
-  // Initial status for the new records
+
+  // --- INITIAL STATUS ---
   initialStatus?: 'pending' | 'approved' | 'rejected' | 'in_review';
-  // Prevent duplicate combinations
+
+  // --- DUPLICATE PREVENTION ---
   preventDuplicates?: boolean;
-  // Optional field mappings from trigger form to target form
+
+  // --- FIELD MAPPINGS FROM TRIGGER FORM ---
   fieldMappings?: FieldMapping[];
-  // Optional field mappings from linked (source) form to target form
+
+  // --- FIELD MAPPINGS FROM FIRST LINKED FORM ---
   linkedFormFieldMappings?: FieldMapping[];
-  // Auto-link created records back to trigger form's cross-ref field
+
+  // --- FIELD MAPPINGS FROM SECOND LINKED FORM (for dual mode) ---
+  secondLinkedFormFieldMappings?: FieldMapping[];
+
+  // --- AUTO-LINK BACK TO TRIGGER ---
   updateTriggerCrossRefFieldId?: string;
   updateTriggerCrossRefFieldName?: string;
+}
+
+// Configuration for which target cross-ref fields to auto-link
+export interface TargetLinkFieldConfig {
+  // The cross-reference field ID in the target form
+  targetFieldId: string;
+  targetFieldName?: string;
+  // Which source to link: 'first_source' or 'second_source'
+  linkTo: 'first_source' | 'second_source';
+  // The form ID being linked (resolved from source)
+  linkedFormId?: string;
+  linkedFormName?: string;
 }
