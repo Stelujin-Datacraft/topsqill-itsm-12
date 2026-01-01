@@ -121,13 +121,22 @@ export function OptimizedFormDataTable({
     pageSize
   });
 
-  // Filter out cross-reference fields from visible columns for child-cross-reference field type
+  // Filter out cross-reference fields and non-existent fields from visible columns for child-cross-reference field type
   useEffect(() => {
     if (isChildCrossReference && formFields.length > 0) {
       const crossRefFieldTypes = ['cross-reference', 'child-cross-reference'];
       const filteredColumns = rawVisibleColumns.filter(fieldId => {
         const field = formFields.find(f => f.id === fieldId);
-        return !field || !crossRefFieldTypes.includes(field.field_type);
+        // Filter out: fields that don't exist in formFields, AND cross-reference type fields
+        if (!field) return false; // Field doesn't exist - filter it out
+        return !crossRefFieldTypes.includes(field.field_type);
+      });
+      setVisibleColumns(filteredColumns);
+    } else if (formFields.length > 0) {
+      // Even for non-child cross-reference, filter out non-existent field IDs
+      const filteredColumns = rawVisibleColumns.filter(fieldId => {
+        const field = formFields.find(f => f.id === fieldId);
+        return !!field; // Only keep fields that exist
       });
       setVisibleColumns(filteredColumns);
     } else {
