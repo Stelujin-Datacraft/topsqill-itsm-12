@@ -295,6 +295,40 @@ export function OptimizedFormDataTable({
         return value;
       }
     }
+    // Handle cross-reference field values (arrays of objects with displayData or submission_ref_id)
+    if ((fieldType === 'cross-reference' || fieldType === 'child-cross-reference') && Array.isArray(value)) {
+      const displayValues = value.map(item => {
+        if (typeof item === 'object' && item !== null) {
+          // Try to get a readable display value
+          if (item.displayData && typeof item.displayData === 'object') {
+            const displayVals = Object.values(item.displayData).filter(v => v && typeof v !== 'object');
+            if (displayVals.length > 0) {
+              return displayVals.join(' ');
+            }
+          }
+          // Fallback to submission_ref_id
+          if (item.submission_ref_id) {
+            return item.submission_ref_id;
+          }
+          // Last fallback to id
+          if (item.id) {
+            return item.id.slice(0, 8);
+          }
+        }
+        return String(item);
+      });
+      return displayValues.filter(Boolean).join(', ') || <span className="text-gray-400">-</span>;
+    }
+    // Handle single object values
+    if (typeof value === 'object' && value !== null) {
+      if (value.submission_ref_id) {
+        return value.submission_ref_id;
+      }
+      if (value.displayData) {
+        const displayVals = Object.values(value.displayData).filter(v => v && typeof v !== 'object');
+        return displayVals.length > 0 ? displayVals.join(' ') : '-';
+      }
+    }
     return String(value);
   };
   const getStatusBadge = (status: string) => {
@@ -647,7 +681,7 @@ export function OptimizedFormDataTable({
             <TableHeader>
               <TableRow>
                 <TableHead className="w-32">Ref ID</TableHead>
-                {displayColumns.map(fieldId => <TableHead key={fieldId} className={config.enableSorting && !isCrossReference ? "cursor-pointer hover:bg-gray-50" : ""} onClick={() => !isCrossReference && handleSort(fieldId)}>
+                {visibleColumns.map(fieldId => <TableHead key={fieldId} className={config.enableSorting && !isCrossReference ? "cursor-pointer hover:bg-gray-50" : ""} onClick={() => !isCrossReference && handleSort(fieldId)}>
                     <div className="flex items-center gap-2">
                       {getFieldLabel(fieldId)}
                       {config.enableSorting && !isCrossReference && getSortIcon(fieldId, sortConditions)}
@@ -660,14 +694,14 @@ export function OptimizedFormDataTable({
             </TableHeader>
             <TableBody>
               {loading ? <TableRow>
-                  <TableCell colSpan={displayColumns.length + 4} className="text-center py-8">
+                  <TableCell colSpan={visibleColumns.length + 4} className="text-center py-8">
                     <div className="flex items-center justify-center gap-2">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
                       Loading...
                     </div>
                   </TableCell>
                 </TableRow> : displayData.length === 0 ? <TableRow>
-                  <TableCell colSpan={displayColumns.length + 4} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={visibleColumns.length + 4} className="text-center py-8 text-gray-500">
                     {error ? 'Error loading data' : isCrossReference ? 'No records selected' : 'No submissions have been made yet!'}
                     {config.isParentReference && !error && !isCrossReference && <div className="text-sm mt-1">
                         Parent form records will appear here when available
@@ -677,7 +711,7 @@ export function OptimizedFormDataTable({
                     <TableCell className="font-mono text-sm">
                       {row.submission_ref_id || `SUB-${String(index + 1).padStart(3, '0')}`}
                     </TableCell>
-                    {displayColumns.map(fieldId => {
+                    {visibleColumns.map(fieldId => {
                 const field = formFields.find(f => f.id === fieldId);
                 return <TableCell key={fieldId}>
                           {formatCellValue(row[fieldId], field?.field_type)}
