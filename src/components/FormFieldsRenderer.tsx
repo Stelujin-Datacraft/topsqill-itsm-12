@@ -970,7 +970,7 @@ case 'cross-reference':
         {fieldState.label}
         {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
       </Label>
-      <CrossReferenceField {...commonProps} />
+      <CrossReferenceField {...commonProps} formData={formData} />
       {errors[field.id] && (
         <p className="text-sm text-red-500">{errors[field.id]}</p>
       )}
