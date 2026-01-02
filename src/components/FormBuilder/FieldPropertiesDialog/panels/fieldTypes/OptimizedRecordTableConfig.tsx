@@ -7,12 +7,22 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, X, Loader2 } from 'lucide-react';
+import { Plus, X, Loader2, Link2 } from 'lucide-react';
 import { FieldConfiguration } from '../../hooks/useFieldConfiguration';
 import { useFormAccess } from '../../hooks/useFormAccess';
 import { supabase } from '@/integrations/supabase/client';
 import { EmbeddedChartConfigPanel } from './EmbeddedChartConfig';
 import { EmbeddedChartConfig } from '@/types/reports';
+import { useCurrentFormFields } from '@/hooks/useCurrentFormFields';
+
+interface DynamicFieldMapping {
+  id: string;
+  parentFieldId: string;
+  parentFieldLabel?: string;
+  childFieldId: string;
+  childFieldLabel?: string;
+  operator: string;
+}
 
 interface OptimizedRecordTableConfigProps {
   config: FieldConfiguration;
@@ -36,8 +46,23 @@ const METADATA_COLUMNS = [
 
 export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType }: OptimizedRecordTableConfigProps) {
   const { getFormOptions, loading } = useFormAccess();
+  const { currentForm } = useCurrentFormFields();
   const [selectedFormFields, setSelectedFormFields] = useState<FormField[]>([]);
   const [loadingFields, setLoadingFields] = useState(false);
+
+  // Get parent form fields (fields from the form containing this cross-reference field)
+  const parentFormFields = useMemo(() => {
+    if (!currentForm?.fields) return [];
+    // Exclude layout and cross-reference fields
+    const excludedTypes = ['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'cross-reference', 'child-cross-reference'];
+    return currentForm.fields
+      .filter(field => !excludedTypes.includes(field.type))
+      .map(field => ({
+        id: field.id,
+        label: field.label,
+        field_type: field.type
+      }));
+  }, [currentForm?.fields]);
   
   const formOptions = useMemo(() => getFormOptions, [getFormOptions]);
 
@@ -158,6 +183,45 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
     newFilters[index] = { ...newFilters[index], [field]: value };
     updateCustomConfig('filters', newFilters);
   }, [config.customConfig?.filters, updateCustomConfig]);
+
+  // Dynamic Field Mapping functions (Parent Field == Child Field auto-filter)
+  const addDynamicMapping = useCallback(() => {
+    const newMapping: DynamicFieldMapping = {
+      id: `mapping-${Date.now()}`,
+      parentFieldId: '',
+      parentFieldLabel: '',
+      childFieldId: '',
+      childFieldLabel: '',
+      operator: '=='
+    };
+    
+    const currentMappings = config.customConfig?.dynamicFieldMappings || [];
+    updateCustomConfig('dynamicFieldMappings', [...currentMappings, newMapping]);
+  }, [config.customConfig?.dynamicFieldMappings, updateCustomConfig]);
+
+  const removeDynamicMapping = useCallback((index: number) => {
+    const currentMappings = config.customConfig?.dynamicFieldMappings || [];
+    const newMappings = currentMappings.filter((_: any, i: number) => i !== index);
+    updateCustomConfig('dynamicFieldMappings', newMappings);
+  }, [config.customConfig?.dynamicFieldMappings, updateCustomConfig]);
+
+  const updateDynamicMapping = useCallback((index: number, updates: Partial<DynamicFieldMapping>) => {
+    const currentMappings = config.customConfig?.dynamicFieldMappings || [];
+    const newMappings = [...currentMappings];
+    newMappings[index] = { ...newMappings[index], ...updates };
+    
+    // Auto-populate labels
+    if (updates.parentFieldId) {
+      const parentField = parentFormFields.find(f => f.id === updates.parentFieldId);
+      newMappings[index].parentFieldLabel = parentField?.label || '';
+    }
+    if (updates.childFieldId) {
+      const childField = selectedFormFields.find(f => f.id === updates.childFieldId);
+      newMappings[index].childFieldLabel = childField?.label || '';
+    }
+    
+    updateCustomConfig('dynamicFieldMappings', newMappings);
+  }, [config.customConfig?.dynamicFieldMappings, updateCustomConfig, parentFormFields, selectedFormFields]);
 
   const displayColumns = config.customConfig?.displayColumns || [];
   const includeMetadata = config.customConfig?.includeMetadata || false;
@@ -430,6 +494,132 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
     </CardContent>
   </Card>
 )}
+
+      {/* Dynamic Field Mapping Section - Parent Field == Child Field auto-filter */}
+      {config.customConfig?.targetFormId && selectedFormFields.length > 0 && parentFormFields.length > 0 && (
+        <Card className="border-2 border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/20">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-purple-600" />
+                Dynamic Field Mapping
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={addDynamicMapping}>
+                <Plus className="h-4 w-4 mr-1" />
+                Add Mapping
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-3 p-2 bg-white dark:bg-gray-900 rounded border">
+              <p className="text-xs text-muted-foreground">
+                <strong>Auto-filter records</strong> when a field value in the current form (parent) matches a field value in the target form (child).
+                This automatically links/selects related records based on matching field values.
+              </p>
+            </div>
+            <div className="space-y-3">
+              {(config.customConfig?.dynamicFieldMappings || []).map((mapping: DynamicFieldMapping, index: number) => (
+                <div key={mapping.id} className="flex items-center space-x-2 p-3 border rounded-lg bg-white dark:bg-gray-900">
+                  {/* Parent Form Field */}
+                  <div className="flex-1">
+                    <Label className="text-xs text-purple-600 mb-1 block">Current Form Field</Label>
+                    <Select
+                      value={mapping.parentFieldId || ''}
+                      onValueChange={(value) => updateDynamicMapping(index, { parentFieldId: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select parent field" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {parentFormFields.map((field) => (
+                          <SelectItem key={field.id} value={field.id}>
+                            {field.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Operator */}
+                  <div className="w-20 text-center">
+                    <Label className="text-xs text-muted-foreground mb-1 block">Operator</Label>
+                    <Select
+                      value={mapping.operator || '=='}
+                      onValueChange={(value) => updateDynamicMapping(index, { operator: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="==">=</SelectItem>
+                        <SelectItem value="!=">≠</SelectItem>
+                        <SelectItem value="contains">Contains</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Child Form Field (Target Form) */}
+                  <div className="flex-1">
+                    <Label className="text-xs text-purple-600 mb-1 block">Target Form Field</Label>
+                    <Select
+                      value={mapping.childFieldId || ''}
+                      onValueChange={(value) => updateDynamicMapping(index, { childFieldId: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select target field" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {selectedFormFields.map((field) => (
+                          <SelectItem key={field.id} value={field.id}>
+                            {field.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Remove button */}
+                  <div className="pt-5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeDynamicMapping(index)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              
+              {(!config.customConfig?.dynamicFieldMappings || config.customConfig.dynamicFieldMappings.length === 0) && (
+                <div className="text-center py-6 text-gray-500 bg-white dark:bg-gray-900 rounded-lg border-2 border-dashed">
+                  <Link2 className="h-8 w-8 mx-auto mb-2 text-purple-400" />
+                  <p className="font-medium">No dynamic mappings configured</p>
+                  <p className="text-sm">Click "Add Mapping" to auto-filter records where parent and child field values match.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Summary of configured mappings */}
+            {config.customConfig?.dynamicFieldMappings && config.customConfig.dynamicFieldMappings.length > 0 && (
+              <div className="mt-3 p-3 bg-purple-100 dark:bg-purple-900/30 rounded border border-purple-200 dark:border-purple-800">
+                <p className="text-xs text-purple-700 dark:text-purple-400 font-medium">
+                  Active Mappings:
+                </p>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {config.customConfig.dynamicFieldMappings.map((mapping: DynamicFieldMapping, index: number) => (
+                    <Badge key={mapping.id || index} variant="secondary" className="text-xs">
+                      {mapping.parentFieldLabel || 'Parent Field'} {mapping.operator || '=='} {mapping.childFieldLabel || 'Target Field'}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters Section */}
       <Card>

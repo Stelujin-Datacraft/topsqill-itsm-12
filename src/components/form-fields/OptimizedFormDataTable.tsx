@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,14 @@ interface SortCondition {
   field: string;
   direction: 'asc' | 'desc';
 }
+interface DynamicFieldMapping {
+  id: string;
+  parentFieldId: string;
+  parentFieldLabel?: string;
+  childFieldId: string;
+  childFieldLabel?: string;
+  operator: string;
+}
 interface FormDataTableConfig {
   targetFormId: string;
   targetFormName?: string;
@@ -33,6 +41,7 @@ interface FormDataTableConfig {
     operator: string;
     value: string;
   }>;
+  dynamicFieldMappings?: DynamicFieldMapping[];
   displayColumns?: string[];
   tableDisplayFields?: string[];
   enableSorting?: boolean;
@@ -51,6 +60,8 @@ interface OptimizedFormDataTableProps {
   onCreateRecord?: () => void;
   canCreateRecord?: boolean;
   createRecordDisabled?: boolean;
+  // Current form's submission data for resolving dynamic field mappings
+  currentFormData?: Record<string, any>;
 }
 interface SelectedRecord {
   id: string;
@@ -67,7 +78,8 @@ export function OptimizedFormDataTable({
   isAutoSelectionLoading = false,
   onCreateRecord,
   canCreateRecord = false,
-  createRecordDisabled = false
+  createRecordDisabled = false,
+  currentFormData = {}
 }: OptimizedFormDataTableProps) {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
@@ -103,6 +115,50 @@ export function OptimizedFormDataTable({
     value: filter.value,
     logic: 'AND'
   }));
+
+  // Convert dynamic field mappings to filters using current form data
+  const dynamicMappingFilters = useMemo(() => {
+    if (!config.dynamicFieldMappings || config.dynamicFieldMappings.length === 0) {
+      return [];
+    }
+
+    return config.dynamicFieldMappings
+      .filter(mapping => mapping.parentFieldId && mapping.childFieldId)
+      .map(mapping => {
+        // Get the parent field value from current form data
+        let parentValue = currentFormData[mapping.parentFieldId];
+        
+        // Handle various value formats
+        if (parentValue !== null && parentValue !== undefined) {
+          if (typeof parentValue === 'object' && parentValue !== null) {
+            // Handle {value: 'x'} or {amount: 'x', currency: 'y'} formats
+            if ('value' in parentValue) {
+              parentValue = parentValue.value;
+            } else if ('amount' in parentValue) {
+              parentValue = parentValue.amount;
+            } else {
+              parentValue = JSON.stringify(parentValue);
+            }
+          }
+          parentValue = String(parentValue);
+        } else {
+          parentValue = '';
+        }
+
+        console.log(`Dynamic mapping: ${mapping.parentFieldLabel} (${mapping.parentFieldId}) = "${parentValue}" => ${mapping.childFieldLabel} (${mapping.childFieldId})`);
+
+        return {
+          field: mapping.childFieldId,
+          operator: mapping.operator || '==',
+          value: parentValue,
+          logic: 'AND'
+        };
+      })
+      .filter(filter => filter.value !== ''); // Only apply filters with non-empty parent values
+  }, [config.dynamicFieldMappings, currentFormData]);
+
+  // Combine all filters
+  const allConfigFilters = [...configFilters, ...dynamicMappingFilters];
   const {
     data,
     formFields,
@@ -114,7 +170,7 @@ export function OptimizedFormDataTable({
   } = useOptimizedFormSubmissionData({
     targetFormId: config.targetFormId,
     displayColumns,
-    filters: [...configFilters, ...activeFilters],
+    filters: [...allConfigFilters, ...activeFilters],
     searchTerm,
     sortConditions,
     currentPage,
