@@ -255,6 +255,14 @@ export interface FormField {
       operator: string;
       value: string;
     }>;
+    dynamicFieldMappings?: Array<{
+      id: string;
+      parentFieldId: string;
+      parentFieldLabel?: string;
+      childFieldId: string;
+      childFieldLabel?: string;
+      operator: string;
+    }>;
     columnFilters?: string[];
     joinField?: string;
     displayColumns?: string[];

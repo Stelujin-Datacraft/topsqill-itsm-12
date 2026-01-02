@@ -24,9 +24,10 @@ interface CrossReferenceFieldProps {
   disabled?: boolean;
   currentFormId?: string;
   onCrossReferenceSync?: (options: any) => Promise<void>;
+  formData?: Record<string, any>;
 }
 
-export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isPreview, error, disabled, currentFormId, onCrossReferenceSync }: CrossReferenceFieldProps) {
+export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isPreview, error, disabled, currentFormId, onCrossReferenceSync, formData = {} }: CrossReferenceFieldProps) {
   const navigate = useNavigate();
   const { forms } = useForm();
   const { accessibleForms } = useFormAccess();
@@ -129,6 +130,7 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
     targetFormId: field.customConfig.targetFormId,
     targetFormName: field.customConfig.targetFormName || targetForm?.name || 'Unknown Form',
     filters: field.customConfig.filters || [],
+    dynamicFieldMappings: field.customConfig.dynamicFieldMappings || [],
     displayColumns: field.customConfig.displayColumns || [],
     tableDisplayFields: field.customConfig.tableDisplayFields || [],
     enableSorting: field.customConfig.enableSorting ?? true,
@@ -192,6 +194,7 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
         canCreateRecord={canCreateRecord}
         onCreateRecord={handleCreateRecord}
         createRecordDisabled={disabled}
+        currentFormData={formData}
       />
       
       {error && <p className="text-sm text-red-500">{error}</p>}

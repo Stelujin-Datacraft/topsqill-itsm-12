@@ -308,6 +308,72 @@ export function OptimizedFormDataTable({
     }
   }, [autoSelectedRecords]);
 
+  // Auto-select records that match dynamic field mappings
+  // This triggers when data is loaded and dynamic mappings have resolved values
+  useEffect(() => {
+    // Only run for cross-reference fields with dynamic mappings configured
+    if (!isCrossReference || !config.dynamicFieldMappings || config.dynamicFieldMappings.length === 0) {
+      return;
+    }
+
+    // Only run if we have valid dynamic mapping filters (parent values are set)
+    if (dynamicMappingFilters.length === 0) {
+      return;
+    }
+
+    // Only run when data is loaded and not empty
+    if (loading || data.length === 0) {
+      return;
+    }
+
+    console.log('🔗 Auto-selecting records based on dynamic field mappings:', {
+      dynamicMappingFilters,
+      dataCount: data.length
+    });
+
+    // All records that match the dynamic filters should be auto-selected
+    const matchingRecords: SelectedRecord[] = data.map(record => {
+      const fieldsToSave = config.tableDisplayFields && config.tableDisplayFields.length > 0 
+        ? config.tableDisplayFields 
+        : (config.tableDisplayField ? [config.tableDisplayField] : []);
+      
+      const displayData: Record<string, any> = {};
+      fieldsToSave.forEach(fieldId => {
+        displayData[fieldId] = record[fieldId];
+      });
+
+      return {
+        id: record.id,
+        submission_ref_id: record.submission_ref_id || `SUB-${record.id.slice(0, 8)}`,
+        form_id: config.targetFormId,
+        displayData
+      };
+    });
+
+    if (matchingRecords.length > 0) {
+      console.log('✅ Auto-selecting matching records:', matchingRecords.length);
+      
+      setSelectedRecords(prevSelected => {
+        // Merge with existing selections, avoiding duplicates
+        const existingIds = new Set(prevSelected.map(r => r.id));
+        const newRecords = matchingRecords.filter(r => !existingIds.has(r.id));
+        
+        if (newRecords.length === 0) {
+          return prevSelected; // No new records to add
+        }
+
+        const updatedRecords = [...prevSelected, ...newRecords];
+        
+        // Notify parent of the auto-selection
+        if (onChange) {
+          onChange(updatedRecords);
+        }
+        
+        return updatedRecords;
+      });
+    }
+  }, [data, loading, dynamicMappingFilters, isCrossReference, config.dynamicFieldMappings, config.targetFormId, config.tableDisplayFields, config.tableDisplayField]);
+
   // Initialize modal selection state when modal opens
   const handleModalOpen = () => {
     console.log('🔍 Modal opening, initializing selection state with current selected records');
