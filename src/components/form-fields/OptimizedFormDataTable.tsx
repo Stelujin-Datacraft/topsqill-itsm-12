@@ -103,14 +103,11 @@ export function OptimizedFormDataTable({
   // State for visible columns - will be computed after formFields are loaded
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   
-  // Compute raw visible columns - for cross-reference, prioritize tableDisplayFields
-  // If tableDisplayFields is configured, use it; otherwise fall back to displayColumns
-  // If both are empty, we'll use all form fields once they're loaded
-  const configuredColumns = isCrossReference
-    ? (config.tableDisplayFields && config.tableDisplayFields.length > 0
-        ? config.tableDisplayFields
-        : displayColumns)
-    : displayColumns;
+  // For table display, use displayColumns (what to show in THIS cross-reference table)
+  // NOTE: tableDisplayFields is SEPARATE - it controls what gets SAVED with selections
+  // for display in Dynamic Tables/reports, not what shows in the cross-reference field itself
+  // If displayColumns is empty, we'll show all form fields once they're loaded
+  const configuredColumns = displayColumns;
 
   // Convert config filters to the format expected by the hook
   const configFilters = (config.filters || []).map(filter => ({
