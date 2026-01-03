@@ -164,21 +164,27 @@ export class WorkflowOrchestrator {
   private static async executeNode(executionId: string, nodeId: string, inputData: any, context: WorkflowExecutionContext): Promise<{ success: boolean; error?: string; isTerminal?: boolean }> {
     console.log(`🔄 Executing node ${nodeId} for execution ${executionId}`);
 
+    let nodeExecution: any = null;
+    let node: any = null;
+    const nodeStartTime = Date.now();
+
     try {
       // Get node details
-      const { data: node, error: nodeError } = await supabase
+      const { data: nodeData, error: nodeError } = await supabase
         .from('workflow_nodes')
         .select('*')
         .eq('id', nodeId)
         .single();
 
-      if (nodeError || !node) {
+      if (nodeError || !nodeData) {
         console.error('❌ Error fetching node:', nodeError);
         return { success: false, error: 'Node not found' };
       }
+      
+      node = nodeData;
 
       // Create node execution log
-      const { data: nodeExecution, error: logError } = await supabase
+      const { data: logData, error: logError } = await supabase
         .from('workflow_instance_logs')
         .insert({
           execution_id: executionId,
@@ -194,12 +200,12 @@ export class WorkflowOrchestrator {
 
       if (logError) {
         console.error('❌ Error creating node execution log:', logError);
+      } else {
+        nodeExecution = logData;
       }
 
       // Execute node using NodeExecutors with enhanced conditional support
       let result;
-      const nodeStartTime = Date.now();
-      let nodeEndTime = Date.now();
 
       try {
         console.log(`🎯 Executing ${node.node_type} node using NodeExecutors`);
@@ -213,7 +219,7 @@ export class WorkflowOrchestrator {
         };
       }
 
-      nodeEndTime = Date.now();
+      const nodeEndTime = Date.now();
       const duration = nodeEndTime - nodeStartTime;
 
       // Enhanced logging for conditional nodes
@@ -289,9 +295,29 @@ export class WorkflowOrchestrator {
       }
     } catch (error) {
       console.error(`❌ Error executing node ${nodeId}:`, error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Ensure node execution log is marked as failed even on unexpected errors
+      if (nodeExecution) {
+        const duration = Date.now() - nodeStartTime;
+        try {
+          await supabase
+            .from('workflow_instance_logs')
+            .update({
+              status: 'failed',
+              completed_at: new Date().toISOString(),
+              duration_ms: duration,
+              error_message: errorMessage
+            })
+            .eq('id', nodeExecution.id);
+        } catch (logUpdateError) {
+          console.error('❌ Error updating node execution log in catch block:', logUpdateError);
+        }
+      }
+      
       return { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+        error: errorMessage 
       };
     }
   }
