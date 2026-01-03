@@ -55,12 +55,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: Building2,
       },
       {
-        title: "SQL Query",
+        title: "Data Explorer",
         url: "/query",
         icon: Database,
       },
       {
-        title: "Forms", 
+        title: "Form Builder", 
         url: "/forms",
         icon: Calendar,
         isDisabled: !currentProject,
