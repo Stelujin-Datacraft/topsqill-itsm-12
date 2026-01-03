@@ -101,7 +101,7 @@ const Dashboard = () => {
                   <Button
                     key={index}
                     variant="outline"
-                    className="h-auto p-4 flex flex-col items-start space-y-2"
+                    className="h-auto p-4 flex flex-col items-start space-y-2 hover:bg-blue-900 hover:text-white hover:border-blue-900 transition-colors"
                     onClick={action.onClick}
                     disabled={action.disabled}
                   >
