@@ -151,7 +151,7 @@ function FormBuilderContent({
         // If not in the page's fields array, put at the end
         const orderA = indexA === -1 ? Infinity : indexA;
         const orderB = indexB === -1 ? Infinity : indexB;
-        return orderA - orderB;
+        return orderB - orderA;
       });
     console.log('Current page fields from snapshot:', {
       pageId: state.currentPageId,
