@@ -39,14 +39,14 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
   // Extract targetFormId - handle plain strings and ensure it's valid
   const targetFormId = customConfig?.targetFormId;
   
-  // Use tableDisplayFields for Dynamic Table display (this is what user configures in "Table Display Fields")
-  // Fall back to displayColumns for backwards compatibility
-  let tableDisplayFields = customConfig?.tableDisplayFields || [];
-  if (!Array.isArray(tableDisplayFields) || tableDisplayFields.length === 0) {
-    tableDisplayFields = customConfig?.displayColumns || [];
-  }
-  if (!Array.isArray(tableDisplayFields)) {
-    tableDisplayFields = [];
+  // Use ONLY tableDisplayFields for Dynamic Table display
+  // This is what user configures in "Table Display Fields" section
+  // DO NOT fall back to displayColumns - they serve different purposes:
+  // - tableDisplayFields: controls what data is SAVED and shown in Dynamic Tables/reports
+  // - displayColumns: controls what columns are VISIBLE in the cross-reference selection table
+  let tableDisplayFields: string[] = [];
+  if (customConfig?.tableDisplayFields && Array.isArray(customConfig.tableDisplayFields)) {
+    tableDisplayFields = customConfig.tableDisplayFields;
   }
 
   // ✅ Normalize submissionRefIds: handle both array and comma-separated string
