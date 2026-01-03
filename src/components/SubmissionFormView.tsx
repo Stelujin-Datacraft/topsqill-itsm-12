@@ -44,6 +44,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
   const [currentPageId, setCurrentPageId] = useState<string>('');
   const [selectedField, setSelectedField] = useState<FormField | null>(null);
   const [navigationVisible, setNavigationVisible] = useState(true);
+  const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(null);
 
   // Find lifecycle dropdown fields (select fields with displayAsLifecycle enabled)
   // Must be called before any early returns to follow Rules of Hooks
@@ -444,11 +445,20 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
   };
 
   const handleFieldHighlight = (fieldId: string) => {
-    // Scroll to field if needed
-    const fieldElement = document.getElementById(`field-${fieldId}`);
-    if (fieldElement) {
-      fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+    setHighlightedFieldId(fieldId);
+    
+    // Scroll to the field
+    setTimeout(() => {
+      const fieldElement = document.getElementById(`field-${fieldId}`);
+      if (fieldElement) {
+        fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+    
+    // Auto-clear highlight after 5 seconds
+    setTimeout(() => {
+      setHighlightedFieldId(null);
+    }, 5000);
   };
 
   return (
@@ -585,6 +595,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
                     onSubmit={handleSubmit}
                     formId={form.id}
                     currentSubmissionId={submissionId}
+                    highlightedFieldId={highlightedFieldId}
                   />
                 </div>
               </div>
