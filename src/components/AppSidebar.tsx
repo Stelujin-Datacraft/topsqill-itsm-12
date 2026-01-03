@@ -71,13 +71,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: FileText,
       },
       {
-        title: "Automations",
+        title: "Workflow Automations",
         url: "/workflows", 
         icon: GitBranch,
         isDisabled: !currentProject,
       },
       {
-        title: "Analytics",
+        title: "Report Analytics",
         url: "/reports",
         icon: BarChart3,
         isDisabled: !currentProject,
