@@ -16,7 +16,25 @@ interface PublicFormSubmissionViewProps {
 }
 
 export function PublicFormSubmissionView({ form, onSubmit, initialData = {}, isEditing = false }: PublicFormSubmissionViewProps) {
-  const [formData, setFormData] = useState<Record<string, any>>(initialData);
+  // Initialize with draft from localStorage if available, otherwise use initialData
+  const [formData, setFormData] = useState<Record<string, any>>(() => {
+    // If editing with initial data, use that
+    if (Object.keys(initialData).length > 0) {
+      return initialData;
+    }
+    // Otherwise, try to load draft from localStorage
+    try {
+      const savedDraft = localStorage.getItem(`form-draft-${form.id}`);
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft);
+        console.log('📂 Loaded draft from localStorage for public form');
+        return parsed;
+      }
+    } catch (error) {
+      console.error('Error loading draft from localStorage:', error);
+    }
+    return {};
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -157,6 +175,10 @@ export function PublicFormSubmissionView({ form, onSubmit, initialData = {}, isE
         submissionData, 
         'current-user-id'
       );
+      
+      // Clear draft from localStorage after successful submission
+      localStorage.removeItem(`form-draft-${form.id}`);
+      console.log('🗑️ Cleared draft from localStorage after successful submission');
       
       setIsSubmitted(true);
     } catch (error) {

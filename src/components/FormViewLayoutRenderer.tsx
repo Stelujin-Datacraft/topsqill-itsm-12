@@ -27,7 +27,20 @@ export function FormViewLayoutRenderer({
   showNavigation = true,
   showPublicHeader = false 
 }: FormViewLayoutRendererProps) {
-  const [formData, setFormData] = useState<Record<string, any>>({});
+  // Initialize with draft from localStorage if available
+  const [formData, setFormData] = useState<Record<string, any>>(() => {
+    try {
+      const savedDraft = localStorage.getItem(`form-draft-${form.id}`);
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft);
+        console.log('📂 Loaded draft from localStorage for form submission');
+        return parsed;
+      }
+    } catch (error) {
+      console.error('Error loading draft from localStorage:', error);
+    }
+    return {};
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -300,6 +313,9 @@ export function FormViewLayoutRenderer({
     setIsSubmitting(true);
     try {
       await onSubmit(submissionData);
+      // Clear draft from localStorage after successful submission
+      localStorage.removeItem(`form-draft-${form.id}`);
+      console.log('🗑️ Cleared draft from localStorage after successful submission');
       setIsSubmitted(true);
     } catch (error) {
       console.error('Error submitting form:', error);
