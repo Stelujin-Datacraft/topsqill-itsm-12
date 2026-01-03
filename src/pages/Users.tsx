@@ -11,7 +11,6 @@ import {
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
-  DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import {
@@ -24,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Plus, MoreHorizontal, UserPlus, Users as UsersIcon, UserCheck, UserX, Clock } from 'lucide-react';
+import { Search, MoreHorizontal, UserPlus, Users as UsersIcon, UserCheck, UserX, Clock } from 'lucide-react';
 import UserInviteDialog from '@/components/users/UserInviteDialog';
 import UserRequestsDialog from '@/components/users/UserRequestsDialog';
 import UserCreateDialog from '@/components/users/UserCreateDialog';
@@ -259,32 +258,23 @@ const Users = () => {
               <div className="flex flex-wrap items-center gap-2">
                 <UserImportButton onImportComplete={handleImportUsers} />
                 <UserUpdateButton onUpdateComplete={handleUpdateUsers} />
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button size="sm">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Member
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setIsCreateOpen(true)}>
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Create New User
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setIsInviteOpen(true)}>
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Invite User
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setIsRequestsOpen(true)}>
-                      <Clock className="h-4 w-4 mr-2" />
-                      Pending Requests
-                      {requests.length > 0 && (
-                        <Badge variant="secondary" className="ml-2">{requests.length}</Badge>
-                      )}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <Button size="sm" variant="outline" onClick={() => setIsRequestsOpen(true)} className="relative">
+                  <Clock className="h-4 w-4 mr-2" />
+                  Pending Requests
+                  {requests.length > 0 && (
+                    <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1 flex items-center justify-center text-xs">
+                      {requests.length}
+                    </Badge>
+                  )}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setIsInviteOpen(true)}>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Invite User
+                </Button>
+                <Button size="sm" onClick={() => setIsCreateOpen(true)}>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Create User
+                </Button>
               </div>
             </div>
           </CardHeader>
