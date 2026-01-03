@@ -97,6 +97,7 @@ export function OptimizedFormDataTable({
   const [selectedRecords, setSelectedRecords] = useState<SelectedRecord[]>([]);
   const pageSize = config.pageSize || 10;
   const displayColumns = config.displayColumns || [];
+  const tableDisplayFields = config.tableDisplayFields || [];
   const isCrossReference = fieldType === 'cross-reference' || fieldType === 'child-cross-reference';
   const isChildCrossReference = fieldType === 'child-cross-reference';
   
@@ -108,6 +109,14 @@ export function OptimizedFormDataTable({
   // for display in Dynamic Tables/reports, not what shows in the cross-reference field itself
   // If displayColumns is empty, we'll show all form fields once they're loaded
   const configuredColumns = displayColumns;
+  
+  // Merge displayColumns and tableDisplayFields to ensure all needed data is fetched
+  // displayColumns: what shows in the cross-reference selection table
+  // tableDisplayFields: what gets SAVED for display in Dynamic Tables/reports
+  const columnsToFetch = useMemo(() => {
+    const uniqueColumns = new Set([...displayColumns, ...tableDisplayFields]);
+    return Array.from(uniqueColumns);
+  }, [displayColumns, tableDisplayFields]);
 
   // Convert config filters to the format expected by the hook
   const configFilters = (config.filters || []).map(filter => ({
@@ -170,7 +179,7 @@ export function OptimizedFormDataTable({
     refetch
   } = useOptimizedFormSubmissionData({
     targetFormId: config.targetFormId,
-    displayColumns,
+    displayColumns: columnsToFetch, // Fetch both displayColumns AND tableDisplayFields
     filters: [...allConfigFilters, ...activeFilters],
     searchTerm,
     sortConditions,
