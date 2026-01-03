@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Check, ChevronDown, Command, Plus } from 'lucide-react';
+import { Check, ChevronDown, Briefcase, Plus } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,7 +37,7 @@ export function ProjectSwitcher() {
             className="w-full justify-between h-auto p-3 font-normal"
           >
             <div className="flex items-center space-x-2">
-              <Command className="h-4 w-4" />
+              <Briefcase className="h-4 w-4" />
               <div className="text-left">
                 <div className="font-medium">
                   {currentProject?.name || 'No Project Selected'}
@@ -68,7 +68,7 @@ export function ProjectSwitcher() {
                 className="flex items-center justify-between p-3 cursor-pointer"
               >
                 <div className="flex items-center space-x-3">
-                  <Command className="h-4 w-4" />
+                  <Briefcase className="h-4 w-4" />
                   <div>
                     <div className="font-medium">{project.name}</div>
                     <div className="text-xs text-muted-foreground">
