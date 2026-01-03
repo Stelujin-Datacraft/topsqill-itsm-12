@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Form } from '@/types/form';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, Filter, Download, Eye, Trash2, Calendar, User, FileText, CheckCircle, XCircle, Clock } from 'lucide-react';
@@ -12,10 +14,12 @@ import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubmissionAccessFilter } from '@/hooks/useSubmissionAccessFilter';
 import { SubmissionUpdateButton } from './submissions/SubmissionUpdateButton';
+
 interface FormSubmission {
   id: string;
   formId: string;
   submittedBy: string;
+  submittedByEmail: string;
   submittedAt: string;
   submissionData: Record<string, any>;
   ipAddress?: string;
@@ -25,16 +29,20 @@ interface FormSubmission {
   approvalTimestamp?: string;
   approvalNotes?: string;
 }
+
 interface FormSubmissionsProps {
   form: Form;
 }
+
 export function FormSubmissions({
   form
 }: FormSubmissionsProps) {
+  const navigate = useNavigate();
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [approvalFilter, setApprovalFilter] = useState<string>('all');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const { userProfile } = useAuth();
   const { filterSubmissions: applyAccessFilter, loading: accessFilterLoading } = useSubmissionAccessFilter(form, userProfile?.id);
 
@@ -53,7 +61,12 @@ export function FormSubmissions({
         error
       } = await supabase.from('form_submissions').select(`
           *,
-          user_profiles!form_submissions_approved_by_fkey(
+          submitter:user_profiles!form_submissions_submitted_by_fkey(
+            first_name,
+            last_name,
+            email
+          ),
+          approver:user_profiles!form_submissions_approved_by_fkey(
             first_name,
             last_name,
             email
@@ -65,20 +78,29 @@ export function FormSubmissions({
         console.error('Error loading submissions:', error);
         throw error;
       }
-      const submissionsData = (data || []).map(submission => ({
-        id: submission.id,
-        formId: submission.form_id,
-        submittedBy: submission.submitted_by || 'Anonymous',
-        submittedAt: submission.submitted_at,
-        submissionData: submission.submission_data as Record<string, any>,
-        ipAddress: submission.ip_address as string | undefined,
-        userAgent: submission.user_agent || '',
-        approvalStatus: submission.approval_status || 'pending',
-        approvedBy: submission.approved_by,
-        approvalTimestamp: submission.approval_timestamp,
-        approvalNotes: submission.approval_notes,
-        approverProfile: submission.user_profiles
-      }));
+      const submissionsData = (data || []).map(submission => {
+        const submitter = submission.submitter as any;
+        const submitterEmail = submitter?.email || 'Anonymous';
+        const submitterName = submitter?.first_name && submitter?.last_name 
+          ? `${submitter.first_name} ${submitter.last_name}` 
+          : submitterEmail;
+        
+        return {
+          id: submission.id,
+          formId: submission.form_id,
+          submittedBy: submission.submitted_by || 'Anonymous',
+          submittedByEmail: submitterName,
+          submittedAt: submission.submitted_at,
+          submissionData: submission.submission_data as Record<string, any>,
+          ipAddress: submission.ip_address as string | undefined,
+          userAgent: submission.user_agent || '',
+          approvalStatus: submission.approval_status || 'pending',
+          approvedBy: submission.approved_by,
+          approvalTimestamp: submission.approval_timestamp,
+          approvalNotes: submission.approval_notes,
+          approverProfile: submission.approver
+        };
+      });
       setSubmissions(submissionsData);
       console.log('Loaded submissions:', submissionsData.length);
     } catch (error) {
@@ -92,6 +114,7 @@ export function FormSubmissions({
       setLoading(false);
     }
   };
+
   useEffect(() => {
     loadSubmissions();
   }, [form.id]);
@@ -113,14 +136,13 @@ export function FormSubmissions({
     return matchesSearch && matchesApprovalFilter;
   });
   const handleViewSubmission = (submission: FormSubmission) => {
-    // Navigate to submission view page
-    window.open(`/submission/${submission.id}`, '_blank');
+    navigate(`/submission/${submission.id}`);
   };
+
   const handleDeleteSubmission = async (submissionId: string) => {
     try {
-      const {
-        error
-      } = await supabase.from('form_submissions').delete().eq('id', submissionId);
+      setDeletingId(submissionId);
+      const { error } = await supabase.from('form_submissions').delete().eq('id', submissionId);
       if (error) throw error;
       setSubmissions(prev => prev.filter(sub => sub.id !== submissionId));
       toast({
@@ -134,6 +156,8 @@ export function FormSubmissions({
         description: "Failed to delete the submission. Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setDeletingId(null);
     }
   };
   const handleExportData = () => {
@@ -283,7 +307,7 @@ export function FormSubmissions({
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4 text-muted-foreground" />
-                          {submission.submittedBy}
+                          {submission.submittedByEmail}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -300,12 +324,33 @@ export function FormSubmissions({
                         </TableCell>)}
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button size="sm" variant="ghost" onClick={() => handleViewSubmission(submission)}>
+                          <Button size="sm" variant="ghost" onClick={() => handleViewSubmission(submission)} title="View submission">
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => handleDeleteSubmission(submission.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="sm" variant="ghost" title="Delete submission" disabled={deletingId === submission.id}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Submission</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this submission? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => handleDeleteSubmission(submission.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </TableCell>
                     </TableRow>)}
