@@ -58,6 +58,7 @@ export const fieldTypes: FieldTypeConfig[] = [
     description: 'Wrapper you can drop any fields into to force 100% form width',
     category: 'full-width',
     isFullWidth: true,
+    isHidden: true,
   },
   {
     type: 'rich-text',
@@ -66,6 +67,7 @@ export const fieldTypes: FieldTypeConfig[] = [
     description: 'Allows embedding formatted text, images or links across the full form',
     category: 'full-width',
     isFullWidth: true,
+    isHidden: true,
   },
   {
     type: 'record-table',
@@ -83,6 +85,7 @@ export const fieldTypes: FieldTypeConfig[] = [
     description: 'A repeatable row/column structure for tabular data entry',
     category: 'full-width',
     isFullWidth: true,
+    isHidden: true,
   },
 
   // Standard Components
@@ -231,6 +234,7 @@ export const fieldTypes: FieldTypeConfig[] = [
     description: 'Input with country code dropdown and formatting',
     category: 'standard',
     isFullWidth: false,
+    isHidden: true,
   },
   {
     type: 'address',
@@ -271,6 +275,7 @@ export const fieldTypes: FieldTypeConfig[] = [
     description: 'V4/V6-formatted network address field',
     category: 'standard',
     isFullWidth: false,
+    isHidden: true,
   },
   {
     type: 'barcode',
