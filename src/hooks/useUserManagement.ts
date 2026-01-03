@@ -164,19 +164,50 @@ export const useUserManagement = () => {
     }
 
     try {
-      console.log('Creating invitation with data:', {
-        organization_id: currentOrganization.id,
-        email: inviteData.email,
-        first_name: inviteData.firstName,
-        last_name: inviteData.lastName,
-        message: `Invited as ${inviteData.role}`,
-        status: 'pending'
-      });
-
-      // Insert the invitation record
-      const { error } = await supabase
+      // Check if invitation already exists for this email
+      const { data: existingRequest } = await supabase
         .from('organization_requests')
-        .insert({
+        .select('id, status')
+        .eq('organization_id', currentOrganization.id)
+        .eq('email', inviteData.email)
+        .maybeSingle();
+
+      if (existingRequest) {
+        if (existingRequest.status === 'pending') {
+          toast({
+            title: "Already invited",
+            description: `An invitation for ${inviteData.email} is already pending.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        // If rejected or other status, update the existing record
+        const { error: updateError } = await supabase
+          .from('organization_requests')
+          .update({
+            first_name: inviteData.firstName,
+            last_name: inviteData.lastName,
+            message: `Invited as ${inviteData.role}`,
+            status: 'pending',
+            requested_at: new Date().toISOString(),
+            reviewed_at: null,
+            reviewed_by: null
+          })
+          .eq('id', existingRequest.id);
+
+        if (updateError) {
+          console.error('Update invitation error:', updateError);
+          toast({
+            title: "Error",
+            description: `Failed to update invitation: ${updateError.message}`,
+            variant: "destructive",
+          });
+          return;
+        }
+      } else {
+        // Insert new invitation record
+        console.log('Creating invitation with data:', {
           organization_id: currentOrganization.id,
           email: inviteData.email,
           first_name: inviteData.firstName,
@@ -185,14 +216,26 @@ export const useUserManagement = () => {
           status: 'pending'
         });
 
-      if (error) {
-        console.error('Invitation error:', error);
-        toast({
-          title: "Error",
-          description: `Failed to send invitation: ${error.message}`,
-          variant: "destructive",
-        });
-        return;
+        const { error } = await supabase
+          .from('organization_requests')
+          .insert({
+            organization_id: currentOrganization.id,
+            email: inviteData.email,
+            first_name: inviteData.firstName,
+            last_name: inviteData.lastName,
+            message: `Invited as ${inviteData.role}`,
+            status: 'pending'
+          });
+
+        if (error) {
+          console.error('Invitation error:', error);
+          toast({
+            title: "Error",
+            description: `Failed to send invitation: ${error.message}`,
+            variant: "destructive",
+          });
+          return;
+        }
       }
 
       // Send invitation email
