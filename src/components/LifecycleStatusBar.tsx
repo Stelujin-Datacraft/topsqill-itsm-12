@@ -161,8 +161,28 @@ export function LifecycleStatusBar({
   };
 
 
-  const getColorForOption = (optionLabel: string, index: number) => {
+  const getColorForOption = (option: any, index: number) => {
+    // Use the configured color from the option if available
+    const configuredColor = typeof option === 'object' && option?.color ? option.color : null;
+    
+    if (configuredColor) {
+      // Return inline style-based colors for configured hex/color values
+      return { 
+        bg: '', 
+        hover: '', 
+        border: '', 
+        text: '',
+        style: { backgroundColor: configuredColor },
+        hoverStyle: { backgroundColor: configuredColor, filter: 'brightness(0.9)' },
+        borderStyle: { borderColor: configuredColor },
+        textStyle: { color: configuredColor }
+      };
+    }
+    
+    // Fallback to label-based colors
+    const optionLabel = typeof option === 'string' ? option : (option?.label || option?.value || '');
     const label = optionLabel.toLowerCase();
+    
     if (label.includes('complete') || label.includes('done') || label.includes('approved') || label.includes('success')) {
       return { bg: 'bg-green-600', hover: 'hover:bg-green-700', border: 'border-green-500', text: 'text-green-600' };
     }
@@ -251,8 +271,9 @@ export function LifecycleStatusBar({
             const optionLabel = getOptionLabel(option);
             const isSelected = value === optionValue;
             const isPast = index < currentIndex;
-            const color = getColorForOption(optionLabel, index);
+            const color = getColorForOption(option, index);
             const canTransition = isTransitionAllowed(value, optionValue);
+            const hasConfiguredColor = 'style' in color;
             
             return (
               <React.Fragment key={optionValue}>
@@ -264,12 +285,26 @@ export function LifecycleStatusBar({
                       onClick={() => handleOptionClick(optionValue)}
                       disabled={disabled || !isEditing || isSelected}
                       className={`text-xs px-3 py-1 flex items-center gap-1.5 transition-all ${
-                        isSelected 
-                          ? `${color.bg} ${color.hover} text-white ${color.border} font-semibold shadow-md` 
-                          : isPast
-                            ? `${color.bg} ${color.hover} text-white opacity-90`
-                            : `bg-slate-200 text-slate-500 ${isEditing ? 'hover:bg-slate-300' : ''}`
+                        hasConfiguredColor
+                          ? isSelected 
+                            ? 'text-white font-semibold shadow-md border'
+                            : isPast
+                              ? 'text-white opacity-90'
+                              : `bg-slate-200 text-slate-500 ${isEditing ? 'hover:bg-slate-300' : ''}`
+                          : isSelected 
+                            ? `${color.bg} ${color.hover} text-white ${color.border} font-semibold shadow-md` 
+                            : isPast
+                              ? `${color.bg} ${color.hover} text-white opacity-90`
+                              : `bg-slate-200 text-slate-500 ${isEditing ? 'hover:bg-slate-300' : ''}`
                       } ${!canTransition && isEditing && !isSelected ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      style={
+                        hasConfiguredColor && (isSelected || isPast)
+                          ? { 
+                              backgroundColor: color.style?.backgroundColor,
+                              borderColor: color.borderStyle?.borderColor
+                            }
+                          : undefined
+                      }
                     >
                       {getStageIcon(optionValue, index, currentIndex)}
                       {optionLabel}
@@ -283,7 +318,10 @@ export function LifecycleStatusBar({
                   </TooltipContent>
                 </Tooltip>
                 {index < options.length - 1 && (
-                  <ChevronRight className={`h-4 w-4 mx-0.5 ${index <= currentIndex ? color.text : 'text-slate-400'}`} />
+                  <ChevronRight 
+                    className={`h-4 w-4 mx-0.5 ${!hasConfiguredColor && index <= currentIndex ? color.text : 'text-slate-400'}`}
+                    style={hasConfiguredColor && index <= currentIndex ? color.textStyle : undefined}
+                  />
                 )}
               </React.Fragment>
             );
