@@ -657,6 +657,117 @@ Deno.serve(async (req) => {
                     success: true
                   }
                 }
+              } else if (actionType === 'change_field_value') {
+                // Execute change field value action
+                console.log('🔧 Executing change_field_value action in edge function')
+                
+                const triggerSubmissionData = execution.trigger_data?.submissionData || {}
+                const triggerSubmissionId = execution.trigger_data?.submissionId
+                const triggerFormId = execution.trigger_data?.formId
+                
+                // Validate config
+                if (!config.targetFormId || !config.targetFieldId || !config.valueType) {
+                  throw new Error('Missing required configuration for field value change')
+                }
+                
+                // Determine the new value
+                let newValue: any
+                
+                if (config.valueType === 'static') {
+                  newValue = config.staticValue
+                } else if (config.valueType === 'dynamic') {
+                  // Try to get from submissionData using the field ID
+                  if (config.dynamicValuePath && config.dynamicValuePath in triggerSubmissionData) {
+                    newValue = triggerSubmissionData[config.dynamicValuePath]
+                  }
+                  
+                  if (newValue === undefined) {
+                    throw new Error(`Could not find value for field: ${config.dynamicFieldName || config.dynamicValuePath}`)
+                  }
+                  
+                  // Normalize numeric values
+                  if (typeof newValue === 'string' && newValue.trim() !== '') {
+                    const cleanedValue = newValue.replace(/[,$€£¥₹\s]/g, '').trim()
+                    const parsedNumber = parseFloat(cleanedValue)
+                    if (!isNaN(parsedNumber)) {
+                      newValue = parsedNumber
+                      console.log(`🔢 Normalized string to number: ${newValue}`)
+                    }
+                  }
+                }
+                
+                console.log('💾 New value determined:', { newValue, valueType: config.valueType })
+                
+                // Check if target form is different from trigger form
+                const isTargetFormDifferent = config.targetFormId !== triggerFormId
+                console.log('📋 Trigger form:', triggerFormId, 'Target form:', config.targetFormId, 'Is different:', isTargetFormDifferent)
+                
+                if (isTargetFormDifferent) {
+                  // Bulk update all submissions in target form
+                  console.log('🔄 Performing bulk update on target form:', config.targetFormId)
+                  
+                  const { data: rpcResult, error: rpcError } = await supabase.rpc('bulk_update_submission_field', {
+                    _form_id: config.targetFormId,
+                    _field_id: config.targetFieldId,
+                    _new_value: newValue
+                  })
+                  
+                  if (rpcError) {
+                    console.error('❌ Bulk update error:', rpcError)
+                    throw new Error(`Bulk update failed: ${rpcError.message}`)
+                  }
+                  
+                  console.log(`✅ Bulk updated ${rpcResult} records in target form`)
+                  nodeOutputData = {
+                    updatedCount: rpcResult,
+                    targetFormId: config.targetFormId,
+                    targetFieldId: config.targetFieldId,
+                    newValue,
+                    success: true
+                  }
+                } else {
+                  // Update only the trigger submission
+                  if (!triggerSubmissionId) {
+                    throw new Error('Cannot update trigger submission: no submission ID')
+                  }
+                  
+                  console.log('📝 Updating trigger submission:', triggerSubmissionId)
+                  
+                  // Get current submission data
+                  const { data: currentSubmission, error: fetchError } = await supabase
+                    .from('form_submissions')
+                    .select('submission_data')
+                    .eq('id', triggerSubmissionId)
+                    .single()
+                  
+                  if (fetchError) {
+                    throw new Error(`Failed to fetch submission: ${fetchError.message}`)
+                  }
+                  
+                  const currentData = currentSubmission?.submission_data || {}
+                  const updatedData = {
+                    ...(typeof currentData === 'object' ? currentData : {}),
+                    [config.targetFieldId]: newValue
+                  }
+                  
+                  // Update the submission
+                  const { error: updateError } = await supabase
+                    .from('form_submissions')
+                    .update({ submission_data: updatedData })
+                    .eq('id', triggerSubmissionId)
+                  
+                  if (updateError) {
+                    throw new Error(`Failed to update submission: ${updateError.message}`)
+                  }
+                  
+                  console.log('✅ Successfully updated trigger submission')
+                  nodeOutputData = {
+                    submissionId: triggerSubmissionId,
+                    targetFieldId: config.targetFieldId,
+                    newValue,
+                    success: true
+                  }
+                }
               } else {
                 // For other action types, mark as completed since we can't execute them from edge function
                 console.log(`⚠️ Action type ${actionType} not supported in edge function, marking as completed`)
