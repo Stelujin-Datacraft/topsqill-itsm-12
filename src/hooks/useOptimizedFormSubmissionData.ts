@@ -61,16 +61,20 @@ export function useOptimizedFormSubmissionData({
   const [error, setError] = useState<string | null>(null);
 
   // Helper function to extract field value from submission data
-  const getFieldValue = (submissionData: Record<string, any>, fieldId: string): string => {
+  // Helper function to extract field value from submission data
+  // Returns raw value to preserve objects for complex field types (submission-access, address, currency, etc.)
+  const getFieldValue = (submissionData: Record<string, any>, fieldId: string): any => {
     if (!submissionData || !fieldId) return '-';
     
     // Direct lookup
     if (submissionData[fieldId] !== undefined) {
       const value = submissionData[fieldId];
-      if (typeof value === 'object' && value !== null && 'value' in value) {
-        return String(value.value || '-');
+      // For wrapped values with .value property (but not complex objects like submission-access)
+      if (typeof value === 'object' && value !== null && 'value' in value && !('users' in value) && !('groups' in value) && !('street' in value) && !('amount' in value)) {
+        return value.value ?? '-';
       }
-      return String(value || '-');
+      // Return raw value to preserve objects for complex types
+      return value ?? '-';
     }
     
     // Case-insensitive lookup
@@ -78,10 +82,12 @@ export function useOptimizedFormSubmissionData({
     const matchingKey = keys.find(key => key.toLowerCase() === fieldId.toLowerCase());
     if (matchingKey) {
       const value = submissionData[matchingKey];
-      if (typeof value === 'object' && value !== null && 'value' in value) {
-        return String(value.value || '-');
+      // For wrapped values with .value property (but not complex objects like submission-access)
+      if (typeof value === 'object' && value !== null && 'value' in value && !('users' in value) && !('groups' in value) && !('street' in value) && !('amount' in value)) {
+        return value.value ?? '-';
       }
-      return String(value || '-');
+      // Return raw value to preserve objects for complex types
+      return value ?? '-';
     }
     
     return '-';
