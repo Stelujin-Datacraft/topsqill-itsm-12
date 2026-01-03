@@ -1,16 +1,34 @@
 // Configuration interfaces for new workflow action types
 
-export interface ChangeFieldValueConfig {
-  targetFormId: string;
-  targetFormName?: string;
+// Single field-value pair for change field value action
+export interface FieldValueUpdate {
   targetFieldId: string;
   targetFieldName?: string;
   targetFieldType?: string;
+  targetFieldOptions?: Array<{ label: string; value: string }>;
+  targetFieldCustomConfig?: any;
   valueType: 'static' | 'dynamic';
+  staticValue?: any;
+  dynamicValuePath?: string;
+  dynamicFieldName?: string;
+  dynamicSourceForm?: string;
+  dynamicFieldType?: string;
+}
+
+export interface ChangeFieldValueConfig {
+  targetFormId: string;
+  targetFormName?: string;
+  // Support for multiple field updates
+  fieldUpdates?: FieldValueUpdate[];
+  // Legacy single-field support (for backward compatibility)
+  targetFieldId?: string;
+  targetFieldName?: string;
+  targetFieldType?: string;
+  valueType?: 'static' | 'dynamic';
   staticValue?: any;
   dynamicValuePath?: string; // e.g., "email" or "userDetails.phoneNumber"
   dynamicFieldType?: string; // Type of the source field for value normalization
-  submissionSource: 'trigger' | 'specific'; // Use submission from trigger or specify an ID
+  submissionSource?: 'trigger' | 'specific'; // Use submission from trigger or specify an ID
   specificSubmissionId?: string;
 }
 
