@@ -28,17 +28,8 @@ const fieldOperators: { value: FieldOperator; label: string }[] = [
 ];
 
 const formActions: { value: FormRuleAction; label: string }[] = [
-  { value: 'approve', label: 'Approve Form' },
-  { value: 'disapprove', label: 'Disapprove Form' },
   { value: 'notify', label: 'Trigger Notification' },
   { value: 'sendEmail', label: 'Send Email' },
-  { value: 'triggerWebhook', label: 'Trigger Webhook/API' },
-  { value: 'startWorkflow', label: 'Start Workflow' },
-  { value: 'assignForm', label: 'Assign Form' },
-  { value: 'autoFillFields', label: 'Auto-fill Fields' },
-  { value: 'changeFormHeader', label: 'Change Form Header' },
-  { value: 'saveDraft', label: 'Save as Draft' },
-  // Moved to Field Rules: redirect, lockForm, unlockForm, showSuccessModal
 ];
 
 export function FormRuleBuilder({ fields, rules, onRulesChange }: FormRuleBuilderProps) {
@@ -301,13 +292,13 @@ export function FormRuleBuilder({ fields, rules, onRulesChange }: FormRuleBuilde
             </div>
 
             {/* Action Configuration */}
-            {['notify', 'sendEmail', 'triggerWebhook', 'redirect', 'assignForm', 'changeFormHeader', 'showSuccessModal'].includes(editingRule.action) && (
+            {['notify', 'sendEmail'].includes(editingRule.action) && (
               <div>
                 <Label>Action Configuration</Label>
                 <Textarea
                   value={typeof editingRule.actionValue === 'string' ? editingRule.actionValue : ''}
                   onChange={(e) => setEditingRule({ ...editingRule, actionValue: e.target.value })}
-                  placeholder="Enter configuration details..."
+                  placeholder={editingRule.action === 'notify' ? 'Enter notification message...' : 'Enter email configuration...'}
                   rows={3}
                 />
               </div>
