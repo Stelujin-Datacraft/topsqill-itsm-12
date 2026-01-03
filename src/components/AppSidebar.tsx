@@ -83,7 +83,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         isDisabled: !currentProject,
       },
       {
-        title: "Users",
+        title: "Team Members",
         url: "/users",
         icon: User2,
       },
