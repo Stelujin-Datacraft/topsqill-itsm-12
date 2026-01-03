@@ -173,6 +173,7 @@ export const useUserManagement = () => {
         status: 'pending'
       });
 
+      // Insert the invitation record
       const { error } = await supabase
         .from('organization_requests')
         .insert({
@@ -194,10 +195,42 @@ export const useUserManagement = () => {
         return;
       }
 
-      toast({
-        title: "User invited",
-        description: `Invitation sent to ${inviteData.firstName} ${inviteData.lastName} (${inviteData.email})`,
-      });
+      // Send invitation email
+      try {
+        const inviterName = userProfile 
+          ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || userProfile.email
+          : 'Someone';
+
+        const { error: emailError } = await supabase.functions.invoke('send-invitation-email', {
+          body: {
+            email: inviteData.email,
+            firstName: inviteData.firstName,
+            lastName: inviteData.lastName,
+            role: inviteData.role,
+            organizationName: currentOrganization.name,
+            inviterName
+          }
+        });
+
+        if (emailError) {
+          console.warn('Failed to send invitation email:', emailError);
+          toast({
+            title: "User invited",
+            description: `Invitation created for ${inviteData.firstName} ${inviteData.lastName}, but email could not be sent.`,
+          });
+        } else {
+          toast({
+            title: "User invited",
+            description: `Invitation email sent to ${inviteData.firstName} ${inviteData.lastName} (${inviteData.email})`,
+          });
+        }
+      } catch (emailErr) {
+        console.warn('Email sending error:', emailErr);
+        toast({
+          title: "User invited",
+          description: `Invitation created for ${inviteData.firstName} ${inviteData.lastName}, but email could not be sent.`,
+        });
+      }
       
       loadRequests();
     } catch (error) {
