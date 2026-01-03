@@ -87,7 +87,8 @@ export function ExecutionNodeAccordion({ executionId, workflowId, currentNodeId 
   const getNodeStatus = (nodeId: string) => {
     const log = logs.find(l => l.node_id === nodeId);
     if (!log) return 'not_started';
-    if (nodeId === currentNodeId) return 'running';
+    // Use the actual log status from the database - don't override with 'running'
+    // just because it's the current_node_id (which tracks the last node reached)
     return log.status;
   };
 
