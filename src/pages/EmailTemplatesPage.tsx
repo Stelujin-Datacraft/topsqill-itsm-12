@@ -281,10 +281,34 @@ export default function EmailTemplatesPage() {
     );
   }
 
+  // If creating or editing, show the form inline
+  if (isCreating || editingTemplate) {
+    return (
+      <DashboardLayout title={editingTemplate ? 'Edit Email Template' : 'Create Email Template'}>
+        <div className="space-y-6">
+          <EmailTemplateForm
+            template={editingTemplate || createNewTemplate()}
+            users={users}
+            smtpConfigs={smtpConfigs}
+            onSave={saveTemplate}
+            onCancel={() => {
+              setEditingTemplate(null);
+              setIsCreating(false);
+              setShowPreview(false);
+            }}
+            contentMode={contentMode}
+            onContentModeChange={setContentMode}
+            showPreview={showPreview}
+            onShowPreviewChange={setShowPreview}
+            onContentChange={handleContentChange}
+          />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
-    <DashboardLayout 
-      title="Email Templates"
-    >
+    <DashboardLayout title="Email Templates">
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -382,45 +406,6 @@ export default function EmailTemplatesPage() {
             </Card>
           ))}
         </div>
-
-        {/* Create/Edit Dialog */}
-        <Dialog 
-          open={isCreating || !!editingTemplate} 
-          onOpenChange={(open) => {
-            if (!open) {
-              setIsCreating(false);
-              setEditingTemplate(null);
-              setShowPreview(false);
-            }
-          }}
-        >
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingTemplate ? 'Edit Email Template' : 'Create Email Template'}
-              </DialogTitle>
-            </DialogHeader>
-            
-            {(isCreating || editingTemplate) && (
-              <EmailTemplateForm
-            template={editingTemplate || createNewTemplate()}
-            users={users}
-            smtpConfigs={smtpConfigs}
-            onSave={saveTemplate}
-                onCancel={() => {
-                  setEditingTemplate(null);
-                  setIsCreating(false);
-                  setShowPreview(false);
-                }}
-                contentMode={contentMode}
-                onContentModeChange={setContentMode}
-                showPreview={showPreview}
-                onShowPreviewChange={setShowPreview}
-                onContentChange={handleContentChange}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
       </div>
     </DashboardLayout>
   );
