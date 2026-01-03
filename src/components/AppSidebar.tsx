@@ -1,6 +1,6 @@
 
 import * as React from "react"
-import { AudioWaveform, Command, GalleryVerticalEnd, Calendar, Settings2, ChevronUp, User2, Plus, LogOut, Bell, Building2, Shield, FileText, Mail } from "lucide-react"
+import { LayoutDashboard, FolderKanban, GalleryVerticalEnd, Calendar, ChevronUp, User2, Plus, LogOut, Bell, Building2, Shield, FileText, Mail, GitBranch, BarChart3, Database } from "lucide-react"
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
@@ -41,13 +41,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       {
         title: "Dashboard",
         url: "/dashboard",
-        icon: AudioWaveform,
+        icon: LayoutDashboard,
         isActive: true,
       },
       {
         title: "Projects",
         url: "/projects",
-        icon: Command,
+        icon: FolderKanban,
       },
       {
         title: "Organizations",
@@ -57,7 +57,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       {
         title: "SQL Query",
         url: "/query",
-        icon: Settings2,
+        icon: Database,
       },
       {
         title: "Forms", 
@@ -71,15 +71,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: FileText,
       },
       {
-        title: "Workflows",
+        title: "Automations",
         url: "/workflows", 
-        icon: Settings2,
+        icon: GitBranch,
         isDisabled: !currentProject,
       },
       {
-        title: "Reports",
+        title: "Analytics",
         url: "/reports",
-        icon: Settings2,
+        icon: BarChart3,
         isDisabled: !currentProject,
       },
       {
@@ -102,7 +102,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     projects: projects.map(project => ({
       name: project.name,
       url: `/projects/${project.id}/overview`,
-      icon: Command,
+      icon: FolderKanban,
     })),
   }
 
