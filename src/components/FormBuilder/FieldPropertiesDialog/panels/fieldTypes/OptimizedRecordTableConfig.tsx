@@ -7,13 +7,15 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, X, Loader2, Link2 } from 'lucide-react';
+import { Plus, X, Loader2, Link2, Filter, AlertCircle, CheckCircle, Info } from 'lucide-react';
 import { FieldConfiguration } from '../../hooks/useFieldConfiguration';
 import { useFormAccess } from '../../hooks/useFormAccess';
 import { supabase } from '@/integrations/supabase/client';
 import { EmbeddedChartConfigPanel } from './EmbeddedChartConfig';
 import { EmbeddedChartConfig } from '@/types/reports';
 import { useCurrentFormFields } from '@/hooks/useCurrentFormFields';
+import { ExpressionEvaluator } from '@/utils/expressionEvaluator';
+import { cn } from '@/lib/utils';
 
 interface DynamicFieldMapping {
   id: string;
@@ -43,6 +45,264 @@ const METADATA_COLUMNS = [
   { id: 'submitted_by', label: 'Submitted By', type: 'text' },
   { id: 'submission_id', label: 'Submission ID', type: 'uuid' },
 ];
+
+// Helper component for Dynamic Mapping Logical Expression
+function DynamicMappingLogicalExpression({
+  value,
+  onChange,
+  conditionCount,
+  mappings
+}: {
+  value: string;
+  onChange: (expr: string) => void;
+  conditionCount: number;
+  mappings: DynamicFieldMapping[];
+}) {
+  const [localValue, setLocalValue] = useState(value || '');
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setLocalValue(value || '');
+    }
+  }, [value, isFocused]);
+
+  const validation = useMemo(() => {
+    if (!localValue.trim()) {
+      return { valid: true, error: '' }; // Empty is valid (defaults to AND)
+    }
+    
+    const result = ExpressionEvaluator.validate(localValue);
+    
+    if (result.valid) {
+      const referencedIds = ExpressionEvaluator.extractConditionIds(localValue);
+      const invalidIds = referencedIds.filter(id => {
+        const num = parseInt(id, 10);
+        return isNaN(num) || num < 1 || num > conditionCount;
+      });
+      
+      if (invalidIds.length > 0) {
+        return { 
+          valid: false, 
+          error: `Invalid condition(s): ${invalidIds.join(', ')}. Valid: 1-${conditionCount}` 
+        };
+      }
+    }
+    
+    return result;
+  }, [localValue, conditionCount]);
+
+  const suggestion = useMemo(() => {
+    if (conditionCount === 0) return '';
+    if (conditionCount === 1) return '1';
+    if (conditionCount === 2) return '1 AND 2';
+    if (conditionCount === 3) return '(1 AND 2) OR 3';
+    return Array.from({ length: conditionCount }, (_, i) => i + 1).join(' AND ');
+  }, [conditionCount]);
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    if (validation.valid) {
+      onChange(localValue.toUpperCase().trim());
+    }
+  };
+
+  return (
+    <div className="space-y-2 p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg border border-purple-200 dark:border-purple-800">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs font-medium text-purple-700 dark:text-purple-400">Logical Expression</Label>
+        <div className="flex items-center gap-1">
+          {validation.valid ? (
+            <CheckCircle className="h-3 w-3 text-green-600" />
+          ) : (
+            <AlertCircle className="h-3 w-3 text-destructive" />
+          )}
+          <span className={cn("text-xs", validation.valid ? "text-green-600" : "text-destructive")}>
+            {validation.valid ? 'Valid' : 'Invalid'}
+          </span>
+        </div>
+      </div>
+
+      <Input
+        value={localValue}
+        onChange={(e) => setLocalValue(e.target.value)}
+        onBlur={handleBlur}
+        onFocus={() => setIsFocused(true)}
+        placeholder={suggestion || "e.g., (1 AND 2) OR 3"}
+        className={cn(
+          "font-mono text-sm bg-white dark:bg-gray-900",
+          !validation.valid && localValue && "border-destructive"
+        )}
+      />
+
+      {!validation.valid && localValue && (
+        <p className="text-xs text-destructive flex items-center gap-1">
+          <AlertCircle className="h-3 w-3" />
+          {validation.error}
+        </p>
+      )}
+
+      <div className="bg-white dark:bg-gray-900 p-2 rounded border space-y-2">
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Info className="h-3 w-3" />
+          <span>Click to insert:</span>
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {mappings.map((mapping, i) => (
+            <Badge 
+              key={mapping.id} 
+              variant="secondary" 
+              className="text-xs font-mono cursor-pointer hover:bg-purple-200 dark:hover:bg-purple-800"
+              onClick={() => setLocalValue(prev => prev + (prev ? ' ' : '') + (i + 1))}
+            >
+              {i + 1}: {mapping.parentFieldLabel || 'Parent'} {mapping.operator} {mapping.childFieldLabel || 'Child'}
+            </Badge>
+          ))}
+        </div>
+        <div className="text-xs text-muted-foreground pt-1 border-t">
+          <p><strong>Operators:</strong> AND, OR, NOT &nbsp;|&nbsp; <strong>Precedence:</strong> NOT &gt; AND &gt; OR</p>
+          {suggestion && !localValue && (
+            <p className="mt-1">
+              <strong>Default:</strong> <span className="font-mono text-purple-600">{suggestion}</span> (all conditions with AND)
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Helper component for Filter Logical Expression
+function FilterLogicalExpression({
+  value,
+  onChange,
+  conditionCount,
+  filters,
+  formFields
+}: {
+  value: string;
+  onChange: (expr: string) => void;
+  conditionCount: number;
+  filters: any[];
+  formFields: { id: string; label: string; field_type: string }[];
+}) {
+  const [localValue, setLocalValue] = useState(value || '');
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setLocalValue(value || '');
+    }
+  }, [value, isFocused]);
+
+  const validation = useMemo(() => {
+    if (!localValue.trim()) {
+      return { valid: true, error: '' }; // Empty is valid (defaults to AND)
+    }
+    
+    const result = ExpressionEvaluator.validate(localValue);
+    
+    if (result.valid) {
+      const referencedIds = ExpressionEvaluator.extractConditionIds(localValue);
+      const invalidIds = referencedIds.filter(id => {
+        const num = parseInt(id, 10);
+        return isNaN(num) || num < 1 || num > conditionCount;
+      });
+      
+      if (invalidIds.length > 0) {
+        return { 
+          valid: false, 
+          error: `Invalid condition(s): ${invalidIds.join(', ')}. Valid: 1-${conditionCount}` 
+        };
+      }
+    }
+    
+    return result;
+  }, [localValue, conditionCount]);
+
+  const suggestion = useMemo(() => {
+    if (conditionCount === 0) return '';
+    if (conditionCount === 1) return '1';
+    if (conditionCount === 2) return '1 AND 2';
+    if (conditionCount === 3) return '(1 AND 2) OR 3';
+    return Array.from({ length: conditionCount }, (_, i) => i + 1).join(' AND ');
+  }, [conditionCount]);
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    if (validation.valid) {
+      onChange(localValue.toUpperCase().trim());
+    }
+  };
+
+  const getFieldLabel = (fieldId: string) => {
+    return formFields.find(f => f.id === fieldId)?.label || fieldId;
+  };
+
+  return (
+    <div className="space-y-2 p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs font-medium text-blue-700 dark:text-blue-400">Logical Expression</Label>
+        <div className="flex items-center gap-1">
+          {validation.valid ? (
+            <CheckCircle className="h-3 w-3 text-green-600" />
+          ) : (
+            <AlertCircle className="h-3 w-3 text-destructive" />
+          )}
+          <span className={cn("text-xs", validation.valid ? "text-green-600" : "text-destructive")}>
+            {validation.valid ? 'Valid' : 'Invalid'}
+          </span>
+        </div>
+      </div>
+
+      <Input
+        value={localValue}
+        onChange={(e) => setLocalValue(e.target.value)}
+        onBlur={handleBlur}
+        onFocus={() => setIsFocused(true)}
+        placeholder={suggestion || "e.g., (1 AND 2) OR 3"}
+        className={cn(
+          "font-mono text-sm bg-white dark:bg-gray-900",
+          !validation.valid && localValue && "border-destructive"
+        )}
+      />
+
+      {!validation.valid && localValue && (
+        <p className="text-xs text-destructive flex items-center gap-1">
+          <AlertCircle className="h-3 w-3" />
+          {validation.error}
+        </p>
+      )}
+
+      <div className="bg-white dark:bg-gray-900 p-2 rounded border space-y-2">
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Info className="h-3 w-3" />
+          <span>Click to insert:</span>
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {filters.map((filter, i) => (
+            <Badge 
+              key={filter.id || i} 
+              variant="secondary" 
+              className="text-xs font-mono cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800"
+              onClick={() => setLocalValue(prev => prev + (prev ? ' ' : '') + (i + 1))}
+            >
+              {i + 1}: {getFieldLabel(filter.field)} {filter.operator} {filter.value || '(any)'}
+            </Badge>
+          ))}
+        </div>
+        <div className="text-xs text-muted-foreground pt-1 border-t">
+          <p><strong>Operators:</strong> AND, OR, NOT &nbsp;|&nbsp; <strong>Precedence:</strong> NOT &gt; AND &gt; OR</p>
+          {suggestion && !localValue && (
+            <p className="mt-1">
+              <strong>Default:</strong> <span className="font-mono text-blue-600">{suggestion}</span> (all conditions with AND)
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType }: OptimizedRecordTableConfigProps) {
   const { getFormOptions, loading } = useFormAccess();
@@ -510,18 +770,26 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
               </Button>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="mb-3 p-2 bg-white dark:bg-gray-900 rounded border">
+          <CardContent className="space-y-4">
+            <div className="p-2 bg-white dark:bg-gray-900 rounded border">
               <p className="text-xs text-muted-foreground">
                 <strong>Auto-filter records</strong> when a field value in the current form (parent) matches a field value in the target form (child).
-                This automatically links/selects related records based on matching field values.
+                Use the logical expression below to combine conditions with AND, OR, NOT operators.
               </p>
             </div>
+            
             <div className="space-y-3">
               {(config.customConfig?.dynamicFieldMappings || []).map((mapping: DynamicFieldMapping, index: number) => (
-                <div key={mapping.id} className="flex items-center space-x-2 p-3 border rounded-lg bg-white dark:bg-gray-900">
+                <div key={mapping.id} className="relative flex items-center space-x-2 p-3 border rounded-lg bg-white dark:bg-gray-900">
+                  {/* Condition Number Badge */}
+                  <div className="absolute -left-3 -top-2">
+                    <Badge className="bg-purple-600 text-white font-mono text-xs h-5 w-5 p-0 flex items-center justify-center rounded-full">
+                      {index + 1}
+                    </Badge>
+                  </div>
+                  
                   {/* Parent Form Field */}
-                  <div className="flex-1">
+                  <div className="flex-1 ml-2">
                     <Label className="text-xs text-purple-600 mb-1 block">Current Form Field</Label>
                     <Select
                       value={mapping.parentFieldId || ''}
@@ -541,7 +809,7 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
                   </div>
 
                   {/* Operator */}
-                  <div className="w-20 text-center">
+                  <div className="w-28">
                     <Label className="text-xs text-muted-foreground mb-1 block">Operator</Label>
                     <Select
                       value={mapping.operator || '=='}
@@ -554,6 +822,8 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
                         <SelectItem value="==">=</SelectItem>
                         <SelectItem value="!=">≠</SelectItem>
                         <SelectItem value="contains">Contains</SelectItem>
+                        <SelectItem value="starts_with">Starts With</SelectItem>
+                        <SelectItem value="ends_with">Ends With</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -585,7 +855,7 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
                       variant="ghost"
                       size="sm"
                       onClick={() => removeDynamicMapping(index)}
-                      className="text-red-600 hover:text-red-700"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -602,19 +872,35 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
               )}
             </div>
 
+            {/* Logical Expression Input for Dynamic Mappings */}
+            {config.customConfig?.dynamicFieldMappings && config.customConfig.dynamicFieldMappings.length > 1 && (
+              <DynamicMappingLogicalExpression
+                value={config.customConfig?.dynamicMappingLogic || ''}
+                onChange={(expr) => updateCustomConfig('dynamicMappingLogic', expr)}
+                conditionCount={config.customConfig.dynamicFieldMappings.length}
+                mappings={config.customConfig.dynamicFieldMappings}
+              />
+            )}
+
             {/* Summary of configured mappings */}
             {config.customConfig?.dynamicFieldMappings && config.customConfig.dynamicFieldMappings.length > 0 && (
-              <div className="mt-3 p-3 bg-purple-100 dark:bg-purple-900/30 rounded border border-purple-200 dark:border-purple-800">
-                <p className="text-xs text-purple-700 dark:text-purple-400 font-medium">
+              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded border border-purple-200 dark:border-purple-800">
+                <p className="text-xs text-purple-700 dark:text-purple-400 font-medium mb-2">
                   Active Mappings:
                 </p>
-                <div className="flex flex-wrap gap-2 mt-1">
+                <div className="flex flex-wrap gap-2">
                   {config.customConfig.dynamicFieldMappings.map((mapping: DynamicFieldMapping, index: number) => (
                     <Badge key={mapping.id || index} variant="secondary" className="text-xs">
+                      <span className="font-mono mr-1 text-purple-600">[{index + 1}]</span>
                       {mapping.parentFieldLabel || 'Parent Field'} {mapping.operator || '=='} {mapping.childFieldLabel || 'Target Field'}
                     </Badge>
                   ))}
                 </div>
+                {config.customConfig?.dynamicMappingLogic && (
+                  <p className="mt-2 text-xs text-purple-600 font-mono">
+                    Logic: {config.customConfig.dynamicMappingLogic}
+                  </p>
+                )}
               </div>
             )}
           </CardContent>
@@ -622,25 +908,42 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
       )}
 
       {/* Filters Section */}
-      <Card>
+      <Card className="border-2 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20">
         <CardHeader>
           <CardTitle className="text-base flex items-center justify-between">
-            Filters
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-blue-600" />
+              Filters
+            </div>
             <Button type="button" variant="outline" size="sm" onClick={addFilter}>
               <Plus className="h-4 w-4 mr-1" />
               Add Filter
             </Button>
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <div className="p-2 bg-white dark:bg-gray-900 rounded border">
+            <p className="text-xs text-muted-foreground">
+              <strong>Static filters</strong> to narrow down which records are shown in this cross-reference.
+              Use the logical expression below to combine conditions with AND, OR, NOT operators.
+            </p>
+          </div>
+          
           <div className="space-y-3">
             {(config.customConfig?.filters || []).map((filter: any, index: number) => (
-              <div key={filter.id} className="flex items-center space-x-2 p-3 border rounded-lg bg-gray-50">
+              <div key={filter.id} className="relative flex items-center space-x-2 p-3 border rounded-lg bg-white dark:bg-gray-900">
+                {/* Condition Number Badge */}
+                <div className="absolute -left-3 -top-2">
+                  <Badge className="bg-blue-600 text-white font-mono text-xs h-5 w-5 p-0 flex items-center justify-center rounded-full">
+                    {index + 1}
+                  </Badge>
+                </div>
+                
                 <Select
                   value={filter.field}
                   onValueChange={(value) => updateFilter(index, 'field', value)}
                 >
-                  <SelectTrigger className="flex-1">
+                  <SelectTrigger className="flex-1 ml-2">
                     <SelectValue placeholder="Select field" />
                   </SelectTrigger>
                   <SelectContent>
@@ -655,7 +958,7 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
                   value={filter.operator}
                   onValueChange={(value) => updateFilter(index, 'operator', value)}
                 >
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-36">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -663,7 +966,14 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
                     <SelectItem value="!=">≠</SelectItem>
                     <SelectItem value="<">&lt;</SelectItem>
                     <SelectItem value=">">&gt;</SelectItem>
+                    <SelectItem value="<=">&le;</SelectItem>
+                    <SelectItem value=">=">&ge;</SelectItem>
                     <SelectItem value="contains">Contains</SelectItem>
+                    <SelectItem value="not_contains">Not Contains</SelectItem>
+                    <SelectItem value="starts_with">Starts With</SelectItem>
+                    <SelectItem value="ends_with">Ends With</SelectItem>
+                    <SelectItem value="exists">Exists</SelectItem>
+                    <SelectItem value="not_exists">Not Exists</SelectItem>
                   </SelectContent>
                 </Select>
                 <Input
@@ -671,13 +981,14 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
                   value={filter.value}
                   onChange={(e) => updateFilter(index, 'value', e.target.value)}
                   className="flex-1"
+                  disabled={filter.operator === 'exists' || filter.operator === 'not_exists'}
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   onClick={() => removeFilter(index)}
-                  className="text-red-600 hover:text-red-700"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -685,11 +996,49 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
             ))}
             
             {(!config.customConfig?.filters || config.customConfig.filters.length === 0) && (
-              <div className="text-center py-6 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed">
-                <p>No filters configured. Click "Add Filter" to get started.</p>
+              <div className="text-center py-6 text-gray-500 bg-white dark:bg-gray-900 rounded-lg border-2 border-dashed">
+                <Filter className="h-8 w-8 mx-auto mb-2 text-blue-400" />
+                <p className="font-medium">No filters configured</p>
+                <p className="text-sm">Click "Add Filter" to narrow down which records are displayed.</p>
               </div>
             )}
           </div>
+
+          {/* Logical Expression Input for Filters */}
+          {config.customConfig?.filters && config.customConfig.filters.length > 1 && (
+            <FilterLogicalExpression
+              value={config.customConfig?.filterLogic || ''}
+              onChange={(expr) => updateCustomConfig('filterLogic', expr)}
+              conditionCount={config.customConfig.filters.length}
+              filters={config.customConfig.filters}
+              formFields={availableFilterFields}
+            />
+          )}
+
+          {/* Summary of configured filters */}
+          {config.customConfig?.filters && config.customConfig.filters.length > 0 && (
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded border border-blue-200 dark:border-blue-800">
+              <p className="text-xs text-blue-700 dark:text-blue-400 font-medium mb-2">
+                Active Filters:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {config.customConfig.filters.map((filter: any, index: number) => {
+                  const fieldLabel = availableFilterFields.find(f => f.id === filter.field)?.label || filter.field;
+                  return (
+                    <Badge key={filter.id || index} variant="secondary" className="text-xs">
+                      <span className="font-mono mr-1 text-blue-600">[{index + 1}]</span>
+                      {fieldLabel} {filter.operator} {filter.value || '(any)'}
+                    </Badge>
+                  );
+                })}
+              </div>
+              {config.customConfig?.filterLogic && (
+                <p className="mt-2 text-xs text-blue-600 font-mono">
+                  Logic: {config.customConfig.filterLogic}
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
