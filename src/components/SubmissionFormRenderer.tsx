@@ -11,6 +11,7 @@ interface SubmissionFormRendererProps {
   onSubmit: (formData: Record<string, any>) => void;
   formId?: string;
   currentSubmissionId?: string;
+  highlightedFieldId?: string | null;
 }
 
 export function SubmissionFormRenderer({
@@ -21,7 +22,8 @@ export function SubmissionFormRenderer({
   onFieldChange,
   onSubmit,
   formId,
-  currentSubmissionId
+  currentSubmissionId,
+  highlightedFieldId
 }: SubmissionFormRendererProps) {
   // Get fields for current page, maintaining their original order
   const pages = form.pages && form.pages.length > 0 
@@ -71,7 +73,16 @@ export function SubmissionFormRenderer({
             'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
           }`}>
             {standardFieldsBuffer.map((field) => (
-              <div key={field.id} id={`field-${field.id}`} data-field-id={field.id} className="space-y-2">
+              <div 
+                key={field.id} 
+                id={`field-${field.id}`} 
+                data-field-id={field.id} 
+                className={`space-y-2 transition-all duration-300 ${
+                  highlightedFieldId === field.id 
+                    ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-950/20 dark:ring-blue-400 rounded-lg p-3 animate-pulse' 
+                    : ''
+                }`}
+              >
                 <FormFieldsRenderer
                   fields={[field]}
                   formData={formData}
@@ -100,7 +111,16 @@ export function SubmissionFormRenderer({
         
         // Render full-width field immediately
         renderedElements.push(
-          <div key={field.id} id={`field-${field.id}`} data-field-id={field.id} className="w-full">
+          <div 
+            key={field.id} 
+            id={`field-${field.id}`} 
+            data-field-id={field.id} 
+            className={`w-full transition-all duration-300 ${
+              highlightedFieldId === field.id 
+                ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-950/20 dark:ring-blue-400 rounded-lg p-3 animate-pulse' 
+                : ''
+            }`}
+          >
             <FormFieldsRenderer
               fields={[field]}
               formData={formData}
