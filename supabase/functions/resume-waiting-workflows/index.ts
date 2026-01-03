@@ -226,6 +226,10 @@ Deno.serve(async (req) => {
           let nodeOutputData: any = { success: true }
           
           try {
+            // Prepare action details for action nodes
+            const actionConfig = nodeData.node_type === 'action' ? (nodeData.config as any) : null
+            const actionType = actionConfig?.actionType || null
+            
             const { data: logEntry, error: insertError } = await supabase
               .from('workflow_instance_logs')
               .insert({
@@ -235,7 +239,11 @@ Deno.serve(async (req) => {
                 node_label: nodeData.label,
                 status: 'running',
                 started_at: nodeStartTimeISO,
-                action_type: nodeData.node_type === 'action' ? (nodeData.config as any)?.actionType : null,
+                action_type: actionType,
+                action_details: actionConfig ? {
+                  actionType: actionConfig.actionType,
+                  config: actionConfig
+                } : null,
                 input_data: {
                   resumedFrom: waitNodeId,
                   triggerData: execution.trigger_data
@@ -1386,6 +1394,7 @@ Deno.serve(async (req) => {
                     completed_at: new Date().toISOString(),
                     duration_ms: duration,
                     output_data: nodeOutputData,
+                    action_result: nodeData.node_type === 'action' ? nodeOutputData : null,
                     error_message: nodeError
                   })
                   .eq('id', logEntryId)
