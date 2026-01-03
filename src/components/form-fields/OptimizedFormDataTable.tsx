@@ -736,20 +736,18 @@ export function OptimizedFormDataTable({
                                   {config.enableSorting && getSortIcon(fieldId, sortConditions)}
                                 </div>
                               </TableHead>)}
-                            <TableHead>Status</TableHead>
-                            <TableHead>Submitted</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {loading ? <TableRow>
-                              <TableCell colSpan={visibleColumns.length + 4} className="text-center py-8">
+                              <TableCell colSpan={visibleColumns.length + 2} className="text-center py-8">
                                 <div className="flex items-center justify-center gap-2">
                                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
                                   Loading...
                                 </div>
                               </TableCell>
                             </TableRow> : data.length === 0 ? <TableRow>
-                              <TableCell colSpan={visibleColumns.length + 4} className="text-center py-8 text-gray-500">
+                              <TableCell colSpan={visibleColumns.length + 2} className="text-center py-8 text-gray-500">
                                 No submissions found
                               </TableCell>
                             </TableRow> : data.map((row, index) => <TableRow key={row.id || index}>
@@ -765,12 +763,6 @@ export function OptimizedFormDataTable({
                                       {formatCellValue(row[fieldId], field?.field_type)}
                                     </TableCell>;
                         })}
-                                <TableCell>
-                                  {getStatusBadge(row.approval_status || 'pending')}
-                                </TableCell>
-                                <TableCell className="text-sm text-gray-500">
-                                  {row.submitted_at ? new Date(row.submitted_at).toLocaleDateString() : '-'}
-                                </TableCell>
                               </TableRow>)}
                         </TableBody>
                       </Table>
