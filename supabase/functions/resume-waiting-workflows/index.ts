@@ -218,31 +218,39 @@ Deno.serve(async (req) => {
           console.log(`🎯 Executing resumed node: ${nodeData.label} (${nodeData.node_type})`)
           
           // Create log entry for this node
-          const nodeStartTime = new Date().toISOString()
-          const { data: logEntry, error: insertError } = await supabase
-            .from('workflow_instance_logs')
-            .insert({
-              execution_id: execution.id,
-              node_id: nodeData.id,
-              node_type: nodeData.node_type,
-              node_label: nodeData.label,
-              status: 'running',
-              started_at: nodeStartTime,
-              action_type: nodeData.node_type === 'action' ? (nodeData.config as any)?.actionType : null,
-              input_data: {
-                resumedFrom: waitNodeId,
-                triggerData: execution.trigger_data
-              }
-            })
-            .select()
-            .single()
-
-          if (insertError) {
-            console.error(`⚠️ Error creating log for node ${nodeData.id}:`, insertError)
-          }
+          const nodeStartTime = Date.now()
+          const nodeStartTimeISO = new Date(nodeStartTime).toISOString()
+          let logEntryId: string | null = null
+          let nodeStatus: 'completed' | 'failed' = 'completed'
+          let nodeError: string | null = null
+          let nodeOutputData: any = { success: true }
           
-          if (nodeData.node_type === 'action') {
-            try {
+          try {
+            const { data: logEntry, error: insertError } = await supabase
+              .from('workflow_instance_logs')
+              .insert({
+                execution_id: execution.id,
+                node_id: nodeData.id,
+                node_type: nodeData.node_type,
+                node_label: nodeData.label,
+                status: 'running',
+                started_at: nodeStartTimeISO,
+                action_type: nodeData.node_type === 'action' ? (nodeData.config as any)?.actionType : null,
+                input_data: {
+                  resumedFrom: waitNodeId,
+                  triggerData: execution.trigger_data
+                }
+              })
+              .select()
+              .single()
+
+            if (insertError) {
+              console.error(`⚠️ Error creating log for node ${nodeData.id}:`, insertError)
+            } else if (logEntry) {
+              logEntryId = logEntry.id
+            }
+            
+            if (nodeData.node_type === 'action') {
               const config = nodeData.config as any
               const actionType = config?.actionType
               
@@ -363,23 +371,12 @@ Deno.serve(async (req) => {
                   }
                 }
                 
-                // Update log to completed
-                if (logEntry) {
-                  await supabase
-                    .from('workflow_instance_logs')
-                    .update({
-                      status: 'completed',
-                      completed_at: new Date().toISOString(),
-                      duration_ms: Date.now() - new Date(nodeStartTime).getTime(),
-                      output_data: { 
-                        notificationsSent,
-                        recipientUserIds: uniqueRecipientUserIds,
-                        title,
-                        message,
-                        success: true
-                      }
-                    })
-                    .eq('id', logEntry.id)
+                nodeOutputData = { 
+                  notificationsSent,
+                  recipientUserIds: uniqueRecipientUserIds,
+                  title,
+                  message,
+                  success: true
                 }
               } else if (actionType === 'create_combination_records') {
                 // Execute create combination records action
@@ -435,37 +432,17 @@ Deno.serve(async (req) => {
 
                 if (firstSourceRecords.length === 0) {
                   console.log('⚠️ No records in first source cross-reference field')
-                  if (logEntry) {
-                    await supabase
-                      .from('workflow_instance_logs')
-                      .update({
-                        status: 'completed',
-                        completed_at: new Date().toISOString(),
-                        duration_ms: Date.now() - new Date(nodeStartTime).getTime(),
-                        output_data: { 
-                          message: 'No linked records found in first source cross-reference field',
-                          createdCount: 0,
-                          success: true
-                        }
-                      })
-                      .eq('id', logEntry.id)
+                  nodeOutputData = { 
+                    message: 'No linked records found in first source cross-reference field',
+                    createdCount: 0,
+                    success: true
                   }
                 } else if (combinationMode === 'dual' && secondSourceRecords.length === 0) {
                   console.log('⚠️ No records in second source cross-reference field')
-                  if (logEntry) {
-                    await supabase
-                      .from('workflow_instance_logs')
-                      .update({
-                        status: 'completed',
-                        completed_at: new Date().toISOString(),
-                        duration_ms: Date.now() - new Date(nodeStartTime).getTime(),
-                        output_data: { 
-                          message: 'No linked records found in second source cross-reference field',
-                          createdCount: 0,
-                          success: true
-                        }
-                      })
-                      .eq('id', logEntry.id)
+                  nodeOutputData = { 
+                    message: 'No linked records found in second source cross-reference field',
+                    createdCount: 0,
+                    success: true
                   }
                 } else {
                   // Build combinations
@@ -671,88 +648,59 @@ Deno.serve(async (req) => {
 
                   console.log(`✅ Successfully created ${createdRecords.length} combination records`)
 
-                  if (logEntry) {
-                    await supabase
-                      .from('workflow_instance_logs')
-                      .update({
-                        status: 'completed',
-                        completed_at: new Date().toISOString(),
-                        duration_ms: Date.now() - new Date(nodeStartTime).getTime(),
-                        output_data: { 
-                          createdCount: createdRecords.length,
-                          requestedCount: combinations.length,
-                          combinationMode,
-                          targetFormId: config.targetFormId,
-                          createdRecordIds: createdRecords.map(r => r.id),
-                          success: true
-                        }
-                      })
-                      .eq('id', logEntry.id)
+                  nodeOutputData = { 
+                    createdCount: createdRecords.length,
+                    requestedCount: combinations.length,
+                    combinationMode,
+                    targetFormId: config.targetFormId,
+                    createdRecordIds: createdRecords.map(r => r.id),
+                    success: true
                   }
                 }
               } else {
                 // For other action types, mark as completed since we can't execute them from edge function
                 console.log(`⚠️ Action type ${actionType} not supported in edge function, marking as completed`)
-                if (logEntry) {
-                  await supabase
-                    .from('workflow_instance_logs')
-                    .update({
-                      status: 'completed',
-                      completed_at: new Date().toISOString(),
-                      duration_ms: Date.now() - new Date(nodeStartTime).getTime(),
-                      output_data: { 
-                        message: `Action type ${actionType} executed via edge function resume`,
-                        success: true
-                      }
-                    })
-                    .eq('id', logEntry.id)
+                nodeOutputData = { 
+                  message: `Action type ${actionType} executed via edge function resume`,
+                  success: true
                 }
               }
-            } catch (actionError) {
-              console.error(`❌ Error executing action node:`, actionError)
-              // Mark log as failed
-              if (logEntry) {
+            } else if (nodeData.node_type === 'end') {
+              console.log('🏁 End node reached, marking workflow as completed')
+              hasEndNode = true
+              nodeOutputData = { message: 'Workflow completed' }
+            } else {
+              // For other node types (notification, etc.), mark as completed
+              console.log(`ℹ️ Node type ${nodeData.node_type} processed`)
+              nodeOutputData = { 
+                message: `Node ${nodeData.node_type} processed via edge function resume`,
+                success: true
+              }
+            }
+          } catch (nodeExecError) {
+            console.error(`❌ Error executing node ${nodeData.id}:`, nodeExecError)
+            nodeStatus = 'failed'
+            nodeError = nodeExecError instanceof Error ? nodeExecError.message : 'Unknown error'
+            nodeOutputData = { success: false, error: nodeError }
+          } finally {
+            // ALWAYS update the log entry to completed or failed
+            if (logEntryId) {
+              const duration = Date.now() - nodeStartTime
+              try {
                 await supabase
                   .from('workflow_instance_logs')
                   .update({
-                    status: 'failed',
+                    status: nodeStatus,
                     completed_at: new Date().toISOString(),
-                    error_message: actionError instanceof Error ? actionError.message : 'Action execution failed'
+                    duration_ms: duration,
+                    output_data: nodeOutputData,
+                    error_message: nodeError
                   })
-                  .eq('id', logEntry.id)
+                  .eq('id', logEntryId)
+                console.log(`✅ Updated log entry ${logEntryId} to status: ${nodeStatus}`)
+              } catch (logUpdateError) {
+                console.error(`❌ Error updating log entry in finally block:`, logUpdateError)
               }
-            }
-          } else if (nodeData.node_type === 'end') {
-            console.log('🏁 End node reached, marking workflow as completed')
-            hasEndNode = true
-            // Update log to completed
-            if (logEntry) {
-              await supabase
-                .from('workflow_instance_logs')
-                .update({
-                  status: 'completed',
-                  completed_at: new Date().toISOString(),
-                  duration_ms: Date.now() - new Date(nodeStartTime).getTime(),
-                  output_data: { message: 'Workflow completed' }
-                })
-                .eq('id', logEntry.id)
-            }
-          } else {
-            // For other node types (notification, etc.), mark as completed
-            console.log(`ℹ️ Node type ${nodeData.node_type} processed`)
-            if (logEntry) {
-              await supabase
-                .from('workflow_instance_logs')
-                .update({
-                  status: 'completed',
-                  completed_at: new Date().toISOString(),
-                  duration_ms: Date.now() - new Date(nodeStartTime).getTime(),
-                  output_data: { 
-                    message: `Node ${nodeData.node_type} processed via edge function resume`,
-                    success: true
-                  }
-                })
-                .eq('id', logEntry.id)
             }
           }
         }
