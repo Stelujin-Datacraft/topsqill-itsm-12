@@ -13,6 +13,7 @@ import { FormReferenceTag } from '@/components/FormReferenceTag';
 import { OptimizedFilterControls } from './components/OptimizedFilterControls';
 import { SortControls, getSortIcon } from './components/SortControls';
 import { useOptimizedFormSubmissionData } from '@/hooks/useOptimizedFormSubmissionData';
+import { useUsersAndGroups } from '@/hooks/useUsersAndGroups';
 import { supabase } from '@/integrations/supabase/client';
 interface FilterCondition {
   id: string;
@@ -82,6 +83,7 @@ export function OptimizedFormDataTable({
   currentFormData = {}
 }: OptimizedFormDataTableProps) {
   const navigate = useNavigate();
+  const { getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeFilters, setActiveFilters] = useState<FilterCondition[]>([]);
@@ -425,6 +427,29 @@ export function OptimizedFormDataTable({
       } catch {
         return value;
       }
+    }
+    // Handle submission-access fields
+    if (fieldType === 'submission-access' && typeof value === 'object' && value !== null) {
+      const { users = [], groups = [] } = value;
+      const displayItems: string[] = [];
+      
+      if (Array.isArray(users) && users.length > 0) {
+        users.forEach((userId: string) => {
+          displayItems.push(getUserDisplayName(userId));
+        });
+      }
+      
+      if (Array.isArray(groups) && groups.length > 0) {
+        groups.forEach((groupId: string) => {
+          displayItems.push(getGroupDisplayName(groupId));
+        });
+      }
+      
+      if (displayItems.length === 0) {
+        return <span className="text-gray-400">-</span>;
+      }
+      
+      return displayItems.join(', ');
     }
     // Handle cross-reference field values (arrays of objects with displayData or submission_ref_id)
     if ((fieldType === 'cross-reference' || fieldType === 'child-cross-reference') && Array.isArray(value)) {
