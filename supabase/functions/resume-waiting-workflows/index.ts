@@ -531,6 +531,11 @@ Deno.serve(async (req) => {
                     // Apply target link fields
                     if (config.targetLinkFields && config.targetLinkFields.length > 0) {
                       for (const linkField of config.targetLinkFields) {
+                        // Skip if targetFieldId is not configured
+                        if (!linkField.targetFieldId) {
+                          console.log('⚠️ Skipping target link field with empty targetFieldId')
+                          continue
+                        }
                         const sourceRecord = linkField.linkTo === 'second_source' ? combo.second : combo.first
                         if (sourceRecord) {
                           combinationSubmissionData[linkField.targetFieldId] = [{
@@ -554,15 +559,17 @@ Deno.serve(async (req) => {
                     }
 
                     // Apply field mappings from first linked form
-                    if (config.linkedFormFieldMappings && config.linkedFormFieldMappings.length > 0) {
+                    // Filter out incomplete mappings first
+                    const validLinkedFormMappings = (config.linkedFormFieldMappings || []).filter(
+                      (m: any) => m.sourceFieldId && m.targetFieldId
+                    )
+                    if (validLinkedFormMappings.length > 0) {
                       const linkedRecordData = linkedRecordsDataMap.get(combo.first.refId)
                       if (linkedRecordData) {
-                        for (const mapping of config.linkedFormFieldMappings) {
-                          if (mapping.sourceFieldId && mapping.targetFieldId) {
-                            const sourceValue = linkedRecordData[mapping.sourceFieldId]
-                            if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
-                              combinationSubmissionData[mapping.targetFieldId] = sourceValue
-                            }
+                        for (const mapping of validLinkedFormMappings) {
+                          const sourceValue = linkedRecordData[mapping.sourceFieldId]
+                          if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
+                            combinationSubmissionData[mapping.targetFieldId] = sourceValue
                           }
                         }
                       }
