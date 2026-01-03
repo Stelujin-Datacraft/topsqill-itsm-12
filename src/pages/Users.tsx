@@ -7,12 +7,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, MoreHorizontal, UserPlus, Users as UsersIcon, UserCheck, UserX, Clock } from 'lucide-react';
+import { Search, Trash2, UserPlus, Users as UsersIcon, UserCheck, UserX, Clock } from 'lucide-react';
 import UserInviteDialog from '@/components/users/UserInviteDialog';
 import UserRequestsDialog from '@/components/users/UserRequestsDialog';
 import UserCreateDialog from '@/components/users/UserCreateDialog';
@@ -301,7 +295,7 @@ const Users = () => {
                     <TableHead className="font-medium">Role</TableHead>
                     <TableHead className="font-medium">Status</TableHead>
                     <TableHead className="font-medium">Joined</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
+                    <TableHead className="w-[80px] font-medium">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -359,26 +353,19 @@ const Users = () => {
                           {new Date(user.created_at).toLocaleDateString()}
                         </TableCell>
                         <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem 
-                                className="text-destructive focus:text-destructive"
-                                onClick={() => confirmDelete(
-                                  user.id, 
-                                  user.first_name && user.last_name 
-                                    ? `${user.first_name} ${user.last_name}` 
-                                    : user.email
-                                )}
-                              >
-                                Remove Member
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={() => confirmDelete(
+                              user.id, 
+                              user.first_name && user.last_name 
+                                ? `${user.first_name} ${user.last_name}` 
+                                : user.email
+                            )}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))
