@@ -585,7 +585,49 @@ export function OptimizedFormDataTable({
     
     if (fieldsToShow.length > 0) {
       const values = fieldsToShow
-        .map(fieldId => record.displayData[fieldId])
+        .map(fieldId => {
+          const value = record.displayData[fieldId];
+          if (value === null || value === undefined) return null;
+          
+          // Get the field type to properly format the value
+          const field = formFields.find(f => f.id === fieldId);
+          
+          // Handle submission-access fields
+          if (field?.field_type === 'submission-access' && typeof value === 'object') {
+            const { users = [], groups = [] } = value;
+            const displayItems: string[] = [];
+            
+            if (Array.isArray(users) && users.length > 0) {
+              users.forEach((userId: string) => {
+                displayItems.push(getUserDisplayName(userId));
+              });
+            }
+            
+            if (Array.isArray(groups) && groups.length > 0) {
+              groups.forEach((groupId: string) => {
+                displayItems.push(getGroupDisplayName(groupId));
+              });
+            }
+            
+            return displayItems.length > 0 ? displayItems.join(', ') : null;
+          }
+          
+          // Handle other object values
+          if (typeof value === 'object') {
+            // Address fields
+            if ('street' in value || 'city' in value) {
+              return [value.street, value.city, value.state, value.postal, value.country]
+                .filter(Boolean).join(', ');
+            }
+            // Currency fields
+            if ('amount' in value && 'currency' in value) {
+              return `${value.currency || ''} ${value.amount}`;
+            }
+            return null; // Skip other complex objects
+          }
+          
+          return String(value);
+        })
         .filter(Boolean);
       if (values.length > 0) {
         return values.join(' | ');
