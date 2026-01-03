@@ -249,6 +249,76 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localConfig?.actionType, localConfig?.sourceCrossRefFieldId, localConfig?.sourceLinkedFormId]);
 
+  // Auto-fetch field options when targetFieldId is set but options are missing (for select/radio/dropdown fields)
+  useEffect(() => {
+    const actionType = localConfig?.actionType;
+    const targetFieldId = localConfig?.targetFieldId;
+    const targetFieldType = localConfig?.targetFieldType?.toLowerCase() || '';
+    const targetFieldOptions = localConfig?.targetFieldOptions;
+    
+    // Only for change_field_value action with select/radio/dropdown/multiselect field type
+    const optionFieldTypes = ['select', 'radio', 'dropdown', 'multiselect', 'multi-select'];
+    const needsOptions = optionFieldTypes.some(t => targetFieldType.includes(t));
+    
+    if (actionType !== 'change_field_value') return;
+    if (!targetFieldId) return;
+    if (!needsOptions) return;
+    // Already have options
+    if (Array.isArray(targetFieldOptions) && targetFieldOptions.length > 0) return;
+    
+    console.log('🔄 Auto-fetching field options for:', targetFieldId);
+    
+    const fetchFieldOptions = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('form_fields')
+          .select('options, custom_config')
+          .eq('id', targetFieldId)
+          .maybeSingle();
+        
+        if (error || !data) {
+          console.log('❌ Failed to fetch field options:', error);
+          return;
+        }
+        
+        let options = data.options;
+        // Parse if it's a string
+        if (typeof options === 'string') {
+          try {
+            options = JSON.parse(options);
+          } catch (e) {
+            console.log('❌ Failed to parse options:', e);
+            options = [];
+          }
+        }
+        
+        let customConfig = data.custom_config;
+        if (typeof customConfig === 'string') {
+          try {
+            customConfig = JSON.parse(customConfig);
+          } catch (e) {
+            customConfig = {};
+          }
+        }
+        
+        console.log('✅ Fetched field options:', options);
+        
+        if (Array.isArray(options) && options.length > 0) {
+          setLocalConfig((prev: any) => ({
+            ...prev,
+            targetFieldOptions: options,
+            targetFieldCustomConfig: customConfig || prev.targetFieldCustomConfig
+          }));
+        }
+      } catch (err) {
+        console.log('❌ Fetch error:', err);
+      }
+    };
+    
+    fetchFieldOptions();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localConfig?.actionType, localConfig?.targetFieldId, localConfig?.targetFieldType, localConfig?.targetFieldOptions]);
+
   // Update local config and schedule parent sync
   const handleConfigUpdate = useCallback((key: string, value: any) => {
     console.log('🔧 Updating local config:', { key, value, nodeId: node.id });
