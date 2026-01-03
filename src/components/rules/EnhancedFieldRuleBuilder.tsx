@@ -83,11 +83,12 @@ const fieldActions: { value: FieldRuleAction; label: string }[] = [
   { value: 'optional', label: 'Make Optional' },
   { value: 'setDefault', label: 'Set Default Value' },
   { value: 'clearValue', label: 'Clear Value' },
-  { value: 'changeOptions', label: 'Change Field Options' },
-  { value: 'changeLabel', label: 'Change Label' },
-  { value: 'showTooltip', label: 'Show Tooltip' },
-  { value: 'showError', label: 'Show Error' },
   { value: 'filterOptions', label: 'Filter Options' },
+  // Hidden actions - kept for backwards compatibility but not shown in UI:
+  // { value: 'changeOptions', label: 'Change Field Options' },
+  // { value: 'changeLabel', label: 'Change Label' },
+  // { value: 'showTooltip', label: 'Show Tooltip' },
+  // { value: 'showError', label: 'Show Error' },
 ];
 
 export function EnhancedFieldRuleBuilder({ fields, rules, onRulesChange }: EnhancedFieldRuleBuilderProps) {

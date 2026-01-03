@@ -39,8 +39,9 @@ const fieldActions: { value: FieldRuleAction; label: string }[] = [
   { value: 'optional', label: 'Make Optional' },
   { value: 'setDefault', label: 'Set Default Value' },
   { value: 'clearValue', label: 'Clear Value' },
+  // Hidden actions - kept for backwards compatibility but not shown in UI:
   // { value: 'changeOptions', label: 'Change Field Options' },
-  { value: 'changeLabel', label: 'Change Label' },
+  // { value: 'changeLabel', label: 'Change Label' },
   // { value: 'showTooltip', label: 'Show Tooltip' },
   // { value: 'showError', label: 'Show Error' },
 ];
