@@ -201,16 +201,19 @@ export const useUserManagement = () => {
           ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || userProfile.email
           : 'Someone';
 
-        const { error: emailError } = await supabase.functions.invoke('send-invitation-email', {
+        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-invitation-email', {
           body: {
             email: inviteData.email,
             firstName: inviteData.firstName,
             lastName: inviteData.lastName,
             role: inviteData.role,
             organizationName: currentOrganization.name,
-            inviterName
+            inviterName,
+            organizationId: currentOrganization.id
           }
         });
+        
+        console.log('Email response:', emailData);
 
         if (emailError) {
           console.warn('Failed to send invitation email:', emailError);
