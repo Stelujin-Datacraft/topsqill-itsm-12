@@ -103,15 +103,22 @@ export function useFormSnapshot(initialForm: Form | null) {
         if (childCrossRefFieldsFromDB.length > 0) {
           console.log('📥 Merging', childCrossRefFieldsFromDB.length, 'child-cross-reference fields from database into draft');
           
-          // Add missing child fields to the draft
-          const mergedFields = [...(draftForm.fields || []), ...childCrossRefFieldsFromDB];
+          // Get the first page ID to assign to child fields
+          const firstPageId = draftForm.pages?.[0]?.id || form.pages?.[0]?.id || 'default';
+          
+          // Add missing child fields to the draft with pageId set
+          const childFieldsWithPageId = childCrossRefFieldsFromDB.map(f => ({
+            ...f,
+            pageId: f.pageId || firstPageId // Ensure pageId is set
+          }));
+          const mergedFields = [...(draftForm.fields || []), ...childFieldsWithPageId];
           
           // Also update pages to include the new field IDs
           const mergedPages = draftForm.pages?.map((page, index) => {
             if (index === 0) {
               // Add child cross-ref fields to the first page if not already there
               const existingFieldIds = new Set(page.fields || []);
-              const newFieldIds = childCrossRefFieldsFromDB
+              const newFieldIds = childFieldsWithPageId
                 .filter(f => !existingFieldIds.has(f.id))
                 .map(f => f.id);
               return {
