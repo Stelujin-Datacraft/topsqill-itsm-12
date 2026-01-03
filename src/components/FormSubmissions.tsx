@@ -56,40 +56,60 @@ export function FormSubmissions({
     try {
       setLoading(true);
       console.log('Loading submissions for form:', form.id);
-      const {
-        data,
-        error
-      } = await supabase.from('form_submissions').select(`
+      
+      // First, fetch submissions
+      const { data, error } = await supabase
+        .from('form_submissions')
+        .select(`
           *,
-          submitter:user_profiles!form_submissions_submitted_by_fkey(
-            first_name,
-            last_name,
-            email
-          ),
           approver:user_profiles!form_submissions_approved_by_fkey(
             first_name,
             last_name,
             email
           )
-        `).eq('form_id', form.id).order('submitted_at', {
-        ascending: false
-      });
+        `)
+        .eq('form_id', form.id)
+        .order('submitted_at', { ascending: false });
+
       if (error) {
         console.error('Error loading submissions:', error);
         throw error;
       }
+
+      // Get unique submitter IDs to fetch their profiles
+      const submitterIds = [...new Set((data || [])
+        .map(s => s.submitted_by)
+        .filter(Boolean))] as string[];
+
+      // Fetch submitter profiles
+      let submitterProfiles: Record<string, { first_name: string | null; last_name: string | null; email: string }> = {};
+      if (submitterIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('user_profiles')
+          .select('id, first_name, last_name, email')
+          .in('id', submitterIds);
+        
+        if (profiles) {
+          submitterProfiles = profiles.reduce((acc, p) => {
+            acc[p.id] = { first_name: p.first_name, last_name: p.last_name, email: p.email };
+            return acc;
+          }, {} as Record<string, { first_name: string | null; last_name: string | null; email: string }>);
+        }
+      }
+
       const submissionsData = (data || []).map(submission => {
-        const submitter = submission.submitter as any;
-        const submitterEmail = submitter?.email || 'Anonymous';
-        const submitterName = submitter?.first_name && submitter?.last_name 
-          ? `${submitter.first_name} ${submitter.last_name}` 
-          : submitterEmail;
+        const submitter = submission.submitted_by ? submitterProfiles[submission.submitted_by] : null;
+        const submitterDisplay = submitter
+          ? (submitter.first_name && submitter.last_name 
+              ? `${submitter.first_name} ${submitter.last_name}` 
+              : submitter.email)
+          : 'Anonymous';
         
         return {
           id: submission.id,
           formId: submission.form_id,
           submittedBy: submission.submitted_by || 'Anonymous',
-          submittedByEmail: submitterName,
+          submittedByEmail: submitterDisplay,
           submittedAt: submission.submitted_at,
           submissionData: submission.submission_data as Record<string, any>,
           ipAddress: submission.ip_address as string | undefined,
