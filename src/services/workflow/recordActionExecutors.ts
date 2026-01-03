@@ -1325,9 +1325,14 @@ export class RecordActionExecutors {
         // Build submission data for the new combination record
         const combinationSubmissionData: Record<string, any> = {};
 
-        // === APPLY TARGET LINK FIELDS ===
+      // === APPLY TARGET LINK FIELDS ===
         if (config.targetLinkFields && config.targetLinkFields.length > 0) {
           for (const linkField of config.targetLinkFields) {
+            // Skip if targetFieldId is not configured
+            if (!linkField.targetFieldId) {
+              console.log('⚠️ Skipping target link field with empty targetFieldId');
+              continue;
+            }
             const sourceRecord = linkField.linkTo === 'second_source' ? combo.second : combo.first;
             if (sourceRecord) {
               combinationSubmissionData[linkField.targetFieldId] = [{
@@ -1365,15 +1370,17 @@ export class RecordActionExecutors {
         }
 
         // === APPLY FIELD MAPPINGS FROM FIRST LINKED FORM ===
-        if (config.linkedFormFieldMappings && config.linkedFormFieldMappings.length > 0) {
+        // Filter out incomplete mappings first
+        const validLinkedFormMappings = (config.linkedFormFieldMappings || []).filter(
+          m => m.sourceFieldId && m.targetFieldId
+        );
+        if (validLinkedFormMappings.length > 0) {
           const linkedRecordData = linkedRecordsDataMap.get(combo.first.refId);
           if (linkedRecordData) {
-            for (const mapping of config.linkedFormFieldMappings) {
-              if (mapping.sourceFieldId && mapping.targetFieldId) {
-                const sourceValue = linkedRecordData[mapping.sourceFieldId];
-                if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
-                  combinationSubmissionData[mapping.targetFieldId] = sourceValue;
-                }
+            for (const mapping of validLinkedFormMappings) {
+              const sourceValue = linkedRecordData[mapping.sourceFieldId];
+              if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
+                combinationSubmissionData[mapping.targetFieldId] = sourceValue;
               }
             }
           }
