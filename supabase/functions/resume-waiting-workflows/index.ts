@@ -1099,10 +1099,268 @@ Deno.serve(async (req) => {
                   success: true
                 }
               }
+            } else if (nodeData.node_type === 'condition') {
+              // Execute condition node - evaluate conditions and determine next branch
+              console.log('🔀 Evaluating condition node')
+              
+              const conditionConfig = nodeData.config as any
+              const conditions = conditionConfig?.conditions || []
+              const triggerData = execution.trigger_data || {}
+              const submissionData = triggerData.submissionData || {}
+              
+              // Helper function to get field value from nested data
+              const getFieldValue = (fieldPath: string, data: any): any => {
+                if (!fieldPath || !data) return undefined
+                
+                // First check direct property
+                if (data.hasOwnProperty(fieldPath)) {
+                  return data[fieldPath]
+                }
+                
+                // Check in submissionData
+                if (data.submissionData && data.submissionData.hasOwnProperty(fieldPath)) {
+                  return data.submissionData[fieldPath]
+                }
+                
+                // Try nested path
+                const parts = fieldPath.split('.')
+                let value = data
+                for (const part of parts) {
+                  if (value && typeof value === 'object' && part in value) {
+                    value = value[part]
+                  } else {
+                    return undefined
+                  }
+                }
+                return value
+              }
+              
+              // Evaluate a single condition
+              const evaluateCondition = (condition: any): boolean => {
+                const { field, operator, value } = condition
+                
+                // Try to get field value from submission data first, then trigger data
+                let fieldValue = submissionData[field]
+                if (fieldValue === undefined) {
+                  fieldValue = getFieldValue(field, triggerData)
+                }
+                
+                console.log(`📊 Evaluating: ${field} ${operator} ${value} (actual: ${fieldValue})`)
+                
+                // Normalize values for comparison
+                const normalizeValue = (v: any): string => {
+                  if (v === null || v === undefined) return ''
+                  if (typeof v === 'boolean') return v.toString()
+                  return String(v).toLowerCase().trim()
+                }
+                
+                const normalizedFieldValue = normalizeValue(fieldValue)
+                const normalizedValue = normalizeValue(value)
+                
+                switch (operator) {
+                  case 'equals':
+                  case '==':
+                    return normalizedFieldValue === normalizedValue
+                  case 'not_equals':
+                  case '!=':
+                    return normalizedFieldValue !== normalizedValue
+                  case 'contains':
+                    return normalizedFieldValue.includes(normalizedValue)
+                  case 'not_contains':
+                    return !normalizedFieldValue.includes(normalizedValue)
+                  case 'greater_than':
+                  case '>':
+                    return parseFloat(normalizedFieldValue) > parseFloat(normalizedValue)
+                  case 'less_than':
+                  case '<':
+                    return parseFloat(normalizedFieldValue) < parseFloat(normalizedValue)
+                  case 'greater_than_or_equal':
+                  case '>=':
+                    return parseFloat(normalizedFieldValue) >= parseFloat(normalizedValue)
+                  case 'less_than_or_equal':
+                  case '<=':
+                    return parseFloat(normalizedFieldValue) <= parseFloat(normalizedValue)
+                  case 'exists':
+                    return fieldValue !== undefined && fieldValue !== null && fieldValue !== ''
+                  case 'not_exists':
+                    return fieldValue === undefined || fieldValue === null || fieldValue === ''
+                  case 'starts_with':
+                    return normalizedFieldValue.startsWith(normalizedValue)
+                  case 'ends_with':
+                    return normalizedFieldValue.endsWith(normalizedValue)
+                  default:
+                    console.log(`⚠️ Unknown operator: ${operator}`)
+                    return false
+                }
+              }
+              
+              // Evaluate all conditions (default AND logic)
+              let conditionResult = true
+              const logicalOperator = conditionConfig?.logicalOperator || 'AND'
+              
+              if (conditions.length > 0) {
+                if (logicalOperator === 'OR') {
+                  conditionResult = conditions.some((c: any) => evaluateCondition(c))
+                } else {
+                  conditionResult = conditions.every((c: any) => evaluateCondition(c))
+                }
+              }
+              
+              console.log(`📊 Condition result: ${conditionResult} (operator: ${logicalOperator})`)
+              
+              // Determine which branch to take based on result
+              const branchType = conditionResult ? 'true' : 'false'
+              
+              // Get the next nodes for this branch
+              const { data: branchConnections, error: branchError } = await supabase
+                .from('workflow_connections')
+                .select('target_node_id, source_handle')
+                .eq('source_node_id', nodeData.id)
+              
+              if (branchError) {
+                console.error('❌ Error fetching branch connections:', branchError)
+                throw branchError
+              }
+              
+              console.log(`📊 Branch connections found:`, branchConnections)
+              
+              // Filter connections based on the branch result
+              const matchingConnections = (branchConnections || []).filter((conn: any) => {
+                const handle = conn.source_handle || ''
+                // Match 'true'/'false' handles or condition types
+                if (conditionResult) {
+                  return handle === 'true' || handle === 'yes' || handle.includes('true') || handle === ''
+                } else {
+                  return handle === 'false' || handle === 'no' || handle.includes('false')
+                }
+              })
+              
+              console.log(`📊 Matching connections for branch '${branchType}':`, matchingConnections)
+              
+              // Execute the next nodes in the branch
+              if (matchingConnections.length > 0) {
+                const branchNodeIds = matchingConnections.map((c: any) => c.target_node_id)
+                
+                // Fetch and execute branch nodes
+                const { data: branchNodes, error: branchNodesError } = await supabase
+                  .from('workflow_nodes')
+                  .select('*')
+                  .in('id', branchNodeIds)
+                
+                if (!branchNodesError && branchNodes) {
+                  console.log(`🔀 Executing ${branchNodes.length} nodes in ${branchType} branch`)
+                  
+                  // Update execution to track pending branch nodes
+                  await supabase
+                    .from('workflow_executions')
+                    .update({
+                      execution_data: {
+                        ...execution.execution_data,
+                        conditionResult,
+                        branchTaken: branchType,
+                        pendingBranchNodes: branchNodeIds
+                      }
+                    })
+                    .eq('id', execution.id)
+                }
+                
+                nodeOutputData = {
+                  conditionResult,
+                  branchTaken: branchType,
+                  nextNodeIds: branchNodeIds,
+                  conditions: conditions.length,
+                  logicalOperator,
+                  success: true
+                }
+              } else {
+                console.log(`⚠️ No matching connections for branch '${branchType}'`)
+                nodeOutputData = {
+                  conditionResult,
+                  branchTaken: branchType,
+                  nextNodeIds: [],
+                  message: `No connections for ${branchType} branch`,
+                  success: true
+                }
+              }
             } else if (nodeData.node_type === 'end') {
               console.log('🏁 End node reached, marking workflow as completed')
               hasEndNode = true
               nodeOutputData = { message: 'Workflow completed' }
+            } else if (nodeData.node_type === 'wait') {
+              // Another wait node - pause execution again
+              console.log('⏳ Another wait node encountered, setting up new wait')
+              const waitConfig = nodeData.config as any
+              
+              // Calculate new resume time
+              let newResumeAt: Date | null = null
+              const waitType = waitConfig.waitType || 'duration'
+              
+              if (waitType === 'duration') {
+                const duration = parseInt(waitConfig.durationValue) || 1
+                const unit = waitConfig.durationUnit || 'minutes'
+                const now = new Date()
+                
+                switch (unit) {
+                  case 'minutes':
+                    newResumeAt = new Date(now.getTime() + duration * 60 * 1000)
+                    break
+                  case 'hours':
+                    newResumeAt = new Date(now.getTime() + duration * 60 * 60 * 1000)
+                    break
+                  case 'days':
+                    newResumeAt = new Date(now.getTime() + duration * 24 * 60 * 60 * 1000)
+                    break
+                  default:
+                    newResumeAt = new Date(now.getTime() + duration * 60 * 1000)
+                }
+              } else if (waitType === 'until_date' && waitConfig.untilDate) {
+                newResumeAt = new Date(waitConfig.untilDate)
+              }
+              
+              if (newResumeAt && newResumeAt > new Date()) {
+                // Set up new wait
+                await supabase
+                  .from('workflow_executions')
+                  .update({
+                    status: 'waiting',
+                    current_node_id: nodeData.id,
+                    scheduled_resume_at: newResumeAt.toISOString(),
+                    wait_node_id: nodeData.id,
+                    wait_config: waitConfig
+                  })
+                  .eq('id', execution.id)
+                
+                // Update log to waiting
+                if (logEntryId) {
+                  await supabase
+                    .from('workflow_instance_logs')
+                    .update({
+                      status: 'waiting',
+                      output_data: {
+                        scheduledResumeAt: newResumeAt.toISOString(),
+                        waitType,
+                        message: 'Workflow paused for another wait period'
+                      }
+                    })
+                    .eq('id', logEntryId)
+                }
+                
+                console.log(`⏳ New wait scheduled for: ${newResumeAt.toISOString()}`)
+                allNodesProcessed = false
+                nodeOutputData = {
+                  waiting: true,
+                  scheduledResumeAt: newResumeAt.toISOString(),
+                  success: true
+                }
+                // Skip the finally block update since we set to waiting
+                continue
+              } else {
+                nodeOutputData = {
+                  skipped: true,
+                  reason: 'Wait time already passed',
+                  success: true
+                }
+              }
             } else {
               // For other node types (notification, etc.), mark as completed
               console.log(`ℹ️ Node type ${nodeData.node_type} processed`)
