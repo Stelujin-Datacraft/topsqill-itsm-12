@@ -55,7 +55,10 @@ serve(async (req) => {
       .eq('is_default', true)
       .single();
 
-    if (configError || !smtpConfig) {
+    let activeSmtpConfig = smtpConfig;
+    
+    if (configError || !activeSmtpConfig) {
+      console.log('⚠️ No default SMTP config, trying to find any active config...')
       // Try to get any active SMTP config if no default
       const { data: anyConfig, error: anyConfigError } = await supabaseClient
         .from('smtp_configs')
@@ -77,18 +80,15 @@ serve(async (req) => {
         )
       }
       
-      // Use the non-default config
-      Object.assign(smtpConfig || {}, anyConfig);
+      activeSmtpConfig = anyConfig;
     }
 
     console.log('📧 Using SMTP config:', {
-      name: smtpConfig.name,
-      host: smtpConfig.host,
-      port: smtpConfig.port,
-      from_email: smtpConfig.from_email,
+      name: activeSmtpConfig.name,
+      host: activeSmtpConfig.host,
+      port: activeSmtpConfig.port,
+      from_email: activeSmtpConfig.from_email,
     });
-
-    // Build the email HTML content
     const emailHtml = `
       <!DOCTYPE html>
       <html>
@@ -147,21 +147,21 @@ This email was sent by ${organizationName || 'DataCraft Pro'}.
       // Initialize SMTP client
       client = new SMTPClient({
         connection: {
-          hostname: smtpConfig.host,
-          port: smtpConfig.port,
-          tls: smtpConfig.use_tls,
+          hostname: activeSmtpConfig.host,
+          port: activeSmtpConfig.port,
+          tls: activeSmtpConfig.use_tls,
           auth: {
-            username: smtpConfig.username,
-            password: smtpConfig.password,
+            username: activeSmtpConfig.username,
+            password: activeSmtpConfig.password,
           },
         },
       });
 
       // Send email using SMTP
       await client.send({
-        from: smtpConfig.from_name 
-          ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` 
-          : smtpConfig.from_email,
+        from: activeSmtpConfig.from_name 
+          ? `${activeSmtpConfig.from_name} <${activeSmtpConfig.from_email}>` 
+          : activeSmtpConfig.from_email,
         to: email,
         subject: `You're invited to join ${organizationName || 'our organization'}`,
         content: emailText,
