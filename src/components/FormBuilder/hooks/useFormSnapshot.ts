@@ -92,11 +92,50 @@ export function useFormSnapshot(initialForm: Form | null) {
     let formToUse = form;
     if (form?.id) {
       const draftForm = loadFromLocalStorage(form.id);
-      if (draftForm) {
+      if (draftForm && form) {
+        // IMPORTANT: Merge child-cross-reference fields from database into localStorage draft
+        // These fields are created externally (by parent form) and may not exist in the draft
+        const draftFieldIds = new Set(draftForm.fields?.map(f => f.id) || []);
+        const childCrossRefFieldsFromDB = form.fields.filter(
+          f => f.type === 'child-cross-reference' && !draftFieldIds.has(f.id)
+        );
+        
+        if (childCrossRefFieldsFromDB.length > 0) {
+          console.log('📥 Merging', childCrossRefFieldsFromDB.length, 'child-cross-reference fields from database into draft');
+          
+          // Add missing child fields to the draft
+          const mergedFields = [...(draftForm.fields || []), ...childCrossRefFieldsFromDB];
+          
+          // Also update pages to include the new field IDs
+          const mergedPages = draftForm.pages?.map((page, index) => {
+            if (index === 0) {
+              // Add child cross-ref fields to the first page if not already there
+              const existingFieldIds = new Set(page.fields || []);
+              const newFieldIds = childCrossRefFieldsFromDB
+                .filter(f => !existingFieldIds.has(f.id))
+                .map(f => f.id);
+              return {
+                ...page,
+                fields: [...(page.fields || []), ...newFieldIds]
+              };
+            }
+            return page;
+          }) || form.pages;
+          
+          formToUse = {
+            ...draftForm,
+            fields: mergedFields,
+            pages: mergedPages
+          };
+        } else {
+          formToUse = draftForm;
+        }
+        console.log('📂 Loaded draft from localStorage with', formToUse.fields?.length || 0, 'fields');
+      } else if (draftForm) {
         formToUse = draftForm;
         console.log('📂 Loaded draft from localStorage with', draftForm.fields?.length || 0, 'fields');
       } else {
-        console.log('📄 No draft found in localStorage, using database version with', form.fields?.length || 0, 'fields');
+        console.log('📄 No draft found in localStorage, using database version with', form?.fields?.length || 0, 'fields');
       }
     }
     
