@@ -768,6 +768,329 @@ Deno.serve(async (req) => {
                     success: true
                   }
                 }
+              } else if (actionType === 'create_record') {
+                // Execute create record action
+                console.log('📝 Executing create_record action in edge function')
+                
+                const triggerSubmissionData = execution.trigger_data?.submissionData || {}
+                const triggerSubmissionId = execution.trigger_data?.submissionId
+                const triggerFormId = execution.trigger_data?.formId
+                const submitterId = execution.submitter_id || execution.trigger_data?.submitterId
+                
+                if (!config.targetFormId) {
+                  throw new Error('Missing target form ID for create record action')
+                }
+                
+                // Build submission data from config
+                const newSubmissionData: Record<string, any> = {}
+                
+                // Handle field values mode
+                if (config.fieldValuesMode === 'set_values' && config.fieldValues) {
+                  for (const fieldValue of config.fieldValues) {
+                    if (!fieldValue.fieldId) continue
+                    
+                    if (fieldValue.valueType === 'static') {
+                      newSubmissionData[fieldValue.fieldId] = fieldValue.staticValue
+                    } else if (fieldValue.valueType === 'dynamic' && fieldValue.dynamicFieldId) {
+                      const value = triggerSubmissionData[fieldValue.dynamicFieldId]
+                      if (value !== undefined) {
+                        newSubmissionData[fieldValue.fieldId] = value
+                      }
+                    }
+                  }
+                }
+                
+                // Handle field mappings mode
+                if (config.fieldValuesMode === 'map_fields' && config.fieldMappings) {
+                  for (const mapping of config.fieldMappings) {
+                    if (mapping.sourceFieldId && mapping.targetFieldId) {
+                      const value = triggerSubmissionData[mapping.sourceFieldId]
+                      if (value !== undefined) {
+                        newSubmissionData[mapping.targetFieldId] = value
+                      }
+                    }
+                  }
+                }
+                
+                // Handle cross-reference linking
+                if (config.enableCrossRefLinking && config.crossReferenceFieldId && triggerSubmissionId) {
+                  // Fetch trigger submission's submission_ref_id
+                  const { data: triggerSub } = await supabase
+                    .from('form_submissions')
+                    .select('submission_ref_id')
+                    .eq('id', triggerSubmissionId)
+                    .single()
+                  
+                  if (triggerSub?.submission_ref_id) {
+                    newSubmissionData[config.crossReferenceFieldId] = [{
+                      submission_ref_id: triggerSub.submission_ref_id,
+                      form_id: triggerFormId
+                    }]
+                  }
+                }
+                
+                // Determine submitter
+                let recordSubmitterId = submitterId
+                if (config.submitterType === 'specific_user' && config.specificSubmitterId) {
+                  recordSubmitterId = config.specificSubmitterId
+                }
+                
+                const initialStatus = config.initialStatus || 'pending'
+                
+                console.log('📋 Creating record with data:', { 
+                  targetFormId: config.targetFormId, 
+                  fieldCount: Object.keys(newSubmissionData).length,
+                  submitterId: recordSubmitterId
+                })
+                
+                const { data: newRecord, error: createError } = await supabase
+                  .from('form_submissions')
+                  .insert({
+                    form_id: config.targetFormId,
+                    submission_data: newSubmissionData,
+                    submitted_by: recordSubmitterId,
+                    approval_status: initialStatus
+                  })
+                  .select('id, submission_ref_id')
+                  .single()
+                
+                if (createError) {
+                  throw new Error(`Failed to create record: ${createError.message}`)
+                }
+                
+                console.log('✅ Record created:', newRecord.id)
+                nodeOutputData = {
+                  createdRecordId: newRecord.id,
+                  submissionRefId: newRecord.submission_ref_id,
+                  targetFormId: config.targetFormId,
+                  success: true
+                }
+              } else if (actionType === 'create_linked_record') {
+                // Execute create linked record action
+                console.log('🔗 Executing create_linked_record action in edge function')
+                
+                const triggerSubmissionData = execution.trigger_data?.submissionData || {}
+                const triggerSubmissionId = execution.trigger_data?.submissionId
+                const triggerFormId = execution.trigger_data?.formId
+                const submitterId = execution.submitter_id || execution.trigger_data?.submitterId
+                
+                if (!config.crossRefFieldId || !config.targetFormId) {
+                  throw new Error('Missing required configuration for create linked record')
+                }
+                
+                // Get trigger submission's ref ID
+                const { data: triggerSub } = await supabase
+                  .from('form_submissions')
+                  .select('submission_ref_id')
+                  .eq('id', triggerSubmissionId)
+                  .single()
+                
+                if (!triggerSub?.submission_ref_id) {
+                  throw new Error('Could not find trigger submission ref ID')
+                }
+                
+                const recordCount = config.recordCount || 1
+                const createdRecords: Array<{id: string, submission_ref_id: string}> = []
+                
+                for (let i = 0; i < recordCount; i++) {
+                  // Build submission data for child record
+                  const childSubmissionData: Record<string, any> = {}
+                  
+                  // Set the child cross-reference field to point back to parent
+                  if (config.childCrossRefFieldId) {
+                    childSubmissionData[config.childCrossRefFieldId] = [{
+                      submission_ref_id: triggerSub.submission_ref_id,
+                      form_id: triggerFormId
+                    }]
+                  }
+                  
+                  // Apply field mappings if any
+                  if (config.fieldMappings) {
+                    for (const mapping of config.fieldMappings) {
+                      if (mapping.sourceFieldId && mapping.targetFieldId) {
+                        const value = triggerSubmissionData[mapping.sourceFieldId]
+                        if (value !== undefined) {
+                          childSubmissionData[mapping.targetFieldId] = value
+                        }
+                      }
+                    }
+                  }
+                  
+                  // Apply field values if any
+                  if (config.fieldValues) {
+                    for (const fieldValue of config.fieldValues) {
+                      if (!fieldValue.fieldId) continue
+                      
+                      if (fieldValue.valueType === 'static') {
+                        childSubmissionData[fieldValue.fieldId] = fieldValue.staticValue
+                      } else if (fieldValue.valueType === 'dynamic' && fieldValue.dynamicFieldId) {
+                        const value = triggerSubmissionData[fieldValue.dynamicFieldId]
+                        if (value !== undefined) {
+                          childSubmissionData[fieldValue.fieldId] = value
+                        }
+                      }
+                    }
+                  }
+                  
+                  const initialStatus = config.initialStatus || 'pending'
+                  
+                  const { data: newRecord, error: createError } = await supabase
+                    .from('form_submissions')
+                    .insert({
+                      form_id: config.targetFormId,
+                      submission_data: childSubmissionData,
+                      submitted_by: submitterId,
+                      approval_status: initialStatus
+                    })
+                    .select('id, submission_ref_id')
+                    .single()
+                  
+                  if (createError) {
+                    console.error('❌ Error creating linked record:', createError)
+                    continue
+                  }
+                  
+                  createdRecords.push({
+                    id: newRecord.id,
+                    submission_ref_id: newRecord.submission_ref_id || ''
+                  })
+                  console.log(`✅ Linked record ${i + 1}/${recordCount} created:`, newRecord.id)
+                }
+                
+                // Update parent's cross-reference field with created records
+                if (createdRecords.length > 0 && config.crossRefFieldId) {
+                  const { data: currentParent } = await supabase
+                    .from('form_submissions')
+                    .select('submission_data')
+                    .eq('id', triggerSubmissionId)
+                    .single()
+                  
+                  if (currentParent) {
+                    const currentData = currentParent.submission_data || {}
+                    const existingRefs = (currentData as any)[config.crossRefFieldId] || []
+                    
+                    let mergedRefs: any[] = Array.isArray(existingRefs) ? [...existingRefs] : []
+                    
+                    for (const record of createdRecords) {
+                      mergedRefs.push({
+                        submission_ref_id: record.submission_ref_id,
+                        form_id: config.targetFormId
+                      })
+                    }
+                    
+                    const updatedData = {
+                      ...(typeof currentData === 'object' ? currentData : {}),
+                      [config.crossRefFieldId]: mergedRefs
+                    }
+                    
+                    await supabase
+                      .from('form_submissions')
+                      .update({ submission_data: updatedData })
+                      .eq('id', triggerSubmissionId)
+                    
+                    console.log(`✅ Updated parent cross-ref field with ${createdRecords.length} new records`)
+                  }
+                }
+                
+                nodeOutputData = {
+                  createdCount: createdRecords.length,
+                  requestedCount: recordCount,
+                  createdRecordIds: createdRecords.map(r => r.id),
+                  targetFormId: config.targetFormId,
+                  success: true
+                }
+              } else if (actionType === 'update_linked_records') {
+                // Execute update linked records action
+                console.log('🔄 Executing update_linked_records action in edge function')
+                
+                const triggerSubmissionData = execution.trigger_data?.submissionData || {}
+                const triggerSubmissionId = execution.trigger_data?.submissionId
+                
+                if (!config.crossRefFieldId || !config.fieldMappings || config.fieldMappings.length === 0) {
+                  throw new Error('Missing required configuration for update linked records')
+                }
+                
+                // Get linked records from cross-reference field
+                const crossRefValue = triggerSubmissionData[config.crossRefFieldId]
+                if (!crossRefValue) {
+                  console.log('⚠️ No linked records in cross-reference field')
+                  nodeOutputData = { 
+                    message: 'No linked records to update',
+                    updatedCount: 0,
+                    success: true
+                  }
+                } else {
+                  // Extract submission ref IDs
+                  let linkedRefIds: string[] = []
+                  
+                  if (Array.isArray(crossRefValue)) {
+                    linkedRefIds = crossRefValue
+                      .map(v => typeof v === 'string' ? v : v?.submission_ref_id)
+                      .filter((v): v is string => !!v)
+                  } else if (typeof crossRefValue === 'string') {
+                    linkedRefIds = [crossRefValue]
+                  } else if (crossRefValue?.submission_ref_id) {
+                    linkedRefIds = [crossRefValue.submission_ref_id]
+                  }
+                  
+                  console.log(`📋 Found ${linkedRefIds.length} linked records to potentially update`)
+                  
+                  // Apply update scope
+                  let targetRefIds = linkedRefIds
+                  if (config.updateScope === 'first' && linkedRefIds.length > 0) {
+                    targetRefIds = [linkedRefIds[0]]
+                  } else if (config.updateScope === 'last' && linkedRefIds.length > 0) {
+                    targetRefIds = [linkedRefIds[linkedRefIds.length - 1]]
+                  }
+                  
+                  console.log(`📋 Updating ${targetRefIds.length} records (scope: ${config.updateScope || 'all'})`)
+                  
+                  // Get linked submissions
+                  const { data: linkedSubmissions, error: fetchError } = await supabase
+                    .from('form_submissions')
+                    .select('id, submission_data')
+                    .in('submission_ref_id', targetRefIds)
+                  
+                  if (fetchError) {
+                    throw new Error(`Failed to fetch linked submissions: ${fetchError.message}`)
+                  }
+                  
+                  let updatedCount = 0
+                  for (const linkedSub of linkedSubmissions || []) {
+                    const currentData = linkedSub.submission_data || {}
+                    const updatedData = { ...(typeof currentData === 'object' ? currentData : {}) }
+                    
+                    // Apply field mappings
+                    for (const mapping of config.fieldMappings) {
+                      if (mapping.sourceFieldId && mapping.targetFieldId) {
+                        const sourceValue = triggerSubmissionData[mapping.sourceFieldId]
+                        if (sourceValue !== undefined) {
+                          updatedData[mapping.targetFieldId] = sourceValue
+                        }
+                      }
+                    }
+                    
+                    const { error: updateError } = await supabase
+                      .from('form_submissions')
+                      .update({ submission_data: updatedData })
+                      .eq('id', linkedSub.id)
+                    
+                    if (updateError) {
+                      console.error(`❌ Error updating linked record ${linkedSub.id}:`, updateError)
+                      continue
+                    }
+                    
+                    updatedCount++
+                    console.log(`✅ Updated linked record: ${linkedSub.id}`)
+                  }
+                  
+                  nodeOutputData = {
+                    updatedCount,
+                    totalLinked: linkedRefIds.length,
+                    updateScope: config.updateScope || 'all',
+                    success: true
+                  }
+                }
               } else {
                 // For other action types, mark as completed since we can't execute them from edge function
                 console.log(`⚠️ Action type ${actionType} not supported in edge function, marking as completed`)
