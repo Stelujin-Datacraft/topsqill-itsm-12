@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { UserPlus } from 'lucide-react';
+
 
 interface UserCreateDialogProps {
   isOpen: boolean;
@@ -232,12 +232,6 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>
-        <Button>
-          <UserPlus className="h-4 w-4" />
-          Create User
-        </Button>
-      </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New User</DialogTitle>

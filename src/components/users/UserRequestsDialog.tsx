@@ -3,9 +3,9 @@ import { useState } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { CheckCircle, UserCheck, Users as UsersIcon, XCircle } from 'lucide-react';
+import { CheckCircle, Users as UsersIcon, XCircle } from 'lucide-react';
 
 interface OrganizationRequest {
   id: string;
@@ -55,17 +55,6 @@ const UserRequestsDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="relative">
-          <UserCheck className="h-4 w-4 mr-2" />
-          User Requests
-          {requests.length > 0 && (
-            <Badge className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
-              {requests.length}
-            </Badge>
-          )}
-        </Button>
-      </DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Pending User Requests ({requests.length})</DialogTitle>
