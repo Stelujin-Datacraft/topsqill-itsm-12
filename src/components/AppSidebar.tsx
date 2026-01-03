@@ -71,7 +71,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: FileText,
       },
       {
-        title: "Workflow Automations",
+        title: "Task Automation",
         url: "/workflows", 
         icon: GitBranch,
         isDisabled: !currentProject,
