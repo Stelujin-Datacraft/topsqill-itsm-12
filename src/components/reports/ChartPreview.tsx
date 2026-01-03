@@ -3029,37 +3029,250 @@ export function ChartPreview({
         );
       }
 
-      // Default to scatter for other chart types in compare mode
+      // Handle scatter chart type explicitly
+      if (chartType === 'scatter') {
+        return (
+          <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsScatterChart margin={{ top: 20, right: 30, left: 60, bottom: 60 }}>
+                  <XAxis 
+                    type="number" 
+                    dataKey="x" 
+                    name={field1Name}
+                    tick={{ fontSize: 11 }}
+                    domain={xDomain}
+                    label={{ value: field1Name, position: 'insideBottom', offset: -5 }}
+                  />
+                  <YAxis 
+                    type="number" 
+                    dataKey="y" 
+                    name={field2Name}
+                    tick={{ fontSize: 11 }}
+                    domain={yDomain}
+                    label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
+                  />
+                  {compareTooltip}
+                  <Scatter 
+                    data={sanitizedChartData} 
+                    fill={colors[0]}
+                    shape="circle"
+                    style={{ cursor: 'pointer' }}
+                    onClick={(data: any) => handleBarClick(data?.payload || data, 0)}
+                  />
+                </RechartsScatterChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+      }
+
+      // Handle pie chart in compare mode
+      if (chartType === 'pie') {
+        const pieData = sortedData.map((item, idx) => ({
+          name: item.xRaw || item.name || String(item.x),
+          value: Number(item.y) || 0,
+          ...item
+        }));
+        return (
+          <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsPieChart>
+                  <Pie
+                    data={pieData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius="80%"
+                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                    labelLine={true}
+                    style={{ cursor: 'pointer' }}
+                    onClick={(data: any) => handleBarClick(data?.payload || data, 0)}
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={({ payload }) => {
+                    if (!payload || payload.length === 0) return null;
+                    const data = payload[0]?.payload;
+                    if (!data) return null;
+                    return (
+                      <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3">
+                        <div className="font-medium">{data.name}</div>
+                        <div className="text-sm text-muted-foreground">{field2Name}: {data.value}</div>
+                      </div>
+                    );
+                  }} />
+                  <Legend formatter={(value) => <span className="text-foreground">{value}</span>} />
+                </RechartsPieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+      }
+
+      // Handle donut chart in compare mode
+      if (chartType === 'donut') {
+        const pieData = sortedData.map((item, idx) => ({
+          name: item.xRaw || item.name || String(item.x),
+          value: Number(item.y) || 0,
+          ...item
+        }));
+        return (
+          <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsPieChart>
+                  <Pie
+                    data={pieData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius="40%"
+                    outerRadius="80%"
+                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                    labelLine={true}
+                    style={{ cursor: 'pointer' }}
+                    onClick={(data: any) => handleBarClick(data?.payload || data, 0)}
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={({ payload }) => {
+                    if (!payload || payload.length === 0) return null;
+                    const data = payload[0]?.payload;
+                    if (!data) return null;
+                    return (
+                      <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3">
+                        <div className="font-medium">{data.name}</div>
+                        <div className="text-sm text-muted-foreground">{field2Name}: {data.value}</div>
+                      </div>
+                    );
+                  }} />
+                  <Legend formatter={(value) => <span className="text-foreground">{value}</span>} />
+                </RechartsPieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+      }
+
+      // Handle heatmap in compare mode
+      if (chartType === 'heatmap') {
+        // For heatmap in compare mode, treat x as row and y as value
+        const heatmapData = sortedData.map((item, idx) => ({
+          x: item.xRaw || item.name || String(item.x),
+          y: field2Name,
+          value: Number(item.y) || 0,
+          ...item
+        }));
+        const maxValue = Math.max(...heatmapData.map(d => d.value), 1);
+        
+        return (
+          <div className="relative w-full h-full min-h-[300px]">
+            <div className="absolute inset-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsScatterChart margin={{ top: 20, right: 80, left: 60, bottom: 80 }}>
+                  <XAxis 
+                    type="category" 
+                    dataKey="x" 
+                    tick={{ fontSize: 11 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                    interval={0}
+                    label={{ value: field1Name, position: 'insideBottom', offset: -5 }}
+                  />
+                  <YAxis 
+                    type="category" 
+                    dataKey="y" 
+                    tick={{ fontSize: 11 }}
+                    label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
+                  />
+                  <Tooltip content={({ payload }) => {
+                    if (!payload || payload.length === 0) return null;
+                    const data = payload[0]?.payload;
+                    if (!data) return null;
+                    return (
+                      <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3">
+                        <div className="font-medium">{data.x}</div>
+                        <div className="text-sm text-muted-foreground">Value: {data.value}</div>
+                      </div>
+                    );
+                  }} />
+                  <Scatter 
+                    data={heatmapData}
+                    shape={(props: any) => {
+                      const { cx, cy, payload } = props;
+                      const intensity = payload.value / maxValue;
+                      const color = `hsl(${220 - intensity * 180}, 70%, ${70 - intensity * 40}%)`;
+                      return (
+                        <rect
+                          x={cx - 20}
+                          y={cy - 15}
+                          width={40}
+                          height={30}
+                          fill={color}
+                          rx={4}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => handleBarClick(payload, 0)}
+                        />
+                      );
+                    }}
+                  />
+                </RechartsScatterChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+      }
+
+      // Default to bar chart for unsupported types in compare mode
+      const defaultBarData = sortedData.map((item, idx) => ({
+        ...item,
+        xLabel: item.xRaw || item.name || String(item.x),
+      }));
+
       return (
         <div className="relative w-full h-full min-h-[300px]">
           <div className="absolute inset-0">
             <ResponsiveContainer width="100%" height="100%">
-              <RechartsScatterChart margin={{ top: 20, right: 30, left: 60, bottom: 60 }}>
+              <BarChart data={defaultBarData} margin={{ top: 20, right: 30, left: 60, bottom: 80 }}>
                 <XAxis 
-                  type="number" 
-                  dataKey="x" 
-                  name={field1Name}
+                  dataKey="xLabel" 
                   tick={{ fontSize: 11 }}
-                  domain={xDomain}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  interval={0}
                   label={{ value: field1Name, position: 'insideBottom', offset: -5 }}
                 />
                 <YAxis 
-                  type="number" 
-                  dataKey="y" 
-                  name={field2Name}
                   tick={{ fontSize: 11 }}
                   domain={yDomain}
                   label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                 />
                 {compareTooltip}
-                <Scatter 
-                  data={sanitizedChartData} 
-                  fill={colors[0]}
-                  shape="circle"
+                <Bar
+                  dataKey="y" 
+                  name={field2Name} 
                   style={{ cursor: 'pointer' }}
-                  onClick={(data: any) => handleBarClick(data?.payload || data, 0)}
-                />
-              </RechartsScatterChart>
+                  onClick={(data, idx) => handleBarClick(data?.payload || data, idx)}
+                >
+                  {defaultBarData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={colors[index % colors.length]} 
+                      style={{ cursor: 'pointer' }}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
@@ -3098,85 +3311,266 @@ export function ChartPreview({
         ? resolveFieldName(sanitizedChartData[0].yFieldName, config.metrics?.[1])
         : (config.dimensions?.[1] ? getFormFieldName(config.dimensions[1]) : 'Value');
       
+      // Render encoded legend chart based on chart type
+      const renderEncodedChart = () => {
+        if (chartType === 'pie' || chartType === 'donut') {
+          const pieData = sanitizedChartData.map((item, idx) => ({
+            name: item.name,
+            value: item.encodedValue || 0,
+            rawValue: item.rawSecondaryValue || item.rawYValue || '',
+            ...item
+          }));
+          return (
+            <RechartsPieChart>
+              <Pie
+                data={pieData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius={chartType === 'donut' ? '40%' : 0}
+                outerRadius="80%"
+                label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                labelLine={true}
+                style={{ cursor: 'pointer' }}
+                onClick={(data: any) => handleBarClick(data?.payload || data, 0)}
+              >
+                {pieData.map((entry, index) => {
+                  const pieColor = entry._yOptionColor || colors[index % colors.length];
+                  return <Cell key={`cell-${index}`} fill={pieColor} />;
+                })}
+              </Pie>
+              <Tooltip content={({ payload }) => {
+                if (!payload || payload.length === 0) return null;
+                const data = payload[0]?.payload;
+                if (!data) return null;
+                return (
+                  <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3">
+                    <div className="font-medium">{data.name}</div>
+                    <div className="text-sm text-muted-foreground">{yAxisFieldName}: {data.rawValue}</div>
+                  </div>
+                );
+              }} />
+              <Legend formatter={(value) => <span className="text-foreground">{value}</span>} />
+            </RechartsPieChart>
+          );
+        }
+
+        if (chartType === 'line') {
+          return (
+            <RechartsLineChart data={sanitizedChartData} margin={{ top: 20, right: 20, left: 60, bottom: 80 }}>
+              <XAxis 
+                dataKey="name" 
+                tick={{ fontSize: 11 }}
+                angle={-45}
+                textAnchor="end"
+                height={80}
+                interval={0}
+                label={{ value: xAxisFieldName, position: 'insideBottom', offset: -5 }}
+              />
+              <YAxis 
+                type="number" 
+                tick={{ fontSize: 11 }}
+                domain={[0, maxEncodedValue + 0.5]}
+                ticks={Array.from({ length: maxEncodedValue }, (_, i) => i + 1)}
+                allowDecimals={false}
+                label={{ value: yAxisFieldName, angle: -90, position: 'insideLeft', offset: 10 }}
+              />
+              <Tooltip content={({ payload }) => {
+                if (!payload || payload.length === 0) return null;
+                const data = payload[0]?.payload;
+                if (!data) return null;
+                const rawValue = data.rawSecondaryValue || data.rawYValue || '';
+                return (
+                  <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3">
+                    <div className="font-medium">{data.name}</div>
+                    <div className="text-sm text-muted-foreground">{yAxisFieldName}: {rawValue}</div>
+                  </div>
+                );
+              }} />
+              <Line 
+                type="monotone" 
+                dataKey="encodedValue" 
+                stroke={colors[0]} 
+                strokeWidth={2} 
+                dot={{ fill: colors[0], r: 4, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} 
+              />
+            </RechartsLineChart>
+          );
+        }
+
+        if (chartType === 'area') {
+          return (
+            <RechartsAreaChart data={sanitizedChartData} margin={{ top: 20, right: 20, left: 60, bottom: 80 }}>
+              <XAxis 
+                dataKey="name" 
+                tick={{ fontSize: 11 }}
+                angle={-45}
+                textAnchor="end"
+                height={80}
+                interval={0}
+                label={{ value: xAxisFieldName, position: 'insideBottom', offset: -5 }}
+              />
+              <YAxis 
+                type="number" 
+                tick={{ fontSize: 11 }}
+                domain={[0, maxEncodedValue + 0.5]}
+                ticks={Array.from({ length: maxEncodedValue }, (_, i) => i + 1)}
+                allowDecimals={false}
+                label={{ value: yAxisFieldName, angle: -90, position: 'insideLeft', offset: 10 }}
+              />
+              <Tooltip content={({ payload }) => {
+                if (!payload || payload.length === 0) return null;
+                const data = payload[0]?.payload;
+                if (!data) return null;
+                const rawValue = data.rawSecondaryValue || data.rawYValue || '';
+                return (
+                  <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3">
+                    <div className="font-medium">{data.name}</div>
+                    <div className="text-sm text-muted-foreground">{yAxisFieldName}: {rawValue}</div>
+                  </div>
+                );
+              }} />
+              <Area 
+                type="monotone" 
+                dataKey="encodedValue" 
+                stroke={colors[0]} 
+                fill={colors[0]}
+                fillOpacity={0.3}
+                dot={{ r: 4, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} 
+              />
+            </RechartsAreaChart>
+          );
+        }
+
+        if (chartType === 'scatter') {
+          return (
+            <RechartsScatterChart margin={{ top: 20, right: 20, left: 60, bottom: 80 }}>
+              <XAxis 
+                dataKey="name" 
+                type="category"
+                tick={{ fontSize: 11 }}
+                angle={-45}
+                textAnchor="end"
+                height={80}
+                interval={0}
+                label={{ value: xAxisFieldName, position: 'insideBottom', offset: -5 }}
+              />
+              <YAxis 
+                type="number" 
+                dataKey="encodedValue"
+                tick={{ fontSize: 11 }}
+                domain={[0, maxEncodedValue + 0.5]}
+                label={{ value: yAxisFieldName, angle: -90, position: 'insideLeft', offset: 10 }}
+              />
+              <Tooltip content={({ payload }) => {
+                if (!payload || payload.length === 0) return null;
+                const data = payload[0]?.payload;
+                if (!data) return null;
+                const rawValue = data.rawSecondaryValue || data.rawYValue || '';
+                return (
+                  <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3">
+                    <div className="font-medium">{data.name}</div>
+                    <div className="text-sm text-muted-foreground">{yAxisFieldName}: {rawValue}</div>
+                  </div>
+                );
+              }} />
+              <Scatter 
+                data={sanitizedChartData}
+                fill={colors[0]}
+                shape="circle"
+                style={{ cursor: 'pointer' }}
+                onClick={(data: any) => handleBarClick(data?.payload || data, 0)}
+              />
+            </RechartsScatterChart>
+          );
+        }
+
+        // Default: Bar chart
+        return (
+          <BarChart 
+            data={sanitizedChartData} 
+            margin={{ top: 20, right: 20, left: 60, bottom: 80 }}
+          >
+            <XAxis 
+              dataKey="name" 
+              tick={{ fontSize: 11 }}
+              angle={-45}
+              textAnchor="end"
+              height={80}
+              interval={0}
+              label={{
+                value: xAxisFieldName,
+                position: 'insideBottom',
+                offset: -5
+              }} 
+            />
+            <YAxis 
+              type="number" 
+              tick={{ fontSize: 11 }}
+              domain={[0, maxEncodedValue + 0.5]}
+              ticks={Array.from({ length: maxEncodedValue }, (_, i) => i + 1)}
+              allowDecimals={false}
+              label={{
+                value: yAxisFieldName,
+                angle: -90,
+                position: 'insideLeft',
+                offset: 10
+              }}
+            />
+            <Tooltip 
+              content={({ payload }) => {
+                if (!payload || payload.length === 0) return null;
+                const data = payload[0]?.payload;
+                if (!data) return null;
+                // Handle both count mode (rawSecondaryValue) and compare mode (rawYValue)
+                const rawValue = data.rawSecondaryValue || data.rawYValue || '';
+                return (
+                  <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
+                    <div className="font-medium mb-2">{data.name}</div>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">{yAxisFieldName}:</span>
+                        <span className="font-semibold">{rawValue}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">Code:</span>
+                        <span className="font-semibold">{data.encodedValue}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }}
+            />
+            <Bar 
+              dataKey="encodedValue" 
+              name="Encoded Value"
+              style={{ cursor: 'pointer' }}
+              onClick={(data, idx) => handleBarClick(data, idx)}
+              activeBar={{ fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
+            >
+              {sanitizedChartData.map((entry, index) => {
+                // Use Y-axis option color if available, otherwise fallback to default colors
+                const barColor = entry._yOptionColor || colors[index % colors.length];
+                return (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={barColor} 
+                    style={{ cursor: 'pointer' }}
+                  />
+                );
+              })}
+            </Bar>
+          </BarChart>
+        );
+      };
+
       return (
         <div className="relative w-full h-full min-h-[300px] flex gap-4">
           {/* Chart Area */}
           <div className="flex-1 relative min-w-0">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart 
-                data={sanitizedChartData} 
-                margin={{ top: 20, right: 20, left: 60, bottom: 80 }}
-              >
-                <XAxis 
-                  dataKey="name" 
-                  tick={{ fontSize: 11 }}
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                  interval={0}
-                  label={{
-                    value: xAxisFieldName,
-                    position: 'insideBottom',
-                    offset: -5
-                  }} 
-                />
-                <YAxis 
-                  type="number" 
-                  tick={{ fontSize: 11 }}
-                  domain={[0, maxEncodedValue + 0.5]}
-                  ticks={Array.from({ length: maxEncodedValue }, (_, i) => i + 1)}
-                  allowDecimals={false}
-                  label={{
-                    value: yAxisFieldName,
-                    angle: -90,
-                    position: 'insideLeft',
-                    offset: 10
-                  }}
-                />
-                <Tooltip 
-                  content={({ payload }) => {
-                    if (!payload || payload.length === 0) return null;
-                    const data = payload[0]?.payload;
-                    if (!data) return null;
-                    // Handle both count mode (rawSecondaryValue) and compare mode (rawYValue)
-                    const rawValue = data.rawSecondaryValue || data.rawYValue || '';
-                    return (
-                      <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
-                        <div className="font-medium mb-2">{data.name}</div>
-                        <div className="space-y-1 text-sm">
-                          <div className="flex justify-between gap-4">
-                            <span className="text-muted-foreground">{yAxisFieldName}:</span>
-                            <span className="font-semibold">{rawValue}</span>
-                          </div>
-                          <div className="flex justify-between gap-4">
-                            <span className="text-muted-foreground">Code:</span>
-                            <span className="font-semibold">{data.encodedValue}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }}
-                />
-                <Bar 
-                  dataKey="encodedValue" 
-                  name="Encoded Value"
-                  style={{ cursor: 'pointer' }}
-                  onClick={(data, idx) => handleBarClick(data, idx)}
-                  activeBar={{ fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
-                >
-                  {sanitizedChartData.map((entry, index) => {
-                    // Use Y-axis option color if available, otherwise fallback to default colors
-                    const barColor = entry._yOptionColor || colors[index % colors.length];
-                    return (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={barColor} 
-                        style={{ cursor: 'pointer' }}
-                      />
-                    );
-                  })}
-                </Bar>
-              </BarChart>
+              {renderEncodedChart()}
             </ResponsiveContainer>
           </div>
           
