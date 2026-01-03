@@ -29,7 +29,14 @@ export type FieldAction =
   | 'showError'
   | 'require'
   | 'optional'
-  | 'filterOptions';
+  | 'filterOptions'
+  // Form-level actions transferred to field rules
+  | 'redirect'
+  | 'lockForm'
+  | 'unlockForm'
+  | 'showSuccessModal'
+  | 'allowSubmit'
+  | 'preventSubmit';
 
 export type FormAction = 
   | 'allowSubmit' 

@@ -35,13 +35,10 @@ const formActions: { value: FormRuleAction; label: string }[] = [
   { value: 'triggerWebhook', label: 'Trigger Webhook/API' },
   { value: 'startWorkflow', label: 'Start Workflow' },
   { value: 'assignForm', label: 'Assign Form' },
-  { value: 'redirect', label: 'Redirect' },
-  { value: 'lockForm', label: 'Lock Form' },
-  { value: 'unlockForm', label: 'Unlock Form' },
   { value: 'autoFillFields', label: 'Auto-fill Fields' },
   { value: 'changeFormHeader', label: 'Change Form Header' },
   { value: 'saveDraft', label: 'Save as Draft' },
-  { value: 'showSuccessModal', label: 'Show Success Modal' },
+  // Moved to Field Rules: redirect, lockForm, unlockForm, showSuccessModal
 ];
 
 export function FormRuleBuilder({ fields, rules, onRulesChange }: FormRuleBuilderProps) {

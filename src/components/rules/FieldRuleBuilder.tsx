@@ -39,6 +39,13 @@ const fieldActions: { value: FieldRuleAction; label: string }[] = [
   { value: 'optional', label: 'Make Optional' },
   { value: 'setDefault', label: 'Set Default Value' },
   { value: 'clearValue', label: 'Clear Value' },
+  // Form-level actions transferred to field rules
+  { value: 'redirect', label: 'Redirect' },
+  { value: 'lockForm', label: 'Lock Form' },
+  { value: 'unlockForm', label: 'Unlock Form' },
+  { value: 'showSuccessModal', label: 'Show Success Modal' },
+  { value: 'allowSubmit', label: 'Allow Submit' },
+  { value: 'preventSubmit', label: 'Prevent Submit' },
   // Hidden actions - kept for backwards compatibility but not shown in UI:
   // { value: 'changeOptions', label: 'Change Field Options' },
   // { value: 'changeLabel', label: 'Change Label' },
@@ -287,13 +294,18 @@ export function FieldRuleBuilder({ fields, rules, onRulesChange }: FieldRuleBuil
             </div>
 
             {/* Action Value Input */}
-            {(['setDefault', 'changeLabel', 'showTooltip', 'showError'].includes(editingRule.action)) && (
+            {(['setDefault', 'changeLabel', 'showTooltip', 'showError', 'redirect', 'preventSubmit', 'showSuccessModal'].includes(editingRule.action)) && (
               <div>
                 <Label>Action Value</Label>
                 <Input
                   value={typeof editingRule.actionValue === 'string' ? editingRule.actionValue : ''}
                   onChange={(e) => setEditingRule({ ...editingRule, actionValue: e.target.value })}
-                  placeholder="Enter action value"
+                  placeholder={
+                    editingRule.action === 'redirect' ? 'Enter URL or path' :
+                    editingRule.action === 'preventSubmit' ? 'Enter block message' :
+                    editingRule.action === 'showSuccessModal' ? 'Enter success message' :
+                    'Enter action value'
+                  }
                 />
               </div>
             )}

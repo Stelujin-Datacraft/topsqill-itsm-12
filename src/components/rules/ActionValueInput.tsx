@@ -307,8 +307,53 @@ export function ActionValueInput({ action, targetField, value, onChange }: Actio
   }, []);
 
   // Don't show input for actions that don't need values
-  if (!['setDefault', 'changeLabel', 'showTooltip', 'showError', 'changeOptions', 'filterOptions'].includes(action)) {
+  if (!['setDefault', 'changeLabel', 'showTooltip', 'showError', 'changeOptions', 'filterOptions', 'redirect', 'preventSubmit', 'showSuccessModal'].includes(action)) {
     return null;
+  }
+
+  // Handle redirect action - URL input
+  if (action === 'redirect') {
+    return (
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Redirect URL</Label>
+        <Input
+          value={typeof value === 'string' ? value : ''}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="https://example.com or /page-path"
+        />
+        <p className="text-xs text-muted-foreground">Enter a full URL or relative path</p>
+      </div>
+    );
+  }
+
+  // Handle preventSubmit action - reason input
+  if (action === 'preventSubmit') {
+    return (
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Block Message</Label>
+        <Input
+          value={typeof value === 'string' ? value : ''}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Form cannot be submitted because..."
+        />
+        <p className="text-xs text-muted-foreground">Message shown when submission is blocked</p>
+      </div>
+    );
+  }
+
+  // Handle showSuccessModal action - message input
+  if (action === 'showSuccessModal') {
+    return (
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Success Message</Label>
+        <Input
+          value={typeof value === 'string' ? value : ''}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Operation completed successfully!"
+        />
+        <p className="text-xs text-muted-foreground">Message shown in success notification</p>
+      </div>
+    );
   }
 
   // Handle filterOptions action for select, multi-select, and radio fields

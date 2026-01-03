@@ -394,6 +394,54 @@ export class RuleProcessor {
           fieldStates[targetId].errorMessage = rule.actionValue.toString();
         }
         break;
+      
+      // Form-level actions transferred to field rules
+      case 'redirect':
+        if (rule.actionValue) {
+          context.onFormAction?.('redirect', rule.actionValue);
+          toast({
+            title: "Redirecting",
+            description: `Redirecting to: ${rule.actionValue.toString()}`,
+          });
+        }
+        break;
+      
+      case 'lockForm':
+        context.onFormAction?.('lockForm', true);
+        toast({
+          title: "Form Locked",
+          description: "Form has been locked for editing.",
+          variant: "destructive"
+        });
+        break;
+      
+      case 'unlockForm':
+        context.onFormAction?.('unlockForm', true);
+        toast({
+          title: "Form Unlocked",
+          description: "Form is now available for editing.",
+        });
+        break;
+      
+      case 'showSuccessModal':
+        toast({
+          title: "Success!",
+          description: rule.actionValue?.toString() || "Operation completed successfully.",
+        });
+        break;
+      
+      case 'allowSubmit':
+        context.onFormAction?.('allowSubmit', true);
+        break;
+      
+      case 'preventSubmit':
+        context.onFormAction?.('preventSubmit', true);
+        toast({
+          title: "Form Submission Blocked",
+          description: rule.actionValue?.toString() || "Form cannot be submitted due to rule condition.",
+          variant: "destructive"
+        });
+        break;
     }
   }
 

@@ -20,7 +20,7 @@ export interface FieldRule {
   conditions?: FieldRuleCondition[]; // Multiple conditions for new system
   condition?: FieldRuleCondition; // Legacy single condition (backward compatibility)
   logicExpression?: string; // New: logical expression (e.g., "1 AND (2 OR 3) AND NOT 4")
-  action: 'show' | 'hide' | 'enable' | 'disable' | 'require' | 'optional' | 'setRequired' | 'setOptional' | 'changeLabel' | 'changeOptions' | 'setDefault' | 'clearValue' | 'showTooltip' | 'showError' | 'filterOptions';
+  action: 'show' | 'hide' | 'enable' | 'disable' | 'require' | 'optional' | 'setRequired' | 'setOptional' | 'changeLabel' | 'changeOptions' | 'setDefault' | 'clearValue' | 'showTooltip' | 'showError' | 'filterOptions' | 'redirect' | 'lockForm' | 'unlockForm' | 'showSuccessModal' | 'allowSubmit' | 'preventSubmit';
   actionValue?: string | number | boolean | any[];
   isActive: boolean;
 }
