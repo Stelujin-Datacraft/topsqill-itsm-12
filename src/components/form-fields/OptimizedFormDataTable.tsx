@@ -99,16 +99,18 @@ export function OptimizedFormDataTable({
   const displayColumns = config.displayColumns || [];
   const isCrossReference = fieldType === 'cross-reference' || fieldType === 'child-cross-reference';
   const isChildCrossReference = fieldType === 'child-cross-reference';
-  // For cross-reference tables, visible columns should come from tableDisplayFields (if set)
-  const rawVisibleColumns = isCrossReference
+  
+  // State for visible columns - will be computed after formFields are loaded
+  const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
+  
+  // Compute raw visible columns - for cross-reference, prioritize tableDisplayFields
+  // If tableDisplayFields is configured, use it; otherwise fall back to displayColumns
+  // If both are empty, we'll use all form fields once they're loaded
+  const configuredColumns = isCrossReference
     ? (config.tableDisplayFields && config.tableDisplayFields.length > 0
         ? config.tableDisplayFields
         : displayColumns)
     : displayColumns;
-  
-  // For child cross-reference fields, filter out cross-reference type fields from display
-  // This will be applied after formFields are loaded
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(rawVisibleColumns);
 
   // Convert config filters to the format expected by the hook
   const configFilters = (config.filters || []).map(filter => ({
@@ -180,27 +182,37 @@ export function OptimizedFormDataTable({
   });
 
   // Filter out cross-reference fields and non-existent fields from visible columns for child-cross-reference field type
+  // Also: if no columns are configured, use all form fields
   useEffect(() => {
-    if (isChildCrossReference && formFields.length > 0) {
-      const crossRefFieldTypes = ['cross-reference', 'child-cross-reference'];
-      const filteredColumns = rawVisibleColumns.filter(fieldId => {
+    if (formFields.length === 0) {
+      // FormFields not loaded yet - wait
+      return;
+    }
+    
+    const crossRefFieldTypes = ['cross-reference', 'child-cross-reference'];
+    
+    // Determine base columns: use configured columns, or all form fields if none configured
+    let baseColumns = configuredColumns.length > 0 
+      ? configuredColumns 
+      : formFields.map(f => f.id);
+    
+    if (isChildCrossReference) {
+      // For child cross-reference: filter out cross-reference fields from display
+      const filteredColumns = baseColumns.filter(fieldId => {
         const field = formFields.find(f => f.id === fieldId);
-        // Filter out: fields that don't exist in formFields, AND cross-reference type fields
         if (!field) return false; // Field doesn't exist - filter it out
         return !crossRefFieldTypes.includes(field.field_type);
       });
       setVisibleColumns(filteredColumns);
-    } else if (formFields.length > 0) {
-      // Even for non-child cross-reference, filter out non-existent field IDs
-      const filteredColumns = rawVisibleColumns.filter(fieldId => {
+    } else {
+      // For regular cross-reference: filter out non-existent field IDs
+      const filteredColumns = baseColumns.filter(fieldId => {
         const field = formFields.find(f => f.id === fieldId);
         return !!field; // Only keep fields that exist
       });
       setVisibleColumns(filteredColumns);
-    } else {
-      setVisibleColumns(rawVisibleColumns);
     }
-  }, [isChildCrossReference, formFields, rawVisibleColumns]);
+  }, [isChildCrossReference, formFields, configuredColumns]);
 
   // Initialize selected records from value prop and auto-selected records (only once on mount)
   useEffect(() => {
