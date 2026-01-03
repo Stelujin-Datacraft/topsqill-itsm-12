@@ -13,12 +13,14 @@ import {
   XCircle,
   Clock,
   ArrowRight,
-  Zap
+  Zap,
+  ArrowLeft
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
+import DashboardLayout from '@/components/DashboardLayout';
 
 interface Stats {
   totalConfigs: number;
@@ -129,22 +131,29 @@ export default function SettingsPage() {
     </Card>
   );
 
+  const headerActions = (
+    <Button variant="outline" onClick={() => navigate('/dashboard')}>
+      <ArrowLeft className="h-4 w-4 mr-2" />
+      Back to Dashboard
+    </Button>
+  );
+
   return (
-    <div className="container mx-auto p-6 space-y-8 max-w-7xl">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center">
-            <Mail className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">Email Configuration</h1>
-            <p className="text-muted-foreground">
-              Manage SMTP settings and email templates
-            </p>
+    <DashboardLayout title="Email Configuration" actions={headerActions}>
+      <div className="space-y-8 max-w-7xl">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center">
+              <Mail className="h-6 w-6 text-primary-foreground" />
+            </div>
+            <div>
+              <p className="text-muted-foreground">
+                Manage SMTP settings and email templates
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -278,6 +287,7 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
