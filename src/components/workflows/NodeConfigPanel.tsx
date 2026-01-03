@@ -464,7 +464,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                 <SelectTrigger>
                   <SelectValue placeholder="Select trigger type" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background z-50">
                   <SelectItem value="form_submission">Form Submission</SelectItem>
                   <SelectItem value="form_completion">Form Completion</SelectItem>
                   <SelectItem value="rule_success">Rule Success</SelectItem>
@@ -562,7 +562,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                 <SelectTrigger>
                   <SelectValue placeholder="Select action type" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background z-50">
                   <SelectItem value="send_notification">Send Notification</SelectItem>
                   <SelectItem value="change_field_value">Change Field Value</SelectItem>
                   {/* <SelectItem value="change_record_status">Change Record Status</SelectItem> */}
@@ -591,7 +591,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                     <SelectTrigger>
                       <SelectValue placeholder="Select notification type" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-background z-50">
                       <SelectItem value="email">Email</SelectItem>
                       <SelectItem value="in_app">In-App Notification</SelectItem>
                     </SelectContent>
@@ -727,7 +727,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                       <SelectTrigger>
                         <SelectValue placeholder="Select value type" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-background z-50">
                         <SelectItem value="static">Static Value</SelectItem>
                         <SelectItem value="dynamic">Dynamic (from trigger data)</SelectItem>
                       </SelectContent>
@@ -810,7 +810,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                       <SelectTrigger>
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-background z-50">
                         <SelectItem value="pending">Pending</SelectItem>
                         <SelectItem value="approved">Approved</SelectItem>
                         <SelectItem value="rejected">Rejected</SelectItem>
@@ -904,7 +904,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Select initial status" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-background z-50">
                           <SelectItem value="pending">Pending</SelectItem>
                           <SelectItem value="approved">Approved</SelectItem>
                           <SelectItem value="rejected">Rejected</SelectItem>
@@ -927,7 +927,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Select submitter" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-background z-50">
                           <SelectItem value="trigger_submitter">Trigger Form Submitter</SelectItem>
                           <SelectItem value="specific_user">Specific User</SelectItem>
                           <SelectItem value="system">System (No User)</SelectItem>
@@ -946,7 +946,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                           <SelectTrigger className="h-9">
                             <SelectValue placeholder={loadingUsers ? "Loading users..." : "Select a user"} />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="bg-background z-50">
                             {organizationUsers.map((user) => (
                               <SelectItem key={user.id} value={user.id}>
                                 {user.first_name && user.last_name 
@@ -976,7 +976,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Select configuration mode" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-background z-50">
                           <SelectItem value="field_values">Set Field Values</SelectItem>
                           <SelectItem value="field_mapping">Map Fields from Trigger Form</SelectItem>
                         </SelectContent>
@@ -1127,7 +1127,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Select initial status" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-background z-50">
                           <SelectItem value="pending">Pending</SelectItem>
                           <SelectItem value="approved">Approved</SelectItem>
                           <SelectItem value="rejected">Rejected</SelectItem>
@@ -1150,7 +1150,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Select submitter" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-background z-50">
                           <SelectItem value="trigger_submitter">Trigger Form Submitter</SelectItem>
                           <SelectItem value="specific_user">Specific User</SelectItem>
                           <SelectItem value="system">System (No User)</SelectItem>
@@ -1168,7 +1168,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                           <SelectTrigger className="h-9">
                             <SelectValue placeholder={loadingUsers ? "Loading users..." : "Select a user"} />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="bg-background z-50">
                             {organizationUsers.map((user) => (
                               <SelectItem key={user.id} value={user.id}>
                                 {user.first_name && user.last_name 
@@ -1200,7 +1200,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Select configuration mode" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-background z-50">
                           <SelectItem value="none">No Additional Fields</SelectItem>
                           <SelectItem value="field_values">Set Field Values</SelectItem>
                           <SelectItem value="field_mapping">Map Fields from Trigger Form</SelectItem>
@@ -1334,7 +1334,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                             <SelectTrigger className="h-9">
                               <SelectValue placeholder="Select update scope" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="bg-background z-50">
                               <SelectItem value="all">All Linked Records</SelectItem>
                               <SelectItem value="first">First Linked Record Only</SelectItem>
                               <SelectItem value="last">Last Linked Record Only</SelectItem>
@@ -1467,7 +1467,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                 <SelectTrigger>
                   <SelectValue placeholder="Select assignment type" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background z-50">
                   <SelectItem value="approve_form">Approve Form</SelectItem>
                   <SelectItem value="update_status">Update Status</SelectItem>
                 </SelectContent>
@@ -1526,7 +1526,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                 <SelectTrigger>
                   <SelectValue placeholder="Select wait type" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background z-50">
                   <SelectItem value="duration">Wait Duration</SelectItem>
                   <SelectItem value="until_date">Wait Until Date</SelectItem>
                   <SelectItem value="until_event">Wait Until Event</SelectItem>
@@ -1555,7 +1555,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                     <SelectTrigger>
                       <SelectValue placeholder="Select unit" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-background z-50">
                       <SelectItem value="minutes">Minutes</SelectItem>
                       <SelectItem value="hours">Hours</SelectItem>
                       <SelectItem value="days">Days</SelectItem>
@@ -1588,7 +1588,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                   <SelectTrigger>
                     <SelectValue placeholder="Select event" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-background z-50">
                     <SelectItem value="form_submission">Form Submission</SelectItem>
                     <SelectItem value="form_approval">Form Approval</SelectItem>
                     <SelectItem value="manual_trigger">Manual Trigger</SelectItem>
@@ -1611,7 +1611,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                 <SelectTrigger>
                   <SelectValue placeholder="Select end status" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background z-50">
                   <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="failed">Failed</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>

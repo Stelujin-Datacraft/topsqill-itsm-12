@@ -261,7 +261,7 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
             <SelectTrigger className="w-[100px]">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-background z-50">
               {PHONE_COUNTRY_CODES.map((c, idx) => (
                 <SelectItem key={`${c.code}-${idx}`} value={c.code}>
                   {c.code} {c.country}
@@ -370,7 +370,7 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
           <SelectTrigger>
             <SelectValue placeholder={countriesLoading ? "Loading..." : "Select country"} />
           </SelectTrigger>
-          <SelectContent className="max-h-60">
+          <SelectContent className="max-h-60 bg-background z-50">
             {countries.map((country) => (
               <SelectItem key={country.code} value={country.code}>
                 <div className="flex items-center gap-2">
@@ -496,7 +496,7 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
             <SelectTrigger className="w-[100px]">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-background z-50">
               {CURRENCIES.map((c) => (
                 <SelectItem key={c.code} value={c.code}>
                   {c.symbol} {c.code}
@@ -550,7 +550,7 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
             <SelectTrigger>
               <SelectValue placeholder="Select option" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-background z-50">
               {field.options!.filter(opt => opt.value && opt.value.trim() !== '').map((opt) => (
                 <SelectItem key={opt.id} value={opt.value}>
                   {opt.label || opt.value}
@@ -578,7 +578,7 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
           <SelectTrigger>
             <SelectValue placeholder="Select value" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-background z-50">
             {field.options!.filter(opt => opt.value && opt.value.trim() !== '').map((opt) => (
               <SelectItem key={opt.id} value={opt.value}>
                 {opt.label || opt.value}
