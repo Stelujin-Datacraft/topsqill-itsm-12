@@ -885,21 +885,21 @@ export function OptimizedFormDataTable({
                       {config.enableSorting && !isCrossReference && getSortIcon(fieldId, sortConditions)}
                     </div>
                   </TableHead>)}
-                <TableHead>Status</TableHead>
-                <TableHead>Submitted</TableHead>
+                {!isCrossReference && <TableHead>Status</TableHead>}
+                {!isCrossReference && <TableHead>Submitted</TableHead>}
                 <TableHead className="w-24">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? <TableRow>
-                  <TableCell colSpan={visibleColumns.length + 4} className="text-center py-8">
+                  <TableCell colSpan={visibleColumns.length + (isCrossReference ? 2 : 4)} className="text-center py-8">
                     <div className="flex items-center justify-center gap-2">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
                       Loading...
                     </div>
                   </TableCell>
                 </TableRow> : displayData.length === 0 ? <TableRow>
-                  <TableCell colSpan={visibleColumns.length + 4} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={visibleColumns.length + (isCrossReference ? 2 : 4)} className="text-center py-8 text-gray-500">
                     {error ? 'Error loading data' : isCrossReference ? 'No records selected' : 'No submissions have been made yet!'}
                     {config.isParentReference && !error && !isCrossReference && <div className="text-sm mt-1">
                         Parent form records will appear here when available
@@ -915,12 +915,12 @@ export function OptimizedFormDataTable({
                           {formatCellValue(row[fieldId], field?.field_type)}
                         </TableCell>;
               })}
-                    <TableCell>
+                    {!isCrossReference && <TableCell>
                       {getStatusBadge(row.approval_status || 'pending')}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
+                    </TableCell>}
+                    {!isCrossReference && <TableCell className="text-sm text-gray-500">
                       {row.submitted_at ? new Date(row.submitted_at).toLocaleDateString() : '-'}
-                    </TableCell>
+                    </TableCell>}
                     <TableCell>
                       <Button variant="ghost" size="sm" onClick={() => handleViewSubmission(row.id)} className="h-8 w-8 p-0" title="View Submission">
                         <Eye className="h-4 w-4" />
