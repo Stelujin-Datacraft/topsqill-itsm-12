@@ -213,8 +213,20 @@ Deno.serve(async (req) => {
         let hasEndNode = false
         let allNodesProcessed = true
 
-        // Execute each next node directly
-        for (const nodeData of (nextNodes || []) as WorkflowNode[]) {
+        // Use a queue to process nodes (allows condition branches to add more nodes)
+        const nodeQueue: WorkflowNode[] = [...(nextNodes || []) as WorkflowNode[]]
+        const processedNodeIds = new Set<string>()
+
+        // Process nodes from queue
+        while (nodeQueue.length > 0) {
+          const nodeData = nodeQueue.shift()!
+          
+          // Skip if already processed to avoid loops
+          if (processedNodeIds.has(nodeData.id)) {
+            console.log(`⏭️ Skipping already processed node: ${nodeData.id}`)
+            continue
+          }
+          processedNodeIds.add(nodeData.id)
           console.log(`🎯 Executing resumed node: ${nodeData.label} (${nodeData.node_type})`)
           
           // Create log entry for this node
@@ -1107,6 +1119,30 @@ Deno.serve(async (req) => {
                   success: true
                 }
               }
+              
+              // After action completion, fetch and queue the next connected nodes
+              const { data: actionNextConns, error: actionConnError } = await supabase
+                .from('workflow_connections')
+                .select('target_node_id')
+                .eq('source_node_id', nodeData.id)
+              
+              if (!actionConnError && actionNextConns && actionNextConns.length > 0) {
+                const nextIds = actionNextConns.map(c => c.target_node_id)
+                const { data: nextActionNodes, error: nextError } = await supabase
+                  .from('workflow_nodes')
+                  .select('*')
+                  .in('id', nextIds)
+                
+                if (!nextError && nextActionNodes && nextActionNodes.length > 0) {
+                  console.log(`➕ Queuing ${nextActionNodes.length} nodes after action node`)
+                  for (const nextNode of nextActionNodes as WorkflowNode[]) {
+                    if (!processedNodeIds.has(nextNode.id)) {
+                      nodeQueue.push(nextNode)
+                      console.log(`   ➕ Added: ${nextNode.label} (${nextNode.node_type})`)
+                    }
+                  }
+                }
+              }
             } else if (nodeData.node_type === 'condition') {
               // Execute condition node - evaluate conditions and determine next branch
               console.log('🔀 Evaluating condition node')
@@ -1249,16 +1285,24 @@ Deno.serve(async (req) => {
               if (matchingConnections.length > 0) {
                 const branchNodeIds = matchingConnections.map((c: any) => c.target_node_id)
                 
-                // Fetch and execute branch nodes
+                // Fetch branch nodes
                 const { data: branchNodes, error: branchNodesError } = await supabase
                   .from('workflow_nodes')
                   .select('*')
                   .in('id', branchNodeIds)
                 
-                if (!branchNodesError && branchNodes) {
-                  console.log(`🔀 Executing ${branchNodes.length} nodes in ${branchType} branch`)
+                if (!branchNodesError && branchNodes && branchNodes.length > 0) {
+                  console.log(`🔀 Adding ${branchNodes.length} nodes from ${branchType} branch to queue`)
                   
-                  // Update execution to track pending branch nodes
+                  // Add branch nodes to the queue for execution
+                  for (const branchNode of branchNodes as WorkflowNode[]) {
+                    if (!processedNodeIds.has(branchNode.id)) {
+                      nodeQueue.push(branchNode)
+                      console.log(`   ➕ Added node to queue: ${branchNode.label} (${branchNode.node_type})`)
+                    }
+                  }
+                  
+                  // Update execution to track condition result
                   await supabase
                     .from('workflow_executions')
                     .update({
@@ -1266,7 +1310,7 @@ Deno.serve(async (req) => {
                         ...execution.execution_data,
                         conditionResult,
                         branchTaken: branchType,
-                        pendingBranchNodes: branchNodeIds
+                        lastConditionNode: nodeData.id
                       }
                     })
                     .eq('id', execution.id)
@@ -1406,23 +1450,11 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Check if ALL nodes are terminal (no further outgoing connections)
-        let allNodesTerminal = true
-        for (const nodeData of (nextNodes || []) as WorkflowNode[]) {
-          if (nodeData.node_type !== 'end') {
-            const { data: furtherConnections } = await supabase
-              .from('workflow_connections')
-              .select('id')
-              .eq('source_node_id', nodeData.id)
-            
-            if (furtherConnections && furtherConnections.length > 0) {
-              allNodesTerminal = false
-              break
-            }
-          }
-        }
+        // Workflow completion is now handled by checking if queue is empty and we hit an end node
+        // or if all processed nodes have no further connections
+        const shouldComplete = hasEndNode || (nodeQueue.length === 0 && allNodesProcessed)
         
-        if (hasEndNode || allNodesTerminal) {
+        if (shouldComplete) {
           console.log('🏁 All nodes processed, marking workflow as completed')
           await supabase
             .from('workflow_executions')
