@@ -23,6 +23,7 @@ import { DynamicValueInput } from './conditions/DynamicValueInput';
 import { CreateRecordFieldsConfig } from './CreateRecordFieldsConfig';
 import { FieldMappingConfig } from './FieldMappingConfig';
 import { CreateCombinationRecordsConfig } from './CreateCombinationRecordsConfig';
+import { ChangeFieldValueConfig } from './ChangeFieldValueConfig';
 import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
 import { useTriggerManagement } from '@/hooks/useTriggerManagement';
 import { useToast } from '@/hooks/use-toast';
@@ -249,75 +250,6 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localConfig?.actionType, localConfig?.sourceCrossRefFieldId, localConfig?.sourceLinkedFormId]);
 
-  // Auto-fetch field options when targetFieldId is set but options are missing (for select/radio/dropdown fields)
-  useEffect(() => {
-    const actionType = localConfig?.actionType;
-    const targetFieldId = localConfig?.targetFieldId;
-    const targetFieldType = localConfig?.targetFieldType?.toLowerCase() || '';
-    const targetFieldOptions = localConfig?.targetFieldOptions;
-    
-    // Only for change_field_value action with select/radio/dropdown/multiselect field type
-    const optionFieldTypes = ['select', 'radio', 'dropdown', 'multiselect', 'multi-select'];
-    const needsOptions = optionFieldTypes.some(t => targetFieldType.includes(t));
-    
-    if (actionType !== 'change_field_value') return;
-    if (!targetFieldId) return;
-    if (!needsOptions) return;
-    // Already have options
-    if (Array.isArray(targetFieldOptions) && targetFieldOptions.length > 0) return;
-    
-    console.log('🔄 Auto-fetching field options for:', targetFieldId);
-    
-    const fetchFieldOptions = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('form_fields')
-          .select('options, custom_config')
-          .eq('id', targetFieldId)
-          .maybeSingle();
-        
-        if (error || !data) {
-          console.log('❌ Failed to fetch field options:', error);
-          return;
-        }
-        
-        let options = data.options;
-        // Parse if it's a string
-        if (typeof options === 'string') {
-          try {
-            options = JSON.parse(options);
-          } catch (e) {
-            console.log('❌ Failed to parse options:', e);
-            options = [];
-          }
-        }
-        
-        let customConfig = data.custom_config;
-        if (typeof customConfig === 'string') {
-          try {
-            customConfig = JSON.parse(customConfig);
-          } catch (e) {
-            customConfig = {};
-          }
-        }
-        
-        console.log('✅ Fetched field options:', options);
-        
-        if (Array.isArray(options) && options.length > 0) {
-          setLocalConfig((prev: any) => ({
-            ...prev,
-            targetFieldOptions: options,
-            targetFieldCustomConfig: customConfig || prev.targetFieldCustomConfig
-          }));
-        }
-      } catch (err) {
-        console.log('❌ Fetch error:', err);
-      }
-    };
-    
-    fetchFieldOptions();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localConfig?.actionType, localConfig?.targetFieldId, localConfig?.targetFieldType, localConfig?.targetFieldOptions]);
 
   // Update local config and schedule parent sync
   const handleConfigUpdate = useCallback((key: string, value: any) => {
@@ -747,108 +679,12 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
 
             {/* Change Field Value Configuration */}
             {localConfig?.actionType === 'change_field_value' && (
-              <div className="space-y-4">
-                <div>
-                  <Label>Target Form *</Label>
-                  <FormSelector
-                    value={localConfig?.targetFormId || ''}
-                    onValueChange={(formId, formName) => {
-                      handleFullConfigUpdate({ 
-                        ...localConfig, 
-                        targetFormId: formId,
-                        targetFormName: formName,
-                        targetFieldId: undefined
-                      });
-                    }}
-                    placeholder="Select form to update"
-                    projectId={projectId}
-                  />
-                </div>
-
-                {localConfig?.targetFormId && (
-                  <div>
-                    <Label>Field to Update *</Label>
-                    <FormFieldSelector
-                      formId={localConfig.targetFormId}
-                      value={localConfig?.targetFieldId || ''}
-                      onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
-                        console.log('🎯 Updating field config:', { fieldId, fieldName, fieldType, fieldOptions, customConfig });
-                        handleFullConfigUpdate({
-                          ...localConfig,
-                          targetFieldId: fieldId,
-                          targetFieldName: fieldName,
-                          targetFieldType: fieldType,
-                          targetFieldOptions: fieldOptions,
-                          targetFieldCustomConfig: customConfig
-                        });
-                      }}
-                      placeholder="Select field to change"
-                    />
-                  </div>
-                )}
-
-                {localConfig?.targetFieldId && (
-                  <div>
-                    <Label>Value Type *</Label>
-                    <Select 
-                      value={localConfig?.valueType || 'static'} 
-                      onValueChange={(value) => handleConfigUpdate('valueType', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select value type" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background z-50">
-                        <SelectItem value="static">Static Value</SelectItem>
-                        <SelectItem value="dynamic">Dynamic (from trigger data)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {localConfig?.valueType === 'static' && localConfig?.targetFieldType && (
-                  <div>
-                    <DynamicValueInput
-                      field={{
-                        id: localConfig.targetFieldId,
-                        label: localConfig.targetFieldName || 'Field',
-                        type: localConfig.targetFieldType,
-                        options: localConfig.targetFieldOptions || [],
-                        custom_config: localConfig.targetFieldCustomConfig || {}
-                      } as FormFieldOption}
-                      value={localConfig?.staticValue || ''}
-                      onChange={(value) => handleConfigUpdate('staticValue', value)}
-                    />
-                  </div>
-                )}
-
-                {localConfig?.valueType === 'dynamic' && (
-                  <DynamicFieldSelector
-                    triggerFormId={triggerFormId}
-                    targetFormId={localConfig?.targetFormId}
-                    targetFieldType={localConfig?.targetFieldType}
-                    value={localConfig?.dynamicValuePath || ''}
-                    onValueChange={(fieldId, fieldName, sourceForm, fieldType) => {
-                      handleFullConfigUpdate({
-                        ...localConfig,
-                        dynamicValuePath: fieldId,
-                        dynamicFieldName: fieldName,
-                        dynamicSourceForm: sourceForm,
-                        dynamicFieldType: fieldType
-                      });
-                    }}
-                    placeholder="Select compatible field"
-                  />
-                )}
-
-                {localConfig?.targetFieldId && localConfig?.valueType && (
-                  <div className="text-xs text-blue-600 bg-blue-50 p-3 rounded">
-                    <strong>Configuration:</strong> Will update field "{localConfig.targetFieldName || localConfig.targetFieldId}" 
-                    in "{localConfig.targetFormName}" to {localConfig.valueType === 'static' 
-                      ? `"${localConfig.staticValue}"` 
-                      : `value from field "${localConfig.dynamicFieldName || localConfig.dynamicValuePath}"${localConfig.dynamicSourceForm ? ` (${localConfig.dynamicSourceForm} form)` : ''}`}
-                  </div>
-                )}
-              </div>
+              <ChangeFieldValueConfig
+                config={localConfig}
+                projectId={projectId}
+                triggerFormId={triggerFormId}
+                onConfigChange={handleFullConfigUpdate}
+              />
             )}
 
             {/* Change Record Status Configuration */}

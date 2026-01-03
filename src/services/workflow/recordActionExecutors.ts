@@ -11,13 +11,40 @@ export class RecordActionExecutors {
     const actionDetails = {
       actionType: 'change_field_value',
       targetFormId: config.targetFormId,
-      targetFieldId: config.targetFieldId,
       timestamp: new Date().toISOString()
     };
 
     try {
+      // Get field updates - support both new multi-field format and legacy single-field format
+      let fieldUpdates: Array<{
+        targetFieldId: string;
+        targetFieldName?: string;
+        targetFieldType?: string;
+        valueType: 'static' | 'dynamic';
+        staticValue?: any;
+        dynamicValuePath?: string;
+        dynamicFieldName?: string;
+        dynamicFieldType?: string;
+      }> = [];
+
+      if (config.fieldUpdates && Array.isArray(config.fieldUpdates) && config.fieldUpdates.length > 0) {
+        fieldUpdates = config.fieldUpdates;
+      } else if (config.targetFieldId && config.valueType) {
+        // Legacy single-field format
+        fieldUpdates = [{
+          targetFieldId: config.targetFieldId,
+          targetFieldName: config.targetFieldName,
+          targetFieldType: config.targetFieldType,
+          valueType: config.valueType,
+          staticValue: config.staticValue,
+          dynamicValuePath: config.dynamicValuePath,
+          dynamicFieldName: config.dynamicFieldName,
+          dynamicFieldType: config.dynamicFieldType
+        }];
+      }
+
       // Validate configuration
-      if (!config.targetFormId || !config.targetFieldId || !config.valueType) {
+      if (!config.targetFormId || fieldUpdates.length === 0) {
         return {
           success: false,
           error: 'Missing required configuration for field value change',
@@ -25,152 +52,161 @@ export class RecordActionExecutors {
         };
       }
 
-      // Determine the new value
-      let newValue: any;
-      
-      if (config.valueType === 'static') {
-        newValue = config.staticValue;
-      } else if (config.valueType === 'dynamic') {
-        // The dynamicValuePath now contains a field ID
-        // First try to get from submissionData using the field ID directly
-        const submissionData = context.triggerData?.submissionData || context.triggerData || {};
-        
-        if (config.dynamicValuePath in submissionData) {
-          newValue = submissionData[config.dynamicValuePath];
-        } else {
-          // Fallback: try nested path extraction for backward compatibility
-          newValue = this.getNestedValue(context.triggerData, config.dynamicValuePath);
+      const triggerFormId = context.triggerData?.formId;
+      const isTargetFormDifferent = config.targetFormId !== triggerFormId;
+      const submissionData = context.triggerData?.submissionData || context.triggerData || {};
+
+      console.log('📋 Processing', fieldUpdates.length, 'field updates');
+      console.log('📋 Trigger form:', triggerFormId, 'Target form:', config.targetFormId, 'Is different:', isTargetFormDifferent);
+
+      // Process each field update
+      const results: Array<{ fieldId: string; fieldName?: string; newValue: any; success: boolean; error?: string }> = [];
+      const fieldValueMap: Record<string, any> = {};
+
+      for (const update of fieldUpdates) {
+        let newValue: any;
+
+        if (update.valueType === 'static') {
+          newValue = update.staticValue;
+        } else if (update.valueType === 'dynamic') {
+          if (update.dynamicValuePath && update.dynamicValuePath in submissionData) {
+            newValue = submissionData[update.dynamicValuePath];
+          } else {
+            newValue = this.getNestedValue(context.triggerData, update.dynamicValuePath);
+          }
+
+          if (newValue === undefined) {
+            results.push({
+              fieldId: update.targetFieldId,
+              fieldName: update.targetFieldName,
+              newValue: undefined,
+              success: false,
+              error: `Could not find value for field: ${update.dynamicFieldName || update.dynamicValuePath}`
+            });
+            continue;
+          }
+
+          // Normalize numeric values
+          const numericTypes = ['number', 'currency', 'slider', 'rating'];
+          const sourceFieldType = update.dynamicFieldType?.toLowerCase() || '';
+          
+          if (numericTypes.includes(sourceFieldType) || typeof newValue === 'string') {
+            if (typeof newValue === 'string' && newValue.trim() !== '') {
+              const cleanedValue = newValue.replace(/[,$€£¥₹\s]/g, '').trim();
+              const parsedNumber = parseFloat(cleanedValue);
+              
+              if (!isNaN(parsedNumber)) {
+                newValue = parsedNumber;
+                console.log(`🔢 Normalized string to number: ${newValue}`);
+              }
+            }
+          }
         }
-        
-        if (newValue === undefined) {
-          return {
-            success: false,
-            error: `Could not find value for field: ${config.dynamicFieldName || config.dynamicValuePath}`,
-            actionDetails
-          };
-        }
-        
-        // Normalize numeric values for number and currency field types
-        // Check both source field type (dynamicFieldType) and handle potential string values
-        const numericTypes = ['number', 'currency', 'slider', 'rating'];
-        const sourceFieldType = config.dynamicFieldType?.toLowerCase() || '';
-        
-        if (numericTypes.includes(sourceFieldType) || typeof newValue === 'string') {
-          // Try to convert string values to numbers if the value looks numeric
-          if (typeof newValue === 'string' && newValue.trim() !== '') {
-            // Remove currency symbols, commas, and whitespace for parsing
+
+        // Fetch target field to check type and normalize
+        const { data: targetField } = await supabase
+          .from('form_fields')
+          .select('id, field_type, custom_config')
+          .eq('id', update.targetFieldId)
+          .single();
+
+        if (targetField) {
+          const targetFieldType = targetField.field_type?.toLowerCase();
+          const numericTargetTypes = ['number', 'currency', 'slider', 'rating'];
+          
+          if (numericTargetTypes.includes(targetFieldType) && typeof newValue === 'string' && newValue.trim() !== '') {
             const cleanedValue = newValue.replace(/[,$€£¥₹\s]/g, '').trim();
             const parsedNumber = parseFloat(cleanedValue);
             
             if (!isNaN(parsedNumber)) {
               newValue = parsedNumber;
-              console.log(`🔢 Normalized string "${submissionData[config.dynamicValuePath]}" to number: ${newValue}`);
+            }
+          }
+
+          // Validate submission-access field value
+          if (targetField.field_type === 'submission-access') {
+            const customConfig = (targetField.custom_config as any) || {};
+            const accessConfig = {
+              allowedUsers: customConfig.allowedUsers || [],
+              allowedGroups: customConfig.allowedGroups || []
+            };
+            
+            const validatedValue = this.validateSubmissionAccessValue(newValue, accessConfig);
+            if (validatedValue && (validatedValue.users.length > 0 || validatedValue.groups.length > 0)) {
+              newValue = validatedValue;
+            } else {
+              results.push({
+                fieldId: update.targetFieldId,
+                fieldName: update.targetFieldName,
+                newValue: undefined,
+                success: false,
+                error: 'Invalid submission-access field value'
+              });
+              continue;
             }
           }
         }
+
+        fieldValueMap[update.targetFieldId] = newValue;
+        results.push({
+          fieldId: update.targetFieldId,
+          fieldName: update.targetFieldName,
+          newValue,
+          success: true
+        });
       }
 
-      console.log('💾 New value determined:', { newValue, valueType: config.valueType });
-
-      // Get the trigger form ID from context
-      const triggerFormId = context.triggerData?.formId;
-      
-      // Check if target form is different from trigger form
-      const isTargetFormDifferent = config.targetFormId !== triggerFormId;
-      
-      console.log('📋 Trigger form:', triggerFormId, 'Target form:', config.targetFormId, 'Is different:', isTargetFormDifferent);
-
-      // Fetch target field to check if it's a submission-access field
-      const { data: targetField, error: fieldError } = await supabase
-        .from('form_fields')
-        .select('id, field_type, custom_config')
-        .eq('id', config.targetFieldId)
-        .single();
-
-      if (fieldError) {
-        console.error('⚠️ Could not fetch target field config:', fieldError);
-      }
-
-      // Normalize value based on target field type for number/currency fields
-      if (targetField) {
-        const targetFieldType = targetField.field_type?.toLowerCase();
-        const numericTargetTypes = ['number', 'currency', 'slider', 'rating'];
-        
-        if (numericTargetTypes.includes(targetFieldType) && typeof newValue === 'string' && newValue.trim() !== '') {
-          // Remove currency symbols, commas, and whitespace for parsing
-          const cleanedValue = newValue.replace(/[,$€£¥₹\s]/g, '').trim();
-          const parsedNumber = parseFloat(cleanedValue);
-          
-          if (!isNaN(parsedNumber)) {
-            console.log(`🔢 Normalized string "${newValue}" to number ${parsedNumber} for target field type: ${targetFieldType}`);
-            newValue = parsedNumber;
-          }
-        }
-      }
-
-      // Validate submission-access field value if applicable
-      if (targetField && targetField.field_type === 'submission-access') {
-        const customConfig = (targetField.custom_config as any) || {};
-        const accessConfig = {
-          allowedUsers: customConfig.allowedUsers || [],
-          allowedGroups: customConfig.allowedGroups || []
+      // Check if any updates succeeded
+      const successfulUpdates = results.filter(r => r.success);
+      if (successfulUpdates.length === 0) {
+        return {
+          success: false,
+          error: `All field updates failed: ${results.map(r => r.error).join('; ')}`,
+          actionDetails
         };
-        
-        const validatedValue = this.validateSubmissionAccessValue(newValue, accessConfig);
-        if (validatedValue && (validatedValue.users.length > 0 || validatedValue.groups.length > 0)) {
-          newValue = validatedValue;
-          console.log(`✅ Validated submission-access field value:`, validatedValue);
-        } else {
-          return {
-            success: false,
-            error: 'The users/groups from the source field are not allowed in the target submission-access field configuration',
-            actionDetails
-          };
-        }
       }
 
       if (isTargetFormDifferent) {
-        // Update ALL submissions in the target form using bulk database function
-        console.log('🔄 Updating ALL submissions in target form using bulk update:', config.targetFormId);
+        // Bulk update all submissions in the target form for each field
+        console.log('🔄 Bulk updating ALL submissions in target form:', config.targetFormId);
         
-        // Use the database function for efficient bulk update
-        const { data: updatedCount, error: bulkError } = await supabase
-          .rpc('bulk_update_submission_field', {
-            _form_id: config.targetFormId,
-            _field_id: config.targetFieldId,
-            _new_value: JSON.stringify(newValue)
-          });
+        let totalUpdated = 0;
+        for (const [fieldId, newValue] of Object.entries(fieldValueMap)) {
+          const { data: updatedCount, error: bulkError } = await supabase
+            .rpc('bulk_update_submission_field', {
+              _form_id: config.targetFormId,
+              _field_id: fieldId,
+              _new_value: JSON.stringify(newValue)
+            });
 
-        if (bulkError) {
-          console.error('❌ Bulk update failed:', bulkError);
-          return {
-            success: false,
-            error: `Failed to bulk update submissions: ${bulkError.message}`,
-            actionDetails
-          };
+          if (bulkError) {
+            console.error('❌ Bulk update failed for field:', fieldId, bulkError);
+          } else {
+            totalUpdated = Math.max(totalUpdated, updatedCount || 0);
+          }
         }
 
-        const count = updatedCount || 0;
-        console.log(`✅ Successfully bulk updated ${count} submissions in a single operation`);
+        console.log(`✅ Successfully bulk updated ${totalUpdated} submissions with ${successfulUpdates.length} field(s)`);
 
         return {
           success: true,
           output: {
             targetFormId: config.targetFormId,
-            fieldId: config.targetFieldId,
-            newValue,
-            updatedCount: count,
+            fieldsUpdated: successfulUpdates.length,
+            fieldDetails: results,
+            updatedCount: totalUpdated,
             bulkUpdate: true,
             updatedAt: new Date().toISOString()
           },
           actionDetails: {
             ...actionDetails,
-            updatedCount: count,
+            fieldsUpdated: successfulUpdates.length,
+            updatedCount: totalUpdated,
             bulkUpdate: true
           }
         };
       } else {
-        // Update the trigger submission (original behavior)
+        // Update the trigger submission
         const submissionId = context.submissionId;
         
         if (!submissionId) {
@@ -196,11 +232,11 @@ export class RecordActionExecutors {
           };
         }
 
-        // Update the field value in submission data
+        // Update all field values in submission data
         const currentData = submission.submission_data || {};
         const updatedData = {
           ...(typeof currentData === 'object' ? currentData : {}),
-          [config.targetFieldId]: newValue
+          ...fieldValueMap
         };
 
         const { error: updateError } = await supabase
@@ -216,15 +252,14 @@ export class RecordActionExecutors {
           };
         }
 
-        console.log('✅ Field value updated successfully');
+        console.log('✅ Successfully updated', successfulUpdates.length, 'field(s)');
 
         return {
           success: true,
           output: {
             submissionId,
-            fieldId: config.targetFieldId,
-            oldValue: (submission.submission_data as any)?.[config.targetFieldId],
-            newValue,
+            fieldsUpdated: successfulUpdates.length,
+            fieldDetails: results,
             updatedAt: new Date().toISOString()
           },
           actionDetails

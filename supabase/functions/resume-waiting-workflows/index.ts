@@ -678,71 +678,129 @@ Deno.serve(async (req) => {
                   }
                 }
               } else if (actionType === 'change_field_value') {
-                // Execute change field value action
+                // Execute change field value action with multi-field support
                 console.log('🔧 Executing change_field_value action in edge function')
                 
                 const triggerSubmissionData = execution.trigger_data?.submissionData || {}
                 const triggerSubmissionId = execution.trigger_data?.submissionId
                 const triggerFormId = execution.trigger_data?.formId
                 
+                // Support both new multi-field format and legacy single-field format
+                interface FieldUpdate {
+                  targetFieldId: string
+                  targetFieldName?: string
+                  targetFieldType?: string
+                  valueType: 'static' | 'dynamic'
+                  staticValue?: any
+                  dynamicValuePath?: string
+                  dynamicFieldName?: string
+                  dynamicFieldType?: string
+                }
+                
+                let fieldUpdates: FieldUpdate[] = []
+                
+                if (config.fieldUpdates && Array.isArray(config.fieldUpdates) && config.fieldUpdates.length > 0) {
+                  fieldUpdates = config.fieldUpdates
+                } else if (config.targetFieldId && config.valueType) {
+                  // Legacy single-field format
+                  fieldUpdates = [{
+                    targetFieldId: config.targetFieldId,
+                    targetFieldName: config.targetFieldName,
+                    targetFieldType: config.targetFieldType,
+                    valueType: config.valueType,
+                    staticValue: config.staticValue,
+                    dynamicValuePath: config.dynamicValuePath,
+                    dynamicFieldName: config.dynamicFieldName,
+                    dynamicFieldType: config.dynamicFieldType
+                  }]
+                }
+                
                 // Validate config
-                if (!config.targetFormId || !config.targetFieldId || !config.valueType) {
+                if (!config.targetFormId || fieldUpdates.length === 0) {
                   throw new Error('Missing required configuration for field value change')
                 }
                 
-                // Determine the new value
-                let newValue: any
+                // Process each field update
+                const fieldValueMap: Record<string, any> = {}
+                const results: Array<{ fieldId: string; fieldName?: string; newValue: any; success: boolean; error?: string }> = []
                 
-                if (config.valueType === 'static') {
-                  newValue = config.staticValue
-                } else if (config.valueType === 'dynamic') {
-                  // Try to get from submissionData using the field ID
-                  if (config.dynamicValuePath && config.dynamicValuePath in triggerSubmissionData) {
-                    newValue = triggerSubmissionData[config.dynamicValuePath]
-                  }
+                for (const update of fieldUpdates) {
+                  let newValue: any
                   
-                  if (newValue === undefined) {
-                    throw new Error(`Could not find value for field: ${config.dynamicFieldName || config.dynamicValuePath}`)
-                  }
-                  
-                  // Normalize numeric values
-                  if (typeof newValue === 'string' && newValue.trim() !== '') {
-                    const cleanedValue = newValue.replace(/[,$€£¥₹\s]/g, '').trim()
-                    const parsedNumber = parseFloat(cleanedValue)
-                    if (!isNaN(parsedNumber)) {
-                      newValue = parsedNumber
-                      console.log(`🔢 Normalized string to number: ${newValue}`)
+                  if (update.valueType === 'static') {
+                    newValue = update.staticValue
+                  } else if (update.valueType === 'dynamic') {
+                    if (update.dynamicValuePath && update.dynamicValuePath in triggerSubmissionData) {
+                      newValue = triggerSubmissionData[update.dynamicValuePath]
+                    }
+                    
+                    if (newValue === undefined) {
+                      results.push({
+                        fieldId: update.targetFieldId,
+                        fieldName: update.targetFieldName,
+                        newValue: undefined,
+                        success: false,
+                        error: `Could not find value for field: ${update.dynamicFieldName || update.dynamicValuePath}`
+                      })
+                      continue
+                    }
+                    
+                    // Normalize numeric values
+                    if (typeof newValue === 'string' && newValue.trim() !== '') {
+                      const cleanedValue = newValue.replace(/[,$€£¥₹\s]/g, '').trim()
+                      const parsedNumber = parseFloat(cleanedValue)
+                      if (!isNaN(parsedNumber)) {
+                        newValue = parsedNumber
+                        console.log(`🔢 Normalized string to number: ${newValue}`)
+                      }
                     }
                   }
+                  
+                  fieldValueMap[update.targetFieldId] = newValue
+                  results.push({
+                    fieldId: update.targetFieldId,
+                    fieldName: update.targetFieldName,
+                    newValue,
+                    success: true
+                  })
                 }
                 
-                console.log('💾 New value determined:', { newValue, valueType: config.valueType })
+                const successfulUpdates = results.filter(r => r.success)
+                if (successfulUpdates.length === 0) {
+                  throw new Error(`All field updates failed: ${results.map(r => r.error).join('; ')}`)
+                }
+                
+                console.log('💾 Field values determined:', fieldValueMap)
                 
                 // Check if target form is different from trigger form
                 const isTargetFormDifferent = config.targetFormId !== triggerFormId
                 console.log('📋 Trigger form:', triggerFormId, 'Target form:', config.targetFormId, 'Is different:', isTargetFormDifferent)
                 
                 if (isTargetFormDifferent) {
-                  // Bulk update all submissions in target form
+                  // Bulk update all submissions in target form for each field
                   console.log('🔄 Performing bulk update on target form:', config.targetFormId)
                   
-                  const { data: rpcResult, error: rpcError } = await supabase.rpc('bulk_update_submission_field', {
-                    _form_id: config.targetFormId,
-                    _field_id: config.targetFieldId,
-                    _new_value: newValue
-                  })
-                  
-                  if (rpcError) {
-                    console.error('❌ Bulk update error:', rpcError)
-                    throw new Error(`Bulk update failed: ${rpcError.message}`)
+                  let totalUpdated = 0
+                  for (const [fieldId, newValue] of Object.entries(fieldValueMap)) {
+                    const { data: rpcResult, error: rpcError } = await supabase.rpc('bulk_update_submission_field', {
+                      _form_id: config.targetFormId,
+                      _field_id: fieldId,
+                      _new_value: newValue
+                    })
+                    
+                    if (rpcError) {
+                      console.error('❌ Bulk update error for field:', fieldId, rpcError)
+                    } else {
+                      totalUpdated = Math.max(totalUpdated, rpcResult || 0)
+                    }
                   }
                   
-                  console.log(`✅ Bulk updated ${rpcResult} records in target form`)
+                  console.log(`✅ Bulk updated ${totalUpdated} records with ${successfulUpdates.length} field(s)`)
                   nodeOutputData = {
-                    updatedCount: rpcResult,
+                    updatedCount: totalUpdated,
                     targetFormId: config.targetFormId,
-                    targetFieldId: config.targetFieldId,
-                    newValue,
+                    fieldsUpdated: successfulUpdates.length,
+                    fieldDetails: results,
                     success: true
                   }
                 } else {
@@ -767,7 +825,7 @@ Deno.serve(async (req) => {
                   const currentData = currentSubmission?.submission_data || {}
                   const updatedData = {
                     ...(typeof currentData === 'object' ? currentData : {}),
-                    [config.targetFieldId]: newValue
+                    ...fieldValueMap
                   }
                   
                   // Update the submission
@@ -780,11 +838,11 @@ Deno.serve(async (req) => {
                     throw new Error(`Failed to update submission: ${updateError.message}`)
                   }
                   
-                  console.log('✅ Successfully updated trigger submission')
+                  console.log(`✅ Successfully updated ${successfulUpdates.length} field(s) in trigger submission`)
                   nodeOutputData = {
                     submissionId: triggerSubmissionId,
-                    targetFieldId: config.targetFieldId,
-                    newValue,
+                    fieldsUpdated: successfulUpdates.length,
+                    fieldDetails: results,
                     success: true
                   }
                 }
