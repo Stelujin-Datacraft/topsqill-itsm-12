@@ -1,6 +1,6 @@
 
 import * as React from "react"
-import { AudioWaveform, Command, GalleryVerticalEnd, Calendar, Settings2, ChevronUp, User2, Plus, LogOut, Bell, Building2, Shield, FileText } from "lucide-react"
+import { AudioWaveform, Command, GalleryVerticalEnd, Calendar, Settings2, ChevronUp, User2, Plus, LogOut, Bell, Building2, Shield, FileText, Mail } from "lucide-react"
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
@@ -88,9 +88,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: User2,
       },
       {
-        title: "Settings",
+        title: "Email Config",
         url: "/settings",
-        icon: Settings2,
+        icon: Mail,
       },
       // Add Roles and Access tab only for admins
       ...(userProfile?.role === 'admin' ? [{
