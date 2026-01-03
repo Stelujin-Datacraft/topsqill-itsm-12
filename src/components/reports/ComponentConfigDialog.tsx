@@ -465,10 +465,9 @@ export function ComponentConfigDialog({
   const renderChartConfig = () => {
     return (
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="basic">Basic</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
-          <TabsTrigger value="joins">Joins</TabsTrigger>
           <TabsTrigger value="filters">Filters</TabsTrigger>
           <TabsTrigger value="drilldown">Drilldown</TabsTrigger>
           <TabsTrigger value="style">Style</TabsTrigger>
@@ -1126,66 +1125,6 @@ export function ComponentConfigDialog({
           )}
         </TabsContent>
 
-        <TabsContent value="joins" className="space-y-4">
-          {config.formId && formFields.length > 0 ? (
-            <FormJoinConfig
-              enabled={joinEnabled}
-              onEnabledChange={(enabled) => {
-                setJoinEnabled(enabled);
-                setConfig((prev) =>
-                  enabled
-                    ? {
-                        ...prev,
-                        joinConfig: {
-                          enabled: true,
-                          ...(prev.joinConfig || {}),
-                        },
-                      }
-                    : {
-                        ...prev,
-                        joinConfig: undefined,
-                      }
-                );
-                if (!enabled) {
-                  setSecondaryFormFields([]);
-                }
-              }}
-              primaryForm={{
-                id: config.formId,
-                name: forms.find(f => f.id === config.formId)?.name || 'Selected Form',
-                fields: formFields
-              }}
-              availableForms={forms.map(form => ({
-                id: form.id,
-                name: form.name,
-                fields: form.id === config.joinConfig?.secondaryFormId ? secondaryFormFields : (form.fields || [])
-              }))}
-              joinConfig={config.joinConfig || {
-                enabled: false,
-                secondaryFormId: '',
-                joinType: 'inner',
-                primaryFieldId: '',
-                secondaryFieldId: ''
-              }}
-              onJoinConfigChange={(joinConfig) => {
-                setConfig(prev => ({
-                  ...prev,
-                  joinConfig: {
-                    enabled: prev.joinConfig?.enabled ?? true,
-                    ...joinConfig,
-                  },
-                }));
-                if (joinConfig.secondaryFormId && joinConfig.secondaryFormId !== config.joinConfig?.secondaryFormId) {
-                  handleSecondaryFormChange(joinConfig.secondaryFormId);
-                }
-              }}
-            />
-          ) : (
-            <div className="p-4 text-center text-muted-foreground">
-              Please select a form first to configure joins.
-            </div>
-          )}
-        </TabsContent>
 
         <TabsContent value="drilldown" className="space-y-4">
           <Card>
@@ -1342,9 +1281,6 @@ export function ComponentConfigDialog({
                 </div>
                 <div>
                   <span className="font-medium">Drilldown:</span> {config.drilldownConfig?.enabled ? 'Enabled' : 'Disabled'}
-                </div>
-                <div>
-                  <span className="font-medium">Join:</span> {joinEnabled ? 'Enabled' : 'Disabled'}
                 </div>
               </div>
             </CardContent>
