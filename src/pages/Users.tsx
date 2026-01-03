@@ -256,13 +256,12 @@ const Users = () => {
                 <CardTitle className="text-lg font-medium">Members</CardTitle>
                 <CardDescription>Manage your organization's team members</CardDescription>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <UserImportButton onImportComplete={handleImportUsers} />
                 <UserUpdateButton onUpdateComplete={handleUpdateUsers} />
-                
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button>
+                    <Button size="sm">
                       <Plus className="h-4 w-4 mr-2" />
                       Add Member
                     </Button>
