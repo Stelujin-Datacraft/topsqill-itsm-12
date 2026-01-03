@@ -52,13 +52,55 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Use local state for the config to prevent re-renders from parent
-  // Ensure start nodes have triggerType defaulted to 'form_submission'
+  // Apply defaults based on node type
+  const applyNodeDefaults = useCallback((config: any, nodeType: string, actionType?: string) => {
+    const result = { ...config };
+    
+    // Start node defaults
+    if (nodeType === 'start' && !result.triggerType) {
+      result.triggerType = 'form_submission';
+    }
+    
+    // Wait node defaults
+    if (nodeType === 'wait') {
+      if (!result.waitType) result.waitType = 'duration';
+      if (!result.durationValue) result.durationValue = 1;
+      if (!result.durationUnit) result.durationUnit = 'hours';
+    }
+    
+    // Action node defaults based on action type
+    if (nodeType === 'action') {
+      const action = actionType || result.actionType;
+      
+      if (action === 'change_field_value' && !result.valueType) {
+        result.valueType = 'static';
+      }
+      
+      if (action === 'create_record') {
+        if (!result.initialStatus) result.initialStatus = 'pending';
+        if (!result.setSubmittedBy) result.setSubmittedBy = 'trigger_submitter';
+      }
+      
+      if (action === 'create_linked_record') {
+        if (!result.setSubmittedBy) result.setSubmittedBy = 'trigger_submitter';
+      }
+      
+      if (action === 'create_combination_records') {
+        if (!result.combinationMode) result.combinationMode = 'single';
+        if (!result.setSubmittedBy) result.setSubmittedBy = 'trigger_submitter';
+      }
+      
+      if (action === 'update_linked_records') {
+        if (!result.updateScope) result.updateScope = 'all';
+      }
+    }
+    
+    return result;
+  }, []);
+
   const [localConfig, setLocalConfig] = useState<any>(() => {
     const config = node.data.config || {};
-    if (node.type === 'start' && !config.triggerType) {
-      return { ...config, triggerType: 'form_submission' };
-    }
-    return config;
+    return applyNodeDefaults(config, node.type, config.actionType);
   });
   
   // Re-sync local config when node changes (user clicks different node)
@@ -68,13 +110,9 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
       console.log('🔄 Node changed, re-initializing localConfig for:', node.id);
       prevNodeIdRef.current = node.id;
       const config = node.data.config || {};
-      if (node.type === 'start' && !config.triggerType) {
-        setLocalConfig({ ...config, triggerType: 'form_submission' });
-      } else {
-        setLocalConfig(config);
-      }
+      setLocalConfig(applyNodeDefaults(config, node.type, config.actionType));
     }
-  }, [node.id, node.data.config, node.type]);
+  }, [node.id, node.data.config, node.type, applyNodeDefaults]);
   
   // Keep a ref to the onConfigChange to avoid stale closures
   const onConfigChangeRef = useRef(onConfigChange);
@@ -114,13 +152,27 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
     };
   }, []);
 
-  // Sync default triggerType to parent for start nodes on mount
+  // Sync defaults to parent on mount when local has defaults not yet in parent
   useEffect(() => {
-    if (node.type === 'start' && !node.data.config?.triggerType && localConfig.triggerType) {
-      console.log('🔄 Syncing default triggerType to parent:', localConfig.triggerType);
+    const parentConfig = node.data.config || {};
+    const needsSync = (
+      (node.type === 'start' && !parentConfig.triggerType && localConfig.triggerType) ||
+      (node.type === 'wait' && !parentConfig.waitType && localConfig.waitType) ||
+      (node.type === 'action' && localConfig.actionType && !parentConfig.valueType && localConfig.valueType)
+    );
+    
+    if (needsSync) {
+      console.log('🔄 Syncing defaults to parent:', localConfig);
       onConfigChangeRef.current(localConfig);
     }
-  }, [node.type, node.data.config?.triggerType, localConfig]);
+  }, [node.type, node.data.config, localConfig]);
+  
+  // Handle action type changes and apply defaults
+  const handleActionTypeChange = useCallback((newActionType: string) => {
+    const updatedConfig = applyNodeDefaults({ ...localConfig, actionType: newActionType }, 'action', newActionType);
+    setLocalConfig(updatedConfig);
+    syncToParent(updatedConfig);
+  }, [localConfig, applyNodeDefaults, syncToParent]);
 
   // Auto-fetch linked form info when sourceCrossRefFieldId is set but sourceLinkedFormId is missing
   const [linkedFormLoading, setLinkedFormLoading] = useState(false);
@@ -505,7 +557,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
               <Label htmlFor="actionType">Action Type</Label>
               <Select 
                 value={localConfig?.actionType || 'approve_form'} 
-                onValueChange={(value) => handleConfigUpdate('actionType', value)}
+                onValueChange={handleActionTypeChange}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select action type" />
