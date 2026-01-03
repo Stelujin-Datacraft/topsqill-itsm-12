@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Trash2, Plus, Mail, Eye, Code, FileText } from 'lucide-react';
+import { Trash2, Plus, Mail, Eye, Code, FileText, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
@@ -283,26 +283,44 @@ export default function EmailTemplatesPage() {
 
   // If creating or editing, show the form inline
   if (isCreating || editingTemplate) {
+    const handleCancel = () => {
+      setEditingTemplate(null);
+      setIsCreating(false);
+      setShowPreview(false);
+    };
+
     return (
       <DashboardLayout title={editingTemplate ? 'Edit Email Template' : 'Create Email Template'}>
-        <div className="space-y-6">
-          <EmailTemplateForm
-            template={editingTemplate || createNewTemplate()}
-            users={users}
-            smtpConfigs={smtpConfigs}
-            onSave={saveTemplate}
-            onCancel={() => {
-              setEditingTemplate(null);
-              setIsCreating(false);
-              setShowPreview(false);
-            }}
-            contentMode={contentMode}
-            onContentModeChange={setContentMode}
-            showPreview={showPreview}
-            onShowPreviewChange={setShowPreview}
-            onContentChange={handleContentChange}
-          />
-        </div>
+        <Card className="border rounded-lg">
+          <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                {editingTemplate ? 'Edit Email Template' : 'Create New Email Template'}
+              </CardTitle>
+              <CardDescription>
+                {editingTemplate ? 'Update the template details below' : 'Fill in the details to create a new email template'}
+              </CardDescription>
+            </div>
+            <Button variant="ghost" size="icon" onClick={handleCancel}>
+              <X className="h-5 w-5" />
+            </Button>
+          </CardHeader>
+          <CardContent className="p-6">
+            <EmailTemplateForm
+              template={editingTemplate || createNewTemplate()}
+              users={users}
+              smtpConfigs={smtpConfigs}
+              onSave={saveTemplate}
+              onCancel={handleCancel}
+              contentMode={contentMode}
+              onContentModeChange={setContentMode}
+              showPreview={showPreview}
+              onShowPreviewChange={setShowPreview}
+              onContentChange={handleContentChange}
+            />
+          </CardContent>
+        </Card>
       </DashboardLayout>
     );
   }
