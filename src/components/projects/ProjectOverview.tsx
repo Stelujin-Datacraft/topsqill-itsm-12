@@ -21,7 +21,9 @@ import {
   Trash2,
   Plus,
   ExternalLink,
-  Eye
+  Eye,
+  ChevronRight,
+  X
 } from 'lucide-react';
 import { format } from 'date-fns';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -61,6 +63,7 @@ export default function ProjectOverview() {
   const [teamMembers, setTeamMembers] = useState<ProjectUser[]>([]);
   const [projectAssets, setProjectAssets] = useState<ProjectAssets>({ forms: [], workflows: [], reports: [] });
   const [assetsLoading, setAssetsLoading] = useState(true);
+  const [selectedAssetType, setSelectedAssetType] = useState<'forms' | 'workflows' | 'reports' | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [creatorEmail, setCreatorEmail] = useState<string>('');
@@ -388,7 +391,10 @@ export default function ProjectOverview() {
               <>
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/forms')}>
+                  <Card 
+                    className={`hover:shadow-md transition-all cursor-pointer ${selectedAssetType === 'forms' ? 'ring-2 ring-primary' : ''}`} 
+                    onClick={() => setSelectedAssetType(selectedAssetType === 'forms' ? null : 'forms')}
+                  >
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div className="space-y-2">
@@ -399,9 +405,16 @@ export default function ProjectOverview() {
                           <FileText className="h-6 w-6 text-green-600" />
                         </div>
                       </div>
+                      <div className="flex items-center justify-end mt-2 text-xs text-muted-foreground">
+                        <span>Click to view</span>
+                        <ChevronRight className={`h-4 w-4 ml-1 transition-transform ${selectedAssetType === 'forms' ? 'rotate-90' : ''}`} />
+                      </div>
                     </CardContent>
                   </Card>
-                  <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/workflows')}>
+                  <Card 
+                    className={`hover:shadow-md transition-all cursor-pointer ${selectedAssetType === 'workflows' ? 'ring-2 ring-primary' : ''}`} 
+                    onClick={() => setSelectedAssetType(selectedAssetType === 'workflows' ? null : 'workflows')}
+                  >
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div className="space-y-2">
@@ -412,9 +425,16 @@ export default function ProjectOverview() {
                           <Workflow className="h-6 w-6 text-purple-600" />
                         </div>
                       </div>
+                      <div className="flex items-center justify-end mt-2 text-xs text-muted-foreground">
+                        <span>Click to view</span>
+                        <ChevronRight className={`h-4 w-4 ml-1 transition-transform ${selectedAssetType === 'workflows' ? 'rotate-90' : ''}`} />
+                      </div>
                     </CardContent>
                   </Card>
-                  <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/reports')}>
+                  <Card 
+                    className={`hover:shadow-md transition-all cursor-pointer ${selectedAssetType === 'reports' ? 'ring-2 ring-primary' : ''}`} 
+                    onClick={() => setSelectedAssetType(selectedAssetType === 'reports' ? null : 'reports')}
+                  >
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div className="space-y-2">
@@ -425,172 +445,197 @@ export default function ProjectOverview() {
                           <BarChart3 className="h-6 w-6 text-orange-600" />
                         </div>
                       </div>
+                      <div className="flex items-center justify-end mt-2 text-xs text-muted-foreground">
+                        <span>Click to view</span>
+                        <ChevronRight className={`h-4 w-4 ml-1 transition-transform ${selectedAssetType === 'reports' ? 'rotate-90' : ''}`} />
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
 
-                {/* Forms List */}
-                {projectAssets.forms.length > 0 && (
-                  <div className="space-y-3">
+                {/* Forms List - Show when selected */}
+                {selectedAssetType === 'forms' && (
+                  <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold flex items-center gap-2">
                         <FileText className="h-4 w-4 text-green-600" />
                         Forms ({projectAssets.forms.length})
                       </h3>
-                      <Button variant="outline" size="sm" onClick={() => navigate('/forms')}>
-                        View All
-                        <ExternalLink className="h-3 w-3 ml-1" />
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); navigate('/forms'); }}>
+                          View All
+                          <ExternalLink className="h-3 w-3 ml-1" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedAssetType(null)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="border rounded-lg divide-y">
-                      {projectAssets.forms.slice(0, 5).map((form) => (
-                        <div 
-                          key={form.id} 
-                          className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors cursor-pointer"
-                          onClick={() => navigate(`/form/${form.id}`)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <FileText className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <p className="font-medium text-sm">{form.name}</p>
-                              {form.reference_id && (
-                                <p className="text-xs text-muted-foreground">{form.reference_id}</p>
-                              )}
+                    {projectAssets.forms.length > 0 ? (
+                      <div className="border rounded-lg divide-y">
+                        {projectAssets.forms.map((form) => (
+                          <div 
+                            key={form.id} 
+                            className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors cursor-pointer"
+                            onClick={() => navigate(`/form/${form.id}`)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              <div>
+                                <p className="font-medium text-sm">{form.name}</p>
+                                {form.reference_id && (
+                                  <p className="text-xs text-muted-foreground">{form.reference_id}</p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge 
+                                variant="outline" 
+                                className={`text-xs capitalize ${
+                                  form.status === 'active' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' :
+                                  form.status === 'published' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' :
+                                  'bg-muted text-muted-foreground'
+                                }`}
+                              >
+                                {form.status}
+                              </Badge>
+                              <Button variant="ghost" size="icon" className="h-7 w-7">
+                                <Eye className="h-3.5 w-3.5" />
+                              </Button>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs capitalize ${
-                                form.status === 'active' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' :
-                                form.status === 'published' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' :
-                                'bg-muted text-muted-foreground'
-                              }`}
-                            >
-                              {form.status}
-                            </Badge>
-                            <Button variant="ghost" size="icon" className="h-7 w-7">
-                              <Eye className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground border rounded-lg">
+                        <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+                        <p>No forms in this project yet.</p>
+                        <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate('/forms')}>
+                          <Plus className="h-4 w-4 mr-1" />
+                          Create Form
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* Workflows List */}
-                {projectAssets.workflows.length > 0 && (
-                  <div className="space-y-3">
+                {/* Workflows List - Show when selected */}
+                {selectedAssetType === 'workflows' && (
+                  <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold flex items-center gap-2">
                         <Workflow className="h-4 w-4 text-purple-600" />
                         Workflows ({projectAssets.workflows.length})
                       </h3>
-                      <Button variant="outline" size="sm" onClick={() => navigate('/workflows')}>
-                        View All
-                        <ExternalLink className="h-3 w-3 ml-1" />
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); navigate('/workflows'); }}>
+                          View All
+                          <ExternalLink className="h-3 w-3 ml-1" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedAssetType(null)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="border rounded-lg divide-y">
-                      {projectAssets.workflows.slice(0, 5).map((workflow) => (
-                        <div 
-                          key={workflow.id} 
-                          className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors cursor-pointer"
-                          onClick={() => navigate(`/workflow-view/${workflow.id}`)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Workflow className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <p className="font-medium text-sm">{workflow.name}</p>
-                              {workflow.reference_id && (
-                                <p className="text-xs text-muted-foreground">{workflow.reference_id}</p>
-                              )}
+                    {projectAssets.workflows.length > 0 ? (
+                      <div className="border rounded-lg divide-y">
+                        {projectAssets.workflows.map((workflow) => (
+                          <div 
+                            key={workflow.id} 
+                            className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors cursor-pointer"
+                            onClick={() => navigate(`/workflow-view/${workflow.id}`)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Workflow className="h-4 w-4 text-muted-foreground" />
+                              <div>
+                                <p className="font-medium text-sm">{workflow.name}</p>
+                                {workflow.reference_id && (
+                                  <p className="text-xs text-muted-foreground">{workflow.reference_id}</p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge 
+                                variant="outline" 
+                                className={`text-xs capitalize ${
+                                  workflow.status === 'active' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' :
+                                  workflow.status === 'published' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' :
+                                  'bg-muted text-muted-foreground'
+                                }`}
+                              >
+                                {workflow.status}
+                              </Badge>
+                              <Button variant="ghost" size="icon" className="h-7 w-7">
+                                <Eye className="h-3.5 w-3.5" />
+                              </Button>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs capitalize ${
-                                workflow.status === 'active' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' :
-                                workflow.status === 'published' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' :
-                                'bg-muted text-muted-foreground'
-                              }`}
-                            >
-                              {workflow.status}
-                            </Badge>
-                            <Button variant="ghost" size="icon" className="h-7 w-7">
-                              <Eye className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground border rounded-lg">
+                        <Workflow className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+                        <p>No workflows in this project yet.</p>
+                        <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate('/workflows')}>
+                          <Plus className="h-4 w-4 mr-1" />
+                          Create Workflow
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* Reports List */}
-                {projectAssets.reports.length > 0 && (
-                  <div className="space-y-3">
+                {/* Reports List - Show when selected */}
+                {selectedAssetType === 'reports' && (
+                  <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold flex items-center gap-2">
                         <BarChart3 className="h-4 w-4 text-orange-600" />
                         Reports ({projectAssets.reports.length})
                       </h3>
-                      <Button variant="outline" size="sm" onClick={() => navigate('/reports')}>
-                        View All
-                        <ExternalLink className="h-3 w-3 ml-1" />
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); navigate('/reports'); }}>
+                          View All
+                          <ExternalLink className="h-3 w-3 ml-1" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedAssetType(null)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="border rounded-lg divide-y">
-                      {projectAssets.reports.slice(0, 5).map((report) => (
-                        <div 
-                          key={report.id} 
-                          className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors cursor-pointer"
-                          onClick={() => navigate(`/report-view/${report.id}`)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <p className="font-medium text-sm">{report.name}</p>
-                              {report.reference_id && (
-                                <p className="text-xs text-muted-foreground">{report.reference_id}</p>
-                              )}
+                    {projectAssets.reports.length > 0 ? (
+                      <div className="border rounded-lg divide-y">
+                        {projectAssets.reports.map((report) => (
+                          <div 
+                            key={report.id} 
+                            className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors cursor-pointer"
+                            onClick={() => navigate(`/report-view/${report.id}`)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                              <div>
+                                <p className="font-medium text-sm">{report.name}</p>
+                                {report.reference_id && (
+                                  <p className="text-xs text-muted-foreground">{report.reference_id}</p>
+                                )}
+                              </div>
                             </div>
+                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
-                            <Eye className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Empty State */}
-                {projectAssets.forms.length === 0 && projectAssets.workflows.length === 0 && projectAssets.reports.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <div className="flex justify-center gap-4 mb-4">
-                      <FileText className="h-8 w-8 text-muted-foreground/50" />
-                      <Workflow className="h-8 w-8 text-muted-foreground/50" />
-                      <BarChart3 className="h-8 w-8 text-muted-foreground/50" />
-                    </div>
-                    <p>No assets in this project yet.</p>
-                    <p className="text-sm mt-1">Create forms, workflows, or reports to get started.</p>
-                    <div className="flex justify-center gap-2 mt-4">
-                      <Button variant="outline" size="sm" onClick={() => navigate('/forms')}>
-                        <Plus className="h-4 w-4 mr-1" />
-                        Create Form
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => navigate('/workflows')}>
-                        <Plus className="h-4 w-4 mr-1" />
-                        Create Workflow
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => navigate('/reports')}>
-                        <Plus className="h-4 w-4 mr-1" />
-                        Create Report
-                      </Button>
-                    </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground border rounded-lg">
+                        <BarChart3 className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+                        <p>No reports in this project yet.</p>
+                        <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate('/reports')}>
+                          <Plus className="h-4 w-4 mr-1" />
+                          Create Report
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </>
