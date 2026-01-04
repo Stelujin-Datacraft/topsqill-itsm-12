@@ -7,8 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, User, Mail, Phone, Globe, Calendar, Edit } from 'lucide-react';
+import { Loader2, User, Mail, Phone, Globe, Calendar, Edit, ArrowLeft, Shield, Clock } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { useNavigate } from 'react-router-dom';
+import DashboardLayout from '@/components/DashboardLayout';
 
 const TIMEZONE_OPTIONS = [
   { value: 'UTC', label: 'UTC' },
@@ -169,6 +172,7 @@ const NATIONALITY_OPTIONS = [
 const UserProfile = () => {
   const { userProfile } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState({
@@ -261,288 +265,270 @@ const UserProfile = () => {
 
   if (!userProfile) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
+      <DashboardLayout title="Profile">
+        <div className="flex items-center justify-center h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </DashboardLayout>
     );
   }
 
   const initials = `${formData.first_name?.[0] || ''}${formData.last_name?.[0] || ''}`.toUpperCase() || 'U';
 
-  return (
-    <div className="container mx-auto py-8 px-4 max-w-5xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Profile Settings</h1>
-        <p className="text-muted-foreground">Manage your personal information and preferences</p>
+  const headerActions = (
+    <Button variant="outline" onClick={() => navigate('/dashboard')}>
+      <ArrowLeft className="h-4 w-4 mr-2" />
+      Back to Dashboard
+    </Button>
+  );
+
+  const InfoCard = ({ icon: Icon, label, value, className = "" }: { icon: React.ElementType; label: string; value: string; className?: string }) => (
+    <div className={`flex items-start gap-3 p-4 rounded-lg bg-muted/50 ${className}`}>
+      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+        <Icon className="h-5 w-5 text-primary" />
       </div>
+      <div className="space-y-1 min-w-0">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
+        <p className="text-sm font-medium truncate">{value || 'Not set'}</p>
+      </div>
+    </div>
+  );
 
-      <Card className="shadow-lg">
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Avatar className="h-24 w-24 border-4 border-primary/10">
-                <AvatarFallback className="text-3xl bg-gradient-to-br from-primary/20 to-primary/5">{initials}</AvatarFallback>
+  return (
+    <DashboardLayout title="Profile" actions={headerActions}>
+      <div className="max-w-5xl mx-auto space-y-6">
+        {/* Profile Header Card */}
+        <Card className="overflow-hidden">
+          <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 md:p-8">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+              <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
+                <AvatarFallback className="text-2xl font-bold bg-primary text-primary-foreground">
+                  {initials}
+                </AvatarFallback>
               </Avatar>
-              <div>
-                <CardTitle className="text-2xl">{formData.first_name} {formData.last_name}</CardTitle>
-                <CardDescription className="text-base mt-1">{formData.email}</CardDescription>
-              </div>
-            </div>
-            {!isEditMode && (
-              <Button onClick={() => setIsEditMode(true)} size="lg">
-                <Edit className="mr-2 h-4 w-4" />
-                Update Profile
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {!isEditMode ? (
-            <div className="space-y-8">
-              <div>
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <User className="h-5 w-5 text-primary" />
-                  Personal Details
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/30 p-6 rounded-lg">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">First Name</Label>
-                    <p className="text-lg font-medium">{formData.first_name || 'Not set'}</p>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Last Name</Label>
-                    <p className="text-lg font-medium">{formData.last_name || 'Not set'}</p>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Gender</Label>
-                    <p className="text-lg font-medium capitalize">{formData.gender?.replace('_', ' ') || 'Not set'}</p>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Nationality</Label>
-                    <p className="text-lg font-medium">
-                      {NATIONALITY_OPTIONS.find(n => n.value === formData.nationality)?.label || 'Not set'}
-                    </p>
-                  </div>
+              <div className="flex-1 space-y-2">
+                <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+                  <h2 className="text-2xl font-bold">{formData.first_name} {formData.last_name}</h2>
+                  <Badge variant="secondary" className="w-fit capitalize">
+                    <Shield className="h-3 w-3 mr-1" />
+                    {userProfile.role}
+                  </Badge>
+                  <Badge 
+                    variant={userProfile.status === 'active' ? 'default' : 'outline'} 
+                    className="w-fit capitalize"
+                  >
+                    {userProfile.status}
+                  </Badge>
                 </div>
+                <p className="text-muted-foreground flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  {formData.email}
+                </p>
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Member since {new Date(userProfile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </p>
               </div>
+              {!isEditMode && (
+                <Button onClick={() => setIsEditMode(true)} size="lg" className="shrink-0">
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit Profile
+                </Button>
+              )}
+            </div>
+          </div>
+        </Card>
 
-              <div>
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+        {!isEditMode ? (
+          /* View Mode */
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Personal Information */}
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <User className="h-5 w-5 text-primary" />
+                  Personal Information
+                </CardTitle>
+                <CardDescription>Your basic profile details</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <InfoCard icon={User} label="First Name" value={formData.first_name} />
+                  <InfoCard icon={User} label="Last Name" value={formData.last_name} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <InfoCard icon={User} label="Gender" value={formData.gender ? formData.gender.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : ''} />
+                  <InfoCard icon={Globe} label="Nationality" value={NATIONALITY_OPTIONS.find(n => n.value === formData.nationality)?.label || ''} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Contact Information */}
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg flex items-center gap-2">
                   <Mail className="h-5 w-5 text-primary" />
                   Contact Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/30 p-6 rounded-lg">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Email Address</Label>
-                    <p className="text-lg font-medium">{formData.email}</p>
-                  </div>
+                </CardTitle>
+                <CardDescription>How to reach you</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <InfoCard icon={Mail} label="Email Address" value={formData.email} />
+                <InfoCard icon={Phone} label="Mobile Number" value={formData.mobile} />
+              </CardContent>
+            </Card>
 
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Mobile Number</Label>
-                    <p className="text-lg font-medium">{formData.mobile || 'Not set'}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            {/* Preferences */}
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg flex items-center gap-2">
                   <Globe className="h-5 w-5 text-primary" />
                   Preferences
-                </h3>
-                <div className="bg-muted/30 p-6 rounded-lg">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Timezone</Label>
-                    <p className="text-lg font-medium">
-                      {TIMEZONE_OPTIONS.find(tz => tz.value === formData.timezone)?.label || 'Not set'}
-                    </p>
+                </CardTitle>
+                <CardDescription>Your regional and display settings</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <InfoCard icon={Calendar} label="Timezone" value={TIMEZONE_OPTIONS.find(tz => tz.value === formData.timezone)?.label || ''} className="max-w-md" />
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          /* Edit Mode */
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Edit Profile</CardTitle>
+              <CardDescription>Update your personal information</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="first_name">First Name</Label>
+                    <Input
+                      id="first_name"
+                      value={formData.first_name}
+                      onChange={(e) => handleInputChange('first_name', e.target.value)}
+                      placeholder="Enter first name"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="last_name">Last Name</Label>
+                    <Input
+                      id="last_name"
+                      value={formData.last_name}
+                      onChange={(e) => handleInputChange('last_name', e.target.value)}
+                      placeholder="Enter last name"
+                    />
                   </div>
                 </div>
-              </div>
 
-              <div className="pt-4 border-t">
-                <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Account Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Role</Label>
-                    <p className="text-sm font-medium capitalize">{userProfile.role}</p>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    disabled
+                    className="bg-muted"
+                  />
+                  <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="mobile">Mobile</Label>
+                  <Input
+                    id="mobile"
+                    type="tel"
+                    value={formData.mobile}
+                    onChange={(e) => handleInputChange('mobile', e.target.value)}
+                    placeholder="Enter mobile number"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="nationality">Nationality</Label>
+                    <Select
+                      value={formData.nationality}
+                      onValueChange={(value) => handleInputChange('nationality', value)}
+                    >
+                      <SelectTrigger id="nationality">
+                        <SelectValue placeholder="Select nationality" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {NATIONALITY_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Status</Label>
-                    <p className="text-sm font-medium capitalize">{userProfile.status}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Member Since</Label>
-                    <p className="text-sm font-medium">{new Date(userProfile.created_at).toLocaleDateString()}</p>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">Gender</Label>
+                    <Select
+                      value={formData.gender}
+                      onValueChange={(value) => handleInputChange('gender', value)}
+                    >
+                      <SelectTrigger id="gender">
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                        <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-              </div>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="first_name">
-                  <User className="inline h-4 w-4 mr-2" />
-                  First Name
-                </Label>
-                <Input
-                  id="first_name"
-                  value={formData.first_name}
-                  onChange={(e) => handleInputChange('first_name', e.target.value)}
-                  placeholder="Enter first name"
-                />
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="last_name">
-                  <User className="inline h-4 w-4 mr-2" />
-                  Last Name
-                </Label>
-                <Input
-                  id="last_name"
-                  value={formData.last_name}
-                  onChange={(e) => handleInputChange('last_name', e.target.value)}
-                  placeholder="Enter last name"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">
-                <Mail className="inline h-4 w-4 mr-2" />
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                disabled
-                className="bg-muted"
-              />
-              <p className="text-xs text-muted-foreground">Email cannot be changed</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="mobile">
-                <Phone className="inline h-4 w-4 mr-2" />
-                Mobile
-              </Label>
-              <Input
-                id="mobile"
-                type="tel"
-                value={formData.mobile}
-                onChange={(e) => handleInputChange('mobile', e.target.value)}
-                placeholder="Enter mobile number"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="nationality">
-                  <Globe className="inline h-4 w-4 mr-2" />
-                  Nationality
-                </Label>
-                <Select
-                  value={formData.nationality}
-                  onValueChange={(value) => handleInputChange('nationality', value)}
-                >
-                  <SelectTrigger id="nationality">
-                    <SelectValue placeholder="Select nationality" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {NATIONALITY_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="gender">
-                  <User className="inline h-4 w-4 mr-2" />
-                  Gender
-                </Label>
-                <Select
-                  value={formData.gender}
-                  onValueChange={(value) => handleInputChange('gender', value)}
-                >
-                  <SelectTrigger id="gender">
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                    <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="timezone">
-                <Calendar className="inline h-4 w-4 mr-2" />
-                Timezone
-              </Label>
-              <Select
-                value={formData.timezone}
-                onValueChange={(value) => handleInputChange('timezone', value)}
-              >
-                <SelectTrigger id="timezone">
-                  <SelectValue placeholder="Select timezone" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIMEZONE_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="pt-4 border-t">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-sm font-medium">Account Information</p>
-                  <p className="text-xs text-muted-foreground">Role: {userProfile.role}</p>
-                  <p className="text-xs text-muted-foreground">Status: {userProfile.status}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Member since: {new Date(userProfile.created_at).toLocaleDateString()}
-                  </p>
+                <div className="space-y-2">
+                  <Label htmlFor="timezone">Timezone</Label>
+                  <Select
+                    value={formData.timezone}
+                    onValueChange={(value) => handleInputChange('timezone', value)}
+                  >
+                    <SelectTrigger id="timezone">
+                      <SelectValue placeholder="Select timezone" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIMEZONE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
-            </div>
 
-              <div className="flex justify-end gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleCancel}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={loading}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    'Save Changes'
-                  )}
-                </Button>
-              </div>
-            </form>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCancel}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Changes'
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </DashboardLayout>
   );
 };
 
