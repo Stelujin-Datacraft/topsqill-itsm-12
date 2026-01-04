@@ -296,7 +296,7 @@ const UserProfile = () => {
 
   return (
     <DashboardLayout title="Profile" actions={headerActions}>
-      <div className="max-w-5xl mx-auto space-y-6">
+      <div className="space-y-6">
         {/* Profile Header Card */}
         <Card className="overflow-hidden">
           <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 md:p-8">
