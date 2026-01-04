@@ -187,53 +187,53 @@ const Users = () => {
       <div className="space-y-6">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="border-border/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
+          <Card className="border-border/40 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-primary/10">
                   <UsersIcon className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-semibold">{totalUsers}</p>
+                  <p className="text-2xl font-bold tracking-tight">{totalUsers}</p>
                   <p className="text-sm text-muted-foreground">Total Members</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-border/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-emerald-500/10">
+          <Card className="border-border/40 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-emerald-500/10">
                   <UserCheck className="h-5 w-5 text-emerald-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-semibold">{activeUsers}</p>
+                  <p className="text-2xl font-bold tracking-tight">{activeUsers}</p>
                   <p className="text-sm text-muted-foreground">Active</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-border/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-amber-500/10">
+          <Card className="border-border/40 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-amber-500/10">
                   <Clock className="h-5 w-5 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-semibold">{pendingUsers}</p>
+                  <p className="text-2xl font-bold tracking-tight">{pendingUsers}</p>
                   <p className="text-sm text-muted-foreground">Pending</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-border/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-500/10">
+          <Card className="border-border/40 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-blue-500/10">
                   <UserX className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-semibold">{adminUsers}</p>
+                  <p className="text-2xl font-bold tracking-tight">{adminUsers}</p>
                   <p className="text-sm text-muted-foreground">Admins</p>
                 </div>
               </div>
@@ -242,30 +242,30 @@ const Users = () => {
         </div>
 
         {/* Main Content */}
-        <Card className="border-border/50">
-          <CardHeader className="border-b border-border/50 pb-4">
+        <Card className="border-border/40 shadow-sm">
+          <CardHeader className="border-b border-border/40 pb-5">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <CardTitle className="text-lg font-medium">Members</CardTitle>
-                <CardDescription>Manage your organization's team members</CardDescription>
+                <CardTitle className="text-xl font-semibold">Members</CardTitle>
+                <CardDescription className="mt-1">Manage your organization's team members</CardDescription>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <UserImportButton onImportComplete={handleImportUsers} />
                 <UserUpdateButton onUpdateComplete={handleUpdateUsers} />
-                <Button size="sm" variant="outline" onClick={() => setIsRequestsOpen(true)} className="relative">
+                <Button size="sm" variant="outline" onClick={() => setIsRequestsOpen(true)} className="relative border-border/60 hover:bg-muted/50">
                   <Clock className="h-4 w-4 mr-2" />
                   Pending Requests
                   {requests.length > 0 && (
-                    <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1 flex items-center justify-center text-xs">
+                    <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5 flex items-center justify-center text-xs bg-primary/10 text-primary border-0">
                       {requests.length}
                     </Badge>
                   )}
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => setIsInviteOpen(true)}>
+                <Button size="sm" variant="outline" onClick={() => setIsInviteOpen(true)} className="border-border/60 hover:bg-muted/50">
                   <UserPlus className="h-4 w-4 mr-2" />
                   Invite User
                 </Button>
-                <Button size="sm" onClick={() => setIsCreateOpen(true)}>
+                <Button size="sm" onClick={() => setIsCreateOpen(true)} className="shadow-sm">
                   <UserPlus className="h-4 w-4 mr-2" />
                   Create User
                 </Button>
@@ -274,14 +274,14 @@ const Users = () => {
           </CardHeader>
           <CardContent className="p-0">
             {/* Search */}
-            <div className="p-4 border-b border-border/50">
+            <div className="p-4 border-b border-border/40 bg-muted/30">
               <div className="relative max-w-sm">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
                   placeholder="Search members..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 bg-background"
+                  className="pl-9 bg-background border-border/60 focus-visible:ring-primary/20"
                 />
               </div>
             </div>
@@ -290,28 +290,31 @@ const Users = () => {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="hover:bg-transparent border-border/50">
-                    <TableHead className="font-medium">Member</TableHead>
-                    <TableHead className="font-medium">Role</TableHead>
-                    <TableHead className="font-medium">Status</TableHead>
-                    <TableHead className="font-medium">Joined</TableHead>
-                    <TableHead className="w-[80px] font-medium">Actions</TableHead>
+                  <TableRow className="hover:bg-transparent border-border/40 bg-muted/20">
+                    <TableHead className="font-semibold text-foreground/80">Member</TableHead>
+                    <TableHead className="font-semibold text-foreground/80">Role</TableHead>
+                    <TableHead className="font-semibold text-foreground/80">Status</TableHead>
+                    <TableHead className="font-semibold text-foreground/80">Joined</TableHead>
+                    <TableHead className="w-[80px] font-semibold text-foreground/80">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                        {searchTerm ? 'No members match your search.' : 'No members found.'}
+                      <TableCell colSpan={5} className="text-center py-16 text-muted-foreground">
+                        <div className="flex flex-col items-center gap-2">
+                          <UsersIcon className="h-10 w-10 text-muted-foreground/50" />
+                          <p>{searchTerm ? 'No members match your search.' : 'No members found.'}</p>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredUsers.map((user) => (
-                      <TableRow key={user.id} className="border-border/50">
-                        <TableCell>
+                      <TableRow key={user.id} className="border-border/40 hover:bg-muted/30 transition-colors">
+                        <TableCell className="py-4">
                           <div className="flex items-center gap-3">
-                            <Avatar className="h-9 w-9 border border-border/50">
-                              <AvatarFallback className="bg-muted text-sm font-medium">
+                            <Avatar className="h-10 w-10 border-2 border-border/40 shadow-sm">
+                              <AvatarFallback className="bg-gradient-to-br from-primary/10 to-primary/5 text-sm font-semibold text-primary">
                                 {getInitials(user.first_name, user.last_name, user.email)}
                               </AvatarFallback>
                             </Avatar>
@@ -322,7 +325,7 @@ const Users = () => {
                                   : user.email.split('@')[0]
                                 }
                               </p>
-                              <p className="text-sm text-muted-foreground">{user.email}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">{user.email}</p>
                             </div>
                           </div>
                         </TableCell>
@@ -331,7 +334,7 @@ const Users = () => {
                             value={user.role} 
                             onValueChange={(value) => handleRoleChange(user.id, value)}
                           >
-                            <SelectTrigger className="w-[120px] h-8 text-xs border-border/50">
+                            <SelectTrigger className="w-[120px] h-8 text-xs border-border/50 bg-background hover:bg-muted/50 transition-colors">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -344,19 +347,23 @@ const Users = () => {
                         <TableCell>
                           <Badge 
                             variant="outline" 
-                            className={`text-xs font-medium capitalize ${getStatusBadge(user.status)}`}
+                            className={`text-xs font-medium capitalize px-2.5 py-0.5 ${getStatusBadge(user.status)}`}
                           >
                             {user.status}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {new Date(user.created_at).toLocaleDateString()}
+                          {new Date(user.created_at).toLocaleDateString('en-US', { 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                          })}
                         </TableCell>
                         <TableCell>
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                             onClick={() => confirmDelete(
                               user.id, 
                               user.first_name && user.last_name 
