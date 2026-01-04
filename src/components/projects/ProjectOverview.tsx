@@ -447,7 +447,7 @@ export default function ProjectOverview() {
                         <div 
                           key={form.id} 
                           className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors cursor-pointer"
-                          onClick={() => navigate(`/forms/${form.id}/edit`)}
+                          onClick={() => navigate(`/form/${form.id}`)}
                         >
                           <div className="flex items-center gap-3">
                             <FileText className="h-4 w-4 text-muted-foreground" />
@@ -497,7 +497,7 @@ export default function ProjectOverview() {
                         <div 
                           key={workflow.id} 
                           className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors cursor-pointer"
-                          onClick={() => navigate(`/workflows/${workflow.id}`)}
+                          onClick={() => navigate(`/workflow-view/${workflow.id}`)}
                         >
                           <div className="flex items-center gap-3">
                             <Workflow className="h-4 w-4 text-muted-foreground" />
@@ -547,7 +547,7 @@ export default function ProjectOverview() {
                         <div 
                           key={report.id} 
                           className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors cursor-pointer"
-                          onClick={() => navigate(`/reports/${report.id}`)}
+                          onClick={() => navigate(`/report-view/${report.id}`)}
                         >
                           <div className="flex items-center gap-3">
                             <BarChart3 className="h-4 w-4 text-muted-foreground" />
