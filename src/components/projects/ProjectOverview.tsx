@@ -23,8 +23,26 @@ import {
   ExternalLink,
   Eye,
   ChevronRight,
-  X
+  X,
+  Edit,
+  Share2,
+  Archive,
+  Clock,
+  Activity,
+  UserPlus,
+  CheckCircle2,
+  AlertCircle,
+  TrendingUp
 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { format } from 'date-fns';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
@@ -67,6 +85,13 @@ export default function ProjectOverview() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [creatorEmail, setCreatorEmail] = useState<string>('');
+  const [isEditingInfo, setIsEditingInfo] = useState(false);
+  const [editedName, setEditedName] = useState('');
+  const [editedDescription, setEditedDescription] = useState('');
+  const [editedStatus, setEditedStatus] = useState('');
+  const [savingInfo, setSavingInfo] = useState(false);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
   const { isProjectAdmin, isOrgAdmin } = useUnifiedAccessControl(projectId);
 
   useEffect(() => {
@@ -78,6 +103,10 @@ export default function ProjectOverview() {
         loadTeamMembers(foundProject.id);
         loadCreatorEmail(foundProject.created_by);
         loadProjectAssets(foundProject.id);
+        loadRecentActivity(foundProject.id);
+        setEditedName(foundProject.name);
+        setEditedDescription(foundProject.description || '');
+        setEditedStatus(foundProject.status);
       }
     }
     setLoading(false);
@@ -149,6 +178,96 @@ export default function ProjectOverview() {
     } catch (error) {
       console.error('Error loading creator email:', error);
       setCreatorEmail(creatorId); // fallback to ID
+    }
+  };
+
+  const loadRecentActivity = async (id: string) => {
+    setActivityLoading(true);
+    try {
+      // Fetch recent form submissions
+      const { data: submissions } = await supabase
+        .from('form_submissions')
+        .select(`
+          id,
+          submitted_at,
+          form_id,
+          forms!inner(name, project_id)
+        `)
+        .eq('forms.project_id', id)
+        .order('submitted_at', { ascending: false })
+        .limit(5);
+
+      // Fetch recent workflow executions
+      const { data: executions } = await supabase
+        .from('workflow_executions')
+        .select(`
+          id,
+          started_at,
+          status,
+          workflow_id,
+          workflows!inner(name, project_id)
+        `)
+        .eq('workflows.project_id', id)
+        .order('started_at', { ascending: false })
+        .limit(5);
+
+      const activities: any[] = [];
+      
+      (submissions || []).forEach(sub => {
+        activities.push({
+          id: sub.id,
+          type: 'submission',
+          name: (sub as any).forms?.name || 'Unknown Form',
+          timestamp: sub.submitted_at,
+          status: 'completed'
+        });
+      });
+
+      (executions || []).forEach(exec => {
+        activities.push({
+          id: exec.id,
+          type: 'workflow',
+          name: (exec as any).workflows?.name || 'Unknown Workflow',
+          timestamp: exec.started_at,
+          status: exec.status
+        });
+      });
+
+      // Sort by timestamp and take top 5
+      activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setRecentActivity(activities.slice(0, 5));
+    } catch (error) {
+      console.error('Error loading recent activity:', error);
+    } finally {
+      setActivityLoading(false);
+    }
+  };
+
+  const handleSaveProjectInfo = async () => {
+    if (!project) return;
+    
+    setSavingInfo(true);
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({
+          name: editedName,
+          description: editedDescription,
+          status: editedStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', project.id);
+
+      if (error) throw error;
+
+      toast.success('Project updated successfully');
+      setIsEditingInfo(false);
+      await loadProjects();
+    } catch (error) {
+      console.error('Error updating project:', error);
+      toast.error('Failed to update project');
+    } finally {
+      setSavingInfo(false);
     }
   };
 
@@ -288,90 +407,361 @@ export default function ProjectOverview() {
           </Card>
         )} */}
 
-        {/* Project Info */}
+        {/* Project Info - Enhanced */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Project Information
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              {hasAdminAccess && !isEditingInfo && (
+                <Button variant="outline" size="sm" onClick={() => setIsEditingInfo(true)}>
+                  <Edit className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+              )}
+              {isEditingInfo && (
+                <>
+                  <Button variant="outline" size="sm" onClick={() => setIsEditingInfo(false)}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" onClick={handleSaveProjectInfo} disabled={savingInfo}>
+                    {savingInfo ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {isEditingInfo ? (
+              /* Edit Mode */
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Project Name</label>
+                    <Input 
+                      value={editedName} 
+                      onChange={(e) => setEditedName(e.target.value)}
+                      placeholder="Enter project name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Status</label>
+                    <Select value={editedStatus} onValueChange={setEditedStatus}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                        <SelectItem value="archived">Archived</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Description</label>
+                  <Textarea 
+                    value={editedDescription} 
+                    onChange={(e) => setEditedDescription(e.target.value)}
+                    placeholder="Enter project description"
+                    rows={3}
+                  />
+                </div>
+              </div>
+            ) : (
+              /* View Mode */
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</label>
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant="outline"
+                        className={`${
+                          project.status === 'active' 
+                            ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' 
+                            : project.status === 'archived'
+                            ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                            : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {project.status === 'active' && <CheckCircle2 className="h-3 w-3 mr-1" />}
+                        {project.status === 'archived' && <Archive className="h-3 w-3 mr-1" />}
+                        {project.status}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Created By</label>
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-5 w-5">
+                        <AvatarFallback className="text-xs">
+                          {creatorEmail?.[0]?.toUpperCase() || '?'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm font-medium truncate">{creatorEmail || 'Unknown'}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Created</label>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">
+                        {format(new Date(project.created_at), 'MMM d, yyyy')}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Last Updated</label>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">
+                        {format(new Date(project.updated_at), 'MMM d, yyyy')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Description</label>
+                  <p className="text-sm text-foreground">
+                    {project.description || <span className="text-muted-foreground italic">No description provided</span>}
+                  </p>
+                </div>
+
+                {/* Quick Stats */}
+                <div className="grid grid-cols-4 gap-3">
+                  <div className="bg-muted/50 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold">{teamMembers.length}</div>
+                    <div className="text-xs text-muted-foreground">Team Members</div>
+                  </div>
+                  <div className="bg-muted/50 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold">{projectAssets.forms.length}</div>
+                    <div className="text-xs text-muted-foreground">Forms</div>
+                  </div>
+                  <div className="bg-muted/50 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold">{projectAssets.workflows.length}</div>
+                    <div className="text-xs text-muted-foreground">Workflows</div>
+                  </div>
+                  <div className="bg-muted/50 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold">{projectAssets.reports.length}</div>
+                    <div className="text-xs text-muted-foreground">Reports</div>
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
         <Card>
           <CardHeader>
-            <CardTitle>Project Information</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Quick Actions
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Status</label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge variant={project.status === 'active' ? 'default' : 'secondary'}>
-                    {project.status}
-                  </Badge>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Button 
+                variant="outline" 
+                className="h-auto py-4 flex flex-col items-center gap-2"
+                onClick={() => navigate('/forms')}
+              >
+                <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                  <FileText className="h-5 w-5 text-green-600" />
                 </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Created By</label>
-                <div className="flex items-center gap-2 mt-1">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{creatorEmail || project.created_by}</span>
+                <span className="text-sm">Create Form</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="h-auto py-4 flex flex-col items-center gap-2"
+                onClick={() => navigate('/workflows')}
+              >
+                <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                  <Workflow className="h-5 w-5 text-purple-600" />
                 </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Created Date</label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">
-                    {format(new Date(project.created_at), 'MMM d, yyyy')}
+                <span className="text-sm">Create Workflow</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="h-auto py-4 flex flex-col items-center gap-2"
+                onClick={() => navigate('/reports')}
+              >
+                <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                  <BarChart3 className="h-5 w-5 text-orange-600" />
+                </div>
+                <span className="text-sm">Create Report</span>
+              </Button>
+              {hasAdminAccess && (
+                <Button 
+                  variant="outline" 
+                  className="h-auto py-4 flex flex-col items-center gap-2"
+                  onClick={handleManageAccess}
+                >
+                  <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                    <UserPlus className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <span className="text-sm">Invite Member</span>
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Team Members - Enhanced */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Team Members
+              <Badge variant="secondary" className="ml-2">{teamMembers.length}</Badge>
+            </CardTitle>
+            {hasAdminAccess && (
+              <Button variant="outline" size="sm" onClick={handleManageAccess}>
+                <UserPlus className="h-4 w-4 mr-1" />
+                Manage Team
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            {teamMembers.length > 0 ? (
+              <div className="space-y-3">
+                {/* Avatar Row Preview */}
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="flex -space-x-2">
+                    {teamMembers.slice(0, 5).map((member) => (
+                      <Avatar key={member.id} className="h-8 w-8 border-2 border-background">
+                        <AvatarFallback className="text-xs">
+                          {getInitials(member.first_name, member.last_name, member.email)}
+                        </AvatarFallback>
+                      </Avatar>
+                    ))}
+                    {teamMembers.length > 5 && (
+                      <div className="h-8 w-8 rounded-full bg-muted border-2 border-background flex items-center justify-center">
+                        <span className="text-xs font-medium">+{teamMembers.length - 5}</span>
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-sm text-muted-foreground ml-2">
+                    {teamMembers.length} {teamMembers.length === 1 ? 'member' : 'members'}
                   </span>
                 </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Team Size</label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{teamMembers.length} members</span>
+
+                {/* Member List */}
+                <div className="border rounded-lg divide-y">
+                  {teamMembers.map((member) => (
+                    <div key={member.id} className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-9 w-9">
+                          <AvatarFallback>
+                            {getInitials(member.first_name, member.last_name, member.email)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium text-sm">
+                            {member.first_name && member.last_name
+                              ? `${member.first_name} ${member.last_name}`
+                              : member.email
+                            }
+                          </div>
+                          <div className="text-xs text-muted-foreground">{member.email}</div>
+                        </div>
+                      </div>
+                      <Badge 
+                        variant="outline"
+                        className={`${
+                          member.role === 'admin' 
+                            ? 'bg-purple-500/10 text-purple-600 border-purple-500/20' 
+                            : member.role === 'editor'
+                            ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
+                            : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {member.role}
+                      </Badge>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
-            {project.description && (
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Description</label>
-                <p className="mt-1 text-sm">{project.description}</p>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+                <p>No team members found</p>
+                {hasAdminAccess && (
+                  <Button variant="outline" size="sm" className="mt-3" onClick={handleManageAccess}>
+                    <UserPlus className="h-4 w-4 mr-1" />
+                    Invite Members
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Team Members */}
+        {/* Recent Activity */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Team Members
+              <Activity className="h-5 w-5" />
+              Recent Activity
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {teamMembers.length > 0 ? (
+            {activityLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
+              </div>
+            ) : recentActivity.length > 0 ? (
               <div className="space-y-3">
-                {teamMembers.map((member) => (
-                  <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback>
-                          {getInitials(member.first_name, member.last_name, member.email)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-medium">
-                          {member.first_name && member.last_name
-                            ? `${member.first_name} ${member.last_name}`
-                            : member.email
-                          }
-                        </div>
-                        <div className="text-sm text-muted-foreground">{member.email}</div>
-                      </div>
+                {recentActivity.map((activity) => (
+                  <div key={activity.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${
+                      activity.type === 'submission' 
+                        ? 'bg-green-500/10' 
+                        : 'bg-purple-500/10'
+                    }`}>
+                      {activity.type === 'submission' 
+                        ? <FileText className="h-4 w-4 text-green-600" />
+                        : <Workflow className="h-4 w-4 text-purple-600" />
+                      }
                     </div>
-                    <Badge variant="outline">{member.role}</Badge>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm truncate">
+                        {activity.type === 'submission' ? 'Form Submission' : 'Workflow Execution'}
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">{activity.name}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs ${
+                          activity.status === 'completed' 
+                            ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                            : activity.status === 'running'
+                            ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
+                            : activity.status === 'failed'
+                            ? 'bg-red-500/10 text-red-600 border-red-500/20'
+                            : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {activity.status}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        {format(new Date(activity.timestamp), 'MMM d, h:mm a')}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-4 text-muted-foreground">
-                No team members found
+              <div className="text-center py-8 text-muted-foreground">
+                <Activity className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+                <p>No recent activity</p>
+                <p className="text-xs mt-1">Form submissions and workflow runs will appear here</p>
               </div>
             )}
           </CardContent>
