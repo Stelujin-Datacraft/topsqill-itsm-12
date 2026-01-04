@@ -187,54 +187,54 @@ const Users = () => {
       <div className="space-y-6">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="border-border/40 shadow-sm hover:shadow-md transition-shadow">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-primary/10">
-                  <UsersIcon className="h-5 w-5 text-primary" />
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Total Members</p>
+                  <p className="text-3xl font-bold">{totalUsers}</p>
                 </div>
-                <div>
-                  <p className="text-2xl font-bold tracking-tight">{totalUsers}</p>
-                  <p className="text-sm text-muted-foreground">Total Members</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-border/40 shadow-sm hover:shadow-md transition-shadow">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-emerald-500/10">
-                  <UserCheck className="h-5 w-5 text-emerald-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold tracking-tight">{activeUsers}</p>
-                  <p className="text-sm text-muted-foreground">Active</p>
+                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
+                  <UsersIcon className="h-6 w-6 text-muted-foreground" />
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-border/40 shadow-sm hover:shadow-md transition-shadow">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-amber-500/10">
-                  <Clock className="h-5 w-5 text-amber-600" />
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Active</p>
+                  <p className="text-3xl font-bold">{activeUsers}</p>
                 </div>
-                <div>
-                  <p className="text-2xl font-bold tracking-tight">{pendingUsers}</p>
-                  <p className="text-sm text-muted-foreground">Pending</p>
+                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
+                  <UserCheck className="h-6 w-6 text-muted-foreground" />
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-border/40 shadow-sm hover:shadow-md transition-shadow">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-blue-500/10">
-                  <UserX className="h-5 w-5 text-blue-600" />
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Pending</p>
+                  <p className="text-3xl font-bold">{pendingUsers}</p>
                 </div>
-                <div>
-                  <p className="text-2xl font-bold tracking-tight">{adminUsers}</p>
-                  <p className="text-sm text-muted-foreground">Admins</p>
+                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
+                  <Clock className="h-6 w-6 text-muted-foreground" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Admins</p>
+                  <p className="text-3xl font-bold">{adminUsers}</p>
+                </div>
+                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
+                  <UserX className="h-6 w-6 text-muted-foreground" />
                 </div>
               </div>
             </CardContent>
