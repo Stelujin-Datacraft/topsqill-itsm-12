@@ -1206,29 +1206,72 @@ export function ChartPreview({
     const xIsTextTypeFromField = textFieldTypes.includes(xFieldType);
     const yIsTextTypeFromField = textFieldTypes.includes(yFieldType);
     
-    console.log('📊 Scatter/Bubble field types - X:', xFieldType, 'isText:', xIsTextTypeFromField, 'Y:', yFieldType, 'isText:', yIsTextTypeFromField);
+    // First pass: collect all raw values to check if they are text
+    const filteredSubmissions = submissions.filter(submission => passesFilters(submission.submission_data));
     
-    const points = submissions
-      .filter(submission => passesFilters(submission.submission_data))
-      .map((submission, index) => {
+    // Check if ANY value in the dataset is non-numeric (text)
+    let hasTextX = xIsTextTypeFromField;
+    let hasTextY = yIsTextTypeFromField;
+    
+    filteredSubmissions.forEach(submission => {
+      const submissionData = submission.submission_data;
+      const xRawValue = getRawDisplayValue(submissionData, metricField1);
+      const yRawValue = getRawDisplayValue(submissionData, metricField2);
+      
+      if (xRawValue && isNaN(Number(xRawValue))) hasTextX = true;
+      if (yRawValue && isNaN(Number(yRawValue))) hasTextY = true;
+    });
+    
+    console.log('📊 Scatter/Bubble field types - X:', xFieldType, 'isText:', hasTextX, 'Y:', yFieldType, 'isText:', hasTextY);
+    
+    // For text axes, create encoding maps like encoded legend mode
+    const xEncodingMap: { [value: string]: number } = {};
+    const yEncodingMap: { [value: string]: number } = {};
+    const xLegendMapping: { number: number; label: string }[] = [];
+    const yLegendMapping: { number: number; label: string }[] = [];
+    
+    if (hasTextX) {
+      const uniqueXValues = new Set<string>();
+      filteredSubmissions.forEach(submission => {
+        const xRawValue = getRawDisplayValue(submission.submission_data, metricField1);
+        if (xRawValue) uniqueXValues.add(String(xRawValue));
+      });
+      let xNum = 1;
+      Array.from(uniqueXValues).sort().forEach(value => {
+        xEncodingMap[value] = xNum;
+        xLegendMapping.push({ number: xNum, label: value });
+        xNum++;
+      });
+    }
+    
+    if (hasTextY) {
+      const uniqueYValues = new Set<string>();
+      filteredSubmissions.forEach(submission => {
+        const yRawValue = getRawDisplayValue(submission.submission_data, metricField2);
+        if (yRawValue) uniqueYValues.add(String(yRawValue));
+      });
+      let yNum = 1;
+      Array.from(uniqueYValues).sort().forEach(value => {
+        yEncodingMap[value] = yNum;
+        yLegendMapping.push({ number: yNum, label: value });
+        yNum++;
+      });
+    }
+    
+    const points = filteredSubmissions.map((submission, index) => {
         const submissionData = submission.submission_data;
         
-        // Get raw display values first to check if they are text
+        // Get raw display values
         const xRawValue = getRawDisplayValue(submissionData, metricField1);
         const yRawValue = getRawDisplayValue(submissionData, metricField2);
         
-        // Determine if the value is actually text (can't be parsed as a number)
-        // Use field type if available, otherwise detect from the actual value
-        const xIsActuallyText = xIsTextTypeFromField || (xRawValue && isNaN(Number(xRawValue)));
-        const yIsActuallyText = yIsTextTypeFromField || (yRawValue && isNaN(Number(yRawValue)));
-        
-        // For text fields, use the raw text value directly
+        // For text fields, use encoded numeric values (1, 2, 3...) for proper scatter plotting
         // For numeric fields, use getRawMetricValue for proper number handling
-        const xValue = xIsActuallyText 
-          ? xRawValue || `Record ${index + 1}`
+        const xValue = hasTextX 
+          ? (xEncodingMap[String(xRawValue)] || index + 1)
           : getRawMetricValue(submissionData, metricField1);
-        const yValue = yIsActuallyText 
-          ? yRawValue || 'Unknown'
+        const yValue = hasTextY 
+          ? (yEncodingMap[String(yRawValue)] || index + 1)
           : getRawMetricValue(submissionData, metricField2);
         
         // Get size value for bubble charts
@@ -1246,8 +1289,11 @@ export function ChartPreview({
           xFieldName: field1Name,
           yFieldName: field2Name,
           // Flag text types for rendering - now based on actual value detection
-          _xIsText: xIsActuallyText,
-          _yIsText: yIsActuallyText,
+          _xIsText: hasTextX,
+          _yIsText: hasTextY,
+          // Store legend mappings for axis tick formatting
+          _xLegendMapping: hasTextX ? xLegendMapping : undefined,
+          _yLegendMapping: hasTextY ? yLegendMapping : undefined,
         };
         
         // Include size field value for bubble charts
@@ -3990,35 +4036,41 @@ export function ChartPreview({
                 bottom: 80
               }}>
                   <XAxis 
-                    type={scatterHasTextX ? "category" : "number"}
-                    dataKey={scatterHasTextX ? "x" : "x"} 
+                    type="number"
+                    dataKey="x"
                     tick={{ fontSize: 11 }} 
                     name={scatterXLabel}
                     angle={scatterHasTextX ? -45 : 0}
                     textAnchor={scatterHasTextX ? "end" : "middle"}
                     height={scatterHasTextX ? 80 : 60}
                     interval={0}
+                    tickFormatter={scatterHasTextX ? (value) => {
+                      const mapping = sanitizedChartData[0]?._xLegendMapping?.find((m: any) => m.number === value);
+                      return mapping ? mapping.label : String(value);
+                    } : undefined}
                     label={{
                       value: scatterXLabel,
                       position: 'insideBottom',
                       offset: scatterHasTextX ? -20 : -5
                     }} 
-                    domain={scatterHasTextX ? undefined : ['auto', 'auto']}
-                    allowDuplicatedCategory={false}
+                    domain={['auto', 'auto']}
                   />
                   <YAxis 
-                    type={scatterHasTextY ? "category" : "number"}
+                    type="number"
                     dataKey="y" 
                     tick={{ fontSize: 11 }} 
                     name={scatterYLabel}
                     width={scatterHasTextY ? 100 : 60}
+                    tickFormatter={scatterHasTextY ? (value) => {
+                      const mapping = sanitizedChartData[0]?._yLegendMapping?.find((m: any) => m.number === value);
+                      return mapping ? mapping.label : String(value);
+                    } : undefined}
                     label={{
                       value: scatterYLabel,
                       angle: -90,
                       position: 'insideLeft'
                     }} 
-                    domain={scatterHasTextY ? undefined : ['auto', 'auto']}
-                    allowDuplicatedCategory={false}
+                    domain={['auto', 'auto']}
                   />
                   <Tooltip 
                     cursor={{ strokeDasharray: '3 3' }}
@@ -4091,7 +4143,7 @@ export function ChartPreview({
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsScatterChart margin={{ top: 20, right: 30, left: 80, bottom: 80 }}>
                     <XAxis 
-                      type={bubbleHasTextX ? "category" : "number"} 
+                      type="number"
                       dataKey="x"
                       tick={{ fontSize: 11 }}
                       name={bubbleXLabel}
@@ -4099,19 +4151,25 @@ export function ChartPreview({
                       textAnchor={bubbleHasTextX ? "end" : "middle"}
                       height={bubbleHasTextX ? 80 : 60}
                       interval={0}
+                      tickFormatter={bubbleHasTextX ? (value) => {
+                        const mapping = sanitizedChartData[0]?._xLegendMapping?.find((m: any) => m.number === value);
+                        return mapping ? mapping.label : String(value);
+                      } : undefined}
                       label={{ value: bubbleXLabel, position: 'insideBottom', offset: bubbleHasTextX ? -20 : -5 }}
-                      domain={bubbleHasTextX ? undefined : ['auto', 'auto']}
-                      allowDuplicatedCategory={false}
+                      domain={['auto', 'auto']}
                     />
                     <YAxis 
-                      type={bubbleHasTextY ? "category" : "number"} 
+                      type="number"
                       dataKey="y"
                       tick={{ fontSize: 11 }}
                       name={bubbleYLabel}
                       width={bubbleHasTextY ? 100 : 60}
+                      tickFormatter={bubbleHasTextY ? (value) => {
+                        const mapping = sanitizedChartData[0]?._yLegendMapping?.find((m: any) => m.number === value);
+                        return mapping ? mapping.label : String(value);
+                      } : undefined}
                       label={{ value: bubbleYLabel, angle: -90, position: 'insideLeft' }}
-                      domain={bubbleHasTextY ? undefined : ['auto', 'auto']}
-                      allowDuplicatedCategory={false}
+                      domain={['auto', 'auto']}
                     />
                     <Tooltip 
                       cursor={{ strokeDasharray: '3 3' }}
