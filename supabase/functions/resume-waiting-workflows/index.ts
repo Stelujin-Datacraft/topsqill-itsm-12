@@ -685,6 +685,10 @@ Deno.serve(async (req) => {
                 const triggerSubmissionId = execution.trigger_data?.submissionId
                 const triggerFormId = execution.trigger_data?.formId
                 
+                console.log('📋 Trigger submission data keys:', Object.keys(triggerSubmissionData))
+                console.log('📋 Full trigger submission data:', JSON.stringify(triggerSubmissionData))
+                console.log('📋 Config:', JSON.stringify(config))
+                
                 // Support both new multi-field format and legacy single-field format
                 interface FieldUpdate {
                   targetFieldId: string
@@ -700,9 +704,11 @@ Deno.serve(async (req) => {
                 let fieldUpdates: FieldUpdate[] = []
                 
                 if (config.fieldUpdates && Array.isArray(config.fieldUpdates) && config.fieldUpdates.length > 0) {
+                  console.log('📋 Using fieldUpdates array with', config.fieldUpdates.length, 'updates')
                   fieldUpdates = config.fieldUpdates
                 } else if (config.targetFieldId && config.valueType) {
                   // Legacy single-field format
+                  console.log('📋 Using legacy single-field format')
                   fieldUpdates = [{
                     targetFieldId: config.targetFieldId,
                     targetFieldName: config.targetFieldName,
@@ -715,6 +721,8 @@ Deno.serve(async (req) => {
                   }]
                 }
                 
+                console.log('📋 Field updates to process:', JSON.stringify(fieldUpdates))
+                
                 // Validate config
                 if (!config.targetFormId || fieldUpdates.length === 0) {
                   throw new Error('Missing required configuration for field value change')
@@ -725,16 +733,35 @@ Deno.serve(async (req) => {
                 const results: Array<{ fieldId: string; fieldName?: string; newValue: any; success: boolean; error?: string }> = []
                 
                 for (const update of fieldUpdates) {
-                  let newValue: any
+                  console.log('🔄 Processing update:', JSON.stringify(update))
+                  let newValue: any = undefined
                   
                   if (update.valueType === 'static') {
                     newValue = update.staticValue
+                    console.log(`📝 Static value for ${update.targetFieldName}: ${newValue}`)
                   } else if (update.valueType === 'dynamic') {
-                    if (update.dynamicValuePath && update.dynamicValuePath in triggerSubmissionData) {
-                      newValue = triggerSubmissionData[update.dynamicValuePath]
+                    const dynamicPath = update.dynamicValuePath
+                    console.log(`🔍 Looking for dynamic value at path: "${dynamicPath}"`)
+                    console.log(`🔍 Available keys in submission data:`, Object.keys(triggerSubmissionData))
+                    console.log(`🔍 Path exists in data:`, dynamicPath ? dynamicPath in triggerSubmissionData : false)
+                    
+                    if (dynamicPath && dynamicPath in triggerSubmissionData) {
+                      newValue = triggerSubmissionData[dynamicPath]
+                      console.log(`✅ Found dynamic value: "${newValue}" (type: ${typeof newValue})`)
+                    } else {
+                      console.log(`❌ Dynamic path not found in trigger data`)
+                      // Also try to find by field name in case the path is the field name
+                      const matchingKey = Object.keys(triggerSubmissionData).find(key => 
+                        key === dynamicPath || key.toLowerCase() === dynamicPath?.toLowerCase()
+                      )
+                      if (matchingKey) {
+                        newValue = triggerSubmissionData[matchingKey]
+                        console.log(`✅ Found value via key matching: "${newValue}"`)
+                      }
                     }
                     
                     if (newValue === undefined) {
+                      console.log(`⚠️ Could not find value for field: ${update.dynamicFieldName || update.dynamicValuePath}`)
                       results.push({
                         fieldId: update.targetFieldId,
                         fieldName: update.targetFieldName,
@@ -745,17 +772,21 @@ Deno.serve(async (req) => {
                       continue
                     }
                     
-                    // Normalize numeric values
-                    if (typeof newValue === 'string' && newValue.trim() !== '') {
-                      const cleanedValue = newValue.replace(/[,$€£¥₹\s]/g, '').trim()
-                      const parsedNumber = parseFloat(cleanedValue)
-                      if (!isNaN(parsedNumber)) {
-                        newValue = parsedNumber
-                        console.log(`🔢 Normalized string to number: ${newValue}`)
+                    // Normalize numeric values for numeric target types
+                    const numericTypes = ['number', 'currency', 'slider', 'rating']
+                    if (numericTypes.includes(update.targetFieldType?.toLowerCase() || '')) {
+                      if (typeof newValue === 'string' && newValue.trim() !== '') {
+                        const cleanedValue = newValue.replace(/[,$€£¥₹\s]/g, '').trim()
+                        const parsedNumber = parseFloat(cleanedValue)
+                        if (!isNaN(parsedNumber)) {
+                          newValue = parsedNumber
+                          console.log(`🔢 Normalized string to number: ${newValue}`)
+                        }
                       }
                     }
                   }
                   
+                  console.log(`📝 Final value for ${update.targetFieldName} (${update.targetFieldId}): ${JSON.stringify(newValue)}`)
                   fieldValueMap[update.targetFieldId] = newValue
                   results.push({
                     fieldId: update.targetFieldId,
@@ -764,6 +795,9 @@ Deno.serve(async (req) => {
                     success: true
                   })
                 }
+                
+                console.log('📋 Field value map:', JSON.stringify(fieldValueMap))
+                console.log('📋 Results:', JSON.stringify(results))
                 
                 const successfulUpdates = results.filter(r => r.success)
                 if (successfulUpdates.length === 0) {
