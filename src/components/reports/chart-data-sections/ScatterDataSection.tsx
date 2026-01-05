@@ -20,10 +20,13 @@ const getFieldType = (field: FormField): string => {
   return (field as any)?.field_type || field?.type || 'unknown';
 };
 
-const getNumericFields = (fields: FormField[]) => {
+// Allow all field types for scatter charts (not just numeric)
+const getAxisFields = (fields: FormField[]) => {
   return fields.filter(f => {
     const type = getFieldType(f);
-    return ['number', 'currency', 'slider', 'rating', 'calculated'].includes(type);
+    // Exclude unsupported field types that can't be plotted
+    const unsupportedTypes = ['file', 'image', 'signature', 'divider', 'section', 'heading', 'spacer', 'html', 'page-break'];
+    return !unsupportedTypes.includes(type);
   });
 };
 
@@ -38,7 +41,7 @@ const getCategoryFields = (fields: FormField[]) => {
 };
 
 export function ScatterDataSection({ config, formFields, onConfigChange }: ScatterDataSectionProps) {
-  const numericFields = getNumericFields(formFields);
+  const axisFields = getAxisFields(formFields);
   const categoryFields = getCategoryFields(formFields);
   
   const xAxisField = config.metrics?.[0];
@@ -72,7 +75,7 @@ export function ScatterDataSection({ config, formFields, onConfigChange }: Scatt
       <Alert className="bg-primary/5 border-primary/20">
         <ScatterChart className="h-4 w-4 text-primary" />
         <AlertDescription className="text-sm">
-          <strong>Scatter Plot</strong> shows the relationship between two numeric values. Each point represents a data record.
+          <strong>Scatter Plot</strong> shows the relationship between two field values. Each point represents a data record.
         </AlertDescription>
       </Alert>
 
@@ -86,7 +89,7 @@ export function ScatterDataSection({ config, formFields, onConfigChange }: Scatt
             <div>
               <CardTitle className="text-base">X-Axis Value</CardTitle>
               <CardDescription className="text-xs mt-0.5">
-                Select a numeric field for the horizontal position
+                Select a field for the horizontal position
               </CardDescription>
             </div>
           </div>
@@ -108,17 +111,17 @@ export function ScatterDataSection({ config, formFields, onConfigChange }: Scatt
                 <X className="h-4 w-4" />
               </Button>
             </div>
-          ) : numericFields.length > 0 ? (
+          ) : axisFields.length > 0 ? (
             <Select onValueChange={(value) => onConfigChange({ 
               metrics: [value, ...(config.metrics?.slice(1) || [])],
               compareMode: true,
               aggregationEnabled: false
             })}>
               <SelectTrigger className="border-dashed border-2">
-                <SelectValue placeholder="Select X-axis numeric field..." />
+                <SelectValue placeholder="Select X-axis field..." />
               </SelectTrigger>
               <SelectContent>
-                {numericFields.map((field) => (
+                {axisFields.map((field) => (
                   <SelectItem key={field.id} value={field.id}>
                     <div className="flex items-center gap-2">
                       <span>{field.label}</span>
@@ -131,7 +134,7 @@ export function ScatterDataSection({ config, formFields, onConfigChange }: Scatt
           ) : (
             <Alert>
               <Info className="h-4 w-4" />
-              <AlertDescription>No numeric fields found. Scatter plots require numeric data.</AlertDescription>
+              <AlertDescription>No suitable fields found for scatter plots.</AlertDescription>
             </Alert>
           )}
         </CardContent>
@@ -158,7 +161,7 @@ export function ScatterDataSection({ config, formFields, onConfigChange }: Scatt
             <div>
               <CardTitle className="text-base">Y-Axis Value</CardTitle>
               <CardDescription className="text-xs mt-0.5">
-                Select a numeric field for the vertical position
+                Select a field for the vertical position
               </CardDescription>
             </div>
           </div>
@@ -192,10 +195,10 @@ export function ScatterDataSection({ config, formFields, onConfigChange }: Scatt
               disabled={!xAxisField}
             >
               <SelectTrigger className={`border-dashed border-2 ${!xAxisField ? 'opacity-50' : ''}`}>
-                <SelectValue placeholder={xAxisField ? "Select Y-axis numeric field..." : "Select X-axis first"} />
+                <SelectValue placeholder={xAxisField ? "Select Y-axis field..." : "Select X-axis first"} />
               </SelectTrigger>
               <SelectContent>
-                {numericFields.filter(f => f.id !== xAxisField).map((field) => (
+                {axisFields.filter(f => f.id !== xAxisField).map((field) => (
                   <SelectItem key={field.id} value={field.id}>
                     <div className="flex items-center gap-2">
                       <span>{field.label}</span>
