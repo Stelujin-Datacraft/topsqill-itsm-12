@@ -1203,28 +1203,33 @@ export function ChartPreview({
     const yField = formFields.find(f => f.id === metricField2);
     const xFieldType = (xField as any)?.field_type || (xField as any)?.type || '';
     const yFieldType = (yField as any)?.field_type || (yField as any)?.type || '';
-    const xIsTextType = textFieldTypes.includes(xFieldType);
-    const yIsTextType = textFieldTypes.includes(yFieldType);
+    const xIsTextTypeFromField = textFieldTypes.includes(xFieldType);
+    const yIsTextTypeFromField = textFieldTypes.includes(yFieldType);
     
-    console.log('📊 Scatter/Bubble field types - X:', xFieldType, 'isText:', xIsTextType, 'Y:', yFieldType, 'isText:', yIsTextType);
+    console.log('📊 Scatter/Bubble field types - X:', xFieldType, 'isText:', xIsTextTypeFromField, 'Y:', yFieldType, 'isText:', yIsTextTypeFromField);
     
     const points = submissions
       .filter(submission => passesFilters(submission.submission_data))
       .map((submission, index) => {
         const submissionData = submission.submission_data;
         
-        // For text fields, use getDimensionValue to keep the actual text
-        // For numeric fields, use getRawMetricValue for proper number handling
-        const xValue = xIsTextType 
-          ? getDimensionValue(submissionData, metricField1)
-          : getRawMetricValue(submissionData, metricField1);
-        const yValue = yIsTextType 
-          ? getDimensionValue(submissionData, metricField2)
-          : getRawMetricValue(submissionData, metricField2);
-        
-        // Store raw display values for table view
+        // Get raw display values first to check if they are text
         const xRawValue = getRawDisplayValue(submissionData, metricField1);
         const yRawValue = getRawDisplayValue(submissionData, metricField2);
+        
+        // Determine if the value is actually text (can't be parsed as a number)
+        // Use field type if available, otherwise detect from the actual value
+        const xIsActuallyText = xIsTextTypeFromField || (xRawValue && isNaN(Number(xRawValue)));
+        const yIsActuallyText = yIsTextTypeFromField || (yRawValue && isNaN(Number(yRawValue)));
+        
+        // For text fields, use the raw text value directly
+        // For numeric fields, use getRawMetricValue for proper number handling
+        const xValue = xIsActuallyText 
+          ? xRawValue || `Record ${index + 1}`
+          : getRawMetricValue(submissionData, metricField1);
+        const yValue = yIsActuallyText 
+          ? yRawValue || 'Unknown'
+          : getRawMetricValue(submissionData, metricField2);
         
         // Get size value for bubble charts
         const sizeValue = sizeField ? getRawMetricValue(submissionData, sizeField) : 1;
@@ -1240,9 +1245,9 @@ export function ChartPreview({
           // Store field names for tooltip
           xFieldName: field1Name,
           yFieldName: field2Name,
-          // Flag text types for rendering
-          _xIsText: xIsTextType,
-          _yIsText: yIsTextType,
+          // Flag text types for rendering - now based on actual value detection
+          _xIsText: xIsActuallyText,
+          _yIsText: yIsActuallyText,
         };
         
         // Include size field value for bubble charts
