@@ -19,7 +19,6 @@ interface DrilldownConfigProps {
   onEnabledChange: (enabled: boolean) => void;
   drilldownLevels: string[];
   onDrilldownLevelsChange: (levels: string[]) => void;
-  maxLevels?: number;
 }
 
 export function DrilldownConfig({
@@ -27,8 +26,7 @@ export function DrilldownConfig({
   enabled,
   onEnabledChange,
   drilldownLevels,
-  onDrilldownLevelsChange,
-  maxLevels = 3
+  onDrilldownLevelsChange
 }: DrilldownConfigProps) {
   const getDrilldownableFields = () => {
     // Allow all fields except signature-pad for drilldown
@@ -45,7 +43,9 @@ export function DrilldownConfig({
   };
 
   const addDrilldownLevel = () => {
-    if (drilldownLevels.length < maxLevels) {
+    // Allow adding levels as long as there are available fields
+    const availableFieldsCount = getDrilldownableFields().length;
+    if (drilldownLevels.length < availableFieldsCount) {
       onDrilldownLevelsChange([...drilldownLevels, '']);
     }
   };
@@ -145,7 +145,7 @@ export function DrilldownConfig({
             <div className="flex flex-col gap-2">
               <button
                 onClick={addDrilldownLevel}
-                disabled={drilldownLevels.length >= maxLevels || getDrilldownableFields().length === 0}
+                disabled={getDrilldownableFields().length === 0 || drilldownLevels.length >= getDrilldownableFields().length}
                 className="px-3 py-2 text-sm border border-dashed border-muted-foreground/50 rounded-md hover:border-muted-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 + Add Drilldown Level
@@ -153,8 +153,8 @@ export function DrilldownConfig({
               {getDrilldownableFields().length === 0 && (
                 <p className="text-xs text-amber-600">No form fields available. Please select a form with fields first.</p>
               )}
-              {drilldownLevels.length >= maxLevels && (
-                <p className="text-xs text-muted-foreground">Maximum {maxLevels} drilldown levels reached.</p>
+              {drilldownLevels.length >= getDrilldownableFields().length && getDrilldownableFields().length > 0 && (
+                <p className="text-xs text-muted-foreground">All available fields have been added as drilldown levels.</p>
               )}
             </div>
 
