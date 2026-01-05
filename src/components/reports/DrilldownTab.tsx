@@ -62,7 +62,6 @@ export function DrilldownTab({ component, formFields, onUpdateComponent }: Drill
       onEnabledChange={handleDrilldownEnabledChange}
       drilldownLevels={config.drilldownConfig?.drilldownLevels || []}
       onDrilldownLevelsChange={handleDrilldownLevelsChange}
-      maxLevels={5}
     />
   );
 }

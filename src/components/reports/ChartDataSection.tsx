@@ -608,7 +608,8 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
         </CardContent>
       </Card>
 
-      {/* STEP 3: Group By / Stack By */}
+      {/* STEP 3: Group By / Stack By - Not shown for Compare mode */}
+      {mode !== 'compare' && (
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center gap-3">
@@ -708,8 +709,8 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
             </>
           )}
 
-          {/* For Calculate and Compare modes - show dimension selector */}
-          {mode !== 'count' && (
+          {/* For Calculate mode only - show dimension selector (Compare mode already has X/Y in Step 2) */}
+          {mode === 'calculate' && (
             <>
               {/* Selected Dimensions - Draggable */}
               {selectedDimensions.length > 0 && (
@@ -809,6 +810,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Configuration Summary */}
       <Card className={isConfigComplete() ? 'border-green-500/50 bg-green-50/50 dark:bg-green-950/20' : 'border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20'}>
@@ -840,9 +842,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                 )}
                 {mode === 'compare' && (
                   selectedMetrics.length === 2 
-                    ? selectedDimensions.length > 0
-                      ? `Your chart will compare "${getFieldLabel(selectedMetrics[0])}" vs "${getFieldLabel(selectedMetrics[1])}" grouped by "${getFieldLabel(selectedDimensions[0])}".`
-                      : `Your chart will compare "${getFieldLabel(selectedMetrics[0])}" vs "${getFieldLabel(selectedMetrics[1])}". Add a group field to see comparisons per category.`
+                    ? `Your chart will compare "${getFieldLabel(selectedMetrics[0])}" (X-axis) vs "${getFieldLabel(selectedMetrics[1])}" (Y-axis).`
                     : 'Select two fields to compare.'
                 )}
               </p>
