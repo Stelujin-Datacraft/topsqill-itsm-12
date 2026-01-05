@@ -1000,14 +1000,22 @@ Deno.serve(async (req) => {
               } else if (actionType === 'create_linked_record') {
                 // Execute create linked record action
                 console.log('🔗 Executing create_linked_record action in edge function')
+                console.log('📋 Create linked record config:', JSON.stringify(config))
                 
                 const triggerSubmissionData = execution.trigger_data?.submissionData || {}
                 const triggerSubmissionId = execution.trigger_data?.submissionId
                 const triggerFormId = execution.trigger_data?.formId
                 const submitterId = execution.submitter_id || execution.trigger_data?.submitterId
                 
-                if (!config.crossRefFieldId || !config.targetFormId) {
-                  throw new Error('Missing required configuration for create linked record')
+                // Support both naming conventions: crossRefFieldId (edge) and crossReferenceFieldId (client)
+                const crossRefFieldId = config.crossRefFieldId || config.crossReferenceFieldId
+                const targetFormId = config.targetFormId
+                
+                console.log('📋 Resolved crossRefFieldId:', crossRefFieldId)
+                console.log('📋 Resolved targetFormId:', targetFormId)
+                
+                if (!crossRefFieldId || !targetFormId) {
+                  throw new Error(`Missing required configuration for create linked record. crossRefFieldId: ${crossRefFieldId}, targetFormId: ${targetFormId}`)
                 }
                 
                 // Get trigger submission's ref ID
@@ -1069,7 +1077,7 @@ Deno.serve(async (req) => {
                   const { data: newRecord, error: createError } = await supabase
                     .from('form_submissions')
                     .insert({
-                      form_id: config.targetFormId,
+                      form_id: targetFormId,
                       submission_data: childSubmissionData,
                       submitted_by: submitterId,
                       approval_status: initialStatus
@@ -1090,7 +1098,7 @@ Deno.serve(async (req) => {
                 }
                 
                 // Update parent's cross-reference field with created records
-                if (createdRecords.length > 0 && config.crossRefFieldId) {
+                if (createdRecords.length > 0 && crossRefFieldId) {
                   const { data: currentParent } = await supabase
                     .from('form_submissions')
                     .select('submission_data')
@@ -1099,20 +1107,20 @@ Deno.serve(async (req) => {
                   
                   if (currentParent) {
                     const currentData = currentParent.submission_data || {}
-                    const existingRefs = (currentData as any)[config.crossRefFieldId] || []
+                    const existingRefs = (currentData as any)[crossRefFieldId] || []
                     
                     let mergedRefs: any[] = Array.isArray(existingRefs) ? [...existingRefs] : []
                     
                     for (const record of createdRecords) {
                       mergedRefs.push({
                         submission_ref_id: record.submission_ref_id,
-                        form_id: config.targetFormId
+                        form_id: targetFormId
                       })
                     }
                     
                     const updatedData = {
                       ...(typeof currentData === 'object' ? currentData : {}),
-                      [config.crossRefFieldId]: mergedRefs
+                      [crossRefFieldId]: mergedRefs
                     }
                     
                     await supabase
@@ -1128,7 +1136,7 @@ Deno.serve(async (req) => {
                   createdCount: createdRecords.length,
                   requestedCount: recordCount,
                   createdRecordIds: createdRecords.map(r => r.id),
-                  targetFormId: config.targetFormId,
+                  targetFormId: targetFormId,
                   success: true
                 }
               } else if (actionType === 'update_linked_records') {
