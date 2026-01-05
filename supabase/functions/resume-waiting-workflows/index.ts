@@ -859,87 +859,107 @@ Deno.serve(async (req) => {
                   throw new Error('Missing target form ID for create record action')
                 }
                 
-                // Build submission data from config
-                const newSubmissionData: Record<string, any> = {}
+                // Get record count (default to 1, max 100)
+                const recordCount = Math.min(Math.max(config.recordCount || 1, 1), 100)
+                const createdRecords: Array<{id: string, submission_ref_id: string}> = []
                 
-                // Handle field values mode
-                if (config.fieldValuesMode === 'set_values' && config.fieldValues) {
-                  for (const fieldValue of config.fieldValues) {
-                    if (!fieldValue.fieldId) continue
-                    
-                    if (fieldValue.valueType === 'static') {
-                      newSubmissionData[fieldValue.fieldId] = fieldValue.staticValue
-                    } else if (fieldValue.valueType === 'dynamic' && fieldValue.dynamicFieldId) {
-                      const value = triggerSubmissionData[fieldValue.dynamicFieldId]
-                      if (value !== undefined) {
-                        newSubmissionData[fieldValue.fieldId] = value
-                      }
-                    }
-                  }
-                }
-                
-                // Handle field mappings mode
-                if (config.fieldValuesMode === 'map_fields' && config.fieldMappings) {
-                  for (const mapping of config.fieldMappings) {
-                    if (mapping.sourceFieldId && mapping.targetFieldId) {
-                      const value = triggerSubmissionData[mapping.sourceFieldId]
-                      if (value !== undefined) {
-                        newSubmissionData[mapping.targetFieldId] = value
-                      }
-                    }
-                  }
-                }
-                
-                // Handle cross-reference linking
-                if (config.enableCrossRefLinking && config.crossReferenceFieldId && triggerSubmissionId) {
-                  // Fetch trigger submission's submission_ref_id
-                  const { data: triggerSub } = await supabase
-                    .from('form_submissions')
-                    .select('submission_ref_id')
-                    .eq('id', triggerSubmissionId)
-                    .single()
-                  
-                  if (triggerSub?.submission_ref_id) {
-                    newSubmissionData[config.crossReferenceFieldId] = [{
-                      submission_ref_id: triggerSub.submission_ref_id,
-                      form_id: triggerFormId
-                    }]
-                  }
-                }
+                console.log(`📊 Creating ${recordCount} records for form ${config.targetFormId}`)
                 
                 // Determine submitter
                 let recordSubmitterId = submitterId
-                if (config.submitterType === 'specific_user' && config.specificSubmitterId) {
+                if (config.setSubmittedBy === 'specific_user' && config.specificSubmitterId) {
                   recordSubmitterId = config.specificSubmitterId
+                } else if (config.setSubmittedBy === 'system') {
+                  recordSubmitterId = null
                 }
                 
                 const initialStatus = config.initialStatus || 'pending'
                 
-                console.log('📋 Creating record with data:', { 
-                  targetFormId: config.targetFormId, 
-                  fieldCount: Object.keys(newSubmissionData).length,
-                  submitterId: recordSubmitterId
-                })
-                
-                const { data: newRecord, error: createError } = await supabase
-                  .from('form_submissions')
-                  .insert({
-                    form_id: config.targetFormId,
-                    submission_data: newSubmissionData,
-                    submitted_by: recordSubmitterId,
-                    approval_status: initialStatus
-                  })
-                  .select('id, submission_ref_id')
-                  .single()
-                
-                if (createError) {
-                  throw new Error(`Failed to create record: ${createError.message}`)
+                // Fetch trigger submission's ref_id for cross-reference if needed
+                let triggerSubmissionRefId: string | null = null
+                if (config.enableCrossRefLinking && config.crossReferenceFieldId && triggerSubmissionId) {
+                  const { data: triggerSub } = await supabase
+                    .from('form_submissions')
+                    .select('submission_ref_id')
+                    .eq('id', triggerSubmissionId)
+                    .maybeSingle()
+                  
+                  triggerSubmissionRefId = triggerSub?.submission_ref_id || null
                 }
                 
-                console.log('✅ Record created:', newRecord.id)
+                for (let i = 0; i < recordCount; i++) {
+                  // Build submission data from config
+                  const newSubmissionData: Record<string, any> = {}
+                  
+                  // Handle field_mapping mode (maps fields from trigger form to target form)
+                  if (config.fieldConfigMode === 'field_mapping' && config.fieldMappings) {
+                    for (const mapping of config.fieldMappings) {
+                      if (mapping.sourceFieldId && mapping.targetFieldId) {
+                        const value = triggerSubmissionData[mapping.sourceFieldId]
+                        if (value !== undefined && value !== null && value !== '') {
+                          newSubmissionData[mapping.targetFieldId] = value
+                        }
+                      }
+                    }
+                  }
+                  
+                  // Handle field_values mode OR apply fieldValues on top of mapping
+                  // fieldValues can contain both static and dynamic values
+                  if (config.fieldValues && Array.isArray(config.fieldValues)) {
+                    for (const fieldValue of config.fieldValues) {
+                      if (!fieldValue.fieldId) continue
+                      
+                      let value: any
+                      if (fieldValue.valueType === 'static') {
+                        value = fieldValue.staticValue
+                      } else if (fieldValue.valueType === 'dynamic') {
+                        // Try dynamicValuePath first (new format), then dynamicFieldId (legacy)
+                        const dynamicPath = fieldValue.dynamicValuePath || fieldValue.dynamicFieldId
+                        if (dynamicPath && dynamicPath in triggerSubmissionData) {
+                          value = triggerSubmissionData[dynamicPath]
+                        }
+                      }
+                      
+                      if (value !== undefined && value !== null && value !== '') {
+                        newSubmissionData[fieldValue.fieldId] = value
+                      }
+                    }
+                  }
+                  
+                  // Handle cross-reference linking
+                  if (config.enableCrossRefLinking && config.crossReferenceFieldId && triggerSubmissionRefId) {
+                    newSubmissionData[config.crossReferenceFieldId] = [{
+                      submission_ref_id: triggerSubmissionRefId,
+                      form_id: triggerFormId
+                    }]
+                  }
+                  
+                  console.log(`📝 Creating record ${i + 1}/${recordCount} with ${Object.keys(newSubmissionData).length} fields`)
+                  
+                  const { data: newRecord, error: createError } = await supabase
+                    .from('form_submissions')
+                    .insert({
+                      form_id: config.targetFormId,
+                      submission_data: newSubmissionData,
+                      submitted_by: recordSubmitterId,
+                      approval_status: initialStatus
+                    })
+                    .select('id, submission_ref_id')
+                    .single()
+                  
+                  if (createError) {
+                    throw new Error(`Failed to create record ${i + 1}: ${createError.message}`)
+                  }
+                  
+                  createdRecords.push(newRecord)
+                  console.log(`✅ Created record ${i + 1}: ${newRecord.id}`)
+                }
+                
+                console.log(`✅ Successfully created ${createdRecords.length} records`)
                 nodeOutputData = {
-                  createdRecordId: newRecord.id,
-                  submissionRefId: newRecord.submission_ref_id,
+                  createdRecordIds: createdRecords.map(r => r.id),
+                  createdRecords: createdRecords,
+                  recordCount: createdRecords.length,
                   targetFormId: config.targetFormId,
                   success: true
                 }
