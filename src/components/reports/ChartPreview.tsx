@@ -3311,7 +3311,7 @@ export function ChartPreview({
           
           {/* Legend Sidebar */}
           <div className="w-40 shrink-0 border-l border-border pl-4">
-            <div className="text-sm font-semibold mb-3 text-foreground">Legend</div>
+            <div className="text-sm font-semibold mb-3 text-foreground">{yAxisFieldName} Legend</div>
             <div className="space-y-2 max-h-[250px] overflow-y-auto">
               {legendMapping.map(({ number, label, color }) => (
                 <div key={number} className="flex items-center gap-2 text-sm">
