@@ -1146,12 +1146,17 @@ Deno.serve(async (req) => {
                 const triggerSubmissionData = execution.trigger_data?.submissionData || {}
                 const triggerSubmissionId = execution.trigger_data?.submissionId
                 
-                if (!config.crossRefFieldId || !config.fieldMappings || config.fieldMappings.length === 0) {
+                // Support both crossRefFieldId and crossReferenceFieldId (UI uses the latter)
+                const crossRefFieldId = config.crossRefFieldId || config.crossReferenceFieldId
+                
+                if (!crossRefFieldId || !config.fieldMappings || config.fieldMappings.length === 0) {
                   throw new Error('Missing required configuration for update linked records')
                 }
                 
+                console.log(`📋 Cross-reference field ID: ${crossRefFieldId}`)
+                
                 // Get linked records from cross-reference field
-                const crossRefValue = triggerSubmissionData[config.crossRefFieldId]
+                const crossRefValue = triggerSubmissionData[crossRefFieldId]
                 if (!crossRefValue) {
                   console.log('⚠️ No linked records in cross-reference field')
                   nodeOutputData = { 
