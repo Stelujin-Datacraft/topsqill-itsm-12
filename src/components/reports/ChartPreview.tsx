@@ -1197,12 +1197,31 @@ export function ChartPreview({
     }
 
     // No dimension - each submission becomes a point with raw values for table display
+    // Determine if X/Y fields are text types - use text values directly for category axes
+    const textFieldTypes = ['text', 'short-text', 'long-text', 'textarea', 'select', 'radio', 'dropdown', 'status', 'country', 'email', 'tags', 'address', 'multi-select', 'checkbox'];
+    const xField = formFields.find(f => f.id === metricField1);
+    const yField = formFields.find(f => f.id === metricField2);
+    const xFieldType = (xField as any)?.field_type || (xField as any)?.type || '';
+    const yFieldType = (yField as any)?.field_type || (yField as any)?.type || '';
+    const xIsTextType = textFieldTypes.includes(xFieldType);
+    const yIsTextType = textFieldTypes.includes(yFieldType);
+    
+    console.log('📊 Scatter/Bubble field types - X:', xFieldType, 'isText:', xIsTextType, 'Y:', yFieldType, 'isText:', yIsTextType);
+    
     const points = submissions
       .filter(submission => passesFilters(submission.submission_data))
       .map((submission, index) => {
         const submissionData = submission.submission_data;
-        const xValue = getRawMetricValue(submissionData, metricField1);
-        const yValue = getRawMetricValue(submissionData, metricField2);
+        
+        // For text fields, use getDimensionValue to keep the actual text
+        // For numeric fields, use getRawMetricValue for proper number handling
+        const xValue = xIsTextType 
+          ? getDimensionValue(submissionData, metricField1)
+          : getRawMetricValue(submissionData, metricField1);
+        const yValue = yIsTextType 
+          ? getDimensionValue(submissionData, metricField2)
+          : getRawMetricValue(submissionData, metricField2);
+        
         // Store raw display values for table view
         const xRawValue = getRawDisplayValue(submissionData, metricField1);
         const yRawValue = getRawDisplayValue(submissionData, metricField2);
@@ -1221,6 +1240,9 @@ export function ChartPreview({
           // Store field names for tooltip
           xFieldName: field1Name,
           yFieldName: field2Name,
+          // Flag text types for rendering
+          _xIsText: xIsTextType,
+          _yIsText: yIsTextType,
         };
         
         // Include size field value for bubble charts
@@ -3938,8 +3960,9 @@ export function ChartPreview({
         const scatterYLabel = config.yAxisLabel || (config.metrics?.[1] ? getFormFieldName(config.metrics[1]) : 'Y-Axis');
         
         // Detect if x/y values are numeric or text for proper axis type
-        const scatterHasTextX = sanitizedChartData.some(d => typeof d.x === 'string' && isNaN(Number(d.x)));
-        const scatterHasTextY = sanitizedChartData.some(d => typeof d.y === 'string' && isNaN(Number(d.y)));
+        // Check both the _xIsText/_yIsText flags from data processing AND actual string detection
+        const scatterHasTextX = sanitizedChartData.some(d => d._xIsText || (typeof d.x === 'string' && isNaN(Number(d.x))));
+        const scatterHasTextY = sanitizedChartData.some(d => d._yIsText || (typeof d.y === 'string' && isNaN(Number(d.y))));
         
         // For text axes, transform data to use index and store original values
         const scatterTransformedData = scatterHasTextX || scatterHasTextY 
@@ -4036,8 +4059,9 @@ export function ChartPreview({
         const bubbleSizeLabel = bubbleSizeField ? getFormFieldName(bubbleSizeField) : 'Size';
         
         // Detect if x/y values are numeric or text for proper axis type
-        const bubbleHasTextX = sanitizedChartData.some(d => typeof d.x === 'string' && isNaN(Number(d.x)));
-        const bubbleHasTextY = sanitizedChartData.some(d => typeof d.y === 'string' && isNaN(Number(d.y)));
+        // Check both the _xIsText/_yIsText flags from data processing AND actual string detection
+        const bubbleHasTextX = sanitizedChartData.some(d => d._xIsText || (typeof d.x === 'string' && isNaN(Number(d.x))));
+        const bubbleHasTextY = sanitizedChartData.some(d => d._yIsText || (typeof d.y === 'string' && isNaN(Number(d.y))));
         
         const bubbleData = sanitizedChartData.map((item, idx) => {
           const sizeValue = bubbleSizeField ? (item[bubbleSizeField] || 10) : 10;
