@@ -1128,42 +1128,20 @@ export function ChartPreview({
   const getRawDisplayValue = (submissionData: any, fieldId: string): string => {
     const value = submissionData[fieldId];
     if (value === null || value === undefined) return '';
-    
-    // Get field definition to lookup options if needed
-    const field = formFields.find(f => f.id === fieldId);
-    const fieldOptions = (field as any)?.options || [];
-    
     if (typeof value === 'object') {
       // Handle label property (common for selection fields like dropdown, radio, etc.)
       if (value.label) return String(value.label);
-      // Handle name property
-      if (value.name) return String(value.name);
-      // Handle text property
-      if (value.text) return String(value.text);
       // Handle currency objects
       if (value.amount !== undefined && value.code) {
         return `${value.code} ${value.amount}`;
       }
       // Handle status objects
       if (value.status) return value.status;
-      // Handle value property (for {value: "x", label: "y"} objects where label is undefined)
-      if (value.value !== undefined) {
-        // Try to find label from field options
-        const option = fieldOptions.find((opt: any) => opt.value === value.value || opt.id === value.value);
-        if (option?.label) return String(option.label);
-        return String(value.value);
-      }
       // Handle arrays (multi-select, tags)
       if (Array.isArray(value)) {
         // Check if array items have labels
         const labels = value.map(item => {
           if (typeof item === 'object' && item?.label) return item.label;
-          if (typeof item === 'object' && item?.name) return item.name;
-          if (typeof item === 'string') {
-            // Try to find label from field options
-            const option = fieldOptions.find((opt: any) => opt.value === item || opt.id === item);
-            if (option?.label) return option.label;
-          }
           return String(item);
         });
         return labels.join(', ');
@@ -1171,13 +1149,6 @@ export function ChartPreview({
       // Fallback for other objects - try to get meaningful display
       return JSON.stringify(value);
     }
-    
-    // For string values that might be IDs, try to lookup from field options
-    if (typeof value === 'string' && fieldOptions.length > 0) {
-      const option = fieldOptions.find((opt: any) => opt.value === value || opt.id === value);
-      if (option?.label) return String(option.label);
-    }
-    
     return String(value);
   };
 
