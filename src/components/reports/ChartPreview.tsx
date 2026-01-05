@@ -773,6 +773,37 @@ export function ChartPreview({
       }));
     }
     
+    // For scatter/bubble/heatmap, always ensure x, y properties exist
+    if (chartType === 'scatter' || chartType === 'bubble') {
+      // Scatter/Bubble charts need { x, y, name } format
+      return crossRefData.map((item, index) => ({
+        ...item,
+        x: item.x !== undefined ? item.x : index + 1, // Use sequential index as X coordinate if not present
+        y: item.y !== undefined ? item.y : (item.value || 0),
+        xRaw: item.xRaw || item.name || `Record ${index + 1}`,
+        yRaw: item.yRaw || String(item.value || 0),
+        name: item.name || `Point ${index + 1}`,
+        xFieldName: item.xFieldName || 'Record',
+        yFieldName: item.yFieldName || 'Value'
+      }));
+    }
+    
+    if (chartType === 'heatmap') {
+      // Heatmap in compare mode expects { x, y, value } format
+      // Transform to use x (category), y (fixed column), and value
+      return crossRefData.map((item, index) => ({
+        ...item,
+        x: item.x !== undefined ? item.x : index + 1,
+        y: item.y !== undefined ? item.y : (item.value || 0),
+        xRaw: item.xRaw || item.name || `Record ${index + 1}`,
+        yRaw: item.yRaw || String(item.value || 0),
+        value: item.value || item.y || 0,
+        name: item.name || `Point ${index + 1}`,
+        xFieldName: item.xFieldName || 'Record',
+        yFieldName: item.yFieldName || 'Value'
+      }));
+    }
+    
     switch (chartType) {
       case 'bar':
       case 'column':
@@ -786,31 +817,6 @@ export function ChartPreview({
         // Line/Area charts use the same { name, value } format for single series
         // The data is already in the correct format
         return crossRefData;
-      
-      case 'scatter':
-      case 'bubble':
-        // Scatter/Bubble charts need { x, y, name } format
-        // Transform by assigning index as x coordinate and value as y coordinate
-        return crossRefData.map((item, index) => ({
-          ...item,
-          x: index + 1, // Use sequential index as X coordinate
-          y: item.value || 0,
-          name: item.name || `Point ${index + 1}`,
-          xFieldName: 'Record',
-          yFieldName: 'Value'
-        }));
-      
-      case 'heatmap':
-        // Heatmap needs special handling - if we only have { name, value }, 
-        // create a simple row/column structure
-        // Group by name as rows and use a single column
-        const uniqueNames = [...new Set(crossRefData.map(item => item.name))];
-        return crossRefData.map((item, index) => ({
-          ...item,
-          row: item.name || `Row ${index + 1}`,
-          column: 'Value',
-          intensity: item.value || 0
-        }));
       
       default:
         return crossRefData;
@@ -3925,38 +3931,60 @@ export function ChartPreview({
         const scatterXLabel = config.xAxisLabel || (config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'X-Axis');
         const scatterYLabel = config.yAxisLabel || (config.metrics?.[1] ? getFormFieldName(config.metrics[1]) : 'Y-Axis');
         
+        // Detect if x/y values are numeric or text for proper axis type
+        const scatterHasTextX = sanitizedChartData.some(d => typeof d.x === 'string' && isNaN(Number(d.x)));
+        const scatterHasTextY = sanitizedChartData.some(d => typeof d.y === 'string' && isNaN(Number(d.y)));
+        
+        // For text axes, transform data to use index and store original values
+        const scatterTransformedData = scatterHasTextX || scatterHasTextY 
+          ? sanitizedChartData.map((item, idx) => ({
+              ...item,
+              xIndex: idx,
+              yIndex: idx,
+              xOriginal: item.x,
+              yOriginal: item.y,
+            }))
+          : sanitizedChartData;
+        
         return <div className="relative w-full h-full min-h-[300px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsScatterChart margin={{
                 top: 20,
                 right: 30,
-                left: 60,
+                left: 80,
                 bottom: 80
               }}>
                   <XAxis 
-                    type="number"
-                    dataKey="x" 
+                    type={scatterHasTextX ? "category" : "number"}
+                    dataKey={scatterHasTextX ? "x" : "x"} 
                     tick={{ fontSize: 11 }} 
                     name={scatterXLabel}
+                    angle={scatterHasTextX ? -45 : 0}
+                    textAnchor={scatterHasTextX ? "end" : "middle"}
+                    height={scatterHasTextX ? 80 : 60}
+                    interval={0}
                     label={{
                       value: scatterXLabel,
                       position: 'insideBottom',
-                      offset: -5
+                      offset: scatterHasTextX ? -20 : -5
                     }} 
-                    domain={['auto', 'auto']}
+                    domain={scatterHasTextX ? undefined : ['auto', 'auto']}
+                    allowDuplicatedCategory={false}
                   />
                   <YAxis 
-                    type="number"
+                    type={scatterHasTextY ? "category" : "number"}
                     dataKey="y" 
                     tick={{ fontSize: 11 }} 
                     name={scatterYLabel}
+                    width={scatterHasTextY ? 100 : 60}
                     label={{
                       value: scatterYLabel,
                       angle: -90,
                       position: 'insideLeft'
                     }} 
-                    domain={['auto', 'auto']}
+                    domain={scatterHasTextY ? undefined : ['auto', 'auto']}
+                    allowDuplicatedCategory={false}
                   />
                   <Tooltip 
                     cursor={{ strokeDasharray: '3 3' }}
@@ -3970,11 +3998,11 @@ export function ChartPreview({
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{scatterXLabel}:</span>
-                              <span className="font-semibold">{data.x}</span>
+                              <span className="font-semibold">{data.xOriginal || data.x}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{scatterYLabel}:</span>
-                              <span className="font-semibold">{data.y}</span>
+                              <span className="font-semibold">{data.yOriginal || data.y}</span>
                             </div>
                           </div>
                           <div className="text-[11px] text-muted-foreground mt-2 pt-1 border-t border-border">
@@ -3985,7 +4013,7 @@ export function ChartPreview({
                     }}
                   />
                   <Scatter 
-                    data={sanitizedChartData} 
+                    data={scatterTransformedData} 
                     fill={colors[0]} 
                     style={{ cursor: 'pointer' }} 
                     onClick={(data: any) => handleBarClick(data, 0)}
@@ -4001,11 +4029,17 @@ export function ChartPreview({
         const bubbleYLabel = config.yAxisLabel || (config.metrics?.[1] ? getFormFieldName(config.metrics[1]) : 'Y-Axis');
         const bubbleSizeLabel = bubbleSizeField ? getFormFieldName(bubbleSizeField) : 'Size';
         
-        const bubbleData = sanitizedChartData.map(item => {
+        // Detect if x/y values are numeric or text for proper axis type
+        const bubbleHasTextX = sanitizedChartData.some(d => typeof d.x === 'string' && isNaN(Number(d.x)));
+        const bubbleHasTextY = sanitizedChartData.some(d => typeof d.y === 'string' && isNaN(Number(d.y)));
+        
+        const bubbleData = sanitizedChartData.map((item, idx) => {
           const sizeValue = bubbleSizeField ? (item[bubbleSizeField] || 10) : 10;
           return {
             ...item,
-            size: typeof sizeValue === 'number' ? sizeValue : 10
+            size: typeof sizeValue === 'number' ? sizeValue : 10,
+            xOriginal: item.x,
+            yOriginal: item.y,
           };
         });
         
@@ -4020,22 +4054,29 @@ export function ChartPreview({
         return <div className="relative w-full h-full min-h-[300px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
-                <RechartsScatterChart margin={{ top: 20, right: 30, left: 60, bottom: 80 }}>
+                <RechartsScatterChart margin={{ top: 20, right: 30, left: 80, bottom: 80 }}>
                     <XAxis 
-                      type="number" 
+                      type={bubbleHasTextX ? "category" : "number"} 
                       dataKey="x"
                       tick={{ fontSize: 11 }}
                       name={bubbleXLabel}
-                      label={{ value: bubbleXLabel, position: 'insideBottom', offset: -5 }}
-                      domain={['auto', 'auto']}
+                      angle={bubbleHasTextX ? -45 : 0}
+                      textAnchor={bubbleHasTextX ? "end" : "middle"}
+                      height={bubbleHasTextX ? 80 : 60}
+                      interval={0}
+                      label={{ value: bubbleXLabel, position: 'insideBottom', offset: bubbleHasTextX ? -20 : -5 }}
+                      domain={bubbleHasTextX ? undefined : ['auto', 'auto']}
+                      allowDuplicatedCategory={false}
                     />
                     <YAxis 
-                      type="number" 
+                      type={bubbleHasTextY ? "category" : "number"} 
                       dataKey="y"
                       tick={{ fontSize: 11 }}
                       name={bubbleYLabel}
+                      width={bubbleHasTextY ? 100 : 60}
                       label={{ value: bubbleYLabel, angle: -90, position: 'insideLeft' }}
-                      domain={['auto', 'auto']}
+                      domain={bubbleHasTextY ? undefined : ['auto', 'auto']}
+                      allowDuplicatedCategory={false}
                     />
                     <Tooltip 
                       cursor={{ strokeDasharray: '3 3' }}
@@ -4049,11 +4090,11 @@ export function ChartPreview({
                             <div className="space-y-1 text-sm">
                               <div className="flex justify-between gap-4">
                                 <span className="text-muted-foreground">{bubbleXLabel}:</span>
-                                <span className="font-semibold">{data.x}</span>
+                                <span className="font-semibold">{data.xOriginal || data.x}</span>
                               </div>
                               <div className="flex justify-between gap-4">
                                 <span className="text-muted-foreground">{bubbleYLabel}:</span>
-                                <span className="font-semibold">{data.y}</span>
+                                <span className="font-semibold">{data.yOriginal || data.y}</span>
                               </div>
                               {bubbleSizeField && (
                                 <div className="flex justify-between gap-4">
