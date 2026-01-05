@@ -89,41 +89,30 @@ export default function FormSubmissionsTable() {
       <DashboardLayout 
         title="Form Submissions" 
         actions={
-          <div className="flex items-center gap-3">
-            {selectedFormId && (
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setShowSaveDialog(true)} 
-                disabled={!selectedFormId}
-                className="h-9"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                Save as Report
-              </Button>
-            )}
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={handleBack}
-              className="h-9"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-          </div>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={handleBack}
+            className="h-9"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
         }
       >
-        <div className="flex flex-col gap-6 h-full">
-          {/* Form Selection Header */}
-          <Card className="shrink-0">
-            <CardHeader className="py-4 px-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="space-y-3">
-                  <CardTitle className="text-xl font-semibold">Select Form</CardTitle>
+        <div className="flex flex-col gap-5 h-full">
+          {/* Form Selection & Actions Bar */}
+          <Card className="shrink-0 border-border/60">
+            <CardContent className="py-4 px-5">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                {/* Left: Form Selection */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                    Form:
+                  </label>
                   <Select value={selectedFormId} onValueChange={setSelectedFormId}>
-                    <SelectTrigger className="w-full sm:w-80">
-                      <SelectValue placeholder="Choose a form to view submissions" />
+                    <SelectTrigger className="w-full sm:w-72 h-10">
+                      <SelectValue placeholder="Select a form..." />
                     </SelectTrigger>
                     <SelectContent>
                       {accessibleForms.map(form => (
@@ -133,38 +122,50 @@ export default function FormSubmissionsTable() {
                       ))}
                     </SelectContent>
                   </Select>
+                  
+                  {selectedForm && (
+                    <Badge variant="secondary" className="h-7 px-3 text-xs font-medium">
+                      {submissions.length} {submissions.length === 1 ? 'record' : 'records'}
+                    </Badge>
+                  )}
                 </div>
 
-                {selectedForm && (
-                  <div className="text-left sm:text-right border-t sm:border-t-0 pt-3 sm:pt-0">
-                    <h3 className="font-semibold text-base text-foreground">{selectedForm.name}</h3>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                      {submissions.length} {submissions.length === 1 ? 'submission' : 'submissions'}
-                    </p>
+                {/* Right: Action Buttons */}
+                {selectedFormId && (
+                  <div className="flex items-center gap-2 pt-2 lg:pt-0 border-t lg:border-t-0 border-border/40">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowSaveDialog(true)}
+                      className="h-9 px-4"
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      Save as Report
+                    </Button>
                   </div>
                 )}
               </div>
-            </CardHeader>
+            </CardContent>
           </Card>
 
           {/* Data Table */}
           {selectedFormId ? (
-            <Card className="flex-1 min-h-0 overflow-hidden">
+            <Card className="flex-1 min-h-0 overflow-hidden border-border/60">
               <CardContent className="p-0 h-full">
                 <DynamicTable config={tableConfig} />
               </CardContent>
             </Card>
           ) : (
-            <Card className="flex-1">
-              <CardContent className="flex items-center justify-center h-full min-h-[400px]">
-                <div className="text-center space-y-3">
-                  <div className="mx-auto w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center">
-                    <FileText className="h-8 w-8 text-muted-foreground/70" />
+            <Card className="flex-1 border-border/60">
+              <CardContent className="flex items-center justify-center h-full min-h-[450px]">
+                <div className="text-center space-y-4">
+                  <div className="mx-auto w-20 h-20 rounded-2xl bg-muted/40 flex items-center justify-center">
+                    <FileText className="h-10 w-10 text-muted-foreground/60" />
                   </div>
-                  <div className="space-y-1">
-                    <h3 className="text-lg font-semibold text-foreground">No Form Selected</h3>
-                    <p className="text-sm text-muted-foreground max-w-[250px]">
-                      Select a form from the dropdown above to view its submission data
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-semibold text-foreground">No Form Selected</h3>
+                    <p className="text-sm text-muted-foreground max-w-[280px] leading-relaxed">
+                      Choose a form from the dropdown above to view and manage its submissions
                     </p>
                   </div>
                 </div>
