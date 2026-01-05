@@ -25,9 +25,10 @@ interface CrossReferenceFieldProps {
   currentFormId?: string;
   onCrossReferenceSync?: (options: any) => Promise<void>;
   formData?: Record<string, any>;
+  isEditing?: boolean; // Whether we're editing an existing submission (vs creating new)
 }
 
-export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isPreview, error, disabled, currentFormId, onCrossReferenceSync, formData = {} }: CrossReferenceFieldProps) {
+export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isPreview, error, disabled, currentFormId, onCrossReferenceSync, formData = {}, isEditing = false }: CrossReferenceFieldProps) {
   const navigate = useNavigate();
   const { forms } = useForm();
   const { accessibleForms } = useFormAccess();
@@ -195,6 +196,7 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
         onCreateRecord={handleCreateRecord}
         createRecordDisabled={disabled}
         currentFormData={formData}
+        isEditing={isEditing}
       />
       
       {error && <p className="text-sm text-red-500">{error}</p>}
