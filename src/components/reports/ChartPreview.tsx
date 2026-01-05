@@ -4032,6 +4032,18 @@ export function ChartPreview({
         const scatterXMapping = sanitizedChartData[0]?._xLegendMapping || [];
         const scatterYMapping = sanitizedChartData[0]?._yLegendMapping || [];
         
+        // Also check if any data has legend mappings (even if hasText flags are false)
+        const hasXMapping = scatterXMapping.length > 0;
+        const hasYMapping = scatterYMapping.length > 0;
+        
+        console.log('📊 Scatter chart axis detection:', {
+          scatterHasTextX, scatterHasTextY,
+          hasXMapping, hasYMapping,
+          xMappingLength: scatterXMapping.length,
+          yMappingLength: scatterYMapping.length,
+          sampleData: sanitizedChartData[0]
+        });
+        
         // For text axes, transform data to use index and store original values
         const scatterTransformedData = sanitizedChartData.map((item, idx) => ({
           ...item,
@@ -4053,39 +4065,39 @@ export function ChartPreview({
                     dataKey="x"
                     tick={{ fontSize: 11 }} 
                     name={scatterXLabel}
-                    angle={scatterHasTextX ? -45 : 0}
-                    textAnchor={scatterHasTextX ? "end" : "middle"}
-                    height={scatterHasTextX ? 80 : 60}
+                    angle={(scatterHasTextX || hasXMapping) ? -45 : 0}
+                    textAnchor={(scatterHasTextX || hasXMapping) ? "end" : "middle"}
+                    height={(scatterHasTextX || hasXMapping) ? 80 : 60}
                     interval={0}
-                    ticks={scatterHasTextX ? scatterXMapping.map((m: any) => m.number) : undefined}
-                    tickFormatter={scatterHasTextX ? (value) => {
+                    ticks={hasXMapping ? scatterXMapping.map((m: any) => m.number) : undefined}
+                    tickFormatter={hasXMapping ? (value) => {
                       const mapping = scatterXMapping.find((m: any) => m.number === value);
-                      return mapping ? mapping.label : '';
+                      return mapping ? mapping.label : String(value);
                     } : undefined}
                     label={{
                       value: scatterXLabel,
                       position: 'insideBottom',
-                      offset: scatterHasTextX ? -20 : -5
+                      offset: (scatterHasTextX || hasXMapping) ? -20 : -5
                     }} 
-                    domain={scatterHasTextX ? [0.5, scatterXMapping.length + 0.5] : ['auto', 'auto']}
+                    domain={hasXMapping ? [0.5, scatterXMapping.length + 0.5] : ['auto', 'auto']}
                   />
                   <YAxis 
                     type="number"
                     dataKey="y" 
                     tick={{ fontSize: 11 }} 
                     name={scatterYLabel}
-                    width={scatterHasTextY ? 100 : 60}
-                    ticks={scatterHasTextY ? scatterYMapping.map((m: any) => m.number) : undefined}
-                    tickFormatter={scatterHasTextY ? (value) => {
+                    width={(scatterHasTextY || hasYMapping) ? 100 : 60}
+                    ticks={hasYMapping ? scatterYMapping.map((m: any) => m.number) : undefined}
+                    tickFormatter={hasYMapping ? (value) => {
                       const mapping = scatterYMapping.find((m: any) => m.number === value);
-                      return mapping ? mapping.label : '';
+                      return mapping ? mapping.label : String(value);
                     } : undefined}
                     label={{
                       value: scatterYLabel,
                       angle: -90,
                       position: 'insideLeft'
                     }} 
-                    domain={scatterHasTextY ? [0.5, scatterYMapping.length + 0.5] : ['auto', 'auto']}
+                    domain={hasYMapping ? [0.5, scatterYMapping.length + 0.5] : ['auto', 'auto']}
                   />
                   <Tooltip 
                     cursor={{ strokeDasharray: '3 3' }}
@@ -4139,6 +4151,17 @@ export function ChartPreview({
         const bubbleXMapping = sanitizedChartData[0]?._xLegendMapping || [];
         const bubbleYMapping = sanitizedChartData[0]?._yLegendMapping || [];
         
+        // Also check if any data has legend mappings (even if hasText flags are false)
+        const hasBubbleXMapping = bubbleXMapping.length > 0;
+        const hasBubbleYMapping = bubbleYMapping.length > 0;
+        
+        console.log('📊 Bubble chart axis detection:', {
+          bubbleHasTextX, bubbleHasTextY,
+          hasBubbleXMapping, hasBubbleYMapping,
+          xMappingLength: bubbleXMapping.length,
+          yMappingLength: bubbleYMapping.length,
+        });
+        
         const bubbleData = sanitizedChartData.map((item, idx) => {
           const sizeValue = bubbleSizeField ? (item[bubbleSizeField] || 10) : 10;
           return {
@@ -4166,31 +4189,31 @@ export function ChartPreview({
                       dataKey="x"
                       tick={{ fontSize: 11 }}
                       name={bubbleXLabel}
-                      angle={bubbleHasTextX ? -45 : 0}
-                      textAnchor={bubbleHasTextX ? "end" : "middle"}
-                      height={bubbleHasTextX ? 80 : 60}
+                      angle={(bubbleHasTextX || hasBubbleXMapping) ? -45 : 0}
+                      textAnchor={(bubbleHasTextX || hasBubbleXMapping) ? "end" : "middle"}
+                      height={(bubbleHasTextX || hasBubbleXMapping) ? 80 : 60}
                       interval={0}
-                      ticks={bubbleHasTextX ? bubbleXMapping.map((m: any) => m.number) : undefined}
-                      tickFormatter={bubbleHasTextX ? (value) => {
+                      ticks={hasBubbleXMapping ? bubbleXMapping.map((m: any) => m.number) : undefined}
+                      tickFormatter={hasBubbleXMapping ? (value) => {
                         const mapping = bubbleXMapping.find((m: any) => m.number === value);
-                        return mapping ? mapping.label : '';
+                        return mapping ? mapping.label : String(value);
                       } : undefined}
-                      label={{ value: bubbleXLabel, position: 'insideBottom', offset: bubbleHasTextX ? -20 : -5 }}
-                      domain={bubbleHasTextX ? [0.5, bubbleXMapping.length + 0.5] : ['auto', 'auto']}
+                      label={{ value: bubbleXLabel, position: 'insideBottom', offset: (bubbleHasTextX || hasBubbleXMapping) ? -20 : -5 }}
+                      domain={hasBubbleXMapping ? [0.5, bubbleXMapping.length + 0.5] : ['auto', 'auto']}
                     />
                     <YAxis 
                       type="number"
                       dataKey="y"
                       tick={{ fontSize: 11 }}
                       name={bubbleYLabel}
-                      width={bubbleHasTextY ? 100 : 60}
-                      ticks={bubbleHasTextY ? bubbleYMapping.map((m: any) => m.number) : undefined}
-                      tickFormatter={bubbleHasTextY ? (value) => {
+                      width={(bubbleHasTextY || hasBubbleYMapping) ? 100 : 60}
+                      ticks={hasBubbleYMapping ? bubbleYMapping.map((m: any) => m.number) : undefined}
+                      tickFormatter={hasBubbleYMapping ? (value) => {
                         const mapping = bubbleYMapping.find((m: any) => m.number === value);
-                        return mapping ? mapping.label : '';
+                        return mapping ? mapping.label : String(value);
                       } : undefined}
                       label={{ value: bubbleYLabel, angle: -90, position: 'insideLeft' }}
-                      domain={bubbleHasTextY ? [0.5, bubbleYMapping.length + 0.5] : ['auto', 'auto']}
+                      domain={hasBubbleYMapping ? [0.5, bubbleYMapping.length + 0.5] : ['auto', 'auto']}
                     />
                     <Tooltip 
                       cursor={{ strokeDasharray: '3 3' }}
