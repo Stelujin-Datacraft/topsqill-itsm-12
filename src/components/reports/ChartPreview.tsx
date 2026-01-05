@@ -720,151 +720,90 @@ export function ChartPreview({
   const transformCrossRefDataForChartType = (crossRefData: any[], chartType: string): any[] => {
     if (!crossRefData || crossRefData.length === 0) return [];
     
-    // Check if this is cross-ref compare mode with text fields
+    // Check if this is cross-ref compare mode with text fields - apply encoded legend transformation
     const hasTextCompare = crossRefData.some(item => item._isCrossRefCompare && (item._hasTextX || item._hasTextY));
-    const hasTextX = crossRefData.some(item => item._hasTextX);
-    const hasTextY = crossRefData.some(item => item._hasTextY);
     
-    // Get X/Y field names from pre-resolved labels in data
-    const xFieldName = crossRefData[0]?.xFieldLabel || 'X Field';
-    const yFieldName = crossRefData[0]?.yFieldLabel || 'Y Field';
-    
-    // Build encoding maps for text values (like normal mode does)
-    const xColorLookup = new Map<string, string | undefined>();
-    const yColorLookup = new Map<string, string | undefined>();
-    crossRefData.forEach(item => {
-      if (item.xRaw && item._xOptionColor) {
-        xColorLookup.set(String(item.xRaw), item._xOptionColor);
-      }
-      if (item.yRaw && item._yOptionColor) {
-        yColorLookup.set(String(item.yRaw), item._yOptionColor);
-      }
-    });
-    
-    // Collect unique X and Y values for encoding
-    const uniqueXValues = new Set<string>();
-    const uniqueYValues = new Set<string>();
-    crossRefData.forEach(item => {
-      if (item.xRaw) uniqueXValues.add(String(item.xRaw));
-      if (item.yRaw) uniqueYValues.add(String(item.yRaw));
-    });
-    
-    // Build legend mappings (number -> label)
-    const xLegendMapping = Array.from(uniqueXValues).sort().map((label, index) => ({
-      number: index + 1,
-      label: label,
-      color: xColorLookup.get(label)
-    }));
-    const yLegendMapping = Array.from(uniqueYValues).sort().map((label, index) => ({
-      number: index + 1,
-      label: label,
-      color: yColorLookup.get(label)
-    }));
-    
-    // Create lookup maps for encoding
-    const xEncodingMap = new Map<string, number>();
-    xLegendMapping.forEach(({ number, label }) => xEncodingMap.set(label, number));
-    const yEncodingMap = new Map<string, number>();
-    yLegendMapping.forEach(({ number, label }) => yEncodingMap.set(label, number));
-    
-    console.log('📊 Cross-ref transform:', { chartType, hasTextX, hasTextY, xCount: uniqueXValues.size, yCount: uniqueYValues.size });
-    
-    // For scatter/bubble charts - apply text-to-number encoding like normal mode
-    if (chartType === 'scatter' || chartType === 'bubble') {
-      return crossRefData.map((item, index) => {
-        // Use encoded values for text fields, original values for numeric
-        const xValue = hasTextX ? (xEncodingMap.get(String(item.xRaw)) || index + 1) : (item.x !== undefined ? item.x : index + 1);
-        const yValue = hasTextY ? (yEncodingMap.get(String(item.yRaw)) || 0) : (item.y !== undefined ? item.y : (item.value || 0));
-        
-        return {
-          ...item,
-          x: xValue,
-          y: yValue,
-          xRaw: item.xRaw || item.name || `Record ${index + 1}`,
-          yRaw: item.yRaw || String(item.value || 0),
-          name: item.xRaw || item.name || `Point ${index + 1}`,
-          xFieldName: xFieldName,
-          yFieldName: yFieldName,
-          _xIsText: hasTextX,
-          _yIsText: hasTextY,
-          _xLegendMapping: hasTextX ? xLegendMapping : undefined,
-          _yLegendMapping: hasTextY ? yLegendMapping : undefined,
-          _isCrossRefCompare: true
-        };
-      });
-    }
-    
-    // For heatmap - create proper 2D structure with X as rows, Y as columns
-    if (chartType === 'heatmap') {
-      // Build a matrix: rowValue (X) x colValue (Y) -> count
-      const heatmapMatrix: Map<string, Map<string, { count: number; items: any[] }>> = new Map();
-      
-      crossRefData.forEach(item => {
-        const rowKey = String(item.xRaw || item.name || 'Unknown');
-        const colKey = String(item.yRaw || 'Unknown');
-        
-        if (!heatmapMatrix.has(rowKey)) {
-          heatmapMatrix.set(rowKey, new Map());
-        }
-        const rowMap = heatmapMatrix.get(rowKey)!;
-        if (!rowMap.has(colKey)) {
-          rowMap.set(colKey, { count: 0, items: [] });
-        }
-        const cell = rowMap.get(colKey)!;
-        cell.count += 1;
-        cell.items.push(item);
-      });
-      
-      // Convert matrix to flat array with rowValue, colValue, value structure
-      const heatmapData: any[] = [];
-      const allRows = Array.from(heatmapMatrix.keys()).sort();
-      const allCols = Array.from(uniqueYValues).sort();
-      
-      allRows.forEach(rowKey => {
-        const rowMap = heatmapMatrix.get(rowKey)!;
-        allCols.forEach(colKey => {
-          const cell = rowMap.get(colKey) || { count: 0, items: [] };
-          heatmapData.push({
-            rowValue: rowKey,
-            colValue: colKey,
-            value: cell.count,
-            count: cell.count,
-            name: rowKey,
-            xRaw: rowKey,
-            yRaw: colKey,
-            xFieldName: xFieldName,
-            yFieldName: yFieldName,
-            _linkedSubmissionIds: cell.items.flatMap(i => i._linkedSubmissionIds || []),
-            _isCrossRefCompare: true
-          });
-        });
-      });
-      
-      return heatmapData;
-    }
-    
-    // For encoded legend mode (bar charts with text Y values)
-    if (hasTextCompare && !['scatter', 'bubble', 'heatmap'].includes(chartType)) {
+    if (hasTextCompare) {
       console.log('📊 Cross-ref: Applying text compare transformation (encoded legend mode)');
       
+      // Get X/Y field names from pre-resolved labels in data
+      const xFieldName = crossRefData[0]?.xFieldLabel || 'X Field';
+      const yFieldName = crossRefData[0]?.yFieldLabel || 'Y Field';
+      
+      // Build unique legend mapping for Y text values with option colors
+      const yColorLookup = new Map<string, string | undefined>();
+      crossRefData.forEach(item => {
+        if (item.yRaw && item._yOptionColor) {
+          yColorLookup.set(String(item.yRaw), item._yOptionColor);
+        }
+      });
+      
+      const uniqueYValues = new Set<string>();
+      crossRefData.forEach(item => {
+        if (item.yRaw) uniqueYValues.add(String(item.yRaw));
+      });
+      const legendMapping = Array.from(uniqueYValues).map((label, index) => ({
+        number: index + 1,
+        label: label,
+        color: yColorLookup.get(label) // Include option color if available
+      }));
+      
+      // Create legend lookup for encoding
+      const legendLookup = new Map<string, number>();
+      legendMapping.forEach(({ number, label }) => {
+        legendLookup.set(label, number);
+      });
+      
+      // Transform data to encoded format
       return crossRefData.map(item => ({
         name: item.name || item.xRaw || 'Unknown',
         xRaw: item.xRaw,
         yRaw: item.yRaw,
         rawYValue: item.yRaw,
         rawSecondaryValue: item.yRaw,
-        encodedValue: yEncodingMap.get(String(item.yRaw)) || 0,
-        value: yEncodingMap.get(String(item.yRaw)) || 0,
+        encodedValue: legendLookup.get(String(item.yRaw)) || 0,
+        value: legendLookup.get(String(item.yRaw)) || 0,
         xFieldName: xFieldName,
         yFieldName: yFieldName,
         parentId: item.parentId,
         parentRefId: item.parentRefId,
         _linkedSubmissionIds: item._linkedSubmissionIds,
-        _legendMapping: yLegendMapping,
+        _legendMapping: legendMapping,
         _isCompareEncoded: true,
         _isCrossRefCompare: true,
         _yOptionColor: item._yOptionColor,
         _xOptionColor: item._xOptionColor
+      }));
+    }
+    
+    // For scatter/bubble/heatmap, always ensure x, y properties exist
+    if (chartType === 'scatter' || chartType === 'bubble') {
+      // Scatter/Bubble charts need { x, y, name } format
+      return crossRefData.map((item, index) => ({
+        ...item,
+        x: item.x !== undefined ? item.x : index + 1, // Use sequential index as X coordinate if not present
+        y: item.y !== undefined ? item.y : (item.value || 0),
+        xRaw: item.xRaw || item.name || `Record ${index + 1}`,
+        yRaw: item.yRaw || String(item.value || 0),
+        name: item.name || `Point ${index + 1}`,
+        xFieldName: item.xFieldName || 'Record',
+        yFieldName: item.yFieldName || 'Value'
+      }));
+    }
+    
+    if (chartType === 'heatmap') {
+      // Heatmap in compare mode expects { x, y, value } format
+      // Transform to use x (category), y (fixed column), and value
+      return crossRefData.map((item, index) => ({
+        ...item,
+        x: item.x !== undefined ? item.x : index + 1,
+        y: item.y !== undefined ? item.y : (item.value || 0),
+        xRaw: item.xRaw || item.name || `Record ${index + 1}`,
+        yRaw: item.yRaw || String(item.value || 0),
+        value: item.value || item.y || 0,
+        name: item.name || `Point ${index + 1}`,
+        xFieldName: item.xFieldName || 'Record',
+        yFieldName: item.yFieldName || 'Value'
       }));
     }
     
@@ -2964,23 +2903,13 @@ export function ChartPreview({
         );
       }
 
-      // Handle bubble chart in compare mode (including cross-reference)
+      // Handle bubble chart in compare mode
       if (chartType === 'bubble') {
-        // Check for legend mappings (text-to-number encoded data)
-        const bubbleXMapping = sortedData[0]?._xLegendMapping || [];
-        const bubbleYMapping = sortedData[0]?._yLegendMapping || [];
-        const hasBubbleXMapping = bubbleXMapping.length > 0;
-        const hasBubbleYMapping = bubbleYMapping.length > 0;
-        
-        console.log('📊 Compare mode Bubble chart:', { hasBubbleXMapping, hasBubbleYMapping, xCount: bubbleXMapping.length, yCount: bubbleYMapping.length });
-        
         // Bubble chart uses x, y from compare data - in cross-ref mode, x is sequential index, y is value
         const bubbleData = sortedData.map((item, idx) => ({
           ...item,
           size: Math.abs(Number(item.y) || 10),
           xLabel: item.xRaw || item.name || String(item.x),
-          xOriginal: item.xRaw || item.name,
-          yOriginal: item.yRaw,
         }));
         
         // Calculate size scale
@@ -2996,36 +2925,21 @@ export function ChartPreview({
           <div className="relative w-full h-full min-h-[300px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
-                <RechartsScatterChart margin={{ top: 20, right: 30, left: 80, bottom: 80 }}>
+                <RechartsScatterChart margin={{ top: 20, right: 30, left: 60, bottom: 80 }}>
                   <XAxis 
                     type="number" 
                     dataKey="x" 
                     name={field1Name}
                     tick={{ fontSize: 11 }}
-                    angle={hasBubbleXMapping ? -45 : 0}
-                    textAnchor={hasBubbleXMapping ? "end" : "middle"}
-                    height={hasBubbleXMapping ? 80 : 60}
-                    interval={0}
-                    ticks={hasBubbleXMapping ? bubbleXMapping.map((m: any) => m.number) : undefined}
-                    tickFormatter={hasBubbleXMapping ? (value) => {
-                      const mapping = bubbleXMapping.find((m: any) => m.number === value);
-                      return mapping ? mapping.label : String(value);
-                    } : undefined}
-                    domain={hasBubbleXMapping ? [0.5, bubbleXMapping.length + 0.5] : xDomain}
-                    label={{ value: field1Name, position: 'insideBottom', offset: hasBubbleXMapping ? -20 : -5 }}
+                    domain={xDomain}
+                    label={{ value: field1Name, position: 'insideBottom', offset: -5 }}
                   />
                   <YAxis 
                     type="number" 
                     dataKey="y" 
                     name={field2Name}
                     tick={{ fontSize: 11 }}
-                    width={hasBubbleYMapping ? 100 : 60}
-                    ticks={hasBubbleYMapping ? bubbleYMapping.map((m: any) => m.number) : undefined}
-                    tickFormatter={hasBubbleYMapping ? (value) => {
-                      const mapping = bubbleYMapping.find((m: any) => m.number === value);
-                      return mapping ? mapping.label : String(value);
-                    } : undefined}
-                    domain={hasBubbleYMapping ? [0.5, bubbleYMapping.length + 0.5] : yDomain}
+                    domain={yDomain}
                     label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                   />
                   <Tooltip 
@@ -3036,15 +2950,15 @@ export function ChartPreview({
                       if (!data) return null;
                       return (
                         <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
-                          <div className="font-medium mb-2">{data.xOriginal || data.xLabel || data.name || 'Data Point'}</div>
+                          <div className="font-medium mb-2">{data.xLabel || data.name || 'Data Point'}</div>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{field1Name}:</span>
-                              <span className="font-semibold">{data.xOriginal || data.xRaw || data.x}</span>
+                              <span className="font-semibold">{data.xRaw || data.x}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{field2Name}:</span>
-                              <span className="font-semibold">{data.yOriginal || data.yRaw || data.y}</span>
+                              <span className="font-semibold">{data.yRaw || data.y}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">Size:</span>
@@ -3175,119 +3089,9 @@ export function ChartPreview({
         );
       }
 
-      // Handle heatmap in compare mode (including cross-reference with 2D structure)
+      // Handle heatmap in compare mode
       if (chartType === 'heatmap') {
-        // Check if data has proper row/col structure (from cross-reference transform)
-        const hasProperHeatmapStructure = sortedData.length > 0 && sortedData[0].rowValue && sortedData[0].colValue;
-        
-        if (hasProperHeatmapStructure) {
-          // Proper 2D heatmap with row/column structure
-          const uniqueRows = [...new Set(sortedData.map(d => d.rowValue))].sort();
-          const uniqueCols = [...new Set(sortedData.map(d => d.colValue))].sort();
-          
-          // Build matrix lookup
-          const matrixLookup = new Map<string, any>();
-          sortedData.forEach(item => {
-            const key = `${item.rowValue}|${item.colValue}`;
-            matrixLookup.set(key, item);
-          });
-          
-          const allValues = sortedData.map(d => d.value || 0);
-          const maxValue = Math.max(...allValues, 1);
-          const minValue = Math.min(...allValues.filter(v => v > 0), 0);
-          
-          const numRows = uniqueRows.length;
-          const numCols = uniqueCols.length;
-          
-          return (
-            <div className="relative w-full h-full flex flex-col overflow-auto">
-              {/* Header with title and color scale legend */}
-              <div className="flex items-center justify-between gap-4 mb-3 flex-wrap">
-                <div className="text-sm text-muted-foreground">
-                  <span className="font-medium">{field1Name}</span> × <span className="font-medium">{field2Name}</span>
-                  <span className="text-xs ml-2">(Count)</span>
-                </div>
-                {/* Color scale legend */}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>Low</span>
-                  <div className="flex h-3 rounded overflow-hidden w-[120px]">
-                    {colors.map((color, idx) => (
-                      <div key={idx} style={{ backgroundColor: color, flex: 1 }} />
-                    ))}
-                  </div>
-                  <span>High</span>
-                  <span className="ml-1 text-muted-foreground/70 text-[10px]">({minValue}-{maxValue})</span>
-                </div>
-              </div>
-              <div className="flex-1 min-h-0">
-                <div className="w-full h-full" style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: `minmax(120px, max-content) repeat(${numCols}, 1fr)`, 
-                  gridTemplateRows: `auto repeat(${numRows}, 1fr)`, 
-                  gap: '2px' 
-                }}>
-                  {/* Empty corner cell */}
-                  <div className="bg-muted/30 rounded text-xs font-medium p-2"></div>
-                  {/* Column headers */}
-                  {uniqueCols.map((col, idx) => (
-                    <div key={`col-${idx}`} className="bg-muted/30 rounded text-xs font-medium p-2 text-center truncate" title={col}>
-                      {col}
-                    </div>
-                  ))}
-                  {/* Row headers and cells */}
-                  {uniqueRows.map((row, rowIdx) => (
-                    <React.Fragment key={`row-${rowIdx}`}>
-                      <div className="bg-muted/30 rounded text-xs font-medium p-2 truncate" title={row}>
-                        {row}
-                      </div>
-                      {uniqueCols.map((col, colIdx) => {
-                        const key = `${row}|${col}`;
-                        const cell = matrixLookup.get(key) || { value: 0, count: 0 };
-                        const intensity = cell.value / maxValue;
-                        const colorIndex = Math.floor(intensity * (colors.length - 1));
-                        const safeColorIndex = Math.max(0, Math.min(colors.length - 1, isNaN(colorIndex) ? 0 : colorIndex));
-                        
-                        return (
-                          <HeatmapCell
-                            key={`cell-${rowIdx}-${colIdx}`}
-                            rowLabel={field1Name}
-                            colLabel={field2Name}
-                            rowValue={row}
-                            colValue={col}
-                            cellValue={cell.value}
-                            cellCount={cell.count || cell.value}
-                            intensityLabel="Count"
-                            aggregation="count"
-                            intensityPercent={(intensity * 100).toFixed(1)}
-                            maxValue={maxValue}
-                            backgroundColor={colors[safeColorIndex]}
-                            textColor={intensity > 0.5 ? 'white' : 'black'}
-                            onClick={() => {
-                              // Handle click for cross-reference heatmap
-                              setCellSubmissionsDialog({
-                                open: true,
-                                dimensionField: config.crossRefConfig?.compareXFieldId || '',
-                                dimensionValue: row,
-                                groupField: config.crossRefConfig?.compareYFieldId,
-                                groupValue: col,
-                                dimensionLabel: field1Name,
-                                groupLabel: field2Name,
-                                crossRefTargetFormId: config.crossRefConfig?.targetFormId,
-                                crossRefLinkedIds: cell._linkedSubmissionIds
-                              });
-                            }}
-                          />
-                        );
-                      })}
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
-            </div>
-          );
-        }
-        
-        // Fallback: single-row heatmap for simple compare mode
+        // For heatmap in compare mode, treat x as row and y as value
         const heatmapData = sortedData.map((item, idx) => ({
           x: item.xRaw || item.name || String(item.x),
           y: field2Name,
@@ -3323,8 +3127,8 @@ export function ChartPreview({
                     if (!data) return null;
                     return (
                       <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3">
-                        <div className="font-medium">{data.xRaw || data.x}</div>
-                        <div className="text-sm text-muted-foreground">{field2Name}: {data.yRaw || data.value}</div>
+                        <div className="font-medium">{data.x}</div>
+                        <div className="text-sm text-muted-foreground">Value: {data.value}</div>
                       </div>
                     );
                   }} />
