@@ -127,7 +127,10 @@ export function ChartPreview({
     return formNameCache.get(formId) || formId;
   };
 
-  const getFormFieldName = (fieldId: string): string => {
+  const getFormFieldName = (fieldId: string | undefined | null): string => {
+    // Guard against undefined/null fieldId
+    if (!fieldId) return 'Unknown Field';
+    
     // Handle prefixed field IDs from joined forms (e.g., "[FormName].fieldId")
     const prefixMatch = fieldId.match(/^\[(.+?)\]\.(.+)$/);
     if (prefixMatch) {
@@ -2489,8 +2492,11 @@ export function ChartPreview({
     // Skip standard compare rendering if using encoded legend mode (data has _legendMapping)
     const hasEncodedLegend = sanitizedChartData.length > 0 && sanitizedChartData[0]._legendMapping;
     if (isCompareMode && !hasEncodedLegend) {
-      const field1Name = config.metrics ? getFormFieldName(config.metrics[0]) : 'Field 1';
-      const field2Name = config.metrics ? getFormFieldName(config.metrics[1]) : 'Field 2';
+      // For cross-reference charts, use crossRefConfig field IDs; for regular compare mode, use metrics
+      const field1Id = config.crossRefConfig?.compareXFieldId || (config.metrics?.[0]);
+      const field2Id = config.crossRefConfig?.compareYFieldId || (config.metrics?.[1]);
+      const field1Name = field1Id ? getFormFieldName(field1Id) : 'X Axis';
+      const field2Name = field2Id ? getFormFieldName(field2Id) : 'Y Axis';
 
       // Calculate safe domains for X and Y axes
       const xValues = sanitizedChartData.map(d => Number(d.x)).filter(v => isFinite(v));
