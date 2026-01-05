@@ -4127,48 +4127,69 @@ export function ChartPreview({
             </div>
           </div>;
       case 'scatter':
-        // Scatter plot - handle both numeric and text field values like cross-reference mode
+        // Scatter plot - handle both numeric and text field values
         const scatterXLabel = config.xAxisLabel || (config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'X-Axis');
         const scatterYLabel = config.yAxisLabel || (config.metrics?.[1] ? getFormFieldName(config.metrics[1]) : 'Y-Axis');
         
-        // Extract x and y values from data - similar to cross-reference mode
+        // Get legend mappings from the first data point OR create them if text values detected
+        let scatterXMapping = sanitizedChartData[0]?._xLegendMapping || [];
+        let scatterYMapping = sanitizedChartData[0]?._yLegendMapping || [];
+        
+        // Detect text values - check if x/y are text that need encoding
         const scatterXValues = sanitizedChartData.map(d => d.xRaw || d.x || d.name);
         const scatterYValues = sanitizedChartData.map(d => d.yRaw || d.y || d.value);
+        const scatterHasTextX = scatterXMapping.length === 0 && scatterXValues.some(v => typeof v === 'string' && isNaN(Number(v)));
+        const scatterHasTextY = scatterYMapping.length === 0 && scatterYValues.some(v => typeof v === 'string' && isNaN(Number(v)));
         
-        // Detect if values are text (non-numeric)
-        const scatterHasTextX = scatterXValues.some(v => typeof v === 'string' && isNaN(Number(v)));
-        const scatterHasTextY = scatterYValues.some(v => typeof v === 'string' && isNaN(Number(v)));
+        // Create mappings inline if text is detected but no mapping exists
+        if (scatterHasTextX && scatterXMapping.length === 0) {
+          const uniqueX = [...new Set(scatterXValues.map(v => String(v)))].sort();
+          scatterXMapping = uniqueX.map((label, idx) => ({ number: idx + 1, label }));
+        }
+        if (scatterHasTextY && scatterYMapping.length === 0) {
+          const uniqueY = [...new Set(scatterYValues.map(v => String(v)))].sort();
+          scatterYMapping = uniqueY.map((label, idx) => ({ number: idx + 1, label }));
+        }
         
-        // For Y-axis with text: create encoded mapping like cross-reference mode
-        const scatterYUniqueValues = [...new Set(scatterYValues.map(v => String(v)))].sort();
-        const scatterYEncodedMapping = scatterYUniqueValues.map((label, idx) => ({ number: idx + 1, label }));
-        const scatterMaxYEncoded = scatterYEncodedMapping.length;
+        const hasXMapping = scatterXMapping.length > 0;
+        const hasYMapping = scatterYMapping.length > 0;
         
-        // Transform data - use 'name' for X (category axis) and encode Y for numeric axis
+        console.log('📊 Scatter chart axis detection:', {
+          scatterHasTextX, scatterHasTextY,
+          hasXMapping, hasYMapping,
+          xMappingLength: scatterXMapping.length,
+          yMappingLength: scatterYMapping.length,
+          sampleData: sanitizedChartData[0]
+        });
+        
+        // Transform data - encode text values to numbers if mappings exist
         const scatterTransformedData = sanitizedChartData.map((item, idx) => {
           const xRaw = item.xRaw || item.x || item.name;
           const yRaw = item.yRaw || item.y || item.value;
           
-          // Encode Y value to number if text
-          let yEncoded = yRaw;
-          if (scatterHasTextY) {
-            const mapping = scatterYEncodedMapping.find((m: any) => m.label === String(yRaw));
-            yEncoded = mapping ? mapping.number : (typeof yRaw === 'number' ? yRaw : idx + 1);
-          } else {
-            yEncoded = typeof yRaw === 'number' ? yRaw : parseFloat(String(yRaw)) || idx + 1;
+          // Encode x value if we have a mapping
+          let xEncoded = item.x;
+          if (hasXMapping) {
+            const xMapping = scatterXMapping.find((m: any) => m.label === String(xRaw));
+            xEncoded = xMapping ? xMapping.number : (typeof item.x === 'number' ? item.x : idx + 1);
+          }
+          
+          // Encode y value if we have a mapping
+          let yEncoded = item.y;
+          if (hasYMapping) {
+            const yMapping = scatterYMapping.find((m: any) => m.label === String(yRaw));
+            yEncoded = yMapping ? yMapping.number : (typeof item.y === 'number' ? item.y : idx + 1);
           }
           
           return {
             ...item,
-            name: String(xRaw), // Use name for category X-axis
-            encodedValue: yEncoded, // Encoded Y value for numeric axis
+            x: xEncoded,
+            y: yEncoded,
             xOriginal: xRaw,
             yOriginal: yRaw,
-            rawYValue: yRaw, // For tooltip
           };
         });
         
-        // Use category type for X-axis (like cross-reference mode) to display text directly
         return <div className="relative w-full h-full min-h-[300px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
@@ -4179,28 +4200,35 @@ export function ChartPreview({
                 bottom: 80
               }}>
                   <XAxis 
-                    dataKey="name"
-                    type="category"
+                    type="number"
+                    dataKey="x"
                     tick={{ fontSize: 11 }} 
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
+                    name={scatterXLabel}
+                    angle={(scatterHasTextX || hasXMapping) ? -45 : 0}
+                    textAnchor={(scatterHasTextX || hasXMapping) ? "end" : "middle"}
+                    height={(scatterHasTextX || hasXMapping) ? 80 : 60}
                     interval={0}
+                    ticks={hasXMapping ? scatterXMapping.map((m: any) => m.number) : undefined}
+                    tickFormatter={hasXMapping ? (value) => {
+                      const mapping = scatterXMapping.find((m: any) => m.number === value);
+                      return mapping ? mapping.label : String(value);
+                    } : undefined}
                     label={{
                       value: scatterXLabel,
                       position: 'insideBottom',
-                      offset: -20
+                      offset: (scatterHasTextX || hasXMapping) ? -20 : -5
                     }} 
+                    domain={hasXMapping ? [0.5, scatterXMapping.length + 0.5] : ['auto', 'auto']}
                   />
                   <YAxis 
                     type="number"
-                    dataKey="encodedValue" 
+                    dataKey="y" 
                     tick={{ fontSize: 11 }} 
-                    width={scatterHasTextY ? 100 : 60}
-                    domain={scatterHasTextY ? [0.5, scatterMaxYEncoded + 0.5] : ['auto', 'auto']}
-                    ticks={scatterHasTextY ? scatterYEncodedMapping.map((m: any) => m.number) : undefined}
-                    tickFormatter={scatterHasTextY ? (value) => {
-                      const mapping = scatterYEncodedMapping.find((m: any) => m.number === value);
+                    name={scatterYLabel}
+                    width={(scatterHasTextY || hasYMapping) ? 100 : 60}
+                    ticks={hasYMapping ? scatterYMapping.map((m: any) => m.number) : undefined}
+                    tickFormatter={hasYMapping ? (value) => {
+                      const mapping = scatterYMapping.find((m: any) => m.number === value);
                       return mapping ? mapping.label : String(value);
                     } : undefined}
                     label={{
@@ -4208,6 +4236,7 @@ export function ChartPreview({
                       angle: -90,
                       position: 'insideLeft'
                     }} 
+                    domain={hasYMapping ? [0.5, scatterYMapping.length + 0.5] : ['auto', 'auto']}
                   />
                   <Tooltip 
                     cursor={{ strokeDasharray: '3 3' }}
@@ -4217,15 +4246,15 @@ export function ChartPreview({
                       if (!data) return null;
                       return (
                         <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
-                          <div className="font-medium mb-2">{data.name || 'Data Point'}</div>
+                          <div className="font-medium mb-2">{data.name || data.xOriginal || data.xRaw || 'Data Point'}</div>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{scatterXLabel}:</span>
-                              <span className="font-semibold">{data.xOriginal || data.name}</span>
+                              <span className="font-semibold">{data.xOriginal || data.xRaw || data.x}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{scatterYLabel}:</span>
-                              <span className="font-semibold">{data.rawYValue || data.yOriginal || data.encodedValue}</span>
+                              <span className="font-semibold">{data.yOriginal || data.yRaw || data.y}</span>
                             </div>
                           </div>
                           <div className="text-[11px] text-muted-foreground mt-2 pt-1 border-t border-border">
@@ -4246,47 +4275,69 @@ export function ChartPreview({
             </div>
           </div>;
       case 'bubble':
-        // Bubble chart - handle both numeric and text field values like cross-reference mode
+        // Bubble chart - handle both numeric and text field values
         const bubbleSizeField = config.sizeField;
         const bubbleXLabel = config.xAxisLabel || (config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'X-Axis');
         const bubbleYLabel = config.yAxisLabel || (config.metrics?.[1] ? getFormFieldName(config.metrics[1]) : 'Y-Axis');
         const bubbleSizeLabel = bubbleSizeField ? getFormFieldName(bubbleSizeField) : 'Size';
         
-        // Extract x and y values from data - similar to cross-reference mode
+        // Get legend mappings from the first data point OR create them if text values detected
+        let bubbleXMapping = sanitizedChartData[0]?._xLegendMapping || [];
+        let bubbleYMapping = sanitizedChartData[0]?._yLegendMapping || [];
+        
+        // Detect text values - check if x/y are text that need encoding
         const bubbleXValues = sanitizedChartData.map(d => d.xRaw || d.x || d.name);
         const bubbleYValues = sanitizedChartData.map(d => d.yRaw || d.y || d.value);
+        const bubbleHasTextX = bubbleXMapping.length === 0 && bubbleXValues.some(v => typeof v === 'string' && isNaN(Number(v)));
+        const bubbleHasTextY = bubbleYMapping.length === 0 && bubbleYValues.some(v => typeof v === 'string' && isNaN(Number(v)));
         
-        // Detect if values are text (non-numeric)
-        const bubbleHasTextY = bubbleYValues.some(v => typeof v === 'string' && isNaN(Number(v)));
+        // Create mappings inline if text is detected but no mapping exists
+        if (bubbleHasTextX && bubbleXMapping.length === 0) {
+          const uniqueX = [...new Set(bubbleXValues.map(v => String(v)))].sort();
+          bubbleXMapping = uniqueX.map((label, idx) => ({ number: idx + 1, label }));
+        }
+        if (bubbleHasTextY && bubbleYMapping.length === 0) {
+          const uniqueY = [...new Set(bubbleYValues.map(v => String(v)))].sort();
+          bubbleYMapping = uniqueY.map((label, idx) => ({ number: idx + 1, label }));
+        }
         
-        // For Y-axis with text: create encoded mapping like cross-reference mode
-        const bubbleYUniqueValues = [...new Set(bubbleYValues.map(v => String(v)))].sort();
-        const bubbleYEncodedMapping = bubbleYUniqueValues.map((label, idx) => ({ number: idx + 1, label }));
-        const bubbleMaxYEncoded = bubbleYEncodedMapping.length;
+        const hasBubbleXMapping = bubbleXMapping.length > 0;
+        const hasBubbleYMapping = bubbleYMapping.length > 0;
         
-        // Transform data - use 'name' for X (category axis) and encode Y for numeric axis
+        console.log('📊 Bubble chart axis detection:', {
+          bubbleHasTextX, bubbleHasTextY,
+          hasBubbleXMapping, hasBubbleYMapping,
+          xMappingLength: bubbleXMapping.length,
+          yMappingLength: bubbleYMapping.length,
+        });
+        
+        // Transform data - encode text values to numbers if mappings exist
         const bubbleData = sanitizedChartData.map((item, idx) => {
           const xRaw = item.xRaw || item.x || item.name;
           const yRaw = item.yRaw || item.y || item.value;
           const sizeValue = bubbleSizeField ? (item[bubbleSizeField] || 10) : 10;
           
-          // Encode Y value to number if text
-          let yEncoded = yRaw;
-          if (bubbleHasTextY) {
-            const mapping = bubbleYEncodedMapping.find((m: any) => m.label === String(yRaw));
-            yEncoded = mapping ? mapping.number : (typeof yRaw === 'number' ? yRaw : idx + 1);
-          } else {
-            yEncoded = typeof yRaw === 'number' ? yRaw : parseFloat(String(yRaw)) || idx + 1;
+          // Encode x value if we have a mapping
+          let xEncoded = item.x;
+          if (hasBubbleXMapping) {
+            const xMapping = bubbleXMapping.find((m: any) => m.label === String(xRaw));
+            xEncoded = xMapping ? xMapping.number : (typeof item.x === 'number' ? item.x : idx + 1);
+          }
+          
+          // Encode y value if we have a mapping
+          let yEncoded = item.y;
+          if (hasBubbleYMapping) {
+            const yMapping = bubbleYMapping.find((m: any) => m.label === String(yRaw));
+            yEncoded = yMapping ? yMapping.number : (typeof item.y === 'number' ? item.y : idx + 1);
           }
           
           return {
             ...item,
-            name: String(xRaw), // Use name for category X-axis
-            encodedValue: yEncoded, // Encoded Y value for numeric axis
+            x: xEncoded,
+            y: yEncoded,
             size: typeof sizeValue === 'number' ? sizeValue : 10,
             xOriginal: xRaw,
             yOriginal: yRaw,
-            rawYValue: yRaw, // For tooltip
           };
         });
         
@@ -4298,33 +4349,40 @@ export function ChartPreview({
           return 5 + normalized * 25; // Size range from 5 to 30
         };
         
-        // Use category type for X-axis (like cross-reference mode) to display text directly
         return <div className="relative w-full h-full min-h-[300px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsScatterChart margin={{ top: 20, right: 30, left: 80, bottom: 80 }}>
                     <XAxis 
-                      dataKey="name"
-                      type="category"
+                      type="number"
+                      dataKey="x"
                       tick={{ fontSize: 11 }}
-                      angle={-45}
-                      textAnchor="end"
-                      height={80}
+                      name={bubbleXLabel}
+                      angle={(bubbleHasTextX || hasBubbleXMapping) ? -45 : 0}
+                      textAnchor={(bubbleHasTextX || hasBubbleXMapping) ? "end" : "middle"}
+                      height={(bubbleHasTextX || hasBubbleXMapping) ? 80 : 60}
                       interval={0}
-                      label={{ value: bubbleXLabel, position: 'insideBottom', offset: -20 }}
+                      ticks={hasBubbleXMapping ? bubbleXMapping.map((m: any) => m.number) : undefined}
+                      tickFormatter={hasBubbleXMapping ? (value) => {
+                        const mapping = bubbleXMapping.find((m: any) => m.number === value);
+                        return mapping ? mapping.label : String(value);
+                      } : undefined}
+                      label={{ value: bubbleXLabel, position: 'insideBottom', offset: (bubbleHasTextX || hasBubbleXMapping) ? -20 : -5 }}
+                      domain={hasBubbleXMapping ? [0.5, bubbleXMapping.length + 0.5] : ['auto', 'auto']}
                     />
                     <YAxis 
                       type="number"
-                      dataKey="encodedValue"
+                      dataKey="y"
                       tick={{ fontSize: 11 }}
-                      width={bubbleHasTextY ? 100 : 60}
-                      domain={bubbleHasTextY ? [0.5, bubbleMaxYEncoded + 0.5] : ['auto', 'auto']}
-                      ticks={bubbleHasTextY ? bubbleYEncodedMapping.map((m: any) => m.number) : undefined}
-                      tickFormatter={bubbleHasTextY ? (value) => {
-                        const mapping = bubbleYEncodedMapping.find((m: any) => m.number === value);
+                      name={bubbleYLabel}
+                      width={(bubbleHasTextY || hasBubbleYMapping) ? 100 : 60}
+                      ticks={hasBubbleYMapping ? bubbleYMapping.map((m: any) => m.number) : undefined}
+                      tickFormatter={hasBubbleYMapping ? (value) => {
+                        const mapping = bubbleYMapping.find((m: any) => m.number === value);
                         return mapping ? mapping.label : String(value);
                       } : undefined}
                       label={{ value: bubbleYLabel, angle: -90, position: 'insideLeft' }}
+                      domain={hasBubbleYMapping ? [0.5, bubbleYMapping.length + 0.5] : ['auto', 'auto']}
                     />
                     <Tooltip 
                       cursor={{ strokeDasharray: '3 3' }}
@@ -4334,15 +4392,15 @@ export function ChartPreview({
                         if (!data) return null;
                         return (
                           <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
-                            <div className="font-medium mb-2">{data.name || 'Data Point'}</div>
+                            <div className="font-medium mb-2">{data.name || data.xOriginal || data.xRaw || 'Data Point'}</div>
                             <div className="space-y-1 text-sm">
                               <div className="flex justify-between gap-4">
                                 <span className="text-muted-foreground">{bubbleXLabel}:</span>
-                                <span className="font-semibold">{data.xOriginal || data.name}</span>
+                                <span className="font-semibold">{data.xOriginal || data.xRaw || data.x}</span>
                               </div>
                               <div className="flex justify-between gap-4">
                                 <span className="text-muted-foreground">{bubbleYLabel}:</span>
-                                <span className="font-semibold">{data.rawYValue || data.yOriginal || data.encodedValue}</span>
+                                <span className="font-semibold">{data.yOriginal || data.yRaw || data.y}</span>
                               </div>
                               {bubbleSizeField && (
                                 <div className="flex justify-between gap-4">
