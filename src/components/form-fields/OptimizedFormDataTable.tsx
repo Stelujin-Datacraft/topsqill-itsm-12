@@ -328,8 +328,11 @@ export function OptimizedFormDataTable({
     }
   }, [autoSelectedRecords]);
 
+  // Track if initial auto-selection has been done (to prevent re-selection on data changes)
+  const [hasInitialAutoSelection, setHasInitialAutoSelection] = useState(false);
+
   // Auto-select records that match dynamic field mappings
-  // This triggers when data is loaded and dynamic mappings have resolved values
+  // This triggers ONLY ONCE when data is first loaded with dynamic mappings
   useEffect(() => {
     // Only run for cross-reference fields with dynamic mappings configured
     if (!isCrossReference || !config.dynamicFieldMappings || config.dynamicFieldMappings.length === 0) {
@@ -346,10 +349,19 @@ export function OptimizedFormDataTable({
       return;
     }
 
-    console.log('🔗 Auto-selecting records based on dynamic field mappings:', {
+    // CRITICAL: Only run auto-selection ONCE on initial load
+    // This prevents re-selecting records when new ones are created by workflows
+    if (hasInitialAutoSelection) {
+      return;
+    }
+
+    console.log('🔗 Auto-selecting records based on dynamic field mappings (initial load):', {
       dynamicMappingFilters,
       dataCount: data.length
     });
+
+    // Mark that initial auto-selection has been done
+    setHasInitialAutoSelection(true);
 
     // All records that match the dynamic filters should be auto-selected
     const matchingRecords: SelectedRecord[] = data.map(record => {
@@ -392,7 +404,7 @@ export function OptimizedFormDataTable({
         return updatedRecords;
       });
     }
-  }, [data, loading, dynamicMappingFilters, isCrossReference, config.dynamicFieldMappings, config.targetFormId, config.tableDisplayFields, config.tableDisplayField]);
+  }, [data, loading, dynamicMappingFilters, isCrossReference, config.dynamicFieldMappings, config.targetFormId, config.tableDisplayFields, config.tableDisplayField, hasInitialAutoSelection]);
 
   // Initialize modal selection state when modal opens
   const handleModalOpen = () => {
