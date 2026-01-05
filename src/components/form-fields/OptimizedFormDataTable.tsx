@@ -63,6 +63,8 @@ interface OptimizedFormDataTableProps {
   createRecordDisabled?: boolean;
   // Current form's submission data for resolving dynamic field mappings
   currentFormData?: Record<string, any>;
+  // Whether we're editing an existing submission (auto-selection only runs in edit mode)
+  isEditing?: boolean;
 }
 interface SelectedRecord {
   id: string;
@@ -80,7 +82,8 @@ export function OptimizedFormDataTable({
   onCreateRecord,
   canCreateRecord = false,
   createRecordDisabled = false,
-  currentFormData = {}
+  currentFormData = {},
+  isEditing = false
 }: OptimizedFormDataTableProps) {
   const navigate = useNavigate();
   const { getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
@@ -332,8 +335,14 @@ export function OptimizedFormDataTable({
   const [hasInitialAutoSelection, setHasInitialAutoSelection] = useState(false);
 
   // Auto-select records that match dynamic field mappings
-  // This triggers ONLY ONCE when data is first loaded with dynamic mappings
+  // This triggers ONLY in EDIT mode (existing submission) - NOT during new form creation
   useEffect(() => {
+    // CRITICAL: Only auto-select when editing an existing submission
+    // This prevents auto-selection while user is typing values in a new form
+    if (!isEditing) {
+      return;
+    }
+
     // Only run for cross-reference fields with dynamic mappings configured
     if (!isCrossReference || !config.dynamicFieldMappings || config.dynamicFieldMappings.length === 0) {
       return;
@@ -404,7 +413,7 @@ export function OptimizedFormDataTable({
         return updatedRecords;
       });
     }
-  }, [data, loading, dynamicMappingFilters, isCrossReference, config.dynamicFieldMappings, config.targetFormId, config.tableDisplayFields, config.tableDisplayField, hasInitialAutoSelection]);
+  }, [data, loading, dynamicMappingFilters, isCrossReference, config.dynamicFieldMappings, config.targetFormId, config.tableDisplayFields, config.tableDisplayField, hasInitialAutoSelection, isEditing]);
 
   // Initialize modal selection state when modal opens
   const handleModalOpen = () => {
