@@ -3371,7 +3371,26 @@ export function ChartPreview({
           );
         }
 
-        if (chartType === 'scatter') {
+        if (chartType === 'scatter' || chartType === 'bubble') {
+          // Both scatter and bubble charts use the same rendering in encoded mode
+          const bubbleSizeField = config.sizeField;
+          const bubbleSizeLabel = bubbleSizeField ? getFormFieldName(bubbleSizeField) : 'Size';
+          
+          // For bubble, calculate size scale
+          const bubbleData = sanitizedChartData.map((item, idx) => {
+            const sizeValue = bubbleSizeField ? (item[bubbleSizeField] || 10) : 10;
+            return {
+              ...item,
+              size: typeof sizeValue === 'number' ? sizeValue : 10,
+            };
+          });
+          const maxSize = Math.max(...bubbleData.map(d => d.size), 1);
+          const minSize = Math.min(...bubbleData.map(d => d.size), 0);
+          const sizeScale = (size: number) => {
+            const normalized = maxSize === minSize ? 0.5 : (size - minSize) / (maxSize - minSize);
+            return chartType === 'bubble' ? (5 + normalized * 25) : 5; // Fixed size for scatter, variable for bubble
+          };
+          
           return (
             <RechartsScatterChart margin={{ top: 20, right: 20, left: 60, bottom: 80 }}>
               <XAxis 
@@ -3397,19 +3416,40 @@ export function ChartPreview({
                 if (!data) return null;
                 const rawValue = data.rawSecondaryValue || data.rawYValue || '';
                 return (
-                  <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3">
-                    <div className="font-medium">{data.name}</div>
-                    <div className="text-sm text-muted-foreground">{yAxisFieldName}: {rawValue}</div>
+                  <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
+                    <div className="font-medium mb-2">{data.name}</div>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">{yAxisFieldName}:</span>
+                        <span className="font-semibold">{rawValue}</span>
+                      </div>
+                      {chartType === 'bubble' && bubbleSizeField && (
+                        <div className="flex justify-between gap-4">
+                          <span className="text-muted-foreground">{bubbleSizeLabel}:</span>
+                          <span className="font-semibold">{data.size}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-2 pt-1 border-t border-border">
+                      Click to view records
+                    </div>
                   </div>
                 );
               }} />
               <Scatter 
-                data={sanitizedChartData}
+                data={chartType === 'bubble' ? bubbleData : sanitizedChartData}
                 fill={colors[0]}
-                shape="circle"
                 style={{ cursor: 'pointer' }}
-                onClick={(data: any) => handleBarClick(data?.payload || data, 0)}
-              />
+              >
+                {(chartType === 'bubble' ? bubbleData : sanitizedChartData).map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`}
+                    fill={entry._yOptionColor || colors[index % colors.length]}
+                    onClick={() => handleBarClick(entry, index)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                ))}
+              </Scatter>
             </RechartsScatterChart>
           );
         }
