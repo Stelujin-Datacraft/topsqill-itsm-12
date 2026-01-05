@@ -2602,7 +2602,6 @@ export function ChartPreview({
                   <YAxis 
                     tick={{ fontSize: 11 }}
                     domain={yDomain}
-                    label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                   />
                   <Tooltip 
                     content={({ payload }) => {
@@ -2701,7 +2700,6 @@ export function ChartPreview({
                   <YAxis 
                     tick={{ fontSize: 11 }}
                     domain={yDomain}
-                    label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                   />
                   <Tooltip 
                     content={({ payload }) => {
@@ -2785,7 +2783,6 @@ export function ChartPreview({
                     name={field2Name}
                     tick={{ fontSize: 11 }}
                     domain={yDomain}
-                    label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                   />
                   {compareTooltip}
                   <Scatter 
@@ -2927,7 +2924,6 @@ export function ChartPreview({
                     type="category" 
                     dataKey="y" 
                     tick={{ fontSize: 11 }}
-                    label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                   />
                   <Tooltip content={({ payload }) => {
                     if (!payload || payload.length === 0) return null;
@@ -2990,7 +2986,6 @@ export function ChartPreview({
                 <YAxis 
                   tick={{ fontSize: 11 }}
                   domain={yDomain}
-                  label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                 />
                 {compareTooltip}
                 <Bar
