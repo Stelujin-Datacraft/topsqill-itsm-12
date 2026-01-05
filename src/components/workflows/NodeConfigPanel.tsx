@@ -337,21 +337,51 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
           toast({ title: "Error", description: "Please select a target form", variant: "destructive" });
           return false;
         }
-        if (!localConfig?.targetFieldId) {
-          toast({ title: "Error", description: "Please select a field to update", variant: "destructive" });
+        // Check for new multi-field format OR legacy single-field format
+        const hasFieldUpdates = Array.isArray(localConfig?.fieldUpdates) && localConfig.fieldUpdates.length > 0;
+        const hasLegacyField = !!localConfig?.targetFieldId;
+        
+        if (!hasFieldUpdates && !hasLegacyField) {
+          toast({ title: "Error", description: "Please add at least one field to update", variant: "destructive" });
           return false;
         }
-        if (!localConfig?.valueType) {
-          toast({ title: "Error", description: "Please select a value type", variant: "destructive" });
-          return false;
+        
+        // Validate each field update in the array
+        if (hasFieldUpdates) {
+          for (const update of localConfig.fieldUpdates) {
+            if (!update.targetFieldId) {
+              toast({ title: "Error", description: "Please select a field for all field updates", variant: "destructive" });
+              return false;
+            }
+            if (!update.valueType) {
+              toast({ title: "Error", description: "Please select a value type for all field updates", variant: "destructive" });
+              return false;
+            }
+            if (update.valueType === 'static' && update.staticValue === undefined && update.staticValue !== 0 && update.staticValue !== false) {
+              toast({ title: "Error", description: "Please enter a value for all static field updates", variant: "destructive" });
+              return false;
+            }
+            if (update.valueType === 'dynamic' && !update.dynamicValuePath) {
+              toast({ title: "Error", description: "Please select a source field for all dynamic field updates", variant: "destructive" });
+              return false;
+            }
+          }
         }
-        if (localConfig.valueType === 'static' && !localConfig?.staticValue) {
-          toast({ title: "Error", description: "Please enter a static value", variant: "destructive" });
-          return false;
-        }
-        if (localConfig.valueType === 'dynamic' && !localConfig?.dynamicValuePath) {
-          toast({ title: "Error", description: "Please enter a dynamic value path", variant: "destructive" });
-          return false;
+        
+        // Legacy single-field validation
+        if (hasLegacyField && !hasFieldUpdates) {
+          if (!localConfig?.valueType) {
+            toast({ title: "Error", description: "Please select a value type", variant: "destructive" });
+            return false;
+          }
+          if (localConfig.valueType === 'static' && localConfig?.staticValue === undefined) {
+            toast({ title: "Error", description: "Please enter a static value", variant: "destructive" });
+            return false;
+          }
+          if (localConfig.valueType === 'dynamic' && !localConfig?.dynamicValuePath) {
+            toast({ title: "Error", description: "Please enter a dynamic value path", variant: "destructive" });
+            return false;
+          }
         }
       }
       
