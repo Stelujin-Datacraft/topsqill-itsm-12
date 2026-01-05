@@ -31,6 +31,7 @@ import { FormBuilderProps } from './FormBuilder/types/formBuilder';
 import { FormSnapshotProvider, useFormSnapshotContext } from './FormBuilder/contexts/FormSnapshotContext';
 import { useCrossReferenceSync } from '@/hooks/useCrossReferenceSync';
 import { Button } from '@/components/ui/button';
+import { WorkingFormProvider } from '@/hooks/useCurrentFormFields';
 function FormBuilderContent({
   formId
 }: FormBuilderProps) {
@@ -601,8 +602,10 @@ function FormBuilderContent({
                 </div>
               </div>
 
-              {/* Field Properties Dialog */}
-              <FieldPropertiesDialog selectedField={state.selectedField} open={state.showFieldProperties} onClose={() => state.setShowFieldProperties(false)} onSave={handleSaveFieldConfiguration} onDelete={fieldOperations.handleFieldDelete} />
+              {/* Field Properties Dialog - wrapped with WorkingFormProvider for cross-reference field mapping */}
+              <WorkingFormProvider value={{ workingForm }}>
+                <FieldPropertiesDialog selectedField={state.selectedField} open={state.showFieldProperties} onClose={() => state.setShowFieldProperties(false)} onSave={handleSaveFieldConfiguration} onDelete={fieldOperations.handleFieldDelete} />
+              </WorkingFormProvider>
             </TabsContent>
 
             <TabsContent value="rules">
