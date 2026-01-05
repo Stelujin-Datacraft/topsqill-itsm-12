@@ -1129,11 +1129,24 @@ export function ChartPreview({
     const value = submissionData[fieldId];
     if (value === null || value === undefined) return '';
     if (typeof value === 'object') {
+      // Handle label property (common for selection fields like dropdown, radio, etc.)
+      if (value.label) return String(value.label);
+      // Handle currency objects
       if (value.amount !== undefined && value.code) {
         return `${value.code} ${value.amount}`;
       }
+      // Handle status objects
       if (value.status) return value.status;
-      if (Array.isArray(value)) return value.join(', ');
+      // Handle arrays (multi-select, tags)
+      if (Array.isArray(value)) {
+        // Check if array items have labels
+        const labels = value.map(item => {
+          if (typeof item === 'object' && item?.label) return item.label;
+          return String(item);
+        });
+        return labels.join(', ');
+      }
+      // Fallback for other objects - try to get meaningful display
       return JSON.stringify(value);
     }
     return String(value);
@@ -4082,15 +4095,15 @@ export function ChartPreview({
                       if (!data) return null;
                       return (
                         <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
-                          <div className="font-medium mb-2">{data.name || 'Data Point'}</div>
+                          <div className="font-medium mb-2">{data.name || data.xOriginal || data.xRaw || 'Data Point'}</div>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{scatterXLabel}:</span>
-                              <span className="font-semibold">{data.xOriginal || data.x}</span>
+                              <span className="font-semibold">{data.xOriginal || data.xRaw || data.x}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{scatterYLabel}:</span>
-                              <span className="font-semibold">{data.yOriginal || data.y}</span>
+                              <span className="font-semibold">{data.yOriginal || data.yRaw || data.y}</span>
                             </div>
                           </div>
                           <div className="text-[11px] text-muted-foreground mt-2 pt-1 border-t border-border">
@@ -4187,15 +4200,15 @@ export function ChartPreview({
                         if (!data) return null;
                         return (
                           <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
-                            <div className="font-medium mb-2">{data.name || 'Data Point'}</div>
+                            <div className="font-medium mb-2">{data.name || data.xOriginal || data.xRaw || 'Data Point'}</div>
                             <div className="space-y-1 text-sm">
                               <div className="flex justify-between gap-4">
                                 <span className="text-muted-foreground">{bubbleXLabel}:</span>
-                                <span className="font-semibold">{data.xOriginal || data.x}</span>
+                                <span className="font-semibold">{data.xOriginal || data.xRaw || data.x}</span>
                               </div>
                               <div className="flex justify-between gap-4">
                                 <span className="text-muted-foreground">{bubbleYLabel}:</span>
-                                <span className="font-semibold">{data.yOriginal || data.y}</span>
+                                <span className="font-semibold">{data.yOriginal || data.yRaw || data.y}</span>
                               </div>
                               {bubbleSizeField && (
                                 <div className="flex justify-between gap-4">
