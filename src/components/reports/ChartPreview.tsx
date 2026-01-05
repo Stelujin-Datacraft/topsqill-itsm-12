@@ -2903,10 +2903,11 @@ export function ChartPreview({
         );
       }
 
-      // Handle bubble chart in compare mode
+      // Handle bubble chart in compare mode - same behavior as scatter chart
       if (chartType === 'bubble') {
-        // Bubble chart uses x, y from compare data - in cross-ref mode, x is sequential index, y is value
-        const bubbleData = sortedData.map((item, idx) => ({
+        // Bubble chart uses sanitizedChartData like Scatter - with x, y properties
+        // Size is based on y value (or a configured sizeField if available)
+        const bubbleData = sanitizedChartData.map((item, idx) => ({
           ...item,
           size: Math.abs(Number(item.y) || 10),
           xLabel: item.xRaw || item.name || String(item.x),
@@ -2925,7 +2926,7 @@ export function ChartPreview({
           <div className="relative w-full h-full min-h-[300px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
-                <RechartsScatterChart margin={{ top: 20, right: 30, left: 60, bottom: 80 }}>
+                <RechartsScatterChart margin={{ top: 20, right: 30, left: 60, bottom: 60 }}>
                   <XAxis 
                     type="number" 
                     dataKey="x" 
@@ -2950,14 +2951,14 @@ export function ChartPreview({
                       if (!data) return null;
                       return (
                         <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
-                          <div className="font-medium mb-2">{data.xLabel || data.name || 'Data Point'}</div>
+                          <div className="font-medium mb-2">{data.name || data.xRaw || 'Data Point'}</div>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between gap-4">
-                              <span className="text-muted-foreground">{field1Name}:</span>
+                              <span className="text-muted-foreground">{data.xFieldName || field1Name}:</span>
                               <span className="font-semibold">{data.xRaw || data.x}</span>
                             </div>
                             <div className="flex justify-between gap-4">
-                              <span className="text-muted-foreground">{field2Name}:</span>
+                              <span className="text-muted-foreground">{data.yFieldName || field2Name}:</span>
                               <span className="font-semibold">{data.yRaw || data.y}</span>
                             </div>
                             <div className="flex justify-between gap-4">
@@ -2976,13 +2977,13 @@ export function ChartPreview({
                     data={bubbleData} 
                     fill={colors[0]}
                     style={{ cursor: 'pointer' }}
+                    onClick={(data: any) => handleBarClick(data?.payload || data, 0)}
                   >
                     {bubbleData.map((entry, index) => (
                       <Cell 
                         key={`bubble-${index}`}
                         fill={colors[index % colors.length]}
                         r={sizeScale(entry.size)}
-                        onClick={() => handleBarClick(entry, index)}
                         style={{ cursor: 'pointer' }}
                       />
                     ))}
