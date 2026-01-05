@@ -3454,6 +3454,73 @@ export function ChartPreview({
           );
         }
 
+        if (chartType === 'heatmap') {
+          // Heatmap in encoded mode - use grid layout based on data
+          const gridCols = config.gridColumns || Math.ceil(Math.sqrt(sanitizedChartData.length));
+          const heatmapData = sanitizedChartData.map((item, index) => {
+            const intensity = (item.encodedValue || 0) / maxEncodedValue;
+            return {
+              ...item,
+              x: index % gridCols,
+              y: Math.floor(index / gridCols),
+              intensity,
+            };
+          });
+          
+          const effectiveAgg = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
+          
+          return (
+            <div className="w-full h-full flex flex-col">
+              <div className="text-sm text-muted-foreground mb-3">
+                <span className="font-medium">{xAxisFieldName}</span>
+                <span className="text-xs ml-2">(Value: {yAxisFieldName}, Aggregation: {effectiveAgg})</span>
+              </div>
+              <div className="flex-1 min-h-0 grid gap-1" style={{
+                gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
+                gridTemplateRows: `repeat(${Math.ceil(heatmapData.length / gridCols)}, 1fr)`
+              }}>
+                {heatmapData.map((cell, index) => {
+                  const intensity = cell.intensity;
+                  const intensityPercent = (intensity * 100).toFixed(1);
+                  const colorIndex = Math.floor(intensity * (colors.length - 1));
+                  const safeColorIndex = Math.max(0, Math.min(colors.length - 1, isNaN(colorIndex) ? 0 : colorIndex));
+                  const rawValue = cell.rawSecondaryValue || cell.rawYValue || '';
+                  
+                  return (
+                    <HeatmapCell
+                      key={index}
+                      rowLabel={xAxisFieldName}
+                      colLabel={yAxisFieldName}
+                      rowValue={cell.name}
+                      colValue={rawValue}
+                      cellValue={cell.encodedValue || 0}
+                      cellCount={1}
+                      intensityLabel={yAxisFieldName}
+                      aggregation={effectiveAgg}
+                      intensityPercent={intensityPercent}
+                      maxValue={maxEncodedValue}
+                      backgroundColor={cell._yOptionColor || colors[safeColorIndex]}
+                      textColor={intensity > 0.5 ? 'white' : 'black'}
+                      onClick={() => handleBarClick(cell, index)}
+                    />
+                  );
+                })}
+              </div>
+              {/* Color scale legend */}
+              <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                <span>Low</span>
+                <div className="flex h-3 rounded overflow-hidden flex-1 max-w-[200px]">
+                  {colors.map((color, idx) => (
+                    <div key={idx} style={{ backgroundColor: color, flex: 1 }} />
+                  ))}
+                </div>
+                <span>High</span>
+                <span className="ml-2 text-muted-foreground/70">(1 - {maxEncodedValue})</span>
+              </div>
+            </div>
+          );
+        }
+
         // Default: Bar chart
         return (
           <BarChart 
