@@ -20,6 +20,17 @@ const getFieldType = (field: FormField): string => {
   return (field as any)?.field_type || field?.type || 'unknown';
 };
 
+// Allow all field types for bubble chart axes (not just numeric)
+const getAxisFields = (fields: FormField[]) => {
+  return fields.filter(f => {
+    const type = getFieldType(f);
+    // Exclude unsupported field types that can't be plotted
+    const unsupportedTypes = ['file', 'image', 'signature', 'divider', 'section', 'heading', 'spacer', 'html', 'page-break'];
+    return !unsupportedTypes.includes(type);
+  });
+};
+
+// Keep numeric fields filter for the Size field (must be numeric)
 const getNumericFields = (fields: FormField[]) => {
   return fields.filter(f => {
     const type = getFieldType(f);
@@ -38,6 +49,7 @@ const getCategoryFields = (fields: FormField[]) => {
 };
 
 export function BubbleDataSection({ config, formFields, onConfigChange }: BubbleDataSectionProps) {
+  const axisFields = getAxisFields(formFields);
   const numericFields = getNumericFields(formFields);
   const categoryFields = getCategoryFields(formFields);
   
@@ -87,7 +99,7 @@ export function BubbleDataSection({ config, formFields, onConfigChange }: Bubble
             <div>
               <CardTitle className="text-base">X-Axis (Horizontal Position)</CardTitle>
               <CardDescription className="text-xs mt-0.5">
-                First numeric value - horizontal position of bubbles
+                First value - horizontal position of bubbles
               </CardDescription>
             </div>
           </div>
@@ -118,7 +130,7 @@ export function BubbleDataSection({ config, formFields, onConfigChange }: Bubble
                 <SelectValue placeholder="Select X-axis field..." />
               </SelectTrigger>
               <SelectContent>
-                {numericFields.map((field) => (
+                {axisFields.map((field) => (
                   <SelectItem key={field.id} value={field.id}>
                     <div className="flex items-center gap-2">
                       <span>{field.label}</span>
@@ -142,7 +154,7 @@ export function BubbleDataSection({ config, formFields, onConfigChange }: Bubble
             <div>
               <CardTitle className="text-base">Y-Axis (Vertical Position)</CardTitle>
               <CardDescription className="text-xs mt-0.5">
-                Second numeric value - vertical position of bubbles
+                Second value - vertical position of bubbles
               </CardDescription>
             </div>
           </div>
@@ -178,7 +190,7 @@ export function BubbleDataSection({ config, formFields, onConfigChange }: Bubble
                 <SelectValue placeholder={xAxisField ? "Select Y-axis field..." : "Select X-axis first"} />
               </SelectTrigger>
               <SelectContent>
-                {numericFields.filter(f => f.id !== xAxisField).map((field) => (
+                {axisFields.filter(f => f.id !== xAxisField).map((field) => (
                   <SelectItem key={field.id} value={field.id}>
                     <div className="flex items-center gap-2">
                       <span>{field.label}</span>
