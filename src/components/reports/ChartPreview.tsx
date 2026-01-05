@@ -2458,7 +2458,10 @@ export function ChartPreview({
     });
     let dimensionKeys = Array.from(allNumericKeys);
     
-    const isCompareMode = config.compareMode && config.metrics && config.metrics.length === 2;
+    // For cross-reference charts, also treat as compare mode if data has x/y properties
+    const isCrossRefChart = config.crossRefConfig?.enabled && sanitizedChartData.length > 0 && 
+      sanitizedChartData[0].hasOwnProperty('x') && sanitizedChartData[0].hasOwnProperty('y');
+    const isCompareMode = (config.compareMode && config.metrics && config.metrics.length === 2) || isCrossRefChart;
     // For Calculate Values mode (single metric, no groupBy), treat as single-dimensional even if dimensionKeys > 1
     const isCalculateMode = !config.compareMode && config.metrics?.length === 1 && !config.groupByField;
     // Cross-reference drilldown should always be treated as single-dimensional
