@@ -4127,20 +4127,30 @@ export function ChartPreview({
             </div>
           </div>;
       case 'scatter':
-        // Scatter plot always uses x and y from processCompareData
+        // Scatter plot - handle both numeric and text field values
         const scatterXLabel = config.xAxisLabel || (config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'X-Axis');
         const scatterYLabel = config.yAxisLabel || (config.metrics?.[1] ? getFormFieldName(config.metrics[1]) : 'Y-Axis');
         
-        // Detect if x/y values are numeric or text for proper axis type
-        // Check both the _xIsText/_yIsText flags from data processing AND actual string detection
-        const scatterHasTextX = sanitizedChartData.some(d => d._xIsText || (typeof d.x === 'string' && isNaN(Number(d.x))));
-        const scatterHasTextY = sanitizedChartData.some(d => d._yIsText || (typeof d.y === 'string' && isNaN(Number(d.y))));
+        // Get legend mappings from the first data point OR create them if text values detected
+        let scatterXMapping = sanitizedChartData[0]?._xLegendMapping || [];
+        let scatterYMapping = sanitizedChartData[0]?._yLegendMapping || [];
         
-        // Get legend mappings from the first data point (all points have the same mappings)
-        const scatterXMapping = sanitizedChartData[0]?._xLegendMapping || [];
-        const scatterYMapping = sanitizedChartData[0]?._yLegendMapping || [];
+        // Detect text values - check if x/y are text that need encoding
+        const scatterXValues = sanitizedChartData.map(d => d.xRaw || d.x || d.name);
+        const scatterYValues = sanitizedChartData.map(d => d.yRaw || d.y || d.value);
+        const scatterHasTextX = scatterXMapping.length === 0 && scatterXValues.some(v => typeof v === 'string' && isNaN(Number(v)));
+        const scatterHasTextY = scatterYMapping.length === 0 && scatterYValues.some(v => typeof v === 'string' && isNaN(Number(v)));
         
-        // Also check if any data has legend mappings (even if hasText flags are false)
+        // Create mappings inline if text is detected but no mapping exists
+        if (scatterHasTextX && scatterXMapping.length === 0) {
+          const uniqueX = [...new Set(scatterXValues.map(v => String(v)))].sort();
+          scatterXMapping = uniqueX.map((label, idx) => ({ number: idx + 1, label }));
+        }
+        if (scatterHasTextY && scatterYMapping.length === 0) {
+          const uniqueY = [...new Set(scatterYValues.map(v => String(v)))].sort();
+          scatterYMapping = uniqueY.map((label, idx) => ({ number: idx + 1, label }));
+        }
+        
         const hasXMapping = scatterXMapping.length > 0;
         const hasYMapping = scatterYMapping.length > 0;
         
@@ -4152,12 +4162,33 @@ export function ChartPreview({
           sampleData: sanitizedChartData[0]
         });
         
-        // For text axes, transform data to use index and store original values
-        const scatterTransformedData = sanitizedChartData.map((item, idx) => ({
-          ...item,
-          xOriginal: item.xRaw || item.x,
-          yOriginal: item.yRaw || item.y,
-        }));
+        // Transform data - encode text values to numbers if mappings exist
+        const scatterTransformedData = sanitizedChartData.map((item, idx) => {
+          const xRaw = item.xRaw || item.x || item.name;
+          const yRaw = item.yRaw || item.y || item.value;
+          
+          // Encode x value if we have a mapping
+          let xEncoded = item.x;
+          if (hasXMapping) {
+            const xMapping = scatterXMapping.find((m: any) => m.label === String(xRaw));
+            xEncoded = xMapping ? xMapping.number : (typeof item.x === 'number' ? item.x : idx + 1);
+          }
+          
+          // Encode y value if we have a mapping
+          let yEncoded = item.y;
+          if (hasYMapping) {
+            const yMapping = scatterYMapping.find((m: any) => m.label === String(yRaw));
+            yEncoded = yMapping ? yMapping.number : (typeof item.y === 'number' ? item.y : idx + 1);
+          }
+          
+          return {
+            ...item,
+            x: xEncoded,
+            y: yEncoded,
+            xOriginal: xRaw,
+            yOriginal: yRaw,
+          };
+        });
         
         return <div className="relative w-full h-full min-h-[300px]">
             <div className="absolute inset-0">
@@ -4244,22 +4275,32 @@ export function ChartPreview({
             </div>
           </div>;
       case 'bubble':
-        // Bubble chart uses x, y from processCompareData and sizeField for bubble size
+        // Bubble chart - handle both numeric and text field values
         const bubbleSizeField = config.sizeField;
         const bubbleXLabel = config.xAxisLabel || (config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'X-Axis');
         const bubbleYLabel = config.yAxisLabel || (config.metrics?.[1] ? getFormFieldName(config.metrics[1]) : 'Y-Axis');
         const bubbleSizeLabel = bubbleSizeField ? getFormFieldName(bubbleSizeField) : 'Size';
         
-        // Detect if x/y values are numeric or text for proper axis type
-        // Check both the _xIsText/_yIsText flags from data processing AND actual string detection
-        const bubbleHasTextX = sanitizedChartData.some(d => d._xIsText || (typeof d.x === 'string' && isNaN(Number(d.x))));
-        const bubbleHasTextY = sanitizedChartData.some(d => d._yIsText || (typeof d.y === 'string' && isNaN(Number(d.y))));
+        // Get legend mappings from the first data point OR create them if text values detected
+        let bubbleXMapping = sanitizedChartData[0]?._xLegendMapping || [];
+        let bubbleYMapping = sanitizedChartData[0]?._yLegendMapping || [];
         
-        // Get legend mappings from the first data point (all points have the same mappings)
-        const bubbleXMapping = sanitizedChartData[0]?._xLegendMapping || [];
-        const bubbleYMapping = sanitizedChartData[0]?._yLegendMapping || [];
+        // Detect text values - check if x/y are text that need encoding
+        const bubbleXValues = sanitizedChartData.map(d => d.xRaw || d.x || d.name);
+        const bubbleYValues = sanitizedChartData.map(d => d.yRaw || d.y || d.value);
+        const bubbleHasTextX = bubbleXMapping.length === 0 && bubbleXValues.some(v => typeof v === 'string' && isNaN(Number(v)));
+        const bubbleHasTextY = bubbleYMapping.length === 0 && bubbleYValues.some(v => typeof v === 'string' && isNaN(Number(v)));
         
-        // Also check if any data has legend mappings (even if hasText flags are false)
+        // Create mappings inline if text is detected but no mapping exists
+        if (bubbleHasTextX && bubbleXMapping.length === 0) {
+          const uniqueX = [...new Set(bubbleXValues.map(v => String(v)))].sort();
+          bubbleXMapping = uniqueX.map((label, idx) => ({ number: idx + 1, label }));
+        }
+        if (bubbleHasTextY && bubbleYMapping.length === 0) {
+          const uniqueY = [...new Set(bubbleYValues.map(v => String(v)))].sort();
+          bubbleYMapping = uniqueY.map((label, idx) => ({ number: idx + 1, label }));
+        }
+        
         const hasBubbleXMapping = bubbleXMapping.length > 0;
         const hasBubbleYMapping = bubbleYMapping.length > 0;
         
@@ -4270,13 +4311,33 @@ export function ChartPreview({
           yMappingLength: bubbleYMapping.length,
         });
         
+        // Transform data - encode text values to numbers if mappings exist
         const bubbleData = sanitizedChartData.map((item, idx) => {
+          const xRaw = item.xRaw || item.x || item.name;
+          const yRaw = item.yRaw || item.y || item.value;
           const sizeValue = bubbleSizeField ? (item[bubbleSizeField] || 10) : 10;
+          
+          // Encode x value if we have a mapping
+          let xEncoded = item.x;
+          if (hasBubbleXMapping) {
+            const xMapping = bubbleXMapping.find((m: any) => m.label === String(xRaw));
+            xEncoded = xMapping ? xMapping.number : (typeof item.x === 'number' ? item.x : idx + 1);
+          }
+          
+          // Encode y value if we have a mapping
+          let yEncoded = item.y;
+          if (hasBubbleYMapping) {
+            const yMapping = bubbleYMapping.find((m: any) => m.label === String(yRaw));
+            yEncoded = yMapping ? yMapping.number : (typeof item.y === 'number' ? item.y : idx + 1);
+          }
+          
           return {
             ...item,
+            x: xEncoded,
+            y: yEncoded,
             size: typeof sizeValue === 'number' ? sizeValue : 10,
-            xOriginal: item.xRaw || item.x,
-            yOriginal: item.yRaw || item.y,
+            xOriginal: xRaw,
+            yOriginal: yRaw,
           };
         });
         
