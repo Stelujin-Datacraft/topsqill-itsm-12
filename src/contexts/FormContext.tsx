@@ -23,7 +23,6 @@ interface FormProviderProps {
   children: React.ReactNode;
 }
 
-// Helper function to transform database form to app form
 const transformDatabaseFormToAppForm = (dbForm: any): Form => {
   return {
     id: dbForm.id,
@@ -57,7 +56,6 @@ const transformDatabaseFormToAppForm = (dbForm: any): Form => {
   };
 };
 
-// Helper function to transform app form to database form
 const transformAppFormToDatabaseForm = (appForm: Partial<Form>) => {
   return {
     name: appForm.name,
@@ -97,14 +95,12 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
         return;
       }
 
-      // Get current user's ID
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setForms([]);
         return;
       }
 
-      // Check if user is admin - run in parallel with getting user profile
       const [projectUserResult, userProfileResult] = await Promise.all([
         supabase
           .from('project_users')
@@ -122,7 +118,6 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
       const isProjectAdmin = projectUserResult.data?.role === 'admin';
       const isOrgAdmin = userProfileResult.data?.role === 'admin';
 
-      // If user is admin, just fetch all forms directly - no need for permission checks
       if (isProjectAdmin || isOrgAdmin) {
         const { data, error } = await supabase
           .from('forms')
@@ -138,7 +133,6 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
         return;
       }
 
-      // For non-admin users, run all permission queries in parallel
       const [assetPermsResult, formAccessResult, formsResult] = await Promise.all([
         supabase
           .from('asset_permissions')
@@ -163,13 +157,10 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
         return;
       }
 
-      // Build set of accessible form IDs
       const accessibleIds = new Set<string>();
       assetPermsResult.data?.forEach(p => accessibleIds.add(p.asset_id));
       formAccessResult.data?.forEach(f => accessibleIds.add(f.form_id));
 
-      // Filter forms - user can see: their own forms, forms with access, public forms
-      // Note: created_by can be either email or UUID string, so check both
       const filteredForms = (formsResult.data || []).filter(form => 
         form.created_by === user.id || 
         form.created_by === user.email ||
@@ -179,7 +170,6 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
 
       setForms(filteredForms.map(transformDatabaseFormToAppForm));
     } catch (err: any) {
-      console.error('FormContext: Error loading forms:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -194,7 +184,6 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
         throw new Error('No project selected');
       }
 
-      // Get current user's ID for created_by field
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('No authenticated user');
@@ -206,7 +195,7 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
         organization_id: currentProject.organization_id || '',
         project_id: currentProject.id,
         status: 'draft' as const,
-        created_by: user.id, // Use user.id instead of email
+        created_by: user.id,
         is_public: false,
         permissions: JSON.stringify({
           view: [],
@@ -225,8 +214,6 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
         pages: JSON.stringify(formData.pages || []),
       };
 
-      console.log('FormContext: Creating form with data:', newFormData);
-
       const { data, error } = await supabase
         .from('forms')
         .insert([newFormData])
@@ -234,7 +221,6 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
         .single();
 
       if (error) {
-        console.error('FormContext: Error creating form:', error);
         setError(error.message);
         return null;
       }
@@ -244,7 +230,6 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
       setCurrentForm(createdForm);
       return createdForm;
     } catch (err: any) {
-      console.error('FormContext: Unexpected error creating form:', err);
       setError(err.message);
       return null;
     } finally {
@@ -266,7 +251,6 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
       if (error) {
         setError(error.message);
       } else {
-        // Optimistically update the form in the local state
         setForms(forms.map(form => (form.id === formId ? { ...form, ...updates } : form)));
         setCurrentForm(prevForm => prevForm?.id === formId ? { ...prevForm, ...updates } : prevForm);
       }
@@ -289,7 +273,6 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
       if (error) {
         setError(error.message);
       } else {
-        // Optimistically update the form in the local state
         setForms(forms.filter(form => form.id !== formId));
         setCurrentForm(prevForm => prevForm?.id === formId ? null : prevForm);
       }
@@ -309,7 +292,6 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
         throw new Error('Form not found');
       }
 
-      // Get current user's ID for created_by field
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('No authenticated user');
@@ -318,7 +300,7 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
       const duplicateData = {
         ...transformAppFormToDatabaseForm(originalForm),
         name: `${originalForm.name} Copy`,
-        created_by: user.id, // Use user.id instead of email
+        created_by: user.id,
       };
 
       const { data, error } = await supabase

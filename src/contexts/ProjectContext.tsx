@@ -42,21 +42,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
   const loadProjects = async () => {
     if (!userProfile?.organization_id || !userProfile?.id) {
-      console.log('ProjectContext: No organization ID or user ID available for loading projects');
       setLoading(false);
       return;
     }
     
     setLoading(true);
-    console.log('ProjectContext: Loading projects for organization:', userProfile.organization_id, 'user:', userProfile.id);
     
     try {
       let projectsData = [];
       let permissionsMap: Record<string, string[]> = {};
 
-      // If user is organization admin, get all projects in the organization
       if (userProfile.role === 'admin') {
-        console.log('ProjectContext: User is organization admin, loading all projects');
         const { data, error } = await supabase
           .from('projects')
           .select('*')
@@ -64,21 +60,15 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           .order('updated_at', { ascending: false });
 
         if (error) {
-          console.error('ProjectContext: Error loading all projects:', error);
           throw error;
         }
 
         projectsData = data || [];
         
-        // Organization admins have full permissions on all projects
         projectsData.forEach(project => {
           permissionsMap[project.id] = ['admin', 'editor', 'viewer', 'create', 'edit', 'delete', 'view'];
         });
       } else {
-        // For regular users, get projects they have access to
-        console.log('ProjectContext: Loading projects with user access');
-        
-        // Get projects where user is explicitly added as a project member
         const { data: userProjects, error: userProjectsError } = await supabase
           .from('project_users')
           .select(`
@@ -89,11 +79,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           .eq('user_id', userProfile.id);
 
         if (userProjectsError) {
-          console.error('ProjectContext: Error loading user projects:', userProjectsError);
           throw userProjectsError;
         }
 
-        // Get projects created by the user
         const { data: createdProjects, error: createdProjectsError } = await supabase
           .from('projects')
           .select('*')
@@ -101,14 +89,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           .eq('organization_id', userProfile.organization_id);
 
         if (createdProjectsError) {
-          console.error('ProjectContext: Error loading created projects:', createdProjectsError);
           throw createdProjectsError;
         }
 
-        // Combine and deduplicate projects
         const allProjectsMap = new Map();
         
-        // Add user projects with their roles
         (userProjects || []).forEach(up => {
           if (up.projects) {
             allProjectsMap.set(up.projects.id, {
@@ -116,13 +101,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
               userRole: up.role
             });
             
-            // Set permissions based on role
             const rolePermissions = getRolePermissions(up.role);
             permissionsMap[up.projects.id] = rolePermissions;
           }
         });
 
-        // Add created projects (user is admin of their own projects)
         (createdProjects || []).forEach(project => {
           if (!allProjectsMap.has(project.id)) {
             allProjectsMap.set(project.id, {
@@ -135,9 +118,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
         projectsData = Array.from(allProjectsMap.values());
       }
-
-      console.log('ProjectContext: Projects loaded:', projectsData.length, 'projects');
-      console.log('ProjectContext: User permissions:', permissionsMap);
       
       const typedProjects: Project[] = projectsData.map(project => ({
         ...project,
@@ -147,7 +127,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       setProjects(typedProjects);
       setUserProjectPermissions(permissionsMap);
       
-      // Only set current project if none selected and no saved project in localStorage
       const savedProjectId = localStorage.getItem('currentProjectId');
       if (!currentProject && typedProjects.length > 0) {
         if (savedProjectId) {
@@ -155,7 +134,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           if (savedProject) {
             setCurrentProject(savedProject);
           } else {
-            // If saved project not found, default to first project
             setCurrentProject(typedProjects[0]);
           }
         } else {
@@ -163,7 +141,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch (error) {
-      console.error('ProjectContext: Error loading projects:', error);
       setProjects([]);
       setUserProjectPermissions({});
     } finally {
@@ -187,29 +164,19 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   };
 
   const createProject = async (projectData: any) => {
-    console.log('ProjectContext: Starting project creation process');
-    console.log('ProjectContext: User profile:', userProfile);
-    console.log('ProjectContext: Project data:', projectData);
-
     if (!userProfile?.organization_id) {
-      console.error('ProjectContext: No organization ID available - cannot create project');
       return null;
     }
 
     if (!userProfile?.id) {
-      console.error('ProjectContext: No user ID available - cannot create project');
       return null;
     }
 
     if (userProfile.role !== 'admin') {
-      console.error('ProjectContext: User is not admin - cannot create project. Current role:', userProfile.role);
       return null;
     }
-
-    console.log('ProjectContext: All validation checks passed, proceeding with project creation');
     
     try {
-      console.log('ProjectContext: Attempting to insert project into database');
       const { data, error } = await supabase
         .from('projects')
         .insert({
@@ -223,17 +190,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (error) {
-        console.error('ProjectContext: Database error during project creation:', {
-          error,
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
-        });
         throw error;
       }
-
-      console.log('ProjectContext: Project created successfully:', data);
       
       const typedProject: Project = {
         ...data,
@@ -243,17 +201,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       await loadProjects();
       setCurrentProject(typedProject);
       
-      console.log('ProjectContext: Project creation process completed successfully');
       return typedProject;
     } catch (error) {
-      console.error('ProjectContext: Error in createProject function:', error);
       return null;
     }
   };
 
   const getProjectUsers = async (projectId: string): Promise<ProjectUser[]> => {
-    console.log('ProjectContext: Getting users for project:', projectId);
-    
     try {
       const { data: projectUsersData, error: projectUsersError } = await supabase
         .from('project_users')
@@ -261,12 +215,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         .eq('project_id', projectId);
 
       if (projectUsersError) {
-        console.error('ProjectContext: Error fetching project users:', projectUsersError);
         return [];
       }
 
       if (!projectUsersData || projectUsersData.length === 0) {
-        console.log('ProjectContext: No users found for project:', projectId);
         return [];
       }
 
@@ -278,7 +230,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         .in('id', userIds);
 
       if (usersError) {
-        console.error('ProjectContext: Error fetching user profiles:', usersError);
         return [];
       }
 
@@ -293,17 +244,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         };
       });
 
-      console.log('ProjectContext: Project users retrieved:', projectUsers);
       return projectUsers;
     } catch (error) {
-      console.error('ProjectContext: Error in getProjectUsers:', error);
       return [];
     }
   };
 
   const addUserToProject = async (projectId: string, userId: string, role: string) => {
-    console.log('ProjectContext: Adding user to project:', { projectId, userId, role });
-    
     try {
       const { error } = await supabase
         .from('project_users')
@@ -315,20 +262,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         });
 
       if (error) {
-        console.error('ProjectContext: Error adding user to project:', error);
         throw error;
       }
-
-      console.log('ProjectContext: User added to project successfully');
     } catch (error) {
-      console.error('ProjectContext: Error in addUserToProject:', error);
       throw error;
     }
   };
 
   const removeUserFromProject = async (projectId: string, userId: string) => {
-    console.log('ProjectContext: Removing user from project:', { projectId, userId });
-    
     try {
       const { error } = await supabase
         .from('project_users')
@@ -337,20 +278,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         .eq('user_id', userId);
 
       if (error) {
-        console.error('ProjectContext: Error removing user from project:', error);
         throw error;
       }
-
-      console.log('ProjectContext: User removed from project successfully');
     } catch (error) {
-      console.error('ProjectContext: Error in removeUserFromProject:', error);
       throw error;
     }
   };
 
   const updateUserRole = async (projectId: string, userId: string, role: string) => {
-    console.log('ProjectContext: Updating user role:', { projectId, userId, role });
-    
     try {
       const { error } = await supabase
         .from('project_users')
@@ -359,13 +294,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         .eq('user_id', userId);
 
       if (error) {
-        console.error('ProjectContext: Error updating user role:', error);
         throw error;
       }
-
-      console.log('ProjectContext: User role updated successfully');
     } catch (error) {
-      console.error('ProjectContext: Error in updateUserRole:', error);
       throw error;
     }
   };
@@ -383,13 +314,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         });
 
       if (error) {
-        console.error('ProjectContext: Error checking project permission:', error);
         return false;
       }
 
       return data || false;
     } catch (error) {
-      console.error('ProjectContext: Error in hasProjectPermission:', error);
       return false;
     }
   };
@@ -403,18 +332,15 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         });
 
       if (error) {
-        console.error('ProjectContext: Error checking create permission:', error);
         return false;
       }
 
       return data || false;
     } catch (error) {
-      console.error('ProjectContext: Error in canCreateAssets:', error);
       return false;
     }
   };
 
-  // Load project from localStorage on initialization
   useEffect(() => {
     const savedProjectId = localStorage.getItem('currentProjectId');
     if (savedProjectId && projects.length > 0 && !currentProject) {
@@ -425,13 +351,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       }
     }
     
-    // Only set default project if no current project and no saved project
     if (!currentProject && projects.length > 0 && !savedProjectId) {
       setCurrentProject(projects[0]);
     }
   }, [projects]);
 
-  // Save project to localStorage when changed
   useEffect(() => {
     if (currentProject) {
       localStorage.setItem('currentProjectId', currentProject.id);
