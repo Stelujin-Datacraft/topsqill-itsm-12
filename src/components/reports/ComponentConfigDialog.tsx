@@ -389,10 +389,15 @@ export function ComponentConfigDialog({
   };
 
   const handleSave = () => {
+    console.log('ComponentConfigDialog handleSave - config.filters:', config.filters);
+    console.log('ComponentConfigDialog handleSave - config.filterLogicExpression:', config.filterLogicExpression);
+    
     const finalConfig = {
       ...config,
       joinConfig: joinEnabled ? config.joinConfig : undefined
     };
+
+    console.log('ComponentConfigDialog handleSave - finalConfig.filters:', finalConfig.filters);
 
     onSave({
       config: finalConfig,

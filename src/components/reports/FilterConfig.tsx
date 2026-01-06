@@ -164,19 +164,25 @@ export function FilterConfig({
   };
 
   const addFilter = () => {
-    onFiltersChange([
+    console.log('FilterConfig - Adding new filter, current count:', filters.length);
+    const newFilters = [
       ...filters,
       { field: '', operator: 'equals', value: '' }
-    ]);
+    ];
+    console.log('FilterConfig - New filters array:', newFilters);
+    onFiltersChange(newFilters);
   };
 
   const removeFilter = (index: number) => {
+    console.log('FilterConfig - Removing filter at index:', index);
     onFiltersChange(filters.filter((_, i) => i !== index));
   };
 
   const updateFilter = (index: number, updates: Partial<typeof filters[0]>) => {
     const newFilters = [...filters];
     newFilters[index] = { ...newFilters[index], ...updates };
+    console.log('FilterConfig - Updating filter at index', index, 'with:', updates);
+    console.log('FilterConfig - Updated filters:', newFilters);
     onFiltersChange(newFilters);
   };
 
