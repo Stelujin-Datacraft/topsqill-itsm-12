@@ -1399,8 +1399,73 @@ Deno.serve(async (req) => {
               
               const conditionConfig = nodeData.config as any
               const conditions = conditionConfig?.conditions || []
-              const triggerData = execution.trigger_data || {}
-              const submissionData = triggerData.submissionData || {}
+              let triggerData = execution.trigger_data || {}
+              let submissionData = triggerData.submissionData || {}
+              
+              // *** LOOP-BACK SUPPORT: Fetch LATEST submission data ***
+              // This is critical for loop-back scenarios where we need to detect manual changes
+              const submissionId = execution.trigger_submission_id || triggerData.submissionId
+              if (submissionId) {
+                console.log(`🔄 Fetching latest submission data for: ${submissionId}`)
+                const { data: latestSubmission, error: fetchSubError } = await supabase
+                  .from('form_submissions')
+                  .select('submission_data, submitted_at, approval_status')
+                  .eq('id', submissionId)
+                  .single()
+                
+                if (!fetchSubError && latestSubmission) {
+                  const latestData = latestSubmission.submission_data as Record<string, any>
+                  console.log(`✅ Got latest submission data, comparing with original...`)
+                  
+                  // Check if data has changed
+                  const originalDataStr = JSON.stringify(submissionData)
+                  const latestDataStr = JSON.stringify(latestData)
+                  
+                  if (originalDataStr !== latestDataStr) {
+                    console.log(`🔄 Submission data has CHANGED since workflow started!`)
+                    console.log(`   Original keys: ${Object.keys(submissionData).length}`)
+                    console.log(`   Latest keys: ${Object.keys(latestData).length}`)
+                    
+                    // Log which fields changed
+                    for (const key of Object.keys(latestData)) {
+                      if (JSON.stringify(submissionData[key]) !== JSON.stringify(latestData[key])) {
+                        console.log(`   📝 Field changed: ${key}`)
+                        console.log(`      Original: ${JSON.stringify(submissionData[key])}`)
+                        console.log(`      Latest: ${JSON.stringify(latestData[key])}`)
+                      }
+                    }
+                  } else {
+                    console.log(`ℹ️ Submission data unchanged`)
+                  }
+                  
+                  // Use the latest data for condition evaluation
+                  submissionData = latestData
+                  
+                  // Update trigger_data with latest submission data for subsequent nodes
+                  triggerData = {
+                    ...triggerData,
+                    submissionData: latestData,
+                    approvalStatus: latestSubmission.approval_status,
+                    dataRefreshedAt: new Date().toISOString()
+                  }
+                  
+                  // Update execution with refreshed trigger data
+                  await supabase
+                    .from('workflow_executions')
+                    .update({
+                      trigger_data: triggerData,
+                      execution_data: {
+                        ...execution.execution_data,
+                        lastDataRefresh: new Date().toISOString(),
+                        dataRefreshCount: ((execution.execution_data as any)?.dataRefreshCount || 0) + 1
+                      }
+                    })
+                    .eq('id', execution.id)
+                    
+                } else if (fetchSubError) {
+                  console.log(`⚠️ Could not fetch latest submission: ${fetchSubError.message}`)
+                }
+              }
               
               // Helper function to get field value from nested data
               const getFieldValue = (fieldPath: string, data: any): any => {
