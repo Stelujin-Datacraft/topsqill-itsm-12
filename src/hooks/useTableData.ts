@@ -138,10 +138,43 @@ export function useTableData(
           return evaluateFilterCondition(rawValue, condition.operator, targetStr);
         };
 
-        // Evaluate each filter group respecting its logic property
+        // Helper to evaluate logic expression like "1 AND 2 OR 3", "(1 AND 2) OR 3"
+        const evaluateLogicExpression = (expression: string, results: boolean[]): boolean => {
+          try {
+            // Replace condition numbers with their boolean results
+            let expr = expression;
+            
+            // Replace each number with true/false
+            for (let i = results.length; i >= 1; i--) {
+              const regex = new RegExp(`\\b${i}\\b`, 'g');
+              expr = expr.replace(regex, results[i - 1] ? 'true' : 'false');
+            }
+            
+            // Replace AND/OR with && / ||
+            expr = expr.replace(/\bAND\b/gi, '&&').replace(/\bOR\b/gi, '||').replace(/\bNOT\b/gi, '!');
+            
+            console.log('Evaluating expression:', expression, '→', expr);
+            
+            // Safely evaluate the boolean expression
+            // eslint-disable-next-line no-new-func
+            return new Function(`return ${expr}`)();
+          } catch (e) {
+            console.error('Failed to evaluate logic expression:', expression, e);
+            // Fallback to AND logic
+            return results.every(r => r);
+          }
+        };
+
+        // Evaluate each filter group respecting its logic property or expression
         transformedData = transformedData.filter(row =>
           currentFilters.every(group => {
             if (!group.conditions || group.conditions.length === 0) return true;
+            
+            // If we have a logicExpression, use it
+            if (group.logicExpression) {
+              const conditionResults = group.conditions.map(cond => matchesCondition(row, cond));
+              return evaluateLogicExpression(group.logicExpression, conditionResults);
+            }
             
             // Use the group's logic property (default to AND if not specified)
             const useOrLogic = group.logic === 'OR';
