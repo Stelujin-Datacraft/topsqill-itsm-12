@@ -40,6 +40,7 @@ import {
 } from 'lucide-react';
 import { ChartConfigurationTabs } from './ChartConfigurationTabs';
 import { ChartPreview } from './ChartPreview';
+import { TablePreview } from './TablePreview';
 import { ChartDataSection } from './ChartDataSection';
 import { CrossReferenceDataSection } from './CrossReferenceDataSection';
 import { DraggableFieldSelector } from './DraggableFieldSelector';
@@ -1308,28 +1309,12 @@ export function ComponentConfigDialog({
             </CardHeader>
             <CardContent>
               {config.formId && selectedColumns.length > 0 ? (
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="bg-muted/50 p-2 border-b">
-                    <div className="flex gap-2 overflow-x-auto">
-                      {selectedColumns.slice(0, 6).map((colId: string) => {
-                        const field = allFields.find(f => f.id === colId);
-                        return (
-                          <Badge key={colId} variant="secondary" className="text-xs whitespace-nowrap">
-                            {field?.label || colId}
-                          </Badge>
-                        );
-                      })}
-                      {selectedColumns.length > 6 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{selectedColumns.length - 6} more
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <div className="p-4 text-center text-sm text-muted-foreground">
-                    Preview will be available after saving. Click "Save Component" to see the table with real data.
-                  </div>
-                </div>
+                <TablePreview
+                  formId={config.formId}
+                  selectedColumns={selectedColumns}
+                  filters={config.filters}
+                  pageSize={5}
+                />
               ) : (
                 <div className="p-8 text-center text-muted-foreground">
                   {!config.formId ? (
