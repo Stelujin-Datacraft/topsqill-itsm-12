@@ -132,9 +132,25 @@ export const ActionNode = React.memo(function ActionNode({ data }: ActionNodePro
     if (actionType === 'change_field_value') {
       const field = config.targetFieldName || config.targetFieldId || 'field';
       const form = config.targetFormName || 'form';
-      const value = config.valueType === 'static' 
-        ? config.staticValue 
-        : `{${config.dynamicValuePath}}`;
+      let value: string;
+      if (config.valueType === 'static') {
+        // Handle object values (like submission-access { users, groups })
+        if (config.staticValue && typeof config.staticValue === 'object') {
+          const val = config.staticValue;
+          if (val.users || val.groups) {
+            const parts = [];
+            if (val.users?.length) parts.push(`${val.users.length} user(s)`);
+            if (val.groups?.length) parts.push(`${val.groups.length} group(s)`);
+            value = parts.length > 0 ? parts.join(', ') : 'No selection';
+          } else {
+            value = JSON.stringify(val);
+          }
+        } else {
+          value = String(config.staticValue || '');
+        }
+      } else {
+        value = `{${config.dynamicValuePath}}`;
+      }
       return `Update ${field} in ${form} to ${value}`;
     }
     
