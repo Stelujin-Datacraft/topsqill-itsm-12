@@ -22,17 +22,14 @@ export function useNotifications() {
 
   const loadNotifications = async () => {
     if (!userProfile) {
-      console.log('No user profile available for loading notifications');
       setNotifications([]);
       setUnreadCount(0);
       return;
     }
 
     try {
-      console.log('Loading notifications for user:', userProfile.id);
       const allNotifications: Notification[] = [];
 
-      // Load persistent notifications from database
       const { data: dbNotifications, error: dbError } = await supabase
         .from('notifications')
         .select('*')
@@ -40,8 +37,6 @@ export function useNotifications() {
         .order('created_at', { ascending: false });
 
       if (!dbError && dbNotifications) {
-        console.log('Database notifications loaded:', dbNotifications);
-        // Map database notifications to our interface with proper type casting
         const mappedNotifications: Notification[] = dbNotifications.map(notif => ({
           id: notif.id,
           type: notif.type as 'organization_request' | 'form_assignment' | 'form_access_request',
@@ -52,11 +47,8 @@ export function useNotifications() {
           read: notif.read
         }));
         allNotifications.push(...mappedNotifications);
-      } else if (dbError) {
-        console.error('Error loading database notifications:', dbError);
       }
 
-      // Load organization requests if user is admin
       if (userProfile.role === 'admin' && currentOrganization?.id) {
         const { data: orgRequests, error } = await supabase
           .from('organization_requests')
@@ -80,14 +72,11 @@ export function useNotifications() {
         }
       }
 
-      // Sort all notifications by date
       allNotifications.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-      console.log('All notifications loaded:', allNotifications);
       setNotifications(allNotifications);
       setUnreadCount(allNotifications.filter(n => !n.read).length);
     } catch (error) {
-      console.error('Error loading notifications:', error);
       setNotifications([]);
       setUnreadCount(0);
     }
@@ -97,13 +86,10 @@ export function useNotifications() {
     loadNotifications();
   }, [userProfile?.id, userProfile?.role, currentOrganization?.id]);
 
-  // Separate effect for real-time subscription
   useEffect(() => {
     if (!userProfile?.id) return;
 
     const channelName = `notifications-realtime-${userProfile.id}-${Date.now()}`;
-    
-    console.log('Setting up real-time notification subscription for user:', userProfile.id);
 
     const channel = supabase
       .channel(channelName)
@@ -116,8 +102,6 @@ export function useNotifications() {
           filter: `user_id=eq.${userProfile.id}`
         },
         (payload) => {
-          console.log('🔔 New notification received:', payload);
-          // Directly add the new notification to state for instant update
           const newNotif = payload.new as any;
           setNotifications(prev => [{
             id: newNotif.id,
@@ -140,73 +124,56 @@ export function useNotifications() {
           filter: `user_id=eq.${userProfile.id}`
         },
         (payload) => {
-          console.log('🔔 Notification updated:', payload);
           const updatedNotif = payload.new as any;
           setNotifications(prev => prev.map(n => 
             n.id === updatedNotif.id 
               ? { ...n, read: updatedNotif.read, title: updatedNotif.title, message: updatedNotif.message }
               : n
           ));
-          // Recalculate unread count
           setNotifications(prev => {
             setUnreadCount(prev.filter(n => !n.read).length);
             return prev;
           });
         }
       )
-      .subscribe((status) => {
-        console.log('🔔 Notification subscription status:', status);
-      });
+      .subscribe();
 
     return () => {
-      console.log('🔔 Cleaning up notification subscription');
       supabase.removeChannel(channel);
     };
   }, [userProfile?.id]);
 
   const markAsRead = async (notificationId: string) => {
-    // Update local state immediately
     setNotifications(prev => 
       prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
     );
     setUnreadCount(prev => Math.max(0, prev - 1));
 
-    // Update database if it's a persistent notification
     if (!notificationId.startsWith('org_req_')) {
       try {
-        const { error } = await supabase
+        await supabase
           .from('notifications')
           .update({ read: true })
           .eq('id', notificationId);
-        
-        if (error) {
-          console.error('Error marking notification as read:', error);
-        }
       } catch (error) {
-        console.error('Error marking notification as read:', error);
+        // Silent error handling
       }
     }
   };
 
   const markAllAsRead = async () => {
-    // Update local state
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     setUnreadCount(0);
 
-    // Update database for persistent notifications
     if (userProfile?.id) {
       try {
-        const { error } = await supabase
+        await supabase
           .from('notifications')
           .update({ read: true })
           .eq('user_id', userProfile.id)
           .eq('read', false);
-        
-        if (error) {
-          console.error('Error marking all notifications as read:', error);
-        }
       } catch (error) {
-        console.error('Error marking all notifications as read:', error);
+        // Silent error handling
       }
     }
   };

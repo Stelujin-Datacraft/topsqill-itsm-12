@@ -37,7 +37,6 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const loadOrganizations = async () => {
     try {
       setLoading(true);
-      console.log('Loading organizations...');
 
       if (!userProfile?.id) {
         setOrganizations([]);
@@ -45,7 +44,6 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return;
       }
 
-      // Only load organizations the user is part of
       const { data: orgsData, error } = await supabase
         .from('organizations')
         .select('*')
@@ -54,29 +52,24 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         .order('name');
 
       if (error) {
-        console.error('Error loading organizations:', error);
         return;
       }
 
-      console.log('Organizations loaded:', orgsData);
       setOrganizations(orgsData || []);
 
-      // Set current organization based on user profile
       if (userProfile?.organization_id && orgsData) {
         const userOrg = orgsData.find(org => org.id === userProfile.organization_id);
         if (userOrg) {
-          console.log('Setting current organization:', userOrg);
           setCurrentOrganization(userOrg);
         }
       }
     } catch (error) {
-      console.error('Error loading organizations:', error);
+      // Silent error handling
     } finally {
       setLoading(false);
     }
   };
 
-  // Load organizations when user profile changes
   useEffect(() => {
     if (userProfile?.organization_id) {
       loadOrganizations();
