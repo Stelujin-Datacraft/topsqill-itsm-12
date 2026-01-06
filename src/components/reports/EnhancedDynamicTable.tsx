@@ -97,10 +97,26 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
   const filterGroups = useMemo(() => {
     const configuredFilters = (config as any).filters as { field: string; operator: string; value: any }[] | undefined;
     
-    if (!configuredFilters || configuredFilters.length === 0) return [] as { conditions: { field: string; operator: string; value: any }[] }[];
+    console.log('EnhancedDynamicTable - Raw filters from config:', configuredFilters);
+    console.log('EnhancedDynamicTable - Filter logic expression:', (config as any).filterLogicExpression);
+    console.log('EnhancedDynamicTable - Use manual logic:', (config as any).useManualFilterLogic);
+    
+    if (!configuredFilters || configuredFilters.length === 0) {
+      console.log('EnhancedDynamicTable - No filters configured, returning empty groups');
+      return [] as { conditions: { field: string; operator: string; value: any }[] }[];
+    }
+    
+    // Filter out any filters with empty field
+    const validFilters = configuredFilters.filter(f => f.field && f.field.trim() !== '');
+    console.log('EnhancedDynamicTable - Valid filters (non-empty field):', validFilters);
+    
+    if (validFilters.length === 0) {
+      return [] as { conditions: { field: string; operator: string; value: any }[] }[];
+    }
+    
     return [
       {
-        conditions: configuredFilters.map(f => ({
+        conditions: validFilters.map(f => ({
           field: f.field,
           operator: f.operator,
           value: f.value
