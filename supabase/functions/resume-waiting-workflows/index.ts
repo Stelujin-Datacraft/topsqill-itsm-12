@@ -216,16 +216,37 @@ Deno.serve(async (req) => {
         // Use a queue to process nodes (allows condition branches to add more nodes)
         const nodeQueue: WorkflowNode[] = [...(nextNodes || []) as WorkflowNode[]]
         const processedNodeIds = new Set<string>()
+        
+        // Track loop iterations per node to prevent true infinite loops
+        const nodeExecutionCounts = new Map<string, number>()
+        const MAX_LOOP_ITERATIONS = 100 // Safety limit to prevent runaway loops
 
         // Process nodes from queue
         while (nodeQueue.length > 0) {
           const nodeData = nodeQueue.shift()!
           
-          // Skip if already processed to avoid loops
-          if (processedNodeIds.has(nodeData.id)) {
+          // Track how many times we've executed this node
+          const executionCount = nodeExecutionCounts.get(nodeData.id) || 0
+          nodeExecutionCounts.set(nodeData.id, executionCount + 1)
+          
+          // Safety check: prevent true infinite loops
+          if (executionCount >= MAX_LOOP_ITERATIONS) {
+            console.log(`🛑 Max loop iterations (${MAX_LOOP_ITERATIONS}) reached for node: ${nodeData.id} - stopping loop`)
+            continue
+          }
+          
+          // For wait nodes, we allow re-execution (loop-back support)
+          // For other nodes, skip if already processed
+          if (processedNodeIds.has(nodeData.id) && nodeData.node_type !== 'wait') {
             console.log(`⏭️ Skipping already processed node: ${nodeData.id}`)
             continue
           }
+          
+          // For wait nodes being re-executed (loop-back), log it
+          if (processedNodeIds.has(nodeData.id) && nodeData.node_type === 'wait') {
+            console.log(`🔄 Loop-back detected: Re-executing wait node: ${nodeData.id} (iteration ${executionCount + 1})`)
+          }
+          
           processedNodeIds.add(nodeData.id)
           console.log(`🎯 Executing resumed node: ${nodeData.label} (${nodeData.node_type})`)
           
@@ -1568,9 +1589,13 @@ Deno.serve(async (req) => {
               hasEndNode = true
               nodeOutputData = { message: 'Workflow completed' }
             } else if (nodeData.node_type === 'wait') {
-              // Another wait node - pause execution again
-              console.log('⏳ Another wait node encountered, setting up new wait')
+              // Wait node - pause execution (supports loop-back)
+              console.log('⏳ Wait node encountered, setting up wait')
               const waitConfig = nodeData.config as any
+              
+              // Track loop iteration for this wait node
+              const loopIteration = nodeExecutionCounts.get(nodeData.id) || 1
+              console.log(`🔄 Wait node loop iteration: ${loopIteration}`)
               
               // Calculate new resume time
               let newResumeAt: Date | null = null
@@ -1596,10 +1621,25 @@ Deno.serve(async (req) => {
                 }
               } else if (waitType === 'until_date' && waitConfig.untilDate) {
                 newResumeAt = new Date(waitConfig.untilDate)
+              } else if (waitType === 'until_submission_update') {
+                // Wait until the submission is updated - check immediately next resume
+                // Set a short duration to poll for changes
+                const pollInterval = parseInt(waitConfig.pollIntervalMinutes) || 5
+                newResumeAt = new Date(Date.now() + pollInterval * 60 * 1000)
+                console.log(`⏳ Wait for submission update, polling in ${pollInterval} minutes`)
               }
               
               if (newResumeAt && newResumeAt > new Date()) {
-                // Set up new wait
+                // Set up new wait with loop state tracking
+                const currentExecutionData = execution.execution_data || {}
+                const loopState = {
+                  ...(currentExecutionData.loopState || {}),
+                  [nodeData.id]: {
+                    iteration: loopIteration,
+                    lastExecutedAt: new Date().toISOString()
+                  }
+                }
+                
                 await supabase
                   .from('workflow_executions')
                   .update({
@@ -1607,7 +1647,13 @@ Deno.serve(async (req) => {
                     current_node_id: nodeData.id,
                     scheduled_resume_at: newResumeAt.toISOString(),
                     wait_node_id: nodeData.id,
-                    wait_config: waitConfig
+                    wait_config: waitConfig,
+                    execution_data: {
+                      ...currentExecutionData,
+                      resumedAt: new Date().toISOString(),
+                      loopState,
+                      isInLoop: loopIteration > 1
+                    }
                   })
                   .eq('id', execution.id)
                 
@@ -1620,17 +1666,21 @@ Deno.serve(async (req) => {
                       output_data: {
                         scheduledResumeAt: newResumeAt.toISOString(),
                         waitType,
-                        message: 'Workflow paused for another wait period'
+                        loopIteration,
+                        message: loopIteration > 1 
+                          ? `Workflow looped back to wait (iteration ${loopIteration})`
+                          : 'Workflow paused for wait period'
                       }
                     })
                     .eq('id', logEntryId)
                 }
                 
-                console.log(`⏳ New wait scheduled for: ${newResumeAt.toISOString()}`)
+                console.log(`⏳ Wait scheduled for: ${newResumeAt.toISOString()} (loop iteration: ${loopIteration})`)
                 allNodesProcessed = false
                 nodeOutputData = {
                   waiting: true,
                   scheduledResumeAt: newResumeAt.toISOString(),
+                  loopIteration,
                   success: true
                 }
                 // Skip the finally block update since we set to waiting

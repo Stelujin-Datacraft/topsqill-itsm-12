@@ -82,6 +82,9 @@ export class WorkflowOrchestrator {
             error_message: result.error
           })
           .eq('id', execution.id);
+        
+        // Clean up execution count tracking
+        this.nodeExecutionCounts.delete(execution.id);
       } else if (currentExecution?.status === 'waiting') {
         console.log('⏸️ Workflow is paused by wait node, preserving waiting status');
       }
@@ -144,6 +147,9 @@ export class WorkflowOrchestrator {
           error_message: result.error
         })
         .eq('id', executionId);
+      
+      // Clean up execution count tracking
+      this.nodeExecutionCounts.delete(executionId);
     } else if (result.success && currentExecution?.status === 'running') {
       // Mark as completed if we're still running (not waiting) and reached a terminal state
       const shouldComplete = result.isTerminal || result.isTerminal === undefined;
@@ -155,14 +161,40 @@ export class WorkflowOrchestrator {
             completed_at: new Date().toISOString()
           })
           .eq('id', executionId);
+        
+        // Clean up execution count tracking
+        this.nodeExecutionCounts.delete(executionId);
       }
     }
 
     return result;
   }
 
+  // Track node execution counts for loop detection (static to persist across recursive calls)
+  private static nodeExecutionCounts = new Map<string, Map<string, number>>();
+  private static MAX_LOOP_ITERATIONS = 100;
+
   private static async executeNode(executionId: string, nodeId: string, inputData: any, context: WorkflowExecutionContext): Promise<{ success: boolean; error?: string; isTerminal?: boolean }> {
     console.log(`🔄 Executing node ${nodeId} for execution ${executionId}`);
+
+    // Initialize execution count tracking for this execution
+    if (!this.nodeExecutionCounts.has(executionId)) {
+      this.nodeExecutionCounts.set(executionId, new Map());
+    }
+    const executionCounts = this.nodeExecutionCounts.get(executionId)!;
+    const currentCount = executionCounts.get(nodeId) || 0;
+    executionCounts.set(nodeId, currentCount + 1);
+
+    // Safety check: prevent true infinite loops
+    if (currentCount >= this.MAX_LOOP_ITERATIONS) {
+      console.log(`🛑 Max loop iterations (${this.MAX_LOOP_ITERATIONS}) reached for node: ${nodeId} - stopping loop`);
+      return { success: true, isTerminal: true };
+    }
+
+    // Log if this is a loop-back re-execution
+    if (currentCount > 0) {
+      console.log(`🔄 Loop-back detected: Re-executing node ${nodeId} (iteration ${currentCount + 1})`);
+    }
 
     let nodeExecution: any = null;
     let node: any = null;
