@@ -46,8 +46,7 @@ export function useFormLoader(formId: string | undefined) {
           if (typeof jsonData === 'string') {
             try {
               return JSON.parse(jsonData);
-            } catch (error) {
-              console.warn('useFormLoader: Failed to parse JSON:', jsonData, error);
+            } catch {
               return fallback;
             }
           }
@@ -121,8 +120,7 @@ export function useFormLoader(formId: string | undefined) {
           if (typeof customConfigData === 'string') {
             try {
               parsed = JSON.parse(customConfigData);
-            } catch (error) {
-              console.warn('useFormLoader: Failed to parse custom_config for field type:', fieldType, error);
+            } catch {
               return {};
             }
           } else {

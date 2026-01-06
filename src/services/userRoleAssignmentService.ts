@@ -21,10 +21,8 @@ export class UserRoleAssignmentService {
         .eq('user_id', userId);
 
       if (deleteError) {
-        console.warn('Error removing existing role assignment:', deleteError);
         // Continue anyway as this might just mean no existing assignment
       }
-
       // Assign the new role using the same method as UserRolesTab
       const { error: insertError } = await supabase
         .from('user_role_assignments')

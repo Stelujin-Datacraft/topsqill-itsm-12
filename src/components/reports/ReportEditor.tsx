@@ -394,10 +394,7 @@ export function ReportEditor({
         (config?.crossRefConfig?.drilldownLevels?.length > 0 ? config.crossRefConfig.drilldownLevels : null) ||
         [];
       
-      console.log('📊 Resolved drilldownLevels:', drilldownLevels, 'length:', drilldownLevels.length);
-      
       if (drilldownLevels.length === 0) {
-        console.warn('📊 No drilldown levels found, returning prev state');
         return prev;
       }
 

@@ -91,16 +91,12 @@ export function exportToPDF(exportData: ExportData) {
 }
 
 export function exportToParquet(exportData: ExportData) {
-  // Parquet export is not fully supported in browser
-  // Fall back to JSON for now
-  console.warn('Parquet export not available, falling back to JSON');
+  // Parquet export is not fully supported in browser - fall back to JSON
   exportToJSON(exportData);
 }
 
 export function exportToAvro(exportData: ExportData) {
-  // Avro export is not fully supported in browser
-  // Fall back to JSON for now
-  console.warn('Avro export not available, falling back to JSON');
+  // Avro export is not fully supported in browser - fall back to JSON
   exportToJSON(exportData);
 }
 

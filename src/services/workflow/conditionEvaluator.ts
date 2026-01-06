@@ -22,8 +22,6 @@ export class ConditionEvaluator {
     context: ConditionEvaluationContext
   ): ConditionEvaluationResult {
     try {
-      console.log('🔍 Evaluating condition:', { type: config.type, context });
-
       if (config.type === 'if') {
         return this.evaluateIfCondition(config, context);
       } else if (config.type === 'switch') {
@@ -36,7 +34,6 @@ export class ConditionEvaluator {
         error: `Unknown condition type: ${(config as any).type}`
       };
     } catch (error) {
-      console.error('❌ Condition evaluation failed:', error);
       return {
         success: false,
         result: false,
@@ -58,8 +55,6 @@ export class ConditionEvaluator {
       result = this.evaluateConditionGroup(config.condition as SimpleCondition | LogicalGroup, context);
     }
     
-    console.log('✅ If condition evaluated:', { result, truePath: config.truePath, falsePath: config.falsePath });
-    
     return {
       success: true,
       result: result,
@@ -71,13 +66,6 @@ export class ConditionEvaluator {
     condition: EnhancedCondition,
     context: ConditionEvaluationContext
   ): boolean {
-    console.log('🚀 Evaluating enhanced condition:', { 
-      systemType: condition.systemType,
-      hasMultipleConditions: !!condition.conditions?.length,
-      useManualExpression: condition.useManualExpression,
-      manualExpression: condition.manualExpression
-    });
-
     // Handle multiple conditions with individual logical operators
     if (condition.conditions && condition.conditions.length > 0) {
       const conditions = condition.conditions;
@@ -87,19 +75,14 @@ export class ConditionEvaluator {
       for (let i = 0; i < conditions.length; i++) {
         const result = this.evaluateSingleConditionItem(conditions[i], context);
         conditionResults[String(i + 1)] = result;
-        console.log(`📊 Condition ${i + 1} result:`, result);
       }
 
       // Use manual expression if enabled
       if (condition.useManualExpression && condition.manualExpression) {
         try {
-          const result = ExpressionEvaluator.evaluate(condition.manualExpression, conditionResults);
-          console.log('📊 Manual expression result:', result, `(expression: ${condition.manualExpression})`);
-          return result;
-        } catch (error) {
-          console.error('❌ Failed to evaluate manual expression:', error);
+          return ExpressionEvaluator.evaluate(condition.manualExpression, conditionResults);
+        } catch {
           // Fall back to sequential AND evaluation
-          console.log('⚠️ Falling back to sequential AND evaluation');
         }
       }
       
@@ -111,8 +94,6 @@ export class ConditionEvaluator {
         const currentResult = conditionResults[String(i + 1)];
         const operator = prevCondition.logicalOperatorWithNext || 'AND';
         
-        console.log(`📊 Combining with condition ${i + 1}:`, currentResult, `(operator: ${operator})`);
-        
         if (operator === 'AND') {
           result = result && currentResult;
         } else {
@@ -120,7 +101,6 @@ export class ConditionEvaluator {
         }
       }
       
-      console.log('📊 Final combined result:', result);
       return result;
     }
 
@@ -131,7 +111,6 @@ export class ConditionEvaluator {
       return this.evaluateFieldLevelCondition(condition.fieldLevelCondition, context);
     }
 
-    console.warn('⚠️ Enhanced condition missing configuration');
     return false;
   }
 
@@ -151,8 +130,6 @@ export class ConditionEvaluator {
     condition: FormLevelCondition,
     context: ConditionEvaluationContext
   ): boolean {
-    console.log('📋 Evaluating form-level condition:', condition);
-
     let actualValue: any;
 
     switch (condition.conditionType) {
@@ -166,35 +143,19 @@ export class ConditionEvaluator {
         actualValue = context.userProperties.role || context.userProperties.user_role;
         break;
       default:
-        console.warn('⚠️ Unknown form-level condition type:', condition.conditionType);
         return false;
     }
 
-    const result = this.compareValues(actualValue, condition.value, condition.operator);
-    console.log('✅ Form-level condition result:', { actualValue, expectedValue: condition.value, result });
-    
-    return result;
+    return this.compareValues(actualValue, condition.value, condition.operator);
   }
 
   private static evaluateFieldLevelCondition(
     condition: FieldLevelCondition,
     context: ConditionEvaluationContext
   ): boolean {
-    console.log('🔍 Evaluating field-level condition:', condition);
-
     // Get the field value from form data
     const fieldValue = context.formData[condition.fieldId];
-    const result = this.compareValues(fieldValue, condition.value, condition.operator);
-    
-    console.log('✅ Field-level condition result:', { 
-      fieldId: condition.fieldId,
-      fieldValue,
-      expectedValue: condition.value,
-      operator: condition.operator,
-      result 
-    });
-    
-    return result;
+    return this.compareValues(fieldValue, condition.value, condition.operator);
   }
 
   private static evaluateSwitchCondition(
@@ -202,8 +163,6 @@ export class ConditionEvaluator {
     context: ConditionEvaluationContext
   ): ConditionEvaluationResult {
     const fieldValue = this.resolveFieldPath(config.field, context);
-    
-    console.log('🔄 Switch condition field value:', { field: config.field, value: fieldValue });
 
     // Find matching case
     const matchingCase = config.cases.find(caseItem => 
@@ -211,12 +170,6 @@ export class ConditionEvaluator {
     );
 
     const resultPath = matchingCase ? matchingCase.path : config.defaultPath;
-    
-    console.log('✅ Switch condition evaluated:', { 
-      fieldValue, 
-      matchingCase: matchingCase?.value,
-      resultPath 
-    });
 
     return {
       success: true,
@@ -271,12 +224,6 @@ export class ConditionEvaluator {
       rightValue = condition.rightOperand;
     }
 
-    console.log('🔍 Evaluating simple condition:', {
-      left: leftValue,
-      operator: condition.operator,
-      right: rightValue
-    });
-
     return this.compareValues(leftValue, rightValue, condition.operator);
   }
 
@@ -293,7 +240,6 @@ export class ConditionEvaluator {
       case 'static':
         return path; // For static values, the path IS the value
       default:
-        console.warn('⚠️ Unknown field path type:', type);
         return undefined;
     }
   }
@@ -372,7 +318,6 @@ export class ConditionEvaluator {
       case 'not_exists':
         return left === null || left === undefined || left === '';
       default:
-        console.warn('⚠️ Unknown comparison operator:', operator);
         return false;
     }
   }

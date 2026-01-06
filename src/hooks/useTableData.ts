@@ -330,7 +330,6 @@ export function useTableData(
 
     for (const join of joins) {
       if (!join.secondaryFormId || !join.primaryFieldId || !join.secondaryFieldId) {
-        console.warn('Incomplete join configuration, skipping:', join);
         continue;
       }
 

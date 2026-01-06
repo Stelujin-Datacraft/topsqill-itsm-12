@@ -4,8 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 export class NodeConnections {
   static async getNextNodes(workflowId: string, currentNodeId: string, condition?: string): Promise<string[]> {
     try {
-      console.log(`🔍 Finding next nodes from ${currentNodeId} in workflow ${workflowId}`, { condition });
-      
       const { data: connections, error } = await supabase
         .from('workflow_connections')
         .select('target_node_id, condition_type, source_handle')
@@ -13,17 +11,12 @@ export class NodeConnections {
         .eq('source_node_id', currentNodeId);
 
       if (error) {
-        console.error('❌ Error getting next nodes:', error);
         return [];
       }
 
-      console.log('🔗 Found connections:', connections);
-
       // If no condition specified, return ALL connections for normal flow
       if (!condition) {
-        const nextNodeIds = connections?.map(conn => conn.target_node_id) || [];
-        console.log(`➡️ Normal flow - returning all next nodes:`, nextNodeIds);
-        return nextNodeIds;
+        return connections?.map(conn => conn.target_node_id) || [];
       }
 
       // Enhanced filtering for conditional connections only when condition is specified
@@ -46,12 +39,8 @@ export class NodeConnections {
         return false;
       }) || [];
 
-      const nextNodeIds = filteredConnections.map(conn => conn.target_node_id);
-      console.log(`➡️ Conditional flow - next node IDs for condition "${condition}":`, nextNodeIds);
-      
-      return nextNodeIds;
-    } catch (error) {
-      console.error('❌ Error getting next nodes:', error);
+      return filteredConnections.map(conn => conn.target_node_id);
+    } catch {
       return [];
     }
   }
@@ -68,13 +57,11 @@ export class NodeConnections {
         .eq('source_node_id', nodeId);
 
       if (error) {
-        console.error('❌ Error getting node connections:', error);
         return [];
       }
 
       return connections || [];
-    } catch (error) {
-      console.error('❌ Error getting node connections:', error);
+    } catch {
       return [];
     }
   }

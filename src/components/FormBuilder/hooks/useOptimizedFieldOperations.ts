@@ -162,13 +162,9 @@ export function useOptimizedFieldOperations(
               parentFieldId: fieldId,
               targetFormId: targetFormId
             });
-            console.log('Successfully cleaned up child cross-reference field');
-          } catch (error) {
-            console.error('Error cleaning up child cross-reference field:', error);
+          } catch {
             // Continue with deletion even if cleanup fails
           }
-        } else {
-          console.warn('Cross-reference field has no targetFormId configured:', fieldId);
         }
       }
       
