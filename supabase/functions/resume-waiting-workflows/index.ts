@@ -1398,9 +1398,14 @@ Deno.serve(async (req) => {
               console.log('🔀 Evaluating condition node')
               
               const conditionConfig = nodeData.config as any
-              const conditions = conditionConfig?.conditions || []
+              const legacyConditions = conditionConfig?.conditions || []
+              const enhancedCondition = conditionConfig?.enhancedCondition
               let triggerData = execution.trigger_data || {}
               let submissionData = triggerData.submissionData || {}
+              
+              console.log(`📋 Condition config:`, JSON.stringify(conditionConfig, null, 2))
+              console.log(`📋 Has enhancedCondition: ${!!enhancedCondition}`)
+              console.log(`📋 Legacy conditions count: ${legacyConditions.length}`)
               
               // *** LOOP-BACK SUPPORT: Fetch LATEST submission data ***
               // This is critical for loop-back scenarios where we need to detect manual changes
@@ -1494,8 +1499,15 @@ Deno.serve(async (req) => {
                 return value
               }
               
-              // Evaluate a single condition
-              const evaluateCondition = (condition: any): boolean => {
+              // Normalize values for comparison
+              const normalizeValue = (v: any): string => {
+                if (v === null || v === undefined) return ''
+                if (typeof v === 'boolean') return v.toString()
+                return String(v).toLowerCase().trim()
+              }
+              
+              // Evaluate a single legacy condition
+              const evaluateLegacyCondition = (condition: any): boolean => {
                 const { field, operator, value } = condition
                 
                 // Try to get field value from submission data first, then trigger data
@@ -1504,14 +1516,7 @@ Deno.serve(async (req) => {
                   fieldValue = getFieldValue(field, triggerData)
                 }
                 
-                console.log(`📊 Evaluating: ${field} ${operator} ${value} (actual: ${fieldValue})`)
-                
-                // Normalize values for comparison
-                const normalizeValue = (v: any): string => {
-                  if (v === null || v === undefined) return ''
-                  if (typeof v === 'boolean') return v.toString()
-                  return String(v).toLowerCase().trim()
-                }
+                console.log(`📊 Evaluating legacy: ${field} ${operator} ${value} (actual: ${fieldValue})`)
                 
                 const normalizedFieldValue = normalizeValue(fieldValue)
                 const normalizedValue = normalizeValue(value)
@@ -1553,16 +1558,147 @@ Deno.serve(async (req) => {
                 }
               }
               
-              // Evaluate all conditions (default AND logic)
+              // Evaluate enhanced field-level condition
+              const evaluateFieldLevelCondition = (flc: any): boolean => {
+                const fieldId = flc?.fieldId
+                const operator = flc?.operator
+                const expectedValue = flc?.value
+                
+                if (!fieldId) {
+                  console.log(`⚠️ No fieldId in field-level condition`)
+                  return false
+                }
+                
+                // Get field value from submission data using field ID
+                let actualValue = submissionData[fieldId]
+                
+                console.log(`📊 Evaluating field-level: fieldId=${fieldId}, operator=${operator}, expected=${expectedValue}, actual=${actualValue}`)
+                
+                const normalizedActual = normalizeValue(actualValue)
+                const normalizedExpected = normalizeValue(expectedValue)
+                
+                switch (operator) {
+                  case 'equals':
+                  case '==':
+                    return normalizedActual === normalizedExpected
+                  case 'not_equals':
+                  case '!=':
+                    return normalizedActual !== normalizedExpected
+                  case 'contains':
+                    return normalizedActual.includes(normalizedExpected)
+                  case 'not_contains':
+                    return !normalizedActual.includes(normalizedExpected)
+                  case 'greater_than':
+                  case '>':
+                    return parseFloat(normalizedActual) > parseFloat(normalizedExpected)
+                  case 'less_than':
+                  case '<':
+                    return parseFloat(normalizedActual) < parseFloat(normalizedExpected)
+                  case 'greater_than_or_equal':
+                  case '>=':
+                    return parseFloat(normalizedActual) >= parseFloat(normalizedExpected)
+                  case 'less_than_or_equal':
+                  case '<=':
+                    return parseFloat(normalizedActual) <= parseFloat(normalizedExpected)
+                  case 'exists':
+                    return actualValue !== undefined && actualValue !== null && actualValue !== ''
+                  case 'not_exists':
+                    return actualValue === undefined || actualValue === null || actualValue === ''
+                  case 'starts_with':
+                    return normalizedActual.startsWith(normalizedExpected)
+                  case 'ends_with':
+                    return normalizedActual.endsWith(normalizedExpected)
+                  default:
+                    console.log(`⚠️ Unknown operator in field-level condition: ${operator}`)
+                    return false
+                }
+              }
+              
+              // Evaluate enhanced condition (new format)
+              const evaluateEnhancedCondition = (ec: any): boolean => {
+                if (!ec) return true
+                
+                const conditions = ec.conditions || []
+                const useManualExpression = ec.useManualExpression
+                const manualExpression = ec.manualExpression
+                
+                console.log(`📊 Enhanced condition: ${conditions.length} conditions, useManual=${useManualExpression}`)
+                
+                if (conditions.length === 0) {
+                  // If single condition via fieldLevelCondition
+                  if (ec.fieldLevelCondition) {
+                    return evaluateFieldLevelCondition(ec.fieldLevelCondition)
+                  }
+                  console.log(`⚠️ No conditions in enhanced condition`)
+                  return true
+                }
+                
+                // Evaluate each condition
+                const results: boolean[] = []
+                for (const cond of conditions) {
+                  let result = false
+                  
+                  if (cond.fieldLevelCondition) {
+                    result = evaluateFieldLevelCondition(cond.fieldLevelCondition)
+                  } else if (cond.fieldCondition) {
+                    // Legacy field condition format
+                    result = evaluateLegacyCondition({
+                      field: cond.fieldCondition.fieldId,
+                      operator: cond.fieldCondition.operator,
+                      value: cond.fieldCondition.value
+                    })
+                  }
+                  
+                  console.log(`   Condition ${cond.id}: ${result}`)
+                  results.push(result)
+                }
+                
+                // Handle manual expression like "1 AND 2" or "1 OR 2"
+                if (useManualExpression && manualExpression) {
+                  console.log(`📊 Evaluating manual expression: ${manualExpression}`)
+                  try {
+                    // Replace condition numbers with their results
+                    let expr = manualExpression.toString()
+                    for (let i = results.length; i >= 1; i--) {
+                      expr = expr.replace(new RegExp(`\\b${i}\\b`, 'g'), results[i - 1] ? 'true' : 'false')
+                    }
+                    expr = expr.replace(/\bAND\b/gi, '&&').replace(/\bOR\b/gi, '||').replace(/\bNOT\b/gi, '!')
+                    console.log(`   Parsed expression: ${expr}`)
+                    const evalResult = Function('"use strict"; return (' + expr + ')')()
+                    console.log(`   Expression result: ${evalResult}`)
+                    return Boolean(evalResult)
+                  } catch (e) {
+                    console.log(`⚠️ Error evaluating expression: ${e}`)
+                    // Fall through to default AND logic
+                  }
+                }
+                
+                // Default: use logicalOperatorWithNext from conditions
+                // Check if any condition has OR logic
+                const hasOrLogic = conditions.some((c: any) => c.logicalOperatorWithNext === 'OR')
+                if (hasOrLogic) {
+                  return results.some(r => r)
+                }
+                return results.every(r => r)
+              }
+              
+              // Evaluate all conditions
               let conditionResult = true
               const logicalOperator = conditionConfig?.logicalOperator || 'AND'
               
-              if (conditions.length > 0) {
+              // Check for enhanced condition format first
+              if (enhancedCondition) {
+                console.log(`📊 Using enhanced condition evaluation`)
+                conditionResult = evaluateEnhancedCondition(enhancedCondition)
+              } else if (legacyConditions.length > 0) {
+                console.log(`📊 Using legacy condition evaluation`)
                 if (logicalOperator === 'OR') {
-                  conditionResult = conditions.some((c: any) => evaluateCondition(c))
+                  conditionResult = legacyConditions.some((c: any) => evaluateLegacyCondition(c))
                 } else {
-                  conditionResult = conditions.every((c: any) => evaluateCondition(c))
+                  conditionResult = legacyConditions.every((c: any) => evaluateLegacyCondition(c))
                 }
+              } else {
+                console.log(`⚠️ No conditions configured - defaulting to TRUE`)
               }
               
               console.log(`📊 Condition result: ${conditionResult} (operator: ${logicalOperator})`)
