@@ -817,10 +817,29 @@ Deno.serve(async (req) => {
                         }
                       }
                       
-                      if (parsedValue && typeof parsedValue === 'object') {
-                        const sourceUsers = parsedValue.users || []
-                        const sourceGroups = parsedValue.groups || []
-                        
+                      let sourceUsers: string[] = []
+                      let sourceGroups: string[] = []
+                      
+                      // Handle new format: { users: [], groups: [] }
+                      if (parsedValue && typeof parsedValue === 'object' && !Array.isArray(parsedValue)) {
+                        sourceUsers = parsedValue.users || []
+                        sourceGroups = parsedValue.groups || []
+                      }
+                      // Handle legacy array format: ["user:uuid", "group:uuid"]
+                      else if (Array.isArray(parsedValue)) {
+                        console.log('🔄 Converting legacy array format to { users, groups }')
+                        parsedValue.forEach((item: string) => {
+                          if (typeof item === 'string') {
+                            if (item.startsWith('user:')) {
+                              sourceUsers.push(item.replace('user:', ''))
+                            } else if (item.startsWith('group:')) {
+                              sourceGroups.push(item.replace('group:', ''))
+                            }
+                          }
+                        })
+                      }
+                      
+                      if (sourceUsers.length > 0 || sourceGroups.length > 0) {
                         // Filter to only allowed users/groups
                         const validUsers = sourceUsers.filter((userId: string) => 
                           allowedUsers.includes(userId)

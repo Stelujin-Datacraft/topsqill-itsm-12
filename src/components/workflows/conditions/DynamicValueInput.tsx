@@ -178,30 +178,30 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
         config = rawConfig;
       }
       
-      const users: Array<{ value: string; label: string }> = [];
-      const groups: Array<{ value: string; label: string }> = [];
+      const users: Array<{ value: string; label: string; id: string }> = [];
+      const groups: Array<{ value: string; label: string; id: string }> = [];
       
       // Check for allowedUsers or allowedUserIds (different naming conventions)
       const allowedUserIds = config.allowedUsers || config.allowedUserIds || [];
       const allowedGroupIds = config.allowedGroups || config.allowedGroupIds || [];
       
-      // Only add users that are explicitly configured
+      // Only add users that are explicitly configured - use UUID as value
       if (Array.isArray(allowedUserIds) && allowedUserIds.length > 0 && orgUsers) {
         allowedUserIds.forEach((userId: string) => {
           const user = orgUsers.find(u => u.id === userId);
           if (user) {
             const label = `${user.first_name || ''} ${user.last_name || ''} (${user.email})`.trim();
-            users.push({ value: `user:${user.email}`, label });
+            users.push({ value: `user:${userId}`, label, id: userId });
           }
         });
       }
       
-      // Only add groups that are explicitly configured
+      // Only add groups that are explicitly configured - use UUID as value
       if (Array.isArray(allowedGroupIds) && allowedGroupIds.length > 0 && orgGroups) {
         allowedGroupIds.forEach((groupId: string) => {
           const group = orgGroups.find(g => g.id === groupId);
           if (group) {
-            groups.push({ value: `group:${group.name}`, label: `Group: ${group.name}` });
+            groups.push({ value: `group:${groupId}`, label: `Group: ${group.name}`, id: groupId });
           }
         });
       }
@@ -209,7 +209,7 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
       // NO FALLBACK - if no config, show empty (no options configured)
       const hasConfig = allowedUserIds.length > 0 || allowedGroupIds.length > 0;
       
-      return { users, groups, hasConfig };
+      return { users, groups, hasConfig, allowedUserIds, allowedGroupIds };
     }
     return { users: [], groups: [], hasConfig: false };
   }, [normalizedType, field, orgUsers, orgGroups]);
@@ -399,16 +399,28 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
       const allOptions = [...submissionAccessOptions.users, ...submissionAccessOptions.groups];
       
       if (allOptions.length > 0) {
-        // Parse selected values - support both array and comma-separated string
+        // Parse selected values - support both new { users: [], groups: [] } format and legacy array format
         let selectedValues: string[] = [];
         if (value) {
-          if (Array.isArray(value)) {
+          if (typeof value === 'object' && !Array.isArray(value) && (value.users || value.groups)) {
+            // New format: { users: ["uuid1"], groups: ["uuid2"] }
+            const users = (value.users || []).map((id: string) => `user:${id}`);
+            const groups = (value.groups || []).map((id: string) => `group:${id}`);
+            selectedValues = [...users, ...groups];
+          } else if (Array.isArray(value)) {
             selectedValues = value;
           } else if (typeof value === 'string') {
-            // Try to parse as JSON array first
+            // Try to parse as JSON first
             try {
               const parsed = JSON.parse(value);
-              selectedValues = Array.isArray(parsed) ? parsed : [value];
+              if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                // Parsed as { users: [], groups: [] }
+                const users = (parsed.users || []).map((id: string) => `user:${id}`);
+                const groups = (parsed.groups || []).map((id: string) => `group:${id}`);
+                selectedValues = [...users, ...groups];
+              } else if (Array.isArray(parsed)) {
+                selectedValues = parsed;
+              }
             } catch {
               // Treat as comma-separated
               selectedValues = value.split(',').map(v => v.trim()).filter(Boolean);
@@ -416,11 +428,28 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
           }
         }
         
+        // Transform multi-select output to { users: [], groups: [] } format
+        const handleSubmissionAccessChange = (selected: string[]) => {
+          const users: string[] = [];
+          const groups: string[] = [];
+          
+          selected.forEach(item => {
+            if (item.startsWith('user:')) {
+              users.push(item.replace('user:', ''));
+            } else if (item.startsWith('group:')) {
+              groups.push(item.replace('group:', ''));
+            }
+          });
+          
+          // Always output in the expected { users: [], groups: [] } format
+          onChange({ users, groups });
+        };
+        
         return (
           <MultiSelect
             options={allOptions}
             selected={selectedValues}
-            onChange={(selected) => onChange(selected)}
+            onChange={handleSubmissionAccessChange}
             placeholder="Select users or groups"
           />
         );
