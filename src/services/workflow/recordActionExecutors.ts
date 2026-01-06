@@ -615,12 +615,33 @@ export class RecordActionExecutors {
         }
       }
 
-      if (!parsedValue || typeof parsedValue !== 'object') {
+      if (!parsedValue) {
         return null;
       }
 
-      const sourceUsers = parsedValue.users || [];
-      const sourceGroups = parsedValue.groups || [];
+      let sourceUsers: string[] = [];
+      let sourceGroups: string[] = [];
+
+      // Handle new format: { users: [], groups: [] }
+      if (typeof parsedValue === 'object' && !Array.isArray(parsedValue)) {
+        sourceUsers = parsedValue.users || [];
+        sourceGroups = parsedValue.groups || [];
+      }
+      // Handle legacy array format: ["user:uuid", "group:uuid"] or ["user:email", "group:name"]
+      else if (Array.isArray(parsedValue)) {
+        console.log('🔄 Converting legacy array format to { users, groups }');
+        parsedValue.forEach((item: string) => {
+          if (typeof item === 'string') {
+            if (item.startsWith('user:')) {
+              const userId = item.replace('user:', '');
+              sourceUsers.push(userId);
+            } else if (item.startsWith('group:')) {
+              const groupId = item.replace('group:', '');
+              sourceGroups.push(groupId);
+            }
+          }
+        });
+      }
 
       // Filter users to only include those allowed in target field config
       const validUsers = sourceUsers.filter((userId: string) => 
