@@ -119,7 +119,6 @@ export function CreateRecordFieldsConfig({
               value={fieldValue.fieldId}
               onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
                 const normalizedOpts = normalizeOptions(fieldOptions);
-                console.log('📋 Field selected:', { fieldId, fieldName, fieldType, rawOptions: fieldOptions, normalizedOptions: normalizedOpts, customConfig });
                 handleFieldUpdate(index, {
                   fieldId,
                   fieldName,

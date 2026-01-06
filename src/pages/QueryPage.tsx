@@ -46,8 +46,6 @@ export default function QueryPage() {
     const startTime = performance.now();
     
     try {
-      console.log('Executing query:', currentQuery);
-      
       const result = await executeUserQuery(currentQuery);
       const endTime = performance.now();
       const execTime = Math.round(endTime - startTime);
@@ -78,7 +76,6 @@ export default function QueryPage() {
       }
 
     } catch (err) {
-      console.error('Unexpected error:', err);
       const endTime = performance.now();
       const execTime = Math.round(endTime - startTime);
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';

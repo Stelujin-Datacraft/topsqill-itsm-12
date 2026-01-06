@@ -304,7 +304,6 @@ function WorkflowDesignerInner({ workflowId, projectId, initialNodes, initialCon
       
       // Prevent self-connections
       if (params.source === params.target) {
-        console.warn('Cannot connect a node to itself');
         return;
       }
 
@@ -316,7 +315,6 @@ function WorkflowDesignerInner({ workflowId, projectId, initialNodes, initialCon
       );
       
       if (isDuplicate) {
-        console.warn('Connection already exists');
         return;
       }
 

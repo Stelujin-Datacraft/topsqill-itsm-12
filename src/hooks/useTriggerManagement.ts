@@ -45,7 +45,6 @@ export function useTriggerManagement() {
         return null;
       }
 
-      console.log('✅ Created workflow trigger:', data.id);
       toast({
         title: "Success!",
         description: "Workflow trigger created successfully.",
@@ -53,7 +52,6 @@ export function useTriggerManagement() {
 
       return data;
     } catch (error) {
-      console.error('❌ Error creating trigger:', error);
       return null;
     } finally {
       setLoading(false);

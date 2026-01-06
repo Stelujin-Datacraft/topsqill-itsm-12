@@ -74,14 +74,6 @@ export function CreateRecordDialog({
   const formToRender = loadedForm || targetForm;
   const hasValidForm = formToRender && formToRender.fields && Array.isArray(formToRender.fields) && formToRender.fields.length > 0;
 
-  console.log('CreateRecordDialog - Rendering:', { 
-    open, 
-    formName: targetForm?.name, 
-    formLoading,
-    hasValidForm,
-    fieldsCount: formToRender?.fields?.length 
-  });
-
   return (
     <Dialog open={open} onOpenChange={(newOpen) => {
       if (!newOpen && !isSubmitting) {

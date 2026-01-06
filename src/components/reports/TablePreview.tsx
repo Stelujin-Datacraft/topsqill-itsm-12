@@ -54,7 +54,7 @@ export function TablePreview({ formId, selectedColumns, filters = [], pageSize =
         setData(submissions);
       }
     } catch (error) {
-      console.error('Error loading table preview data:', error);
+      // Error loading table preview data
     } finally {
       setLoading(false);
     }

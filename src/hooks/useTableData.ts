@@ -153,13 +153,10 @@ export function useTableData(
             // Replace AND/OR with && / ||
             expr = expr.replace(/\bAND\b/gi, '&&').replace(/\bOR\b/gi, '||').replace(/\bNOT\b/gi, '!');
             
-            console.log('Evaluating expression:', expression, '→', expr);
-            
             // Safely evaluate the boolean expression
             // eslint-disable-next-line no-new-func
             return new Function(`return ${expr}`)();
           } catch (e) {
-            console.error('Failed to evaluate logic expression:', expression, e);
             // Fallback to AND logic
             return results.every(r => r);
           }
@@ -207,11 +204,9 @@ export function useTableData(
         });
       }
 
-      console.log(`Loaded ${transformedData.length} submissions after filtering`);
       setData(transformedData);
 
     } catch (error) {
-      console.error('Error in loadData:', error);
       setData([]);
     } finally {
       setLoading(false);

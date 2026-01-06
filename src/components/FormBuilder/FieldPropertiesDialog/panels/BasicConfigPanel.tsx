@@ -119,7 +119,6 @@ export function BasicConfigPanel({ config, onUpdate }: BasicConfigPanelProps) {
         id="field-unique"
         checked={config.validation?.unique || false}
         onCheckedChange={(checked) => {
-          console.log('Unique checkbox changed:', checked);
           onUpdate({ 
             validation: { ...config.validation, unique: Boolean(checked) }
           });

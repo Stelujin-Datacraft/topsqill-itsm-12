@@ -59,7 +59,7 @@ export function useSLANotification({
         });
       }
     } catch (err) {
-      console.error('Error fetching admins for SLA notification:', err);
+      // Error fetching admins for SLA notification
     }
 
     // Create notifications for each user
@@ -98,13 +98,8 @@ export function useSLANotification({
             }
           });
 
-        if (insertError) {
-          console.error('Error creating SLA notification:', insertError);
-        } else {
-          console.log('SLA notification created for user:', userId);
-        }
       } catch (err) {
-        console.error('Error processing SLA notification:', err);
+        // SLA notification processing failed silently
       }
     }
   }, [submissionId, fieldId, fieldLabel, currentStage, slaWarningHours, lastChangedAt, user, formCreatorId]);

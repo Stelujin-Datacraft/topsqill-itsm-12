@@ -103,8 +103,6 @@ class SchemaCacheService {
 
   async refreshCache(): Promise<void> {
     try {
-      console.log('Refreshing schema cache...');
-      
       // Fetch all forms with their fields (exclude deleted forms)
       const { data: forms, error: formsError } = await supabase
         .from('forms')
@@ -125,7 +123,6 @@ class SchemaCacheService {
         .neq('status', 'deleted');
       
       if (formsError) {
-        console.error('Error fetching forms:', formsError);
         return;
       }
       
@@ -175,10 +172,9 @@ class SchemaCacheService {
       }
       
       this.cache = newCache;
-      console.log(`Schema cache refreshed with ${Object.keys(newCache.forms).length} forms`);
       
     } catch (error) {
-      console.error('Error refreshing schema cache:', error);
+      // Error refreshing schema cache
     }
   }
 

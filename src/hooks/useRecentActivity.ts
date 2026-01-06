@@ -175,7 +175,7 @@ export function useRecentActivity() {
           });
         }
       } catch (error) {
-        console.log('Reports table may not exist or have proper relationships:', error);
+        // Reports table may not exist or have proper relationships
       }
 
       // Sort all activities by date
@@ -183,7 +183,6 @@ export function useRecentActivity() {
       
       setActivities(activities.slice(0, 15)); // Show latest 15 activities
     } catch (error) {
-      console.error('Error loading recent activities:', error);
       setActivities([]);
     } finally {
       setLoading(false);

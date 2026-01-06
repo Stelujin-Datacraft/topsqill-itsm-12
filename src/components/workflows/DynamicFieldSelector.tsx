@@ -52,7 +52,6 @@ export function DynamicFieldSelector({
       setLoading(true);
       try {
         // Fetch trigger form fields
-        console.log('📋 DynamicFieldSelector: Fetching fields for triggerFormId:', triggerFormId);
         const { data: triggerFieldsData, error: triggerFieldsError } = await supabase
           .from('form_fields')
           .select('*')

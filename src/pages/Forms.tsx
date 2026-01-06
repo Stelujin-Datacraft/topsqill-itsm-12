@@ -14,10 +14,6 @@ import NoProjectSelected from '@/components/NoProjectSelected';
 const Forms = () => {
   const { hasPermission, loading: permissionLoading } = useUnifiedAccessControl();
   const { currentProject } = useProject();
-  
-  console.log('📝 Forms page - Current project:', currentProject?.id);
-  console.log('📝 Forms page - Permission loading:', permissionLoading);
-  console.log('📝 Forms page - Can create form:', hasPermission('forms', 'create'));
 
   if (!currentProject) {
     return (

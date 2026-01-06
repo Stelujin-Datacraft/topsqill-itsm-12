@@ -228,7 +228,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
 
       setFormFields(allFields);
     } catch (error) {
-      console.error('Error loading form fields:', error);
+      // Error loading form fields
     }
   }, [config.formId, config.joinConfig, forms]);
 

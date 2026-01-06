@@ -127,12 +127,10 @@ export function useOptimizedFieldOperations(
   };
 
   const handleFieldUpdate = (fieldId: string, updates: Partial<FormField>) => {
-    console.log('Updating field in snapshot:', fieldId, 'with updates:', updates);
     updateFieldInSnapshot(fieldId, updates);
   };
 
   const handleFieldDelete = async (fieldId: string) => {
-    console.log('Deleting field from snapshot:', fieldId);
     
     const fieldToDelete = snapshot.form?.fields.find(f => f.id === fieldId);
     

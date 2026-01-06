@@ -125,7 +125,6 @@ export class CalculationEngine {
       // This is a simplified parser - in production, use a proper expression parser
       return this.evaluateFunction(expression);
     } catch (error) {
-      console.error('Expression evaluation error:', error);
       throw new Error(`Calculation error: ${error.message}`);
     }
   }

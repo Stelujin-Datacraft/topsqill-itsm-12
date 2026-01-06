@@ -57,8 +57,6 @@ export function useEmailTemplates(projectId?: string) {
         throw error;
       }
 
-      console.log('✅ Email sent successfully:', data);
-      
       toast({
         title: "Success",
         description: `Email sent to ${data.sentCount} recipient(s)${data.failedCount > 0 ? `, ${data.failedCount} failed` : ''}`,
@@ -66,7 +64,6 @@ export function useEmailTemplates(projectId?: string) {
 
       return data;
     } catch (error: any) {
-      console.error('❌ Error sending email:', error);
       toast({
         title: "Error",
         description: `Failed to send email: ${error.message}`,

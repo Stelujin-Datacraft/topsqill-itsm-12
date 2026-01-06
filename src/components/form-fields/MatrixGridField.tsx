@@ -22,8 +22,6 @@ export function MatrixGridField({ field, value, onChange, onFieldUpdate, isPrevi
   const [configOpen, setConfigOpen] = useState(false);
 
   const handleConfigSave = (config: any) => {
-    console.log('Saving matrix grid configuration:', config);
-    
     // Update the field's customConfig
     if (onFieldUpdate) {
       onFieldUpdate(field.id, {
