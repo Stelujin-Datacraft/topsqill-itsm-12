@@ -55,8 +55,8 @@ export function FormSharing({ form, onUpdateForm }: FormSharingProps) {
   const { pendingRequests } = useFormAccessNotifications(form.id);
 
   // Fix the form URLs to use the correct format
-  const formUrl = `https://preview--topsqill-itsm.lovable.app/form/${form.id}`;
-  const editUrl = `https://preview--topsqill-itsm.lovable.app/form-edit/${form.id}`;
+  const formUrl = `${window.location.origin}/form/${form.id}`;
+  const editUrl = `${window.location.origin}/form-edit/${form.id}`;
 
   const handleCopyLink = (url: string) => {
     navigator.clipboard.writeText(url);
