@@ -786,6 +786,91 @@ Deno.serve(async (req) => {
                     }
                   }
                   
+                  // Fetch target field to check type and validate submission-access fields
+                  const { data: targetField } = await supabase
+                    .from('form_fields')
+                    .select('id, field_type, custom_config')
+                    .eq('id', update.targetFieldId)
+                    .single()
+                  
+                  if (targetField) {
+                    // Handle submission-access field validation
+                    if (targetField.field_type === 'submission-access') {
+                      console.log(`🔐 Processing submission-access field: ${update.targetFieldId}`)
+                      console.log(`🔐 Raw value before validation:`, JSON.stringify(newValue))
+                      
+                      const customConfig = (targetField.custom_config as any) || {}
+                      const allowedUsers = customConfig.allowedUsers || []
+                      const allowedGroups = customConfig.allowedGroups || []
+                      
+                      console.log(`🔐 Allowed users:`, allowedUsers)
+                      console.log(`🔐 Allowed groups:`, allowedGroups)
+                      
+                      // Parse value if it's a string
+                      let parsedValue = newValue
+                      if (typeof newValue === 'string') {
+                        try {
+                          parsedValue = JSON.parse(newValue)
+                        } catch {
+                          console.log(`⚠️ Could not parse submission-access value as JSON`)
+                          parsedValue = null
+                        }
+                      }
+                      
+                      if (parsedValue && typeof parsedValue === 'object') {
+                        const sourceUsers = parsedValue.users || []
+                        const sourceGroups = parsedValue.groups || []
+                        
+                        // Filter to only allowed users/groups
+                        const validUsers = sourceUsers.filter((userId: string) => 
+                          allowedUsers.includes(userId)
+                        )
+                        const validGroups = sourceGroups.filter((groupId: string) => 
+                          allowedGroups.includes(groupId)
+                        )
+                        
+                        console.log(`🔐 Validation: source users=${sourceUsers.length}, valid=${validUsers.length}, source groups=${sourceGroups.length}, valid=${validGroups.length}`)
+                        
+                        if (validUsers.length > 0 || validGroups.length > 0) {
+                          newValue = { users: validUsers, groups: validGroups }
+                          console.log(`✅ Validated submission-access value:`, JSON.stringify(newValue))
+                        } else {
+                          console.log(`❌ No valid users or groups in submission-access value`)
+                          results.push({
+                            fieldId: update.targetFieldId,
+                            fieldName: update.targetFieldName,
+                            newValue: undefined,
+                            success: false,
+                            error: 'Invalid submission-access field value: no valid users or groups'
+                          })
+                          continue
+                        }
+                      } else {
+                        console.log(`❌ Invalid submission-access value format`)
+                        results.push({
+                          fieldId: update.targetFieldId,
+                          fieldName: update.targetFieldName,
+                          newValue: undefined,
+                          success: false,
+                          error: 'Invalid submission-access field value format'
+                        })
+                        continue
+                      }
+                    }
+                    
+                    // Handle numeric type normalization from target field
+                    const targetFieldType = targetField.field_type?.toLowerCase()
+                    const numericTargetTypes = ['number', 'currency', 'slider', 'rating']
+                    if (numericTargetTypes.includes(targetFieldType) && typeof newValue === 'string' && newValue.trim() !== '') {
+                      const cleanedValue = newValue.replace(/[,$€£¥₹\s]/g, '').trim()
+                      const parsedNumber = parseFloat(cleanedValue)
+                      if (!isNaN(parsedNumber)) {
+                        newValue = parsedNumber
+                        console.log(`🔢 Normalized to number from target type: ${newValue}`)
+                      }
+                    }
+                  }
+                  
                   console.log(`📝 Final value for ${update.targetFieldName} (${update.targetFieldId}): ${JSON.stringify(newValue)}`)
                   fieldValueMap[update.targetFieldId] = newValue
                   results.push({
