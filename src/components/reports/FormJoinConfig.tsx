@@ -36,7 +36,8 @@ export function FormJoinConfig({
   joinConfig,
   onJoinConfigChange
 }: FormJoinConfigProps) {
-  const secondaryForm = availableForms.find(f => f.id === joinConfig.secondaryFormId);
+  const safeAvailableForms = availableForms || [];
+  const secondaryForm = safeAvailableForms.find(f => f.id === joinConfig?.secondaryFormId);
   
   // Get field type supporting both .type and .field_type
   const getFieldType = (field: any): string => {
@@ -120,8 +121,8 @@ export function FormJoinConfig({
                   <SelectValue placeholder="Select secondary form" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableForms
-                    .filter(form => form.id !== primaryForm.id)
+                  {safeAvailableForms
+                    .filter(form => form.id !== primaryForm?.id)
                     .map((form) => {
                       console.log('Available form:', form.name, 'Fields:', form.fields?.length || 0);
                       return (
