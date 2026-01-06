@@ -96,14 +96,16 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
   // Only use configured filters for server-side query (not user active filters)
   const filterGroups = useMemo(() => {
     const configuredFilters = (config as any).filters as { field: string; operator: string; value: any }[] | undefined;
+    const filterLogicExpression = (config as any).filterLogicExpression as string | undefined;
+    const useManualFilterLogic = (config as any).useManualFilterLogic as boolean | undefined;
     
     console.log('EnhancedDynamicTable - Raw filters from config:', configuredFilters);
-    console.log('EnhancedDynamicTable - Filter logic expression:', (config as any).filterLogicExpression);
-    console.log('EnhancedDynamicTable - Use manual logic:', (config as any).useManualFilterLogic);
+    console.log('EnhancedDynamicTable - Filter logic expression:', filterLogicExpression);
+    console.log('EnhancedDynamicTable - Use manual logic:', useManualFilterLogic);
     
     if (!configuredFilters || configuredFilters.length === 0) {
       console.log('EnhancedDynamicTable - No filters configured, returning empty groups');
-      return [] as { conditions: { field: string; operator: string; value: any }[] }[];
+      return [] as { conditions: { field: string; operator: string; value: any }[]; logic?: 'AND' | 'OR'; logicExpression?: string }[];
     }
     
     // Filter out any filters with empty field
@@ -111,7 +113,25 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
     console.log('EnhancedDynamicTable - Valid filters (non-empty field):', validFilters);
     
     if (validFilters.length === 0) {
-      return [] as { conditions: { field: string; operator: string; value: any }[] }[];
+      return [] as { conditions: { field: string; operator: string; value: any }[]; logic?: 'AND' | 'OR'; logicExpression?: string }[];
+    }
+    
+    // Determine logic to use
+    let logic: 'AND' | 'OR' | undefined = undefined;
+    let logicExpression: string | undefined = undefined;
+    
+    if (useManualFilterLogic && filterLogicExpression) {
+      // Use the manual logic expression
+      logicExpression = filterLogicExpression;
+      console.log('EnhancedDynamicTable - Using manual logic expression:', logicExpression);
+    } else if (filterLogicExpression) {
+      // Parse simple expressions like "1 OR 2" or "1 AND 2"
+      if (filterLogicExpression.toUpperCase().includes(' OR ')) {
+        logic = 'OR';
+      } else {
+        logic = 'AND';
+      }
+      console.log('EnhancedDynamicTable - Parsed simple logic:', logic);
     }
     
     return [
@@ -120,7 +140,9 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
           field: f.field,
           operator: f.operator,
           value: f.value
-        }))
+        })),
+        logic,
+        logicExpression
       }
     ];
   }, [config]);
