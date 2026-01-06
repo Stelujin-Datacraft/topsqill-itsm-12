@@ -125,16 +125,33 @@ export class RecordActionExecutors {
 
           // Validate submission-access field value
           if (targetField.field_type === 'submission-access') {
-            const customConfig = (targetField.custom_config as any) || {};
+            // Parse custom_config if it's a string
+            let customConfig = targetField.custom_config as any;
+            if (typeof customConfig === 'string') {
+              try {
+                customConfig = JSON.parse(customConfig);
+              } catch {
+                customConfig = {};
+              }
+            }
+            customConfig = customConfig || {};
+            
             const accessConfig = {
               allowedUsers: customConfig.allowedUsers || [],
               allowedGroups: customConfig.allowedGroups || []
             };
             
+            console.log('🔍 Submission-access validation:');
+            console.log('  - newValue:', JSON.stringify(newValue));
+            console.log('  - accessConfig:', JSON.stringify(accessConfig));
+            
             const validatedValue = this.validateSubmissionAccessValue(newValue, accessConfig);
+            console.log('  - validatedValue:', JSON.stringify(validatedValue));
+            
             if (validatedValue && (validatedValue.users.length > 0 || validatedValue.groups.length > 0)) {
               newValue = validatedValue;
             } else {
+              console.log('  - FAILED: No valid users/groups after validation');
               results.push({
                 fieldId: update.targetFieldId,
                 fieldName: update.targetFieldName,

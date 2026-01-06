@@ -322,7 +322,20 @@ function FieldUpdateItem({
         {update.targetFieldId && update.valueType && (update.staticValue !== undefined || update.dynamicValuePath) && (
           <div className="text-xs text-muted-foreground bg-background/50 p-2 rounded">
             "{update.targetFieldName}" → {update.valueType === 'static' 
-              ? `"${update.staticValue}"` 
+              ? (() => {
+                  // Handle object values (like submission-access { users, groups })
+                  if (update.staticValue && typeof update.staticValue === 'object') {
+                    const val = update.staticValue as any;
+                    if (val.users || val.groups) {
+                      const parts = [];
+                      if (val.users?.length) parts.push(`${val.users.length} user(s)`);
+                      if (val.groups?.length) parts.push(`${val.groups.length} group(s)`);
+                      return parts.length > 0 ? parts.join(', ') : 'No selection';
+                    }
+                    return JSON.stringify(val);
+                  }
+                  return `"${update.staticValue}"`;
+                })()
               : `from "${update.dynamicFieldName || update.dynamicValuePath}"`}
           </div>
         )}
