@@ -40,7 +40,6 @@ export function HeatmapCell({
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('🔥 HeatmapCell clicked:', { rowValue, colValue, cellValue, cellCount });
     onClick();
   };
 

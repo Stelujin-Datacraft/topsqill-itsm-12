@@ -16,16 +16,6 @@ export function useFormAssignmentCreator() {
     notes?: string
   ) => {
     try {
-      console.log('Creating form assignment:', {
-        formId,
-        assignedToUserId,
-        assignedToEmail,
-        assignmentType,
-        projectId,
-        dueDate,
-        notes
-      });
-
       const assignmentData = {
         form_id: formId,
         assigned_to_user_id: assignedToUserId,
@@ -45,11 +35,8 @@ export function useFormAssignmentCreator() {
         .single();
 
       if (error) {
-        console.error('Error creating form assignment:', error);
         throw error;
       }
-
-      console.log('Form assignment created successfully:', data);
       
       toast({
         title: "Assignment created",

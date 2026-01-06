@@ -76,7 +76,6 @@ export function FieldPropertiesDialog({
   const [selectedFormFields, setSelectedFormFields] = React.useState<FormFieldOption[]>([]);
   const [loadingFields, setLoadingFields] = React.useState(false);
 
-  console.log(selectedField, 'selected Fields in new')
   const {
     getFormOptions,
     loading
@@ -102,55 +101,33 @@ export function FieldPropertiesDialog({
     return [];
   };
 
-  // Enhanced field data fetching with comprehensive logging
+  // Enhanced field data fetching
   React.useEffect(() => {
     const loadFieldConfiguration = async () => {
-      console.log('🚀 FieldPropertiesDialog: Dialog state changed');
-      console.log('📋 FieldPropertiesDialog: Selected field:', selectedField?.id);
-      console.log('🔄 FieldPropertiesDialog: Dialog open:', open);
       if (!selectedField?.id || !open) {
-        console.log('⏹️ FieldPropertiesDialog: Clearing field configuration (no field or dialog closed)');
         setFieldForConfig(null);
         setLocalConfig({});
         return;
       }
-      console.log('🎯 FieldPropertiesDialog: Starting field configuration load');
-      console.log('📝 FieldPropertiesDialog: Field details from props:');
-      console.log('   - ID:', selectedField.id);
-      console.log('   - Type:', selectedField.type);
-      console.log('   - Label:', selectedField.label);
-      console.log('   - Current customConfig:', selectedField.customConfig);
       try {
         // Fetch complete field data from database
-        console.log('🔍 FieldPropertiesDialog: Fetching field data from database...');
         const dbFieldData = await fetchFieldData(selectedField.id);
         if (!dbFieldData) {
-          console.warn('⚠️ FieldPropertiesDialog: No data returned from database, using fallback');
           setFieldForConfig(selectedField);
           initializeLocalConfig(selectedField);
           return;
         }
 
         // Transform database data to FormField format
-        console.log('🔄 FieldPropertiesDialog: Transforming database data...');
         const transformedField = transformToFormField(dbFieldData, selectedField.pageId);
-        console.log('✅ FieldPropertiesDialog: Field configuration loaded successfully');
-        console.log('📊 FieldPropertiesDialog: Final field configuration:');
-        console.log('   - ID:', transformedField.id);
-        console.log('   - Type:', transformedField.type);
-        console.log('   - Label:', transformedField.label);
-        console.log('   - Custom Config Keys:', Object.keys(transformedField.customConfig || {}));
-        console.log('   - Full Custom Config:', transformedField.customConfig);
         setFieldForConfig(transformedField);
         initializeLocalConfig(transformedField);
 
         // Auto-load form fields if target form is already selected
         if (transformedField.customConfig?.targetFormId) {
-          console.log('🔄 FieldPropertiesDialog: Auto-loading fields for saved target form:', transformedField.customConfig.targetFormId);
           await fetchFormFields(transformedField.customConfig.targetFormId);
         }
       } catch (error) {
-        console.error('❌ FieldPropertiesDialog: Error loading field configuration:', error);
         toast({
           title: "Error loading field data",
           description: "Failed to load complete field configuration. Using cached data.",
@@ -169,20 +146,11 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
 
   // Initialize local config from field data
   const initializeLocalConfig = (field: FormField) => {
-    console.log('🔧 FieldPropertiesDialog: Initializing local config for field:', field.label);
-    console.log('📊 FieldPropertiesDialog: Field customConfig:', field.customConfig);
-    console.log('📊 FieldPropertiesDialog: Field validation:', field.validation);
-    console.log('📊 FieldPropertiesDialog: Field options raw:', field.options);
-    console.log('📊 FieldPropertiesDialog: Field options type:', typeof field.options);
-
     // Ensure options are properly parsed from JSON string if needed
     const parsedOptions = ensureOptionsArray(field.options);
-    console.log('📋 FieldPropertiesDialog: Parsed options:', parsedOptions);
-    console.log('📋 FieldPropertiesDialog: Parsed options length:', parsedOptions.length);
     
     // Ensure validation object exists with unique property preserved
     const validationConfig = field.validation || {};
-    console.log('📋 FieldPropertiesDialog: Validation config:', validationConfig);
     
     const newLocalConfig = {
       label: field.label,
@@ -194,20 +162,15 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
       options: parsedOptions,
       validation: validationConfig
     };
-    console.log('📋 FieldPropertiesDialog: Setting localConfig with validation:', newLocalConfig.validation);
-    console.log('📋 FieldPropertiesDialog: Setting localConfig with customConfig:', newLocalConfig.customConfig);
     setLocalConfig(newLocalConfig);
-    console.log('✅ FieldPropertiesDialog: Local config initialized');
   };
 
   // Fetch form fields when target form changes
   const fetchFormFields = React.useCallback(async (formId: string) => {
     if (!formId) {
-      console.log('⭕ FieldPropertiesDialog: No form ID provided, clearing fields');
       setSelectedFormFields([]);
       return;
     }
-    console.log('🔍 FieldPropertiesDialog: Fetching form fields for form:', formId);
     setLoadingFields(true);
     try {
       const {
@@ -217,14 +180,11 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
         ascending: true
       });
       if (error) {
-        console.error('❌ FieldPropertiesDialog: Error fetching form fields:', error);
         setSelectedFormFields([]);
       } else {
-        console.log('✅ FieldPropertiesDialog: Successfully fetched form fields:', fields);
         setSelectedFormFields(fields || []);
       }
     } catch (error) {
-      console.error('💥 FieldPropertiesDialog: Exception while fetching form fields:', error);
       setSelectedFormFields([]);
     } finally {
       setLoadingFields(false);
@@ -232,18 +192,12 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
   }, []);
   if (!selectedField) return null;
   const updateField = (key: string, value: any) => {
-    console.log(`🔄 FieldPropertiesDialog: Updating field: ${key} =`, value);
-    if (key === 'options') {
-      console.log(`📋 FieldPropertiesDialog: Options update - array length: ${Array.isArray(value) ? value.length : 'not array'}`);
-      console.log(`📋 FieldPropertiesDialog: Options content:`, value);
-    }
     setLocalConfig(prev => ({
       ...prev,
       [key]: value
     }));
   };
   const updateCustomConfig = (key: string, value: any) => {
-    console.log(`🔧 FieldPropertiesDialog: Updating custom config: ${key} =`, value);
     setLocalConfig(prev => ({
       ...prev,
       customConfig: {
@@ -253,7 +207,6 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
     }));
   };
   const updateValidation = (key: string, value: any) => {
-    console.log(`📋 FieldPropertiesDialog: Updating validation: ${key} =`, value);
     setLocalConfig(prev => ({
       ...prev,
       validation: {
@@ -266,7 +219,6 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
     if (!selectedField || isSaving) return;
     setIsSaving(true);
     try {
-      console.log('💾 FieldPropertiesDialog: Saving configuration:', localConfig);
       await onSave(selectedField.id, localConfig);
       toast({
         title: "Configuration saved",
@@ -277,7 +229,6 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
       setFieldForConfig(null);
       onClose();
     } catch (error) {
-      console.error('❌ FieldPropertiesDialog: Error saving field configuration:', error);
       toast({
         title: "Error saving configuration",
         description: "Failed to save field configuration. Please try again.",
@@ -288,13 +239,11 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
     }
   };
   const handleClose = () => {
-    console.log('🔒 FieldPropertiesDialog: Closing dialog and clearing field configuration');
     setFieldForConfig(null);
     setLocalConfig({});
     onClose();
   };
   const handleTargetFormChange = async (formValue: string) => {
-    console.log('🎯 FieldPropertiesDialog: Target form selection changed to:', formValue);
     const selectedForm = getFormOptions.find(form => form.value === formValue);
 
     // Update form selection immediately
@@ -315,7 +264,6 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
     } else {
       updatedColumns = currentColumns.filter((col: string) => col !== columnId);
     }
-    console.log('📊 FieldPropertiesDialog: Column selection updated:', updatedColumns);
     updateCustomConfig('displayColumns', updatedColumns);
   };
   const handleMetadataColumnToggle = (columnId: string, checked: boolean) => {
@@ -327,7 +275,6 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
     } else {
       updatedColumns = currentColumns.filter((col: string) => col !== metadataColumnId);
     }
-    console.log('📊 FieldPropertiesDialog: Metadata column selection updated:', updatedColumns);
     updateCustomConfig('displayColumns', updatedColumns);
   };
   const addFilter = () => {

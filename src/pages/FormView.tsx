@@ -167,19 +167,6 @@ const FormView = () => {
                        isProjectAdmin ||
                        hasDirectAccess; // This covers invited, approved, and assigned users
 
-  console.log('🔍 [FORM VIEW] Access check results:', {
-    formId: form.id,
-    userId: user?.id,
-    isPublic,
-    isFormCreator,
-    hasFormReadAccess,
-    isOrgAdmin,
-    isProjectAdmin,
-    hasDirectAccess,
-    accessRole,
-    canAccessForm
-  });
-  
   // Show submission success if form was submitted
   if (submissionResult) {
     return (

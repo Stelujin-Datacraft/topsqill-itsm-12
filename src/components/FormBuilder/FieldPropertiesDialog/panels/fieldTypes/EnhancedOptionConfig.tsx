@@ -29,8 +29,6 @@ interface EnhancedOptionConfigProps {
 export function EnhancedOptionConfig({ options, onChange, fieldType }: EnhancedOptionConfigProps) {
   const [activeTab, setActiveTab] = useState<'individual' | 'bulk'>('individual');
   const [bulkInput, setBulkInput] = useState('');
-  console.log("oooooooooooo",options)
-
 
   // Generate a random color for new options
   const generateRandomColor = () => {
@@ -325,7 +323,6 @@ export function EnhancedOptionConfig({ options, onChange, fieldType }: EnhancedO
                       className="w-12 h-12 object-cover rounded border border-border flex-shrink-0"
                       style={{ minWidth: '48px', minHeight: '48px' }}
                       onError={(e) => {
-                        console.error('Image failed to load:', option.image.slice(0, 50));
                         e.currentTarget.style.display = 'none';
                       }}
                     />

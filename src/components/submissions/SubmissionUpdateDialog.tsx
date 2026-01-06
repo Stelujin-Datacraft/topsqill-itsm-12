@@ -786,7 +786,6 @@ export function SubmissionUpdateDialog({
                   ? JSON.parse(field.custom_config)
                   : field.custom_config || {};
             } catch (e) {
-              console.warn(`Failed to parse custom_config for ${field.label}:`, e);
               customConfig = {};
             }
 
@@ -794,9 +793,6 @@ export function SubmissionUpdateDialog({
             const displayColumns = customConfig?.displayColumns || [];
 
             if (!targetFormId) {
-              console.error(
-                `❌ Missing targetFormId for cross-reference field "${field.label}"`
-              );
               continue;
             }
 

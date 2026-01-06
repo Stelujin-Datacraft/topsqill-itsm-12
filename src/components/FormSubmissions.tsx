@@ -55,7 +55,6 @@ export function FormSubmissions({
   const loadSubmissions = async () => {
     try {
       setLoading(true);
-      console.log('Loading submissions for form:', form.id);
       
       // First, fetch submissions
       const { data, error } = await supabase
@@ -72,7 +71,6 @@ export function FormSubmissions({
         .order('submitted_at', { ascending: false });
 
       if (error) {
-        console.error('Error loading submissions:', error);
         throw error;
       }
 
@@ -122,9 +120,7 @@ export function FormSubmissions({
         };
       });
       setSubmissions(submissionsData);
-      console.log('Loaded submissions:', submissionsData.length);
     } catch (error) {
-      console.error('Error loading submissions:', error);
       toast({
         title: "Error loading submissions",
         description: "Failed to load form submissions.",

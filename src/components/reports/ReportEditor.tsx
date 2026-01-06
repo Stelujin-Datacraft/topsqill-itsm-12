@@ -374,18 +374,6 @@ export function ReportEditor({
       const component = components.find(c => c.id === componentId);
       const config = component?.config as any;
       
-      // Debug logging to trace the issue
-      console.log('📊 handleDrilldown called:', {
-        componentId,
-        drilldownLevel,
-        drilldownValue,
-        foundComponent: !!component,
-        config: config ? 'exists' : 'null',
-        drilldownConfig: config?.drilldownConfig,
-        crossRefConfig: config?.crossRefConfig,
-        crossRefDrilldownLevels: config?.crossRefConfig?.drilldownLevels
-      });
-      
       // Support both drilldownConfig and crossRefConfig drilldown levels
       // Check for non-empty arrays, not just existence (empty array is truthy!)
       const drilldownLevels = 

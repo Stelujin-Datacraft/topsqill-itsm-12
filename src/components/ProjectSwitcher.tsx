@@ -23,7 +23,7 @@ export function ProjectSwitcher() {
   };
 
   const handleProjectCreated = (projectId: string) => {
-    console.log('New project created from switcher:', projectId);
+    // Project created successfully
   };
 
   const canCreateProject = userProfile?.role === 'admin';

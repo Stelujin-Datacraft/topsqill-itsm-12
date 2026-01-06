@@ -22,7 +22,6 @@ export function useFormBuilderState(currentForm: Form | null, formId?: string) {
 
   useEffect(() => {
     if (currentForm) {
-      console.log('Loading existing form:', currentForm);
       setFormName(currentForm.name);
       setFormDescription(currentForm.description);
       setFormStatus(currentForm.status);

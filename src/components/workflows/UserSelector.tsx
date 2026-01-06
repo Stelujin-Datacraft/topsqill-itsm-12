@@ -11,7 +11,6 @@ interface UserSelectorProps {
 
 export function UserSelector({ value, onValueChange }: UserSelectorProps) {
   const handleTypeChange = (type: string) => {
-    console.log('🔧 Assignment type changed:', type);
     if (type === 'form_submitter') {
       onValueChange({ type: 'form_submitter' });
     } else if (type === 'specific_user') {
@@ -20,7 +19,6 @@ export function UserSelector({ value, onValueChange }: UserSelectorProps) {
   };
 
   const handleEmailChange = (email: string) => {
-    console.log('📧 Assignment email changed:', email);
     onValueChange({ ...value, email });
   };
 

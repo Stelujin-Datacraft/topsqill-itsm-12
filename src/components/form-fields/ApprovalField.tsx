@@ -123,13 +123,8 @@ export function ApprovalField({ field, value, onChange, error, disabled, formDat
         });
       }
 
-      if (config.sendNotifications !== false) {
-        console.log('Sending approval notification:', approvalData);
-      }
-
       setComments('');
     } catch (error) {
-      console.error('Approval error:', error);
       toast({
         title: "Error",
         description: "Failed to process approval. Please try again.",

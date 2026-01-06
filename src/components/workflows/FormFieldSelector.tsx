@@ -116,9 +116,7 @@ export function FormFieldSelector({
     <Select 
       value={value} 
       onValueChange={(fieldId) => {
-        console.log('🔍 Field selected:', fieldId);
         const selectedField = fields.find(f => f.id === fieldId);
-        console.log('📋 Selected field details:', selectedField);
         onValueChange(
           fieldId, 
           selectedField?.label || fieldId,
