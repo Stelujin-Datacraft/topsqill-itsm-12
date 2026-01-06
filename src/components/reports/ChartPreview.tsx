@@ -89,11 +89,11 @@ export function ChartPreview({
       if (config.formId && (!currentForm?.fields || currentForm.fields.length === 0)) {
         try {
           const fields = await getFormFields(config.formId);
-          if (fields && fields.length > 0) {
+      if (fields && fields.length > 0) {
             setDirectlyFetchedFields(fields);
           }
         } catch (error) {
-          console.error('ChartPreview: Error fetching fields directly:', error);
+          // Error fetching fields directly - silent fail
         }
       }
     };
@@ -173,14 +173,12 @@ export function ChartPreview({
     }
   ): Promise<any[]> => {
     if (!crossRefConfig.crossRefFieldId || !crossRefConfig.targetFormId) {
-      console.warn('Incomplete cross-reference configuration');
       return [];
     }
 
     try {
       // Fetch all submissions from the target form
       const targetSubmissions = await getFormSubmissionData(crossRefConfig.targetFormId);
-      console.log(`📊 Cross-ref: Loaded ${targetSubmissions?.length || 0} records from target form`);
       
       // Also fetch target form fields for proper label resolution and option colors
       const targetFormFields = await getFormFields(crossRefConfig.targetFormId);
@@ -206,7 +204,6 @@ export function ChartPreview({
       });
 
       if (!targetSubmissions || targetSubmissions.length === 0) {
-        console.log('📊 Cross-ref: No target submissions found');
         return [];
       }
 
@@ -223,15 +220,6 @@ export function ChartPreview({
       
       // Determine if drilldown is actively being used (has levels and at least started drilling)
       const isDrilldownActive = crossRefConfig.drilldownEnabled && drilldownLevels.length > 0;
-      
-      console.log('📊 Cross-ref drilldown processing:', {
-        drilldownEnabled: crossRefConfig.drilldownEnabled,
-        isDrilldownActive,
-        currentFieldLevel,
-        currentDimensionField,
-        drilldownValues,
-        totalLevels: drilldownLevels.length
-      });
 
       // Build a lookup map: submission_ref_id -> target submissions
       const targetByRefId = new Map<string, any[]>();
@@ -344,7 +332,6 @@ export function ChartPreview({
         } else if (crossRefConfig.mode === 'compare') {
           // Compare mode: X/Y axis style comparison like normal compare mode
           if (!crossRefConfig.compareXFieldId || !crossRefConfig.compareYFieldId) {
-            console.warn('Compare mode requires both compareXFieldId and compareYFieldId');
             return;
           }
 
@@ -419,7 +406,6 @@ export function ChartPreview({
         } else {
           // Aggregate mode
           if (!crossRefConfig.targetMetricFieldId) {
-            console.warn('Aggregate mode requires targetMetricFieldId');
             return;
           }
 
@@ -533,9 +519,6 @@ export function ChartPreview({
           sub._parentRefId === selectedParentRefId
         );
         
-        console.log('📊 Cross-ref drilldown: Filtered by parentRefId', selectedParentRefId, 
-          '- remaining:', filteredLinkedSubmissions.length);
-        
         // Subsequent drilldown values filter by actual field values
         // drilldownValues[1] corresponds to drilldownLevels[0], drilldownValues[2] to drilldownLevels[1], etc.
         for (let i = 1; i < drilldownValues.length; i++) {
@@ -557,9 +540,6 @@ export function ChartPreview({
               : String(fieldValue || '');
             return normalizedFieldValue === expectedValue;
           });
-          
-          console.log('📊 Cross-ref drilldown: Filtered by field', levelFieldId, '=', expectedValue,
-            '- remaining:', filteredLinkedSubmissions.length);
         }
         
         // Deduplicate by submission ID
@@ -569,14 +549,9 @@ export function ChartPreview({
           seenIds.add(sub.id);
           return true;
         });
-        console.log('📊 Cross-ref drilldown: After deduplication:', filteredLinkedSubmissions.length);
       }
       
       if (isDrilldownActive && currentDimensionField && hasStartedDrilling && currentFieldLevel < drilldownLevels.length) {
-        console.log('📊 Cross-ref drilldown: Grouping by level field', currentDimensionField, 'at level', currentFieldLevel);
-        console.log('📊 Cross-ref drilldown: filteredLinkedSubmissions count:', filteredLinkedSubmissions.length);
-        console.log('📊 Cross-ref drilldown: Sample submission data:', filteredLinkedSubmissions[0]?.submission_data);
-        
         // Get field options for the current drilldown field
         const dimFieldOptions = targetFieldOptionsLookup.get(currentDimensionField);
         
@@ -662,7 +637,6 @@ export function ChartPreview({
           };
         });
         
-        console.log(`📊 Cross-ref drilldown: Grouped into ${drilldownResult.length} values`, drilldownResult);
         return drilldownResult;
       }
 
@@ -708,10 +682,8 @@ export function ChartPreview({
         }));
       }
 
-      console.log(`📊 Cross-ref: Processed ${result.length} data points`);
       return result;
     } catch (error) {
-      console.error('Error processing cross-reference data:', error);
       return [];
     }
   };
@@ -724,8 +696,6 @@ export function ChartPreview({
     const hasTextCompare = crossRefData.some(item => item._isCrossRefCompare && (item._hasTextX || item._hasTextY));
     
     if (hasTextCompare) {
-      console.log('📊 Cross-ref: Applying text compare transformation (encoded legend mode)');
-      
       // Get X/Y field names from pre-resolved labels in data
       const xFieldName = crossRefData[0]?.xFieldLabel || 'X Field';
       const yFieldName = crossRefData[0]?.yFieldLabel || 'Y Field';
@@ -1002,14 +972,11 @@ export function ChartPreview({
   }, [config.formId, config.dimensions, config.metrics, config.filters, config.xAxis, config.yAxis, config.aggregation, config.aggregationType, config.groupByField, config.drilldownConfig?.enabled, config.drilldownConfig?.drilldownLevels, drilldownState?.values, (config as any).data, config.crossRefConfig?.enabled, config.crossRefConfig?.crossRefFieldId, config.crossRefConfig?.mode, config.crossRefConfig?.targetMetricFieldId, config.crossRefConfig?.targetDimensionFieldId, config.crossRefConfig?.drilldownEnabled, config.crossRefConfig?.drilldownLevels, config.chartType, config.type, getFormSubmissionData, getChartData]);
   const processSubmissionData = (submissions: any[]) => {
     if (!submissions.length) {
-      console.log('No submissions to process');
       return [];
     }
-    console.log('Processing submissions:', submissions.length);
     
     // Determine the effective group by field - prioritize dimensions[0] over groupByField
     const effectiveGroupByField = config.dimensions?.[0] || config.groupByField;
-    console.log('🔍 Group by field:', effectiveGroupByField);
 
     // Get dimension fields - support both drilldownLevels and levels for compatibility
     const drilldownLevelsLocal = config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels || [];
@@ -1037,26 +1004,21 @@ export function ChartPreview({
     // Get the current chart type
     const currentChartType = config.type || config.chartType || 'bar';
 
-    console.log('Processing with dimensions:', dimensionFields, 'metrics:', metricFields, 'groupBy:', effectiveGroupByField, 'compareMode:', config.compareMode, 'chartType:', currentChartType);
-
     // Heatmap: special processing for 2 dimensions + intensity
     // Use config.dimensions directly since dimensionFields may only have first dimension
     const heatmapDimensions = config.dimensions || [];
     if (currentChartType === 'heatmap' && heatmapDimensions.length >= 2) {
-      console.log('📊 Processing heatmap with row/column dimensions:', heatmapDimensions[0], heatmapDimensions[1]);
       return processHeatmapData(submissions, heatmapDimensions[0], heatmapDimensions[1], config.heatmapIntensityField || metricFields[0]);
     }
 
     // Scatter/Bubble charts: use compare mode processing with x/y coordinates
     if ((currentChartType === 'scatter' || currentChartType === 'bubble') && config.metrics && config.metrics.length >= 2) {
-      console.log('📊 Processing scatter/bubble chart with metrics:', config.metrics);
       return processCompareData(submissions, dimensionFields, config.metrics);
     }
 
     // Compare mode: require exactly two metrics and ignore aggregation/count semantics
     if (config.compareMode) {
       if (!config.metrics || config.metrics.length !== 2) {
-        console.warn('Compare mode requires exactly two metric fields. Current metrics:', config.metrics);
         return [];
       }
       
@@ -1073,14 +1035,10 @@ export function ChartPreview({
         // If the sample value is a string and not a pure number, treat as text
         if (typeof sampleValue === 'string' && isNaN(Number(sampleValue))) {
           isYAxisTextType = true;
-          console.log('🔍 Compare mode - Detected text type from data value:', sampleValue);
         }
       }
       
-      console.log('🔍 Compare mode - Y-axis field:', yAxisFieldId, 'field found:', !!yAxisField, 'type:', yAxisFieldType, 'Is text type:', isYAxisTextType);
-      
       if (isYAxisTextType) {
-        console.log('🔍 Using encoded legend mode for compare (auto-detected text Y-axis field)');
         return processCompareEncodedData(submissions, config.metrics[0], config.metrics[1]);
       }
       
@@ -1095,8 +1053,6 @@ export function ChartPreview({
     // For Count mode with 2 dimensions: first is X-axis, second is Stack/Color
     // Auto-detect if secondary field is text type and use encoded legend mode
     if (dimensionFields.length > 1 && !config.aggregationEnabled && !config.compareMode) {
-      console.log('🔍 Count mode with stacking: X-axis =', dimensionFields[0], 'Stack =', dimensionFields[1]);
-      
       // Check if secondary field is a text type - auto enable encoded legend mode
       const secondaryFieldId = dimensionFields[1];
       const secondaryField = formFields.find(f => f.id === secondaryFieldId);
@@ -1104,11 +1060,8 @@ export function ChartPreview({
       const textFieldTypes = ['text', 'short-text', 'long-text', 'textarea', 'select', 'radio', 'dropdown', 'status', 'country', 'email', 'tags', 'address', 'multi-select', 'checkbox'];
       const isTextType = textFieldTypes.includes(secondaryFieldType);
       
-      console.log('🔍 Secondary field type:', secondaryFieldType, 'Is text type:', isTextType);
-      
       // Use encoded legend mode for text fields OR if explicitly enabled
       if (isTextType || config.encodedLegendMode) {
-        console.log('🔍 Using encoded legend mode (auto-detected text field)');
         return processEncodedLegendData(submissions, dimensionFields[0], dimensionFields[1]);
       }
       
@@ -1153,8 +1106,6 @@ export function ChartPreview({
   };
 
   const processCompareData = (submissions: any[], dimensionFields: string[], metricFields: string[]) => {
-    console.log('📊 Processing compare mode with fields:', metricFields, 'dimensions:', dimensionFields);
-
     const [metricField1, metricField2] = metricFields;
     const field1Name = getFormFieldName(metricField1);
     const field2Name = getFormFieldName(metricField2);
@@ -1166,8 +1117,6 @@ export function ChartPreview({
 
     // If dimension is selected, group data by dimension and sum values
     if (hasDimension) {
-      console.log('📊 Compare mode WITH dimension grouping:', dimensionFields[0]);
-      
       // Group submissions by dimension value and sum both metrics
       const groupedData: { [key: string]: { x: number; y: number; count: number; sizeSum: number } } = {};
       
@@ -1205,7 +1154,6 @@ export function ChartPreview({
         return point;
       });
       
-      console.log('📊 Compare grouped data:', points);
       return points;
     }
 
@@ -1234,8 +1182,6 @@ export function ChartPreview({
       if (xRawValue && isNaN(Number(xRawValue))) hasTextX = true;
       if (yRawValue && isNaN(Number(yRawValue))) hasTextY = true;
     });
-    
-    console.log('📊 Scatter/Bubble field types - X:', xFieldType, 'isText:', hasTextX, 'Y:', yFieldType, 'isText:', hasTextY);
     
     // For text axes, create encoding maps like encoded legend mode
     const xEncodingMap: { [value: string]: number } = {};
@@ -1317,15 +1263,12 @@ export function ChartPreview({
         return point;
       });
 
-    console.log('📊 Compare scatter data:', points);
     return points;
   };
 
   // Process encoded legend mode - X-axis shows primary field values, Y-axis shows encoded numeric values for secondary field
   // Returns chart data plus a legend mapping object
   const processEncodedLegendData = (submissions: any[], primaryField: string, secondaryField: string) => {
-    console.log('📊 Processing encoded legend mode - Primary:', primaryField, 'Secondary:', secondaryField);
-    
     // First, collect all unique values of the secondary field to create the encoding
     const uniqueSecondaryValues = new Set<string>();
     submissions
@@ -1348,9 +1291,6 @@ export function ChartPreview({
       encodingNumber++;
     });
     
-    console.log('📊 Encoding map:', encodingMap);
-    console.log('📊 Legend mapping:', legendMapping);
-    
     // Now create chart data with primary field as X-axis and encoded value as Y-axis
     const chartData = submissions
       .filter(submission => passesFilters(submission.submission_data))
@@ -1370,7 +1310,6 @@ export function ChartPreview({
         };
       });
     
-    console.log('📊 Encoded legend chart data:', chartData);
     return chartData;
   };
 
@@ -1380,8 +1319,6 @@ export function ChartPreview({
     // Check if there's a dimension field selected for grouping
     const dimensionFields = config.dimensions || [];
     const hasDimension = dimensionFields.length > 0 && dimensionFields[0] !== '_default';
-    
-    console.log('📊 Processing compare encoded mode - X:', xAxisField, 'Y:', yAxisField, 'Dimension:', hasDimension ? dimensionFields[0] : 'none');
     
     const xFieldName = getFormFieldName(xAxisField);
     const yFieldName = getFormFieldName(yAxisField);
@@ -1768,7 +1705,6 @@ export function ChartPreview({
       };
     });
     
-    console.log('📊 Heatmap processed data:', result);
     return result;
   };
 
@@ -1895,12 +1831,6 @@ export function ChartPreview({
     const currentLevel = drilldownState?.values?.length || 0;
     const nextLevel = drilldownLevels[currentLevel];
     if (nextLevel && value) {
-      console.log('🔍 Drilldown select:', {
-        nextLevel,
-        selectedValue: value,
-        currentLevel,
-        fieldName: getFormFieldName(nextLevel)
-      });
       onDrilldown(nextLevel, value);
     }
   };
@@ -1962,13 +1892,6 @@ export function ChartPreview({
       if (crossRefConfig.drilldownLevels && crossRefConfig.drilldownLevels.length > 0) {
         const drilldownLevels = crossRefConfig.drilldownLevels;
         const currentLevel = drilldownState?.values?.length || 0;
-        
-        console.log('📊 Cross-ref pie drilldown click:', {
-          currentLevel,
-          totalLevels: drilldownLevels.length,
-          clickedValue,
-          drilldownValue: data?._drilldownValue
-        });
         
         if (currentLevel >= drilldownLevels.length) {
           setCellSubmissionsDialog({
@@ -2034,13 +1957,6 @@ export function ChartPreview({
       
       const nextLevel = drilldownLevels[currentLevel];
       if (nextLevel) {
-        console.log('🥧 Pie click drilldown:', {
-          nextLevel,
-          clickedValue,
-          currentLevel,
-          fieldName: getFormFieldName(nextLevel),
-          totalLevels: drilldownLevels.length
-        });
         onDrilldown(nextLevel, clickedValue);
         return;
       }
@@ -2066,15 +1982,6 @@ export function ChartPreview({
     if (config.crossRefConfig?.enabled && (payload?.parentId || payload?._linkedSubmissionIds)) {
       const crossRefConfig = config.crossRefConfig;
       
-      console.log('📊 Cross-ref bar click:', {
-        mode: crossRefConfig.mode,
-        drilldownEnabled: crossRefConfig.drilldownEnabled,
-        isDrilldownModeActive,
-        drilldownLevels: crossRefConfig.drilldownLevels,
-        currentDrilldownValues: drilldownState?.values,
-        payload: { parentId: payload.parentId, _linkedSubmissionIds: payload._linkedSubmissionIds }
-      });
-      
       // Compare mode doesn't support drilldown - always show records directly
       // Also show records directly if drilldown mode is OFF or not enabled
       if (crossRefConfig.mode === 'compare' || !isDrilldownModeActive || !crossRefConfig.drilldownEnabled) {
@@ -2096,25 +2003,11 @@ export function ChartPreview({
         const drilldownLevels = crossRefConfig.drilldownLevels;
         const valuesCount = drilldownState?.values?.length || 0;
         
-        console.log('📊 Cross-ref drilldown click:', {
-          valuesCount,
-          totalLevels: drilldownLevels.length,
-          dimensionValue,
-          drilldownValue: payload?._drilldownValue,
-        });
-        
         // Calculate the next field level we would drill into
         // valuesCount = 0: will add parentRefId, then show level 0 data → nextFieldIndex = 0
         // valuesCount = 1: parentRefId exists, will add level 0 value, then show level 1 data → nextFieldIndex = 1
         // valuesCount = N: will add level N-1 value, then show level N data → nextFieldIndex = N
         const nextFieldIndex = valuesCount;
-        
-        console.log('📊 Cross-ref drilldown: nextFieldIndex calculation', {
-          valuesCount,
-          nextFieldIndex,
-          totalLevels: drilldownLevels.length,
-          willShowDialog: nextFieldIndex >= drilldownLevels.length
-        });
         
         // Check if we've exhausted all levels (nextFieldIndex >= levels means no more levels to show)
         if (nextFieldIndex >= drilldownLevels.length) {
@@ -2141,7 +2034,6 @@ export function ChartPreview({
           : (payload?._drilldownValue || dimensionValue); // Subsequent clicks pass field value
         
         if (onDrilldown) {
-          console.log('📊 Cross-ref drilldown: Drilling into field level', nextFieldIndex, 'with value', valueToPass);
           onDrilldown(nextLevel || '', valueToPass);
           return;
         }
@@ -2200,13 +2092,10 @@ export function ChartPreview({
   };
   const handleChartClick = (data: any, event?: any) => {
     // This will be handled by the drilldown controls instead of direct click
-    console.log('Chart clicked, use drilldown controls instead');
   };
   
   // Handle heatmap cell click - shows submissions for the row/column intersection
   const handleHeatmapCellClick = (rowValue: string, colValue: string, rowField?: string, colField?: string) => {
-    console.log('🔥 handleHeatmapCellClick called with:', { rowValue, colValue, rowField, colField });
-    
     const dimensionField = rowField || config.dimensions?.[0] || '';
     const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Row';
     
@@ -2217,14 +2106,6 @@ export function ChartPreview({
     
     // For 1D heatmaps (colValue is "Default"), don't pass groupValue to avoid filtering issues
     const effectiveGroupValue = hasSecondDimension && colValue !== 'Default' ? colValue : undefined;
-    
-    console.log('🔥 Setting dialog state:', { 
-      dimensionField, 
-      dimensionValue: rowValue, 
-      groupField: groupFieldId, 
-      groupValue: effectiveGroupValue,
-      hasSecondDimension
-    });
     
     // For heatmap, we want to filter by both row and column values
     // We'll use the row as the primary dimension and add column info to the dialog
@@ -4154,14 +4035,6 @@ export function ChartPreview({
         const hasXMapping = scatterXMapping.length > 0;
         const hasYMapping = scatterYMapping.length > 0;
         
-        console.log('📊 Scatter chart axis detection:', {
-          scatterHasTextX, scatterHasTextY,
-          hasXMapping, hasYMapping,
-          xMappingLength: scatterXMapping.length,
-          yMappingLength: scatterYMapping.length,
-          sampleData: sanitizedChartData[0]
-        });
-        
         // Transform data - encode text values to numbers if mappings exist
         const scatterTransformedData = sanitizedChartData.map((item, idx) => {
           const xRaw = item.xRaw || item.x || item.name;
@@ -4303,13 +4176,6 @@ export function ChartPreview({
         
         const hasBubbleXMapping = bubbleXMapping.length > 0;
         const hasBubbleYMapping = bubbleYMapping.length > 0;
-        
-        console.log('📊 Bubble chart axis detection:', {
-          bubbleHasTextX, bubbleHasTextY,
-          hasBubbleXMapping, hasBubbleYMapping,
-          xMappingLength: bubbleXMapping.length,
-          yMappingLength: bubbleYMapping.length,
-        });
         
         // Transform data - encode text values to numbers if mappings exist
         const bubbleData = sanitizedChartData.map((item, idx) => {
