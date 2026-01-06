@@ -328,18 +328,8 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
   const displayFields = useMemo(() => {
     const validFields = formFields.filter(field => field && field.id);
     
-    // If in drilldown mode and NOT at final level, show only the current drilldown field
-    if (isInDrilldownMode() && !isAtFinalLevel()) {
-      const currentFieldId = getCurrentDrilldownField();
-      if (currentFieldId) {
-        const currentField = validFields.find(f => f.id === currentFieldId);
-        if (currentField) {
-          return [currentField];
-        }
-      }
-    }
-    
-    // At final level or no drilldown - show selected columns in order
+    // Always show selected columns (or all if none selected)
+    // Drilldown field will be highlighted, not isolated
     if (config.selectedColumns?.length > 0) {
       // Preserve the order from selectedColumns by mapping through it
       return config.selectedColumns
@@ -347,7 +337,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
         .filter((field): field is typeof validFields[0] => field !== undefined);
     }
     return validFields;
-  }, [formFields, config.selectedColumns, currentDrilldownLevel, config.drilldownConfig]);
+  }, [formFields, config.selectedColumns]);
 
   // Apply client-side filters, search and sorting
   const filteredData = useMemo(() => {
@@ -403,6 +393,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
   }, [data, searchTerm, displayFields, config.enableSearch, sortConfig, appliedFilters, evaluateFilters, formFields]);
 
   // Aggregate data for drilldown mode - group by current field with counts
+  // Now shows all columns with sample data from first matching row
   const aggregatedData = useMemo(() => {
     if (!isInDrilldownMode() || isAtFinalLevel()) {
       return null; // No aggregation needed
@@ -412,16 +403,18 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
     if (!currentFieldId) return null;
 
     // Group data by the current drilldown field value
-    const grouped: Record<string, { value: string; count: number; sampleRow: any }> = {};
+    // Store the first row as sample data for other columns
+    const grouped: Record<string, { value: string; count: number; sampleRow: any; allRows: any[] }> = {};
     
     filteredData.forEach(row => {
       const fieldValue = getFieldValue(row, currentFieldId);
       const valueStr = fieldValue === null || fieldValue === undefined ? '(Empty)' : String(fieldValue);
       
       if (!grouped[valueStr]) {
-        grouped[valueStr] = { value: valueStr, count: 0, sampleRow: row };
+        grouped[valueStr] = { value: valueStr, count: 0, sampleRow: row, allRows: [] };
       }
       grouped[valueStr].count++;
+      grouped[valueStr].allRows.push(row);
     });
 
     return Object.values(grouped).sort((a, b) => b.count - a.count);
@@ -670,11 +663,15 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
               <TableRow>
                 {displayFields.map(field => {
                   const canDrilldown = isDrilldownEnabled(field.id);
+                  const isDrilldownField = canDrilldown && aggregatedData;
                   
                   return (
-                    <TableHead key={field.id} className="whitespace-nowrap">
+                    <TableHead 
+                      key={field.id} 
+                      className={`whitespace-nowrap ${isDrilldownField ? 'bg-primary/10 border-b-2 border-primary' : ''}`}
+                    >
                       <div className="flex items-center gap-1">
-                        <span className={canDrilldown ? 'text-primary font-medium' : ''}>
+                        <span className={canDrilldown ? 'text-primary font-semibold' : ''}>
                           {field.label}
                         </span>
                         
@@ -700,8 +697,10 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                           </div>
                         )}
                         
-                        {canDrilldown && (
-                          <Badge variant="outline" className="text-xs ml-1">Click to drill down</Badge>
+                        {canDrilldown && aggregatedData && (
+                          <Badge variant="default" className="text-xs ml-1 bg-primary text-primary-foreground">
+                            🔽 Click to drill
+                          </Badge>
                         )}
                       </div>
                     </TableHead>
@@ -757,31 +756,57 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                     </TableCell>
                   </TableRow>
                 ) : (
-                  aggregatedData.map((item, index) => (
-                    <TableRow 
-                      key={`agg-${index}-${item.value}`}
-                      className="cursor-pointer hover:bg-muted/50 transition-colors"
-                      onClick={() => {
-                        const currentFieldId = getCurrentDrilldownField();
-                        const currentField = formFields.find(f => f.id === currentFieldId);
-                        if (currentFieldId && currentField) {
-                          handleCellDrilldown(currentFieldId, item.value, currentField.label);
-                        }
-                      }}
-                    >
-                      <TableCell>
-                        <button
-                          className="text-left hover:underline hover:text-primary transition-colors font-medium"
-                          title={`Click to drill down into "${item.value}"`}
-                        >
-                          {item.value}
-                        </button>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="secondary">{item.count} records</Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  aggregatedData.map((item, index) => {
+                    const currentFieldId = getCurrentDrilldownField();
+                    
+                    return (
+                      <TableRow 
+                        key={`agg-${index}-${item.value}`}
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => {
+                          const currentField = formFields.find(f => f.id === currentFieldId);
+                          if (currentFieldId && currentField) {
+                            handleCellDrilldown(currentFieldId, item.value, currentField.label);
+                          }
+                        }}
+                      >
+                        {displayFields.map(field => {
+                          const isDrilldownField = field.id === currentFieldId;
+                          const fieldValue = isDrilldownField 
+                            ? item.value 
+                            : getFieldValue(item.sampleRow, field.id);
+                          
+                          return (
+                            <TableCell 
+                              key={field.id}
+                              className={isDrilldownField ? 'bg-primary/5' : 'text-muted-foreground'}
+                            >
+                              {isDrilldownField ? (
+                                <button
+                                  className="text-left hover:underline text-primary transition-colors font-semibold flex items-center gap-2"
+                                  title={`Click to drill down into "${item.value}"`}
+                                >
+                                  <span className="text-primary">▶</span>
+                                  {item.value}
+                                </button>
+                              ) : (
+                                <span className="text-sm italic" title="Sample value from first record">
+                                  <FormDataCell 
+                                    value={fieldValue} 
+                                    fieldType={field.field_type} 
+                                    field={field}
+                                  />
+                                </span>
+                              )}
+                            </TableCell>
+                          );
+                        })}
+                        <TableCell className="text-right">
+                          <Badge variant="secondary" className="font-semibold">{item.count}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )
               ) : (
                 /* Normal table view (at final level or no drilldown) */
@@ -849,8 +874,10 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
             )}
             <span>
               {aggregatedData 
-                ? `${aggregatedData.length} unique values (Level ${currentDrilldownLevel + 1} of ${getDrilldownLevels().length})`
-                : `Showing ${filteredData.length} of {data.length} records`
+                ? `${aggregatedData.length} groups • Level ${currentDrilldownLevel + 1} of ${getDrilldownLevels().length} • Click highlighted column to drill down`
+                : isInDrilldownMode() && isAtFinalLevel()
+                  ? `${filteredData.length} records (Final level - showing all data)`
+                  : `Showing ${filteredData.length} of ${data.length} records`
               }
             </span>
           </div>
