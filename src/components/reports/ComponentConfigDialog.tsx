@@ -1125,6 +1125,82 @@ export function ComponentConfigDialog({
           )}
         </TabsContent>
 
+        <TabsContent value="joins" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm">Table Joins</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Combine data from multiple forms into a single table
+                  </p>
+                </div>
+                <Switch
+                  checked={joinEnabled}
+                  onCheckedChange={(enabled) => {
+                    setJoinEnabled(enabled);
+                    setConfig({
+                      ...config,
+                      joinConfig: {
+                        ...config.joinConfig,
+                        enabled,
+                        secondaryFormId: enabled ? config.joinConfig?.secondaryFormId || '' : '',
+                        joinType: config.joinConfig?.joinType || 'left',
+                        primaryFieldId: config.joinConfig?.primaryFieldId || '',
+                        secondaryFieldId: config.joinConfig?.secondaryFieldId || ''
+                      }
+                    });
+                  }}
+                />
+              </div>
+            </CardHeader>
+
+            {joinEnabled && (
+              <CardContent className="space-y-4">
+                <FormJoinConfig
+                  enabled={joinEnabled}
+                  primaryForm={{
+                    id: config.formId || '',
+                    name: forms.find(f => f.id === config.formId)?.name || '',
+                    fields: formFields
+                  }}
+                  availableForms={forms.filter(f => f.id !== config.formId).map(f => ({
+                    id: f.id,
+                    name: f.name,
+                    fields: f.id === config.joinConfig?.secondaryFormId ? secondaryFormFields : []
+                  }))}
+                  joinConfig={config.joinConfig || {
+                    secondaryFormId: '',
+                    joinType: 'left',
+                    primaryFieldId: '',
+                    secondaryFieldId: ''
+                  }}
+                  onJoinConfigChange={(joinConfig) => {
+                    setConfig({ ...config, joinConfig: { ...joinConfig, enabled: true } });
+                    if (joinConfig.secondaryFormId) {
+                      fetchSecondaryFormFields(joinConfig.secondaryFormId);
+                    }
+                  }}
+                  onEnabledChange={(enabled) => {
+                    setJoinEnabled(enabled);
+                    setConfig({
+                      ...config,
+                      joinConfig: { ...config.joinConfig, enabled }
+                    });
+                  }}
+                />
+              </CardContent>
+            )}
+
+            {!joinEnabled && (
+              <CardContent>
+                <div className="p-4 text-center text-muted-foreground border-2 border-dashed rounded-lg">
+                  <p>Enable joins to combine data from multiple forms</p>
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        </TabsContent>
 
         <TabsContent value="drilldown" className="space-y-4">
           <Card>
