@@ -47,9 +47,7 @@ export function SubmissionFormRenderer({
         return aIndex - bIndex;
       });
     } else {
-      // No matching fields found - this indicates a data mismatch
-      // Fall back to showing all fields to ensure user can see the form
-      console.warn('Page field IDs do not match form field IDs. Showing all fields as fallback.');
+      // No matching fields found - fall back to showing all fields
       pageFields = form.fields;
     }
   }

@@ -54,9 +54,7 @@ export function useRoles() {
           .select('id, first_name, last_name, email')
           .in('id', creatorIds);
 
-        if (profilesError) {
-          console.warn('Error fetching user profiles:', profilesError);
-        } else {
+        if (!profilesError) {
           userProfiles = profilesData || [];
         }
       }

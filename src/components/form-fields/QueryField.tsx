@@ -85,7 +85,6 @@ export function QueryField({
 
   const executeQuery = useCallback(async () => {
     if (!query.trim()) {
-      console.warn('⚠️ QueryField: No query configured');
       return;
     }
 

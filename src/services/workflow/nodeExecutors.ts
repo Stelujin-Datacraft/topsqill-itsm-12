@@ -199,7 +199,6 @@ export class NodeExecutors {
 
       // Check if config exists
       if (!config) {
-        console.warn('⚠️ No configuration found for condition node, defaulting to true');
         conditionResult = true;
         evaluationDetails = {
           type: 'default',
@@ -207,8 +206,6 @@ export class NodeExecutors {
           message: 'No configuration found, defaulting to true'
         };
       } else if (config.enhancedCondition) {
-        console.log('🆕 Using enhanced condition configuration');
-        
         try {
           // Build evaluation context
           const evaluationContext: ConditionEvaluationContext = {
@@ -226,8 +223,6 @@ export class NodeExecutors {
             }
           };
 
-          console.log('🔧 Enhanced condition evaluation context:', evaluationContext);
-
           // Enhanced condition needs to be wrapped in proper ConditionConfig format
           const wrappedCondition: IfConditionConfig = {
             type: 'if',
@@ -236,18 +231,13 @@ export class NodeExecutors {
             falsePath: 'false'
           };
 
-          console.log('🔧 Wrapped enhanced condition for evaluation:', wrappedCondition);
-
           // Evaluate condition using the condition evaluator
           const evaluationResult = ConditionEvaluator.evaluateCondition(
             wrappedCondition,
             evaluationContext
           );
 
-          console.log('📊 Enhanced condition evaluation result:', evaluationResult);
-
           if (!evaluationResult.success) {
-            console.error('❌ Enhanced condition evaluation failed:', evaluationResult.error);
             return {
               success: false,
               error: evaluationResult.error || 'Enhanced condition evaluation failed',
@@ -263,7 +253,6 @@ export class NodeExecutors {
             evaluatedConditions: evaluationResult.evaluatedConditions
           };
         } catch (error) {
-          console.error('❌ Error in enhanced condition evaluation:', error);
           return {
             success: false,
             error: `Enhanced condition evaluation error: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -271,8 +260,6 @@ export class NodeExecutors {
           };
         }
       } else if (config.conditionConfig) {
-        console.log('🔧 Using legacy condition configuration');
-        
         try {
           // Build evaluation context for legacy conditions
           const evaluationContext: ConditionEvaluationContext = {
@@ -296,10 +283,7 @@ export class NodeExecutors {
             evaluationContext
           );
 
-          console.log('📊 Legacy condition evaluation result:', evaluationResult);
-
           if (!evaluationResult.success) {
-            console.error('❌ Legacy condition evaluation failed:', evaluationResult.error);
             return {
               success: false,
               error: evaluationResult.error || 'Legacy condition evaluation failed',
@@ -314,7 +298,6 @@ export class NodeExecutors {
             evaluationResult: evaluationResult.result
           };
         } catch (error) {
-          console.error('❌ Error in legacy condition evaluation:', error);
           return {
             success: false,
             error: `Legacy condition evaluation error: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -322,7 +305,6 @@ export class NodeExecutors {
           };
         }
       } else {
-        console.log('⚠️ No condition configuration found, defaulting to true');
         conditionResult = true;
         evaluationDetails = {
           type: 'default',
@@ -330,11 +312,6 @@ export class NodeExecutors {
           message: 'No condition configured, defaulting to true'
         };
       }
-
-      console.log('🎯 Condition evaluation completed:', {
-        conditionResult,
-        evaluationDetails
-      });
 
       // Get conditional branches - THIS IS WHERE WE USE CONDITIONS
       let trueBranchNodes: string[] = [];
@@ -347,8 +324,7 @@ export class NodeExecutors {
         );
         trueBranchNodes = branches.trueBranchNodes;
         falseBranchNodes = branches.falseBranchNodes;
-      } catch (error) {
-        console.error('❌ Error getting conditional branches:', error);
+      } catch {
         // Continue with empty branches rather than failing
       }
 
@@ -360,25 +336,16 @@ export class NodeExecutors {
         // Condition is true - execute true branch, ignore false branch
         nextNodeIds = await NodeConnections.getNextNodes(context.workflowId, nodeData.id, 'true');
         ignoredNodeIds = falseBranchNodes;
-        console.log('✅ Condition TRUE - executing true branch, ignoring false branch');
       } else {
         // Condition is false - execute false branch, ignore true branch
         nextNodeIds = await NodeConnections.getNextNodes(context.workflowId, nodeData.id, 'false');
         ignoredNodeIds = trueBranchNodes;
-        console.log('❌ Condition FALSE - executing false branch, ignoring true branch');
       }
 
       // Mark ignored nodes in the execution logs
       if (ignoredNodeIds.length > 0) {
         await this.markNodesAsIgnored(context.executionId, ignoredNodeIds, `Condition ${conditionResult ? 'TRUE' : 'FALSE'} - branch ignored`);
       }
-
-      console.log('🎯 Conditional execution plan:', {
-        conditionResult,
-        nextNodes: nextNodeIds.length,
-        ignoredNodes: ignoredNodeIds.length,
-        evaluationDetails
-      });
 
       return {
         success: true,
@@ -393,7 +360,6 @@ export class NodeExecutors {
         nextNodeIds
       };
     } catch (error) {
-      console.error('❌ Condition node execution failed:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Condition execution failed',

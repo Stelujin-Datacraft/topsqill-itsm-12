@@ -363,14 +363,12 @@ export function DynamicTable({
     // Use a slight delay to ensure DOM is ready
     const setupListener = () => {
       const tableElement = document.querySelector('[data-dynamic-table="main"]');
-      console.log('Setting up event listener on:', tableElement);
       if (tableElement) {
         tableElement.addEventListener('showCrossReference', handleCrossReference);
         return () => {
           tableElement.removeEventListener('showCrossReference', handleCrossReference);
         };
       } else {
-        console.warn('Table element not found for event listener setup');
         return undefined;
       }
     };

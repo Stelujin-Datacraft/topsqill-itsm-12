@@ -149,8 +149,6 @@ export class RuleProcessor {
             errorMessage: targetField.errorMessage,
             defaultValue: targetField.defaultValue,
           };
-        } else {
-          console.warn(`Target field "${rule.targetFieldId}" for rule "${rule.name}" not found in formFields`);
         }
       }
     });

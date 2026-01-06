@@ -17,8 +17,6 @@ export function useCrossReferenceSync() {
   const createChildCrossReferenceField = useCallback(async (options: CrossReferenceSyncOptions) => {
     const { parentFormId, parentFieldId, parentFormName, targetFormId } = options;
     
-    console.log('Creating child cross-reference field:', options);
-    
     // Fetch fresh data from database instead of relying on potentially stale local state
     const { data: existingChildFields, error: checkError } = await supabase
       .from('form_fields')
@@ -27,7 +25,6 @@ export function useCrossReferenceSync() {
       .eq('field_type', 'child-cross-reference');
     
     if (checkError) {
-      console.error('Error checking for existing child fields:', checkError);
       return;
     }
 
@@ -40,20 +37,13 @@ export function useCrossReferenceSync() {
     });
 
     if (existingChildField) {
-      console.log('Child cross-reference field already exists in database:', existingChildField.id);
       return;
     }
     
     const targetForm = forms.find(f => f.id === targetFormId);
     const parentForm = forms.find(f => f.id === parentFormId);
     
-    if (!targetForm) {
-      console.error('Target form not found:', targetFormId);
-      return;
-    }
-
-    if (!parentForm) {
-      console.error('Parent form not found:', parentFormId);
+    if (!targetForm || !parentForm) {
       return;
     }
 
@@ -99,12 +89,9 @@ export function useCrossReferenceSync() {
     };
 
     try {
-      console.log('Adding child field to target form:', targetFormId, childFieldData);
       const newField = await addField(targetFormId, childFieldData);
       
       if (newField) {
-        console.log('Successfully created child cross-reference field:', newField.id);
-        
         // Update target form's pages to include the new field at the end of the first page
         if (targetForm.pages && targetForm.pages.length > 0) {
           const updatedPages = targetForm.pages.map(page => 
@@ -115,24 +102,20 @@ export function useCrossReferenceSync() {
           
           try {
             await updateForm(targetFormId, { pages: updatedPages });
-            console.log('Updated target form pages with new field at the end');
-          } catch (pageUpdateError) {
-            console.warn('Could not update pages, but field was created:', pageUpdateError);
+          } catch {
+            // Field was created even if pages couldn't be updated
           }
         }
         
         return newField;
       }
     } catch (error) {
-      console.error('Error creating child cross-reference field:', error);
       throw error;
     }
   }, [forms, addField, updateForm]);
 
   const removeChildCrossReferenceField = useCallback(async (options: { parentFormId: string; parentFieldId: string; targetFormId: string }) => {
     const { parentFormId, parentFieldId, targetFormId } = options;
-    
-    console.log('Removing child cross-reference field:', options);
     
     // Fetch directly from database to get fresh data instead of relying on cached forms
     const { data: childFields, error: fetchError } = await supabase
@@ -142,7 +125,6 @@ export function useCrossReferenceSync() {
       .eq('field_type', 'child-cross-reference');
     
     if (fetchError) {
-      console.error('Error fetching child fields from database:', fetchError);
       return;
     }
 
@@ -156,7 +138,6 @@ export function useCrossReferenceSync() {
 
     if (existingChildField) {
       try {
-        console.log('Deleting child cross-reference field:', existingChildField.id);
         await deleteField(existingChildField.id);
         
         // Fetch target form's pages and update them
@@ -179,32 +160,23 @@ export function useCrossReferenceSync() {
             
             try {
               await updateForm(targetFormId, { pages: updatedPages });
-              console.log('Updated target form pages after field removal');
-            } catch (pageUpdateError) {
-              console.warn('Could not update pages, but field was removed:', pageUpdateError);
+            } catch {
+              // Field was removed even if pages couldn't be updated
             }
           }
         }
-        
-        console.log('Successfully removed child cross-reference field');
       } catch (error) {
-        console.error('Error removing child cross-reference field:', error);
         throw error;
       }
-    } else {
-      console.log('Child cross-reference field not found for removal');
     }
   }, [deleteField, updateForm]);
 
   const syncCrossReferenceField = useCallback(async (options: CrossReferenceSyncOptions) => {
     const { targetFormId, previousTargetFormId } = options;
 
-    console.log('Syncing cross-reference field:', options);
-
     try {
       // Remove child field from previous target form if target changed
       if (previousTargetFormId && previousTargetFormId !== targetFormId) {
-        console.log('Removing child field from previous target form:', previousTargetFormId);
         await removeChildCrossReferenceField({
           parentFormId: options.parentFormId,
           parentFieldId: options.parentFieldId,
@@ -214,13 +186,9 @@ export function useCrossReferenceSync() {
 
       // Create child field in new target form
       if (targetFormId) {
-        console.log('Creating child field in new target form:', targetFormId);
         await createChildCrossReferenceField(options);
       }
-      
-      console.log('Cross-reference field sync completed successfully');
     } catch (error) {
-      console.error('Error syncing cross-reference field:', error);
       throw error;
     }
   }, [createChildCrossReferenceField, removeChildCrossReferenceField]);

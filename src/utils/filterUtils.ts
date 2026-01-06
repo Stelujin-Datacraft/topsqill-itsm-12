@@ -838,8 +838,7 @@ export const evaluateFiltersWithExpression = (
   if (useManualLogic && logicExpression && logicExpression.trim()) {
     try {
       return ExpressionEvaluator.evaluate(logicExpression, conditionResults);
-    } catch (error) {
-      console.warn('Failed to evaluate filter expression, falling back to AND logic:', error);
+    } catch {
       // Fall back to AND logic on error
       return Object.values(conditionResults).every(Boolean);
     }

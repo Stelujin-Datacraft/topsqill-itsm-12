@@ -256,10 +256,7 @@ export const useUserManagement = () => {
           }
         });
         
-        console.log('Email response:', emailData);
-
         if (emailError) {
-          console.warn('Failed to send invitation email:', emailError);
           toast({
             title: "User invited",
             description: `Invitation created for ${inviteData.firstName} ${inviteData.lastName}, but email could not be sent.`,
@@ -270,8 +267,7 @@ export const useUserManagement = () => {
             description: `Invitation email sent to ${inviteData.firstName} ${inviteData.lastName} (${inviteData.email})`,
           });
         }
-      } catch (emailErr) {
-        console.warn('Email sending error:', emailErr);
+      } catch {
         toast({
           title: "User invited",
           description: `Invitation created for ${inviteData.firstName} ${inviteData.lastName}, but email could not be sent.`,

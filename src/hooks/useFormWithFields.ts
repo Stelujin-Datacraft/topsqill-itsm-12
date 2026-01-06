@@ -13,8 +13,7 @@ const safeParseJson = (jsonString: any, fallback: any = null) => {
   
   try {
     return JSON.parse(jsonString);
-  } catch (error) {
-    console.warn('Failed to parse JSON:', jsonString, error);
+  } catch {
     return fallback;
   }
 };
