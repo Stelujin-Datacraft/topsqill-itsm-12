@@ -396,7 +396,16 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
         );
       }
 
-      const allOptions = [...submissionAccessOptions.users, ...submissionAccessOptions.groups];
+      // Create properly formatted options for MultiSelect (needs { label, value })
+      const allOptions = [
+        ...submissionAccessOptions.users.map(u => ({ label: u.label, value: u.value })),
+        ...submissionAccessOptions.groups.map(g => ({ label: g.label, value: g.value }))
+      ];
+      
+      console.log('[DynamicValueInput] submission-access field:', field.label);
+      console.log('[DynamicValueInput] submissionAccessOptions:', submissionAccessOptions);
+      console.log('[DynamicValueInput] allOptions:', allOptions);
+      console.log('[DynamicValueInput] current value:', value);
       
       if (allOptions.length > 0) {
         // Parse selected values - support both new { users: [], groups: [] } format and legacy array format
@@ -408,7 +417,13 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
             const groups = (value.groups || []).map((id: string) => `group:${id}`);
             selectedValues = [...users, ...groups];
           } else if (Array.isArray(value)) {
-            selectedValues = value;
+            // Legacy array format - ensure proper prefixes
+            selectedValues = value.map(v => {
+              if (typeof v === 'string' && (v.startsWith('user:') || v.startsWith('group:'))) {
+                return v;
+              }
+              return v;
+            });
           } else if (typeof value === 'string') {
             // Try to parse as JSON first
             try {
@@ -428,8 +443,12 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
           }
         }
         
+        console.log('[DynamicValueInput] parsed selectedValues:', selectedValues);
+        
         // Transform multi-select output to { users: [], groups: [] } format
         const handleSubmissionAccessChange = (selected: string[]) => {
+          console.log('[DynamicValueInput] handleSubmissionAccessChange called with:', selected);
+          
           const users: string[] = [];
           const groups: string[] = [];
           
@@ -441,8 +460,11 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
             }
           });
           
+          const newValue = { users, groups };
+          console.log('[DynamicValueInput] calling onChange with:', newValue);
+          
           // Always output in the expected { users: [], groups: [] } format
-          onChange({ users, groups });
+          onChange(newValue);
         };
         
         return (
@@ -458,7 +480,7 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
       // No users/groups configured - show message
       return (
         <div className="text-sm text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
-          No users/groups configured for this field. Please configure allowed users/groups in the field settings.
+          No users/groups configured for this field. Please configure allowed users/groups in the field settings first.
         </div>
       );
     }
