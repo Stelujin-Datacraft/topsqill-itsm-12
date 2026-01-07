@@ -418,7 +418,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
           const bRaw = getFieldValue(b, sortConfig.field);
           
           // Handle numeric fields (number, currency, slider, rating)
-          if (['number', 'currency', 'slider', 'rating'].includes(sortFieldType)) {
+          if (['number', 'currency', 'slider', 'rating', 'star-rating'].includes(sortFieldType)) {
             aValue = extractNumericValue(aRaw);
             bValue = extractNumericValue(bRaw);
             // Handle nulls - push them to the end
@@ -426,13 +426,27 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
             if (aValue === null) return sortConfig.direction === 'asc' ? 1 : -1;
             if (bValue === null) return sortConfig.direction === 'asc' ? -1 : 1;
           }
+          // Handle date/datetime/time fields
+          else if (['date', 'datetime', 'time'].includes(sortFieldType)) {
+            const parseDate = (val: any): number => {
+              if (!val || val === 'N/A') return 0;
+              const date = new Date(val);
+              return isNaN(date.getTime()) ? 0 : date.getTime();
+            };
+            aValue = parseDate(aRaw);
+            bValue = parseDate(bRaw);
+            // Handle empty dates - push them to the end
+            if (aValue === 0 && bValue === 0) return 0;
+            if (aValue === 0) return sortConfig.direction === 'asc' ? 1 : -1;
+            if (bValue === 0) return sortConfig.direction === 'asc' ? -1 : 1;
+          }
           // Handle toggle/boolean fields
-          else if (sortFieldType === 'toggle' || sortFieldType === 'checkbox') {
-            aValue = aRaw === true || aRaw === 'true' || aRaw === 1 ? 1 : 0;
-            bValue = bRaw === true || bRaw === 'true' || bRaw === 1 ? 1 : 0;
+          else if (['toggle', 'toggle-switch', 'checkbox', 'yes-no'].includes(sortFieldType)) {
+            aValue = aRaw === true || aRaw === 'true' || aRaw === 1 || aRaw === 'yes' ? 1 : 0;
+            bValue = bRaw === true || bRaw === 'true' || bRaw === 1 || bRaw === 'yes' ? 1 : 0;
           }
           // Handle radio/dropdown/select fields - sort by display label
-          else if (['radio', 'dropdown', 'select', 'multi-select'].includes(sortFieldType)) {
+          else if (['radio', 'dropdown', 'select', 'multi-select', 'dynamic-dropdown'].includes(sortFieldType)) {
             // Get display label from options
             const getOptionLabel = (val: any): string => {
               if (val === null || val === undefined || val === 'N/A') return '';
