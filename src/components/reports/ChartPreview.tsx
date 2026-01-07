@@ -693,10 +693,11 @@ export function ChartPreview({
   const transformCrossRefDataForChartType = (crossRefData: any[], chartType: string): any[] => {
     if (!crossRefData || crossRefData.length === 0) return [];
     
-    // Check if this is cross-ref compare mode with text fields - apply encoded legend transformation
-    const hasTextCompare = crossRefData.some(item => item._isCrossRefCompare && (item._hasTextX || item._hasTextY));
+    // Check if this is cross-ref compare mode with TEXT Y-axis - only then apply encoded legend transformation
+    // For numeric Y-axis, we should NOT encode - just display the actual numbers
+    const hasTextYAxis = crossRefData.some(item => item._isCrossRefCompare && item._hasTextY);
     
-    if (hasTextCompare) {
+    if (hasTextYAxis) {
       // Get X/Y field names from pre-resolved labels in data
       const xFieldName = crossRefData[0]?.xFieldLabel || 'X Field';
       const yFieldName = crossRefData[0]?.yFieldLabel || 'Y Field';
@@ -742,6 +743,7 @@ export function ChartPreview({
         _legendMapping: legendMapping,
         _isCompareEncoded: true,
         _isCrossRefCompare: true,
+        _hasTextY: true,
         _yOptionColor: item._yOptionColor,
         _xOptionColor: item._xOptionColor
       }));
