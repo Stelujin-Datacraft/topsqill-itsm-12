@@ -1323,13 +1323,13 @@ export function ChartPreview({
     const xFieldName = getFormFieldName(xAxisField);
     const yFieldName = getFormFieldName(yAxisField);
     
-    // Collect all unique Y-axis values to create encoding
+    // Collect all unique Y-axis values to create encoding - use getRawDisplayValue for better label resolution
     const uniqueYValues = new Set<string>();
     submissions
       .filter(submission => passesFilters(submission.submission_data))
       .forEach(submission => {
-        const value = getDimensionValue(submission.submission_data, yAxisField);
-        if (value && value !== 'Unknown') {
+        const value = getRawDisplayValue(submission.submission_data, yAxisField);
+        if (value && value !== 'Unknown' && value !== '') {
           uniqueYValues.add(value);
         }
       });
@@ -1354,15 +1354,16 @@ export function ChartPreview({
         .filter(submission => passesFilters(submission.submission_data))
         .forEach(submission => {
           const submissionData = submission.submission_data;
-          const dimensionValue = getDimensionValue(submissionData, dimensionField);
-          const yValue = getDimensionValue(submissionData, yAxisField);
+          const dimensionValue = getRawDisplayValue(submissionData, dimensionField);
+          const yValue = getRawDisplayValue(submissionData, yAxisField);
           
-          if (!groupedData[dimensionValue]) {
-            groupedData[dimensionValue] = { yValues: [], count: 0 };
+          const displayDimension = dimensionValue || 'Not Specified';
+          if (!groupedData[displayDimension]) {
+            groupedData[displayDimension] = { yValues: [], count: 0 };
           }
           
-          groupedData[dimensionValue].yValues.push(yValue);
-          groupedData[dimensionValue].count += 1;
+          groupedData[displayDimension].yValues.push(yValue);
+          groupedData[displayDimension].count += 1;
         });
       
       // Convert to chart data - use most frequent Y value for each group
@@ -1379,6 +1380,7 @@ export function ChartPreview({
           name: dimensionValue,
           value: encodedValue,
           encodedValue,
+          xRaw: dimensionValue, // Add xRaw for tooltip display
           rawYValue: mostFrequentY,
           xFieldName: getFormFieldName(dimensionField),
           yFieldName,
@@ -1397,15 +1399,17 @@ export function ChartPreview({
       .filter(submission => passesFilters(submission.submission_data))
       .map((submission, index) => {
         const submissionData = submission.submission_data;
-        const xValue = getDimensionValue(submissionData, xAxisField);
-        const yValue = getDimensionValue(submissionData, yAxisField);
-        const encodedValue = encodingMap[yValue] || 0;
+        // Use getRawDisplayValue for better label resolution (handles objects with .label)
+        const xRawValue = getRawDisplayValue(submissionData, xAxisField);
+        const yRawValue = getRawDisplayValue(submissionData, yAxisField);
+        const encodedValue = encodingMap[yRawValue] || 0;
         
         return {
-          name: xValue || `Record ${index + 1}`,
+          name: xRawValue || `Record ${index + 1}`,
           value: encodedValue,
           encodedValue,
-          rawYValue: yValue,
+          xRaw: xRawValue, // Add xRaw for tooltip display
+          rawYValue: yRawValue,
           xFieldName,
           yFieldName,
           submissionId: submission.id,
