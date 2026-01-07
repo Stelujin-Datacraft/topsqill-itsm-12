@@ -1345,9 +1345,6 @@ export function ChartPreview({
       encodingNumber++;
     });
     
-    console.log('📊 Compare encoding map:', encodingMap);
-    console.log('📊 Compare legend mapping:', legendMapping);
-    
     // If dimension is selected, group by dimension and show aggregated data
     if (hasDimension) {
       const dimensionField = dimensionFields[0];
@@ -2748,11 +2745,56 @@ export function ChartPreview({
 
       // Handle scatter chart type explicitly
       if (chartType === 'scatter') {
-        // Check for text encoding mappings in compare mode
-        const compareXMapping = sanitizedChartData[0]?._xLegendMapping || [];
-        const compareYMapping = sanitizedChartData[0]?._yLegendMapping || [];
+        // Get legend mappings from the first data point OR create them if text values detected
+        let compareXMapping = sanitizedChartData[0]?._xLegendMapping || [];
+        let compareYMapping = sanitizedChartData[0]?._yLegendMapping || [];
+        
+        // Detect text values - check if x/y are text that need encoding (same as non-compare scatter)
+        const scatterXVals = sanitizedChartData.map(d => d.xRaw || d.name || d.x);
+        const scatterYVals = sanitizedChartData.map(d => d.yRaw || d.y || d.value);
+        const hasTextXDetected = compareXMapping.length === 0 && scatterXVals.some(v => typeof v === 'string' && isNaN(Number(v)));
+        const hasTextYDetected = compareYMapping.length === 0 && scatterYVals.some(v => typeof v === 'string' && isNaN(Number(v)));
+        
+        // Create mappings inline if text is detected but no mapping exists
+        if (hasTextXDetected && compareXMapping.length === 0) {
+          const uniqueX = [...new Set(scatterXVals.map(v => String(v)))].sort();
+          compareXMapping = uniqueX.map((label, idx) => ({ number: idx + 1, label }));
+        }
+        if (hasTextYDetected && compareYMapping.length === 0) {
+          const uniqueY = [...new Set(scatterYVals.map(v => String(v)))].sort();
+          compareYMapping = uniqueY.map((label, idx) => ({ number: idx + 1, label }));
+        }
+        
         const hasCompareXMapping = compareXMapping.length > 0;
         const hasCompareYMapping = compareYMapping.length > 0;
+        
+        // Transform data - encode text values to numbers if mappings exist
+        const scatterCompareData = sanitizedChartData.map((item, idx) => {
+          const xRaw = item.xRaw || item.name || item.x;
+          const yRaw = item.yRaw || item.y || item.value;
+          
+          // Encode x value if we have a mapping
+          let xEncoded = item.x;
+          if (hasCompareXMapping) {
+            const xMap = compareXMapping.find((m: any) => m.label === String(xRaw));
+            xEncoded = xMap ? xMap.number : (typeof item.x === 'number' ? item.x : idx + 1);
+          }
+          
+          // Encode y value if we have a mapping
+          let yEncoded = item.y;
+          if (hasCompareYMapping) {
+            const yMap = compareYMapping.find((m: any) => m.label === String(yRaw));
+            yEncoded = yMap ? yMap.number : (typeof item.y === 'number' ? item.y : idx + 1);
+          }
+          
+          return {
+            ...item,
+            x: xEncoded,
+            y: yEncoded,
+            xOriginal: xRaw,
+            yOriginal: yRaw,
+          };
+        });
         
         // Calculate domains based on text or numeric mode
         const compareXDomain = hasCompareXMapping 
@@ -2806,15 +2848,15 @@ export function ChartPreview({
                       if (!data) return null;
                       return (
                         <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
-                          <div className="font-medium mb-2">{data.name}</div>
+                          <div className="font-medium mb-2">{data.xOriginal || data.xRaw || data.name || 'Data Point'}</div>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{data.xFieldName || field1Name}:</span>
-                              <span className="font-semibold">{data.xRaw || data.x}</span>
+                              <span className="font-semibold">{data.xOriginal || data.xRaw || data.x}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{data.yFieldName || field2Name}:</span>
-                              <span className="font-semibold">{data.yRaw || data.y}</span>
+                              <span className="font-semibold">{data.yOriginal || data.yRaw || data.y}</span>
                             </div>
                           </div>
                           <div className="text-[11px] text-muted-foreground mt-2 pt-1 border-t border-border">
@@ -2825,7 +2867,7 @@ export function ChartPreview({
                     }}
                   />
                   <Scatter 
-                    data={sanitizedChartData} 
+                    data={scatterCompareData} 
                     fill={colors[0]}
                     shape="circle"
                     style={{ cursor: 'pointer' }}
@@ -2840,11 +2882,56 @@ export function ChartPreview({
 
       // Handle bubble chart in compare mode - same behavior as scatter chart
       if (chartType === 'bubble') {
-        // Check for text encoding mappings in compare mode
-        const bubbleCompareXMapping = sanitizedChartData[0]?._xLegendMapping || [];
-        const bubbleCompareYMapping = sanitizedChartData[0]?._yLegendMapping || [];
+        // Get legend mappings from the first data point OR create them if text values detected
+        let bubbleCompareXMapping = sanitizedChartData[0]?._xLegendMapping || [];
+        let bubbleCompareYMapping = sanitizedChartData[0]?._yLegendMapping || [];
+        
+        // Detect text values - check if x/y are text that need encoding
+        const bubbleXVals = sanitizedChartData.map(d => d.xRaw || d.name || d.x);
+        const bubbleYVals = sanitizedChartData.map(d => d.yRaw || d.y || d.value);
+        const hasBubbleTextXDetected = bubbleCompareXMapping.length === 0 && bubbleXVals.some(v => typeof v === 'string' && isNaN(Number(v)));
+        const hasBubbleTextYDetected = bubbleCompareYMapping.length === 0 && bubbleYVals.some(v => typeof v === 'string' && isNaN(Number(v)));
+        
+        // Create mappings inline if text is detected but no mapping exists
+        if (hasBubbleTextXDetected && bubbleCompareXMapping.length === 0) {
+          const uniqueX = [...new Set(bubbleXVals.map(v => String(v)))].sort();
+          bubbleCompareXMapping = uniqueX.map((label, idx) => ({ number: idx + 1, label }));
+        }
+        if (hasBubbleTextYDetected && bubbleCompareYMapping.length === 0) {
+          const uniqueY = [...new Set(bubbleYVals.map(v => String(v)))].sort();
+          bubbleCompareYMapping = uniqueY.map((label, idx) => ({ number: idx + 1, label }));
+        }
+        
         const hasBubbleCompareXMapping = bubbleCompareXMapping.length > 0;
         const hasBubbleCompareYMapping = bubbleCompareYMapping.length > 0;
+        
+        // Transform data - encode text values to numbers if mappings exist
+        const bubbleTransformedData = sanitizedChartData.map((item, idx) => {
+          const xRaw = item.xRaw || item.name || item.x;
+          const yRaw = item.yRaw || item.y || item.value;
+          
+          // Encode x value if we have a mapping
+          let xEncoded = item.x;
+          if (hasBubbleCompareXMapping) {
+            const xMap = bubbleCompareXMapping.find((m: any) => m.label === String(xRaw));
+            xEncoded = xMap ? xMap.number : (typeof item.x === 'number' ? item.x : idx + 1);
+          }
+          
+          // Encode y value if we have a mapping
+          let yEncoded = item.y;
+          if (hasBubbleCompareYMapping) {
+            const yMap = bubbleCompareYMapping.find((m: any) => m.label === String(yRaw));
+            yEncoded = yMap ? yMap.number : (typeof item.y === 'number' ? item.y : idx + 1);
+          }
+          
+          return {
+            ...item,
+            x: xEncoded,
+            y: yEncoded,
+            xOriginal: xRaw,
+            yOriginal: yRaw,
+          };
+        });
         
         // Calculate domains based on text or numeric mode
         const bubbleCompareXDomain = hasBubbleCompareXMapping 
@@ -2854,12 +2941,12 @@ export function ChartPreview({
           ? [0.5, bubbleCompareYMapping.length + 0.5] as [number, number]
           : yDomain;
         
-        // Bubble chart uses sanitizedChartData like Scatter - with x, y properties
+        // Bubble chart uses transformed data with x, y properties
         // Size is based on y value (or a configured sizeField if available)
-        const bubbleData = sanitizedChartData.map((item, idx) => ({
+        const bubbleData = bubbleTransformedData.map((item, idx) => ({
           ...item,
           size: Math.abs(Number(item.y) || 10),
-          xLabel: item.xRaw || item.name || String(item.x),
+          xLabel: item.xOriginal || item.xRaw || item.name || String(item.x),
         }));
         
         // Calculate size scale
@@ -2915,15 +3002,15 @@ export function ChartPreview({
                       if (!data) return null;
                       return (
                         <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
-                          <div className="font-medium mb-2">{data.name || data.xRaw || 'Data Point'}</div>
+                          <div className="font-medium mb-2">{data.xOriginal || data.xRaw || data.name || 'Data Point'}</div>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{data.xFieldName || field1Name}:</span>
-                              <span className="font-semibold">{data.xRaw || data.x}</span>
+                              <span className="font-semibold">{data.xOriginal || data.xRaw || data.x}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{data.yFieldName || field2Name}:</span>
-                              <span className="font-semibold">{data.yRaw || data.y}</span>
+                              <span className="font-semibold">{data.yOriginal || data.yRaw || data.y}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">Size:</span>
