@@ -3705,40 +3705,45 @@ export function ChartPreview({
         );
       };
 
+      // Check if legend sidebar should be shown (default: true for text Y-axis)
+      const showLegendSidebar = config.crossRefConfig?.showLegendSidebar !== false;
+      
       return (
-        <div className="relative w-full h-full min-h-[300px] flex gap-4">
+        <div className={`relative w-full h-full min-h-[300px] ${showLegendSidebar ? 'flex gap-4' : ''}`}>
           {/* Chart Area */}
-          <div className="flex-1 relative min-w-0">
+          <div className={showLegendSidebar ? 'flex-1 relative min-w-0' : 'absolute inset-0'}>
             <ResponsiveContainer width="100%" height="100%">
               {renderEncodedChart()}
             </ResponsiveContainer>
           </div>
           
-          {/* Legend Sidebar */}
-          <div className="w-40 shrink-0 border-l border-border pl-4">
-            <div className="text-sm font-semibold mb-3 text-foreground">{yAxisFieldName} Legend</div>
-            <div className="space-y-2 max-h-[250px] overflow-y-auto">
-              {legendMapping.map(({ number, label, color }) => (
-                <div key={number} className="flex items-center gap-2 text-sm">
-                  {/* Show color dot if option has a color, otherwise show number */}
-                  {color ? (
-                    <div 
-                      className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 border border-border"
-                      style={{ backgroundColor: color }}
-                      title={`Color: ${color}`}
-                    />
-                  ) : (
-                    <div 
-                      className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold bg-muted text-foreground border border-border shrink-0"
-                    >
-                      {number}
-                    </div>
-                  )}
-                  <span className="text-foreground truncate" title={label}>{label}</span>
-                </div>
-              ))}
+          {/* Legend Sidebar - only shown when enabled */}
+          {showLegendSidebar && (
+            <div className="w-40 shrink-0 border-l border-border pl-4">
+              <div className="text-sm font-semibold mb-3 text-foreground">{yAxisFieldName} Legend</div>
+              <div className="space-y-2 max-h-[250px] overflow-y-auto">
+                {legendMapping.map(({ number, label, color }) => (
+                  <div key={number} className="flex items-center gap-2 text-sm">
+                    {/* Show color dot if option has a color, otherwise show number */}
+                    {color ? (
+                      <div 
+                        className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 border border-border"
+                        style={{ backgroundColor: color }}
+                        title={`Color: ${color}`}
+                      />
+                    ) : (
+                      <div 
+                        className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold bg-muted text-foreground border border-border shrink-0"
+                      >
+                        {number}
+                      </div>
+                    )}
+                    <span className="text-foreground truncate" title={label}>{label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       );
     }
