@@ -2748,28 +2748,82 @@ export function ChartPreview({
 
       // Handle scatter chart type explicitly
       if (chartType === 'scatter') {
+        // Check for text encoding mappings in compare mode
+        const compareXMapping = sanitizedChartData[0]?._xLegendMapping || [];
+        const compareYMapping = sanitizedChartData[0]?._yLegendMapping || [];
+        const hasCompareXMapping = compareXMapping.length > 0;
+        const hasCompareYMapping = compareYMapping.length > 0;
+        
+        // Calculate domains based on text or numeric mode
+        const compareXDomain = hasCompareXMapping 
+          ? [0.5, compareXMapping.length + 0.5] as [number, number]
+          : xDomain;
+        const compareYDomain = hasCompareYMapping 
+          ? [0.5, compareYMapping.length + 0.5] as [number, number]
+          : yDomain;
+        
         return (
           <div className="relative w-full h-full min-h-[300px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
-                <RechartsScatterChart margin={{ top: 20, right: 30, left: 60, bottom: 60 }}>
+                <RechartsScatterChart margin={{ top: 20, right: 30, left: hasCompareYMapping ? 100 : 60, bottom: hasCompareXMapping ? 80 : 60 }}>
                   <XAxis 
                     type="number" 
                     dataKey="x" 
                     name={field1Name}
                     tick={{ fontSize: 11 }}
-                    domain={xDomain}
-                    label={{ value: field1Name, position: 'insideBottom', offset: -5 }}
+                    angle={hasCompareXMapping ? -45 : 0}
+                    textAnchor={hasCompareXMapping ? "end" : "middle"}
+                    height={hasCompareXMapping ? 80 : 60}
+                    interval={0}
+                    ticks={hasCompareXMapping ? compareXMapping.map((m: any) => m.number) : undefined}
+                    tickFormatter={hasCompareXMapping ? (value) => {
+                      const mapping = compareXMapping.find((m: any) => m.number === value);
+                      return mapping ? mapping.label : String(value);
+                    } : undefined}
+                    domain={compareXDomain}
+                    label={{ value: field1Name, position: 'insideBottom', offset: hasCompareXMapping ? -20 : -5 }}
                   />
                   <YAxis 
                     type="number" 
                     dataKey="y" 
                     name={field2Name}
                     tick={{ fontSize: 11 }}
-                    domain={yDomain}
+                    width={hasCompareYMapping ? 100 : 60}
+                    ticks={hasCompareYMapping ? compareYMapping.map((m: any) => m.number) : undefined}
+                    tickFormatter={hasCompareYMapping ? (value) => {
+                      const mapping = compareYMapping.find((m: any) => m.number === value);
+                      return mapping ? mapping.label : String(value);
+                    } : undefined}
+                    domain={compareYDomain}
                     label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                   />
-                  {compareTooltip}
+                  <Tooltip 
+                    cursor={{ strokeDasharray: '3 3' }}
+                    content={({ payload }) => {
+                      if (!payload || payload.length === 0) return null;
+                      const data = payload[0]?.payload;
+                      if (!data) return null;
+                      return (
+                        <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
+                          <div className="font-medium mb-2">{data.name}</div>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground">{data.xFieldName || field1Name}:</span>
+                              <span className="font-semibold">{data.xRaw || data.x}</span>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground">{data.yFieldName || field2Name}:</span>
+                              <span className="font-semibold">{data.yRaw || data.y}</span>
+                            </div>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground mt-2 pt-1 border-t border-border">
+                            Click point to view record
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
                   <Scatter 
                     data={sanitizedChartData} 
                     fill={colors[0]}
@@ -2786,6 +2840,20 @@ export function ChartPreview({
 
       // Handle bubble chart in compare mode - same behavior as scatter chart
       if (chartType === 'bubble') {
+        // Check for text encoding mappings in compare mode
+        const bubbleCompareXMapping = sanitizedChartData[0]?._xLegendMapping || [];
+        const bubbleCompareYMapping = sanitizedChartData[0]?._yLegendMapping || [];
+        const hasBubbleCompareXMapping = bubbleCompareXMapping.length > 0;
+        const hasBubbleCompareYMapping = bubbleCompareYMapping.length > 0;
+        
+        // Calculate domains based on text or numeric mode
+        const bubbleCompareXDomain = hasBubbleCompareXMapping 
+          ? [0.5, bubbleCompareXMapping.length + 0.5] as [number, number]
+          : xDomain;
+        const bubbleCompareYDomain = hasBubbleCompareYMapping 
+          ? [0.5, bubbleCompareYMapping.length + 0.5] as [number, number]
+          : yDomain;
+        
         // Bubble chart uses sanitizedChartData like Scatter - with x, y properties
         // Size is based on y value (or a configured sizeField if available)
         const bubbleData = sanitizedChartData.map((item, idx) => ({
@@ -2807,21 +2875,36 @@ export function ChartPreview({
           <div className="relative w-full h-full min-h-[300px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
-                <RechartsScatterChart margin={{ top: 20, right: 30, left: 60, bottom: 60 }}>
+                <RechartsScatterChart margin={{ top: 20, right: 30, left: hasBubbleCompareYMapping ? 100 : 60, bottom: hasBubbleCompareXMapping ? 80 : 60 }}>
                   <XAxis 
                     type="number" 
                     dataKey="x" 
                     name={field1Name}
                     tick={{ fontSize: 11 }}
-                    domain={xDomain}
-                    label={{ value: field1Name, position: 'insideBottom', offset: -5 }}
+                    angle={hasBubbleCompareXMapping ? -45 : 0}
+                    textAnchor={hasBubbleCompareXMapping ? "end" : "middle"}
+                    height={hasBubbleCompareXMapping ? 80 : 60}
+                    interval={0}
+                    ticks={hasBubbleCompareXMapping ? bubbleCompareXMapping.map((m: any) => m.number) : undefined}
+                    tickFormatter={hasBubbleCompareXMapping ? (value) => {
+                      const mapping = bubbleCompareXMapping.find((m: any) => m.number === value);
+                      return mapping ? mapping.label : String(value);
+                    } : undefined}
+                    domain={bubbleCompareXDomain}
+                    label={{ value: field1Name, position: 'insideBottom', offset: hasBubbleCompareXMapping ? -20 : -5 }}
                   />
                   <YAxis 
                     type="number" 
                     dataKey="y" 
                     name={field2Name}
                     tick={{ fontSize: 11 }}
-                    domain={yDomain}
+                    width={hasBubbleCompareYMapping ? 100 : 60}
+                    ticks={hasBubbleCompareYMapping ? bubbleCompareYMapping.map((m: any) => m.number) : undefined}
+                    tickFormatter={hasBubbleCompareYMapping ? (value) => {
+                      const mapping = bubbleCompareYMapping.find((m: any) => m.number === value);
+                      return mapping ? mapping.label : String(value);
+                    } : undefined}
+                    domain={bubbleCompareYDomain}
                     label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                   />
                   <Tooltip 
