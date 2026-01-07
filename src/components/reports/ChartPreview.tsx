@@ -2855,11 +2855,11 @@ export function ChartPreview({
                           <div className="font-medium mb-2">{data.xOriginal || data.xRaw || data.name || 'Data Point'}</div>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between gap-4">
-                              <span className="text-muted-foreground">{data.xFieldName || field1Name}:</span>
+                              <span className="text-muted-foreground">{data.xFieldLabel || data.xFieldName || field1Name}:</span>
                               <span className="font-semibold">{data.xOriginal || data.xRaw || data.x}</span>
                             </div>
                             <div className="flex justify-between gap-4">
-                              <span className="text-muted-foreground">{data.yFieldName || field2Name}:</span>
+                              <span className="text-muted-foreground">{data.yFieldLabel || data.yFieldName || field2Name}:</span>
                               <span className="font-semibold">{data.yOriginal || data.yRaw || data.y}</span>
                             </div>
                           </div>
@@ -3009,11 +3009,11 @@ export function ChartPreview({
                           <div className="font-medium mb-2">{data.xOriginal || data.xRaw || data.name || 'Data Point'}</div>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between gap-4">
-                              <span className="text-muted-foreground">{data.xFieldName || field1Name}:</span>
+                              <span className="text-muted-foreground">{data.xFieldLabel || data.xFieldName || field1Name}:</span>
                               <span className="font-semibold">{data.xOriginal || data.xRaw || data.x}</span>
                             </div>
                             <div className="flex justify-between gap-4">
-                              <span className="text-muted-foreground">{data.yFieldName || field2Name}:</span>
+                              <span className="text-muted-foreground">{data.yFieldLabel || data.yFieldName || field2Name}:</span>
                               <span className="font-semibold">{data.yOriginal || data.yRaw || data.y}</span>
                             </div>
                             <div className="flex justify-between gap-4">
