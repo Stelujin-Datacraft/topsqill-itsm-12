@@ -2328,7 +2328,7 @@ export function ChartPreview({
 
     // Sanitize chart data - ensure all numeric values are valid numbers (not NaN/undefined)
     // Preserve string values for display fields (xRaw, yRaw, field names, IDs, cross-ref parent IDs)
-    const preserveAsStringKeys = ['name', '_drilldownData', 'xRaw', 'yRaw', 'xFieldName', 'yFieldName', 'xFieldLabel', 'yFieldLabel', 'submissionId', '_legendMapping', 'rawSecondaryValue', 'rawYValue', '_isCompareEncoded', '_isCrossRefCompare', '_hasTextX', '_hasTextY', 'parentId', 'parentRefId', 'linkedSubmissionId', '_linkedSubmissionIds', '_allParentIds', '_allParentRefIds', '_optionColor', '_optionImage', '_xOptionColor', '_yOptionColor', '_xOptionImage', '_yOptionImage'];
+    const preserveAsStringKeys = ['name', '_drilldownData', 'xRaw', 'yRaw', 'xFieldName', 'yFieldName', 'xFieldLabel', 'yFieldLabel', 'submissionId', '_legendMapping', 'rawSecondaryValue', 'rawYValue', '_isCompareEncoded', '_isCrossRefCompare', '_hasTextX', '_hasTextY', 'parentId', 'parentRefId', 'parentDisplayName', 'linkedSubmissionId', '_linkedSubmissionIds', '_allParentIds', '_allParentRefIds', '_optionColor', '_optionImage', '_xOptionColor', '_yOptionColor', '_xOptionImage', '_yOptionImage', '_showRecordsSeparately'];
     let sanitizedChartData = chartData.map(item => {
       const sanitized: any = { name: item.name || 'Unknown' };
       Object.keys(item).forEach(key => {
@@ -3749,13 +3749,23 @@ export function ChartPreview({
     }
     
     // Calculate separator positions for cross-reference charts with showRecordsSeparately
-    const getSeparatorPositions = () => {
-      if (!sanitizedChartData.some(d => d._showRecordsSeparately)) return [];
+    // First, sort data by parentId to group records from same parent together
+    const getDataWithSeparators = () => {
+      if (!sanitizedChartData.some(d => d._showRecordsSeparately)) {
+        return { sortedData: sanitizedChartData, separatorPositions: [] };
+      }
+      
+      // Sort by parentId to group parent records together
+      const sortedData = [...sanitizedChartData].sort((a, b) => {
+        const aParent = a.parentId || '';
+        const bParent = b.parentId || '';
+        return aParent.localeCompare(bParent);
+      });
       
       const positions: { index: number; parentName: string }[] = [];
       let lastParentId: string | null = null;
       
-      sanitizedChartData.forEach((item, index) => {
+      sortedData.forEach((item, index) => {
         if (item.parentId && item.parentId !== lastParentId && lastParentId !== null) {
           // Add separator before this item (between index-1 and index)
           positions.push({ 
@@ -3766,11 +3776,13 @@ export function ChartPreview({
         lastParentId = item.parentId || null;
       });
       
-      return positions;
+      return { sortedData, separatorPositions: positions };
     };
     
-    const separatorPositions = getSeparatorPositions();
+    const { sortedData: dataForChart, separatorPositions } = getDataWithSeparators();
     const hasSeparators = separatorPositions.length > 0;
+    // Use sorted data if we have separators, otherwise use original data
+    const chartDataToUse = hasSeparators ? dataForChart : sanitizedChartData;
     
     switch (chartType) {
       case 'bar':
@@ -3778,7 +3790,7 @@ export function ChartPreview({
         return <div className="relative w-full h-full min-h-[300px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={sanitizedChartData.map((d, i) => ({ ...d, _index: i }))} margin={{
+                <BarChart data={chartDataToUse.map((d, i) => ({ ...d, _index: i }))} margin={{
                 top: 20,
                 right: 30,
                 left: 60,
@@ -3800,8 +3812,8 @@ export function ChartPreview({
                   <YAxis 
                     type="number" 
                     tick={{ fontSize: 11 }}
-                    domain={getYAxisDomain(sanitizedChartData, primaryMetric)} 
-                    ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} 
+                    domain={getYAxisDomain(chartDataToUse, primaryMetric)} 
+                    ticks={getYAxisTicks(chartDataToUse, primaryMetric)}
                     allowDataOverflow={false}
                     label={{
                       value: config.yAxisLabel || 'Value',
@@ -3847,7 +3859,7 @@ export function ChartPreview({
                    {hasSeparators && separatorPositions.map((sep, idx) => (
                      <ReferenceLine 
                        key={`sep-${idx}`}
-                       x={sanitizedChartData[Math.floor(sep.index + 0.5)]?.name}
+                       x={chartDataToUse[Math.floor(sep.index + 0.5)]?.name}
                        stroke="hsl(var(--border))"
                        strokeWidth={2}
                        strokeDasharray="4 4"
@@ -3883,7 +3895,7 @@ export function ChartPreview({
                     onClick={(data, idx) => handleBarClick(data, idx)}
                     activeBar={{ fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
                   >
-                    {sanitizedChartData.map((entry, index) => (
+                    {chartDataToUse.map((entry, index) => (
                       <Cell 
                         key={`cell-${index}`} 
                         fill={colors[index % colors.length]} 
@@ -3900,7 +3912,7 @@ export function ChartPreview({
                       onClick={(data, idx) => handleBarClick(data, idx)}
                       activeBar={{ fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
                     >
-                      {sanitizedChartData.map((entry, index) => (
+                      {chartDataToUse.map((entry, index) => (
                         <Cell 
                           key={`cell-${metric}-${index}`} 
                           fill={colors[(index + metricIndex + 1) % colors.length]} 
@@ -3918,7 +3930,7 @@ export function ChartPreview({
         return <div className="relative w-full h-full min-h-[300px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={sanitizedChartData} margin={{
+                <BarChart data={chartDataToUse} margin={{
                 top: 20,
                 right: 30,
                 left: 40,
@@ -3937,7 +3949,7 @@ export function ChartPreview({
                     value: config.yAxisLabel || 'Value',
                     angle: -90,
                     position: 'insideLeft'
-                  }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
+                  }} domain={getYAxisDomain(chartDataToUse, primaryMetric)} ticks={getYAxisTicks(chartDataToUse, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
                     content={({ payload, label }) => {
                       // Enhanced tooltip for cross-ref with separators - show parent info
@@ -3975,7 +3987,7 @@ export function ChartPreview({
                    {hasSeparators && separatorPositions.map((sep, idx) => (
                      <ReferenceLine 
                        key={`sep-${idx}`}
-                       x={sanitizedChartData[Math.floor(sep.index + 0.5)]?.name}
+                       x={chartDataToUse[Math.floor(sep.index + 0.5)]?.name}
                        stroke="hsl(var(--border))"
                        strokeWidth={2}
                        strokeDasharray="4 4"
@@ -4007,7 +4019,7 @@ export function ChartPreview({
                     onClick={(data, idx) => handleBarClick(data, idx)}
                     activeBar={{ fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
                   >
-                    {sanitizedChartData.map((entry, index) => (
+                    {chartDataToUse.map((entry, index) => (
                       <Cell 
                         key={`cell-${index}`} 
                         fill={colors[index % colors.length]} 
@@ -4024,7 +4036,7 @@ export function ChartPreview({
                       onClick={(data, idx) => handleBarClick(data, idx)}
                       activeBar={{ fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
                     >
-                      {sanitizedChartData.map((entry, index) => (
+                      {chartDataToUse.map((entry, index) => (
                         <Cell 
                           key={`cell-${metric}-${index}`} 
                           fill={colors[(index + metricIndex + 1) % colors.length]} 
