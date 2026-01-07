@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Edit, ArrowLeft, ChevronRight, Filter, RotateCcw, Layers, Eye } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, PieChart as RechartsPieChart, Pie, Cell, LineChart as RechartsLineChart, Line, AreaChart as RechartsAreaChart, Area, ScatterChart as RechartsScatterChart, Scatter, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, FunnelChart, Funnel, Treemap, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, PieChart as RechartsPieChart, Pie, Cell, LineChart as RechartsLineChart, Line, AreaChart as RechartsAreaChart, Area, ScatterChart as RechartsScatterChart, Scatter, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, FunnelChart, Funnel, Treemap, ResponsiveContainer, Tooltip, Legend, ReferenceLine } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { useReports } from '@/hooks/useReports';
 import { useFormsData } from '@/hooks/useFormsData';
@@ -371,11 +371,11 @@ export function ChartPreview({
             const xOptionInfo = xFieldOptions?.get(String(xVal));
             const yOptionInfo = yFieldOptions?.get(String(yVal));
             
-            // When showRecordsSeparately is enabled, prefix the name with parent display name
-            // This allows bars to be grouped by parent record in the chart
+            // When showRecordsSeparately is enabled, we'll add vertical separators between parent groups
+            // instead of prefixing the name - keep the base name clean
             const showSeparately = (crossRefConfig as any).showRecordsSeparately || false;
             const baseName = xOptionInfo?.label || String(xDisplay);
-            const chartName = showSeparately ? `${displayName}|${baseName}` : baseName;
+            const chartName = baseName; // Always use clean base name, parent grouping handled via ReferenceLine
             
             result.push({
               name: chartName,
@@ -3748,13 +3748,37 @@ export function ChartPreview({
       );
     }
     
+    // Calculate separator positions for cross-reference charts with showRecordsSeparately
+    const getSeparatorPositions = () => {
+      if (!sanitizedChartData.some(d => d._showRecordsSeparately)) return [];
+      
+      const positions: { index: number; parentName: string }[] = [];
+      let lastParentId: string | null = null;
+      
+      sanitizedChartData.forEach((item, index) => {
+        if (item.parentId && item.parentId !== lastParentId && lastParentId !== null) {
+          // Add separator before this item (between index-1 and index)
+          positions.push({ 
+            index: index - 0.5, 
+            parentName: item.parentDisplayName || item.parentRefId || '' 
+          });
+        }
+        lastParentId = item.parentId || null;
+      });
+      
+      return positions;
+    };
+    
+    const separatorPositions = getSeparatorPositions();
+    const hasSeparators = separatorPositions.length > 0;
+    
     switch (chartType) {
       case 'bar':
         // Bar chart = vertical bars (categories on X-axis, values on Y-axis)
         return <div className="relative w-full h-full min-h-[300px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={sanitizedChartData} margin={{
+                <BarChart data={sanitizedChartData.map((d, i) => ({ ...d, _index: i }))} margin={{
                 top: 20,
                 right: 30,
                 left: 60,
@@ -3787,7 +3811,29 @@ export function ChartPreview({
                     }} 
                   />
                    <Tooltip 
-                    content={({ payload, label }) => getEnhancedTooltipContent(payload, label)}
+                    content={({ payload, label }) => {
+                      // Enhanced tooltip for cross-ref with separators - show parent info
+                      if (hasSeparators && payload && payload.length > 0) {
+                        const data = payload[0]?.payload;
+                        if (data?.parentDisplayName) {
+                          return (
+                            <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
+                              <div className="text-xs text-muted-foreground mb-1">{data.parentDisplayName}</div>
+                              <div className="font-medium mb-2">{label || 'Data Point'}</div>
+                              <div className="space-y-1 text-sm">
+                                {payload.map((entry: any, idx: number) => (
+                                  <div key={idx} className="flex justify-between gap-4">
+                                    <span className="text-muted-foreground">{entry.name}:</span>
+                                    <span className="font-semibold">{entry.value}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        }
+                      }
+                      return getEnhancedTooltipContent(payload, label);
+                    }}
                     contentStyle={{
                       backgroundColor: 'transparent',
                       border: 'none',
@@ -3796,6 +3842,21 @@ export function ChartPreview({
                       padding: 0,
                     }} 
                   />
+                   
+                   {/* Vertical separators between parent records */}
+                   {hasSeparators && separatorPositions.map((sep, idx) => (
+                     <ReferenceLine 
+                       key={`sep-${idx}`}
+                       x={sanitizedChartData[Math.floor(sep.index + 0.5)]?.name}
+                       stroke="hsl(var(--border))"
+                       strokeWidth={2}
+                       strokeDasharray="4 4"
+                       label={{
+                         value: '',
+                         position: 'top'
+                       }}
+                     />
+                   ))}
                    
                    {isMultiDimensional ?
                 // Render separate bars for each dimension value
@@ -3866,19 +3927,41 @@ export function ChartPreview({
                   <XAxis dataKey="name" tick={{
                   fontSize: 11
                 }} angle={-45} textAnchor="end" height={80} interval={0} label={{
-                  value: config.xAxisLabel || getFormFieldName(primaryMetric),
-                  position: 'insideBottom',
-                  offset: -5
-                }} />
+                    value: config.xAxisLabel || getFormFieldName(primaryMetric),
+                    position: 'insideBottom',
+                    offset: -5
+                  }} />
                   <YAxis tick={{
                   fontSize: 11
                 }} label={{
-                  value: config.yAxisLabel || 'Value',
-                  angle: -90,
-                  position: 'insideLeft'
-                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
+                    value: config.yAxisLabel || 'Value',
+                    angle: -90,
+                    position: 'insideLeft'
+                  }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
-                    content={({ payload, label }) => getEnhancedTooltipContent(payload, label)}
+                    content={({ payload, label }) => {
+                      // Enhanced tooltip for cross-ref with separators - show parent info
+                      if (hasSeparators && payload && payload.length > 0) {
+                        const data = payload[0]?.payload;
+                        if (data?.parentDisplayName) {
+                          return (
+                            <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
+                              <div className="text-xs text-muted-foreground mb-1">{data.parentDisplayName}</div>
+                              <div className="font-medium mb-2">{label || 'Data Point'}</div>
+                              <div className="space-y-1 text-sm">
+                                {payload.map((entry: any, idx: number) => (
+                                  <div key={idx} className="flex justify-between gap-4">
+                                    <span className="text-muted-foreground">{entry.name}:</span>
+                                    <span className="font-semibold">{entry.value}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        }
+                      }
+                      return getEnhancedTooltipContent(payload, label);
+                    }}
                     contentStyle={{
                       backgroundColor: 'transparent',
                       border: 'none',
@@ -3887,6 +3970,17 @@ export function ChartPreview({
                       padding: 0,
                     }} 
                   />
+                   
+                   {/* Vertical separators between parent records */}
+                   {hasSeparators && separatorPositions.map((sep, idx) => (
+                     <ReferenceLine 
+                       key={`sep-${idx}`}
+                       x={sanitizedChartData[Math.floor(sep.index + 0.5)]?.name}
+                       stroke="hsl(var(--border))"
+                       strokeWidth={2}
+                       strokeDasharray="4 4"
+                     />
+                   ))}
                    
                    {isMultiDimensional ?
                 // Render separate bars for each dimension value
