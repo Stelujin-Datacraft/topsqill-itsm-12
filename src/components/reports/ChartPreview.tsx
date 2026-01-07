@@ -693,13 +693,10 @@ export function ChartPreview({
   const transformCrossRefDataForChartType = (crossRefData: any[], chartType: string): any[] => {
     if (!crossRefData || crossRefData.length === 0) return [];
     
-    // Check if this is cross-ref compare mode with text fields
-    const hasTextX = crossRefData.some(item => item._isCrossRefCompare && item._hasTextX);
-    const hasTextY = crossRefData.some(item => item._isCrossRefCompare && item._hasTextY);
+    // Check if this is cross-ref compare mode with text fields - apply encoded legend transformation
+    const hasTextCompare = crossRefData.some(item => item._isCrossRefCompare && (item._hasTextX || item._hasTextY));
     
-    // Only apply encoded legend transformation when Y-axis is text
-    // For scatter/bubble charts, let them handle encoding themselves
-    if (hasTextY && chartType !== 'scatter' && chartType !== 'bubble' && chartType !== 'heatmap') {
+    if (hasTextCompare) {
       // Get X/Y field names from pre-resolved labels in data
       const xFieldName = crossRefData[0]?.xFieldLabel || 'X Field';
       const yFieldName = crossRefData[0]?.yFieldLabel || 'Y Field';
@@ -745,31 +742,23 @@ export function ChartPreview({
         _legendMapping: legendMapping,
         _isCompareEncoded: true,
         _isCrossRefCompare: true,
-        _hasTextX: hasTextX,
-        _hasTextY: hasTextY,
         _yOptionColor: item._yOptionColor,
         _xOptionColor: item._xOptionColor
       }));
     }
     
     // For scatter/bubble/heatmap, always ensure x, y properties exist
-    // These charts handle their own text encoding in rendering
     if (chartType === 'scatter' || chartType === 'bubble') {
-      // Scatter/Bubble charts need { x, y, name } format with preserved text flags
+      // Scatter/Bubble charts need { x, y, name } format
       return crossRefData.map((item, index) => ({
         ...item,
         x: item.x !== undefined ? item.x : index + 1, // Use sequential index as X coordinate if not present
         y: item.y !== undefined ? item.y : (item.value || 0),
         xRaw: item.xRaw || item.name || `Record ${index + 1}`,
-        yRaw: item.yRaw !== undefined ? item.yRaw : (item.value || 0), // Preserve numeric yRaw as number
+        yRaw: item.yRaw || String(item.value || 0),
         name: item.name || `Point ${index + 1}`,
-        xFieldName: item.xFieldLabel || item.xFieldName || 'Record',
-        yFieldName: item.yFieldLabel || item.yFieldName || 'Value',
-        xFieldLabel: item.xFieldLabel,
-        yFieldLabel: item.yFieldLabel,
-        _hasTextX: item._hasTextX,
-        _hasTextY: item._hasTextY,
-        _isCrossRefCompare: item._isCrossRefCompare
+        xFieldName: item.xFieldName || 'Record',
+        yFieldName: item.yFieldName || 'Value'
       }));
     }
     
@@ -781,16 +770,11 @@ export function ChartPreview({
         x: item.x !== undefined ? item.x : index + 1,
         y: item.y !== undefined ? item.y : (item.value || 0),
         xRaw: item.xRaw || item.name || `Record ${index + 1}`,
-        yRaw: item.yRaw !== undefined ? item.yRaw : (item.value || 0),
+        yRaw: item.yRaw || String(item.value || 0),
         value: item.value || item.y || 0,
         name: item.name || `Point ${index + 1}`,
-        xFieldName: item.xFieldLabel || item.xFieldName || 'Record',
-        yFieldName: item.yFieldLabel || item.yFieldName || 'Value',
-        xFieldLabel: item.xFieldLabel,
-        yFieldLabel: item.yFieldLabel,
-        _hasTextX: item._hasTextX,
-        _hasTextY: item._hasTextY,
-        _isCrossRefCompare: item._isCrossRefCompare
+        xFieldName: item.xFieldName || 'Record',
+        yFieldName: item.yFieldName || 'Value'
       }));
     }
     
