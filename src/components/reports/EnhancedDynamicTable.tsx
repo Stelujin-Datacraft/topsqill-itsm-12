@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useReports } from '@/hooks/useReports';
 import { useTableData } from '@/hooks/useTableData';
 import { FormDataCell } from './FormDataCell';
-import { evaluateFilterCondition, rowPassesSearch, extractComparableValue, valueContainsSearchWithConfig } from '@/utils/filterUtils';
+import { evaluateFilterCondition, rowPassesSearch, extractComparableValue, valueContainsSearchWithConfig, extractNumericValue } from '@/utils/filterUtils';
 
 interface EnhancedTableConfig {
   title: string;
@@ -99,18 +99,12 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
     const filterLogicExpression = (config as any).filterLogicExpression as string | undefined;
     const useManualFilterLogic = (config as any).useManualFilterLogic as boolean | undefined;
     
-    console.log('EnhancedDynamicTable - Raw filters from config:', configuredFilters);
-    console.log('EnhancedDynamicTable - Filter logic expression:', filterLogicExpression);
-    console.log('EnhancedDynamicTable - Use manual logic:', useManualFilterLogic);
-    
     if (!configuredFilters || configuredFilters.length === 0) {
-      console.log('EnhancedDynamicTable - No filters configured, returning empty groups');
       return [] as { conditions: { field: string; operator: string; value: any }[]; logic?: 'AND' | 'OR'; logicExpression?: string }[];
     }
     
     // Filter out any filters with empty field
     const validFilters = configuredFilters.filter(f => f.field && f.field.trim() !== '');
-    console.log('EnhancedDynamicTable - Valid filters (non-empty field):', validFilters);
     
     if (validFilters.length === 0) {
       return [] as { conditions: { field: string; operator: string; value: any }[]; logic?: 'AND' | 'OR'; logicExpression?: string }[];
@@ -123,7 +117,6 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
     if (useManualFilterLogic && filterLogicExpression) {
       // Use the manual logic expression
       logicExpression = filterLogicExpression;
-      console.log('EnhancedDynamicTable - Using manual logic expression:', logicExpression);
     } else if (filterLogicExpression) {
       // Parse simple expressions like "1 OR 2" or "1 AND 2"
       if (filterLogicExpression.toUpperCase().includes(' OR ')) {
@@ -131,7 +124,6 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
       } else {
         logic = 'AND';
       }
-      console.log('EnhancedDynamicTable - Parsed simple logic:', logic);
     }
     
     return [
@@ -407,8 +399,13 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
 
     // Apply sorting
     if (sortConfig) {
+      // Get field type for proper sorting
+      const sortField = formFields.find(f => f.id === sortConfig.field);
+      const sortFieldType = (sortField as any)?.field_type || sortField?.type || '';
+      const sortFieldOptions = sortField?.options || [];
+      
       filtered.sort((a, b) => {
-        let aValue, bValue;
+        let aValue: any, bValue: any;
         
         if (sortConfig.field === 'submitted_at') {
           aValue = new Date(a.submitted_at).getTime();
@@ -417,8 +414,42 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
           aValue = a.approval_status || 'pending';
           bValue = b.approval_status || 'pending';
         } else {
-          aValue = getFieldValue(a, sortConfig.field);
-          bValue = getFieldValue(b, sortConfig.field);
+          const aRaw = getFieldValue(a, sortConfig.field);
+          const bRaw = getFieldValue(b, sortConfig.field);
+          
+          // Handle numeric fields (number, currency, slider, rating)
+          if (['number', 'currency', 'slider', 'rating'].includes(sortFieldType)) {
+            aValue = extractNumericValue(aRaw);
+            bValue = extractNumericValue(bRaw);
+            // Handle nulls - push them to the end
+            if (aValue === null && bValue === null) return 0;
+            if (aValue === null) return sortConfig.direction === 'asc' ? 1 : -1;
+            if (bValue === null) return sortConfig.direction === 'asc' ? -1 : 1;
+          }
+          // Handle toggle/boolean fields
+          else if (sortFieldType === 'toggle' || sortFieldType === 'checkbox') {
+            aValue = aRaw === true || aRaw === 'true' || aRaw === 1 ? 1 : 0;
+            bValue = bRaw === true || bRaw === 'true' || bRaw === 1 ? 1 : 0;
+          }
+          // Handle radio/dropdown/select fields - sort by display label
+          else if (['radio', 'dropdown', 'select', 'multi-select'].includes(sortFieldType)) {
+            // Get display label from options
+            const getOptionLabel = (val: any): string => {
+              if (val === null || val === undefined || val === 'N/A') return '';
+              const valStr = String(val);
+              const option = sortFieldOptions.find((opt: any) => 
+                opt.value === valStr || opt.id === valStr || opt.label === valStr
+              );
+              return option?.label || valStr;
+            };
+            aValue = getOptionLabel(aRaw).toLowerCase();
+            bValue = getOptionLabel(bRaw).toLowerCase();
+          }
+          // Default string comparison
+          else {
+            aValue = aRaw === null || aRaw === undefined || aRaw === 'N/A' ? '' : String(aRaw).toLowerCase();
+            bValue = bRaw === null || bRaw === undefined || bRaw === 'N/A' ? '' : String(bRaw).toLowerCase();
+          }
         }
         
         if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
