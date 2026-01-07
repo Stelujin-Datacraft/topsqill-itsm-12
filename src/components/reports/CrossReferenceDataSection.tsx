@@ -657,6 +657,27 @@ export function CrossReferenceDataSection({
                       })}
                     />
                   </div>
+                  
+                  {/* Toggle for showing legend sidebar (only relevant when Y-axis is text) */}
+                  {selectedCompareYField && !METRIC_FIELD_TYPES.includes(getFieldType(selectedCompareYField)) && (
+                    <div className="flex items-center justify-between pt-3 border-t mt-1">
+                      <div className="space-y-0.5">
+                        <Label className="text-sm font-medium">Show Legend Sidebar</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Display a legend showing encoded values for text Y-axis field
+                        </p>
+                      </div>
+                      <Switch
+                        checked={crossRefConfig.showLegendSidebar !== false}
+                        onCheckedChange={(checked) => onConfigChange({
+                          crossRefConfig: {
+                            ...crossRefConfig,
+                            showLegendSidebar: checked
+                          }
+                        })}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>

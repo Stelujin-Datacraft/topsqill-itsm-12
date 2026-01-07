@@ -101,6 +101,7 @@ export interface ChartConfig {
     compareXFieldId?: string; // X-axis field (from target form)
     compareYFieldId?: string; // Y-axis field (from target form) - supports text with legend
     showRecordsSeparately?: boolean; // Show bars grouped by parent record in compare mode
+    showLegendSidebar?: boolean; // Show legend sidebar for text Y-axis (default: true)
     // Group by source field
     sourceGroupByFieldId?: string; // Group chart data by a field from the source form
     // Drilldown configuration - like normal drilldown with levels and filters
