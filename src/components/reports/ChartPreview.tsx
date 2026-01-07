@@ -379,8 +379,9 @@ export function ChartPreview({
             
             result.push({
               name: chartName,
-              xRaw: xOptionInfo?.label || String(xDisplay),
-              yRaw: yOptionInfo?.label || String(yDisplay),
+              // For xRaw/yRaw: preserve numeric values as numbers, only convert text to strings
+              xRaw: isXText ? (xOptionInfo?.label || String(xDisplay)) : xDisplay,
+              yRaw: isYText ? (yOptionInfo?.label || String(yDisplay)) : yDisplay,
               x: isXText ? 0 : Number(xDisplay) || 0,
               y: isYText ? 0 : Number(yDisplay) || 0,
               value: isYText ? 1 : (Number(yDisplay) || 0), // For text Y, use count of 1
@@ -4239,19 +4240,25 @@ export function ChartPreview({
         let scatterXMapping = sanitizedChartData[0]?._xLegendMapping || [];
         let scatterYMapping = sanitizedChartData[0]?._yLegendMapping || [];
         
+        // Check for explicit text flags from cross-reference processing
+        const hasExplicitTextXFlag = sanitizedChartData.some(d => d._hasTextX === true);
+        const hasExplicitTextYFlag = sanitizedChartData.some(d => d._hasTextY === true);
+        
         // Detect text values - check if x/y are text that need encoding
-        const scatterXValues = sanitizedChartData.map(d => d.xRaw || d.x || d.name);
-        const scatterYValues = sanitizedChartData.map(d => d.yRaw || d.y || d.value);
-        const scatterHasTextX = scatterXMapping.length === 0 && scatterXValues.some(v => typeof v === 'string' && isNaN(Number(v)));
-        const scatterHasTextY = scatterYMapping.length === 0 && scatterYValues.some(v => typeof v === 'string' && isNaN(Number(v)));
+        const scatterXValues = sanitizedChartData.map(d => d.xRaw !== undefined ? d.xRaw : (d.x || d.name));
+        const scatterYValues = sanitizedChartData.map(d => d.yRaw !== undefined ? d.yRaw : (d.y || d.value));
+        
+        // Use explicit flags if available, otherwise detect from values
+        const scatterHasTextX = hasExplicitTextXFlag || (scatterXMapping.length === 0 && scatterXValues.some(v => typeof v === 'string' && isNaN(Number(v))));
+        const scatterHasTextY = hasExplicitTextYFlag || (scatterYMapping.length === 0 && scatterYValues.some(v => typeof v === 'string' && isNaN(Number(v))));
         
         // Create mappings inline if text is detected but no mapping exists
         if (scatterHasTextX && scatterXMapping.length === 0) {
-          const uniqueX = [...new Set(scatterXValues.map(v => String(v)))].sort();
+          const uniqueX = [...new Set(scatterXValues.map(v => String(v)))].filter(v => v && v !== 'undefined').sort();
           scatterXMapping = uniqueX.map((label, idx) => ({ number: idx + 1, label }));
         }
         if (scatterHasTextY && scatterYMapping.length === 0) {
-          const uniqueY = [...new Set(scatterYValues.map(v => String(v)))].sort();
+          const uniqueY = [...new Set(scatterYValues.map(v => String(v)))].filter(v => v && v !== 'undefined').sort();
           scatterYMapping = uniqueY.map((label, idx) => ({ number: idx + 1, label }));
         }
         
@@ -4381,19 +4388,25 @@ export function ChartPreview({
         let bubbleXMapping = sanitizedChartData[0]?._xLegendMapping || [];
         let bubbleYMapping = sanitizedChartData[0]?._yLegendMapping || [];
         
+        // Check for explicit text flags from cross-reference processing
+        const hasBubbleExplicitTextXFlag = sanitizedChartData.some(d => d._hasTextX === true);
+        const hasBubbleExplicitTextYFlag = sanitizedChartData.some(d => d._hasTextY === true);
+        
         // Detect text values - check if x/y are text that need encoding
-        const bubbleXValues = sanitizedChartData.map(d => d.xRaw || d.x || d.name);
-        const bubbleYValues = sanitizedChartData.map(d => d.yRaw || d.y || d.value);
-        const bubbleHasTextX = bubbleXMapping.length === 0 && bubbleXValues.some(v => typeof v === 'string' && isNaN(Number(v)));
-        const bubbleHasTextY = bubbleYMapping.length === 0 && bubbleYValues.some(v => typeof v === 'string' && isNaN(Number(v)));
+        const bubbleXValues = sanitizedChartData.map(d => d.xRaw !== undefined ? d.xRaw : (d.x || d.name));
+        const bubbleYValues = sanitizedChartData.map(d => d.yRaw !== undefined ? d.yRaw : (d.y || d.value));
+        
+        // Use explicit flags if available, otherwise detect from values
+        const bubbleHasTextX = hasBubbleExplicitTextXFlag || (bubbleXMapping.length === 0 && bubbleXValues.some(v => typeof v === 'string' && isNaN(Number(v))));
+        const bubbleHasTextY = hasBubbleExplicitTextYFlag || (bubbleYMapping.length === 0 && bubbleYValues.some(v => typeof v === 'string' && isNaN(Number(v))));
         
         // Create mappings inline if text is detected but no mapping exists
         if (bubbleHasTextX && bubbleXMapping.length === 0) {
-          const uniqueX = [...new Set(bubbleXValues.map(v => String(v)))].sort();
+          const uniqueX = [...new Set(bubbleXValues.map(v => String(v)))].filter(v => v && v !== 'undefined').sort();
           bubbleXMapping = uniqueX.map((label, idx) => ({ number: idx + 1, label }));
         }
         if (bubbleHasTextY && bubbleYMapping.length === 0) {
-          const uniqueY = [...new Set(bubbleYValues.map(v => String(v)))].sort();
+          const uniqueY = [...new Set(bubbleYValues.map(v => String(v)))].filter(v => v && v !== 'undefined').sort();
           bubbleYMapping = uniqueY.map((label, idx) => ({ number: idx + 1, label }));
         }
         
