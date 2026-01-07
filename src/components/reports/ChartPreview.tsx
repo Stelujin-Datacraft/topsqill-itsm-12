@@ -2564,10 +2564,38 @@ export function ChartPreview({
 
       if (chartType === 'bar') {
         // Bar chart = vertical bars in compare mode (X-axis field on horizontal, Y-axis field determines height)
-        const barData = sortedData.map((item, idx) => ({
+        // Handle showRecordsSeparately for cross-reference charts
+        const hasBarShowRecordsSeparately = sortedData.some(d => d._showRecordsSeparately);
+        
+        // Sort by parentId to group parent records together when showing separately
+        const groupedBarData = hasBarShowRecordsSeparately 
+          ? [...sortedData].sort((a, b) => {
+              const aParent = a.parentId || '';
+              const bParent = b.parentId || '';
+              return aParent.localeCompare(bParent);
+            })
+          : sortedData;
+        
+        const barData = groupedBarData.map((item, idx) => ({
           ...item,
           xLabel: item.xRaw || item.name || String(item.x), // Use text value from Field 1 for X-axis label
         }));
+
+        // Calculate separator positions for cross-reference charts
+        const barSeparatorPositions: { index: number; parentName: string }[] = [];
+        if (hasBarShowRecordsSeparately) {
+          let lastParentId: string | null = null;
+          barData.forEach((item, index) => {
+            if (item.parentId && item.parentId !== lastParentId && lastParentId !== null) {
+              barSeparatorPositions.push({ 
+                index: index - 0.5, 
+                parentName: item.parentDisplayName || item.parentRefId || '' 
+              });
+            }
+            lastParentId = item.parentId || null;
+          });
+        }
+        const hasBarSeparators = barSeparatorPositions.length > 0;
 
         return (
           <div className="relative w-full h-full min-h-[300px]">
@@ -2595,15 +2623,18 @@ export function ChartPreview({
                       if (!data) return null;
                       return (
                         <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
-                          <div className="font-medium mb-2">{data.name}</div>
+                          {data.parentDisplayName && (
+                            <div className="text-xs text-muted-foreground mb-1">{data.parentDisplayName}</div>
+                          )}
+                          <div className="font-medium mb-2">{data.xLabel || data.name}</div>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{field1Name} (X):</span>
-                              <span className="font-semibold">{data.x}</span>
+                              <span className="font-semibold">{data.xRaw || data.x}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{field2Name} (Y):</span>
-                              <span className="font-semibold">{data.y}</span>
+                              <span className="font-semibold">{data.yRaw || data.y}</span>
                             </div>
                           </div>
                         </div>
@@ -2614,6 +2645,18 @@ export function ChartPreview({
                     wrapperStyle={{ paddingTop: '10px' }}
                     formatter={(value) => <span className="text-foreground">{value}</span>}
                   />
+                  
+                  {/* Vertical separators between parent records */}
+                  {hasBarSeparators && barSeparatorPositions.map((sep, idx) => (
+                    <ReferenceLine 
+                      key={`sep-${idx}`}
+                      x={barData[Math.floor(sep.index + 0.5)]?.xLabel}
+                      stroke="hsl(var(--border))"
+                      strokeWidth={2}
+                      strokeDasharray="4 4"
+                    />
+                  ))}
+                  
                   <Bar
                     dataKey="y" 
                     name={field2Name} 
@@ -2624,7 +2667,6 @@ export function ChartPreview({
                       const submissionId = payload?.submissionId;
                       
                       if (submissionId) {
-                        // If we have a direct submission ID, open dialog with that
                         setCellSubmissionsDialog({
                           open: true,
                           dimensionField: config.metrics?.[0] || '',
@@ -2632,7 +2674,6 @@ export function ChartPreview({
                           dimensionLabel: field1Name,
                         });
                       } else {
-                        // Open dialog to show matching record
                         setCellSubmissionsDialog({
                           open: true,
                           dimensionField: config.metrics?.[0] || '',
@@ -2663,10 +2704,38 @@ export function ChartPreview({
 
       if (chartType === 'column') {
         // Column chart = vertical bars in compare mode
-        const barData = sortedData.map((item, idx) => ({
+        // Handle showRecordsSeparately for cross-reference charts
+        const hasColumnShowRecordsSeparately = sortedData.some(d => d._showRecordsSeparately);
+        
+        // Sort by parentId to group parent records together when showing separately
+        const groupedColumnData = hasColumnShowRecordsSeparately 
+          ? [...sortedData].sort((a, b) => {
+              const aParent = a.parentId || '';
+              const bParent = b.parentId || '';
+              return aParent.localeCompare(bParent);
+            })
+          : sortedData;
+        
+        const barData = groupedColumnData.map((item, idx) => ({
           ...item,
           xLabel: item.xRaw || item.name || String(item.x), // Use text value from Field 1 for X-axis label
         }));
+
+        // Calculate separator positions for cross-reference charts
+        const columnSeparatorPositions: { index: number; parentName: string }[] = [];
+        if (hasColumnShowRecordsSeparately) {
+          let lastParentId: string | null = null;
+          barData.forEach((item, index) => {
+            if (item.parentId && item.parentId !== lastParentId && lastParentId !== null) {
+              columnSeparatorPositions.push({ 
+                index: index - 0.5, 
+                parentName: item.parentDisplayName || item.parentRefId || '' 
+              });
+            }
+            lastParentId = item.parentId || null;
+          });
+        }
+        const hasColumnSeparators = columnSeparatorPositions.length > 0;
 
         return (
           <div className="relative w-full h-full min-h-[300px]">
@@ -2694,15 +2763,18 @@ export function ChartPreview({
                       if (!data) return null;
                       return (
                         <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
-                          <div className="font-medium mb-2">{data.name}</div>
+                          {data.parentDisplayName && (
+                            <div className="text-xs text-muted-foreground mb-1">{data.parentDisplayName}</div>
+                          )}
+                          <div className="font-medium mb-2">{data.xLabel || data.name}</div>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{field1Name} (X):</span>
-                              <span className="font-semibold">{data.x}</span>
+                              <span className="font-semibold">{data.xRaw || data.x}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground">{field2Name} (Y):</span>
-                              <span className="font-semibold">{data.y}</span>
+                              <span className="font-semibold">{data.yRaw || data.y}</span>
                             </div>
                           </div>
                         </div>
@@ -2713,6 +2785,18 @@ export function ChartPreview({
                     wrapperStyle={{ paddingTop: '10px' }}
                     formatter={(value) => <span className="text-foreground">{value}</span>}
                   />
+                  
+                  {/* Vertical separators between parent records */}
+                  {hasColumnSeparators && columnSeparatorPositions.map((sep, idx) => (
+                    <ReferenceLine 
+                      key={`sep-${idx}`}
+                      x={barData[Math.floor(sep.index + 0.5)]?.xLabel}
+                      stroke="hsl(var(--border))"
+                      strokeWidth={2}
+                      strokeDasharray="4 4"
+                    />
+                  ))}
+                  
                   <Bar
                     dataKey="y" 
                     name={field2Name} 
@@ -3266,10 +3350,38 @@ export function ChartPreview({
       }
 
       // Default to bar chart for unsupported types in compare mode
-      const defaultBarData = sortedData.map((item, idx) => ({
+      // Handle showRecordsSeparately for cross-reference charts
+      const hasShowRecordsSeparately = sortedData.some(d => d._showRecordsSeparately);
+      
+      // Sort by parentId to group parent records together when showing separately
+      const groupedBarData = hasShowRecordsSeparately 
+        ? [...sortedData].sort((a, b) => {
+            const aParent = a.parentId || '';
+            const bParent = b.parentId || '';
+            return aParent.localeCompare(bParent);
+          })
+        : sortedData;
+      
+      const defaultBarData = groupedBarData.map((item, idx) => ({
         ...item,
         xLabel: item.xRaw || item.name || String(item.x),
       }));
+
+      // Calculate separator positions for cross-reference charts
+      const compareBarSeparatorPositions: { index: number; parentName: string }[] = [];
+      if (hasShowRecordsSeparately) {
+        let lastParentId: string | null = null;
+        defaultBarData.forEach((item, index) => {
+          if (item.parentId && item.parentId !== lastParentId && lastParentId !== null) {
+            compareBarSeparatorPositions.push({ 
+              index: index - 0.5, 
+              parentName: item.parentDisplayName || item.parentRefId || '' 
+            });
+          }
+          lastParentId = item.parentId || null;
+        });
+      }
+      const hasCompareBarSeparators = compareBarSeparatorPositions.length > 0;
 
       return (
         <div className="relative w-full h-full min-h-[300px]">
@@ -3290,7 +3402,39 @@ export function ChartPreview({
                   domain={yDomain}
                   label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                 />
-                {compareTooltip}
+                <Tooltip 
+                  content={({ payload, label }) => {
+                    if (!payload || payload.length === 0) return null;
+                    const data = payload[0]?.payload;
+                    if (!data) return null;
+                    return (
+                      <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
+                        {data.parentDisplayName && (
+                          <div className="text-xs text-muted-foreground mb-1">{data.parentDisplayName}</div>
+                        )}
+                        <div className="font-medium mb-2">{data.xLabel || label || 'Data Point'}</div>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground">{field2Name}:</span>
+                            <span className="font-semibold">{data.yRaw || data.y}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
+                
+                {/* Vertical separators between parent records */}
+                {hasCompareBarSeparators && compareBarSeparatorPositions.map((sep, idx) => (
+                  <ReferenceLine 
+                    key={`sep-${idx}`}
+                    x={defaultBarData[Math.floor(sep.index + 0.5)]?.xLabel}
+                    stroke="hsl(var(--border))"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                  />
+                ))}
+                
                 <Bar
                   dataKey="y" 
                   name={field2Name} 
