@@ -2749,46 +2749,57 @@ export function ChartPreview({
 
       // Handle scatter chart type explicitly
       if (chartType === 'scatter') {
-        // Get legend mappings from the first data point OR create them if text values detected
+        // Get legend mappings from the first data point (these indicate text values that were encoded)
         let compareXMapping = sanitizedChartData[0]?._xLegendMapping || [];
         let compareYMapping = sanitizedChartData[0]?._yLegendMapping || [];
         
-        // Detect text values - check if x/y are text that need encoding (same as non-compare scatter)
-        const scatterXVals = sanitizedChartData.map(d => d.xRaw || d.name || d.x);
-        const scatterYVals = sanitizedChartData.map(d => d.yRaw || d.y || d.value);
-        const hasTextXDetected = compareXMapping.length === 0 && scatterXVals.some(v => typeof v === 'string' && isNaN(Number(v)));
-        const hasTextYDetected = compareYMapping.length === 0 && scatterYVals.some(v => typeof v === 'string' && isNaN(Number(v)));
+        // Check if we have actual numeric Y values (not encoded text) - look at the raw y values
+        // For numeric fields, yRaw will be a number or a numeric string
+        const yRawValues = sanitizedChartData.map(d => d.yRaw !== undefined ? d.yRaw : d.y);
+        const yIsNumeric = yRawValues.every(v => v === null || v === undefined || v === '' || !isNaN(Number(v)));
         
-        // Create mappings inline if text is detected but no mapping exists
-        if (hasTextXDetected && compareXMapping.length === 0) {
-          const uniqueX = [...new Set(scatterXVals.map(v => String(v)))].sort();
+        // For X-axis, check if values are text that need encoding
+        const xRawValues = sanitizedChartData.map(d => d.xRaw || d.name || d.x);
+        const xIsNumeric = xRawValues.every(v => v === null || v === undefined || v === '' || !isNaN(Number(v)));
+        
+        // Only use mappings if the axis is truly text (not numeric)
+        const hasCompareXMapping = !xIsNumeric && (compareXMapping.length > 0 || xRawValues.some(v => typeof v === 'string' && isNaN(Number(v))));
+        const hasCompareYMapping = !yIsNumeric && (compareYMapping.length > 0 || yRawValues.some(v => typeof v === 'string' && isNaN(Number(v))));
+        
+        // Create mappings inline for text X-axis if needed
+        if (hasCompareXMapping && compareXMapping.length === 0) {
+          const uniqueX = [...new Set(xRawValues.map(v => String(v)))].filter(v => v && v !== 'undefined').sort();
           compareXMapping = uniqueX.map((label, idx) => ({ number: idx + 1, label }));
         }
-        if (hasTextYDetected && compareYMapping.length === 0) {
-          const uniqueY = [...new Set(scatterYVals.map(v => String(v)))].sort();
+        
+        // Create mappings inline for text Y-axis if needed
+        if (hasCompareYMapping && compareYMapping.length === 0) {
+          const uniqueY = [...new Set(yRawValues.map(v => String(v)))].filter(v => v && v !== 'undefined').sort();
           compareYMapping = uniqueY.map((label, idx) => ({ number: idx + 1, label }));
         }
         
-        const hasCompareXMapping = compareXMapping.length > 0;
-        const hasCompareYMapping = compareYMapping.length > 0;
-        
-        // Transform data - encode text values to numbers if mappings exist
+        // Transform data - encode text values to numbers if mappings exist, preserve numeric values
         const scatterCompareData = sanitizedChartData.map((item, idx) => {
           const xRaw = item.xRaw || item.name || item.x;
-          const yRaw = item.yRaw || item.y || item.value;
+          const yRaw = item.yRaw !== undefined ? item.yRaw : item.y;
           
-          // Encode x value if we have a mapping
+          // For X value: encode if text mapping exists, otherwise use numeric value
           let xEncoded = item.x;
           if (hasCompareXMapping) {
             const xMap = compareXMapping.find((m: any) => m.label === String(xRaw));
             xEncoded = xMap ? xMap.number : (typeof item.x === 'number' ? item.x : idx + 1);
+          } else if (!isNaN(Number(xRaw))) {
+            xEncoded = Number(xRaw);
           }
           
-          // Encode y value if we have a mapping
+          // For Y value: preserve numeric values, only encode if truly text
           let yEncoded = item.y;
           if (hasCompareYMapping) {
             const yMap = compareYMapping.find((m: any) => m.label === String(yRaw));
             yEncoded = yMap ? yMap.number : (typeof item.y === 'number' ? item.y : idx + 1);
+          } else if (!isNaN(Number(yRaw))) {
+            // Y is numeric - use the actual numeric value
+            yEncoded = Number(yRaw);
           }
           
           return {
@@ -2804,9 +2815,23 @@ export function ChartPreview({
         const compareXDomain = hasCompareXMapping 
           ? [0.5, compareXMapping.length + 0.5] as [number, number]
           : xDomain;
-        const compareYDomain = hasCompareYMapping 
-          ? [0.5, compareYMapping.length + 0.5] as [number, number]
-          : yDomain;
+        
+        // For Y-axis: if numeric, calculate proper domain from actual values
+        let compareYDomain: [number, number];
+        if (hasCompareYMapping) {
+          compareYDomain = [0.5, compareYMapping.length + 0.5];
+        } else {
+          // Numeric Y - calculate proper domain with padding
+          const numericYValues = scatterCompareData.map(d => Number(d.y)).filter(v => !isNaN(v));
+          if (numericYValues.length > 0) {
+            const minY = Math.min(...numericYValues);
+            const maxY = Math.max(...numericYValues);
+            const yPadding = (maxY - minY) * 0.1 || 1;
+            compareYDomain = [Math.floor(minY - yPadding), Math.ceil(maxY + yPadding)];
+          } else {
+            compareYDomain = [0, 100]; // Default fallback
+          }
+        }
         
         return (
           <div className="relative w-full h-full min-h-[300px]">
@@ -2886,46 +2911,56 @@ export function ChartPreview({
 
       // Handle bubble chart in compare mode - same behavior as scatter chart
       if (chartType === 'bubble') {
-        // Get legend mappings from the first data point OR create them if text values detected
+        // Get legend mappings from the first data point (these indicate text values that were encoded)
         let bubbleCompareXMapping = sanitizedChartData[0]?._xLegendMapping || [];
         let bubbleCompareYMapping = sanitizedChartData[0]?._yLegendMapping || [];
         
-        // Detect text values - check if x/y are text that need encoding
-        const bubbleXVals = sanitizedChartData.map(d => d.xRaw || d.name || d.x);
-        const bubbleYVals = sanitizedChartData.map(d => d.yRaw || d.y || d.value);
-        const hasBubbleTextXDetected = bubbleCompareXMapping.length === 0 && bubbleXVals.some(v => typeof v === 'string' && isNaN(Number(v)));
-        const hasBubbleTextYDetected = bubbleCompareYMapping.length === 0 && bubbleYVals.some(v => typeof v === 'string' && isNaN(Number(v)));
+        // Check if we have actual numeric Y values (not encoded text) - look at the raw y values
+        const bubbleYRawValues = sanitizedChartData.map(d => d.yRaw !== undefined ? d.yRaw : d.y);
+        const bubbleYIsNumeric = bubbleYRawValues.every(v => v === null || v === undefined || v === '' || !isNaN(Number(v)));
         
-        // Create mappings inline if text is detected but no mapping exists
-        if (hasBubbleTextXDetected && bubbleCompareXMapping.length === 0) {
-          const uniqueX = [...new Set(bubbleXVals.map(v => String(v)))].sort();
+        // For X-axis, check if values are text that need encoding
+        const bubbleXRawValues = sanitizedChartData.map(d => d.xRaw || d.name || d.x);
+        const bubbleXIsNumeric = bubbleXRawValues.every(v => v === null || v === undefined || v === '' || !isNaN(Number(v)));
+        
+        // Only use mappings if the axis is truly text (not numeric)
+        const hasBubbleCompareXMapping = !bubbleXIsNumeric && (bubbleCompareXMapping.length > 0 || bubbleXRawValues.some(v => typeof v === 'string' && isNaN(Number(v))));
+        const hasBubbleCompareYMapping = !bubbleYIsNumeric && (bubbleCompareYMapping.length > 0 || bubbleYRawValues.some(v => typeof v === 'string' && isNaN(Number(v))));
+        
+        // Create mappings inline for text X-axis if needed
+        if (hasBubbleCompareXMapping && bubbleCompareXMapping.length === 0) {
+          const uniqueX = [...new Set(bubbleXRawValues.map(v => String(v)))].filter(v => v && v !== 'undefined').sort();
           bubbleCompareXMapping = uniqueX.map((label, idx) => ({ number: idx + 1, label }));
         }
-        if (hasBubbleTextYDetected && bubbleCompareYMapping.length === 0) {
-          const uniqueY = [...new Set(bubbleYVals.map(v => String(v)))].sort();
+        
+        // Create mappings inline for text Y-axis if needed
+        if (hasBubbleCompareYMapping && bubbleCompareYMapping.length === 0) {
+          const uniqueY = [...new Set(bubbleYRawValues.map(v => String(v)))].filter(v => v && v !== 'undefined').sort();
           bubbleCompareYMapping = uniqueY.map((label, idx) => ({ number: idx + 1, label }));
         }
         
-        const hasBubbleCompareXMapping = bubbleCompareXMapping.length > 0;
-        const hasBubbleCompareYMapping = bubbleCompareYMapping.length > 0;
-        
-        // Transform data - encode text values to numbers if mappings exist
+        // Transform data - encode text values to numbers if mappings exist, preserve numeric values
         const bubbleTransformedData = sanitizedChartData.map((item, idx) => {
           const xRaw = item.xRaw || item.name || item.x;
-          const yRaw = item.yRaw || item.y || item.value;
+          const yRaw = item.yRaw !== undefined ? item.yRaw : item.y;
           
-          // Encode x value if we have a mapping
+          // For X value: encode if text mapping exists, otherwise use numeric value
           let xEncoded = item.x;
           if (hasBubbleCompareXMapping) {
             const xMap = bubbleCompareXMapping.find((m: any) => m.label === String(xRaw));
             xEncoded = xMap ? xMap.number : (typeof item.x === 'number' ? item.x : idx + 1);
+          } else if (!isNaN(Number(xRaw))) {
+            xEncoded = Number(xRaw);
           }
           
-          // Encode y value if we have a mapping
+          // For Y value: preserve numeric values, only encode if truly text
           let yEncoded = item.y;
           if (hasBubbleCompareYMapping) {
             const yMap = bubbleCompareYMapping.find((m: any) => m.label === String(yRaw));
             yEncoded = yMap ? yMap.number : (typeof item.y === 'number' ? item.y : idx + 1);
+          } else if (!isNaN(Number(yRaw))) {
+            // Y is numeric - use the actual numeric value
+            yEncoded = Number(yRaw);
           }
           
           return {
@@ -2941,9 +2976,23 @@ export function ChartPreview({
         const bubbleCompareXDomain = hasBubbleCompareXMapping 
           ? [0.5, bubbleCompareXMapping.length + 0.5] as [number, number]
           : xDomain;
-        const bubbleCompareYDomain = hasBubbleCompareYMapping 
-          ? [0.5, bubbleCompareYMapping.length + 0.5] as [number, number]
-          : yDomain;
+        
+        // For Y-axis: if numeric, calculate proper domain from actual values
+        let bubbleCompareYDomain: [number, number];
+        if (hasBubbleCompareYMapping) {
+          bubbleCompareYDomain = [0.5, bubbleCompareYMapping.length + 0.5];
+        } else {
+          // Numeric Y - calculate proper domain with padding
+          const numericYValues = bubbleTransformedData.map(d => Number(d.y)).filter(v => !isNaN(v));
+          if (numericYValues.length > 0) {
+            const minY = Math.min(...numericYValues);
+            const maxY = Math.max(...numericYValues);
+            const yPadding = (maxY - minY) * 0.1 || 1;
+            bubbleCompareYDomain = [Math.floor(minY - yPadding), Math.ceil(maxY + yPadding)];
+          } else {
+            bubbleCompareYDomain = [0, 100]; // Default fallback
+          }
+        }
         
         // Bubble chart uses transformed data with x, y properties
         // Size is based on y value (or a configured sizeField if available)
