@@ -16,6 +16,7 @@ import { useFormAccess } from './FieldPropertiesDialog/hooks/useFormAccess';
 import { useFieldData } from './FieldPropertiesDialog/hooks/useFieldData';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { COUNTRIES } from '@/utils/filterUtils';
 // Import field-specific configuration panels
 import { HeaderFieldConfig, DescriptionFieldConfig, SectionBreakFieldConfig, HorizontalLineFieldConfig, RichTextFieldConfig, FullWidthContainerFieldConfig, DateFieldConfig, TimeFieldConfig, DateTimeFieldConfig, AddressFieldConfig, EmailFieldConfig, UrlFieldConfig, IpAddressFieldConfig, UserPickerFieldConfig, BarcodeFieldConfig, ApprovalFieldConfig, DynamicDropdownFieldConfig, CalculatedFieldConfig, ConditionalSectionFieldConfig, GeoLocationFieldConfig, MatrixGridFieldConfig, PhoneFieldConfig, ColorFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes';
 import { TextFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/TextFieldConfig';
@@ -749,7 +750,7 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
 
 
             {/* General Options - hidden for layout/display-only fields */}
-            {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'file', 'signature', 'record-table', 'matrix-grid', 'cross-reference', 'full-width-container'].includes(fieldForConfig?.type || '') && (
+            {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'file', 'signature', 'record-table', 'matrix-grid', 'cross-reference', 'full-width-container', 'address'].includes(fieldForConfig?.type || '') && (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
@@ -960,6 +961,29 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                               Range: {minVal} to {maxVal} (step: {stepVal})
                             </p>
                           </div>
+                        );
+                      }
+                      
+                      // Country field - show country dropdown
+                      if (fieldType === 'country') {
+                        const currentValue = String(localConfig.defaultValue || '__none__');
+                        return (
+                          <Select 
+                            value={currentValue} 
+                            onValueChange={value => updateField('defaultValue', value === '__none__' ? '' : value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select default country" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background z-50 max-h-[300px]">
+                              <SelectItem value="__none__">No default</SelectItem>
+                              {COUNTRIES.map((country) => (
+                                <SelectItem key={country.code} value={country.code}>
+                                  {country.name} ({country.code})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         );
                       }
                       
