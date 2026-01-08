@@ -49,8 +49,10 @@ export function SelectFieldWithSearch({
   };
 
   const handleClear = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     onChange('');
+    setOpen(false);
   };
 
   return (
@@ -97,10 +99,16 @@ export function SelectFieldWithSearch({
             )}
             <div className="flex items-center gap-1">
               {clearable && value && !disabled && (
-                <X 
-                  className="h-4 w-4 opacity-50 hover:opacity-100 cursor-pointer" 
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="h-4 w-4 flex items-center justify-center opacity-50 hover:opacity-100 cursor-pointer"
                   onClick={handleClear}
-                />
+                  onMouseDown={(e) => e.preventDefault()}
+                  onKeyDown={(e) => e.key === 'Enter' && handleClear(e as any)}
+                >
+                  <X className="h-4 w-4" />
+                </span>
               )}
               <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
             </div>
