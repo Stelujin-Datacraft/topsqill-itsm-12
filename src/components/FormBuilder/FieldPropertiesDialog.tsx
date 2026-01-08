@@ -720,7 +720,147 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="field-default">Default Value</Label>
-                    <Input id="field-default" value={String(localConfig.defaultValue || '')} onChange={e => updateField('defaultValue', e.target.value)} placeholder="Enter default value" />
+                    {/* Render appropriate input based on field type */}
+                    {(() => {
+                      const fieldType = fieldForConfig?.type || '';
+                      const options = fieldForConfig?.options || [];
+                      
+                      // Number field
+                      if (fieldType === 'number' || fieldType === 'currency') {
+                        return (
+                          <Input 
+                            id="field-default" 
+                            type="number"
+                            value={String(localConfig.defaultValue ?? '')} 
+                            onChange={e => updateField('defaultValue', e.target.value ? Number(e.target.value) : '')} 
+                            placeholder="Enter default number" 
+                          />
+                        );
+                      }
+                      
+                      // Date field
+                      if (fieldType === 'date') {
+                        return (
+                          <Input 
+                            id="field-default" 
+                            type="date"
+                            value={String(localConfig.defaultValue || '')} 
+                            onChange={e => updateField('defaultValue', e.target.value)} 
+                          />
+                        );
+                      }
+                      
+                      // Time field
+                      if (fieldType === 'time') {
+                        return (
+                          <Input 
+                            id="field-default" 
+                            type="time"
+                            value={String(localConfig.defaultValue || '')} 
+                            onChange={e => updateField('defaultValue', e.target.value)} 
+                          />
+                        );
+                      }
+                      
+                      // DateTime field
+                      if (fieldType === 'datetime') {
+                        return (
+                          <Input 
+                            id="field-default" 
+                            type="datetime-local"
+                            value={String(localConfig.defaultValue || '')} 
+                            onChange={e => updateField('defaultValue', e.target.value)} 
+                          />
+                        );
+                      }
+                      
+                      // Select/Dropdown field
+                      if (fieldType === 'select' || fieldType === 'radio') {
+                        const optionsArray = Array.isArray(options) ? options : [];
+                        return (
+                          <Select 
+                            value={String(localConfig.defaultValue || '')} 
+                            onValueChange={value => updateField('defaultValue', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select default value" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background z-50">
+                              <SelectItem value="">No default</SelectItem>
+                              {optionsArray.map((opt: any, idx: number) => (
+                                <SelectItem key={idx} value={typeof opt === 'string' ? opt : opt.value || opt.label}>
+                                  {typeof opt === 'string' ? opt : opt.label || opt.value}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        );
+                      }
+                      
+                      // Toggle field
+                      if (fieldType === 'toggle-switch') {
+                        return (
+                          <div className="flex items-center space-x-2">
+                            <Checkbox 
+                              id="field-default-toggle"
+                              checked={localConfig.defaultValue === true || localConfig.defaultValue === 'true'} 
+                              onCheckedChange={checked => updateField('defaultValue', Boolean(checked))} 
+                            />
+                            <Label htmlFor="field-default-toggle" className="text-sm">Default to ON</Label>
+                          </div>
+                        );
+                      }
+                      
+                      // Rating/Slider field
+                      if (fieldType === 'rating' || fieldType === 'slider') {
+                        return (
+                          <Input 
+                            id="field-default" 
+                            type="number"
+                            min={fieldType === 'rating' ? 1 : (localConfig.customConfig?.min || 0)}
+                            max={fieldType === 'rating' ? 5 : (localConfig.customConfig?.max || 100)}
+                            value={String(localConfig.defaultValue ?? '')} 
+                            onChange={e => updateField('defaultValue', e.target.value ? Number(e.target.value) : '')} 
+                            placeholder={fieldType === 'rating' ? 'Enter default rating (1-5)' : 'Enter default value'} 
+                          />
+                        );
+                      }
+                      
+                      // Color field
+                      if (fieldType === 'color') {
+                        return (
+                          <Input 
+                            id="field-default" 
+                            type="color"
+                            value={String(localConfig.defaultValue || '#000000')} 
+                            onChange={e => updateField('defaultValue', e.target.value)} 
+                          />
+                        );
+                      }
+                      
+                      // Textarea field
+                      if (fieldType === 'textarea') {
+                        return (
+                          <Textarea 
+                            id="field-default" 
+                            value={String(localConfig.defaultValue || '')} 
+                            onChange={e => updateField('defaultValue', e.target.value)} 
+                            placeholder="Enter default text"
+                            rows={3}
+                          />
+                        );
+                      }
+                      
+                      // Default: text input for text, email, url, phone, etc.
+                      return (
+                        <Input 
+                          id="field-default" 
+                          value={String(localConfig.defaultValue || '')} 
+                          onChange={e => updateField('defaultValue', e.target.value)} 
+                          placeholder="Enter default value" 
+                        />
+                      );
+                    })()}
                   </div>
 
                   <div className="flex items-center space-x-3">
