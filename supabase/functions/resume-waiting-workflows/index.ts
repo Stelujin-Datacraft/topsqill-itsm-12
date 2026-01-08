@@ -819,8 +819,21 @@ Deno.serve(async (req) => {
                     if (targetField.field_type === 'submission-access') {
                       console.log(`🔐 Processing submission-access field: ${update.targetFieldId}`)
                       console.log(`🔐 Raw value before validation:`, JSON.stringify(newValue))
+                      console.log(`🔐 Target field custom_config type:`, typeof targetField.custom_config)
+                      console.log(`🔐 Target field custom_config:`, JSON.stringify(targetField.custom_config))
                       
-                      const customConfig = (targetField.custom_config as any) || {}
+                      // Parse custom_config if it's a string (shouldn't happen with JSONB, but just in case)
+                      let customConfig: any = targetField.custom_config || {}
+                      if (typeof customConfig === 'string') {
+                        try {
+                          customConfig = JSON.parse(customConfig)
+                          console.log(`🔐 Parsed custom_config from string`)
+                        } catch {
+                          console.log(`⚠️ Could not parse custom_config string`)
+                          customConfig = {}
+                        }
+                      }
+                      
                       const allowedUsers = customConfig.allowedUsers || []
                       const allowedGroups = customConfig.allowedGroups || []
                       
