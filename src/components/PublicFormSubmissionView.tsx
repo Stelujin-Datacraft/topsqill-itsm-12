@@ -43,21 +43,37 @@ export function PublicFormSubmissionView({ form, onSubmit, initialData = {}, isE
   // Initialize field states and form data
   useEffect(() => {
     const initialStates: Record<string, any> = {};
+    const initialFormData: Record<string, any> = {};
+    
     form.fields.forEach(field => {
+      // Check if field is read-only from customConfig
+      const isReadOnly = field.customConfig?.readOnly === true;
+      
       initialStates[field.id] = {
         isVisible: field.isVisible ?? true,
-        isEnabled: field.isEnabled ?? true,
+        isEnabled: isReadOnly ? false : (field.isEnabled ?? true),
         label: field.label,
         options: field.options,
         tooltip: field.tooltip,
         errorMessage: field.errorMessage,
       };
+      
+      // Initialize with default values
+      const booleanFieldTypes = ['checkbox', 'toggle-switch', 'toggle', 'yes-no', 'boolean'];
+      if (booleanFieldTypes.includes(field.type?.toLowerCase() || '')) {
+        initialFormData[field.id] = field.defaultValue !== undefined ? field.defaultValue : false;
+      } else if (field.defaultValue !== undefined && field.defaultValue !== '') {
+        initialFormData[field.id] = field.defaultValue;
+      }
     });
+    
     setFieldStates(initialStates);
     
-    // Update form data with initial data if provided
+    // Merge initial form data with provided initialData (initialData takes precedence)
     if (Object.keys(initialData).length > 0) {
-      setFormData(initialData);
+      setFormData({ ...initialFormData, ...initialData });
+    } else if (Object.keys(initialFormData).length > 0) {
+      setFormData(prev => ({ ...initialFormData, ...prev }));
     }
   }, [form.fields, initialData]);
 

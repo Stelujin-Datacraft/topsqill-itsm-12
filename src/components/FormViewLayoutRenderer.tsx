@@ -85,9 +85,12 @@ export function FormViewLayoutRenderer({
     
     if (Array.isArray(form.fields)) {
       form.fields.forEach(field => {
+        // Check if field is read-only from customConfig
+        const isReadOnly = field.customConfig?.readOnly === true;
+        
         initialStates[field.id] = {
           isVisible: field.isVisible ?? true,
-          isEnabled: field.isEnabled ?? true,
+          isEnabled: isReadOnly ? false : (field.isEnabled ?? true),
           
           label: field.label,
           options: field.options,
@@ -98,7 +101,10 @@ export function FormViewLayoutRenderer({
         // Initialize boolean fields (checkbox, toggle, yes-no) with false if not already set
         const booleanFieldTypes = ['checkbox', 'toggle-switch', 'toggle', 'yes-no', 'boolean'];
         if (booleanFieldTypes.includes(field.type?.toLowerCase() || '')) {
-          initialFormData[field.id] = false;
+          initialFormData[field.id] = field.defaultValue !== undefined ? field.defaultValue : false;
+        } else if (field.defaultValue !== undefined && field.defaultValue !== '') {
+          // Apply default value for other field types
+          initialFormData[field.id] = field.defaultValue;
         }
       });
     }
