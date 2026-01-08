@@ -64,7 +64,7 @@ export function getFieldDefaults(fieldType: FieldType): Record<string, any> {
     },
     'datetime': {
       ...commonDefaults,
-      format: 'YYYY-MM-DD HH:mm',
+      format: 'MM/dd/yyyy hh:mm a',
       autoPopulate: false,
     },
 
