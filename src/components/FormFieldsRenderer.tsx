@@ -495,22 +495,45 @@ case 'submission-access':
           ? new Date().toTimeString().split(' ')[0].slice(0, 5)
           : formData[field.id] || '';
         
+        // Format time display based on 12/24 hour setting
+        const formatTimeDisplay = (value: string) => {
+          if (!value) return '';
+          const timeFormat = timeConfig.format || '24';
+          if (timeFormat === '12') {
+            const [hours, minutes] = value.split(':');
+            const hour = parseInt(hours, 10);
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            const hour12 = hour % 12 || 12;
+            return `${hour12}:${minutes} ${ampm}`;
+          }
+          return value;
+        };
+        
         return (
           <div className="space-y-2">
             <div className="flex items-center">
- <Label htmlFor={field.id}>
+              <Label htmlFor={field.id}>
                 {fieldState.label}
                 {isRequired && <span className="text-red-500 ml-1">*</span>}
-              </Label>              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+              </Label>
+              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
-            <Input
-              id={field.id}
-              type="time"
-              value={timeValue}
-              onChange={(e) => onFieldChange(field.id, e.target.value)}
-              placeholder={field.placeholder}
-              disabled={!fieldState.isEnabled}
-            />
+            <div className="relative">
+              <Input
+                id={field.id}
+                type="time"
+                value={timeValue}
+                onChange={(e) => onFieldChange(field.id, e.target.value)}
+                placeholder={field.placeholder}
+                disabled={!fieldState.isEnabled}
+              />
+              {/* Show formatted time preview for 12-hour format */}
+              {timeValue && (timeConfig.format === '12') && (
+                <div className="text-sm text-muted-foreground mt-1">
+                  Displayed as: {formatTimeDisplay(timeValue)}
+                </div>
+              )}
+            </div>
             {errors[field.id] && (
               <p className="text-sm text-red-500">{errors[field.id]}</p>
             )}
