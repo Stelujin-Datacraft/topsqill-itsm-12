@@ -34,6 +34,7 @@ import { SliderFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/inp
 import { SubmissionAccessFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/access/SubmissionAccessFieldConfig';
 import { ChildCrossReferenceFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/ChildCrossReferenceFieldConfig';
 import { QueryFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/QueryFieldConfig';
+import { RatingFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/specialized/RatingFieldConfig';
 interface FieldPropertiesDialogProps {
   selectedField: FormField | null;
   open: boolean;
@@ -456,7 +457,27 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
 
       // Input Fields
       case 'slider':
-        return <SliderFieldConfig field={fieldForConfig} onConfigChange={config => updateCustomConfig(Object.keys(config)[0], Object.values(config)[0])} />;
+        const sliderField = {
+          ...fieldForConfig,
+          customConfig: localConfig.customConfig || {}
+        };
+        return <SliderFieldConfig field={sliderField} onConfigChange={config => {
+          Object.entries(config).forEach(([key, value]) => {
+            updateCustomConfig(key, value);
+          });
+        }} />;
+
+      // Rating Field
+      case 'rating':
+        const ratingField = {
+          ...fieldForConfig,
+          customConfig: localConfig.customConfig || {}
+        };
+        return <RatingFieldConfig field={ratingField} onConfigChange={config => {
+          Object.entries(config).forEach(([key, value]) => {
+            updateCustomConfig(key, value);
+          });
+        }} />;
 
       // Access Control Fields
       case 'submission-access':
@@ -832,18 +853,70 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                         );
                       }
                       
-                      // Rating/Slider field
-                      if (fieldType === 'rating' || fieldType === 'slider') {
+                      // Checkbox field - single checkbox default
+                      if (fieldType === 'checkbox') {
+                        return (
+                          <div className="flex items-center space-x-2">
+                            <Checkbox 
+                              id="field-default-checkbox"
+                              checked={localConfig.defaultValue === true || localConfig.defaultValue === 'true'} 
+                              onCheckedChange={checked => updateField('defaultValue', Boolean(checked))} 
+                            />
+                            <Label htmlFor="field-default-checkbox" className="text-sm">Checked by default</Label>
+                          </div>
+                        );
+                      }
+                      
+                      // Rating field
+                      if (fieldType === 'rating') {
+                        const ratingScale = localConfig.customConfig?.ratingScale || 5;
                         return (
                           <Input 
                             id="field-default" 
                             type="number"
-                            min={fieldType === 'rating' ? 1 : (localConfig.customConfig?.min || 0)}
-                            max={fieldType === 'rating' ? 5 : (localConfig.customConfig?.max || 100)}
+                            min={1}
+                            max={ratingScale}
                             value={String(localConfig.defaultValue ?? '')} 
                             onChange={e => updateField('defaultValue', e.target.value ? Number(e.target.value) : '')} 
-                            placeholder={fieldType === 'rating' ? 'Enter default rating (1-5)' : 'Enter default value'} 
+                            placeholder={`Enter default rating (1-${ratingScale})`} 
                           />
+                        );
+                      }
+                      
+                      // Slider field - show slider with number input
+                      if (fieldType === 'slider') {
+                        const minVal = localConfig.customConfig?.min ?? 0;
+                        const maxVal = localConfig.customConfig?.max ?? 100;
+                        const stepVal = localConfig.customConfig?.step ?? 1;
+                        const currentVal = Number(localConfig.defaultValue) || minVal;
+                        
+                        return (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-4">
+                              <input
+                                type="range"
+                                min={minVal}
+                                max={maxVal}
+                                step={stepVal}
+                                value={currentVal}
+                                onChange={e => updateField('defaultValue', Number(e.target.value))}
+                                className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer"
+                              />
+                              <Input 
+                                id="field-default" 
+                                type="number"
+                                min={minVal}
+                                max={maxVal}
+                                step={stepVal}
+                                value={String(localConfig.defaultValue ?? '')} 
+                                onChange={e => updateField('defaultValue', e.target.value ? Number(e.target.value) : '')} 
+                                className="w-20"
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Range: {minVal} to {maxVal} (step: {stepVal})
+                            </p>
+                          </div>
                         );
                       }
                       
