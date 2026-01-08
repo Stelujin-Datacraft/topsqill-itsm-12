@@ -239,6 +239,15 @@ export function ChartPreview({
       // Collect ALL linked submissions across all parents for drilldown grouping
       let allLinkedSubmissions: any[] = [];
 
+      // For source grouping: group parents by sourceGroupByFieldId
+      const sourceGroupByField = crossRefConfig.sourceGroupByFieldId;
+      const groupedBySource: Map<string, {
+        groupValue: string;
+        linkedSubmissions: any[];
+        parentIds: string[];
+        parentRefIds: string[];
+      }> = new Map();
+
       submissions.forEach(parentSub => {
         const crossRefValue = parentSub.submission_data?.[crossRefConfig.crossRefFieldId];
         
@@ -279,6 +288,31 @@ export function ChartPreview({
           _parentId: parentSub.id,
           _parentRefId: parentSub.submission_ref_id
         })));
+
+        // If source grouping is enabled, collect by group
+        if (sourceGroupByField && crossRefConfig.mode !== 'compare') {
+          const groupVal = parentSub.submission_data?.[sourceGroupByField];
+          const groupKey = typeof groupVal === 'object' 
+            ? JSON.stringify(groupVal) 
+            : String(groupVal || 'Unknown');
+          
+          if (!groupedBySource.has(groupKey)) {
+            groupedBySource.set(groupKey, {
+              groupValue: groupKey,
+              linkedSubmissions: [],
+              parentIds: [],
+              parentRefIds: []
+            });
+          }
+          
+          const group = groupedBySource.get(groupKey)!;
+          group.linkedSubmissions.push(...linkedSubmissions);
+          group.parentIds.push(parentSub.id);
+          if (parentSub.submission_ref_id) {
+            group.parentRefIds.push(parentSub.submission_ref_id);
+          }
+          return; // Don't process individually when grouping
+        }
 
         if (crossRefConfig.mode === 'count') {
           // Count mode: count linked records
@@ -506,6 +540,141 @@ export function ChartPreview({
           }
         }
       });
+
+      // Process source-grouped data if sourceGroupByField is set
+      if (sourceGroupByField && crossRefConfig.mode !== 'compare' && groupedBySource.size > 0) {
+        groupedBySource.forEach((group, groupKey) => {
+          const linkedSubmissions = group.linkedSubmissions;
+          
+          if (crossRefConfig.mode === 'count') {
+            // Count mode: count total linked records for this group
+            if (crossRefConfig.targetDimensionFieldId) {
+              // Group by dimension within this source group
+              const dimensionCounts: Record<string, number> = {};
+              linkedSubmissions.forEach(sub => {
+                const dimVal = sub.submission_data?.[crossRefConfig.targetDimensionFieldId!] || 'Unknown';
+                const key = typeof dimVal === 'object' ? JSON.stringify(dimVal) : String(dimVal);
+                dimensionCounts[key] = (dimensionCounts[key] || 0) + 1;
+              });
+              
+              Object.entries(dimensionCounts).forEach(([dimVal, count]) => {
+                const dimFieldOptions = targetFieldOptionsLookup.get(crossRefConfig.targetDimensionFieldId!);
+                const optionInfo = dimFieldOptions?.get(dimVal);
+                result.push({
+                  name: `${groupKey} - ${optionInfo?.label || dimVal}`,
+                  value: count,
+                  count: count,
+                  sourceGroup: groupKey,
+                  parentId: group.parentIds[0] || '',
+                  parentRefId: group.parentRefIds[0] || '',
+                  _linkedSubmissionIds: linkedSubmissions.map(s => s.id),
+                  _allParentIds: group.parentIds,
+                  _allParentRefIds: group.parentRefIds,
+                  _optionColor: optionInfo?.color,
+                  _optionImage: optionInfo?.image
+                });
+              });
+            } else {
+              result.push({
+                name: groupKey,
+                value: linkedSubmissions.length,
+                count: linkedSubmissions.length,
+                sourceGroup: groupKey,
+                parentId: group.parentIds[0] || '',
+                parentRefId: group.parentRefIds[0] || '',
+                _linkedSubmissionIds: linkedSubmissions.map(s => s.id),
+                _allParentIds: group.parentIds,
+                _allParentRefIds: group.parentRefIds
+              });
+            }
+          } else if (crossRefConfig.mode === 'aggregate' && crossRefConfig.targetMetricFieldId) {
+            // Aggregate mode: aggregate metric values
+            const aggregation = crossRefConfig.targetAggregation || 'sum';
+            const values = linkedSubmissions
+              .map(sub => {
+                const val = sub.submission_data?.[crossRefConfig.targetMetricFieldId!];
+                if (typeof val === 'number') return val;
+                if (typeof val === 'object' && val?.amount) return Number(val.amount) || 0;
+                return Number(val) || 0;
+              })
+              .filter(v => !isNaN(v));
+
+            let aggregatedValue = 0;
+            if (values.length > 0) {
+              switch (aggregation) {
+                case 'sum':
+                  aggregatedValue = values.reduce((a, b) => a + b, 0);
+                  break;
+                case 'avg':
+                  aggregatedValue = values.reduce((a, b) => a + b, 0) / values.length;
+                  break;
+                case 'min':
+                  aggregatedValue = Math.min(...values);
+                  break;
+                case 'max':
+                  aggregatedValue = Math.max(...values);
+                  break;
+                case 'count':
+                  aggregatedValue = values.length;
+                  break;
+              }
+            }
+
+            if (crossRefConfig.targetDimensionFieldId) {
+              // Group by dimension within this source group
+              const groupedValues: Record<string, number[]> = {};
+              linkedSubmissions.forEach(sub => {
+                const dimVal = sub.submission_data?.[crossRefConfig.targetDimensionFieldId!] || 'Unknown';
+                const key = typeof dimVal === 'object' ? JSON.stringify(dimVal) : String(dimVal);
+                const val = sub.submission_data?.[crossRefConfig.targetMetricFieldId!];
+                const numVal = typeof val === 'number' ? val : (typeof val === 'object' && val?.amount ? Number(val.amount) : Number(val)) || 0;
+                if (!groupedValues[key]) groupedValues[key] = [];
+                groupedValues[key].push(numVal);
+              });
+
+              Object.entries(groupedValues).forEach(([dimVal, vals]) => {
+                let aggVal = 0;
+                if (vals.length > 0) {
+                  switch (aggregation) {
+                    case 'sum': aggVal = vals.reduce((a, b) => a + b, 0); break;
+                    case 'avg': aggVal = vals.reduce((a, b) => a + b, 0) / vals.length; break;
+                    case 'min': aggVal = Math.min(...vals); break;
+                    case 'max': aggVal = Math.max(...vals); break;
+                    case 'count': aggVal = vals.length; break;
+                  }
+                }
+                const dimFieldOptions = targetFieldOptionsLookup.get(crossRefConfig.targetDimensionFieldId!);
+                const optionInfo = dimFieldOptions?.get(dimVal);
+                result.push({
+                  name: `${groupKey} - ${optionInfo?.label || dimVal}`,
+                  value: aggVal,
+                  [crossRefConfig.targetMetricFieldId!]: aggVal,
+                  sourceGroup: groupKey,
+                  parentId: group.parentIds[0] || '',
+                  parentRefId: group.parentRefIds[0] || '',
+                  _linkedSubmissionIds: linkedSubmissions.map(s => s.id),
+                  _allParentIds: group.parentIds,
+                  _allParentRefIds: group.parentRefIds,
+                  _optionColor: optionInfo?.color,
+                  _optionImage: optionInfo?.image
+                });
+              });
+            } else {
+              result.push({
+                name: groupKey,
+                value: aggregatedValue,
+                [crossRefConfig.targetMetricFieldId!]: aggregatedValue,
+                sourceGroup: groupKey,
+                parentId: group.parentIds[0] || '',
+                parentRefId: group.parentRefIds[0] || '',
+                _linkedSubmissionIds: linkedSubmissions.map(s => s.id),
+                _allParentIds: group.parentIds,
+                _allParentRefIds: group.parentRefIds
+              });
+            }
+          }
+        });
+      }
 
       // DRILLDOWN GROUPING: Only group by drilldown field AFTER user has clicked (drilldownValues.length > 0)
       // At level 0 (initial view), show normal chart. Drilldown grouping starts at level 1+

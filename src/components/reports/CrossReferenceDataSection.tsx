@@ -727,8 +727,8 @@ export function CrossReferenceDataSection({
             </div>
           )}
 
-          {/* Optional: Group By Source Field - available for all modes */}
-          {isStep1Complete && sourceGroupByFields.length > 0 && (
+          {/* Optional: Group By Source Field - available for count and aggregate modes only */}
+          {isStep1Complete && sourceGroupByFields.length > 0 && crossRefConfig.mode !== 'compare' && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold bg-muted text-muted-foreground">
@@ -764,7 +764,7 @@ export function CrossReferenceDataSection({
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Aggregate chart data by grouping parent records from <span className="font-medium">{currentFormName}</span>.
+                    Aggregate linked records by grouping parent records from <span className="font-medium">{currentFormName}</span> that share the same value in this field.
                   </p>
                 </div>
               </div>
