@@ -68,24 +68,6 @@ export function CurrencyFieldConfig({ config, onUpdate, errors }: CurrencyFieldC
         />
       </div>
 
-      <div>
-        <Label htmlFor="allowedCurrencies">Allowed Currencies</Label>
-        <Input
-          id="allowedCurrencies"
-          value={config.customConfig?.currencyList?.join(', ') || ''}
-          onChange={(e) => onUpdate({ 
-            customConfig: { 
-              ...config.customConfig, 
-              currencyList: e.target.value.split(',').map(c => c.trim()).filter(c => c) 
-            } 
-          })}
-          placeholder="e.g., USD, EUR, GBP (leave empty for all)"
-        />
-        <p className="text-xs text-gray-500 mt-1">
-          Comma-separated list of currency codes
-        </p>
-      </div>
-
       <div className="space-y-3">
         <div className="flex items-center space-x-2">
           <Checkbox

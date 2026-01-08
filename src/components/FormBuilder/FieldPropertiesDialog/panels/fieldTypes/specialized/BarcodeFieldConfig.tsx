@@ -53,9 +53,6 @@ export function BarcodeFieldConfig({ config, onUpdate, errors }: BarcodeFieldCon
             <SelectContent>
               <SelectItem value="qr">QR Code</SelectItem>
               <SelectItem value="code128">Code 128</SelectItem>
-              <SelectItem value="code39">Code 39</SelectItem>
-              <SelectItem value="ean13">EAN-13</SelectItem>
-              <SelectItem value="ean8">EAN-8</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -80,15 +77,6 @@ export function BarcodeFieldConfig({ config, onUpdate, errors }: BarcodeFieldCon
             onCheckedChange={(checked) => handleConfigChange('showText', checked)}
           />
           <Label htmlFor="showText">Show URL text below barcode</Label>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="scanOnFocus"
-            checked={customConfig.scanOnFocus || false}
-            onCheckedChange={(checked) => handleConfigChange('scanOnFocus', checked)}
-          />
-          <Label htmlFor="scanOnFocus">Enable scanning functionality</Label>
         </div>
       </div>
     </div>

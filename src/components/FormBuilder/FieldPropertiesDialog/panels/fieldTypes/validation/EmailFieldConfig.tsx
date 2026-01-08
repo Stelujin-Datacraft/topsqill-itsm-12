@@ -43,14 +43,6 @@ export function EmailFieldConfig({ config, onUpdate, errors }: EmailFieldConfigP
         />
       </div>
 
-      <div className="flex items-center space-x-2">
-        <Switch
-          id="confirm-email"
-          checked={customConfig.requireConfirmation || false}
-          onCheckedChange={(checked) => handleConfigUpdate('requireConfirmation', checked)}
-        />
-        <Label htmlFor="confirm-email">Require Email Confirmation</Label>
-      </div>
     </div>
   );
 }
