@@ -560,10 +560,13 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                     <Input id="field-label" value={localConfig.label || ''} onChange={e => updateField('label', e.target.value)} placeholder="Enter field label" />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="field-placeholder">Placeholder Text</Label>
-                    <Input id="field-placeholder" value={localConfig.placeholder || ''} onChange={e => updateField('placeholder', e.target.value)} placeholder="Enter placeholder text" />
-                  </div>
+                  {/* Placeholder only shown for text-input fields - NOT for: header, description, section-break, horizontal-line, rich-text, checkbox, radio, multi-select, date, time, datetime, file, signature, rating, slider, toggle, color, record-table, matrix-grid, cross-reference, full-width-container */}
+                  {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'checkbox', 'radio', 'multi-select', 'date', 'time', 'datetime', 'file', 'signature', 'rating', 'slider', 'toggle', 'color', 'record-table', 'matrix-grid', 'cross-reference', 'full-width-container'].includes(fieldForConfig?.type || '') && (
+                    <div className="space-y-2">
+                      <Label htmlFor="field-placeholder">Placeholder Text</Label>
+                      <Input id="field-placeholder" value={localConfig.placeholder || ''} onChange={e => updateField('placeholder', e.target.value)} placeholder="Enter placeholder text" />
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
