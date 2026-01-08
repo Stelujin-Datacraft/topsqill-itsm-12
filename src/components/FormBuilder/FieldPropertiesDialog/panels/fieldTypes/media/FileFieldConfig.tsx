@@ -10,6 +10,20 @@ interface FileFieldConfigProps {
   onConfigChange: (config: Record<string, any>) => void;
 }
 
+const FILE_TYPE_OPTIONS = [
+  { value: '', label: 'All Files' },
+  { value: '.pdf', label: 'PDF Documents (.pdf)' },
+  { value: '.doc,.docx', label: 'Word Documents (.doc, .docx)' },
+  { value: '.xls,.xlsx', label: 'Excel Spreadsheets (.xls, .xlsx)' },
+  { value: '.ppt,.pptx', label: 'PowerPoint (.ppt, .pptx)' },
+  { value: '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx', label: 'All Office Documents' },
+  { value: '.jpg,.jpeg,.png,.gif,.webp', label: 'Images (.jpg, .png, .gif, .webp)' },
+  { value: '.mp4,.avi,.mov,.wmv', label: 'Videos (.mp4, .avi, .mov)' },
+  { value: '.mp3,.wav,.ogg', label: 'Audio (.mp3, .wav, .ogg)' },
+  { value: '.zip,.rar,.7z', label: 'Archives (.zip, .rar, .7z)' },
+  { value: '.txt,.csv', label: 'Text Files (.txt, .csv)' },
+];
+
 export function FileFieldConfig({ field, onConfigChange }: FileFieldConfigProps) {
   const config = field.customConfig || {};
 
@@ -17,73 +31,60 @@ export function FileFieldConfig({ field, onConfigChange }: FileFieldConfigProps)
     <div className="space-y-4">
       <div>
         <Label htmlFor="acceptedTypes">Accepted File Types</Label>
-        <Input
-          id="acceptedTypes"
-          value={(config as any).acceptedTypes || ''}
-          onChange={(e) => onConfigChange({ acceptedTypes: e.target.value })}
-          placeholder="e.g., .pdf,.doc,.docx"
-        />
-        <p className="text-xs text-gray-500 mt-1">
-          Comma-separated file extensions or MIME types
-        </p>
-      </div>
-
-      <div>
-        <Label htmlFor="maxFileSize">Max File Size (MB)</Label>
-        <Input
-          id="maxFileSize"
-          type="number"
-          value={(config as any).maxFileSize || 10}
-          onChange={(e) => onConfigChange({ maxFileSize: parseInt(e.target.value) })}
-          min="1"
-          max="100"
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="uploadMode">Upload Mode</Label>
         <Select
-          value={(config as any).uploadMode || 'single'}
-          onValueChange={(value) => onConfigChange({ uploadMode: value })}
+          value={(config as any).acceptedTypes || ''}
+          onValueChange={(value) => onConfigChange({ acceptedTypes: value })}
         >
           <SelectTrigger>
-            <SelectValue />
+            <SelectValue placeholder="Select file types" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="single">Single File</SelectItem>
-            <SelectItem value="multiple">Multiple Files</SelectItem>
+            {FILE_TYPE_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value || 'all'}>
+                {option.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="showPreview"
-            checked={(config as any).showPreview !== false}
-            onCheckedChange={(checked) => onConfigChange({ showPreview: checked })}
-          />
-          <Label htmlFor="showPreview">Show file preview</Label>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="allowDownload"
-            checked={(config as any).allowDownload !== false}
-            onCheckedChange={(checked) => onConfigChange({ allowDownload: checked })}
-          />
-          <Label htmlFor="allowDownload">Allow file download</Label>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="requireDescription"
-            checked={(config as any).requireDescription || false}
-            onCheckedChange={(checked) => onConfigChange({ requireDescription: checked })}
-          />
-          <Label htmlFor="requireDescription">Require file description</Label>
-        </div>
+      <div>
+        <Label htmlFor="maxFileSizeMB">Max File Size (MB)</Label>
+        <Input
+          id="maxFileSizeMB"
+          type="number"
+          value={(config as any).maxFileSizeMB || 10}
+          onChange={(e) => onConfigChange({ maxFileSizeMB: parseInt(e.target.value) || 10 })}
+          min="1"
+          max="100"
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Files exceeding this size will be rejected
+        </p>
       </div>
+
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="allowMultiple"
+          checked={(config as any).allowMultiple || false}
+          onCheckedChange={(checked) => onConfigChange({ allowMultiple: checked })}
+        />
+        <Label htmlFor="allowMultiple">Allow multiple files</Label>
+      </div>
+
+      {(config as any).allowMultiple && (
+        <div>
+          <Label htmlFor="maxFiles">Maximum Number of Files</Label>
+          <Input
+            id="maxFiles"
+            type="number"
+            value={(config as any).maxFiles || 5}
+            onChange={(e) => onConfigChange({ maxFiles: parseInt(e.target.value) || 5 })}
+            min="2"
+            max="20"
+          />
+        </div>
+      )}
     </div>
   );
 }

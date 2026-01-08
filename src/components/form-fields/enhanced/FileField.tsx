@@ -1,9 +1,9 @@
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { FormField } from '@/types/form';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Upload, File, X } from 'lucide-react';
+import { Upload, File, X, AlertCircle } from 'lucide-react';
 
 interface FileFieldProps {
   field: FormField;
@@ -16,25 +16,52 @@ interface FileFieldProps {
 export function FileField({ field, value = [], onChange, error, disabled }: FileFieldProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const config = field.customConfig || {};
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  const maxSizeMB = config.maxFileSizeMB || 10;
+  const maxSize = maxSizeMB * 1024 * 1024;
+  const maxFiles = config.maxFiles || (config.allowMultiple ? 5 : 1);
+
+  const getAcceptTypes = () => {
+    const types = config.acceptedTypes;
+    if (!types || types === 'all') return undefined;
+    return types;
+  };
 
   const handleFileSelect = (files: FileList | null) => {
     if (!files) return;
+    setValidationError(null);
     
     const newFiles = Array.from(files);
-    const maxFiles = config.maxFiles || 1;
-    const maxSize = (config.maxFileSizeMB || 10) * 1024 * 1024;
+    const rejectedFiles: string[] = [];
     
     // Filter files by size and type
     const validFiles = newFiles.filter(file => {
-      if (file.size > maxSize) return false;
-      if (config.acceptedTypes) {
-        const types = config.acceptedTypes.split(',').map((t: string) => t.trim());
-        return types.some((type: string) => 
-          file.type.match(type) || file.name.toLowerCase().endsWith(type.toLowerCase())
+      // Check file size
+      if (file.size > maxSize) {
+        rejectedFiles.push(`${file.name} exceeds ${maxSizeMB}MB limit`);
+        return false;
+      }
+      
+      // Check file type
+      const acceptedTypes = config.acceptedTypes;
+      if (acceptedTypes && acceptedTypes !== 'all') {
+        const types = acceptedTypes.split(',').map((t: string) => t.trim().toLowerCase());
+        const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
+        const isValidType = types.some((type: string) => 
+          fileExt === type.toLowerCase() || file.type.includes(type.replace('.', ''))
         );
+        if (!isValidType) {
+          rejectedFiles.push(`${file.name} is not an accepted file type`);
+          return false;
+        }
       }
       return true;
     });
+    
+    if (rejectedFiles.length > 0) {
+      setValidationError(rejectedFiles.join('. '));
+    }
     
     const finalFiles = config.allowMultiple 
       ? [...value, ...validFiles].slice(0, maxFiles)
@@ -63,7 +90,7 @@ export function FileField({ field, value = [], onChange, error, disabled }: File
           type="file"
           id={field.id}
           onChange={(e) => handleFileSelect(e.target.files)}
-          accept={config.acceptedTypes}
+          accept={getAcceptTypes()}
           multiple={config.allowMultiple}
           disabled={disabled}
           className="hidden"
@@ -82,10 +109,16 @@ export function FileField({ field, value = [], onChange, error, disabled }: File
           Select Files
         </Button>
         
-        {config.maxFileSizeMB && (
-          <p className="text-xs text-gray-500 mt-2">
-            Max file size: {config.maxFileSizeMB}MB
-          </p>
+        <p className="text-xs text-muted-foreground mt-2">
+          Max file size: {maxSizeMB}MB
+          {config.allowMultiple && ` • Max ${maxFiles} files`}
+        </p>
+        
+        {validationError && (
+          <div className="flex items-center gap-1 mt-2 text-destructive">
+            <AlertCircle className="h-3 w-3" />
+            <p className="text-xs">{validationError}</p>
+          </div>
         )}
       </div>
       
