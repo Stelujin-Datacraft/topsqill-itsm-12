@@ -170,12 +170,15 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
     }
   };
 
-  const openInMaps = () => {
+  const openInMaps = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (!currentLocation) return;
     
     const { latitude, longitude } = currentLocation;
     const url = `https://www.google.com/maps?q=${latitude},${longitude}`;
-    window.open(url, '_blank');
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   return (
