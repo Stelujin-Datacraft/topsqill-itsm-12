@@ -596,6 +596,10 @@ case 'text':
 
 
 case 'textarea':
+  const textareaPattern = field.validation?.pattern;
+  const textareaValue = formData[field.id] ?? '';
+  const textareaPatternValid = !textareaPattern || !textareaValue || new RegExp(textareaPattern).test(textareaValue);
+  
   return (
     <div className="space-y-2">
       <div className="flex items-center">
@@ -607,10 +611,10 @@ case 'textarea':
       </div>
       <Textarea
         id={field.id}
-        value={formData[field.id] ?? ''}
+        value={textareaValue}
         placeholder={field.placeholder}
         disabled={!fieldState.isEnabled}
-        maxLength={field.validation?.maxLength} // Prevent typing beyond max length
+        maxLength={field.validation?.maxLength}
         onChange={(e) => onFieldChange(field.id, e.target.value)}
       />
 
@@ -621,6 +625,13 @@ case 'textarea':
             Minimum length is {field.validation.minLength} characters
           </p>
         )}
+
+      {/* Pattern validation error */}
+      {textareaPattern && textareaValue && !textareaPatternValid && (
+        <p className="text-sm text-red-500">
+          {field.validation?.message || 'Value does not match the required pattern'}
+        </p>
+      )}
 
       {errors[field.id] && (
         <p className="text-sm text-red-500">{errors[field.id]}</p>
