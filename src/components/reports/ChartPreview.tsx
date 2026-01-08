@@ -2601,27 +2601,13 @@ export function ChartPreview({
     };
 
     // Check if we should show parent separators
+    // Check both config and data flag (data flag is set during cross-ref processing)
+    const hasShowRecordsSeparatelyInData = sanitizedChartData.some(d => d._showRecordsSeparately === true);
     const showParentSeparators = config.crossRefConfig?.enabled && 
-      config.crossRefConfig?.showRecordsSeparately && 
-      config.crossRefConfig?.mode === 'compare';
+      config.crossRefConfig?.mode === 'compare' &&
+      (config.crossRefConfig?.showRecordsSeparately || hasShowRecordsSeparatelyInData);
     
     const parentSeparators = showParentSeparators ? getParentSeparatorPositions(sanitizedChartData) : [];
-    
-    // Debug: log separator info
-    if (config.crossRefConfig?.enabled && config.crossRefConfig?.mode === 'compare') {
-      console.log('📊 Separator debug:', {
-        showParentSeparators,
-        showRecordsSeparately: config.crossRefConfig?.showRecordsSeparately,
-        mode: config.crossRefConfig?.mode,
-        dataLength: sanitizedChartData.length,
-        parentSeparatorsCount: parentSeparators.length,
-        sampleParentIds: sanitizedChartData.slice(0, 4).map(d => ({
-          parentId: d.parentId,
-          parentRefId: d.parentRefId,
-          parentDisplayName: d.parentDisplayName
-        }))
-      });
-    }
 
 
     let primaryMetric = 'value'; // Default fallback
