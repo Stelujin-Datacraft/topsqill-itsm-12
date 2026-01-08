@@ -58,15 +58,6 @@ export function TimeFieldConfig({ config, onUpdate, errors }: TimeFieldConfigPro
         </Select>
       </div>
 
-      <div>
-        <Label htmlFor="default-time">Default Time</Label>
-        <Input
-          id="default-time"
-          type="time"
-          value={customConfig.defaultTime || ''}
-          onChange={(e) => handleConfigUpdate('defaultTime', e.target.value)}
-        />
-      </div>
     </div>
   );
 }
