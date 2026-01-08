@@ -4707,7 +4707,30 @@ export function ChartPreview({
                   />
                   
                   {/* Parent separator lines for cross-ref "show records separately" mode */}
-                  {showParentSeparators && scatterTransformedData.length > 0 && (() => {
+                  {(() => {
+                    // Debug: always log for scatter cross-ref charts
+                    const isCrossRef = config.crossRefConfig?.enabled && config.crossRefConfig?.mode === 'compare';
+                    
+                    if (isCrossRef) {
+                      console.log('📊 Scatter chart separator check:', {
+                        showParentSeparators,
+                        dataLength: scatterTransformedData.length,
+                        firstItemParentId: scatterTransformedData[0]?.parentId,
+                        firstItemParentRefId: scatterTransformedData[0]?.parentRefId,
+                        sampleData: scatterTransformedData.slice(0, 5).map(d => ({
+                          name: d.name,
+                          x: d.x,
+                          parentId: d.parentId,
+                          parentRefId: d.parentRefId,
+                          parentDisplayName: d.parentDisplayName
+                        }))
+                      });
+                    }
+                    
+                    if (!showParentSeparators || scatterTransformedData.length === 0) {
+                      return null;
+                    }
+                    
                     // For scatter, calculate x positions where parent changes
                     const scatterSeparators: { x: number; label: string }[] = [];
                     let lastParentId = scatterTransformedData[0]?.parentRefId || scatterTransformedData[0]?.parentId || '';
@@ -4725,19 +4748,21 @@ export function ChartPreview({
                       }
                     }
                     
+                    console.log('📊 Scatter separators calculated:', scatterSeparators);
+                    
                     return scatterSeparators.map((sep, idx) => (
                       <ReferenceLine
                         key={`scatter-parent-sep-${idx}`}
                         x={sep.x}
-                        stroke="hsl(var(--border))"
-                        strokeWidth={2}
-                        strokeDasharray="4 4"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={3}
+                        strokeDasharray="6 4"
                         label={{
                           value: sep.label,
                           position: 'top',
-                          fill: 'hsl(var(--muted-foreground))',
-                          fontSize: 10,
-                          fontWeight: 500
+                          fill: 'hsl(var(--foreground))',
+                          fontSize: 11,
+                          fontWeight: 600
                         }}
                       />
                     ));
