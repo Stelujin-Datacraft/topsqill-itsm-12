@@ -707,53 +707,6 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
               </Card>
              )} */}
 
-            {/* Number Field Configuration */}
-            {fieldType === 'number' && <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                    Number Configuration
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="number-min">Minimum Value</Label>
-                      <Input id="number-min" type="number" value={localConfig.validation?.min || ''} onChange={e => updateValidation('min', e.target.value ? Number(e.target.value) : undefined)} />
-                    </div>
-                    {/* <div className="space-y-2">
-                      <Label htmlFor="number-max">Maximum Value</Label>
-                      <Input id="number-max" type="number" value={localConfig.validation?.max || ''} onChange={e => updateValidation('max', e.target.value ? Number(e.target.value) : undefined)} />
-                    </div> */}
-                    <div className="space-y-2">
-                      <Label htmlFor="number-step">Step</Label>
-                      <Input id="number-step" type="number" step="0.01" value={localConfig.customConfig?.step || 1} onChange={e => updateCustomConfig('step', Number(e.target.value))} />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>}
-
-            {/* Text Field Configuration */}
-            {fieldType === 'text' && <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                    Text Configuration
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="text-min-length">Minimum Length</Label>
-                      <Input id="text-min-length" type="number" value={localConfig.validation?.minLength || ''} onChange={e => updateValidation('minLength', e.target.value ? Number(e.target.value) : undefined)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="text-max-length">Maximum Length</Label>
-                      <Input id="text-max-length" type="number" value={localConfig.validation?.maxLength || ''} onChange={e => updateValidation('maxLength', e.target.value ? Number(e.target.value) : undefined)} />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>}
 
             {/* General Options - hidden for layout/display-only fields */}
             {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'file', 'signature', 'record-table', 'matrix-grid', 'cross-reference', 'full-width-container'].includes(fieldForConfig?.type || '') && (
