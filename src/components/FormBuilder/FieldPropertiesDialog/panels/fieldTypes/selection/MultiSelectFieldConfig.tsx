@@ -83,11 +83,16 @@ export function MultiSelectFieldConfig({ field, onConfigChange }: MultiSelectFie
           <Input
             id="maxSelections"
             type="number"
-            value={config.maxSelections || ''}
-            onChange={(e) => onConfigChange({ 
-              ...config, 
-              maxSelections: e.target.value ? parseInt(e.target.value) : undefined 
-            })}
+            value={config.maxSelections ?? ''}
+            onChange={(e) => {
+              const val = e.target.value;
+              onConfigChange({ 
+                ...config, 
+                maxSelections: val === '' ? undefined : parseInt(val, 10)
+              });
+            }}
+            onKeyDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
             placeholder="Leave empty for unlimited"
             min="1"
           />
