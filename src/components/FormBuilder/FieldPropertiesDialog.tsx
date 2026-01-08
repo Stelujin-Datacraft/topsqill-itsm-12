@@ -750,7 +750,7 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
 
 
             {/* General Options - hidden for layout/display-only fields */}
-            {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'file', 'signature', 'record-table', 'matrix-grid', 'cross-reference', 'full-width-container', 'address'].includes(fieldForConfig?.type || '') && (
+            {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'file', 'signature', 'record-table', 'matrix-grid', 'cross-reference', 'full-width-container', 'address', 'currency', 'multi-select'].includes(fieldForConfig?.type || '') && (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
