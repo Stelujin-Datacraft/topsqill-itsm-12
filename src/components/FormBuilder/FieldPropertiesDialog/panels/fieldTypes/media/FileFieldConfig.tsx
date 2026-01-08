@@ -11,7 +11,7 @@ interface FileFieldConfigProps {
 }
 
 const FILE_TYPE_OPTIONS = [
-  { value: '', label: 'All Files' },
+  { value: 'all', label: 'All Files' },
   { value: '.pdf', label: 'PDF Documents (.pdf)' },
   { value: '.doc,.docx', label: 'Word Documents (.doc, .docx)' },
   { value: '.xls,.xlsx', label: 'Excel Spreadsheets (.xls, .xlsx)' },
@@ -32,7 +32,7 @@ export function FileFieldConfig({ field, onConfigChange }: FileFieldConfigProps)
       <div>
         <Label htmlFor="acceptedTypes">Accepted File Types</Label>
         <Select
-          value={(config as any).acceptedTypes || ''}
+          value={(config as any).acceptedTypes || 'all'}
           onValueChange={(value) => onConfigChange({ acceptedTypes: value })}
         >
           <SelectTrigger>
@@ -40,7 +40,7 @@ export function FileFieldConfig({ field, onConfigChange }: FileFieldConfigProps)
           </SelectTrigger>
           <SelectContent>
             {FILE_TYPE_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value || 'all'}>
+              <SelectItem key={option.value} value={option.value}>
                 {option.label}
               </SelectItem>
             ))}
