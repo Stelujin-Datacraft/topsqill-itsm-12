@@ -708,8 +708,8 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
              )} */}
 
 
-            {/* General Options - hidden for layout/display-only fields */}
-            {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'file', 'signature', 'record-table', 'matrix-grid', 'cross-reference', 'full-width-container'].includes(fieldForConfig?.type || '') && (
+            {/* General Options - hidden for layout/display-only fields and time field */}
+            {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'file', 'signature', 'record-table', 'matrix-grid', 'cross-reference', 'full-width-container', 'time'].includes(fieldForConfig?.type || '') && (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
