@@ -11,7 +11,7 @@ interface FilterCondition {
 }
 
 // Country list for mapping codes to names
-const COUNTRIES: { code: string; name: string }[] = [
+export const COUNTRIES: { code: string; name: string }[] = [
   { code: 'AF', name: 'Afghanistan' }, { code: 'AL', name: 'Albania' }, { code: 'DZ', name: 'Algeria' },
   { code: 'AD', name: 'Andorra' }, { code: 'AO', name: 'Angola' }, { code: 'AR', name: 'Argentina' },
   { code: 'AM', name: 'Armenia' }, { code: 'AU', name: 'Australia' }, { code: 'AT', name: 'Austria' },

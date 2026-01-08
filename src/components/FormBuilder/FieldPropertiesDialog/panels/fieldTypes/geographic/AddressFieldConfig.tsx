@@ -41,24 +41,6 @@ export function AddressFieldConfig({ config, onUpdate, errors }: AddressFieldCon
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center space-x-2">
-        <Switch
-          id="gps-autofill"
-          checked={customConfig.enableGPS || false}
-          onCheckedChange={(checked) => handleConfigUpdate('enableGPS', checked)}
-        />
-        <Label htmlFor="gps-autofill">Enable GPS Auto-fill</Label>
-      </div>
-
-      <div className="flex items-center space-x-2">
-        <Switch
-          id="postal-autofill"
-          checked={customConfig.postalAutoFill || false}
-          onCheckedChange={(checked) => handleConfigUpdate('postalAutoFill', checked)}
-        />
-        <Label htmlFor="postal-autofill">Auto-fill from Postal Code</Label>
-      </div>
-
       <div>
         <Label>Visible Address Fields</Label>
         <div className="grid grid-cols-2 gap-2 mt-2">
@@ -70,7 +52,7 @@ export function AddressFieldConfig({ config, onUpdate, errors }: AddressFieldCon
                 onCheckedChange={(checked) => handleFieldToggle(field.id, checked as boolean)}
                 disabled={field.required}
               />
-              <Label htmlFor={field.id} className={field.required ? 'text-gray-500' : ''}>
+              <Label htmlFor={field.id} className={field.required ? 'text-muted-foreground' : ''}>
                 {field.label}
                 {field.required && ' (Required)'}
               </Label>
