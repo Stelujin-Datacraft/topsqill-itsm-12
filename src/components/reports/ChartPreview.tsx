@@ -4687,24 +4687,11 @@ export function ChartPreview({
                     const scatterSeparators: { x: number; label: string }[] = [];
                     let lastParentId = scatterTransformedData[0]?.parentRefId || scatterTransformedData[0]?.parentId || '';
                     
-                    console.log('📊 Scatter separator check:', {
-                      showParentSeparators,
-                      dataLength: scatterTransformedData.length,
-                      firstItemParent: scatterTransformedData[0]?.parentRefId || scatterTransformedData[0]?.parentId,
-                      sampleData: scatterTransformedData.slice(0, 3).map(d => ({
-                        name: d.name,
-                        parentId: d.parentId,
-                        parentRefId: d.parentRefId,
-                        parentDisplayName: d.parentDisplayName
-                      }))
-                    });
-                    
                     for (let i = 1; i < scatterTransformedData.length; i++) {
                       const currentParentId = scatterTransformedData[i]?.parentRefId || scatterTransformedData[i]?.parentId || '';
                       const currentParentName = scatterTransformedData[i]?.parentDisplayName || '';
                       
                       if (currentParentId !== lastParentId && currentParentId) {
-                        // Get x position between current and previous point
                         const prevX = scatterTransformedData[i - 1]?.x ?? i - 1;
                         const currX = scatterTransformedData[i]?.x ?? i;
                         const midX = (prevX + currX) / 2;
@@ -4712,8 +4699,6 @@ export function ChartPreview({
                         lastParentId = currentParentId;
                       }
                     }
-                    
-                    console.log('📊 Scatter separators found:', scatterSeparators);
                     
                     return scatterSeparators.map((sep, idx) => (
                       <ReferenceLine
