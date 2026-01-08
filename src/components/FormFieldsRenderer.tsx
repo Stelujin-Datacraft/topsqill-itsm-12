@@ -519,24 +519,20 @@ case 'submission-access':
               </Label>
               <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
-            {/* Show formatted time display instead of native time input for better format control */}
-            <div className="flex items-center gap-2">
-              <Input
-                id={field.id}
-                type="time"
-                value={timeValue}
-                onChange={(e) => onFieldChange(field.id, e.target.value)}
-                placeholder={field.placeholder}
-                disabled={!fieldState.isEnabled}
-                className="flex-1"
-              />
-              {/* Show formatted preview */}
-              {timeValue && (
-                <span className="text-sm font-medium min-w-[80px]">
-                  {formatTimeDisplay(timeValue)}
-                </span>
-              )}
-            </div>
+            <Input
+              id={field.id}
+              type="time"
+              value={timeValue}
+              onChange={(e) => onFieldChange(field.id, e.target.value)}
+              placeholder={field.placeholder}
+              disabled={!fieldState.isEnabled}
+            />
+            {/* Show formatted preview below */}
+            {timeValue && (
+              <p className="text-sm text-muted-foreground">
+                Displayed as: {formatTimeDisplay(timeValue)}
+              </p>
+            )}
             {errors[field.id] && (
               <p className="text-sm text-red-500">{errors[field.id]}</p>
             )}
