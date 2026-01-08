@@ -723,7 +723,8 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                     {/* Render appropriate input based on field type */}
                     {(() => {
                       const fieldType = fieldForConfig?.type || '';
-                      const options = fieldForConfig?.options || [];
+                      // Use localConfig.options for real-time updates, fallback to fieldForConfig.options
+                      const options = localConfig.options || fieldForConfig?.options || [];
                       
                       // Number field
                       if (fieldType === 'number' || fieldType === 'currency') {
