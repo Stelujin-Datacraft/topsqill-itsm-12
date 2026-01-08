@@ -459,7 +459,15 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
       case 'color':
         return <ColorFieldConfig field={fieldForConfig} onConfigChange={config => updateCustomConfig(Object.keys(config)[0], Object.values(config)[0])} />;
       case 'file':
-        return <FileFieldConfig field={fieldForConfig} onConfigChange={config => updateCustomConfig(Object.keys(config)[0], Object.values(config)[0])} />;
+        const fileField = {
+          ...fieldForConfig,
+          customConfig: localConfig.customConfig || {}
+        };
+        return <FileFieldConfig field={fileField} onConfigChange={config => {
+          Object.entries(config).forEach(([key, value]) => {
+            updateCustomConfig(key, value);
+          });
+        }} />;
 
       // Input Fields
       case 'slider':
