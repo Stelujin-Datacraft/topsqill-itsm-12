@@ -59,7 +59,7 @@ export function getFieldDefaults(fieldType: FieldType): Record<string, any> {
     },
     'time': {
       ...commonDefaults,
-      format: '24h',
+      format: '24',
       showSeconds: false,
     },
     'datetime': {
