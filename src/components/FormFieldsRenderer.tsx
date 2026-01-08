@@ -549,6 +549,10 @@ case 'submission-access':
 
       // Keep all existing field types
 case 'text':
+  const textPattern = field.validation?.pattern;
+  const textValue = formData[field.id] ?? '';
+  const patternValid = !textPattern || !textValue || new RegExp(textPattern).test(textValue);
+  
   return (
     <div className="space-y-2">
       <div className="flex items-center">
@@ -561,10 +565,11 @@ case 'text':
       <Input
         id={field.id}
         type="text"
-        value={formData[field.id] ?? ''}
+        value={textValue}
         placeholder={field.placeholder}
         disabled={!fieldState.isEnabled}
-        maxLength={field.validation?.maxLength} // Prevent typing beyond max length
+        maxLength={field.validation?.maxLength}
+        pattern={textPattern}
         onChange={(e) => onFieldChange(field.id, e.target.value)}
       />
 
@@ -575,6 +580,13 @@ case 'text':
             Minimum length is {field.validation.minLength} characters
           </p>
         )}
+
+      {/* Pattern validation error */}
+      {textPattern && textValue && !patternValid && (
+        <p className="text-sm text-red-500">
+          {field.validation?.message || 'Value does not match the required pattern'}
+        </p>
+      )}
 
       {errors[field.id] && (
         <p className="text-sm text-red-500">{errors[field.id]}</p>
