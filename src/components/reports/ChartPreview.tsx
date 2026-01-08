@@ -103,19 +103,26 @@ export function ChartPreview({
     fetchFieldsDirectly();
   }, [config.formId, hasFormFields, getFormFields]);
 
+  // Use refs to avoid re-computing caches on every forms change
+  const formsRef = useRef(forms);
+  formsRef.current = forms;
+  
+  // Stable form IDs key to only recompute when forms list actually changes
+  const formsKey = useMemo(() => forms.map(f => f.id).join(','), [forms]);
+  
   // Memoized lookup maps for form and field names (performance optimization)
   const formNameCache = useMemo(() => {
     const cache = new Map<string, string>();
-    forms.forEach(f => cache.set(f.id, f.name));
+    formsRef.current.forEach(f => cache.set(f.id, f.name));
     return cache;
-  }, [forms]);
+  }, [formsKey]);
 
   const fieldNameCache = useMemo(() => {
     const cache = new Map<string, string>();
-    // Add fields from current form
+    // Add fields from current form first (priority)
     formFields.forEach(f => cache.set(f.id, f.label || f.id));
-    // Add fields from all forms
-    forms.forEach(form => {
+    // Add fields from all forms (only if not already cached)
+    formsRef.current.forEach(form => {
       form.fields?.forEach((f: any) => {
         if (!cache.has(f.id)) {
           cache.set(f.id, f.label || f.id);
@@ -123,7 +130,7 @@ export function ChartPreview({
       });
     });
     return cache;
-  }, [formFields, forms]);
+  }, [formFields, formsKey]);
 
   // Helper functions to get form and field names with caching
   const getFormName = (formId: string): string => {
@@ -994,13 +1001,42 @@ export function ChartPreview({
       crossRefDrilldownLevels: config.crossRefConfig?.drilldownLevels,
       chartType: config.chartType || config.type,
     });
-  }, [config, drilldownState?.values]);
+  }, [
+    config.formId,
+    config.dimensions,
+    config.metrics,
+    config.filters,
+    config.xAxis,
+    config.yAxis,
+    config.aggregation,
+    config.aggregationType,
+    config.groupByField,
+    config.drilldownConfig?.enabled,
+    config.drilldownConfig?.drilldownLevels,
+    config.drilldownConfig?.levels,
+    config.crossRefConfig?.enabled,
+    config.crossRefConfig?.crossRefFieldId,
+    config.crossRefConfig?.mode,
+    config.crossRefConfig?.targetMetricFieldId,
+    config.crossRefConfig?.targetDimensionFieldId,
+    config.crossRefConfig?.drilldownEnabled,
+    config.crossRefConfig?.drilldownLevels,
+    config.chartType,
+    config.type,
+    drilldownState?.values
+  ]);
 
   // Track the current load request to prevent race conditions
   const loadRequestRef = useRef(0);
   const isInitialLoadRef = useRef(true);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    // Clear any pending debounce timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
     const currentLoadRequest = ++loadRequestRef.current;
     
     const loadChartData = async () => {
@@ -1205,7 +1241,20 @@ export function ChartPreview({
         }
       }
     };
-    loadChartData();
+    
+    // Debounce data loading to prevent rapid re-fetches (100ms delay for non-initial loads)
+    if (isInitialLoadRef.current) {
+      loadChartData();
+    } else {
+      debounceTimerRef.current = setTimeout(loadChartData, 100);
+    }
+    
+    // Cleanup on unmount or before next effect
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
   // Use stable configDependencyKey instead of individual array/object dependencies
   }, [configDependencyKey, getFormSubmissionData, getChartData]);
   const processSubmissionData = (submissions: any[]) => {
