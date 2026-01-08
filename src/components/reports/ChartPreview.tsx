@@ -2606,6 +2606,22 @@ export function ChartPreview({
       config.crossRefConfig?.mode === 'compare';
     
     const parentSeparators = showParentSeparators ? getParentSeparatorPositions(sanitizedChartData) : [];
+    
+    // Debug: log separator info
+    if (config.crossRefConfig?.enabled && config.crossRefConfig?.mode === 'compare') {
+      console.log('📊 Separator debug:', {
+        showParentSeparators,
+        showRecordsSeparately: config.crossRefConfig?.showRecordsSeparately,
+        mode: config.crossRefConfig?.mode,
+        dataLength: sanitizedChartData.length,
+        parentSeparatorsCount: parentSeparators.length,
+        sampleParentIds: sanitizedChartData.slice(0, 4).map(d => ({
+          parentId: d.parentId,
+          parentRefId: d.parentRefId,
+          parentDisplayName: d.parentDisplayName
+        }))
+      });
+    }
 
 
     let primaryMetric = 'value'; // Default fallback
