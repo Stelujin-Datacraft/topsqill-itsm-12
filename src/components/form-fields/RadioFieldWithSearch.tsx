@@ -3,8 +3,9 @@ import { FormField } from '@/types/form';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { HelpTooltip } from '@/components/ui/help-tooltip';
+import { Button } from '@/components/ui/button';
 
 interface RadioFieldWithSearchProps {
   field: FormField;
@@ -31,6 +32,7 @@ export function RadioFieldWithSearch({
   const options = fieldState?.options || field.options || [];
   const config = field.customConfig || {};
   const orientation = config.orientation || 'vertical';
+  const clearable = config.clearable || false;
   
   const filteredOptions = options.filter(option =>
     option.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -39,14 +41,32 @@ export function RadioFieldWithSearch({
 
   const hasScrollbar = filteredOptions.length > 7;
 
+  const handleClear = () => {
+    onChange('');
+  };
+
   return (
     <div className="space-y-2">
-      <div className="flex items-center">
-        <Label>
-          {fieldState.label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-        </Label>
-        <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center">
+          <Label>
+            {fieldState.label}
+            {required && <span className="text-red-500 ml-1">*</span>}
+          </Label>
+          <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+        </div>
+        {clearable && value && !disabled && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleClear}
+            className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3 w-3 mr-1" />
+            Clear
+          </Button>
+        )}
       </div>
       
       {/* Search Input */}

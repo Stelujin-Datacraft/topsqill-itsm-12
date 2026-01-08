@@ -1,19 +1,19 @@
-
 import React from 'react';
-import { FieldConfiguration } from '../../../hooks/useFieldConfiguration';
+import { FormField } from '@/types/form';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Trash2, GripVertical } from 'lucide-react';
+import { EnhancedOptionConfig } from '../EnhancedOptionConfig';
+import { Settings2 } from 'lucide-react';
 
 interface MultiSelectFieldConfigProps {
-  config: FieldConfiguration;
-  onUpdate: (updates: Partial<FieldConfiguration>) => void;
-  errors: Record<string, string>;
+  field: FormField;
+  onConfigChange: (config: Record<string, any>) => void;
 }
 
-export function MultiSelectFieldConfig({ config, onUpdate, errors }: MultiSelectFieldConfigProps) {
+export function MultiSelectFieldConfig({ field, onConfigChange }: MultiSelectFieldConfigProps) {
+  const config = (field.customConfig || {}) as Record<string, any>;
+
   // Ensure options is always an array
   const ensureOptionsArray = (opts: any): any[] => {
     if (Array.isArray(opts)) return opts;
@@ -27,105 +27,73 @@ export function MultiSelectFieldConfig({ config, onUpdate, errors }: MultiSelect
     }
     return [];
   };
-  
-  const options = ensureOptionsArray(config.options);
 
-  const handleOptionChange = (index: number, key: string, value: string) => {
-    const newOptions = [...options];
-    newOptions[index] = { ...newOptions[index], [key]: value };
-    onUpdate({ options: newOptions });
-  };
+  const options = ensureOptionsArray(field.options ?? []);
 
-  const addOption = () => {
-    const newOptions = [...options, { id: `option_${Date.now()}`, value: '', label: '' }];
-    onUpdate({ options: newOptions });
-  };
-
-  const removeOption = (index: number) => {
-    const newOptions = options.filter((_, i) => i !== index);
-    onUpdate({ options: newOptions });
+  const handleOptionsChange = (newOptions: any[]) => {
+    onConfigChange({ ...config, options: newOptions });
   };
 
   return (
     <div className="space-y-4">
-      <div>
-        <Label className="text-sm font-medium">Options</Label>
-        <div className="space-y-2 mt-2">
-          {options.map((option, index) => (
-            <div key={option.id || index} className="flex items-center gap-2 p-2 border rounded">
-              <GripVertical className="h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Value"
-                value={option.value || ''}
-                onChange={(e) => handleOptionChange(index, 'value', e.target.value)}
-                className="flex-1"
-              />
-              <Input
-                placeholder="Label"
-                value={option.label || ''}
-                onChange={(e) => handleOptionChange(index, 'label', e.target.value)}
-                className="flex-1"
-              />
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => removeOption(index)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-          <Button onClick={addOption} variant="outline" size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Option
-          </Button>
-        </div>
-      </div>
+      {/* Options Configuration - Same as Dropdown */}
+      <EnhancedOptionConfig
+        options={options}
+        onChange={handleOptionsChange}
+        fieldType="multi-select"
+      />
 
-      <div>
-        <Label htmlFor="maxSelections">Maximum Selections</Label>
-        <Input
-          id="maxSelections"
-          type="number"
-          value={config.customConfig?.maxSelections || ''}
-          onChange={(e) => onUpdate({ 
-            customConfig: { 
-              ...config.customConfig, 
-              maxSelections: parseInt(e.target.value) || undefined 
-            } 
-          })}
-          placeholder="Leave empty for unlimited"
-          min="1"
-        />
-      </div>
-
+      {/* General Options Section */}
       <div className="space-y-3">
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="allowOther"
-            checked={config.customConfig?.allowOther || false}
-            onCheckedChange={(checked) => onUpdate({ 
-              customConfig: { 
-                ...config.customConfig, 
-                allowOther: Boolean(checked) 
-              } 
-            })}
-          />
-          <Label htmlFor="allowOther">Allow "Other" option</Label>
+        <div className="flex items-center gap-2 pb-2 border-b">
+          <Settings2 className="h-4 w-4 text-muted-foreground" />
+          <h4 className="font-medium text-sm">General Options</h4>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="searchable"
-            checked={config.customConfig?.searchable !== false}
-            onCheckedChange={(checked) => onUpdate({ 
-              customConfig: { 
-                ...config.customConfig, 
-                searchable: Boolean(checked) 
-              } 
+        <div className="space-y-3 pl-1">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="searchable"
+              checked={config.searchable !== false}
+              onCheckedChange={(checked) => onConfigChange({ ...config, searchable: checked })}
+            />
+            <Label htmlFor="searchable">Enable search</Label>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="allowOther"
+              checked={config.allowOther || false}
+              onCheckedChange={(checked) => onConfigChange({ ...config, allowOther: checked })}
+            />
+            <Label htmlFor="allowOther">Allow "Other" option</Label>
+          </div>
+        </div>
+      </div>
+
+      {/* Validation Section */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 pb-2 border-b">
+          <Settings2 className="h-4 w-4 text-muted-foreground" />
+          <h4 className="font-medium text-sm">Validation</h4>
+        </div>
+
+        <div className="space-y-2 pl-1">
+          <Label htmlFor="maxSelections">Maximum Selections</Label>
+          <Input
+            id="maxSelections"
+            type="number"
+            value={config.maxSelections || ''}
+            onChange={(e) => onConfigChange({ 
+              ...config, 
+              maxSelections: e.target.value ? parseInt(e.target.value) : undefined 
             })}
+            placeholder="Leave empty for unlimited"
+            min="1"
           />
-          <Label htmlFor="searchable">Enable search</Label>
+          <p className="text-xs text-muted-foreground">
+            Limit how many options users can select
+          </p>
         </div>
       </div>
     </div>
