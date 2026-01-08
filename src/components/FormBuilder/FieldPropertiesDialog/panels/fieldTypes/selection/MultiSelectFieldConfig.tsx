@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { FormField } from '@/types/form';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,16 @@ interface MultiSelectFieldConfigProps {
 
 export function MultiSelectFieldConfig({ field, onConfigChange }: MultiSelectFieldConfigProps) {
   const config = (field.customConfig || {}) as Record<string, any>;
+  
+  // Use local state for maxSelections to ensure input works properly
+  const [localMaxSelections, setLocalMaxSelections] = useState<string>(
+    config.maxSelections !== undefined ? String(config.maxSelections) : ''
+  );
+
+  // Sync local state with config when field changes
+  useEffect(() => {
+    setLocalMaxSelections(config.maxSelections !== undefined ? String(config.maxSelections) : '');
+  }, [config.maxSelections]);
 
   // Ensure options is always an array
   const ensureOptionsArray = (opts: any): any[] => {
@@ -31,7 +41,15 @@ export function MultiSelectFieldConfig({ field, onConfigChange }: MultiSelectFie
   const options = ensureOptionsArray(field.options ?? []);
 
   const handleOptionsChange = (newOptions: any[]) => {
-    onConfigChange({ ...config, options: newOptions });
+    onConfigChange({ options: newOptions });
+  };
+
+  const handleMaxSelectionsChange = (value: string) => {
+    setLocalMaxSelections(value);
+    const newMax = value === '' ? undefined : parseInt(value, 10);
+    if (value === '' || (!isNaN(newMax!) && newMax! > 0)) {
+      onConfigChange({ maxSelections: newMax });
+    }
   };
 
   return (
@@ -55,7 +73,7 @@ export function MultiSelectFieldConfig({ field, onConfigChange }: MultiSelectFie
             <Checkbox
               id="searchable"
               checked={config.searchable !== false}
-              onCheckedChange={(checked) => onConfigChange({ ...config, searchable: checked })}
+              onCheckedChange={(checked) => onConfigChange({ searchable: checked })}
             />
             <Label htmlFor="searchable">Enable search</Label>
           </div>
@@ -64,7 +82,7 @@ export function MultiSelectFieldConfig({ field, onConfigChange }: MultiSelectFie
             <Checkbox
               id="allowOther"
               checked={config.allowOther || false}
-              onCheckedChange={(checked) => onConfigChange({ ...config, allowOther: checked })}
+              onCheckedChange={(checked) => onConfigChange({ allowOther: checked })}
             />
             <Label htmlFor="allowOther">Allow "Other" option</Label>
           </div>
@@ -83,16 +101,9 @@ export function MultiSelectFieldConfig({ field, onConfigChange }: MultiSelectFie
           <Input
             id="maxSelections"
             type="number"
-            value={config.maxSelections ?? ''}
-            onChange={(e) => {
-              const val = e.target.value;
-              onConfigChange({ 
-                ...config, 
-                maxSelections: val === '' ? undefined : parseInt(val, 10)
-              });
-            }}
+            value={localMaxSelections}
+            onChange={(e) => handleMaxSelectionsChange(e.target.value)}
             onKeyDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
             placeholder="Leave empty for unlimited"
             min="1"
           />
