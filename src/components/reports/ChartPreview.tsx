@@ -1115,6 +1115,13 @@ export function ChartPreview({
               drilldownValues: drilldownState?.values
             });
             
+            // Debug: log cross-ref config to verify showRecordsSeparately
+            console.log('📊 CrossRef config for processing:', {
+              showRecordsSeparately: config.crossRefConfig?.showRecordsSeparately,
+              mode: config.crossRefConfig?.mode,
+              fullConfig: config.crossRefConfig
+            });
+            
             // Pass drilldown state to processCrossReferenceData
             const crossRefData = await processCrossReferenceData(submissions, {
               ...config.crossRefConfig,
