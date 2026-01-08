@@ -184,7 +184,19 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
 
   // Initialize map when modal opens
   useEffect(() => {
-    if (showMapModal && mapContainerRef.current && currentLocation && !mapRef.current) {
+    if (!showMapModal || !currentLocation) {
+      // Cleanup when modal closes
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+      return;
+    }
+
+    // Small delay to ensure the dialog container is fully rendered
+    const timeoutId = setTimeout(() => {
+      if (!mapContainerRef.current || mapRef.current) return;
+
       // Fix Leaflet default marker icon issue
       delete (L.Icon.Default.prototype as any)._getIconUrl;
       L.Icon.Default.mergeOptions({
@@ -206,23 +218,17 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
         .addTo(mapRef.current)
         .bindPopup(`<b>Location</b><br>${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}`)
         .openPopup();
-    }
+
+      // Force map to recalculate its size after dialog animation
+      setTimeout(() => {
+        mapRef.current?.invalidateSize();
+      }, 100);
+    }, 150);
 
     return () => {
-      if (!showMapModal && mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-      }
+      clearTimeout(timeoutId);
     };
   }, [showMapModal, currentLocation]);
-
-  // Cleanup map when modal closes
-  useEffect(() => {
-    if (!showMapModal && mapRef.current) {
-      mapRef.current.remove();
-      mapRef.current = null;
-    }
-  }, [showMapModal]);
 
   return (
     <div className="space-y-4">
