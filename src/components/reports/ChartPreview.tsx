@@ -920,7 +920,16 @@ export function ChartPreview({
     // For scatter/bubble/heatmap, always ensure x, y properties exist
     if (chartType === 'scatter' || chartType === 'bubble') {
       // Scatter/Bubble charts need { x, y, name } format
-      return crossRefData.map((item, index) => ({
+      // Sort by parentId if showRecordsSeparately is enabled to group parent data together
+      const sortedData = crossRefData.some(item => item._showRecordsSeparately)
+        ? [...crossRefData].sort((a, b) => {
+            const aParent = a.parentRefId || a.parentId || '';
+            const bParent = b.parentRefId || b.parentId || '';
+            return aParent.localeCompare(bParent);
+          })
+        : crossRefData;
+      
+      return sortedData.map((item, index) => ({
         ...item,
         x: item.x !== undefined ? item.x : index + 1, // Use sequential index as X coordinate if not present
         y: item.y !== undefined ? item.y : (item.value || 0),
@@ -928,7 +937,11 @@ export function ChartPreview({
         yRaw: item.yRaw || String(item.value || 0),
         name: item.name || `Point ${index + 1}`,
         xFieldName: item.xFieldName || 'Record',
-        yFieldName: item.yFieldName || 'Value'
+        yFieldName: item.yFieldName || 'Value',
+        // Ensure parent info is preserved for separators
+        parentId: item.parentId,
+        parentRefId: item.parentRefId,
+        parentDisplayName: item.parentDisplayName
       }));
     }
     
@@ -4674,6 +4687,18 @@ export function ChartPreview({
                     const scatterSeparators: { x: number; label: string }[] = [];
                     let lastParentId = scatterTransformedData[0]?.parentRefId || scatterTransformedData[0]?.parentId || '';
                     
+                    console.log('📊 Scatter separator check:', {
+                      showParentSeparators,
+                      dataLength: scatterTransformedData.length,
+                      firstItemParent: scatterTransformedData[0]?.parentRefId || scatterTransformedData[0]?.parentId,
+                      sampleData: scatterTransformedData.slice(0, 3).map(d => ({
+                        name: d.name,
+                        parentId: d.parentId,
+                        parentRefId: d.parentRefId,
+                        parentDisplayName: d.parentDisplayName
+                      }))
+                    });
+                    
                     for (let i = 1; i < scatterTransformedData.length; i++) {
                       const currentParentId = scatterTransformedData[i]?.parentRefId || scatterTransformedData[i]?.parentId || '';
                       const currentParentName = scatterTransformedData[i]?.parentDisplayName || '';
@@ -4687,6 +4712,8 @@ export function ChartPreview({
                         lastParentId = currentParentId;
                       }
                     }
+                    
+                    console.log('📊 Scatter separators found:', scatterSeparators);
                     
                     return scatterSeparators.map((sep, idx) => (
                       <ReferenceLine
