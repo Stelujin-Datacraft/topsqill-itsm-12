@@ -908,12 +908,14 @@ export function ChartPreview({
         yFieldName: yFieldName,
         parentId: item.parentId,
         parentRefId: item.parentRefId,
+        parentDisplayName: item.parentDisplayName,
         _linkedSubmissionIds: item._linkedSubmissionIds,
         _legendMapping: legendMapping,
         _isCompareEncoded: true,
         _isCrossRefCompare: true,
         _yOptionColor: item._yOptionColor,
-        _xOptionColor: item._xOptionColor
+        _xOptionColor: item._xOptionColor,
+        _showRecordsSeparately: item._showRecordsSeparately
       }));
     }
     
@@ -2522,7 +2524,7 @@ export function ChartPreview({
 
     // Sanitize chart data - ensure all numeric values are valid numbers (not NaN/undefined)
     // Preserve string values for display fields (xRaw, yRaw, field names, IDs, cross-ref parent IDs)
-    const preserveAsStringKeys = ['name', '_drilldownData', 'xRaw', 'yRaw', 'xFieldName', 'yFieldName', 'xFieldLabel', 'yFieldLabel', 'submissionId', '_legendMapping', 'rawSecondaryValue', 'rawYValue', '_isCompareEncoded', '_isCrossRefCompare', '_hasTextX', '_hasTextY', 'parentId', 'parentRefId', 'linkedSubmissionId', '_linkedSubmissionIds', '_allParentIds', '_allParentRefIds', '_optionColor', '_optionImage', '_xOptionColor', '_yOptionColor', '_xOptionImage', '_yOptionImage'];
+    const preserveAsStringKeys = ['name', '_drilldownData', 'xRaw', 'yRaw', 'xFieldName', 'yFieldName', 'xFieldLabel', 'yFieldLabel', 'submissionId', '_legendMapping', 'rawSecondaryValue', 'rawYValue', '_isCompareEncoded', '_isCrossRefCompare', '_hasTextX', '_hasTextY', 'parentId', 'parentRefId', 'parentDisplayName', 'linkedSubmissionId', '_linkedSubmissionIds', '_allParentIds', '_allParentRefIds', '_optionColor', '_optionImage', '_xOptionColor', '_yOptionColor', '_xOptionImage', '_yOptionImage', '_showRecordsSeparately'];
     let sanitizedChartData = chartData.map(item => {
       const sanitized: any = { name: item.name || 'Unknown' };
       Object.keys(item).forEach(key => {
@@ -4573,7 +4575,17 @@ export function ChartPreview({
         const hasYMapping = scatterYMapping.length > 0;
         
         // Transform data - encode text values to numbers if mappings exist
-        const scatterTransformedData = sanitizedChartData.map((item, idx) => {
+        // First, sort by parent if showRecordsSeparately is enabled
+        const showSeparately = config.crossRefConfig?.showRecordsSeparately && config.crossRefConfig?.mode === 'compare';
+        const sortedForTransform = showSeparately
+          ? [...sanitizedChartData].sort((a, b) => {
+              const aParent = a.parentRefId || a.parentId || '';
+              const bParent = b.parentRefId || b.parentId || '';
+              return aParent.localeCompare(bParent);
+            })
+          : sanitizedChartData;
+        
+        const scatterTransformedData = sortedForTransform.map((item, idx) => {
           const xRaw = item.xRaw || item.x || item.name;
           const yRaw = item.yRaw || item.y || item.value;
           
@@ -4597,6 +4609,10 @@ export function ChartPreview({
             y: yEncoded,
             xOriginal: xRaw,
             yOriginal: yRaw,
+            // Explicitly preserve parent info for separators
+            parentId: item.parentId,
+            parentRefId: item.parentRefId,
+            parentDisplayName: item.parentDisplayName
           };
         });
         
