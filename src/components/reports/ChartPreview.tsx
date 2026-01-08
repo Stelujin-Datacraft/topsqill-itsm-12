@@ -966,21 +966,61 @@ export function ChartPreview({
     }
   };
 
+  // Create stable string representations of array/object dependencies to prevent unnecessary re-renders
+  const configDependencyKey = useMemo(() => {
+    return JSON.stringify({
+      formId: config.formId,
+      dimensions: config.dimensions,
+      metrics: config.metrics,
+      filters: config.filters,
+      xAxis: config.xAxis,
+      yAxis: config.yAxis,
+      aggregation: config.aggregation,
+      aggregationType: config.aggregationType,
+      groupByField: config.groupByField,
+      drilldownEnabled: config.drilldownConfig?.enabled,
+      drilldownLevels: config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels,
+      drilldownValues: drilldownState?.values,
+      sampleData: (config as any).data,
+      crossRefEnabled: config.crossRefConfig?.enabled,
+      crossRefFieldId: config.crossRefConfig?.crossRefFieldId,
+      crossRefMode: config.crossRefConfig?.mode,
+      crossRefMetricFieldId: config.crossRefConfig?.targetMetricFieldId,
+      crossRefDimensionFieldId: config.crossRefConfig?.targetDimensionFieldId,
+      crossRefDrilldownEnabled: config.crossRefConfig?.drilldownEnabled,
+      crossRefDrilldownLevels: config.crossRefConfig?.drilldownLevels,
+      chartType: config.chartType || config.type,
+    });
+  }, [config, drilldownState?.values]);
+
+  // Track the current load request to prevent race conditions
+  const loadRequestRef = useRef(0);
+
   useEffect(() => {
+    const currentLoadRequest = ++loadRequestRef.current;
+    
     const loadChartData = async () => {
       // Use sample data if provided, otherwise fetch from form
       if ((config as any).data) {
-        setChartData((config as any).data);
-        setLoading(false);
+        if (currentLoadRequest === loadRequestRef.current) {
+          setChartData((config as any).data);
+          setLoading(false);
+        }
         return;
       }
 
       // Check if we have minimum required configuration
       if (!config.formId) {
-        setChartData([]);
-        setLoading(false);
+        if (currentLoadRequest === loadRequestRef.current) {
+          setChartData([]);
+          setLoading(false);
+        }
         return;
       }
+      
+      // Set loading state before fetching
+      setLoading(true);
+      
       try {
 
         // Get drilldown levels - support both property names for compatibility
@@ -997,6 +1037,9 @@ export function ChartPreview({
           // Get aggregation from metricAggregations if available, otherwise use config.aggregation
           const effectiveAggregation = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
           const serverData: any[] = await getChartData(config.formId, chartDimensions, config.metrics || [], effectiveAggregation, config.filters || [], drilldownLevels, drilldownState?.values || [], config.metricAggregations || [], config.groupByField);
+
+          // Check if request is still current after async operation
+          if (currentLoadRequest !== loadRequestRef.current) return;
 
           // Transform server data to chart format
           let chartData: any[];
@@ -1077,10 +1120,17 @@ export function ChartPreview({
             nextDimension: config.drilldownConfig?.drilldownLevels[currentDrilldownLevel + 1] || 'none',
             allData: chartData
           });
-          setChartData(chartData);
+          // Only update state if this is still the current request
+          if (currentLoadRequest === loadRequestRef.current) {
+            setChartData(chartData);
+          }
         } else {
           // Fallback to client-side processing for non-drilldown charts
           let submissions = await getFormSubmissionData(config.formId);
+          
+          // Check if request is still current after async operation
+          if (currentLoadRequest !== loadRequestRef.current) return;
+          
           console.log('Received submissions:', submissions?.length || 0);
           
           // Apply cross-reference data processing if configured
@@ -1108,6 +1158,10 @@ export function ChartPreview({
                 currentDimensionField: crossRefDrilldownLevels[currentDrilldownLevel]
               } : undefined
             });
+            
+            // Check if request is still current after async operation
+            if (currentLoadRequest !== loadRequestRef.current) return;
+            
             console.log('📊 Cross-reference data processed:', crossRefData?.length || 0);
             
             // Transform cross-reference data based on chart type
@@ -1129,17 +1183,24 @@ export function ChartPreview({
           }
           const processedData = processSubmissionData(submissions);
           console.log('Processed chart data:', processedData);
-          setChartData(processedData);
+          if (currentLoadRequest === loadRequestRef.current) {
+            setChartData(processedData);
+          }
         }
       } catch (error) {
         console.error('Error loading chart data:', error);
-        setChartData([]);
+        if (currentLoadRequest === loadRequestRef.current) {
+          setChartData([]);
+        }
       } finally {
-        setLoading(false);
+        if (currentLoadRequest === loadRequestRef.current) {
+          setLoading(false);
+        }
       }
     };
     loadChartData();
-  }, [config.formId, config.dimensions, config.metrics, config.filters, config.xAxis, config.yAxis, config.aggregation, config.aggregationType, config.groupByField, config.drilldownConfig?.enabled, config.drilldownConfig?.drilldownLevels, drilldownState?.values, (config as any).data, config.crossRefConfig?.enabled, config.crossRefConfig?.crossRefFieldId, config.crossRefConfig?.mode, config.crossRefConfig?.targetMetricFieldId, config.crossRefConfig?.targetDimensionFieldId, config.crossRefConfig?.drilldownEnabled, config.crossRefConfig?.drilldownLevels, config.chartType, config.type, getFormSubmissionData, getChartData]);
+  // Use stable configDependencyKey instead of individual array/object dependencies
+  }, [configDependencyKey, getFormSubmissionData, getChartData]);
   const processSubmissionData = (submissions: any[]) => {
     if (!submissions.length) {
       return [];
