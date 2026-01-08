@@ -583,70 +583,68 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                   </div>
                 )}
 
-                <div className="flex items-center space-x-3">
-                  <Checkbox id="field-required" checked={localConfig.required || false} onCheckedChange={checked => updateField('required', Boolean(checked))} />
-                  <Label htmlFor="field-required" className="text-sm font-medium">
-                    This field is required
-                  </Label>
-                </div>
+                {/* Field Options Row - Required, Unique, Weightage side by side */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Required Field */}
+                  <div className="flex items-center space-x-2 p-3 border rounded-md bg-muted/30">
+                    <Checkbox id="field-required" checked={localConfig.required || false} onCheckedChange={checked => updateField('required', Boolean(checked))} />
+                    <Label htmlFor="field-required" className="text-sm font-medium cursor-pointer">
+                      Required
+                    </Label>
+                  </div>
 
-                {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text'].includes(fieldForConfig?.type || '') && (
-                  <div className="flex items-center space-x-2 p-3 border rounded-md bg-blue-50 dark:bg-blue-950/20">
-                    <Checkbox
-                      id="field-unique"
-                      checked={localConfig.validation?.unique || false}
-                      onCheckedChange={(checked) => {
-                        console.log('Unique checkbox changed:', checked);
-                        updateValidation('unique', Boolean(checked));
-                      }}
-                    />
-                    <div className="flex flex-col">
+                  {/* Unique Field */}
+                  {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text'].includes(fieldForConfig?.type || '') ? (
+                    <div className="flex items-center space-x-2 p-3 border rounded-md bg-blue-50 dark:bg-blue-950/20">
+                      <Checkbox
+                        id="field-unique"
+                        checked={localConfig.validation?.unique || false}
+                        onCheckedChange={(checked) => {
+                          console.log('Unique checkbox changed:', checked);
+                          updateValidation('unique', Boolean(checked));
+                        }}
+                      />
                       <Label htmlFor="field-unique" className="text-sm font-medium cursor-pointer">
-                        ✨ Unique field (prevent duplicate values)
+                        ✨ Unique
                       </Label>
-                      <span className="text-xs text-muted-foreground">
-                        Ensures each value entered in this field is unique across all submissions
-                      </span>
                     </div>
-                  </div>
-                )}
+                  ) : <div />}
 
-                {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text'].includes(fieldForConfig?.type || '') && (
-                  <div className="space-y-2">
-                    <Label htmlFor="field-weightage">Field Weightage (1-100)</Label>
-                    <Input 
-                      id="field-weightage" 
-                      type="number"
-                      min="1"
-                      max="100"
-                      value={localConfig.customConfig?.weightage || 1} 
-                      onChange={e => {
-                        const inputValue = e.target.value;
-                        // Allow empty string for editing, otherwise parse and constrain
-                        if (inputValue === '') {
-                          updateCustomConfig('weightage', '');
-                        } else {
-                          const numValue = parseInt(inputValue);
-                          if (!isNaN(numValue)) {
-                            const value = Math.min(100, Math.max(1, numValue));
-                            updateCustomConfig('weightage', value);
+                  {/* Field Weightage */}
+                  {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text'].includes(fieldForConfig?.type || '') ? (
+                    <div className="flex items-center space-x-2 p-3 border rounded-md bg-muted/30">
+                      <Label htmlFor="field-weightage" className="text-sm font-medium whitespace-nowrap">
+                        Weight
+                      </Label>
+                      <Input 
+                        id="field-weightage" 
+                        type="number"
+                        min="1"
+                        max="100"
+                        className="h-8 w-20"
+                        value={localConfig.customConfig?.weightage || 1} 
+                        onChange={e => {
+                          const inputValue = e.target.value;
+                          if (inputValue === '') {
+                            updateCustomConfig('weightage', '');
+                          } else {
+                            const numValue = parseInt(inputValue);
+                            if (!isNaN(numValue)) {
+                              const value = Math.min(100, Math.max(1, numValue));
+                              updateCustomConfig('weightage', value);
+                            }
                           }
-                        }
-                      }}
-                      onBlur={e => {
-                        // On blur, ensure we have a valid value between 1-100
-                        const inputValue = e.target.value;
-                        if (inputValue === '' || isNaN(parseInt(inputValue))) {
-                          updateCustomConfig('weightage', 1);
-                        }
-                      }}
-                      placeholder="Enter weightage (1-100)" 
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      Set the weight for this field (used in SQL calculations and weighted scoring)
-                    </span>
-                  </div>
-                )}
+                        }}
+                        onBlur={e => {
+                          const inputValue = e.target.value;
+                          if (inputValue === '' || isNaN(parseInt(inputValue))) {
+                            updateCustomConfig('weightage', 1);
+                          }
+                        }}
+                      />
+                    </div>
+                  ) : <div />}
+                </div>
               </CardContent>
             </Card>
 
