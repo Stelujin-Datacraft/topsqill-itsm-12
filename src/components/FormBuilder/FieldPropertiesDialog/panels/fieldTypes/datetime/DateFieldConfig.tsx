@@ -41,24 +41,6 @@ export function DateFieldConfig({ config, onUpdate, errors }: DateFieldConfigPro
         <Label htmlFor="auto-populate">Auto-fill with current date</Label>
       </div>
 
-      <div>
-        <Label htmlFor="date-format">Date Format</Label>
-        <Select
-          value={customConfig.format || 'MM/dd/yyyy'}
-          onValueChange={(value) => handleConfigUpdate('format', value)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select date format" />
-          </SelectTrigger>
-          <SelectContent>
-            {DATE_FORMATS.map((format) => (
-              <SelectItem key={format.value} value={format.value}>
-                {format.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
 
       <div>
         <Label htmlFor="min-date">Minimum Date</Label>

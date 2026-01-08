@@ -40,24 +40,6 @@ export function DateTimeFieldConfig({ config, onUpdate, errors }: DateTimeFieldC
         <Label htmlFor="auto-populate">Auto-fill with current date & time</Label>
       </div>
 
-      <div>
-        <Label htmlFor="datetime-format">Date & Time Format</Label>
-        <Select
-          value={customConfig.format || 'MM/dd/yyyy hh:mm a'}
-          onValueChange={(value) => handleConfigUpdate('format', value)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select date/time format" />
-          </SelectTrigger>
-          <SelectContent>
-            {DATETIME_FORMATS.map((format) => (
-              <SelectItem key={format.value} value={format.value}>
-                {format.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
     </div>
   );
 }
