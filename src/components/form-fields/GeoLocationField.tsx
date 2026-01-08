@@ -25,8 +25,17 @@ interface LocationData {
   timestamp?: number;
 }
 
+// Helper to validate if value is a valid LocationData object
+const isValidLocation = (val: any): val is LocationData => {
+  return val && typeof val === 'object' && 
+         typeof val.latitude === 'number' && 
+         typeof val.longitude === 'number';
+};
+
 export function GeoLocationField({ field, value, onChange, error, disabled }: GeoLocationFieldProps) {
-  const [currentLocation, setCurrentLocation] = useState<LocationData | null>(value || null);
+  const [currentLocation, setCurrentLocation] = useState<LocationData | null>(
+    isValidLocation(value) ? value : null
+  );
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [manualCoords, setManualCoords] = useState({ lat: '', lng: '' });
   const [showMapModal, setShowMapModal] = useState(false);
@@ -35,12 +44,15 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
   const config = (field.customConfig as any) || {};
 
   useEffect(() => {
-    if (value) {
+    if (isValidLocation(value)) {
       setCurrentLocation(value);
       setManualCoords({
-        lat: value.latitude?.toString() || '',
-        lng: value.longitude?.toString() || ''
+        lat: value.latitude.toString(),
+        lng: value.longitude.toString()
       });
+    } else {
+      setCurrentLocation(null);
+      setManualCoords({ lat: '', lng: '' });
     }
   }, [value]);
 
@@ -324,7 +336,9 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
       </div>
 
       {error && (
-        <p className="text-sm text-red-500">{error}</p>
+        <p className="text-sm text-red-500">
+          {typeof error === 'string' ? error : 'Invalid location data'}
+        </p>
       )}
 
       {/* Map Modal */}
