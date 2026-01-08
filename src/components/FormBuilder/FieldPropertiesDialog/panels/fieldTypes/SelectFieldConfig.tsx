@@ -41,6 +41,9 @@ export function SelectFieldConfig({ config, onUpdate, errors, fieldType }: Selec
   const customConfig = config.customConfig || {};
   const transitionRules = customConfig.transitionRules || {};
   const displayAsLifecycle = customConfig.displayAsLifecycle || false;
+  
+  // Radio and dropdown don't need "Allow Other" option
+  const showAllowOther = fieldType === 'checkbox' || fieldType === 'multi-select';
 
   const handleOptionsChange = (newOptions: any[]) => {
     onUpdate({ options: newOptions });
@@ -143,14 +146,16 @@ export function SelectFieldConfig({ config, onUpdate, errors, fieldType }: Selec
             />
           </div>
           
-          <div className="flex items-center justify-between">
-            <Label htmlFor="allowOther" className="text-sm font-normal">Allow "Other" option</Label>
-            <Switch
-              id="allowOther"
-              checked={customConfig.allowOther || false}
-              onCheckedChange={(checked) => onUpdate({ customConfig: { ...customConfig, allowOther: checked } })}
-            />
-          </div>
+          {showAllowOther && (
+            <div className="flex items-center justify-between">
+              <Label htmlFor="allowOther" className="text-sm font-normal">Allow "Other" option</Label>
+              <Switch
+                id="allowOther"
+                checked={customConfig.allowOther || false}
+                onCheckedChange={(checked) => onUpdate({ customConfig: { ...customConfig, allowOther: checked } })}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 

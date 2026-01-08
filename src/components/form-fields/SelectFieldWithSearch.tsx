@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { FormField } from '@/types/form';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Check, ChevronDown, Search } from 'lucide-react';
+import { Check, ChevronDown, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HelpTooltip } from '@/components/ui/help-tooltip';
 
@@ -31,6 +30,9 @@ export function SelectFieldWithSearch({
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
 
+  const config = field.customConfig || {};
+  const clearable = config.clearable !== false;
+
   // Use fieldState.options if available (from rules), otherwise use field.options
   const options = fieldState?.options || field.options || [];
   const selectedOption = options.find(opt => opt.value === value);
@@ -44,6 +46,11 @@ export function SelectFieldWithSearch({
     onChange(optionValue === value ? '' : optionValue);
     setOpen(false);
     setSearchValue('');
+  };
+
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onChange('');
   };
 
   return (
@@ -66,7 +73,7 @@ export function SelectFieldWithSearch({
             disabled={disabled}
           >
             {selectedOption ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-1">
                 {selectedOption.image && (
                   <img 
                     src={selectedOption.image} 
@@ -88,7 +95,15 @@ export function SelectFieldWithSearch({
             ) : (
               <span className="text-muted-foreground">{field.placeholder || "Select an option..."}</span>
             )}
-            <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            <div className="flex items-center gap-1">
+              {clearable && value && !disabled && (
+                <X 
+                  className="h-4 w-4 opacity-50 hover:opacity-100 cursor-pointer" 
+                  onClick={handleClear}
+                />
+              )}
+              <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+            </div>
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-full p-0" align="start">

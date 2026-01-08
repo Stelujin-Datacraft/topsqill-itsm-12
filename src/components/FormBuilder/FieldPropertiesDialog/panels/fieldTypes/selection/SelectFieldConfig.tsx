@@ -118,14 +118,6 @@ export function SelectFieldConfig({ field, onConfigChange }: SelectFieldConfigPr
             <Label htmlFor="clearable">Allow clearing selection</Label>
           </div>
           
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="allowOther"
-              checked={config.allowOther || false}
-              onCheckedChange={(checked) => onConfigChange({ allowOther: checked })}
-            />
-            <Label htmlFor="allowOther">Allow "Other" option</Label>
-          </div>
         </div>
       </div>
 

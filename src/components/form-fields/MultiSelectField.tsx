@@ -22,6 +22,7 @@ export function MultiSelectField({ field, value = [], onChange, error, disabled,
   const [otherValue, setOtherValue] = useState('');
 
   const config = field.customConfig || {};
+  const maxSelections = config.maxSelections ? Number(config.maxSelections) : undefined;
   // Use fieldState.options if available (from rules), otherwise use field.options
   const options = fieldState?.options || field.options || [];
   const filteredOptions = options.filter(option => 
@@ -33,7 +34,7 @@ export function MultiSelectField({ field, value = [], onChange, error, disabled,
     
     let newValue = [...value];
     if (checked) {
-      if (config.maxSelections && newValue.length >= config.maxSelections) {
+      if (maxSelections && newValue.length >= maxSelections) {
         return; // Don't add if max selections reached
       }
       newValue.push(optionValue);
@@ -123,7 +124,7 @@ export function MultiSelectField({ field, value = [], onChange, error, disabled,
               id={`${field.id}-${option.id}`}
               checked={value.includes(option.value)}
               onCheckedChange={(checked) => handleOptionChange(option.value, Boolean(checked))}
-              disabled={disabled || (config.maxSelections && value.length >= config.maxSelections && !value.includes(option.value))}
+              disabled={disabled || (maxSelections && value.length >= maxSelections && !value.includes(option.value))}
             />
             <Label htmlFor={`${field.id}-${option.id}`} className="flex-1 cursor-pointer flex items-center gap-3">
               {option.image && (
@@ -183,9 +184,10 @@ export function MultiSelectField({ field, value = [], onChange, error, disabled,
       </div>
 
       {/* Max selections info */}
-      {config.maxSelections && (
-        <p className="text-xs text-gray-500">
-          {value.length}/{config.maxSelections} selections made
+      {maxSelections && (
+        <p className={`text-xs ${value.length >= maxSelections ? 'text-amber-600 font-medium' : 'text-gray-500'}`}>
+          {value.length}/{maxSelections} selections made
+          {value.length >= maxSelections && ' (maximum reached)'}
         </p>
       )}
 

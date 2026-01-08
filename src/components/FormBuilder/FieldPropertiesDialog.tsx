@@ -420,7 +420,15 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
       case 'checkbox':
         return <SelectFieldConfig {...props} fieldType={fieldForConfig.type as any} />;
       case 'multi-select':
-        return <MultiSelectFieldConfig {...props} />;
+        return <MultiSelectFieldConfig field={fieldForConfig} onConfigChange={config => {
+          Object.entries(config).forEach(([key, value]) => {
+            if (key === 'options') {
+              updateField('options', value);
+            } else {
+              updateCustomConfig(key, value);
+            }
+          });
+        }} />;
 
       // Media Fields
       case 'signature':
