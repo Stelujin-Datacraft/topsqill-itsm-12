@@ -586,10 +586,10 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                 {/* Field Options Row - Required, Unique, Weightage side by side */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Required Field */}
-                  <div className="flex items-center space-x-2 p-3 border rounded-md bg-muted/30">
+                  <div className="flex items-center space-x-2 p-3 border rounded-md bg-blue-50 dark:bg-blue-950/20">
                     <Checkbox id="field-required" checked={localConfig.required || false} onCheckedChange={checked => updateField('required', Boolean(checked))} />
                     <Label htmlFor="field-required" className="text-sm font-medium cursor-pointer">
-                      Required
+                      Make Field Required
                     </Label>
                   </div>
 
@@ -605,16 +605,16 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                         }}
                       />
                       <Label htmlFor="field-unique" className="text-sm font-medium cursor-pointer">
-                        ✨ Unique
+                        Make Field Unique
                       </Label>
                     </div>
                   ) : <div />}
 
                   {/* Field Weightage */}
                   {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text'].includes(fieldForConfig?.type || '') ? (
-                    <div className="flex items-center space-x-2 p-3 border rounded-md bg-muted/30">
+                    <div className="flex items-center space-x-2 p-3 border rounded-md bg-blue-50 dark:bg-blue-950/20">
                       <Label htmlFor="field-weightage" className="text-sm font-medium whitespace-nowrap">
-                        Weight
+                        Field Weightage
                       </Label>
                       <Input 
                         id="field-weightage" 
