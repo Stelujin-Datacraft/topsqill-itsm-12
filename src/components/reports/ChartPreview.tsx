@@ -2278,11 +2278,13 @@ export function ChartPreview({
           {payload.map((entry: any, idx: number) => {
             const metricName = entry.name || entry.dataKey;
 
+            // Always resolve field IDs to readable names
             // For compare mode, the series name IS the display name already
+            // For normal mode, resolve the field ID to a field name
             const fieldDisplayName = config.compareMode
               ? metricName
               : (typeof metricName === 'string' && metricName !== 'value' 
-                  ? getFormFieldName(metricName) 
+                  ? getFormFieldName(metricName) || metricName
                   : dimensionName);
 
             return (
