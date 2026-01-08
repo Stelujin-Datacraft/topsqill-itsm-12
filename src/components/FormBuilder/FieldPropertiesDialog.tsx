@@ -757,28 +757,30 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                 </CardContent>
               </Card>}
 
-            {/* Advanced Options */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
-                  General Options
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="field-default">Default Value</Label>
-                  <Input id="field-default" value={String(localConfig.defaultValue || '')} onChange={e => updateField('defaultValue', e.target.value)} placeholder="Enter default value" />
-                </div>
+            {/* General Options - hidden for layout/display-only fields */}
+            {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'file', 'signature', 'record-table', 'matrix-grid', 'cross-reference', 'full-width-container'].includes(fieldForConfig?.type || '') && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
+                    General Options
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="field-default">Default Value</Label>
+                    <Input id="field-default" value={String(localConfig.defaultValue || '')} onChange={e => updateField('defaultValue', e.target.value)} placeholder="Enter default value" />
+                  </div>
 
-                <div className="flex items-center space-x-3">
-                  <Checkbox id="field-read-only" checked={localConfig.customConfig?.readOnly || false} onCheckedChange={checked => updateCustomConfig('readOnly', Boolean(checked))} />
-                  <Label htmlFor="field-read-only" className="text-sm font-medium">
-                    Read-only field
-                  </Label>
-                </div>
-              </CardContent>
-            </Card>
+                  <div className="flex items-center space-x-3">
+                    <Checkbox id="field-read-only" checked={localConfig.customConfig?.readOnly || false} onCheckedChange={checked => updateCustomConfig('readOnly', Boolean(checked))} />
+                    <Label htmlFor="field-read-only" className="text-sm font-medium">
+                      Read-only field
+                    </Label>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>}
 
         <div className="flex justify-between pt-4 border-t">
