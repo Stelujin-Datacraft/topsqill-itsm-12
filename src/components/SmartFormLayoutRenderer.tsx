@@ -28,9 +28,12 @@ export function SmartFormLayoutRenderer({
     const initialFormData: Record<string, any> = {};
     
     form.fields.forEach(field => {
+      // Check if field is read-only from customConfig
+      const isReadOnly = field.customConfig?.readOnly === true;
+      
       states[field.id] = {
         isVisible: field.isVisible !== false,
-        isEnabled: field.isEnabled !== false,
+        isEnabled: isReadOnly ? false : (field.isEnabled !== false),
         label: field.label,
         options: field.options,
         tooltip: field.tooltip,
@@ -40,7 +43,10 @@ export function SmartFormLayoutRenderer({
       // Initialize boolean fields (checkbox, toggle, yes-no) with false if not already set
       const booleanFieldTypes = ['checkbox', 'toggle-switch', 'toggle', 'yes-no', 'boolean'];
       if (booleanFieldTypes.includes(field.type?.toLowerCase() || '')) {
-        initialFormData[field.id] = false;
+        initialFormData[field.id] = field.defaultValue !== undefined ? field.defaultValue : false;
+      } else if (field.defaultValue !== undefined && field.defaultValue !== '') {
+        // Apply default value for other field types
+        initialFormData[field.id] = field.defaultValue;
       }
     });
     
