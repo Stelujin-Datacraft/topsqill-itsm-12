@@ -3561,8 +3561,15 @@ export function ChartPreview({
         }
 
         if (chartType === 'line') {
+          // Get Y-axis ticks and tick formatter from legend mapping
+          const lineYAxisTicks = legendMapping.map((m: any) => m.number);
+          const lineYAxisTickFormatter = (value: number) => {
+            const mapping = legendMapping.find((m: any) => m.number === value);
+            return mapping ? mapping.label : String(value);
+          };
+          
           return (
-            <RechartsLineChart data={sanitizedChartData} margin={{ top: 20, right: 20, left: 60, bottom: 80 }}>
+            <RechartsLineChart data={sanitizedChartData} margin={{ top: 20, right: 20, left: 80, bottom: 80 }}>
               <XAxis 
                 dataKey="name" 
                 tick={{ fontSize: 11 }}
@@ -3575,8 +3582,9 @@ export function ChartPreview({
               <YAxis 
                 type="number" 
                 tick={{ fontSize: 11 }}
-                domain={[0, maxEncodedValue + 0.5]}
-                ticks={Array.from({ length: maxEncodedValue }, (_, i) => i + 1)}
+                domain={[0.5, maxEncodedValue + 0.5]}
+                ticks={lineYAxisTicks}
+                tickFormatter={lineYAxisTickFormatter}
                 allowDecimals={false}
                 label={{ value: yAxisFieldName, angle: -90, position: 'insideLeft', offset: 10 }}
               />
@@ -3586,9 +3594,18 @@ export function ChartPreview({
                 if (!data) return null;
                 const rawValue = data.rawSecondaryValue || data.rawYValue || '';
                 return (
-                  <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3">
-                    <div className="font-medium">{data.name}</div>
-                    <div className="text-sm text-muted-foreground">{yAxisFieldName}: {rawValue}</div>
+                  <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
+                    <div className="font-medium mb-2">{data.name}</div>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">{xAxisFieldName}:</span>
+                        <span className="font-semibold">{data.name}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">{yAxisFieldName}:</span>
+                        <span className="font-semibold">{rawValue}</span>
+                      </div>
+                    </div>
                   </div>
                 );
               }} />
@@ -3604,8 +3621,15 @@ export function ChartPreview({
         }
 
         if (chartType === 'area') {
+          // Get Y-axis ticks and tick formatter from legend mapping
+          const areaYAxisTicks = legendMapping.map((m: any) => m.number);
+          const areaYAxisTickFormatter = (value: number) => {
+            const mapping = legendMapping.find((m: any) => m.number === value);
+            return mapping ? mapping.label : String(value);
+          };
+          
           return (
-            <RechartsAreaChart data={sanitizedChartData} margin={{ top: 20, right: 20, left: 60, bottom: 80 }}>
+            <RechartsAreaChart data={sanitizedChartData} margin={{ top: 20, right: 20, left: 80, bottom: 80 }}>
               <XAxis 
                 dataKey="name" 
                 tick={{ fontSize: 11 }}
@@ -3618,8 +3642,9 @@ export function ChartPreview({
               <YAxis 
                 type="number" 
                 tick={{ fontSize: 11 }}
-                domain={[0, maxEncodedValue + 0.5]}
-                ticks={Array.from({ length: maxEncodedValue }, (_, i) => i + 1)}
+                domain={[0.5, maxEncodedValue + 0.5]}
+                ticks={areaYAxisTicks}
+                tickFormatter={areaYAxisTickFormatter}
                 allowDecimals={false}
                 label={{ value: yAxisFieldName, angle: -90, position: 'insideLeft', offset: 10 }}
               />
@@ -3629,9 +3654,18 @@ export function ChartPreview({
                 if (!data) return null;
                 const rawValue = data.rawSecondaryValue || data.rawYValue || '';
                 return (
-                  <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3">
-                    <div className="font-medium">{data.name}</div>
-                    <div className="text-sm text-muted-foreground">{yAxisFieldName}: {rawValue}</div>
+                  <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
+                    <div className="font-medium mb-2">{data.name}</div>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">{xAxisFieldName}:</span>
+                        <span className="font-semibold">{data.name}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">{yAxisFieldName}:</span>
+                        <span className="font-semibold">{rawValue}</span>
+                      </div>
+                    </div>
                   </div>
                 );
               }} />
@@ -3667,8 +3701,15 @@ export function ChartPreview({
             return chartType === 'bubble' ? (5 + normalized * 25) : 5; // Fixed size for scatter, variable for bubble
           };
           
+          // Get Y-axis ticks and tick formatter from legend mapping
+          const yAxisTicks = legendMapping.map((m: any) => m.number);
+          const yAxisTickFormatter = (value: number) => {
+            const mapping = legendMapping.find((m: any) => m.number === value);
+            return mapping ? mapping.label : String(value);
+          };
+          
           return (
-            <RechartsScatterChart margin={{ top: 20, right: 20, left: 60, bottom: 80 }}>
+            <RechartsScatterChart margin={{ top: 20, right: 20, left: 80, bottom: 80 }}>
               <XAxis 
                 dataKey="name" 
                 type="category"
@@ -3683,7 +3724,9 @@ export function ChartPreview({
                 type="number" 
                 dataKey="encodedValue"
                 tick={{ fontSize: 11 }}
-                domain={[0, maxEncodedValue + 0.5]}
+                ticks={yAxisTicks}
+                tickFormatter={yAxisTickFormatter}
+                domain={[0.5, maxEncodedValue + 0.5]}
                 label={{ value: yAxisFieldName, angle: -90, position: 'insideLeft', offset: 10 }}
               />
               <Tooltip content={({ payload }) => {
@@ -3695,6 +3738,10 @@ export function ChartPreview({
                   <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[180px]">
                     <div className="font-medium mb-2">{data.name}</div>
                     <div className="space-y-1 text-sm">
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">{xAxisFieldName}:</span>
+                        <span className="font-semibold">{data.name}</span>
+                      </div>
                       <div className="flex justify-between gap-4">
                         <span className="text-muted-foreground">{yAxisFieldName}:</span>
                         <span className="font-semibold">{rawValue}</span>
@@ -3798,10 +3845,17 @@ export function ChartPreview({
         }
 
         // Default: Bar chart
+        // Get Y-axis ticks and tick formatter from legend mapping
+        const barYAxisTicks = legendMapping.map((m: any) => m.number);
+        const barYAxisTickFormatter = (value: number) => {
+          const mapping = legendMapping.find((m: any) => m.number === value);
+          return mapping ? mapping.label : String(value);
+        };
+        
         return (
           <BarChart 
             data={sanitizedChartData} 
-            margin={{ top: 20, right: 20, left: 60, bottom: 80 }}
+            margin={{ top: 20, right: 20, left: 80, bottom: 80 }}
           >
             <XAxis 
               dataKey="name" 
@@ -3819,8 +3873,9 @@ export function ChartPreview({
             <YAxis 
               type="number" 
               tick={{ fontSize: 11 }}
-              domain={[0, maxEncodedValue + 0.5]}
-              ticks={Array.from({ length: maxEncodedValue }, (_, i) => i + 1)}
+              domain={[0.5, maxEncodedValue + 0.5]}
+              ticks={barYAxisTicks}
+              tickFormatter={barYAxisTickFormatter}
               allowDecimals={false}
               label={{
                 value: yAxisFieldName,
@@ -3841,12 +3896,12 @@ export function ChartPreview({
                     <div className="font-medium mb-2">{data.name}</div>
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between gap-4">
-                        <span className="text-muted-foreground">{yAxisFieldName}:</span>
-                        <span className="font-semibold">{rawValue}</span>
+                        <span className="text-muted-foreground">{xAxisFieldName}:</span>
+                        <span className="font-semibold">{data.name}</span>
                       </div>
                       <div className="flex justify-between gap-4">
-                        <span className="text-muted-foreground">Code:</span>
-                        <span className="font-semibold">{data.encodedValue}</span>
+                        <span className="text-muted-foreground">{yAxisFieldName}:</span>
+                        <span className="font-semibold">{rawValue}</span>
                       </div>
                     </div>
                   </div>
