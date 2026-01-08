@@ -491,6 +491,7 @@ case 'submission-access':
       // Enhanced Time with auto-fill
       case 'time':
         const timeConfig = field.customConfig || {};
+        const timeFormat = timeConfig.format || '24';
         const timeValue = timeConfig.autoPopulate && !formData[field.id] 
           ? new Date().toTimeString().split(' ')[0].slice(0, 5)
           : formData[field.id] || '';
@@ -498,7 +499,6 @@ case 'submission-access':
         // Format time display based on 12/24 hour setting
         const formatTimeDisplay = (value: string) => {
           if (!value) return '';
-          const timeFormat = timeConfig.format || '24';
           if (timeFormat === '12') {
             const [hours, minutes] = value.split(':');
             const hour = parseInt(hours, 10);
@@ -506,6 +506,7 @@ case 'submission-access':
             const hour12 = hour % 12 || 12;
             return `${hour12}:${minutes} ${ampm}`;
           }
+          // 24-hour format - just return as is (HH:mm)
           return value;
         };
         
@@ -518,7 +519,8 @@ case 'submission-access':
               </Label>
               <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
-            <div className="relative">
+            {/* Show formatted time display instead of native time input for better format control */}
+            <div className="flex items-center gap-2">
               <Input
                 id={field.id}
                 type="time"
@@ -526,12 +528,13 @@ case 'submission-access':
                 onChange={(e) => onFieldChange(field.id, e.target.value)}
                 placeholder={field.placeholder}
                 disabled={!fieldState.isEnabled}
+                className="flex-1"
               />
-              {/* Show formatted time preview for 12-hour format */}
-              {timeValue && (timeConfig.format === '12') && (
-                <div className="text-sm text-muted-foreground mt-1">
-                  Displayed as: {formatTimeDisplay(timeValue)}
-                </div>
+              {/* Show formatted preview */}
+              {timeValue && (
+                <span className="text-sm font-medium min-w-[80px]">
+                  {formatTimeDisplay(timeValue)}
+                </span>
               )}
             </div>
             {errors[field.id] && (
