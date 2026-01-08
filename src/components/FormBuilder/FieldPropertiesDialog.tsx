@@ -420,7 +420,13 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
       case 'checkbox':
         return <SelectFieldConfig {...props} fieldType={fieldForConfig.type as any} />;
       case 'multi-select':
-        return <MultiSelectFieldConfig field={fieldForConfig} onConfigChange={config => {
+        // Pass merged field with localConfig options for instant color updates
+        const multiSelectField = {
+          ...fieldForConfig,
+          options: ensureOptionsArray(localConfig.options),
+          customConfig: localConfig.customConfig || {}
+        };
+        return <MultiSelectFieldConfig field={multiSelectField} onConfigChange={config => {
           Object.entries(config).forEach(([key, value]) => {
             if (key === 'options') {
               updateField('options', value);
