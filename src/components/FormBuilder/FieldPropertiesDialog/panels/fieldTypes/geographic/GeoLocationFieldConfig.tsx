@@ -1,5 +1,6 @@
 import React from 'react';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -38,8 +39,20 @@ export function GeoLocationFieldConfig({ config, onUpdate, errors }: GeoLocation
             <SelectItem value="all">GPS + Manual Coordinates</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="requiredAccuracy">Required Accuracy (meters)</Label>
+        <Input
+          id="requiredAccuracy"
+          type="number"
+          min="1"
+          max="1000"
+          value={customConfig.requiredAccuracy || 100}
+          onChange={(e) => handleConfigChange('requiredAccuracy', parseInt(e.target.value) || 100)}
+        />
         <p className="text-xs text-muted-foreground">
-          Choose how users can input their location
+          GPS readings with accuracy worse than this will show a warning
         </p>
       </div>
 
@@ -51,9 +64,6 @@ export function GeoLocationFieldConfig({ config, onUpdate, errors }: GeoLocation
         />
         <Label htmlFor="showAddress">Show address from coordinates</Label>
       </div>
-      <p className="text-xs text-muted-foreground ml-6">
-        Automatically fetch and display address when location is captured
-      </p>
     </div>
   );
 }
