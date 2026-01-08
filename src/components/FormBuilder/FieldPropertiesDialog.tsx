@@ -153,12 +153,17 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
     // Ensure validation object exists with unique property preserved
     const validationConfig = field.validation || {};
     
+    // Preserve boolean false values for checkbox fields
+    const defaultValueForType = field.type === 'checkbox' 
+      ? (field.defaultValue === true || field.defaultValue === 'true' ? true : false)
+      : (field.defaultValue ?? '');
+
     const newLocalConfig = {
       label: field.label,
       placeholder: field.placeholder || '',
       required: field.required || false,
       tooltip: field.tooltip || '',
-      defaultValue: field.defaultValue || '',
+      defaultValue: defaultValueForType,
       customConfig: field.customConfig || {},
       options: parsedOptions,
       validation: validationConfig

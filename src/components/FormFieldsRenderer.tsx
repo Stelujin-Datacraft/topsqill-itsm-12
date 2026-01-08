@@ -945,22 +945,39 @@ case 'radio':
           </div>
         );
       case 'slider':
+        const sliderMin = field.customConfig?.min ?? field.validation?.min ?? 0;
+        const sliderMax = field.customConfig?.max ?? field.validation?.max ?? 100;
+        const sliderStep = field.customConfig?.step ?? 1;
+        const sliderValue = formData[field.id] !== undefined ? formData[field.id] : sliderMin;
         return (
           <div className="space-y-2">
             <div className="flex items-center">
- <Label htmlFor={field.id}>
+              <Label htmlFor={field.id}>
                 {fieldState.label}
                 {isRequired && <span className="text-red-500 ml-1">*</span>}
-              </Label>              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+              </Label>
+              <HelpTooltip content={field.tooltip || fieldState.tooltip} />
             </div>
-            <Slider
-              value={[formData[field.id] || 0]}
-              onValueChange={(value) => onFieldChange(field.id, value[0])}
-              max={field.validation?.max || 100}
-              min={field.validation?.min || 0}
-              step={field.customConfig?.step || 1}
-              disabled={!fieldState.isEnabled}
-            />
+            <div className="flex items-center gap-4">
+              <Slider
+                value={[sliderValue]}
+                onValueChange={(value) => onFieldChange(field.id, value[0])}
+                max={sliderMax}
+                min={sliderMin}
+                step={sliderStep}
+                disabled={!fieldState.isEnabled}
+                className="flex-1"
+              />
+              {field.customConfig?.showValue !== false && (
+                <span className="text-sm font-medium min-w-[3rem] text-right">{sliderValue}</span>
+              )}
+            </div>
+            {field.customConfig?.showLabels && (
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{sliderMin}</span>
+                <span>{sliderMax}</span>
+              </div>
+            )}
             {errors[field.id] && (
               <p className="text-sm text-red-500">{errors[field.id]}</p>
             )}
