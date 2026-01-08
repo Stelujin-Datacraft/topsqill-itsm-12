@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Edit, ArrowLeft, ChevronRight, Filter, RotateCcw, Layers, Eye } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, PieChart as RechartsPieChart, Pie, Cell, LineChart as RechartsLineChart, Line, AreaChart as RechartsAreaChart, Area, ScatterChart as RechartsScatterChart, Scatter, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, FunnelChart, Funnel, Treemap, ResponsiveContainer, Tooltip, Legend, ReferenceLine } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, PieChart as RechartsPieChart, Pie, Cell, LineChart as RechartsLineChart, Line, AreaChart as RechartsAreaChart, Area, ScatterChart as RechartsScatterChart, Scatter, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, FunnelChart, Funnel, Treemap, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { useReports } from '@/hooks/useReports';
 import { useFormsData } from '@/hooks/useFormsData';
@@ -405,12 +405,11 @@ export function ChartPreview({
             const xOptionInfo = xFieldOptions?.get(String(xVal));
             const yOptionInfo = yFieldOptions?.get(String(yVal));
             
-            // When showRecordsSeparately is enabled, just use the base name but store parent info
-            // Vertical separators will be drawn between different parent groups
+            // When showRecordsSeparately is enabled, prefix the name with parent display name
+            // This allows bars to be grouped by parent record in the chart
             const showSeparately = (crossRefConfig as any).showRecordsSeparately || false;
             const baseName = xOptionInfo?.label || String(xDisplay);
-            // Always use baseName for display; parent separators handle grouping visually
-            const chartName = baseName;
+            const chartName = showSeparately ? `${displayName}|${baseName}` : baseName;
             
             result.push({
               name: chartName,
@@ -2367,18 +2366,9 @@ export function ChartPreview({
     const data = payload[0]?.payload;
     const value = payload[0]?.value;
     
-    // Check if showing records separately
-    const showSeparately = data?._showRecordsSeparately || crossRefConfig?.showRecordsSeparately;
-    const parentName = data?.parentDisplayName;
-    
     return (
       <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3 min-w-[220px]">
-        {/* Header - show parent name if showing records separately */}
-        {showSeparately && parentName && (
-          <div className="text-xs text-muted-foreground mb-1">
-            Parent: <span className="text-foreground font-medium">{parentName}</span>
-          </div>
-        )}
+        {/* Header - Source record */}
         <div className="font-medium text-sm mb-2 pb-2 border-b border-border">
           {label}
         </div>
@@ -2556,43 +2546,7 @@ export function ChartPreview({
       return ticks;
     };
 
-    // Calculate parent separator positions for cross-ref "show records separately" mode
-    // Returns x-axis positions (data point names) where parent changes occur
-    const getParentSeparatorPositions = (data: any[]): { position: number; label: string }[] => {
-      if (!data || data.length < 2) return [];
-      
-      const separators: { position: number; label: string }[] = [];
-      let lastParentId = data[0]?.parentRefId || data[0]?.parentId || '';
-      let lastParentName = data[0]?.parentDisplayName || '';
-      
-      // Add first parent label at position 0
-      if (lastParentName) {
-        separators.push({ position: -0.5, label: lastParentName });
-      }
-      
-      for (let i = 1; i < data.length; i++) {
-        const currentParentId = data[i]?.parentRefId || data[i]?.parentId || '';
-        const currentParentName = data[i]?.parentDisplayName || '';
-        
-        if (currentParentId !== lastParentId && currentParentId) {
-          // Add separator between index i-1 and i (at position i - 0.5)
-          separators.push({ position: i - 0.5, label: currentParentName });
-          lastParentId = currentParentId;
-          lastParentName = currentParentName;
-        }
-      }
-      
-      return separators;
-    };
-
-    // Check if we should show parent separators
-    const showParentSeparators = config.crossRefConfig?.enabled && 
-      config.crossRefConfig?.showRecordsSeparately && 
-      config.crossRefConfig?.mode === 'compare';
-    
-    const parentSeparators = showParentSeparators ? getParentSeparatorPositions(sanitizedChartData) : [];
-
-
+    // Determine the primary metric to display
     let primaryMetric = 'value'; // Default fallback
 
     if (config.metrics && config.metrics.length > 0) {
@@ -4066,24 +4020,6 @@ export function ChartPreview({
                     </Bar>
                   ))}
                 </>}
-                
-                {/* Parent separator lines for cross-ref "show records separately" mode */}
-                {parentSeparators.map((sep, idx) => (
-                  <ReferenceLine
-                    key={`parent-sep-${idx}`}
-                    x={sanitizedChartData[Math.ceil(sep.position)]?.name}
-                    stroke="hsl(var(--border))"
-                    strokeWidth={2}
-                    strokeDasharray="4 4"
-                    label={{
-                      value: sep.label,
-                      position: 'top',
-                      fill: 'hsl(var(--muted-foreground))',
-                      fontSize: 10,
-                      fontWeight: 500
-                    }}
-                  />
-                ))}
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -4175,24 +4111,6 @@ export function ChartPreview({
                     </Bar>
                   ))}
                 </>}
-                
-                {/* Parent separator lines for cross-ref "show records separately" mode */}
-                {parentSeparators.map((sep, idx) => (
-                  <ReferenceLine
-                    key={`parent-sep-col-${idx}`}
-                    x={sanitizedChartData[Math.ceil(sep.position)]?.name}
-                    stroke="hsl(var(--border))"
-                    strokeWidth={2}
-                    strokeDasharray="4 4"
-                    label={{
-                      value: sep.label,
-                      position: 'top',
-                      fill: 'hsl(var(--muted-foreground))',
-                      fontSize: 10,
-                      fontWeight: 500
-                    }}
-                  />
-                ))}
                 </BarChart>
               </ResponsiveContainer>
             </div>
