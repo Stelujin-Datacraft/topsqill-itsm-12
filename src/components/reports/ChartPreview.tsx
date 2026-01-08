@@ -4405,6 +4405,24 @@ export function ChartPreview({
                     />
                   )} />)}
                      </>}
+                
+                {/* Parent separator lines for cross-ref "show records separately" mode */}
+                {parentSeparators.map((sep, idx) => (
+                  <ReferenceLine
+                    key={`line-parent-sep-${idx}`}
+                    x={sanitizedChartData[Math.ceil(sep.position)]?.name}
+                    stroke="hsl(var(--border))"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                    label={{
+                      value: sep.label,
+                      position: 'top',
+                      fill: 'hsl(var(--muted-foreground))',
+                      fontSize: 10,
+                      fontWeight: 500
+                    }}
+                  />
+                ))}
                 </RechartsLineChart>
               </ResponsiveContainer>
             </div>
@@ -4485,6 +4503,24 @@ export function ChartPreview({
                       onClick={() => handleBarClick(props, index + 1)}
                     />
                 )} />)}
+                
+                {/* Parent separator lines for cross-ref "show records separately" mode */}
+                {parentSeparators.map((sep, idx) => (
+                  <ReferenceLine
+                    key={`area-parent-sep-${idx}`}
+                    x={sanitizedChartData[Math.ceil(sep.position)]?.name}
+                    stroke="hsl(var(--border))"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                    label={{
+                      value: sep.label,
+                      position: 'top',
+                      fill: 'hsl(var(--muted-foreground))',
+                      fontSize: 10,
+                      fontWeight: 500
+                    }}
+                  />
+                ))}
                 </RechartsAreaChart>
               </ResponsiveContainer>
             </div>
@@ -4631,6 +4667,44 @@ export function ChartPreview({
                     style={{ cursor: 'pointer' }} 
                     onClick={(data: any) => handleBarClick(data, 0)}
                   />
+                  
+                  {/* Parent separator lines for cross-ref "show records separately" mode */}
+                  {showParentSeparators && scatterTransformedData.length > 0 && (() => {
+                    // For scatter, calculate x positions where parent changes
+                    const scatterSeparators: { x: number; label: string }[] = [];
+                    let lastParentId = scatterTransformedData[0]?.parentRefId || scatterTransformedData[0]?.parentId || '';
+                    
+                    for (let i = 1; i < scatterTransformedData.length; i++) {
+                      const currentParentId = scatterTransformedData[i]?.parentRefId || scatterTransformedData[i]?.parentId || '';
+                      const currentParentName = scatterTransformedData[i]?.parentDisplayName || '';
+                      
+                      if (currentParentId !== lastParentId && currentParentId) {
+                        // Get x position between current and previous point
+                        const prevX = scatterTransformedData[i - 1]?.x ?? i - 1;
+                        const currX = scatterTransformedData[i]?.x ?? i;
+                        const midX = (prevX + currX) / 2;
+                        scatterSeparators.push({ x: midX, label: currentParentName });
+                        lastParentId = currentParentId;
+                      }
+                    }
+                    
+                    return scatterSeparators.map((sep, idx) => (
+                      <ReferenceLine
+                        key={`scatter-parent-sep-${idx}`}
+                        x={sep.x}
+                        stroke="hsl(var(--border))"
+                        strokeWidth={2}
+                        strokeDasharray="4 4"
+                        label={{
+                          value: sep.label,
+                          position: 'top',
+                          fill: 'hsl(var(--muted-foreground))',
+                          fontSize: 10,
+                          fontWeight: 500
+                        }}
+                      />
+                    ));
+                  })()}
                 </RechartsScatterChart>
               </ResponsiveContainer>
             </div>
@@ -4789,6 +4863,42 @@ export function ChartPreview({
                         />
                       ))}
                     </Scatter>
+                    
+                    {/* Parent separator lines for cross-ref "show records separately" mode */}
+                    {showParentSeparators && bubbleData.length > 0 && (() => {
+                      const bubbleSeparators: { x: number; label: string }[] = [];
+                      let lastParentId = bubbleData[0]?.parentRefId || bubbleData[0]?.parentId || '';
+                      
+                      for (let i = 1; i < bubbleData.length; i++) {
+                        const currentParentId = bubbleData[i]?.parentRefId || bubbleData[i]?.parentId || '';
+                        const currentParentName = bubbleData[i]?.parentDisplayName || '';
+                        
+                        if (currentParentId !== lastParentId && currentParentId) {
+                          const prevX = bubbleData[i - 1]?.x ?? i - 1;
+                          const currX = bubbleData[i]?.x ?? i;
+                          const midX = (prevX + currX) / 2;
+                          bubbleSeparators.push({ x: midX, label: currentParentName });
+                          lastParentId = currentParentId;
+                        }
+                      }
+                      
+                      return bubbleSeparators.map((sep, idx) => (
+                        <ReferenceLine
+                          key={`bubble-parent-sep-${idx}`}
+                          x={sep.x}
+                          stroke="hsl(var(--border))"
+                          strokeWidth={2}
+                          strokeDasharray="4 4"
+                          label={{
+                            value: sep.label,
+                            position: 'top',
+                            fill: 'hsl(var(--muted-foreground))',
+                            fontSize: 10,
+                            fontWeight: 500
+                          }}
+                        />
+                      ));
+                    })()}
                 </RechartsScatterChart>
               </ResponsiveContainer>
             </div>
