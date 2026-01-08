@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -180,9 +180,13 @@ export function useReports() {
     return data || [];
   }, []);
 
+  // Use a ref to access forms without causing re-renders
+  const formsRef = useRef(forms);
+  formsRef.current = forms;
+  
   const getFormFields = useCallback(async (formId: string) => {
-    // First try to get from cached forms
-    const form = forms.find(f => f.id === formId);
+    // First try to get from cached forms (using ref to avoid dependency)
+    const form = formsRef.current.find(f => f.id === formId);
     if (form?.fields && form.fields.length > 0) {
       return form.fields;
     }
@@ -201,7 +205,7 @@ export function useReports() {
     }
     
     return data || [];
-  }, [forms]);
+  }, []);
 
   const getAvailableForms = useCallback(async () => {
     // Return forms from context

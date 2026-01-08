@@ -83,13 +83,16 @@ export function ChartPreview({
     return fieldsFromForm.length > 0 ? fieldsFromForm : directlyFetchedFields;
   }, [currentForm, directlyFetchedFields]);
 
+  // Stable key for currentForm fields to prevent unnecessary re-fetches
+  const hasFormFields = currentForm?.fields && currentForm.fields.length > 0;
+  
   // Fetch fields directly when config.formId changes and formFields is empty
   useEffect(() => {
     const fetchFieldsDirectly = async () => {
-      if (config.formId && (!currentForm?.fields || currentForm.fields.length === 0)) {
+      if (config.formId && !hasFormFields) {
         try {
           const fields = await getFormFields(config.formId);
-      if (fields && fields.length > 0) {
+          if (fields && fields.length > 0) {
             setDirectlyFetchedFields(fields);
           }
         } catch (error) {
@@ -98,7 +101,7 @@ export function ChartPreview({
       }
     };
     fetchFieldsDirectly();
-  }, [config.formId, currentForm?.fields, getFormFields]);
+  }, [config.formId, hasFormFields, getFormFields]);
 
   // Memoized lookup maps for form and field names (performance optimization)
   const formNameCache = useMemo(() => {
@@ -995,6 +998,7 @@ export function ChartPreview({
 
   // Track the current load request to prevent race conditions
   const loadRequestRef = useRef(0);
+  const isInitialLoadRef = useRef(true);
 
   useEffect(() => {
     const currentLoadRequest = ++loadRequestRef.current;
@@ -1018,8 +1022,10 @@ export function ChartPreview({
         return;
       }
       
-      // Set loading state before fetching
-      setLoading(true);
+      // Only show loading on initial load, not on config changes (prevents flickering)
+      if (isInitialLoadRef.current) {
+        setLoading(true);
+      }
       
       try {
 
@@ -1195,6 +1201,7 @@ export function ChartPreview({
       } finally {
         if (currentLoadRequest === loadRequestRef.current) {
           setLoading(false);
+          isInitialLoadRef.current = false;
         }
       }
     };
