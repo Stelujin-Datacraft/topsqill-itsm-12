@@ -777,21 +777,27 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                       // Select/Dropdown field
                       if (fieldType === 'select' || fieldType === 'radio') {
                         const optionsArray = Array.isArray(options) ? options : [];
+                        const currentValue = String(localConfig.defaultValue || '__none__');
                         return (
                           <Select 
-                            value={String(localConfig.defaultValue || '')} 
-                            onValueChange={value => updateField('defaultValue', value)}
+                            value={currentValue} 
+                            onValueChange={value => updateField('defaultValue', value === '__none__' ? '' : value)}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Select default value" />
                             </SelectTrigger>
                             <SelectContent className="bg-background z-50">
-                              <SelectItem value="">No default</SelectItem>
-                              {optionsArray.map((opt: any, idx: number) => (
-                                <SelectItem key={idx} value={typeof opt === 'string' ? opt : opt.value || opt.label}>
-                                  {typeof opt === 'string' ? opt : opt.label || opt.value}
-                                </SelectItem>
-                              ))}
+                              <SelectItem value="__none__">No default</SelectItem>
+                              {optionsArray.map((opt: any, idx: number) => {
+                                const optValue = typeof opt === 'string' ? opt : (opt.value || opt.label || '');
+                                // Skip options with empty values
+                                if (!optValue) return null;
+                                return (
+                                  <SelectItem key={idx} value={optValue}>
+                                    {typeof opt === 'string' ? opt : opt.label || opt.value}
+                                  </SelectItem>
+                                );
+                              })}
                             </SelectContent>
                           </Select>
                         );
