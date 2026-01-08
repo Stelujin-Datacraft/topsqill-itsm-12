@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, X, Loader2, Trash2, Star } from 'lucide-react';
+import { Plus, X, Loader2, Trash2, Star, Heart, ThumbsUp } from 'lucide-react';
 import { FormField } from '@/types/form';
 import { RecordFieldConfigPanel } from '../form-fields/RecordFieldConfigPanel';
 import { useFormAccess } from './FieldPropertiesDialog/hooks/useFormAccess';
@@ -872,25 +872,47 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                         );
                       }
                       
-                      // Rating field - show star picker
+                      // Rating field - show rating picker based on style
                       if (fieldType === 'rating') {
                         const ratingScale = localConfig.customConfig?.ratingScale || 5;
+                        const ratingStyle = localConfig.customConfig?.ratingStyle || 'stars';
                         const currentRating = Number(localConfig.defaultValue) || 0;
+                        
+                        const getIcon = (index: number, isFilled: boolean) => {
+                          const filledClass = ratingStyle === 'hearts' ? 'text-red-500 fill-current' : 
+                                            ratingStyle === 'thumbs' ? 'text-green-500 fill-current' : 
+                                            'text-yellow-400 fill-current';
+                          const emptyClass = 'text-gray-300';
+                          
+                          switch (ratingStyle) {
+                            case 'hearts':
+                              return <Heart className={`h-6 w-6 ${isFilled ? filledClass : emptyClass}`} />;
+                            case 'thumbs':
+                              return <ThumbsUp className={`h-6 w-6 ${isFilled ? filledClass : emptyClass}`} />;
+                            case 'numbers':
+                              return (
+                                <span className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium ${
+                                  isFilled ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                                }`}>
+                                  {index}
+                                </span>
+                              );
+                            default:
+                              return <Star className={`h-6 w-6 ${isFilled ? filledClass : emptyClass}`} />;
+                          }
+                        };
+                        
                         return (
                           <div className="space-y-2">
                             <div className="flex items-center gap-1">
-                              {Array.from({ length: ratingScale }, (_, i) => i + 1).map((star) => (
+                              {Array.from({ length: ratingScale }, (_, i) => i + 1).map((rating) => (
                                 <button
-                                  key={star}
+                                  key={rating}
                                   type="button"
-                                  onClick={() => updateField('defaultValue', star === currentRating ? 0 : star)}
-                                  className="text-2xl transition-colors cursor-pointer hover:text-yellow-400"
+                                  onClick={() => updateField('defaultValue', rating === currentRating ? 0 : rating)}
+                                  className="transition-colors cursor-pointer hover:scale-110"
                                 >
-                                  <Star 
-                                    className={`h-6 w-6 ${
-                                      currentRating >= star ? 'text-yellow-400 fill-current' : 'text-gray-300'
-                                    }`} 
-                                  />
+                                  {getIcon(rating, currentRating >= rating)}
                                 </button>
                               ))}
                               {currentRating > 0 && (
@@ -899,7 +921,7 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                                 </span>
                               )}
                             </div>
-                            <p className="text-xs text-muted-foreground">Click a star to set default rating, click again to clear</p>
+                            <p className="text-xs text-muted-foreground">Click to set default rating, click again to clear</p>
                           </div>
                         );
                       }
