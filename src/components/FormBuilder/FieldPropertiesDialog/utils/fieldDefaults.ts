@@ -289,12 +289,7 @@ export function getFieldDefaults(fieldType: FieldType): Record<string, any> {
     'submission-access': {
       ...commonDefaults,
       accessLevel: 'view',
-      accessDuration: undefined,
-      notificationMessage: '',
-      requireConfirmation: false,
-      sendNotification: true,
       allowMultiple: false,
-      logAccess: true,
     },
     'query-field': {
       ...commonDefaults,
