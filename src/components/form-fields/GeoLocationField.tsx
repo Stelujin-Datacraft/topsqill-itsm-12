@@ -71,15 +71,9 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
             onChange(locationData);
           }
 
-          const requiredAccuracy = config.requiredAccuracy || 100;
-          const isAccuracyGood = position.coords.accuracy <= requiredAccuracy;
-
           toast({
-            title: isAccuracyGood ? "Location captured" : "Location captured (low accuracy)",
-            description: isAccuracyGood 
-              ? `Location captured with ${Math.round(position.coords.accuracy)}m accuracy.`
-              : `GPS accuracy is ${Math.round(position.coords.accuracy)}m (required: ${requiredAccuracy}m). Consider retrying.`,
-            variant: isAccuracyGood ? "default" : "destructive",
+            title: "Location captured",
+            description: `Location captured with ${Math.round(position.coords.accuracy)}m accuracy.`,
           });
         } catch (error) {
           console.error('Error processing location:', error);
@@ -223,7 +217,7 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
       )}
 
       <div className="space-y-3">
-        {(config.inputMethod === 'gps' || config.inputMethod === 'all' || !config.inputMethod) && (
+        {(!config.mapOnly && config.inputMethod !== 'coordinates') && (
           <Button
             type="button"
             onClick={getCurrentLocation}
@@ -241,7 +235,7 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
           </Button>
         )}
 
-        {(config.inputMethod === 'coordinates' || config.inputMethod === 'all' || !config.inputMethod) && (
+        {config.allowManualEntry !== false && (
           <div className="space-y-2">
             <Label className="text-sm font-medium">Manual Coordinates</Label>
             <div className="grid grid-cols-2 gap-2">
@@ -275,6 +269,15 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
             >
               Set Manual Coordinates
             </Button>
+          </div>
+        )}
+
+        {config.mapProvider && (
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
+            <p>Map provider: {config.mapProvider}</p>
+            {config.defaultLocation && (
+              <p>Default location: {config.defaultLocation}</p>
+            )}
           </div>
         )}
       </div>
