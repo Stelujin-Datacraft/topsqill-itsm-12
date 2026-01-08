@@ -71,9 +71,15 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
             onChange(locationData);
           }
 
+          const requiredAccuracy = config.requiredAccuracy || 100;
+          const isAccuracyGood = position.coords.accuracy <= requiredAccuracy;
+
           toast({
-            title: "Location captured",
-            description: `Location captured with ${Math.round(position.coords.accuracy)}m accuracy.`,
+            title: isAccuracyGood ? "Location captured" : "Location captured (low accuracy)",
+            description: isAccuracyGood 
+              ? `Location captured with ${Math.round(position.coords.accuracy)}m accuracy.`
+              : `GPS accuracy is ${Math.round(position.coords.accuracy)}m (required: ${requiredAccuracy}m). Consider retrying.`,
+            variant: isAccuracyGood ? "default" : "destructive",
           });
         } catch (error) {
           console.error('Error processing location:', error);
