@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, X, Loader2, Trash2 } from 'lucide-react';
+import { Plus, X, Loader2, Trash2, Star } from 'lucide-react';
 import { FormField } from '@/types/form';
 import { RecordFieldConfigPanel } from '../form-fields/RecordFieldConfigPanel';
 import { useFormAccess } from './FieldPropertiesDialog/hooks/useFormAccess';
@@ -872,19 +872,35 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                         );
                       }
                       
-                      // Rating field
+                      // Rating field - show star picker
                       if (fieldType === 'rating') {
                         const ratingScale = localConfig.customConfig?.ratingScale || 5;
+                        const currentRating = Number(localConfig.defaultValue) || 0;
                         return (
-                          <Input 
-                            id="field-default" 
-                            type="number"
-                            min={1}
-                            max={ratingScale}
-                            value={String(localConfig.defaultValue ?? '')} 
-                            onChange={e => updateField('defaultValue', e.target.value ? Number(e.target.value) : '')} 
-                            placeholder={`Enter default rating (1-${ratingScale})`} 
-                          />
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-1">
+                              {Array.from({ length: ratingScale }, (_, i) => i + 1).map((star) => (
+                                <button
+                                  key={star}
+                                  type="button"
+                                  onClick={() => updateField('defaultValue', star === currentRating ? 0 : star)}
+                                  className="text-2xl transition-colors cursor-pointer hover:text-yellow-400"
+                                >
+                                  <Star 
+                                    className={`h-6 w-6 ${
+                                      currentRating >= star ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                                    }`} 
+                                  />
+                                </button>
+                              ))}
+                              {currentRating > 0 && (
+                                <span className="ml-2 text-sm text-muted-foreground">
+                                  {currentRating} / {ratingScale}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">Click a star to set default rating, click again to clear</p>
+                          </div>
                         );
                       }
                       
