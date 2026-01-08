@@ -217,7 +217,7 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
       )}
 
       <div className="space-y-3">
-        {(!config.mapOnly && config.inputMethod !== 'coordinates') && (
+        {(config.inputMethod === 'gps' || config.inputMethod === 'all' || !config.inputMethod) && (
           <Button
             type="button"
             onClick={getCurrentLocation}
@@ -235,7 +235,7 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
           </Button>
         )}
 
-        {config.allowManualEntry !== false && (
+        {(config.inputMethod === 'coordinates' || config.inputMethod === 'all' || !config.inputMethod) && (
           <div className="space-y-2">
             <Label className="text-sm font-medium">Manual Coordinates</Label>
             <div className="grid grid-cols-2 gap-2">
@@ -269,15 +269,6 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
             >
               Set Manual Coordinates
             </Button>
-          </div>
-        )}
-
-        {config.mapProvider && (
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
-            <p>Map provider: {config.mapProvider}</p>
-            {config.defaultLocation && (
-              <p>Default location: {config.defaultLocation}</p>
-            )}
           </div>
         )}
       </div>
