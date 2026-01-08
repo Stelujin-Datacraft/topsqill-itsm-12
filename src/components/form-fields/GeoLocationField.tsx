@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FormField } from '@/types/form';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { MapPin, Navigation, Loader2, Map } from 'lucide-react';
+import { MapPin, Navigation, Loader2, Map, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 interface GeoLocationFieldProps {
   field: FormField;
@@ -26,6 +29,9 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(value || null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [manualCoords, setManualCoords] = useState({ lat: '', lng: '' });
+  const [showMapModal, setShowMapModal] = useState(false);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
   const config = (field.customConfig as any) || {};
 
   useEffect(() => {
@@ -170,21 +176,56 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
     }
   };
 
-  const openInMaps = (e: React.MouseEvent) => {
+  const openMapModal = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    if (!currentLocation) return;
-    
-    const { latitude, longitude } = currentLocation;
-    const url = `https://www.google.com/maps?q=${latitude},${longitude}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
+    setShowMapModal(true);
   };
+
+  // Initialize map when modal opens
+  useEffect(() => {
+    if (showMapModal && mapContainerRef.current && currentLocation && !mapRef.current) {
+      // Fix Leaflet default marker icon issue
+      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+      });
+
+      mapRef.current = L.map(mapContainerRef.current).setView(
+        [currentLocation.latitude, currentLocation.longitude],
+        15
+      );
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(mapRef.current);
+
+      L.marker([currentLocation.latitude, currentLocation.longitude])
+        .addTo(mapRef.current)
+        .bindPopup(`<b>Location</b><br>${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}`)
+        .openPopup();
+    }
+
+    return () => {
+      if (!showMapModal && mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [showMapModal, currentLocation]);
+
+  // Cleanup map when modal closes
+  useEffect(() => {
+    if (!showMapModal && mapRef.current) {
+      mapRef.current.remove();
+      mapRef.current = null;
+    }
+  }, [showMapModal]);
 
   return (
     <div className="space-y-4">
-      {/* <Label>{field.label}</Label> */}
-      
       {currentLocation && (
         <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
           <div className="flex items-center justify-between mb-2">
@@ -196,7 +237,7 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
               type="button"
               variant="outline"
               size="sm"
-              onClick={openInMaps}
+              onClick={openMapModal}
               className="text-blue-600 border-blue-200"
             >
               <Map className="h-3 w-3 mr-1" />
@@ -279,6 +320,29 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
       {error && (
         <p className="text-sm text-red-500">{error}</p>
       )}
+
+      {/* Map Modal */}
+      <Dialog open={showMapModal} onOpenChange={setShowMapModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              Location on Map
+            </DialogTitle>
+          </DialogHeader>
+          <div 
+            ref={mapContainerRef} 
+            className="w-full h-[400px] rounded-lg border"
+            style={{ zIndex: 0 }}
+          />
+          {currentLocation && (
+            <div className="text-sm text-muted-foreground text-center">
+              {currentLocation.latitude.toFixed(6)}, {currentLocation.longitude.toFixed(6)}
+              {currentLocation.address && ` • ${currentLocation.address}`}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
