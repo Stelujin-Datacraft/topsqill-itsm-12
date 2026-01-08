@@ -139,9 +139,9 @@ export function RatingField({ field, value, onChange, error, disabled = false }:
     <div className="space-y-2">
       <div className="flex items-center gap-1">
         {renderRatingItems()}
-        {value > 0 && (
+        {Number(value) > 0 && (
           <span className="ml-2 text-sm text-muted-foreground">
-            {allowHalfStars ? value.toFixed(1) : Math.ceil(value)} / {scale}
+            {allowHalfStars ? Number(value).toFixed(1) : Math.ceil(Number(value))} / {scale}
           </span>
         )}
         {allowClear && value > 0 && !disabled && !readOnly && (
