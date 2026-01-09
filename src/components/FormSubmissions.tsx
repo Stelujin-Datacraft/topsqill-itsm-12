@@ -313,8 +313,7 @@ export function FormSubmissions({
                   <TableRow>
                     <TableHead>Submitted By</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead>Approval Status</TableHead>
-                    {allFields.slice(0, 2).map(field => <TableHead key={field.id}>{field.label}</TableHead>)}
+                    {allFields.slice(0, 3).map(field => <TableHead key={field.id}>{field.label}</TableHead>)}
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -332,10 +331,7 @@ export function FormSubmissions({
                           {new Date(submission.submittedAt).toLocaleDateString()}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        {getApprovalBadge(submission.approvalStatus || 'pending')}
-                      </TableCell>
-                      {allFields.slice(0, 2).map(field => <TableCell key={field.id}>
+                      {allFields.slice(0, 3).map(field => <TableCell key={field.id}>
                           {getFieldValue(submission, field.id)}
                         </TableCell>)}
                       <TableCell>
