@@ -51,19 +51,36 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
     
     if (Array.isArray(form.fields)) {
       form.fields.forEach(field => {
+        // Check if field is read-only from customConfig
+        const isReadOnly = field.customConfig?.readOnly === true;
+        
         initialStates[field.id] = {
           isVisible: field.isVisible ?? true,
-          isEnabled: field.isEnabled ?? true,
+          isEnabled: isReadOnly ? false : (field.isEnabled ?? true),
           label: field.label,
           options: field.options,
           tooltip: field.tooltip,
           errorMessage: field.errorMessage,
         };
         
-        // Initialize boolean fields (checkbox, toggle, yes-no) with false if not already set
+        // Initialize boolean fields (checkbox, toggle, yes-no) with their default value
         const booleanFieldTypes = ['checkbox', 'toggle-switch', 'toggle', 'yes-no', 'boolean'];
         if (booleanFieldTypes.includes(field.type?.toLowerCase() || '')) {
-          initialFormData[field.id] = false;
+          // For boolean fields, explicitly check for true/false values
+          if (field.defaultValue === true || field.defaultValue === 'true') {
+            initialFormData[field.id] = true;
+          } else {
+            initialFormData[field.id] = false;
+          }
+        } else if (field.type?.toLowerCase() === 'slider') {
+          // Slider uses customConfig for min value as default
+          const sliderMin = field.customConfig?.min ?? 0;
+          initialFormData[field.id] = field.defaultValue !== undefined && field.defaultValue !== '' 
+            ? Number(field.defaultValue) 
+            : sliderMin;
+        } else if (field.defaultValue !== undefined && field.defaultValue !== '') {
+          // Apply default value for other field types
+          initialFormData[field.id] = field.defaultValue;
         }
       });
     }
@@ -90,9 +107,12 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
     const newFieldStates: Record<string, any> = {};
     if (Array.isArray(form.fields)) {
       form.fields.forEach(field => {
+        // Check if field is read-only from customConfig
+        const isReadOnly = field.customConfig?.readOnly === true;
+        
         newFieldStates[field.id] = {
           isVisible: field.isVisible ?? true,
-          isEnabled: field.isEnabled ?? true,
+          isEnabled: isReadOnly ? false : (field.isEnabled ?? true),
           label: field.label,
           options: field.options,
           tooltip: field.tooltip,
