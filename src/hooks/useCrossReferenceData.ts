@@ -46,17 +46,17 @@ export function useCrossReferenceData(
           throw submissionsError;
         }
 
-        // Also fetch the form fields to get their labels
+        // Also fetch the form fields to get their labels and options
         const { data: formFields, error: fieldsError } = await supabase
           .from('form_fields')
-          .select('id, label, field_type')
+          .select('id, label, field_type, options')
           .eq('form_id', targetFormId);
 
         if (fieldsError) {
           throw fieldsError;
         }
 
-        const fieldMap = new Map(formFields?.map(f => [f.id, { label: f.label, type: f.field_type }]) || []);
+        const fieldMap = new Map(formFields?.map(f => [f.id, { label: f.label, type: f.field_type, options: f.options }]) || []);
 
         const formattedRecords: CrossReferenceRecord[] = (submissions || []).map(sub => {
           // Build display data from selected fields
@@ -65,12 +65,12 @@ export function useCrossReferenceData(
           if (normalizedDisplayFieldIds && normalizedDisplayFieldIds.length > 0) {
             displayParts = normalizedDisplayFieldIds
               .map(fieldId => {
-                const fieldInfo = fieldMap.get(fieldId);
+              const fieldInfo = fieldMap.get(fieldId);
                 const value = sub.submission_data?.[fieldId];
                 
                 if (value !== null && value !== undefined && value !== '') {
                   const label = fieldInfo?.label || fieldId;
-                  return `${label}: ${formatFieldValue(value, fieldInfo?.type)}`;
+                  return `${label}: ${formatFieldValue(value, fieldInfo?.type, fieldInfo?.options)}`;
                 }
                 return null;
               })
@@ -109,8 +109,32 @@ export function useCrossReferenceData(
   };
 }
 
-function formatFieldValue(value: any, fieldType?: string): string {
+function formatFieldValue(value: any, fieldType?: string, options?: any): string {
   if (value === null || value === undefined) return 'N/A';
+  
+  // Handle select/radio/checkbox fields - resolve option labels
+  if ((fieldType === 'select' || fieldType === 'radio' || fieldType === 'checkbox' || fieldType === 'dropdown') && options) {
+    const optionsArray = Array.isArray(options) ? options : [];
+    
+    // Handle multi-select (array of values)
+    if (Array.isArray(value)) {
+      const labels = value.map(v => {
+        const option = optionsArray.find((opt: any) => 
+          opt.value === v || opt.id === v || opt.label === v
+        );
+        return option?.label || v;
+      });
+      return labels.join(', ');
+    }
+    
+    // Handle single select
+    const option = optionsArray.find((opt: any) => 
+      opt.value === value || opt.id === value || opt.label === value
+    );
+    if (option?.label) {
+      return option.label;
+    }
+  }
   
   // Handle objects (like currency, address, etc.)
   if (typeof value === 'object') {
