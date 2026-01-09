@@ -306,33 +306,7 @@ export function QueryFieldConfig({ config, onUpdate, errors }: QueryFieldConfigP
               <Separator />
 
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">SQL Query</Label>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-6 text-xs">
-                          <BookOpen className="h-3 w-3 mr-1" />
-                          Quick Tips
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="left" className="max-w-sm">
-                        <div className="space-y-2 text-xs">
-                          <p className="font-semibold">Query Syntax:</p>
-                          <ul className="list-disc list-inside space-y-1">
-                            <li>Use "{'{field-id}'}" to reference fields</li>
-                            <li>Use "{'{form-id}'}" to reference forms</li>
-                            <li>Supports WHERE, ORDER BY, LIMIT</li>
-                            <li>Supports COUNT, SUM, AVG, GROUP BY</li>
-                          </ul>
-                          <p className="text-muted-foreground pt-1">
-                            See "Templates & Guide" tab for examples
-                          </p>
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
+                <Label className="text-sm font-medium">SQL Query</Label>
                 <div className="border rounded-md">
                   <CodeMirror
                     value={customConfig.query || ''}
