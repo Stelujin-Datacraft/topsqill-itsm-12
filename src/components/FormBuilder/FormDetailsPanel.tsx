@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { FormPagination } from '@/components/FormPagination';
 import { FieldLayoutRenderer } from './FieldLayoutRenderer';
 import { Form, FormPage, FormField } from '@/types/form';
-import { FileStack, ChevronUp, ChevronDown, Settings2, Grid3X3, Calendar, User, Hash, Share2, Settings, Globe, Eye } from 'lucide-react';
+import { FileStack, Settings2, Grid3X3, Calendar, Hash } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 
 
@@ -53,157 +53,80 @@ function FormDetailsSection({
   setFormDescription: (description: string) => void;
   currentForm: Form | null;
 }) {
-  return <div className="space-y-8">
+  return (
+    <div className="space-y-6">
       {/* Form Basic Information */}
       <Card>
-        <CardHeader className="pb-4">
-          <h2 className="text-lg font-semibold text-foreground">Form Information</h2>
+        <CardHeader className="pb-3">
+          <h2 className="text-base font-semibold text-foreground">Form Information</h2>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
             <Label htmlFor="form-name" className="text-sm font-medium text-foreground">Form Title</Label>
-            <Input id="form-name" value={formName} onChange={e => setFormName(e.target.value)} placeholder="Enter form title..." className="mt-2" />
+            <Input id="form-name" value={formName} onChange={e => setFormName(e.target.value)} placeholder="Enter form title..." className="mt-1.5" />
           </div>
           
           <div>
-            <Label htmlFor="form-description" className="text-sm font-medium text-foreground">Form Description</Label>
-            <Textarea id="form-description" value={formDescription} onChange={e => setFormDescription(e.target.value)} placeholder="Enter form description..." className="mt-2 min-h-[80px] resize-none" />
+            <Label htmlFor="form-description" className="text-sm font-medium text-foreground">Description</Label>
+            <Textarea id="form-description" value={formDescription} onChange={e => setFormDescription(e.target.value)} placeholder="Enter form description..." className="mt-1.5 min-h-[60px] resize-none" />
           </div>
         </CardContent>
       </Card>
 
       {/* Form Metadata */}
-      {currentForm && <Card>
-          <CardHeader className="pb-4">
-            <h2 className="text-lg font-semibold text-foreground">Form Details</h2>
+      {currentForm && (
+        <Card>
+          <CardHeader className="pb-3">
+            <h2 className="text-base font-semibold text-foreground">Form Details</h2>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                <div className="flex items-center gap-2">
-                  <Hash className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium text-muted-foreground">Form ID</span>
-                </div>
-                <code className="text-xs bg-muted px-2 py-1 rounded text-foreground">{currentForm.id}</code>
+          <CardContent className="space-y-0">
+            <div className="flex items-center justify-between py-2.5 border-b border-border">
+              <div className="flex items-center gap-2">
+                <Hash className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Form ID</span>
               </div>
-              
-              {currentForm.createdAt && <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium text-muted-foreground">Created Date</span>
-                  </div>
-                  <span className="text-sm text-foreground">{new Date(currentForm.createdAt).toLocaleDateString()}</span>
-                </div>}
-              
-              {currentForm.updatedAt && <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium text-muted-foreground">Last Modified</span>
-                  </div>
-                  <span className="text-sm text-foreground">{new Date(currentForm.updatedAt).toLocaleDateString()}</span>
-                </div>}
-              
-              {currentForm.createdBy && <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium text-muted-foreground">Created By</span>
-                  </div>
-                  <span className="text-sm text-foreground">{currentForm.createdBy}</span>
-                </div>}
+              <code className="text-xs bg-muted px-2 py-1 rounded text-foreground max-w-[150px] truncate">{currentForm.id}</code>
             </div>
+            
+            {currentForm.createdAt && (
+              <div className="flex items-center justify-between py-2.5 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Created</span>
+                </div>
+                <span className="text-sm text-foreground">{new Date(currentForm.createdAt).toLocaleDateString()}</span>
+              </div>
+            )}
+            
+            {currentForm.updatedAt && (
+              <div className="flex items-center justify-between py-2.5">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Modified</span>
+                </div>
+                <span className="text-sm text-foreground">{new Date(currentForm.updatedAt).toLocaleDateString()}</span>
+              </div>
+            )}
           </CardContent>
-        </Card>}
+        </Card>
+      )}
 
-      {/* Lifecycle Management */}
+      {/* Status */}
       <Card>
-        <CardHeader className="pb-4">
-          <h2 className="text-lg font-semibold text-foreground">Lifecycle Management</h2>
+        <CardHeader className="pb-3">
+          <h2 className="text-base font-semibold text-foreground">Status</h2>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between py-2 border-b border-border">
-            <div className="flex items-center gap-2">
-              <Settings className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-muted-foreground">Status</span>
-            </div>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Current Status</span>
             <Badge variant={currentForm?.status === 'active' ? 'default' : 'secondary'}>
               {currentForm?.status || 'Draft'}
             </Badge>
           </div>
-          
-          <div className="grid grid-cols-1 gap-3 pt-2">
-            <Button variant="default" size="sm" className="justify-start">
-              <Globe className="h-4 w-4 mr-2" />
-              Publish Form
-            </Button>
-            
-            <Button variant="outline" size="sm" className="justify-start">
-              <Eye className="h-4 w-4 mr-2" />
-              Preview Form
-            </Button>
-          </div>
         </CardContent>
       </Card>
-
-      {/* Form Statistics */}
-      <Card>
-        <CardHeader className="pb-4">
-          <h2 className="text-lg font-semibold text-foreground">Form Statistics</h2>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center p-3 bg-muted rounded-lg">
-              <div className="text-2xl font-bold text-foreground">0</div>
-              <div className="text-sm text-muted-foreground">Total Responses</div>
-            </div>
-            <div className="text-center p-3 bg-muted rounded-lg">
-              <div className="text-2xl font-bold text-foreground">0</div>
-              <div className="text-sm text-muted-foreground">Today's Responses</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Sharing & Collaboration */}
-      <Card>
-        <CardHeader className="pb-4">
-          <h2 className="text-lg font-semibold text-foreground">Sharing & Collaboration</h2>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Button variant="outline" size="sm" className="w-full justify-start">
-            <Share2 className="h-4 w-4 mr-2" />
-            Share Form Link
-          </Button>
-          
-          <Button variant="outline" size="sm" className="w-full justify-start">
-            <User className="h-4 w-4 mr-2" />
-            Manage Collaborators
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Advanced Settings */}
-      <Card>
-        <CardHeader className="pb-4">
-          <h2 className="text-lg font-semibold text-foreground">Advanced Settings</h2>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Button variant="outline" size="sm" className="w-full justify-start">
-            <Settings className="h-4 w-4 mr-2" />
-            Form Settings
-          </Button>
-          
-          <Button variant="outline" size="sm" className="w-full justify-start">
-            <Globe className="h-4 w-4 mr-2" />
-            Custom Domain
-          </Button>
-          
-          <Button variant="outline" size="sm" className="w-full justify-start">
-            <FileStack className="h-4 w-4 mr-2" />
-            Export Data
-          </Button>
-        </CardContent>
-      </Card>
-    </div>;
+    </div>
+  );
 }
 export function FormDetailsPanel({
   formName,

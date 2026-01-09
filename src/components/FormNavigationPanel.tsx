@@ -147,7 +147,7 @@ export function FormNavigationPanel({
   }
 
   return (
-    <Card className="h-fit">
+    <Card className="h-full flex flex-col overflow-hidden">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm">Form Navigation</CardTitle>
@@ -188,8 +188,8 @@ export function FormNavigationPanel({
         </div>
       </CardHeader>
       
-      <CardContent className="pt-0">
-        <ScrollArea className="h-[calc(100vh-16rem)]">
+      <CardContent className="pt-0 flex-1 overflow-hidden">
+        <ScrollArea className="h-full">
           <div className="space-y-2">
             {pages.map((page) => {
               const pageFields = getPageFields(page.id);
