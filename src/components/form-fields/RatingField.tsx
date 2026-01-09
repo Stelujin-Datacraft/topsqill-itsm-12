@@ -136,7 +136,7 @@ export function RatingField({ field, value, onChange, error, disabled = false }:
   };
 
   return (
-    <div className="space-y-2">
+    <>
       <div className="flex items-center gap-1">
         {renderRatingItems()}
         {Number(value) > 0 && (
@@ -156,11 +156,11 @@ export function RatingField({ field, value, onChange, error, disabled = false }:
         )}
       </div>
       {field.tooltip && (
-        <p className="text-xs text-muted-foreground">{field.tooltip}</p>
+        <p className="text-xs text-muted-foreground mt-1">{field.tooltip}</p>
       )}
       {error && (
-        <p className="text-sm text-destructive">{error}</p>
+        <p className="text-sm text-destructive mt-1">{error}</p>
       )}
-    </div>
+    </>
   );
 }

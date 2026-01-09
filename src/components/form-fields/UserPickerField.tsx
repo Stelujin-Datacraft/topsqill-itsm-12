@@ -147,9 +147,7 @@ export function UserPickerField({ field, value, onChange, error, disabled }: Use
   };
 
   return (
-    <div className="space-y-2">
-      <Label htmlFor={field.id}>{field.label}</Label>
-      
+    <>
       {/* Selected Users Display */}
       {selectedUsers.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-2">
@@ -271,8 +269,8 @@ export function UserPickerField({ field, value, onChange, error, disabled }: Use
       )}
 
       {error && (
-        <p className="text-sm text-red-500">{error}</p>
+        <p className="text-sm text-red-500 mt-1">{error}</p>
       )}
-    </div>
+    </>
   );
 }

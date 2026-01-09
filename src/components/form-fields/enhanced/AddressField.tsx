@@ -333,7 +333,7 @@ const selectedCountry = COUNTRIES.find(
 );
 
   return (
-    <div className="space-y-4">
+    <>
       <div className="flex items-center justify-between">
         <Label>{field.label}</Label>
         {enableGPS && (
@@ -351,7 +351,7 @@ const selectedCountry = COUNTRIES.find(
       </div>
 
       {addressFields.includes('street') && (
-        <div>
+        <div className="mt-3">
           <Label htmlFor={`${field.id}-street`}>Street Address</Label>
           <Input
             id={`${field.id}-street`}
@@ -363,7 +363,7 @@ const selectedCountry = COUNTRIES.find(
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 mt-3">
         {addressFields.includes('city') && (
           <div>
             <Label htmlFor={`${field.id}-city`}>City</Label>
@@ -391,7 +391,7 @@ const selectedCountry = COUNTRIES.find(
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 mt-3">
         {addressFields.includes('postal') && (
           <div>
             <Label htmlFor={`${field.id}-postal`}>Postal/ZIP Code</Label>
@@ -458,7 +458,7 @@ const selectedCountry = COUNTRIES.find(
 
       </div>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
-    </div>
+      {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
+    </>
   );
 }

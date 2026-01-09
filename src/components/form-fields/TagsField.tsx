@@ -72,14 +72,14 @@ export function TagsField({ field, value = [], onChange, error, disabled = false
   };
 
   return (
-    <div className="space-y-2">
+    <>
       <Label htmlFor={field.id} className="block text-sm font-medium">
         {field.label}
         {field.required && <span className="text-red-500 ml-1">*</span>}
         {maxTags && <span className="text-xs text-gray-500 ml-2">({value.length}/{maxTags})</span>}
       </Label>
       
-      <div className={`min-h-[42px] border rounded-md p-2 flex flex-wrap gap-2 ${error ? 'border-red-500' : 'border-gray-300'} ${disabled || readOnly ? 'bg-gray-50' : 'bg-white'}`}>
+      <div className={`min-h-[42px] border rounded-md p-2 flex flex-wrap gap-2 mt-2 ${error ? 'border-red-500' : 'border-gray-300'} ${disabled || readOnly ? 'bg-gray-50' : 'bg-white'}`}>
         {value.map((tag, index) => (
           <Badge key={index} variant="secondary" className="flex items-center gap-1">
             {tag}
@@ -109,11 +109,11 @@ export function TagsField({ field, value = [], onChange, error, disabled = false
       </div>
       
       {field.tooltip && (
-        <p className="text-xs text-gray-500">{field.tooltip}</p>
+        <p className="text-xs text-gray-500 mt-1">{field.tooltip}</p>
       )}
       {error && (
-        <p className="text-sm text-red-500">{error}</p>
+        <p className="text-sm text-red-500 mt-1">{error}</p>
       )}
-    </div>
+    </>
   );
 }

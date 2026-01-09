@@ -70,9 +70,7 @@ export function BarcodeField({ field, value, onChange, error, disabled }: Barcod
   };
 
   return (
-    <div className="space-y-2">
-      {/* <Label>{field.label}</Label> */}
-      
+    <>
       <div className="flex flex-col items-center space-y-4 p-4 border rounded-lg bg-gray-50">
         {config.url ? (
           <>
@@ -117,8 +115,8 @@ export function BarcodeField({ field, value, onChange, error, disabled }: Barcod
       )}
 
       {error && (
-        <p className="text-sm text-red-500">{error}</p>
+        <p className="text-sm text-red-500 mt-1">{error}</p>
       )}
-    </div>
+    </>
   );
 }
