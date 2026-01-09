@@ -237,15 +237,10 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        {/* <Label htmlFor={field.id}>{field.label}</Label> */}
-        {/* {getAccessLevelBadge()} */}
-      </div>
-      
+    <>
       {/* Selected users and groups display */}
       {(selectedUsers.length > 0 || selectedGroups.length > 0) && (
-        <div className="space-y-2">
+        <div className="space-y-2 mb-2">
           {/* Selected Users */}
           {selectedUsers.map((user) => (
             <div key={`user-${user.id}`} className="flex items-center justify-between p-2 bg-blue-50 border border-blue-200 rounded">
@@ -439,7 +434,7 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
         )}
       </div> */}
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
-    </div>
+      {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
+    </>
   );
 }
