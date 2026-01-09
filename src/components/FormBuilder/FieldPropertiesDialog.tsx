@@ -572,22 +572,26 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
   return <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
         <DialogHeader className="pb-4 border-b">
-          <DialogTitle className="text-xl font-semibold flex items-center justify-between mx-0 my-[15px]">
-            <span>Configure Field: {fieldForConfig?.label || selectedField.label}</span>
-            <div className="flex items-center space-x-2">
-              {loadingFieldData && <span className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
+          <div className="flex items-center justify-between pr-8">
+            <DialogTitle className="text-xl font-semibold">
+              Configure Field: {fieldForConfig?.label || selectedField.label}
+            </DialogTitle>
+            <div className="flex items-center gap-2">
+              {loadingFieldData && (
+                <span className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
                   Loading field data...
-                </span>}
+                </span>
+              )}
               {fieldDataError && !selectedField.id && (
                 <span className="text-sm text-red-600 bg-red-50 px-2 py-1 rounded">
                   {fieldDataError}
                 </span>
               )}
-              <Button onClick={handleSave} disabled={isSaving || loadingFieldData} className="ml-4">
+              <Button onClick={handleSave} disabled={isSaving || loadingFieldData}>
                 {isSaving ? 'Saving...' : 'Save Configuration'}
               </Button>
             </div>
-          </DialogTitle>
+          </div>
         </DialogHeader>
 
         {loadingFieldData ? <div className="flex items-center justify-center py-8">
