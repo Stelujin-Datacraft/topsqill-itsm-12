@@ -99,8 +99,7 @@ export function CountryField({ field, value, onChange, error, disabled = false }
   // Show loading state
   if (loading) {
     return (
-      <div className="space-y-2">
-        {/* <Label>{field.label}</Label> */}
+      <>
         <Button
           variant="outline"
           disabled
@@ -112,15 +111,15 @@ export function CountryField({ field, value, onChange, error, disabled = false }
           </span>
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-      </div>
+        {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
+      </>
     );
   }
 
   // Show error state
   if (fetchError) {
     return (
-      <div className="space-y-2">
+      <>
         <Label>{field.label}</Label>
         <Button
           variant="outline"
@@ -130,15 +129,15 @@ export function CountryField({ field, value, onChange, error, disabled = false }
           <span>{fetchError}</span>
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-      </div>
+        {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
+      </>
     );
   }
 
   // If search is disabled, use a simple select fallback
   if (!searchable) {
     return (
-      <div className="space-y-2">
+      <>
         <Label>{field.label}</Label>
         <select
           value={value || ''}
@@ -153,14 +152,13 @@ export function CountryField({ field, value, onChange, error, disabled = false }
             </option>
           ))}
         </select>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-      </div>
+        {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
+      </>
     );
   }
 
   return (
-    <div className="space-y-2">
-      {/* <Label>{field.label}</Label> */}
+    <>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -236,7 +234,7 @@ export function CountryField({ field, value, onChange, error, disabled = false }
           </Command>
         </PopoverContent>
       </Popover>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-    </div>
+      {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
+    </>
   );
 }

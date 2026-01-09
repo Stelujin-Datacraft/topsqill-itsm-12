@@ -158,9 +158,7 @@ export function SignatureField({ field, value, onChange, error, disabled }: Sign
   };
 
   return (
-    <div className="space-y-3">
-      {/* <Label htmlFor={field.id}>{field.label}</Label> */}
-      
+    <>
       <div className="border rounded-lg p-4 bg-background">
         <canvas
           ref={canvasRef}
@@ -230,13 +228,13 @@ export function SignatureField({ field, value, onChange, error, disabled }: Sign
       </div>
 
       {!hasSignature && (
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-gray-500 mt-2">
           Click and drag to create your signature
           {config.clearOnDoubleTap && ' • Double-click to clear'}
         </p>
       )}
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
-    </div>
+      {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
+    </>
   );
 }

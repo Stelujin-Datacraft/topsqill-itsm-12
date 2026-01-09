@@ -299,7 +299,7 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
 
       {/* User selector */}
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
+        <PopoverTrigger asChild className="mt-2">
           <Button
             variant="outline"
             role="combobox"

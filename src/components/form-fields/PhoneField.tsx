@@ -93,11 +93,7 @@ export function PhoneField({ field, value, onChange, error, disabled }: PhoneFie
   const displayError = error || (phoneNumber && !validatePhoneFormat(phoneNumber) ? 'Invalid phone number format' : '');
 
   return (
-    <div className="space-y-2">
-      {/* <Label htmlFor={field.id}>
-        {field.label}
-      </Label> */}
-      
+    <>
       <div className="flex gap-2">
         {config.showCountrySelector !== false && (
           <Select
@@ -130,8 +126,8 @@ export function PhoneField({ field, value, onChange, error, disabled }: PhoneFie
       </div>
 
       {displayError && (
-        <p className="text-sm text-red-500">{displayError}</p>
+        <p className="text-sm text-red-500 mt-1">{displayError}</p>
       )}
-    </div>
+    </>
   );
 }

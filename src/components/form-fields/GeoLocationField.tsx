@@ -243,7 +243,7 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
   }, [showMapModal, currentLocation]);
 
   return (
-    <div className="space-y-4">
+    <>
       {currentLocation && (
         <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
           <div className="flex items-center justify-between mb-2">
@@ -278,7 +278,7 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-3 mt-2">
         {(config.inputMethod === 'gps' || config.inputMethod === 'all' || !config.inputMethod) && (
           <Button
             type="button"
@@ -336,7 +336,7 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
       </div>
 
       {error && (
-        <p className="text-sm text-red-500">
+        <p className="text-sm text-red-500 mt-1">
           {typeof error === 'string' ? error : 'Invalid location data'}
         </p>
       )}
@@ -363,6 +363,6 @@ export function GeoLocationField({ field, value, onChange, error, disabled }: Ge
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
