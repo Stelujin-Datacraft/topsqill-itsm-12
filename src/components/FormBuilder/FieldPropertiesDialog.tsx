@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, X, Loader2, Trash2, Star, Heart, ThumbsUp } from 'lucide-react';
+import { Plus, Loader2, Trash2, Star, Heart, ThumbsUp, Asterisk, Fingerprint, Scale } from 'lucide-react';
 import { FormField } from '@/types/form';
 import { RecordFieldConfigPanel } from '../form-fields/RecordFieldConfigPanel';
 import { useFormAccess } from './FieldPropertiesDialog/hooks/useFormAccess';
@@ -570,9 +570,9 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
   // Cross-reference fields
   'child-cross-reference'].includes(fieldType);
   return <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white" hideCloseButton>
         <DialogHeader className="pb-4 border-b">
-          <div className="flex items-center justify-between pr-8">
+          <div className="flex items-center justify-between">
             <DialogTitle className="text-xl font-semibold">
               Configure Field: {fieldForConfig?.label || selectedField.label}
             </DialogTitle>
@@ -641,6 +641,7 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                   {/* Required Field */}
                   <div className="flex items-center space-x-2 p-3 border rounded-md bg-blue-50 dark:bg-blue-950/20">
                     <Checkbox id="field-required" checked={localConfig.required || false} onCheckedChange={checked => updateField('required', Boolean(checked))} />
+                    <Asterisk className="h-4 w-4 text-red-500" />
                     <Label htmlFor="field-required" className="text-sm font-medium cursor-pointer">
                       Make Field Required
                     </Label>
@@ -657,6 +658,7 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                           updateValidation('unique', Boolean(checked));
                         }}
                       />
+                      <Fingerprint className="h-4 w-4 text-purple-500" />
                       <Label htmlFor="field-unique" className="text-sm font-medium cursor-pointer">
                         Make Field Unique
                       </Label>
@@ -666,15 +668,12 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                   {/* Field Weightage */}
                   {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text'].includes(fieldForConfig?.type || '') ? (
                     <div className="flex items-center space-x-2 p-3 border rounded-md bg-blue-50 dark:bg-blue-950/20">
-                      <Label htmlFor="field-weightage" className="text-sm font-medium whitespace-nowrap">
-                        Field Weightage
-                      </Label>
                       <Input 
                         id="field-weightage" 
                         type="number"
                         min="1"
                         max="100"
-                        className="h-8 w-20"
+                        className="h-8 w-16"
                         value={localConfig.customConfig?.weightage || 1} 
                         onChange={e => {
                           const inputValue = e.target.value;
@@ -695,6 +694,10 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                           }
                         }}
                       />
+                      <Scale className="h-4 w-4 text-amber-500" />
+                      <Label htmlFor="field-weightage" className="text-sm font-medium whitespace-nowrap">
+                        Field Weightage
+                      </Label>
                     </div>
                   ) : <div />}
                 </div>
