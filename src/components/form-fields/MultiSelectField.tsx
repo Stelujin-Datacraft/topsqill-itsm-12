@@ -60,9 +60,7 @@ export function MultiSelectField({ field, value = [], onChange, error, disabled,
   };
 
   return (
-    <div className="space-y-3">
-      {/* <Label htmlFor={field.id}>{field.label}</Label> */}
-      
+    <>
       {/* Selected items display */}
       {value.length > 0 && (
         <div className="flex flex-wrap gap-2">
@@ -104,7 +102,7 @@ export function MultiSelectField({ field, value = [], onChange, error, disabled,
 
       {/* Search input */}
       {config.searchable !== false && (
-        <div className="relative">
+        <div className="relative mt-2">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Search options..."
@@ -117,7 +115,7 @@ export function MultiSelectField({ field, value = [], onChange, error, disabled,
       )}
 
       {/* Options list */}
-      <div className={`space-y-2 border rounded p-3 bg-background ${filteredOptions.length > 7 ? 'max-h-64 overflow-y-auto' : ''}`}>
+      <div className={`space-y-2 border rounded p-3 bg-background mt-2 ${filteredOptions.length > 7 ? 'max-h-64 overflow-y-auto' : ''}`}>
         {filteredOptions.map((option) => (
           <div key={option.id} className="flex items-center space-x-2">
             <Checkbox
@@ -185,13 +183,13 @@ export function MultiSelectField({ field, value = [], onChange, error, disabled,
 
       {/* Max selections info */}
       {maxSelections && (
-        <p className={`text-xs ${value.length >= maxSelections ? 'text-amber-600 font-medium' : 'text-gray-500'}`}>
+        <p className={`text-xs mt-1 ${value.length >= maxSelections ? 'text-amber-600 font-medium' : 'text-gray-500'}`}>
           {value.length}/{maxSelections} selections made
           {value.length >= maxSelections && ' (maximum reached)'}
         </p>
       )}
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
-    </div>
+      {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
+    </>
   );
 }

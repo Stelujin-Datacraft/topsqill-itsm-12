@@ -97,9 +97,7 @@ export function CurrencyField({ field, value, onChange, error, disabled }: Curre
   };
 
   return (
-    <div className="space-y-3">
-      {/* <Label htmlFor={field.id}>{field.label}</Label> */}
-      
+    <>
       <div className="flex gap-2">
         {/* Currency selector */}
         {config.allowCurrencyChange !== false && (
@@ -145,18 +143,18 @@ export function CurrencyField({ field, value, onChange, error, disabled }: Curre
 
       {/* Currency conversion info */}
       {baseAmount > 0 && currency !== 'USD' && (
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-gray-500 mt-1">
           ≈ ${formatAmount(baseAmount)} USD
         </p>
       )}
 
       {config.showCurrencyCode && (
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-gray-500 mt-1">
           Currency: {currency} - {CURRENCIES.find(c => c.code === currency)?.name}
         </p>
       )}
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
-    </div>
+      {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
+    </>
   );
 }
