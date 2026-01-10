@@ -175,12 +175,14 @@ export function EnhancedConditionBuilder({ value, onChange }: EnhancedConditionB
   const handleAddCondition = useCallback(() => {
     const newCondition: ConditionItem = {
       id: `condition-${Date.now()}`,
-      systemType: 'form_level',
-      formLevelCondition: {
-        id: `form-level-${Date.now()}`,
-        conditionType: 'form_status',
+      systemType: 'field_level',
+      fieldLevelCondition: {
+        id: `field-level-${Date.now()}`,
+        formId: '',
+        fieldId: '',
+        fieldType: 'text',
         operator: '==',
-        value: 'submitted'
+        value: ''
       },
       logicalOperatorWithNext: 'AND'
     };
