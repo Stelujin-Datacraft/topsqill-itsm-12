@@ -1069,7 +1069,9 @@ export function ChartPreview({
         const drilldownLevels = config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels || [];
 
         // Use server-side RPC function for drilldown-enabled charts
-        if (config.drilldownConfig?.enabled && drilldownLevels.length > 0) {
+        // IMPORTANT: Skip this path if cross-reference mode is enabled - cross-ref has its own drilldown handling
+        const isCrossRefMode = config.crossRefConfig?.enabled && config.crossRefConfig?.crossRefFieldId;
+        if (config.drilldownConfig?.enabled && drilldownLevels.length > 0 && !isCrossRefMode) {
           // Determine the current dimension based on drilldown state
           const currentDrilldownLevel = drilldownState?.values?.length || 0;
           const currentDimension = drilldownLevels[currentDrilldownLevel] || drilldownLevels[0];
