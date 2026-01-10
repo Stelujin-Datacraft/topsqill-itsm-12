@@ -2667,8 +2667,20 @@ export function ChartPreview({
 
     // Determine the primary metric to display
     let primaryMetric = 'value'; // Default fallback
-
-    if (config.metrics && config.metrics.length > 0) {
+    
+    // For cross-reference charts, prioritize 'value' or 'count' since processed data uses these standard keys
+    const isCrossRefMetricMode = config.crossRefConfig?.enabled && config.crossRefConfig?.crossRefFieldId;
+    
+    if (isCrossRefMetricMode) {
+      // Cross-ref data always has 'value' and usually 'count' - check which exists
+      if (sanitizedChartData.length > 0) {
+        if (sanitizedChartData[0].hasOwnProperty('value') && sanitizedChartData[0].value !== undefined) {
+          primaryMetric = 'value';
+        } else if (sanitizedChartData[0].hasOwnProperty('count')) {
+          primaryMetric = 'count';
+        }
+      }
+    } else if (config.metrics && config.metrics.length > 0) {
       primaryMetric = config.metrics[0];
     } else if (config.yAxis) {
       primaryMetric = config.yAxis;
@@ -2678,18 +2690,25 @@ export function ChartPreview({
 
     // Ensure the primary metric exists in the data
     if (sanitizedChartData.length > 0 && !sanitizedChartData[0].hasOwnProperty(primaryMetric)) {
-      // Fallback to available keys
-      const availableKeys = Object.keys(sanitizedChartData[0]).filter(key => key !== 'name' && key !== '_drilldownData' && typeof sanitizedChartData[0][key] === 'number');
-      if (availableKeys.length > 0) {
-        primaryMetric = availableKeys[0];
+      // Fallback to available keys - prioritize 'value' and 'count' first for cross-ref compatibility
+      const preferredKeys = ['value', 'count'];
+      const preferredMatch = preferredKeys.find(key => sanitizedChartData[0].hasOwnProperty(key) && typeof sanitizedChartData[0][key] === 'number');
+      
+      if (preferredMatch) {
+        primaryMetric = preferredMatch;
       } else {
-        // No valid numeric keys found - show no data message
-        return <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="text-muted-foreground mb-2">No numeric data available</div>
-            <div className="text-sm text-muted-foreground">Configure the chart with valid numeric metrics</div>
-          </div>
-        </div>;
+        const availableKeys = Object.keys(sanitizedChartData[0]).filter(key => key !== 'name' && key !== '_drilldownData' && typeof sanitizedChartData[0][key] === 'number');
+        if (availableKeys.length > 0) {
+          primaryMetric = availableKeys[0];
+        } else {
+          // No valid numeric keys found - show no data message
+          return <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="text-muted-foreground mb-2">No numeric data available</div>
+              <div className="text-sm text-muted-foreground">Configure the chart with valid numeric metrics</div>
+            </div>
+          </div>;
+        }
       }
     }
 
