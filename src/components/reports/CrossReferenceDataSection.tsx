@@ -727,8 +727,8 @@ export function CrossReferenceDataSection({
             </div>
           )}
 
-          {/* Optional: Group By Source Field - available for count and aggregate modes only */}
-          {isStep1Complete && sourceGroupByFields.length > 0 && crossRefConfig.mode !== 'compare' && (
+          {/* Optional: Group By Target Field - available for count and aggregate modes only */}
+          {isStep1Complete && dimensionTargetFields.length > 0 && crossRefConfig.mode !== 'compare' && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold bg-muted text-muted-foreground">
@@ -741,13 +741,13 @@ export function CrossReferenceDataSection({
               
               <div className="p-4 bg-muted/30 rounded-lg border">
                 <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Group results by field from {currentFormName}</Label>
+                  <Label className="text-xs text-muted-foreground">Group results by field from {targetFormName}</Label>
                   <Select
-                    value={crossRefConfig.sourceGroupByFieldId || '_none'}
+                    value={crossRefConfig.targetDimensionFieldId || '_none'}
                     onValueChange={(value) => onConfigChange({
                       crossRefConfig: {
                         ...crossRefConfig,
-                        sourceGroupByFieldId: value === '_none' ? undefined : value
+                        targetDimensionFieldId: value === '_none' ? undefined : value
                       }
                     })}
                   >
@@ -756,7 +756,7 @@ export function CrossReferenceDataSection({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="_none">No grouping</SelectItem>
-                      {sourceGroupByFields.map((field) => (
+                      {dimensionTargetFields.map((field) => (
                         <SelectItem key={field.id} value={field.id}>
                           {field.label}
                         </SelectItem>
@@ -764,7 +764,7 @@ export function CrossReferenceDataSection({
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Aggregate linked records by grouping parent records from <span className="font-medium">{currentFormName}</span> that share the same value in this field.
+                    Group linked records from <span className="font-medium">{targetFormName}</span> by this field value.
                   </p>
                 </div>
               </div>
