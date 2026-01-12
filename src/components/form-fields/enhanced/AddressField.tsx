@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FormField } from '@/types/form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -273,23 +273,34 @@ export function AddressField({ field, value = {}, onChange, error, disabled }: A
   });
 
   const [countryOpen, setCountryOpen] = useState(false);
+  
+  // Track the previous value to prevent unnecessary updates
+  const prevValueRef = useRef<string>('');
 
   // Update addressData when value prop changes (for rule-based updates)
   useEffect(() => {
-    if (value && typeof value === 'object') {
-      setAddressData(prev => ({
-        ...prev,
-        ...value
-      }));
-    } else if (!value || (typeof value === 'object' && Object.keys(value).length === 0)) {
-      // Clear values when rule clears the field
-      setAddressData({
-        street: '',
-        city: '',
-        state: '',
-        postal: '',
-        country: ''
-      });
+    // Serialize value for comparison to prevent infinite loops from object reference changes
+    const valueString = JSON.stringify(value || {});
+    
+    // Only update if the serialized value actually changed
+    if (valueString !== prevValueRef.current) {
+      prevValueRef.current = valueString;
+      
+      if (value && typeof value === 'object' && Object.keys(value).length > 0) {
+        setAddressData(prev => ({
+          ...prev,
+          ...value
+        }));
+      } else if (!value || (typeof value === 'object' && Object.keys(value).length === 0)) {
+        // Clear values when rule clears the field
+        setAddressData({
+          street: '',
+          city: '',
+          state: '',
+          postal: '',
+          country: ''
+        });
+      }
     }
   }, [value]);
 
