@@ -102,7 +102,7 @@ export function MultiSelectField({ field, value = [], onChange, error, disabled,
 
       {/* Search input */}
       {config.searchable !== false && (
-        <div className="relative mt-2">
+        <div className={`relative ${value.length > 0 ? 'mt-2' : ''}`}>
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Search options..."
@@ -115,7 +115,7 @@ export function MultiSelectField({ field, value = [], onChange, error, disabled,
       )}
 
       {/* Options list */}
-      <div className={`space-y-2 border rounded p-3 bg-background mt-2 ${filteredOptions.length > 7 ? 'max-h-64 overflow-y-auto' : ''}`}>
+      <div className={`space-y-2 border rounded p-3 bg-background ${(value.length > 0 || config.searchable !== false) ? 'mt-2' : ''} ${filteredOptions.length > 7 ? 'max-h-64 overflow-y-auto' : ''}`}>
         {filteredOptions.map((option) => (
           <div key={option.id} className="flex items-center space-x-2">
             <Checkbox
