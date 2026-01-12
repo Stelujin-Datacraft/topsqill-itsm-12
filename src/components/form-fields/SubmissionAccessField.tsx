@@ -243,15 +243,15 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
         <div className="space-y-2 mb-2">
           {/* Selected Users */}
           {selectedUsers.map((user) => (
-            <div key={`user-${user.id}`} className="flex items-center justify-between p-2 bg-blue-50 border border-blue-200 rounded">
+            <div key={`user-${user.id}`} className="flex items-center justify-between p-1 bg-blue-50 border border-blue-200 rounded">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-blue-600" />
                 <div>
-                  <span className="font-medium text-blue-900">{user.name}</span>
-                  <span className="text-sm text-blue-700 ml-2">({user.email})</span>
-                  <Badge variant="outline" className="ml-2 text-xs border-blue-300 text-blue-700">
+                  <span className="font-medium ">{user.name}</span>
+                  <span className="text-sm ml-2">({user.email})</span>
+                  {/* <Badge variant="outline" className="ml-2 text-xs border-blue-300 text-blue-700">
                     {user.role}
-                  </Badge>
+                  </Badge> */}
                 </div>
               </div>
               {!disabled && (
@@ -273,13 +273,13 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
               <div className="flex items-center gap-2">
                 <UserCheck className="h-4 w-4 text-green-600" />
                 <div>
-                  <span className="font-medium text-green-900">{group.name}</span>
-                  <span className="text-sm text-green-700 ml-2">({group.member_count} members)</span>
-                  {group.role_name && (
+                  <span className="font-medium ">{group.name}</span>
+                  <span className="text-sm ml-2">({group.member_count} members)</span>
+                  {/* {group.role_name && (
                     <Badge variant="outline" className="ml-2 text-xs border-green-300 text-green-700">
                       {group.role_name}
                     </Badge>
-                  )}
+                  )} */}
                 </div>
               </div>
               {!disabled && (

@@ -346,7 +346,8 @@ const selectedCountry = COUNTRIES.find(
   return (
     <>
       <div className="flex items-center justify-between">
-        <Label>{field.label}</Label>
+        {/* <Label>{field.label}</Label> */}
+          <Label htmlFor={`${field.id}-street`}>Street Address</Label>
         {enableGPS && (
           <Button
             type="button"
@@ -363,7 +364,6 @@ const selectedCountry = COUNTRIES.find(
 
       {addressFields.includes('street') && (
         <div className="mt-3">
-          <Label htmlFor={`${field.id}-street`}>Street Address</Label>
           <Input
             id={`${field.id}-street`}
             value={addressData.street}

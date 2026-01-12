@@ -184,7 +184,7 @@ export function FormFieldsRenderer({
 
 case 'multi-select':
   return (
-    <div className="space-y-1">
+    <div className="space-y">
       <Label htmlFor={field.id}>
         {fieldState.label}
         {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
@@ -225,7 +225,7 @@ case 'signature':
 
 case 'currency':
   return (
-    <div className="space-y-1">
+    <div className="space-y">
       <Label htmlFor={field.id}>
         {fieldState.label}
         {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
@@ -250,7 +250,7 @@ case 'currency':
 
 case 'country':
   return (
-    <>
+   <div className="space-y"> 
       <Label htmlFor={field.id}>
         {fieldState.label}
         {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
@@ -265,7 +265,7 @@ case 'country':
       {errors[field.id] && (
         <p className="text-sm text-red-500">{errors[field.id]}</p>
       )}
-    </>
+    </div>
   );
 
 case 'phone':
