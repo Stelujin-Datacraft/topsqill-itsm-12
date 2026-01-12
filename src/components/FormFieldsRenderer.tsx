@@ -1042,7 +1042,7 @@ case 'cross-reference':
 // New Field Types
 case 'barcode':
   return (
-    <div className="space-y-2">
+    <div className="space-y">
       <Label htmlFor={field.id}>
         {fieldState.label}
         {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
