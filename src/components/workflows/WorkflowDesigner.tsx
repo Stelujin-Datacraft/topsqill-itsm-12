@@ -268,13 +268,30 @@ function WorkflowDesignerInner({ workflowId, projectId, initialNodes, initialCon
 
   // Add node
   const addNodeToWorkflow = useCallback((nodeType: string, position: { x: number; y: number }) => {
-    // If we have a last added position, place the new node below it
     let finalPosition = position;
+    
+    // First check if we have a tracked last position
     if (lastAddedPositionRef.current) {
       finalPosition = {
-        x: lastAddedPositionRef.current.x + (Math.random() - 0.5) * 30, // Small horizontal offset
-        y: lastAddedPositionRef.current.y + 120, // 120px below the last node
+        x: lastAddedPositionRef.current.x + (Math.random() - 0.5) * 20, // Small horizontal offset
+        y: lastAddedPositionRef.current.y + 100, // 100px below the last node
       };
+    } else {
+      // If no tracked position, find the bottommost node in the current workflow
+      setWorkflowNodes(currentNodes => {
+        if (currentNodes.length > 0) {
+          // Find the node with the highest y position (bottommost)
+          const bottomNode = currentNodes.reduce((bottom, node) => 
+            node.position.y > bottom.position.y ? node : bottom
+          , currentNodes[0]);
+          
+          finalPosition = {
+            x: bottomNode.position.x + (Math.random() - 0.5) * 20, // Small horizontal offset
+            y: bottomNode.position.y + 100, // 100px below the bottommost node
+          };
+        }
+        return currentNodes; // Don't modify nodes, just read them
+      });
     }
     
     // Update the last added position
