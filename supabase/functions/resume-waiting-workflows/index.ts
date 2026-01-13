@@ -1675,104 +1675,158 @@ Deno.serve(async (req) => {
               }
               
               // Evaluate enhanced condition (new format) - returns boolean or WAITING_FOR_VALUE symbol
+              // const evaluateEnhancedCondition = (ec: any): boolean | symbol => {
+              //   if (!ec) return true
+                
+              //   const conditions = ec.conditions || []
+              //   const useManualExpression = ec.useManualExpression
+              //   const manualExpression = ec.manualExpression
+                
+              //   console.log(`📊 Enhanced condition: ${conditions.length} conditions, useManual=${useManualExpression}`)
+                
+              //   if (conditions.length === 0) {
+              //     // If single condition via fieldLevelCondition
+              //     if (ec.fieldLevelCondition) {
+              //       return evaluateFieldLevelCondition(ec.fieldLevelCondition)
+              //     }
+              //     console.log(`⚠️ No conditions in enhanced condition`)
+              //     return true
+              //   }
+                
+              //   // Evaluate each condition
+              //   const results: (boolean | symbol)[] = []
+              //   let hasWaiting = false
+                
+              //   for (const cond of conditions) {
+              //     let result: boolean | symbol = false
+                  
+              //     if (cond.fieldLevelCondition) {
+              //       result = evaluateFieldLevelCondition(cond.fieldLevelCondition)
+              //     } else if (cond.fieldCondition) {
+              //       // Legacy field condition format
+              //       result = evaluateLegacyCondition({
+              //         field: cond.fieldCondition.fieldId,
+              //         operator: cond.fieldCondition.operator,
+              //         value: cond.fieldCondition.value
+              //       })
+              //     }
+                  
+              //     // Check if any condition is waiting for value
+              //     if (result === WAITING_FOR_VALUE) {
+              //       hasWaiting = true
+              //       console.log(`   Condition ${cond.id}: WAITING_FOR_VALUE`)
+              //     } else {
+              //       console.log(`   Condition ${cond.id}: ${result}`)
+              //     }
+              //     results.push(result)
+              //   }
+                
+              //   // If ANY condition is waiting for value, the entire condition set should wait
+              //   if (hasWaiting) {
+              //     console.log(`   ⏳ One or more conditions waiting for values - returning WAITING_FOR_VALUE`)
+              //     return WAITING_FOR_VALUE
+              //   }
+                
+              //   // Convert results to boolean array (all should be boolean at this point)
+              //   const boolResults = results as boolean[]
+                
+              //   // Handle manual expression like "1 AND 2" or "1 OR 2"
+              //   if (useManualExpression && manualExpression) {
+              //     console.log(`📊 Evaluating manual expression: ${manualExpression}`)
+              //     try {
+              //       // Replace condition numbers with their results
+              //       let expr = manualExpression.toString()
+              //       for (let i = boolResults.length; i >= 1; i--) {
+              //         expr = expr.replace(new RegExp(`\\b${i}\\b`, 'g'), boolResults[i - 1] ? 'true' : 'false')
+              //       }
+              //       expr = expr.replace(/\bAND\b/gi, '&&').replace(/\bOR\b/gi, '||').replace(/\bNOT\b/gi, '!')
+              //       console.log(`   Parsed expression: ${expr}`)
+              //       const evalResult = Function('"use strict"; return (' + expr + ')')()
+              //       console.log(`   Expression result: ${evalResult}`)
+              //       return Boolean(evalResult)
+              //     } catch (e) {
+              //       console.log(`⚠️ Error evaluating expression: ${e}`)
+              //       // Fall through to default AND logic
+              //     }
+              //   }
+                
+              //   // Default: use logicalOperatorWithNext from conditions
+              //   // Check if any condition has OR logic
+              //   const hasOrLogic = conditions.some((c: any) => c.logicalOperatorWithNext === 'OR')
+              //   if (hasOrLogic) {
+              //     return boolResults.some(r => r)
+              //   }
+              //   return boolResults.every(r => r)
+              // }
               const evaluateEnhancedCondition = (ec: any): boolean | symbol => {
-                if (!ec) return true
-                
-                const conditions = ec.conditions || []
-                const useManualExpression = ec.useManualExpression
-                const manualExpression = ec.manualExpression
-                
-                console.log(`📊 Enhanced condition: ${conditions.length} conditions, useManual=${useManualExpression}`)
-                
-                if (conditions.length === 0) {
-                  // If single condition via fieldLevelCondition
-                  if (ec.fieldLevelCondition) {
-                    return evaluateFieldLevelCondition(ec.fieldLevelCondition)
-                  }
-                  console.log(`⚠️ No conditions in enhanced condition`)
-                  return true
-                }
-                
-                // Evaluate each condition
-                const results: (boolean | symbol)[] = []
-                let hasWaiting = false
-                
-                for (const cond of conditions) {
-                  let result: boolean | symbol = false
-                  
-                  if (cond.fieldLevelCondition) {
-                    result = evaluateFieldLevelCondition(cond.fieldLevelCondition)
-                  } else if (cond.fieldCondition) {
-                    // Legacy field condition format
-                    result = evaluateLegacyCondition({
-                      field: cond.fieldCondition.fieldId,
-                      operator: cond.fieldCondition.operator,
-                      value: cond.fieldCondition.value
-                    })
-                  }
-                  
-                  // Check if any condition is waiting for value
-                  if (result === WAITING_FOR_VALUE) {
-                    hasWaiting = true
-                    console.log(`   Condition ${cond.id}: WAITING_FOR_VALUE`)
-                  } else {
-                    console.log(`   Condition ${cond.id}: ${result}`)
-                  }
-                  results.push(result)
-                }
-                
-                // If ANY condition is waiting for value, the entire condition set should wait
-                if (hasWaiting) {
-                  console.log(`   ⏳ One or more conditions waiting for values - returning WAITING_FOR_VALUE`)
-                  return WAITING_FOR_VALUE
-                }
-                
-                // Convert results to boolean array (all should be boolean at this point)
-                // const boolResults = results as boolean[]
-                // If ANY condition is WAITING, block execution
-                  if (results.some(r => r === WAITING_FOR_VALUE)) {
-                    console.log(`⏳ Condition evaluation blocked — WAITING_FOR_VALUE present`)
-                    conditionResult = WAITING_FOR_VALUE
-                  } else {
-                    const boolResults = results as boolean[]
+  if (!ec) return true
 
-                    if (logicalOperator === 'OR') {
-                      conditionResult = boolResults.some(r => r)
-                    } else {
-                      conditionResult = boolResults.every(r => r)
-                    }
-                  }
+  const conditions = ec.conditions || []
+  const useManualExpression = ec.useManualExpression
+  const manualExpression = ec.manualExpression
 
-                
-                // Handle manual expression like "1 AND 2" or "1 OR 2"
-                if (useManualExpression && manualExpression) {
-                  console.log(`📊 Evaluating manual expression: ${manualExpression}`)
-                  try {
-                    // Replace condition numbers with their results
-                    let expr = manualExpression.toString()
-                    for (let i = boolResults.length; i >= 1; i--) {
-                      expr = expr.replace(new RegExp(`\\b${i}\\b`, 'g'), boolResults[i - 1] ? 'true' : 'false')
-                    }
-                    expr = expr.replace(/\bAND\b/gi, '&&').replace(/\bOR\b/gi, '||').replace(/\bNOT\b/gi, '!')
-                    console.log(`   Parsed expression: ${expr}`)
-                    const evalResult = Function('"use strict"; return (' + expr + ')')()
-                    console.log(`   Expression result: ${evalResult}`)
-                    return Boolean(evalResult)
-                  } catch (e) {
-                    console.log(`⚠️ Error evaluating expression: ${e}`)
-                    // Fall through to default AND logic
-                  }
-                }
-                
-                // Default: use logicalOperatorWithNext from conditions
-                // Check if any condition has OR logic
-                const hasOrLogic = conditions.some((c: any) => c.logicalOperatorWithNext === 'OR')
-                if (hasOrLogic) {
-                  return boolResults.some(r => r)
-                }
-                return boolResults.every(r => r)
-              }
-              
+  console.log(`📊 Enhanced condition: ${conditions.length} conditions`)
+
+  // Single field-level condition
+  if (conditions.length === 0 && ec.fieldLevelCondition) {
+    return evaluateFieldLevelCondition(ec.fieldLevelCondition)
+  }
+
+  const results: (boolean | symbol)[] = []
+
+  // Step 1 — evaluate each condition
+  for (const cond of conditions) {
+    let result: boolean | symbol = false
+
+    if (cond.fieldLevelCondition) {
+      result = evaluateFieldLevelCondition(cond.fieldLevelCondition)
+    } else if (cond.fieldCondition) {
+      result = evaluateLegacyCondition({
+        field: cond.fieldCondition.fieldId,
+        operator: cond.fieldCondition.operator,
+        value: cond.fieldCondition.value
+      })
+    }
+
+    console.log(`   Condition ${cond.id}:`, result)
+    results.push(result)
+  }
+
+  // Step 2 — HARD BLOCK if anything is WAITING
+  if (results.some(r => r === WAITING_FOR_VALUE)) {
+    console.log(`⏳ Enhanced condition BLOCKED — waiting for values`)
+    return WAITING_FOR_VALUE
+  }
+
+  // Now it is safe to treat everything as boolean
+  const boolResults = results as boolean[]
+
+  // Step 3 — Manual expression
+  if (useManualExpression && manualExpression) {
+    try {
+      let expr = manualExpression.toString()
+      for (let i = boolResults.length; i >= 1; i--) {
+        expr = expr.replace(new RegExp(`\\b${i}\\b`, 'g'), boolResults[i - 1] ? 'true' : 'false')
+      }
+      expr = expr.replace(/\bAND\b/gi, '&&').replace(/\bOR\b/gi, '||').replace(/\bNOT\b/gi, '!')
+      console.log(`   Parsed expression: ${expr}`)
+      return Boolean(Function(`"use strict"; return (${expr})`)())
+    } catch (e) {
+      console.log(`⚠️ Manual expression error`, e)
+      // Fall through to default logic
+    }
+  }
+
+  // Step 4 — Default AND/OR logic
+  const hasOrLogic = conditions.some((c: any) => c.logicalOperatorWithNext === 'OR')
+
+  if (hasOrLogic) {
+    return boolResults.some(r => r)
+  }
+
+  return boolResults.every(r => r)
+}
+
               // Evaluate all conditions - result can be boolean or WAITING_FOR_VALUE
               let conditionResult: boolean | symbol = true
               const logicalOperator = conditionConfig?.logicalOperator || 'AND'
