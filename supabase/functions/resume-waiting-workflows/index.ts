@@ -1528,27 +1528,24 @@ Deno.serve(async (req) => {
               //   }
               //   return false
               // }
-              const isWaitingValue = (v: any): boolean => {
+           const isWaitingValue = (v: any): boolean => {
   if (v === null || v === undefined) return true
 
   // unwrap { value: "" }
   if (typeof v === 'object' && v !== null && 'value' in v) {
-    return isWaitingValue((v as any).value)
+    return isWaitingValue(v.value)
   }
 
   // arrays (multi-select, checkbox etc)
-  if (Array.isArray(v)) {
-    return v.length === 0
-  }
+  if (Array.isArray(v)) return v.length === 0
 
-  // objects (no meaningful value)
-  if (typeof v === 'object') {
-    return Object.keys(v).length === 0
-  }
+  // objects
+  if (typeof v === 'object') return Object.keys(v).length === 0
 
   if (typeof v === 'string') {
     const normalized = v
-      .replace(/\u00A0/g, ' ')   // NBSP
+      .replace(/\u00A0/g, ' ')   // non-breaking space
+      .replace(/\s+/g, ' ')     // collapse whitespace
       .trim()
       .toLowerCase()
 
@@ -1563,6 +1560,7 @@ Deno.serve(async (req) => {
 
   return false
 }
+
 
               // Special symbol to indicate condition should wait (not proceed at all)
               const WAITING_FOR_VALUE = Symbol('WAITING_FOR_VALUE')
@@ -1794,6 +1792,38 @@ Deno.serve(async (req) => {
               //   return boolResults.every(r => r)
               // }
 const evaluateEnhancedCondition = (ec: any): boolean | symbol => {
+  const fieldId = ec?.fieldId
+  const operator = ec?.operator
+  const expectedValue = ec?.value
+
+  if (!fieldId) {
+    console.log(`⚠️ No fieldId`)
+    return WAITING_FOR_VALUE
+  }
+
+  let actualValue = submissionData[fieldId]
+
+  // -------------------------
+  // SAFE RAW LOGGER
+  // -------------------------
+  const safeValue =
+    typeof actualValue === 'symbol'
+      ? actualValue.toString()
+      : typeof actualValue === 'object'
+        ? JSON.stringify(actualValue)
+        : String(actualValue)
+
+  console.log(
+    '🔍 RAW FIELD:',
+    safeValue,
+    '| type:',
+    typeof actualValue,
+    '| length:',
+    typeof actualValue === 'string' ? actualValue.length : 'n/a'
+  )
+
+  console.log(`📊 Field ${fieldId} | operator=${operator} | expected=${expectedValue}`)
+
   if (!ec) return true
 
   const conditions = ec.conditions || []
