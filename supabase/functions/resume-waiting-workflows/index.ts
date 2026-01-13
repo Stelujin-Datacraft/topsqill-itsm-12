@@ -1840,9 +1840,15 @@ const evaluateEnhancedCondition = (ec: any): boolean | symbol => {
   }
 
   // Single field-level condition
-  if (conditions.length === 0 && ec.fieldLevelCondition) {
+if (conditions.length === 0) {
+  if (ec.fieldLevelCondition) {
     return evaluateFieldLevelCondition(ec.fieldLevelCondition)
   }
+
+  console.log(`⏳ Enhanced condition has no real conditions → WAITING`)
+  return WAITING_FOR_VALUE
+}
+
 
   const results: (boolean | symbol)[] = []
 
