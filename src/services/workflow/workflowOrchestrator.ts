@@ -305,6 +305,19 @@ export class WorkflowOrchestrator {
         console.log('⏸️ Workflow paused at wait node');
         return { success: true, isTerminal: false };
       }
+      // ⛔ CONDITION NODE WAITING FOR VALUE
+if (
+  node.node_type === 'condition' &&
+  result.output?.conditionResult === WAITING_FOR_VALUE
+) {
+  console.log('⏸️ Condition node waiting for value — blocking execution');
+
+  return {
+    success: true,
+    isTerminal: false   // CRITICAL: prevents child execution
+  };
+}
+
 
       // Execute next nodes if the current node was successful
       if (result.success && result.nextNodeIds && result.nextNodeIds.length > 0) {
