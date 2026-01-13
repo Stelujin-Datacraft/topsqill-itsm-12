@@ -1907,30 +1907,61 @@ if (conditions.length === 0) {
               const logicalOperator = conditionConfig?.logicalOperator || 'AND'
               
               // Check for enhanced condition format first
-              if (enhancedCondition) {
-                console.log(`📊 Using enhanced condition evaluation`)
-                conditionResult = evaluateEnhancedCondition(enhancedCondition)
-              } else if (legacyConditions.length > 0) {
-                console.log(`📊 Using legacy condition evaluation`)
-                const legacyResults = legacyConditions.map((c: any) => evaluateLegacyCondition(c))
+              // if (enhancedCondition) {
+              //   console.log(`📊 Using enhanced condition evaluation`)
+              //   conditionResult = evaluateEnhancedCondition(enhancedCondition)
+              // } 
+              // else if (legacyConditions.length > 0) {
+              //   console.log(`📊 Using legacy condition evaluation`)
+              //   const legacyResults = legacyConditions.map((c: any) => evaluateLegacyCondition(c))
                 
-                // Check if any legacy condition is waiting
-                const hasWaiting = legacyResults.some(r => r === WAITING_FOR_VALUE)
-                if (hasWaiting) {
-                  console.log(`   ⏳ One or more legacy conditions waiting for values`)
-                  conditionResult = WAITING_FOR_VALUE
-                } else {
-                  const boolResults = legacyResults as boolean[]
-                  if (logicalOperator === 'OR') {
-                    conditionResult = boolResults.some(r => r)
-                  } else {
-                    conditionResult = boolResults.every(r => r)
-                  }
-                }
-              } else {
-                console.log(`⚠️ No conditions configured - defaulting to TRUE`)
-              }
-              
+              //   // Check if any legacy condition is waiting
+              //   const hasWaiting = legacyResults.some(r => r === WAITING_FOR_VALUE)
+              //   if (hasWaiting) {
+              //     console.log(`   ⏳ One or more legacy conditions waiting for values`)
+              //     conditionResult = WAITING_FOR_VALUE
+              //   } else {
+              //     const boolResults = legacyResults as boolean[]
+              //     if (logicalOperator === 'OR') {
+              //       conditionResult = boolResults.some(r => r)
+              //     } else {
+              //       conditionResult = boolResults.every(r => r)
+              //     }
+              //   }
+              // } else {
+              //   console.log(`⚠️ No conditions configured - defaulting to TRUE`)
+              // }
+              const ec = enhancedCondition
+
+const hasRealEnhanced =
+  ec &&
+  (
+    (Array.isArray(ec.conditions) && ec.conditions.length > 0) ||
+    ec.fieldLevelCondition
+  )
+
+if (hasRealEnhanced) {
+  console.log(`📊 Using enhanced condition evaluation`)
+  conditionResult = evaluateEnhancedCondition(ec)
+} else if (legacyConditions.length > 0) {
+  console.log(`📊 Using legacy condition evaluation`)
+  const legacyResults = legacyConditions.map((c: any) => evaluateLegacyCondition(c))
+
+  const hasWaiting = legacyResults.some(r => r === WAITING_FOR_VALUE)
+
+  if (hasWaiting) {
+    console.log(`   ⏳ One or more legacy conditions waiting for values`)
+    conditionResult = WAITING_FOR_VALUE
+  } else {
+    const boolResults = legacyResults as boolean[]
+    conditionResult = logicalOperator === 'OR'
+      ? boolResults.some(r => r)
+      : boolResults.every(r => r)
+  }
+} else {
+  console.log(`⚠️ No conditions configured - defaulting to TRUE`)
+}
+
               // If condition is WAITING_FOR_VALUE, keep workflow in waiting state
               if (conditionResult === WAITING_FOR_VALUE) {
                 console.log(`⏳ Condition is waiting for actual values - keeping workflow paused at condition node`)
