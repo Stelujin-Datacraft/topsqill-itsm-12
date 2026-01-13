@@ -1519,21 +1519,8 @@ Deno.serve(async (req) => {
                 return String(v).toLowerCase().trim()
               }
               
-              // Helper to check if value is null/undefined/empty/N/A (values that should cause waiting)
-              const isWaitingValue = (v: any): boolean => {
-                if (v === null || v === undefined) return true
-                if (typeof v === 'string') {
-                  const normalized = v.trim().toLowerCase()
-                  return normalized === '' || normalized === 'n/a' || normalized === 'na' || normalized === 'null' || normalized === 'undefined'
-                }
-                return false
-              }
-              
-              // Special symbol to indicate condition should wait (not proceed at all)
-              const WAITING_FOR_VALUE = Symbol('WAITING_FOR_VALUE')
-              
-              // Evaluate a single legacy condition - returns boolean or WAITING_FOR_VALUE symbol
-              const evaluateLegacyCondition = (condition: any): boolean | symbol => {
+              // Evaluate a single legacy condition
+              const evaluateLegacyCondition = (condition: any): boolean => {
                 const { field, operator, value } = condition
                 
                 // Try to get field value from submission data first, then trigger data
@@ -1543,23 +1530,6 @@ Deno.serve(async (req) => {
                 }
                 
                 console.log(`📊 Evaluating legacy: ${field} ${operator} ${value} (actual: ${fieldValue})`)
-                
-                // IMPORTANT: If field value is null/undefined/N/A, return WAITING for most operators
-                // This keeps the workflow in waiting state until an actual value is provided
-                // Exception: exists/not_exists operators which specifically check for these states
-                if (isWaitingValue(fieldValue)) {
-                  if (operator === 'exists') {
-                    console.log(`   Field is empty/null/N/A - exists check returns false`)
-                    return false
-                  }
-                  if (operator === 'not_exists') {
-                    console.log(`   Field is empty/null/N/A - not_exists check returns true`)
-                    return true
-                  }
-                  // For all other operators, missing value means we should WAIT (not proceed at all)
-                  console.log(`   ⏳ Field value is null/undefined/N/A - workflow should WAIT for actual value`)
-                  return WAITING_FOR_VALUE
-                }
                 
                 const normalizedFieldValue = normalizeValue(fieldValue)
                 const normalizedValue = normalizeValue(value)
@@ -1601,8 +1571,8 @@ Deno.serve(async (req) => {
                 }
               }
               
-              // Evaluate enhanced field-level condition - returns boolean or WAITING_FOR_VALUE symbol
-              const evaluateFieldLevelCondition = (flc: any): boolean | symbol => {
+              // Evaluate enhanced field-level condition
+              const evaluateFieldLevelCondition = (flc: any): boolean => {
                 const fieldId = flc?.fieldId
                 const operator = flc?.operator
                 const expectedValue = flc?.value
@@ -1616,23 +1586,6 @@ Deno.serve(async (req) => {
                 let actualValue = submissionData[fieldId]
                 
                 console.log(`📊 Evaluating field-level: fieldId=${fieldId}, operator=${operator}, expected=${expectedValue}, actual=${actualValue}`)
-                
-                // IMPORTANT: If field value is null/undefined/N/A, return WAITING for most operators
-                // This keeps the workflow in waiting state until an actual value is provided
-                // Exception: exists/not_exists operators which specifically check for these states
-                if (isWaitingValue(actualValue)) {
-                  if (operator === 'exists') {
-                    console.log(`   Field is empty/null/N/A - exists check returns false`)
-                    return false
-                  }
-                  if (operator === 'not_exists') {
-                    console.log(`   Field is empty/null/N/A - not_exists check returns true`)
-                    return true
-                  }
-                  // For all other operators, missing value means we should WAIT (not proceed at all)
-                  console.log(`   ⏳ Field value is null/undefined/N/A - workflow should WAIT for actual value`)
-                  return WAITING_FOR_VALUE
-                }
                 
                 const normalizedActual = normalizeValue(actualValue)
                 const normalizedExpected = normalizeValue(expectedValue)
@@ -1674,8 +1627,8 @@ Deno.serve(async (req) => {
                 }
               }
               
-              // Evaluate enhanced condition (new format) - returns boolean or WAITING_FOR_VALUE symbol
-              const evaluateEnhancedCondition = (ec: any): boolean | symbol => {
+              // Evaluate enhanced condition (new format)
+              const evaluateEnhancedCondition = (ec: any): boolean => {
                 if (!ec) return true
                 
                 const conditions = ec.conditions || []
@@ -1694,11 +1647,9 @@ Deno.serve(async (req) => {
                 }
                 
                 // Evaluate each condition
-                const results: (boolean | symbol)[] = []
-                let hasWaiting = false
-                
+                const results: boolean[] = []
                 for (const cond of conditions) {
-                  let result: boolean | symbol = false
+                  let result = false
                   
                   if (cond.fieldLevelCondition) {
                     result = evaluateFieldLevelCondition(cond.fieldLevelCondition)
@@ -1711,24 +1662,9 @@ Deno.serve(async (req) => {
                     })
                   }
                   
-                  // Check if any condition is waiting for value
-                  if (result === WAITING_FOR_VALUE) {
-                    hasWaiting = true
-                    console.log(`   Condition ${cond.id}: WAITING_FOR_VALUE`)
-                  } else {
-                    console.log(`   Condition ${cond.id}: ${result}`)
-                  }
+                  console.log(`   Condition ${cond.id}: ${result}`)
                   results.push(result)
                 }
-                
-                // If ANY condition is waiting for value, the entire condition set should wait
-                if (hasWaiting) {
-                  console.log(`   ⏳ One or more conditions waiting for values - returning WAITING_FOR_VALUE`)
-                  return WAITING_FOR_VALUE
-                }
-                
-                // Convert results to boolean array (all should be boolean at this point)
-                const boolResults = results as boolean[]
                 
                 // Handle manual expression like "1 AND 2" or "1 OR 2"
                 if (useManualExpression && manualExpression) {
@@ -1736,8 +1672,8 @@ Deno.serve(async (req) => {
                   try {
                     // Replace condition numbers with their results
                     let expr = manualExpression.toString()
-                    for (let i = boolResults.length; i >= 1; i--) {
-                      expr = expr.replace(new RegExp(`\\b${i}\\b`, 'g'), boolResults[i - 1] ? 'true' : 'false')
+                    for (let i = results.length; i >= 1; i--) {
+                      expr = expr.replace(new RegExp(`\\b${i}\\b`, 'g'), results[i - 1] ? 'true' : 'false')
                     }
                     expr = expr.replace(/\bAND\b/gi, '&&').replace(/\bOR\b/gi, '||').replace(/\bNOT\b/gi, '!')
                     console.log(`   Parsed expression: ${expr}`)
@@ -1754,13 +1690,13 @@ Deno.serve(async (req) => {
                 // Check if any condition has OR logic
                 const hasOrLogic = conditions.some((c: any) => c.logicalOperatorWithNext === 'OR')
                 if (hasOrLogic) {
-                  return boolResults.some(r => r)
+                  return results.some(r => r)
                 }
-                return boolResults.every(r => r)
+                return results.every(r => r)
               }
               
-              // Evaluate all conditions - result can be boolean or WAITING_FOR_VALUE
-              let conditionResult: boolean | symbol = true
+              // Evaluate all conditions
+              let conditionResult = true
               const logicalOperator = conditionConfig?.logicalOperator || 'AND'
               
               // Check for enhanced condition format first
@@ -1769,62 +1705,13 @@ Deno.serve(async (req) => {
                 conditionResult = evaluateEnhancedCondition(enhancedCondition)
               } else if (legacyConditions.length > 0) {
                 console.log(`📊 Using legacy condition evaluation`)
-                const legacyResults = legacyConditions.map((c: any) => evaluateLegacyCondition(c))
-                
-                // Check if any legacy condition is waiting
-                const hasWaiting = legacyResults.some(r => r === WAITING_FOR_VALUE)
-                if (hasWaiting) {
-                  console.log(`   ⏳ One or more legacy conditions waiting for values`)
-                  conditionResult = WAITING_FOR_VALUE
+                if (logicalOperator === 'OR') {
+                  conditionResult = legacyConditions.some((c: any) => evaluateLegacyCondition(c))
                 } else {
-                  const boolResults = legacyResults as boolean[]
-                  if (logicalOperator === 'OR') {
-                    conditionResult = boolResults.some(r => r)
-                  } else {
-                    conditionResult = boolResults.every(r => r)
-                  }
+                  conditionResult = legacyConditions.every((c: any) => evaluateLegacyCondition(c))
                 }
               } else {
                 console.log(`⚠️ No conditions configured - defaulting to TRUE`)
-              }
-              
-              // If condition is WAITING_FOR_VALUE, keep workflow in waiting state
-              if (conditionResult === WAITING_FOR_VALUE) {
-                console.log(`⏳ Condition is waiting for actual values - keeping workflow paused at condition node`)
-                
-                // Update execution to stay on this condition node and remain in waiting status
-                await supabase
-                  .from('workflow_executions')
-                  .update({
-                    status: 'waiting',
-                    wait_node_id: nodeData.id,
-                    current_node_id: nodeData.id,
-                    wait_config: {
-                      type: 'condition_waiting_for_value',
-                      nodeId: nodeData.id,
-                      nodeLabel: nodeData.label,
-                      waitingForCondition: true
-                    }
-                  })
-                  .eq('id', execution.id)
-                
-                // Log this waiting state
-                await supabase
-                  .from('workflow_instance_logs')
-                  .insert({
-                    execution_id: execution.id,
-                    node_id: nodeData.id,
-                    node_type: 'condition',
-                    node_label: nodeData.label || 'Condition',
-                    status: 'waiting',
-                    action_type: 'condition_evaluation',
-                    action_details: { message: 'Waiting for field values (null/undefined/N/A detected)' },
-                    started_at: new Date().toISOString(),
-                    execution_order: await supabase.rpc('get_next_execution_order', { exec_id: execution.id }).then(r => r.data || 0)
-                  })
-                
-                console.log(`✅ Workflow kept in waiting state on condition node`)
-                continue // Skip to next execution, don't proceed with branching
               }
               
               console.log(`📊 Condition result: ${conditionResult} (operator: ${logicalOperator})`)
