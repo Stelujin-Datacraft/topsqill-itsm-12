@@ -1520,15 +1520,50 @@ Deno.serve(async (req) => {
               }
               
               // Helper to check if value is null/undefined/empty/N/A (values that should cause waiting)
+              // const isWaitingValue = (v: any): boolean => {
+              //   if (v === null || v === undefined) return true
+              //   if (typeof v === 'string') {
+              //     const normalized = v.trim().toLowerCase()
+              //     return normalized === '' || normalized === 'n/a' || normalized === 'na' || normalized === 'null' || normalized === 'undefined'
+              //   }
+              //   return false
+              // }
               const isWaitingValue = (v: any): boolean => {
-                if (v === null || v === undefined) return true
-                if (typeof v === 'string') {
-                  const normalized = v.trim().toLowerCase()
-                  return normalized === '' || normalized === 'n/a' || normalized === 'na' || normalized === 'null' || normalized === 'undefined'
-                }
-                return false
-              }
-              
+  if (v === null || v === undefined) return true
+
+  // unwrap { value: "" }
+  if (typeof v === 'object' && v !== null && 'value' in v) {
+    return isWaitingValue((v as any).value)
+  }
+
+  // arrays (multi-select, checkbox etc)
+  if (Array.isArray(v)) {
+    return v.length === 0
+  }
+
+  // objects (no meaningful value)
+  if (typeof v === 'object') {
+    return Object.keys(v).length === 0
+  }
+
+  if (typeof v === 'string') {
+    const normalized = v
+      .replace(/\u00A0/g, ' ')   // NBSP
+      .trim()
+      .toLowerCase()
+
+    return (
+      normalized === '' ||
+      normalized === 'n/a' ||
+      normalized === 'na' ||
+      normalized === 'null' ||
+      normalized === 'undefined'
+    )
+  }
+
+  return false
+}
+
               // Special symbol to indicate condition should wait (not proceed at all)
               const WAITING_FOR_VALUE = Symbol('WAITING_FOR_VALUE')
               
