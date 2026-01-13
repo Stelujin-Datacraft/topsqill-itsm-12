@@ -1728,7 +1728,21 @@ Deno.serve(async (req) => {
                 }
                 
                 // Convert results to boolean array (all should be boolean at this point)
-                const boolResults = results as boolean[]
+                // const boolResults = results as boolean[]
+                // If ANY condition is WAITING, block execution
+                  if (results.some(r => r === WAITING_FOR_VALUE)) {
+                    console.log(`⏳ Condition evaluation blocked — WAITING_FOR_VALUE present`)
+                    conditionResult = WAITING_FOR_VALUE
+                  } else {
+                    const boolResults = results as boolean[]
+
+                    if (logicalOperator === 'OR') {
+                      conditionResult = boolResults.some(r => r)
+                    } else {
+                      conditionResult = boolResults.every(r => r)
+                    }
+                  }
+
                 
                 // Handle manual expression like "1 AND 2" or "1 OR 2"
                 if (useManualExpression && manualExpression) {
