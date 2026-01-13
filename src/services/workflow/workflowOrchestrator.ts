@@ -300,6 +300,8 @@ export class WorkflowOrchestrator {
         return { success: true, isTerminal: true };
       }
 
+      const WAITING_FOR_VALUE = Symbol.for('WAITING_FOR_VALUE');
+
       // Check if this is a wait node that paused the workflow
       if (node.node_type === 'wait' && result.output?.waited === true) {
         console.log('⏸️ Workflow paused at wait node');
