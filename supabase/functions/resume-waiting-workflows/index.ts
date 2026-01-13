@@ -1519,6 +1519,11 @@ Deno.serve(async (req) => {
                 return String(v).toLowerCase().trim()
               }
               
+              // Helper to check if value is null/undefined/empty
+              const isNullOrUndefined = (v: any): boolean => {
+                return v === null || v === undefined
+              }
+              
               // Evaluate a single legacy condition
               const evaluateLegacyCondition = (condition: any): boolean => {
                 const { field, operator, value } = condition
@@ -1530,6 +1535,23 @@ Deno.serve(async (req) => {
                 }
                 
                 console.log(`📊 Evaluating legacy: ${field} ${operator} ${value} (actual: ${fieldValue})`)
+                
+                // IMPORTANT: If field value is null/undefined, return false for most operators
+                // This prevents workflow from proceeding when required field values are missing
+                // Exception: exists/not_exists operators which specifically check for these states
+                if (isNullOrUndefined(fieldValue)) {
+                  if (operator === 'exists') {
+                    console.log(`   Field is null/undefined - exists check returns false`)
+                    return false
+                  }
+                  if (operator === 'not_exists') {
+                    console.log(`   Field is null/undefined - not_exists check returns true`)
+                    return true
+                  }
+                  // For all other operators, null/undefined means condition cannot be evaluated properly
+                  console.log(`   ⚠️ Field value is null/undefined - condition evaluates to FALSE (waiting for value)`)
+                  return false
+                }
                 
                 const normalizedFieldValue = normalizeValue(fieldValue)
                 const normalizedValue = normalizeValue(value)
@@ -1586,6 +1608,23 @@ Deno.serve(async (req) => {
                 let actualValue = submissionData[fieldId]
                 
                 console.log(`📊 Evaluating field-level: fieldId=${fieldId}, operator=${operator}, expected=${expectedValue}, actual=${actualValue}`)
+                
+                // IMPORTANT: If field value is null/undefined, return false for most operators
+                // This prevents workflow from proceeding when required field values are missing
+                // Exception: exists/not_exists operators which specifically check for these states
+                if (isNullOrUndefined(actualValue)) {
+                  if (operator === 'exists') {
+                    console.log(`   Field is null/undefined - exists check returns false`)
+                    return false
+                  }
+                  if (operator === 'not_exists') {
+                    console.log(`   Field is null/undefined - not_exists check returns true`)
+                    return true
+                  }
+                  // For all other operators, null/undefined means condition cannot be evaluated properly
+                  console.log(`   ⚠️ Field value is null/undefined - condition evaluates to FALSE (waiting for value)`)
+                  return false
+                }
                 
                 const normalizedActual = normalizeValue(actualValue)
                 const normalizedExpected = normalizeValue(expectedValue)
