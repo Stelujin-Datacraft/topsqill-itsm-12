@@ -1793,7 +1793,7 @@ Deno.serve(async (req) => {
               //   }
               //   return boolResults.every(r => r)
               // }
-              const evaluateEnhancedCondition = (ec: any): boolean | symbol => {
+const evaluateEnhancedCondition = (ec: any): boolean | symbol => {
   if (!ec) return true
 
   const conditions = ec.conditions || []
@@ -1802,6 +1802,13 @@ Deno.serve(async (req) => {
 
   console.log(`📊 Enhanced condition: ${conditions.length} conditions`)
 
+  // 🔴 CRITICAL FIX
+  // If enhancedCondition exists but has no conditions yet → WAIT
+  if (conditions.length === 0 && !ec.fieldLevelCondition) {
+    console.log(`⏳ Enhanced condition empty → WAITING`)
+    return WAITING_FOR_VALUE
+  }
+
   // Single field-level condition
   if (conditions.length === 0 && ec.fieldLevelCondition) {
     return evaluateFieldLevelCondition(ec.fieldLevelCondition)
@@ -1809,7 +1816,7 @@ Deno.serve(async (req) => {
 
   const results: (boolean | symbol)[] = []
 
-  // Step 1 — evaluate each condition
+  // Evaluate each condition
   for (const cond of conditions) {
     let result: boolean | symbol = false
 
@@ -1827,16 +1834,15 @@ Deno.serve(async (req) => {
     results.push(result)
   }
 
-  // Step 2 — HARD BLOCK if anything is WAITING
+  // 🔴 HARD BLOCK — if anything is WAITING
   if (results.some(r => r === WAITING_FOR_VALUE)) {
     console.log(`⏳ Enhanced condition BLOCKED — waiting for values`)
     return WAITING_FOR_VALUE
   }
 
-  // Now it is safe to treat everything as boolean
   const boolResults = results as boolean[]
 
-  // Step 3 — Manual expression
+  // Manual expression
   if (useManualExpression && manualExpression) {
     try {
       let expr = manualExpression.toString()
@@ -1848,19 +1854,17 @@ Deno.serve(async (req) => {
       return Boolean(Function(`"use strict"; return (${expr})`)())
     } catch (e) {
       console.log(`⚠️ Manual expression error`, e)
-      // Fall through to default logic
     }
   }
 
-  // Step 4 — Default AND/OR logic
+  // Default AND/OR logic
   const hasOrLogic = conditions.some((c: any) => c.logicalOperatorWithNext === 'OR')
 
-  if (hasOrLogic) {
-    return boolResults.some(r => r)
-  }
+  if (hasOrLogic) return boolResults.some(r => r)
 
   return boolResults.every(r => r)
 }
+
 
               // Evaluate all conditions - result can be boolean or WAITING_FOR_VALUE
               let conditionResult: boolean | symbol = true
