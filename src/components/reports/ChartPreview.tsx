@@ -716,13 +716,15 @@ export function ChartPreview({
             // Handle array fields - check if expectedValue is in the array
             if (Array.isArray(fieldValue)) {
               return fieldValue.some(v => {
-                const strVal = typeof v === 'object' ? JSON.stringify(v) : String(v || '');
+                // Properly handle numeric values including 0 in arrays
+                const strVal = typeof v === 'object' ? JSON.stringify(v) : (v === null || v === undefined ? '' : String(v));
                 return strVal === expectedValue;
               });
             }
+            // Properly handle numeric values including 0 - don't use || which treats 0 as falsy
             const normalizedFieldValue = typeof fieldValue === 'object' 
               ? JSON.stringify(fieldValue) 
-              : String(fieldValue || '');
+              : (fieldValue === null || fieldValue === undefined ? '' : String(fieldValue));
             return normalizedFieldValue === expectedValue;
           });
         }
@@ -760,10 +762,12 @@ export function ChartPreview({
           const valuesToProcess: string[] = [];
           if (Array.isArray(fieldVal)) {
             fieldVal.forEach(v => {
-              const strVal = typeof v === 'object' ? JSON.stringify(v) : String(v || 'Unknown');
+              // Properly handle numeric values including 0 in arrays
+              const strVal = typeof v === 'object' ? JSON.stringify(v) : (v === null || v === undefined ? 'Unknown' : String(v));
               valuesToProcess.push(strVal);
             });
           } else {
+            // Properly handle numeric values including 0 - check explicitly for null/undefined
             const strVal = fieldVal === null || fieldVal === undefined 
               ? 'Unknown' 
               : (typeof fieldVal === 'object' ? JSON.stringify(fieldVal) : String(fieldVal));
