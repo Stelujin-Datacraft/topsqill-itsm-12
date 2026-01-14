@@ -736,7 +736,10 @@ export function ChartPreview({
         });
       }
       
-      if (isDrilldownActive && currentDimensionField && hasStartedDrilling && currentFieldLevel < drilldownLevels.length) {
+      // For drilldown-enabled cross-ref charts, ALWAYS group by the current dimension field
+      // This includes the initial view (level 0) - show data grouped by drilldownLevels[0]
+      // hasStartedDrilling only affects filtering, not the grouping logic
+      if (isDrilldownActive && currentDimensionField && currentFieldLevel < drilldownLevels.length) {
         // Get field options for the current drilldown field
         const dimFieldOptions = targetFieldOptionsLookup.get(currentDimensionField);
         
@@ -748,8 +751,10 @@ export function ChartPreview({
           parentIds: string[];
           parentRefIds: string[];
         }> = {};
+        // Use allLinkedSubmissions for initial view (no filtering), filteredLinkedSubmissions after drilling starts
+        const submissionsToGroup = hasStartedDrilling ? filteredLinkedSubmissions : allLinkedSubmissions;
         
-        filteredLinkedSubmissions.forEach(sub => {
+        submissionsToGroup.forEach(sub => {
           let fieldVal = sub.submission_data?.[currentDimensionField];
           
           // Handle array/multi-select fields - each value gets its own group
