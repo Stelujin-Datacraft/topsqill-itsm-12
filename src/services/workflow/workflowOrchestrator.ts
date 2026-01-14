@@ -305,6 +305,28 @@ export class WorkflowOrchestrator {
         console.log('⏸️ Workflow paused at wait node');
         return { success: true, isTerminal: false };
       }
+      
+      // Check if a condition node is waiting for field values
+      if (node.node_type === 'condition' && result.isWaiting) {
+        console.log('⏸️ Workflow paused at condition node - waiting for field values');
+        // Update the log to show waiting status
+        if (nodeExecution) {
+          try {
+            await supabase
+              .from('workflow_instance_logs')
+              .update({
+                status: 'waiting',
+                output_data: result.output || {},
+                completed_at: null, // Not completed yet
+                duration_ms: Date.now() - nodeStartTime
+              })
+              .eq('id', nodeExecution.id);
+          } catch (logUpdateError) {
+            console.error('❌ Error updating node execution log to waiting:', logUpdateError);
+          }
+        }
+        return { success: true, isTerminal: false };
+      }
 
       // Execute next nodes if the current node was successful
       if (result.success && result.nextNodeIds && result.nextNodeIds.length > 0) {
