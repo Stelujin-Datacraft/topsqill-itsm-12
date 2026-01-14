@@ -709,21 +709,24 @@ export function ChartPreview({
         for (let i = 1; i < drilldownValues.length; i++) {
           const levelFieldId = drilldownLevels[i - 1]; // Offset by 1 because drilldownValues[0] is parentRefId
           const expectedValue = drilldownValues[i];
-          if (!levelFieldId || !expectedValue) continue;
+          if (!levelFieldId || expectedValue === undefined || expectedValue === null) continue;
+          
+          // Normalize expected value to string for comparison
+          const expectedStr = String(expectedValue);
           
           filteredLinkedSubmissions = filteredLinkedSubmissions.filter(sub => {
             const fieldValue = sub.submission_data?.[levelFieldId];
             // Handle array fields - check if expectedValue is in the array
             if (Array.isArray(fieldValue)) {
               return fieldValue.some(v => {
-                const strVal = typeof v === 'object' ? JSON.stringify(v) : String(v || '');
-                return strVal === expectedValue;
+                const strVal = typeof v === 'object' ? JSON.stringify(v) : String(v ?? '');
+                return strVal === expectedStr;
               });
             }
             const normalizedFieldValue = typeof fieldValue === 'object' 
               ? JSON.stringify(fieldValue) 
-              : String(fieldValue || '');
-            return normalizedFieldValue === expectedValue;
+              : String(fieldValue ?? '');
+            return normalizedFieldValue === expectedStr;
           });
         }
         
@@ -2319,27 +2322,26 @@ export function ChartPreview({
         const drilldownLevels = crossRefConfig.drilldownLevels;
         const valuesCount = drilldownState?.values?.length || 0;
         
-        // ORIGINAL BEHAVIOR: drilldownValues[0] = parentRefId, then field values
-        // valuesCount = 0: will add parentRefId, then show drilldownLevels[0] data
-        // valuesCount = 1: parentRefId exists, showing level[0], click will add level[0] value, then show level[1]
-        // valuesCount = N (where N >= 1): showing level[N-1], click adds level[N-1] value, shows level[N]
+        // Cross-ref drilldown structure:
+        // - drilldownValues[0] = parentRefId (first click)
+        // - drilldownValues[1..N] = field values for drilldownLevels[0..N-1]
         // 
-        // With 4 levels [0,1,2,3]:
-        // valuesCount=1 → showing level[0] → click → valuesCount=2 → show level[1]
-        // valuesCount=2 → showing level[1] → click → valuesCount=3 → show level[2]
-        // valuesCount=3 → showing level[2] → click → valuesCount=4 → show level[3]
-        // valuesCount=4 → showing level[3] (LAST) → click → should show DIALOG
+        // Total values when all levels exhausted = drilldownLevels.length + 1
+        // (1 for parentRefId + N for each field level)
         //
-        // Current fieldLevel being displayed = valuesCount - 1 (when valuesCount >= 1)
-        // We're at the LAST level when valuesCount - 1 = drilldownLevels.length - 1
-        // i.e., valuesCount = drilldownLevels.length
-        // On click at last level, we should show dialog
-        const currentDisplayLevel = valuesCount > 0 ? valuesCount - 1 : -1;
-        const isAtLastLevel = currentDisplayLevel >= drilldownLevels.length - 1;
+        // Flow with 4 levels [L0, L1, L2, L3]:
+        // valuesCount=0 → showing parents → click → add parentRefId → show L0
+        // valuesCount=1 → showing L0 → click → add L0 value → show L1
+        // valuesCount=2 → showing L1 → click → add L1 value → show L2
+        // valuesCount=3 → showing L2 → click → add L2 value → show L3
+        // valuesCount=4 → showing L3 → click → add L3 value → show DIALOG
+        // 
+        // Dialog shows when valuesCount = drilldownLevels.length + 1 (all exhausted)
+        const maxValues = drilldownLevels.length + 1; // parentRefId + all field values
         
-        // Check if we're at or past the last level - show dialog
-        if (valuesCount > 0 && isAtLastLevel) {
-          // At last level - show submissions dialog with the filtered linked records
+        // Check if we've exhausted all levels (all values including last level value added)
+        if (valuesCount >= maxValues) {
+          // All levels exhausted - show submissions dialog with the filtered linked records
           setCellSubmissionsDialog({
             open: true,
             dimensionField: '',
@@ -2355,19 +2357,24 @@ export function ChartPreview({
         
         // Drill into the next level
         // For valuesCount=0: pass parentRefId (first click selects the parent)
-        // For valuesCount>0: pass the field value for the next level
-        // fieldLevelsUsed = valuesCount - 1 (or -1 if valuesCount=0)
-        // After adding current value, the NEXT level to display will be:
-        // - If valuesCount=0: we're adding parentRefId, next will show drilldownLevels[0]
-        // - If valuesCount=1: parentRefId exists, we're adding level[0] value, next will show drilldownLevels[1]
-        // So nextLevel = drilldownLevels[valuesCount] (after the current value is added)
+        // For valuesCount>0: pass the field value, next chart shows drilldownLevels[valuesCount]
+        const nextLevelIndex = valuesCount; // After adding value, show this level index
         const nextLevel = valuesCount === 0 
-          ? drilldownLevels[0] || '' // After adding parentRefId, show level[0]
-          : drilldownLevels[valuesCount] || ''; // After adding value, show next level
+          ? drilldownLevels[0] || '' 
+          : (nextLevelIndex < drilldownLevels.length ? drilldownLevels[nextLevelIndex] : '');
         
         const valueToPass = valuesCount === 0 
           ? (payload?.parentRefId || dimensionValue) // First click passes parentRefId
-          : (payload?._drilldownValue || dimensionValue); // Subsequent clicks pass field value
+          : String(payload?._drilldownValue ?? dimensionValue); // Ensure string for filtering
+        
+        console.log('📊 Cross-ref drilldown click:', {
+          valuesCount,
+          maxValues,
+          nextLevelIndex,
+          nextLevel,
+          valueToPass,
+          drilldownLevelsLength: drilldownLevels.length
+        });
         
         if (onDrilldown) {
           onDrilldown(nextLevel, valueToPass);
