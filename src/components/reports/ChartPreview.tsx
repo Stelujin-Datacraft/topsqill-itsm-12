@@ -2327,9 +2327,14 @@ export function ChartPreview({
         // Drill into the next level
         // For valuesCount=0: pass parentRefId (first click selects the parent)
         // For valuesCount>0: pass the field value for the next level
+        // fieldLevelsUsed = valuesCount - 1 (or -1 if valuesCount=0)
+        // After adding current value, the NEXT level to display will be:
+        // - If valuesCount=0: we're adding parentRefId, next will show drilldownLevels[0]
+        // - If valuesCount=1: parentRefId exists, we're adding level[0] value, next will show drilldownLevels[1]
+        // So nextLevel = drilldownLevels[valuesCount] (after the current value is added)
         const nextLevel = valuesCount === 0 
-          ? '' // No specific level name for parent selection
-          : drilldownLevels[fieldLevelsUsed + 1] || '';
+          ? drilldownLevels[0] || '' // After adding parentRefId, show level[0]
+          : drilldownLevels[valuesCount] || ''; // After adding value, show next level
         
         const valueToPass = valuesCount === 0 
           ? (payload?.parentRefId || dimensionValue) // First click passes parentRefId
