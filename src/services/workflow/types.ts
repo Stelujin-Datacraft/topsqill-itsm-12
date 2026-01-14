@@ -13,4 +13,5 @@ export interface NodeExecutionResult {
   output?: any;
   error?: string;
   nextNodeIds?: string[];
+  isWaiting?: boolean;
 }

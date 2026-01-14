@@ -196,6 +196,8 @@ export class NodeExecutors {
     try {
       let conditionResult = false;
       let evaluationDetails: any = {};
+      let isWaitingForValue = false;
+      let waitingFields: string[] = [];
 
       // Check if config exists
       if (!config) {
@@ -246,11 +248,20 @@ export class NodeExecutors {
           }
 
           conditionResult = evaluationResult.result as boolean;
+          
+          // Check for waiting state
+          if (evaluationResult.waitingForValue) {
+            isWaitingForValue = true;
+            waitingFields = evaluationResult.waitingFields || [];
+          }
+          
           evaluationDetails = {
             type: 'enhanced',
             enhancedCondition: config.enhancedCondition,
             evaluationResult: evaluationResult.result,
-            evaluatedConditions: evaluationResult.evaluatedConditions
+            evaluatedConditions: evaluationResult.evaluatedConditions,
+            waitingForValue: isWaitingForValue,
+            waitingFields
           };
         } catch (error) {
           return {
@@ -292,10 +303,19 @@ export class NodeExecutors {
           }
 
           conditionResult = evaluationResult.result as boolean;
+          
+          // Check for waiting state
+          if (evaluationResult.waitingForValue) {
+            isWaitingForValue = true;
+            waitingFields = evaluationResult.waitingFields || [];
+          }
+          
           evaluationDetails = {
             type: 'legacy',
             conditionConfig: config.conditionConfig,
-            evaluationResult: evaluationResult.result
+            evaluationResult: evaluationResult.result,
+            waitingForValue: isWaitingForValue,
+            waitingFields
           };
         } catch (error) {
           return {
@@ -310,6 +330,73 @@ export class NodeExecutors {
           type: 'default',
           result: true,
           message: 'No condition configured, defaulting to true'
+        };
+      }
+
+      // *** WAITING LOGIC: If condition is FALSE and field values are empty, WAIT instead ***
+      if (!conditionResult && isWaitingForValue) {
+        console.log(`⏳ WAITING FOR VALUES: Condition is FALSE but field(s) "${waitingFields.join(', ')}" have empty values`);
+        console.log(`⏳ Pausing workflow at condition node until actual values are provided`);
+        
+        // Set up wait state at this condition node (poll every 5 minutes)
+        const pollIntervalMinutes = 5;
+        const newResumeAt = new Date(Date.now() + pollIntervalMinutes * 60 * 1000);
+        
+        // Update workflow execution to waiting status
+        await supabase
+          .from('workflow_executions')
+          .update({
+            status: 'waiting',
+            current_node_id: nodeData.id,
+            scheduled_resume_at: newResumeAt.toISOString(),
+            wait_node_id: nodeData.id,
+            wait_config: {
+              waitType: 'condition_waiting_for_value',
+              waitingFields,
+              pollIntervalMinutes,
+              conditionNodeId: nodeData.id,
+              conditionNodeLabel: nodeData.label
+            },
+            execution_data: {
+              resumedAt: new Date().toISOString(),
+              isWaitingForConditionValue: true,
+              lastWaitingFields: waitingFields
+            }
+          })
+          .eq('id', context.executionId);
+        
+        // Log waiting status
+        await supabase
+          .from('workflow_instance_logs')
+          .insert({
+            execution_id: context.executionId,
+            node_id: nodeData.id,
+            node_type: 'condition',
+            node_label: nodeData.label || 'Condition',
+            status: 'waiting',
+            started_at: new Date().toISOString(),
+            output_data: {
+              scheduledResumeAt: newResumeAt.toISOString(),
+              waitType: 'condition_waiting_for_value',
+              waitingFields,
+              message: `Waiting for field value(s): ${waitingFields.join(', ')}. Will check again in ${pollIntervalMinutes} minutes.`
+            }
+          });
+        
+        return {
+          success: true,
+          output: {
+            conditionType: evaluationDetails.type,
+            conditionResult: false,
+            waiting: true,
+            waitingForValues: true,
+            waitingFields,
+            scheduledResumeAt: newResumeAt.toISOString(),
+            message: `Waiting for field value(s): ${waitingFields.join(', ')}`,
+            evaluationDetails
+          },
+          nextNodeIds: [], // Don't proceed to any branch
+          isWaiting: true
         };
       }
 

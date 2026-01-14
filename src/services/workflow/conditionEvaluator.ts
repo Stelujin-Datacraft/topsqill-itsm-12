@@ -16,7 +16,30 @@ import {
 } from '@/types/conditions';
 import { ExpressionEvaluator, EvaluationContext } from '@/utils/expressionEvaluator';
 
+// Internal result type that tracks waiting state
+interface InternalConditionResult {
+  result: boolean;
+  waiting: boolean;
+  waitingField?: string;
+}
+
 export class ConditionEvaluator {
+  // Check if a value is considered "empty" and should trigger waiting state
+  private static isEmptyValue(v: any): boolean {
+    if (v === null || v === undefined) return true;
+    if (typeof v === 'string') {
+      const trimmed = v.trim().toLowerCase();
+      return trimmed === '' || trimmed === 'n/a' || trimmed === 'na' || trimmed === 'null' || trimmed === 'undefined';
+    }
+    if (Array.isArray(v) && v.length === 0) return true;
+    return false;
+  }
+
+  // Check if operator should bypass waiting logic (exists/not_exists are checking for emptiness intentionally)
+  private static shouldBypassWaiting(operator: ComparisonOperator): boolean {
+    return ['exists', 'not_exists'].includes(operator);
+  }
+
   static evaluateCondition(
     config: ConditionConfig, 
     context: ConditionEvaluationContext
@@ -46,52 +69,78 @@ export class ConditionEvaluator {
     config: IfConditionConfig, 
     context: ConditionEvaluationContext
   ): ConditionEvaluationResult {
-    let result: boolean;
+    let internalResult: InternalConditionResult;
 
     // Check if it's an enhanced condition
     if (typeof config.condition === 'object' && 'systemType' in config.condition) {
-      result = this.evaluateEnhancedCondition(config.condition as EnhancedCondition, context);
+      internalResult = this.evaluateEnhancedConditionWithWaiting(config.condition as EnhancedCondition, context);
     } else {
-      result = this.evaluateConditionGroup(config.condition as SimpleCondition | LogicalGroup, context);
+      internalResult = this.evaluateConditionGroupWithWaiting(config.condition as SimpleCondition | LogicalGroup, context);
+    }
+    
+    // If condition is FALSE and we're waiting for a value, flag it
+    if (!internalResult.result && internalResult.waiting) {
+      return {
+        success: true,
+        result: false,
+        evaluatedConditions: { conditionResult: false },
+        waitingForValue: true,
+        waitingFields: internalResult.waitingField ? [internalResult.waitingField] : []
+      };
     }
     
     return {
       success: true,
-      result: result,
-      evaluatedConditions: { conditionResult: result }
+      result: internalResult.result,
+      evaluatedConditions: { conditionResult: internalResult.result }
     };
   }
 
-  private static evaluateEnhancedCondition(
+  // Enhanced condition evaluation with waiting support
+  private static evaluateEnhancedConditionWithWaiting(
     condition: EnhancedCondition,
     context: ConditionEvaluationContext
-  ): boolean {
+  ): InternalConditionResult {
     // Handle multiple conditions with individual logical operators
     if (condition.conditions && condition.conditions.length > 0) {
       const conditions = condition.conditions;
       
-      // First, evaluate all individual conditions
-      const conditionResults: Record<string, boolean> = {};
+      // Evaluate all individual conditions with waiting support
+      const conditionResults: InternalConditionResult[] = [];
       for (let i = 0; i < conditions.length; i++) {
-        const result = this.evaluateSingleConditionItem(conditions[i], context);
-        conditionResults[String(i + 1)] = result;
+        const result = this.evaluateSingleConditionItemWithWaiting(conditions[i], context);
+        conditionResults.push(result);
       }
+
+      // Check if any condition is waiting for a value
+      const waitingResults = conditionResults.filter(r => r.waiting);
+      if (waitingResults.length > 0) {
+        const waitingFields = waitingResults.map(r => r.waitingField).filter(Boolean).join(', ');
+        return { result: false, waiting: true, waitingField: waitingFields };
+      }
+
+      // All conditions have values, evaluate normally
+      const boolResults: Record<string, boolean> = {};
+      conditionResults.forEach((r, i) => {
+        boolResults[String(i + 1)] = r.result;
+      });
 
       // Use manual expression if enabled
       if (condition.useManualExpression && condition.manualExpression) {
         try {
-          return ExpressionEvaluator.evaluate(condition.manualExpression, conditionResults);
+          const result = ExpressionEvaluator.evaluate(condition.manualExpression, boolResults);
+          return { result, waiting: false };
         } catch {
           // Fall back to sequential AND evaluation
         }
       }
       
       // Default: Chain with sequential logical operators
-      let result = conditionResults['1'];
+      let result = boolResults['1'];
       
       for (let i = 1; i < conditions.length; i++) {
         const prevCondition = conditions[i - 1];
-        const currentResult = conditionResults[String(i + 1)];
+        const currentResult = boolResults[String(i + 1)];
         const operator = prevCondition.logicalOperatorWithNext || 'AND';
         
         if (operator === 'AND') {
@@ -101,35 +150,49 @@ export class ConditionEvaluator {
         }
       }
       
-      return result;
+      return { result, waiting: false };
     }
 
     // Fallback to single condition evaluation (backward compatibility)
     if (condition.systemType === 'form_level' && condition.formLevelCondition) {
-      return this.evaluateFormLevelCondition(condition.formLevelCondition, context);
+      return this.evaluateFormLevelConditionWithWaiting(condition.formLevelCondition, context);
     } else if (condition.systemType === 'field_level' && condition.fieldLevelCondition) {
-      return this.evaluateFieldLevelCondition(condition.fieldLevelCondition, context);
+      return this.evaluateFieldLevelConditionWithWaiting(condition.fieldLevelCondition, context);
     }
 
-    return false;
+    return { result: false, waiting: false };
+  }
+
+  private static evaluateEnhancedCondition(
+    condition: EnhancedCondition,
+    context: ConditionEvaluationContext
+  ): boolean {
+    return this.evaluateEnhancedConditionWithWaiting(condition, context).result;
+  }
+
+  private static evaluateSingleConditionItemWithWaiting(
+    conditionItem: ConditionItem,
+    context: ConditionEvaluationContext
+  ): InternalConditionResult {
+    if (conditionItem.systemType === 'form_level' && conditionItem.formLevelCondition) {
+      return this.evaluateFormLevelConditionWithWaiting(conditionItem.formLevelCondition, context);
+    } else if (conditionItem.systemType === 'field_level' && conditionItem.fieldLevelCondition) {
+      return this.evaluateFieldLevelConditionWithWaiting(conditionItem.fieldLevelCondition, context);
+    }
+    return { result: false, waiting: false };
   }
 
   private static evaluateSingleConditionItem(
     conditionItem: ConditionItem,
     context: ConditionEvaluationContext
   ): boolean {
-    if (conditionItem.systemType === 'form_level' && conditionItem.formLevelCondition) {
-      return this.evaluateFormLevelCondition(conditionItem.formLevelCondition, context);
-    } else if (conditionItem.systemType === 'field_level' && conditionItem.fieldLevelCondition) {
-      return this.evaluateFieldLevelCondition(conditionItem.fieldLevelCondition, context);
-    }
-    return false;
+    return this.evaluateSingleConditionItemWithWaiting(conditionItem, context).result;
   }
 
-  private static evaluateFormLevelCondition(
+  private static evaluateFormLevelConditionWithWaiting(
     condition: FormLevelCondition,
     context: ConditionEvaluationContext
-  ): boolean {
+  ): InternalConditionResult {
     let actualValue: any;
 
     switch (condition.conditionType) {
@@ -143,19 +206,105 @@ export class ConditionEvaluator {
         actualValue = context.userProperties.role || context.userProperties.user_role;
         break;
       default:
-        return false;
+        return { result: false, waiting: false };
     }
 
-    return this.compareValues(actualValue, condition.value, condition.operator);
+    // Form-level conditions don't wait - they're system-level checks
+    return { result: this.compareValues(actualValue, condition.value, condition.operator), waiting: false };
+  }
+
+  private static evaluateFormLevelCondition(
+    condition: FormLevelCondition,
+    context: ConditionEvaluationContext
+  ): boolean {
+    return this.evaluateFormLevelConditionWithWaiting(condition, context).result;
+  }
+
+  private static evaluateFieldLevelConditionWithWaiting(
+    condition: FieldLevelCondition,
+    context: ConditionEvaluationContext
+  ): InternalConditionResult {
+    // Get the field value from form data
+    const fieldValue = context.formData[condition.fieldId];
+    
+    // Check if field value is empty and should trigger waiting (unless operator is exists/not_exists)
+    if (!this.shouldBypassWaiting(condition.operator) && this.isEmptyValue(fieldValue)) {
+      console.log(`⏳ Field "${condition.fieldId}" has empty value, should wait for actual value`);
+      return { result: false, waiting: true, waitingField: condition.fieldId };
+    }
+    
+    return { result: this.compareValues(fieldValue, condition.value, condition.operator), waiting: false };
   }
 
   private static evaluateFieldLevelCondition(
     condition: FieldLevelCondition,
     context: ConditionEvaluationContext
   ): boolean {
-    // Get the field value from form data
-    const fieldValue = context.formData[condition.fieldId];
-    return this.compareValues(fieldValue, condition.value, condition.operator);
+    return this.evaluateFieldLevelConditionWithWaiting(condition, context).result;
+  }
+
+  // Condition group evaluation with waiting support
+  private static evaluateConditionGroupWithWaiting(
+    condition: SimpleCondition | LogicalGroup, 
+    context: ConditionEvaluationContext
+  ): InternalConditionResult {
+    if ('operator' in condition && 'leftOperand' in condition) {
+      // Simple condition
+      return this.evaluateSimpleConditionWithWaiting(condition, context);
+    } else if ('operator' in condition && 'conditions' in condition) {
+      // Logical group
+      const group = condition as LogicalGroup;
+      
+      const results = group.conditions.map(cond => this.evaluateConditionGroupWithWaiting(cond, context));
+      
+      // Check for waiting conditions
+      const waitingResults = results.filter(r => r.waiting);
+      if (waitingResults.length > 0) {
+        const waitingFields = waitingResults.map(r => r.waitingField).filter(Boolean).join(', ');
+        return { result: false, waiting: true, waitingField: waitingFields };
+      }
+      
+      if (group.operator === 'AND') {
+        return { result: results.every(r => r.result), waiting: false };
+      } else if (group.operator === 'OR') {
+        return { result: results.some(r => r.result), waiting: false };
+      }
+    }
+    
+    return { result: false, waiting: false };
+  }
+
+  private static evaluateSimpleConditionWithWaiting(
+    condition: SimpleCondition, 
+    context: ConditionEvaluationContext
+  ): InternalConditionResult {
+    const leftValue = this.resolveFieldPath(condition.leftOperand, context);
+    
+    // Check if left operand is from form data and is empty
+    if (condition.leftOperand.type === 'form' && this.isEmptyValue(leftValue)) {
+      // Check if operator should bypass waiting
+      if (!this.shouldBypassWaiting(condition.operator)) {
+        console.log(`⏳ Field "${condition.leftOperand.path}" has empty value, should wait for actual value`);
+        return { result: false, waiting: true, waitingField: condition.leftOperand.path };
+      }
+    }
+    
+    // Fix: Properly handle the rightOperand type checking
+    let rightValue: any;
+    if (typeof condition.rightOperand === 'object' && condition.rightOperand !== null) {
+      if ('value' in condition.rightOperand) {
+        // It's a static value object
+        rightValue = condition.rightOperand.value;
+      } else {
+        // It's a FieldPath object
+        rightValue = this.resolveFieldPath(condition.rightOperand as FieldPath, context);
+      }
+    } else {
+      // Fallback for any other case
+      rightValue = condition.rightOperand;
+    }
+
+    return { result: this.compareValues(leftValue, rightValue, condition.operator), waiting: false };
   }
 
   private static evaluateSwitchCondition(

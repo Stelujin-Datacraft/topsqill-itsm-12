@@ -121,6 +121,9 @@ export interface ConditionEvaluationResult {
   result: boolean | string;
   error?: string;
   evaluatedConditions?: Record<string, any>;
+  // Waiting state for when field values are empty
+  waitingForValue?: boolean;
+  waitingFields?: string[];
 }
 
 // Form and field selection interfaces
