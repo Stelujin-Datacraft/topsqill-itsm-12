@@ -338,8 +338,8 @@ export class NodeExecutors {
         console.log(`⏳ WAITING FOR VALUES: Condition is FALSE but field(s) "${waitingFields.join(', ')}" have empty values`);
         console.log(`⏳ Pausing workflow at condition node until actual values are provided`);
         
-        // Set up wait state at this condition node (poll every 5 minutes)
-        const pollIntervalMinutes = 5;
+        // Set up wait state at this condition node (poll every 3 minutes)
+        const pollIntervalMinutes = 3;
         const newResumeAt = new Date(Date.now() + pollIntervalMinutes * 60 * 1000);
         
         // Update workflow execution to waiting status
