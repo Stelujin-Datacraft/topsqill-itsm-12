@@ -112,77 +112,124 @@ Deno.serve(async (req) => {
           continue
         }
 
-        // Get the next nodes from the wait node
-        const { data: connections, error: connError } = await supabase
-          .from('workflow_connections')
-          .select('target_node_id')
-          .eq('source_node_id', waitNodeId)
-
-        if (connError) {
-          console.error(`❌ Error getting connections for execution ${execution.id}:`, connError)
-          errors.push(`Execution ${execution.id}: ${connError.message}`)
-          continue
-        }
-
-        const nextNodeIds = connections?.map(c => c.target_node_id) || []
-        console.log(`   Next nodes: ${nextNodeIds.join(', ') || 'none'}`)
-
-        // Update the wait node log to completed
-        const { error: logUpdateError } = await supabase
-          .from('workflow_instance_logs')
-          .update({
-            status: 'completed',
-            completed_at: new Date().toISOString(),
-            output_data: { 
-              resumed: true, 
-              resumedAt: new Date().toISOString(),
-              waitType: execution.wait_config?.waitType || 'duration',
-              message: 'Wait period completed, workflow resumed'
-            }
-          })
-          .eq('execution_id', execution.id)
-          .eq('node_id', waitNodeId)
-          .eq('status', 'waiting')
-
-        if (logUpdateError) {
-          console.error(`⚠️ Error updating wait log for ${execution.id}:`, logUpdateError)
-        }
-
-        if (nextNodeIds.length === 0) {
-          // No next nodes, mark workflow as completed
-          console.log(`🏁 No next nodes, completing workflow execution: ${execution.id}`)
+        // Check if this is a condition node waiting for field values
+        const isConditionWaiting = execution.wait_config?.waitType === 'condition_waiting_for_value'
+        
+        let nextNodeIds: string[] = []
+        let nextNodes: WorkflowNode[] = []
+        
+        if (isConditionWaiting) {
+          // For condition nodes waiting for values, we need to re-evaluate the condition
+          // Add the condition node itself to the queue so it can be re-evaluated
+          console.log(`🔄 Condition node waiting for values - will re-evaluate condition`)
           
+          // Get the condition node details
+          const { data: conditionNode, error: condNodeError } = await supabase
+            .from('workflow_nodes')
+            .select('*')
+            .eq('id', waitNodeId)
+            .single()
+          
+          if (condNodeError || !conditionNode) {
+            console.error(`❌ Error fetching condition node:`, condNodeError)
+            errors.push(`Execution ${execution.id}: Failed to fetch condition node`)
+            continue
+          }
+          
+          nextNodeIds = [waitNodeId]
+          nextNodes = [conditionNode as WorkflowNode]
+          
+          // Update the wait node log to indicate re-evaluation
           await supabase
-            .from('workflow_executions')
+            .from('workflow_instance_logs')
             .update({
               status: 'completed',
               completed_at: new Date().toISOString(),
-              scheduled_resume_at: null,
-              wait_node_id: null,
-              wait_config: null,
-              execution_data: {
-                ...execution.execution_data,
-                completedByResume: true,
-                completedAt: new Date().toISOString()
+              output_data: { 
+                resumed: true, 
+                resumedAt: new Date().toISOString(),
+                waitType: 'condition_waiting_for_value',
+                message: 'Wait period completed, re-evaluating condition'
               }
             })
-            .eq('id', execution.id)
+            .eq('execution_id', execution.id)
+            .eq('node_id', waitNodeId)
+            .eq('status', 'waiting')
+        } else {
+          // For regular wait nodes, get the next nodes from the wait node
+          const { data: connections, error: connError } = await supabase
+            .from('workflow_connections')
+            .select('target_node_id')
+            .eq('source_node_id', waitNodeId)
 
-          resumedCount++
-          resumedExecutions.push(execution.id)
-          continue
-        }
+          if (connError) {
+            console.error(`❌ Error getting connections for execution ${execution.id}:`, connError)
+            errors.push(`Execution ${execution.id}: ${connError.message}`)
+            continue
+          }
 
-        // Get details for next nodes
-        const { data: nextNodes, error: nodesError } = await supabase
-          .from('workflow_nodes')
-          .select('*')
-          .in('id', nextNodeIds)
+          nextNodeIds = connections?.map(c => c.target_node_id) || []
+          console.log(`   Next nodes: ${nextNodeIds.join(', ') || 'none'}`)
 
-        if (nodesError) {
-          console.error(`❌ Error fetching next nodes:`, nodesError)
-          errors.push(`Execution ${execution.id}: Failed to fetch next nodes`)
-          continue
+          // Update the wait node log to completed
+          const { error: logUpdateError } = await supabase
+            .from('workflow_instance_logs')
+            .update({
+              status: 'completed',
+              completed_at: new Date().toISOString(),
+              output_data: { 
+                resumed: true, 
+                resumedAt: new Date().toISOString(),
+                waitType: execution.wait_config?.waitType || 'duration',
+                message: 'Wait period completed, workflow resumed'
+              }
+            })
+            .eq('execution_id', execution.id)
+            .eq('node_id', waitNodeId)
+            .eq('status', 'waiting')
+
+          if (logUpdateError) {
+            console.error(`⚠️ Error updating wait log for ${execution.id}:`, logUpdateError)
+          }
+
+          if (nextNodeIds.length === 0) {
+            // No next nodes, mark workflow as completed
+            console.log(`🏁 No next nodes, completing workflow execution: ${execution.id}`)
+            
+            await supabase
+              .from('workflow_executions')
+              .update({
+                status: 'completed',
+                completed_at: new Date().toISOString(),
+                scheduled_resume_at: null,
+                wait_node_id: null,
+                wait_config: null,
+                execution_data: {
+                  ...execution.execution_data,
+                  completedByResume: true,
+                  completedAt: new Date().toISOString()
+                }
+              })
+              .eq('id', execution.id)
+
+            resumedCount++
+            resumedExecutions.push(execution.id)
+            continue
+          }
+
+          // Get details for next nodes
+          const { data: fetchedNodes, error: nodesError } = await supabase
+            .from('workflow_nodes')
+            .select('*')
+            .in('id', nextNodeIds)
+
+          if (nodesError) {
+            console.error(`❌ Error fetching next nodes:`, nodesError)
+            errors.push(`Execution ${execution.id}: Failed to fetch next nodes`)
+            continue
+          }
+          
+          nextNodes = (fetchedNodes || []) as WorkflowNode[]
         }
 
         // Update execution status to running with the first next node
@@ -198,6 +245,7 @@ Deno.serve(async (req) => {
               ...execution.execution_data,
               resumedAt: new Date().toISOString(),
               resumedFromWait: true,
+              resumedFromConditionWait: isConditionWaiting,
               pendingNodes: nextNodeIds
             }
           })
@@ -214,7 +262,8 @@ Deno.serve(async (req) => {
         let allNodesProcessed = true
 
         // Use a queue to process nodes (allows condition branches to add more nodes)
-        const nodeQueue: WorkflowNode[] = [...(nextNodes || []) as WorkflowNode[]]
+        // For condition re-evaluation, we need to allow the condition node to be processed again
+        const nodeQueue: WorkflowNode[] = [...nextNodes]
         const processedNodeIds = new Set<string>()
         
         // Track loop iterations per node to prevent true infinite loops
@@ -235,9 +284,13 @@ Deno.serve(async (req) => {
             continue
           }
           
-          // For wait nodes, we allow re-execution (loop-back support)
+          // Check if this is a condition node being re-evaluated after waiting for values
+          const isConditionReEval = nodeData.node_type === 'condition' && 
+            execution.execution_data?.resumedFromConditionWait === true
+          
+          // For wait nodes and condition re-evaluation, we allow re-execution (loop-back support)
           // For other nodes, skip if already processed
-          if (processedNodeIds.has(nodeData.id) && nodeData.node_type !== 'wait') {
+          if (processedNodeIds.has(nodeData.id) && nodeData.node_type !== 'wait' && !isConditionReEval) {
             console.log(`⏭️ Skipping already processed node: ${nodeData.id}`)
             continue
           }
@@ -245,6 +298,11 @@ Deno.serve(async (req) => {
           // For wait nodes being re-executed (loop-back), log it
           if (processedNodeIds.has(nodeData.id) && nodeData.node_type === 'wait') {
             console.log(`🔄 Loop-back detected: Re-executing wait node: ${nodeData.id} (iteration ${executionCount + 1})`)
+          }
+          
+          // For condition nodes being re-evaluated after waiting for values
+          if (isConditionReEval) {
+            console.log(`🔄 Re-evaluating condition node after waiting for field values: ${nodeData.id}`)
           }
           
           processedNodeIds.add(nodeData.id)
@@ -1980,7 +2038,7 @@ Deno.serve(async (req) => {
                     }
                   }
                   
-                  // Update execution to track condition result
+                  // Update execution to track condition result and clear waiting flags
                   await supabase
                     .from('workflow_executions')
                     .update({
@@ -1990,7 +2048,8 @@ Deno.serve(async (req) => {
                         branchTaken: branchType,
                         lastConditionNode: nodeData.id,
                         // Clear waiting state since we're proceeding
-                        isWaitingForConditionValue: false
+                        isWaitingForConditionValue: false,
+                        resumedFromConditionWait: false
                       }
                     })
                     .eq('id', execution.id)
