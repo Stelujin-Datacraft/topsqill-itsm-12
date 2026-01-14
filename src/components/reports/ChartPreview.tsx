@@ -826,6 +826,14 @@ export function ChartPreview({
           };
         });
         
+        console.log('📊 Cross-ref drilldown result:', {
+          currentFieldLevel,
+          currentDimensionField,
+          filteredCount: filteredLinkedSubmissions.length,
+          groupedCount: Object.keys(groupedByDrilldownField).length,
+          resultCount: drilldownResult.length
+        });
+        
         return drilldownResult;
       }
 
@@ -985,6 +993,12 @@ export function ChartPreview({
     }
   };
 
+  // Create stable string representation of drilldown values to prevent unnecessary re-renders
+  const drilldownValuesKey = useMemo(() => 
+    JSON.stringify(drilldownState?.values || []), 
+    [drilldownState?.values]
+  );
+
   // Create stable string representations of array/object dependencies to prevent unnecessary re-renders
   const configDependencyKey = useMemo(() => {
     return JSON.stringify({
@@ -999,7 +1013,7 @@ export function ChartPreview({
       groupByField: config.groupByField,
       drilldownEnabled: config.drilldownConfig?.enabled,
       drilldownLevels: config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels,
-      drilldownValues: drilldownState?.values,
+      drilldownValuesKey, // Use stable string key instead of array reference
       sampleData: (config as any).data,
       crossRefEnabled: config.crossRefConfig?.enabled,
       crossRefFieldId: config.crossRefConfig?.crossRefFieldId,
@@ -1032,7 +1046,7 @@ export function ChartPreview({
     config.crossRefConfig?.drilldownLevels,
     config.chartType,
     config.type,
-    drilldownState?.values
+    drilldownValuesKey // Use stable string key
   ]);
 
   // Track the current load request to prevent race conditions
@@ -2277,8 +2291,11 @@ export function ChartPreview({
     if (!dimensionValue) return;
     
     // Check if this is a cross-reference chart - handle drilldown to linked records
-    // Check for parentId OR _linkedSubmissionIds to identify cross-ref data
-    if (config.crossRefConfig?.enabled && (payload?.parentId || payload?._linkedSubmissionIds)) {
+    // Check for parentId OR _linkedSubmissionIds OR _drilldownValue to identify cross-ref data
+    // _drilldownValue is set during drilldown grouping to pass the field value for next level
+    const isCrossRefData = config.crossRefConfig?.enabled && 
+      (payload?.parentId || payload?._linkedSubmissionIds?.length > 0 || payload?._drilldownValue !== undefined);
+    if (isCrossRefData) {
       const crossRefConfig = config.crossRefConfig;
       
       // Compare mode doesn't support drilldown - always show records directly
@@ -2304,13 +2321,25 @@ export function ChartPreview({
         
         // ORIGINAL BEHAVIOR: drilldownValues[0] = parentRefId, then field values
         // valuesCount = 0: will add parentRefId, then show drilldownLevels[0] data
-        // valuesCount = 1: parentRefId exists, will add level 0 value, then show drilldownLevels[1] data
-        // valuesCount = N: actual field levels used = N-1 (because position 0 is parentRefId)
-        const fieldLevelsUsed = valuesCount > 0 ? valuesCount - 1 : -1;
+        // valuesCount = 1: parentRefId exists, showing level[0], click will add level[0] value, then show level[1]
+        // valuesCount = N (where N >= 1): showing level[N-1], click adds level[N-1] value, shows level[N]
+        // 
+        // With 4 levels [0,1,2,3]:
+        // valuesCount=1 → showing level[0] → click → valuesCount=2 → show level[1]
+        // valuesCount=2 → showing level[1] → click → valuesCount=3 → show level[2]
+        // valuesCount=3 → showing level[2] → click → valuesCount=4 → show level[3]
+        // valuesCount=4 → showing level[3] (LAST) → click → should show DIALOG
+        //
+        // Current fieldLevel being displayed = valuesCount - 1 (when valuesCount >= 1)
+        // We're at the LAST level when valuesCount - 1 = drilldownLevels.length - 1
+        // i.e., valuesCount = drilldownLevels.length
+        // On click at last level, we should show dialog
+        const currentDisplayLevel = valuesCount > 0 ? valuesCount - 1 : -1;
+        const isAtLastLevel = currentDisplayLevel >= drilldownLevels.length - 1;
         
-        // Check if we've exhausted all levels (fieldLevelsUsed >= levels means no more levels to show)
-        if (fieldLevelsUsed >= drilldownLevels.length) {
-          // All levels exhausted - show submissions dialog with the filtered linked records
+        // Check if we're at or past the last level - show dialog
+        if (valuesCount > 0 && isAtLastLevel) {
+          // At last level - show submissions dialog with the filtered linked records
           setCellSubmissionsDialog({
             open: true,
             dimensionField: '',
