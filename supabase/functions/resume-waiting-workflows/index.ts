@@ -1512,11 +1512,129 @@ Deno.serve(async (req) => {
                 return value
               }
               
-              // Normalize values for comparison
+              // Normalize a single value for comparison
               const normalizeValue = (v: any): string => {
                 if (v === null || v === undefined) return ''
                 if (typeof v === 'boolean') return v.toString()
+                if (typeof v === 'object' && !Array.isArray(v)) {
+                  // For objects like {label, value}, extract the value
+                  if ('value' in v) return String(v.value).toLowerCase().trim()
+                  if ('id' in v) return String(v.id).toLowerCase().trim()
+                  return JSON.stringify(v).toLowerCase()
+                }
                 return String(v).toLowerCase().trim()
+              }
+              
+              // Helper to extract array of normalized values from a field value
+              const getArrayValues = (v: any): string[] => {
+                if (Array.isArray(v)) {
+                  return v.map(item => normalizeValue(item))
+                }
+                // Handle submission-access field format {users: [], groups: []}
+                if (typeof v === 'object' && v !== null) {
+                  if ('users' in v && Array.isArray(v.users)) {
+                    return v.users.map((u: any) => normalizeValue(u))
+                  }
+                  if ('groups' in v && Array.isArray(v.groups)) {
+                    return v.groups.map((g: any) => normalizeValue(g))
+                  }
+                }
+                return [normalizeValue(v)]
+              }
+              
+              // Check if value is an array-based field
+              const isArrayField = (v: any): boolean => {
+                if (Array.isArray(v)) return true
+                if (typeof v === 'object' && v !== null && ('users' in v || 'groups' in v)) return true
+                return false
+              }
+              
+              // Compare values with proper array handling
+              const compareValues = (left: any, right: any, operator: string): boolean => {
+                const isLeftArray = isArrayField(left)
+                const rightStr = normalizeValue(right)
+                
+                switch (operator) {
+                  case 'equals':
+                  case '==':
+                    if (isLeftArray) {
+                      const leftValues = getArrayValues(left)
+                      return leftValues.includes(rightStr)
+                    }
+                    return normalizeValue(left) === rightStr
+                  case 'not_equals':
+                  case '!=':
+                    if (isLeftArray) {
+                      const leftValues = getArrayValues(left)
+                      return !leftValues.includes(rightStr)
+                    }
+                    return normalizeValue(left) !== rightStr
+                  case 'contains':
+                    if (isLeftArray) {
+                      const leftValues = getArrayValues(left)
+                      return leftValues.some(v => v.includes(rightStr))
+                    }
+                    return normalizeValue(left).includes(rightStr)
+                  case 'not_contains':
+                    if (isLeftArray) {
+                      const leftValues = getArrayValues(left)
+                      return !leftValues.some(v => v.includes(rightStr))
+                    }
+                    return !normalizeValue(left).includes(rightStr)
+                  case 'greater_than':
+                  case '>':
+                    return parseFloat(normalizeValue(left)) > parseFloat(rightStr)
+                  case 'less_than':
+                  case '<':
+                    return parseFloat(normalizeValue(left)) < parseFloat(rightStr)
+                  case 'greater_than_or_equal':
+                  case '>=':
+                    return parseFloat(normalizeValue(left)) >= parseFloat(rightStr)
+                  case 'less_than_or_equal':
+                  case '<=':
+                    return parseFloat(normalizeValue(left)) <= parseFloat(rightStr)
+                  case 'exists':
+                    if (isLeftArray) {
+                      const leftValues = getArrayValues(left)
+                      return leftValues.length > 0 && leftValues.some(v => v !== '')
+                    }
+                    return left !== undefined && left !== null && left !== ''
+                  case 'not_exists':
+                    if (isLeftArray) {
+                      const leftValues = getArrayValues(left)
+                      return leftValues.length === 0 || leftValues.every(v => v === '')
+                    }
+                    return left === undefined || left === null || left === ''
+                  case 'starts_with':
+                    if (isLeftArray) {
+                      const leftValues = getArrayValues(left)
+                      return leftValues.some(v => v.startsWith(rightStr))
+                    }
+                    return normalizeValue(left).startsWith(rightStr)
+                  case 'ends_with':
+                    if (isLeftArray) {
+                      const leftValues = getArrayValues(left)
+                      return leftValues.some(v => v.endsWith(rightStr))
+                    }
+                    return normalizeValue(left).endsWith(rightStr)
+                  case 'in':
+                  case 'not_in':
+                    const rightList = Array.isArray(right) 
+                      ? right.map(item => normalizeValue(item))
+                      : rightStr.split(',').map(s => s.trim().toLowerCase())
+                    
+                    if (isLeftArray) {
+                      const leftValues = getArrayValues(left)
+                      const hasMatch = leftValues.some(lv => rightList.includes(lv))
+                      return operator === 'in' ? hasMatch : !hasMatch
+                    }
+                    const leftNorm = normalizeValue(left)
+                    const isIn = rightList.includes(leftNorm)
+                    return operator === 'in' ? isIn : !isIn
+                  default:
+                    console.log(`⚠️ Unknown operator: ${operator}`)
+                    return false
+                }
               }
               
               // Check if a value is considered "empty" and should trigger waiting state
@@ -1527,6 +1645,14 @@ Deno.serve(async (req) => {
                   return trimmed === '' || trimmed === 'n/a' || trimmed === 'na' || trimmed === 'null' || trimmed === 'undefined'
                 }
                 if (Array.isArray(v) && v.length === 0) return true
+                // Handle submission-access field format
+                if (typeof v === 'object' && v !== null) {
+                  if ('users' in v || 'groups' in v) {
+                    const users = v.users || []
+                    const groups = v.groups || []
+                    return users.length === 0 && groups.length === 0
+                  }
+                }
                 return false
               }
               
@@ -1548,7 +1674,7 @@ Deno.serve(async (req) => {
                   fieldValue = getFieldValue(field, triggerData)
                 }
                 
-                console.log(`📊 Evaluating legacy: ${field} ${operator} ${value} (actual: ${fieldValue})`)
+                console.log(`📊 Evaluating legacy: ${field} ${operator} ${value} (actual: ${JSON.stringify(fieldValue)}, isArray: ${isArrayField(fieldValue)})`)
                 
                 // Check if field value is empty and should trigger waiting (unless operator is exists/not_exists)
                 if (!shouldBypassWaiting(operator) && isEmptyValue(fieldValue)) {
@@ -1556,57 +1682,8 @@ Deno.serve(async (req) => {
                   return { result: false, waiting: true, waitingField: field }
                 }
                 
-                const normalizedFieldValue = normalizeValue(fieldValue)
-                const normalizedValue = normalizeValue(value)
-                
-                let result = false
-                switch (operator) {
-                  case 'equals':
-                  case '==':
-                    result = normalizedFieldValue === normalizedValue
-                    break
-                  case 'not_equals':
-                  case '!=':
-                    result = normalizedFieldValue !== normalizedValue
-                    break
-                  case 'contains':
-                    result = normalizedFieldValue.includes(normalizedValue)
-                    break
-                  case 'not_contains':
-                    result = !normalizedFieldValue.includes(normalizedValue)
-                    break
-                  case 'greater_than':
-                  case '>':
-                    result = parseFloat(normalizedFieldValue) > parseFloat(normalizedValue)
-                    break
-                  case 'less_than':
-                  case '<':
-                    result = parseFloat(normalizedFieldValue) < parseFloat(normalizedValue)
-                    break
-                  case 'greater_than_or_equal':
-                  case '>=':
-                    result = parseFloat(normalizedFieldValue) >= parseFloat(normalizedValue)
-                    break
-                  case 'less_than_or_equal':
-                  case '<=':
-                    result = parseFloat(normalizedFieldValue) <= parseFloat(normalizedValue)
-                    break
-                  case 'exists':
-                    result = fieldValue !== undefined && fieldValue !== null && fieldValue !== ''
-                    break
-                  case 'not_exists':
-                    result = fieldValue === undefined || fieldValue === null || fieldValue === ''
-                    break
-                  case 'starts_with':
-                    result = normalizedFieldValue.startsWith(normalizedValue)
-                    break
-                  case 'ends_with':
-                    result = normalizedFieldValue.endsWith(normalizedValue)
-                    break
-                  default:
-                    console.log(`⚠️ Unknown operator: ${operator}`)
-                    result = false
-                }
+                const result = compareValues(fieldValue, value, operator)
+                console.log(`📊 Legacy condition result: ${result}`)
                 
                 return { result, waiting: false }
               }
@@ -1630,7 +1707,7 @@ Deno.serve(async (req) => {
                 // Get field value from submission data using field ID
                 let actualValue = submissionData[fieldId]
                 
-                console.log(`📊 Evaluating field-level: fieldId=${fieldId}, operator=${operator}, expected=${expectedValue}, actual=${actualValue}`)
+                console.log(`📊 Evaluating field-level: fieldId=${fieldId}, operator=${operator}, expected=${expectedValue}, actual=${JSON.stringify(actualValue)}, isArray: ${isArrayField(actualValue)}`)
                 
                 // Check if field value is empty and should trigger waiting (unless operator is exists/not_exists)
                 if (!shouldBypassWaiting(operator) && isEmptyValue(actualValue)) {
@@ -1638,57 +1715,9 @@ Deno.serve(async (req) => {
                   return { result: false, waiting: true, waitingField: fieldId }
                 }
                 
-                const normalizedActual = normalizeValue(actualValue)
-                const normalizedExpected = normalizeValue(expectedValue)
-                
-                let result = false
-                switch (operator) {
-                  case 'equals':
-                  case '==':
-                    result = normalizedActual === normalizedExpected
-                    break
-                  case 'not_equals':
-                  case '!=':
-                    result = normalizedActual !== normalizedExpected
-                    break
-                  case 'contains':
-                    result = normalizedActual.includes(normalizedExpected)
-                    break
-                  case 'not_contains':
-                    result = !normalizedActual.includes(normalizedExpected)
-                    break
-                  case 'greater_than':
-                  case '>':
-                    result = parseFloat(normalizedActual) > parseFloat(normalizedExpected)
-                    break
-                  case 'less_than':
-                  case '<':
-                    result = parseFloat(normalizedActual) < parseFloat(normalizedExpected)
-                    break
-                  case 'greater_than_or_equal':
-                  case '>=':
-                    result = parseFloat(normalizedActual) >= parseFloat(normalizedExpected)
-                    break
-                  case 'less_than_or_equal':
-                  case '<=':
-                    result = parseFloat(normalizedActual) <= parseFloat(normalizedExpected)
-                    break
-                  case 'exists':
-                    result = actualValue !== undefined && actualValue !== null && actualValue !== ''
-                    break
-                  case 'not_exists':
-                    result = actualValue === undefined || actualValue === null || actualValue === ''
-                    break
-                  case 'starts_with':
-                    result = normalizedActual.startsWith(normalizedExpected)
-                    break
-                  case 'ends_with':
-                    result = normalizedActual.endsWith(normalizedExpected)
-                    break
-                  default:
-                    console.log(`⚠️ Unknown operator in field-level condition: ${operator}`)
-                    result = false
-                }
+                // Use the unified compareValues function that handles arrays properly
+                const result = compareValues(actualValue, expectedValue, operator)
+                console.log(`📊 Field-level condition result: ${result}`)
                 
                 return { result, waiting: false }
               }

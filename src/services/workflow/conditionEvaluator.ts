@@ -425,46 +425,140 @@ export class ConditionEvaluator {
       }
     }
 
-    // Convert to strings for consistent comparison if needed
-    const leftStr = String(left).toLowerCase();
-    const rightStr = String(right).toLowerCase();
+    // Helper to normalize a single value for comparison
+    const normalizeValue = (v: any): string => {
+      if (v === null || v === undefined) return '';
+      if (typeof v === 'object' && !Array.isArray(v)) {
+        // For objects like {label, value}, extract the value
+        if ('value' in v) return String(v.value).toLowerCase().trim();
+        if ('id' in v) return String(v.id).toLowerCase().trim();
+        return JSON.stringify(v).toLowerCase();
+      }
+      return String(v).toLowerCase().trim();
+    };
+
+    // Helper to check if value exists in array (handles array of objects and primitives)
+    const arrayContainsValue = (arr: any[], searchValue: string): boolean => {
+      return arr.some(item => {
+        const normalized = normalizeValue(item);
+        return normalized === searchValue;
+      });
+    };
+
+    // Helper to extract array of normalized values from left operand
+    const getArrayValues = (v: any): string[] => {
+      if (Array.isArray(v)) {
+        return v.map(item => normalizeValue(item));
+      }
+      // Handle submission-access field format {users: [], groups: []}
+      if (typeof v === 'object' && v !== null) {
+        if ('users' in v && Array.isArray(v.users)) {
+          return v.users.map((u: any) => normalizeValue(u));
+        }
+        if ('groups' in v && Array.isArray(v.groups)) {
+          return v.groups.map((g: any) => normalizeValue(g));
+        }
+      }
+      return [normalizeValue(v)];
+    };
+
+    const isLeftArray = Array.isArray(left) || (typeof left === 'object' && left !== null && ('users' in left || 'groups' in left));
+    const rightStr = normalizeValue(right);
     const leftNum = Number(left);
     const rightNum = Number(right);
 
     switch (operator) {
       case '==':
-        return left === right || leftStr === rightStr;
+        if (isLeftArray) {
+          // For array fields, check if the right value is IN the array
+          const leftValues = getArrayValues(left);
+          return leftValues.includes(rightStr);
+        }
+        return left === right || normalizeValue(left) === rightStr;
       case '!=':
-        return left !== right && leftStr !== rightStr;
+        if (isLeftArray) {
+          // For array fields, check if the right value is NOT in the array
+          const leftValues = getArrayValues(left);
+          return !leftValues.includes(rightStr);
+        }
+        return left !== right && normalizeValue(left) !== rightStr;
       case '<':
-        return !isNaN(leftNum) && !isNaN(rightNum) ? leftNum < rightNum : leftStr < rightStr;
+        return !isNaN(leftNum) && !isNaN(rightNum) ? leftNum < rightNum : normalizeValue(left) < rightStr;
       case '>':
-        return !isNaN(leftNum) && !isNaN(rightNum) ? leftNum > rightNum : leftStr > rightStr;
+        return !isNaN(leftNum) && !isNaN(rightNum) ? leftNum > rightNum : normalizeValue(left) > rightStr;
       case '<=':
-        return !isNaN(leftNum) && !isNaN(rightNum) ? leftNum <= rightNum : leftStr <= rightStr;
+        return !isNaN(leftNum) && !isNaN(rightNum) ? leftNum <= rightNum : normalizeValue(left) <= rightStr;
       case '>=':
-        return !isNaN(leftNum) && !isNaN(rightNum) ? leftNum >= rightNum : leftStr >= rightStr;
+        return !isNaN(leftNum) && !isNaN(rightNum) ? leftNum >= rightNum : normalizeValue(left) >= rightStr;
       case 'contains':
-        return leftStr.includes(rightStr);
+        if (isLeftArray) {
+          // For array fields, check if any element contains the right value
+          const leftValues = getArrayValues(left);
+          return leftValues.some(v => v.includes(rightStr));
+        }
+        return normalizeValue(left).includes(rightStr);
       case 'not_contains':
-        return !leftStr.includes(rightStr);
+        if (isLeftArray) {
+          // For array fields, check if NO element contains the right value
+          const leftValues = getArrayValues(left);
+          return !leftValues.some(v => v.includes(rightStr));
+        }
+        return !normalizeValue(left).includes(rightStr);
       case 'starts_with':
-        return leftStr.startsWith(rightStr);
+        if (isLeftArray) {
+          const leftValues = getArrayValues(left);
+          return leftValues.some(v => v.startsWith(rightStr));
+        }
+        return normalizeValue(left).startsWith(rightStr);
       case 'ends_with':
-        return leftStr.endsWith(rightStr);
+        if (isLeftArray) {
+          const leftValues = getArrayValues(left);
+          return leftValues.some(v => v.endsWith(rightStr));
+        }
+        return normalizeValue(left).endsWith(rightStr);
       case 'in':
         if (Array.isArray(right)) {
-          return right.some(item => String(item).toLowerCase() === leftStr);
+          const rightValues = right.map(item => normalizeValue(item));
+          if (isLeftArray) {
+            // Check if ANY left value is in right array
+            const leftValues = getArrayValues(left);
+            return leftValues.some(lv => rightValues.includes(lv));
+          }
+          return rightValues.includes(normalizeValue(left));
         }
-        return rightStr.split(',').map(s => s.trim().toLowerCase()).includes(leftStr);
+        const rightList = rightStr.split(',').map(s => s.trim().toLowerCase());
+        if (isLeftArray) {
+          const leftValues = getArrayValues(left);
+          return leftValues.some(lv => rightList.includes(lv));
+        }
+        return rightList.includes(normalizeValue(left));
       case 'not_in':
         if (Array.isArray(right)) {
-          return !right.some(item => String(item).toLowerCase() === leftStr);
+          const rightValues = right.map(item => normalizeValue(item));
+          if (isLeftArray) {
+            // Check if NO left value is in right array
+            const leftValues = getArrayValues(left);
+            return !leftValues.some(lv => rightValues.includes(lv));
+          }
+          return !rightValues.includes(normalizeValue(left));
         }
-        return !rightStr.split(',').map(s => s.trim().toLowerCase()).includes(leftStr);
+        const rightListNot = rightStr.split(',').map(s => s.trim().toLowerCase());
+        if (isLeftArray) {
+          const leftValues = getArrayValues(left);
+          return !leftValues.some(lv => rightListNot.includes(lv));
+        }
+        return !rightListNot.includes(normalizeValue(left));
       case 'exists':
+        if (isLeftArray) {
+          const leftValues = getArrayValues(left);
+          return leftValues.length > 0 && leftValues.some(v => v !== '');
+        }
         return left !== null && left !== undefined && left !== '';
       case 'not_exists':
+        if (isLeftArray) {
+          const leftValues = getArrayValues(left);
+          return leftValues.length === 0 || leftValues.every(v => v === '');
+        }
         return left === null || left === undefined || left === '';
       default:
         return false;
