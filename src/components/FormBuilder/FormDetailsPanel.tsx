@@ -180,76 +180,44 @@ export function FormDetailsPanel({
         }} onPageRename={onPageRename} onPageDelete={onPageDelete} readOnly={false} />
         </div>
         
-        {/* Settings Dropdown */}
-        {/* <div className="relative flex-shrink-0">
-          <Button variant="ghost" size="sm" onClick={() => setShowLayoutControls(!showLayoutControls)} className="h-8 w-8 p-0">
-            <Settings2 className="h-4 w-4" />
-          </Button>
-          
-          {showLayoutControls && <div className="absolute top-full right-0 mt-2 bg-white border border-border rounded-lg shadow-lg p-4 z-50 min-w-[250px]">
-              <div className="space-y-4">
-                <div>
-                  <Label className="block mb-2 text-sm font-medium">Column Layout</Label>
-                  <Select value={columnLayout.toString()} onValueChange={value => setColumnLayout(Number(value) as 1 | 2 | 3)}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">1 Column</SelectItem>
-                      <SelectItem value="2">2 Columns</SelectItem>
-                      <SelectItem value="3">3 Columns</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label className="block mb-2 text-sm font-medium">Add New Page</Label>
-                  <Button onClick={onAddPage} variant="outline" size="sm" className="w-full h-9">
-                    <FileStack className="h-4 w-4 mr-2" />
-                    Add Page
-                  </Button>
-                </div>
+        {/* Column Layout Dropdown - Always Visible */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <Grid3X3 className="h-4 w-4 text-muted-foreground" />
+            <Select
+              value={columnLayout.toString()}
+              onValueChange={value => setColumnLayout(Number(value) as 1 | 2 | 3)}
+            >
+              <SelectTrigger className="h-8 w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1 Column</SelectItem>
+                <SelectItem value="2">2 Columns</SelectItem>
+                <SelectItem value="3">3 Columns</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Add Page Button in Popover */}
+          <Popover open={showLayoutControls} onOpenChange={setShowLayoutControls}>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <Settings2 className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+
+            <PopoverContent align="end" className="min-w-[200px] p-4">
+              <div className="space-y-2">
+                <Label className="block text-sm font-medium">Add New Page</Label>
+                <Button onClick={onAddPage} variant="outline" size="sm" className="w-full h-9">
+                  <FileStack className="h-4 w-4 mr-2" />
+                  Add Page
+                </Button>
               </div>
-            </div>}
-        </div> */}
-                <div className="relative flex-shrink-0">
-  <Popover open={showLayoutControls} onOpenChange={setShowLayoutControls}>
-    <PopoverTrigger asChild>
-      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-        <Settings2 className="h-4 w-4" />
-      </Button>
-    </PopoverTrigger>
-
-    <PopoverContent align="end" className="min-w-[250px] p-4">
-      <div className="space-y-4">
-        <div>
-          <Label className="block mb-2 text-sm font-medium">Column Layout</Label>
-          <Select
-            value={columnLayout.toString()}
-            onValueChange={value => setColumnLayout(Number(value) as 1 | 2 | 3)}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1">1 Column</SelectItem>
-              <SelectItem value="2">2 Columns</SelectItem>
-              <SelectItem value="3">3 Columns</SelectItem>
-            </SelectContent>
-          </Select>
+            </PopoverContent>
+          </Popover>
         </div>
-
-        <div>
-          <Label className="block mb-2 text-sm font-medium">Add New Page</Label>
-          <Button onClick={onAddPage} variant="outline" size="sm" className="w-full h-9">
-            <FileStack className="h-4 w-4 mr-2" />
-            Add Page
-          </Button>
-        </div>
-      </div>
-    </PopoverContent>
-  </Popover>
-</div>
       </div>
       
       {/* Page Info */}
