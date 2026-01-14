@@ -1001,6 +1001,7 @@ export function ChartPreview({
       drilldownEnabled: config.drilldownConfig?.enabled,
       drilldownLevels: config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels,
       drilldownValues: drilldownState?.values,
+      crossRefParentId: drilldownState?.crossRefParentId,
       sampleData: (config as any).data,
       crossRefEnabled: config.crossRefConfig?.enabled,
       crossRefFieldId: config.crossRefConfig?.crossRefFieldId,
@@ -1033,7 +1034,8 @@ export function ChartPreview({
     config.crossRefConfig?.drilldownLevels,
     config.chartType,
     config.type,
-    drilldownState?.values
+    drilldownState?.values,
+    drilldownState?.crossRefParentId
   ]);
 
   // Track the current load request to prevent race conditions
