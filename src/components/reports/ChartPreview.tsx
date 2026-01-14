@@ -709,7 +709,13 @@ export function ChartPreview({
         for (let i = 1; i < drilldownValues.length; i++) {
           const levelFieldId = drilldownLevels[i - 1]; // Offset by 1 because drilldownValues[0] is parentRefId
           const expectedValue = drilldownValues[i];
-          if (!levelFieldId || !expectedValue) continue;
+          // Check for null/undefined explicitly - don't use !expectedValue which treats 0 and "" as falsy
+          if (!levelFieldId || expectedValue === null || expectedValue === undefined) continue;
+          
+          // Normalize expectedValue to string for consistent comparison
+          const normalizedExpectedValue = typeof expectedValue === 'object' 
+            ? JSON.stringify(expectedValue) 
+            : String(expectedValue);
           
           filteredLinkedSubmissions = filteredLinkedSubmissions.filter(sub => {
             const fieldValue = sub.submission_data?.[levelFieldId];
@@ -718,14 +724,14 @@ export function ChartPreview({
               return fieldValue.some(v => {
                 // Properly handle numeric values including 0 in arrays
                 const strVal = typeof v === 'object' ? JSON.stringify(v) : (v === null || v === undefined ? '' : String(v));
-                return strVal === expectedValue;
+                return strVal === normalizedExpectedValue;
               });
             }
             // Properly handle numeric values including 0 - don't use || which treats 0 as falsy
             const normalizedFieldValue = typeof fieldValue === 'object' 
               ? JSON.stringify(fieldValue) 
               : (fieldValue === null || fieldValue === undefined ? '' : String(fieldValue));
-            return normalizedFieldValue === expectedValue;
+            return normalizedFieldValue === normalizedExpectedValue;
           });
         }
         
@@ -1240,16 +1246,22 @@ export function ChartPreview({
             const transformedData = transformCrossRefDataForChartType(crossRefData, currentChartType);
             console.log('📊 Cross-reference data transformed for', currentChartType, ':', transformedData?.length || 0);
             
-            setChartData(transformedData);
-            setLoading(false);
+            if (currentLoadRequest === loadRequestRef.current) {
+              setChartData(transformedData);
+              setLoading(false);
+              isInitialLoadRef.current = false;
+            }
             return;
           }
           
           
           if (!submissions || submissions.length === 0) {
             console.log('No submissions found');
-            setChartData([]);
-            setLoading(false);
+            if (currentLoadRequest === loadRequestRef.current) {
+              setChartData([]);
+              setLoading(false);
+              isInitialLoadRef.current = false;
+            }
             return;
           }
           const processedData = processSubmissionData(submissions);
@@ -2369,9 +2381,12 @@ export function ChartPreview({
           ? drilldownLevels[0] || '' // After adding parentRefId, show level[0]
           : drilldownLevels[valuesCount] || ''; // After adding value, show next level
         
-        const valueToPass = valuesCount === 0 
+        const rawValue = valuesCount === 0 
           ? (payload?.parentRefId || dimensionValue) // First click passes parentRefId
           : (payload?._drilldownValue || dimensionValue); // Subsequent clicks pass field value
+        
+        // Always stringify the value to ensure consistent comparison in filtering
+        const valueToPass = rawValue === null || rawValue === undefined ? '' : String(rawValue);
         
         if (onDrilldown) {
           onDrilldown(nextLevel, valueToPass);
