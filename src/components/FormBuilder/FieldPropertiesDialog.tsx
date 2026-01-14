@@ -639,7 +639,7 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                 {/* Field Options Row - Required, Unique, Weightage side by side */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Required Field - hidden for static/display-only and query fields */}
-                  {!['header', 'description', 'section-break', 'horizontal-line', 'query-field'].includes(fieldForConfig?.type || '') ? (
+                  {!['header', 'description', 'section-break', 'horizontal-line', 'query-field', 'cross-reference'].includes(fieldForConfig?.type || '') ? (
                     <div className="flex items-center space-x-2 p-3 border rounded-md bg-blue-50 dark:bg-blue-950/20">
                       <Checkbox id="field-required" checked={localConfig.required || false} onCheckedChange={checked => updateField('required', Boolean(checked))} />
                       <Asterisk className="h-4 w-4 text-red-500" />
@@ -668,7 +668,7 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                   ) : <div />}
 
                   {/* Field Weightage */}
-                  {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text'].includes(fieldForConfig?.type || '') ? (
+                  {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'query-field', 'cross-reference'].includes(fieldForConfig?.type || '') ? (
                     <div className="flex items-center space-x-2 p-3 border rounded-md bg-blue-50 dark:bg-blue-950/20">
                       <Input 
                         id="field-weightage" 
