@@ -8,7 +8,15 @@ export type ComparisonOperator =
   | 'contains' | 'not_contains'
   | 'in' | 'not_in'
   | 'exists' | 'not_exists'
-  | 'starts_with' | 'ends_with';
+  | 'starts_with' | 'ends_with'
+  // Date/Time specific operators
+  | 'after' | 'before' | 'on_or_after' | 'on_or_before'
+  | 'between'
+  | 'is_today' | 'is_yesterday' | 'is_tomorrow'
+  | 'is_current_week' | 'is_last_week' | 'is_next_week'
+  | 'is_current_month' | 'is_last_month' | 'is_next_month'
+  | 'is_current_year' | 'is_last_year'
+  | 'last_n_days' | 'next_n_days';
 
 export type LogicalOperator = 'AND' | 'OR';
 
