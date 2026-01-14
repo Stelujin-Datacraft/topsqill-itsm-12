@@ -18,10 +18,11 @@ interface ChartPreviewProps {
   config: ChartConfig;
   onEdit?: () => void;
   hideControls?: boolean;
-  onDrilldown?: (drilldownLevel: string, drilldownValue: string) => void;
+  onDrilldown?: (drilldownLevel: string, drilldownValue: string, crossRefParentId?: string) => void;
   drilldownState?: {
     path: string[];
     values: string[];
+    crossRefParentId?: string; // Separate storage for cross-ref parent ID filtering
   };
 }
 export function ChartPreview({
@@ -179,6 +180,7 @@ export function ChartPreview({
         currentLevel: number;
         values: string[];
         currentDimensionField?: string;
+        crossRefParentId?: string; // Separate storage for cross-ref parent ID filtering
       };
     }
   ): Promise<any[]> => {
@@ -221,11 +223,13 @@ export function ChartPreview({
       const drilldownState = crossRefConfig._drilldownState;
       const drilldownLevels = crossRefConfig.drilldownLevels || [];
       const drilldownValues = drilldownState?.values || [];
-      // currentLevel is derived from drilldownValues.length
-      // drilldownValues[0] = parentRefId, so actual field level = drilldownValues.length - 1
-      // When drilldownValues.length = 1, we show data grouped by drilldownLevels[0]
-      // When drilldownValues.length = 2, we show data grouped by drilldownLevels[1]
-      const currentFieldLevel = drilldownValues.length > 0 ? drilldownValues.length - 1 : 0;
+      const crossRefParentId = drilldownState?.crossRefParentId;
+      
+      // currentLevel now directly maps to drilldownValues (no parentRefId offset!)
+      // drilldownValues[0] = first drilldown field value
+      // drilldownValues[1] = second drilldown field value
+      // Parent filtering is done via crossRefParentId separately
+      const currentFieldLevel = drilldownValues.length;
       const currentDimensionField = drilldownLevels[currentFieldLevel];
       
       // Determine if drilldown is actively being used (has levels and at least started drilling)
@@ -686,23 +690,24 @@ export function ChartPreview({
         });
       }
 
-      // DRILLDOWN GROUPING: Only group by drilldown field AFTER user has clicked (drilldownValues.length > 0)
-      // At level 0 (initial view), show normal chart. Drilldown grouping starts at level 1+
-      const hasStartedDrilling = drilldownValues.length > 0;
+      // DRILLDOWN GROUPING: Only group by drilldown field AFTER user has clicked
+      // hasStartedDrilling is true when we have drilldownValues OR a crossRefParentId
+      const hasStartedDrilling = drilldownValues.length > 0 || !!crossRefParentId;
       
       // Apply drilldown filtering to allLinkedSubmissions
       let filteredLinkedSubmissions = [...allLinkedSubmissions];
-      if (hasStartedDrilling && drilldownValues.length > 0) {
-        // First drilldown value is ALWAYS the parentRefId (clicked bar's parent)
-        const selectedParentRefId = drilldownValues[0];
-        filteredLinkedSubmissions = filteredLinkedSubmissions.filter(sub => 
-          sub._parentRefId === selectedParentRefId
-        );
+      if (hasStartedDrilling) {
+        // Filter by crossRefParentId (stored separately, not in drilldownValues)
+        if (crossRefParentId) {
+          filteredLinkedSubmissions = filteredLinkedSubmissions.filter(sub => 
+            sub._parentRefId === crossRefParentId
+          );
+        }
         
-        // Subsequent drilldown values filter by actual field values
-        // drilldownValues[1] corresponds to drilldownLevels[0], drilldownValues[2] to drilldownLevels[1], etc.
-        for (let i = 1; i < drilldownValues.length; i++) {
-          const levelFieldId = drilldownLevels[i - 1]; // Offset by 1 because drilldownValues[0] is parentRefId
+        // Apply field-level filters from drilldownValues
+        // drilldownValues[i] corresponds directly to drilldownLevels[i] (no offset!)
+        for (let i = 0; i < drilldownValues.length; i++) {
+          const levelFieldId = drilldownLevels[i];
           const expectedValue = drilldownValues[i];
           if (!levelFieldId || !expectedValue) continue;
           
@@ -1199,7 +1204,8 @@ export function ChartPreview({
               _drilldownState: crossRefDrilldownEnabled ? {
                 currentLevel: currentDrilldownLevel,
                 values: drilldownState?.values || [],
-                currentDimensionField: crossRefDrilldownLevels[currentDrilldownLevel]
+                currentDimensionField: crossRefDrilldownLevels[currentDrilldownLevel],
+                crossRefParentId: drilldownState?.crossRefParentId
               } : undefined
             });
             
@@ -2293,10 +2299,8 @@ export function ChartPreview({
         const drilldownLevels = crossRefConfig.drilldownLevels;
         const valuesCount = drilldownState?.values?.length || 0;
         
-        // Calculate the next field level we would drill into
-        // valuesCount = 0: will add parentRefId, then show level 0 data → nextFieldIndex = 0
-        // valuesCount = 1: parentRefId exists, will add level 0 value, then show level 1 data → nextFieldIndex = 1
-        // valuesCount = N: will add level N-1 value, then show level N data → nextFieldIndex = N
+        // For cross-ref charts: drilldownValues directly correspond to drilldownLevels
+        // No parentRefId offset! The parentRefId is stored separately in crossRefParentId
         const nextFieldIndex = valuesCount;
         
         // Check if we've exhausted all levels (nextFieldIndex >= levels means no more levels to show)
@@ -2317,14 +2321,17 @@ export function ChartPreview({
         
         // Drill into the next level - use _drilldownValue if available (raw value for filtering)
         // Otherwise fall back to dimensionValue (display name)
-        // For initial click (valuesCount=0), we pass parentRefId; otherwise pass the field value
         const nextLevel = drilldownLevels[nextFieldIndex];
-        const valueToPass = valuesCount === 0 
-          ? (payload?.parentRefId || dimensionValue) // First click passes parentRefId
-          : (payload?._drilldownValue || dimensionValue); // Subsequent clicks pass field value
+        const valueToPass = payload?._drilldownValue || dimensionValue;
+        
+        // For the first click (valuesCount=0), also pass the parentRefId separately
+        // This will be stored in crossRefParentId, not in the drilldownValues array
+        const crossRefParentIdToPass = valuesCount === 0 
+          ? (payload?.parentRefId || undefined)
+          : undefined;
         
         if (onDrilldown) {
-          onDrilldown(nextLevel || '', valueToPass);
+          onDrilldown(nextLevel || '', valueToPass, crossRefParentIdToPass);
           return;
         }
       }
