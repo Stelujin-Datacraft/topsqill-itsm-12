@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { GitBranch, Settings } from 'lucide-react';
+import { GitBranch, Settings, Clock } from 'lucide-react';
 
 interface ConditionNodeProps {
   data: {
@@ -8,6 +8,8 @@ interface ConditionNodeProps {
     config: any;
     nodeId: string;
     onSelect: React.MutableRefObject<(nodeId: string) => void>;
+    isWaiting?: boolean;
+    waitingFields?: string[];
   };
 }
 
@@ -66,13 +68,40 @@ export const ConditionNode = React.memo(function ConditionNode({ data }: Conditi
     data.onSelect.current(data.nodeId);
   }, [data.nodeId, data.onSelect]);
 
+  const isWaiting = data.isWaiting;
+
+  // Determine node styling based on state
+  const getNodeClasses = () => {
+    if (isWaiting) {
+      return 'bg-orange-100 border-orange-300 hover:border-orange-400 animate-pulse';
+    }
+    if (isConfigured()) {
+      return 'bg-yellow-100 border-yellow-200 hover:border-yellow-300';
+    }
+    return 'bg-gray-50 border-gray-200 hover:border-gray-300';
+  };
+
+  const getIconColor = () => {
+    if (isWaiting) return 'text-orange-600';
+    if (isConfigured()) return 'text-yellow-700';
+    return 'text-gray-500';
+  };
+
+  const getTextColor = () => {
+    if (isWaiting) return 'text-orange-800';
+    if (isConfigured()) return 'text-yellow-800';
+    return 'text-gray-700';
+  };
+
+  const getSubTextColor = () => {
+    if (isWaiting) return 'text-orange-700';
+    if (isConfigured()) return 'text-yellow-700';
+    return 'text-gray-500';
+  };
+
   return (
     <div 
-      className={`px-4 py-3 shadow-md rounded-md border-2 min-w-[180px] max-w-[220px] cursor-pointer transition-colors ${
-        isConfigured() 
-          ? 'bg-yellow-100 border-yellow-200 hover:border-yellow-300' 
-          : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-      }`}
+      className={`px-4 py-3 shadow-md rounded-md border-2 min-w-[180px] max-w-[220px] cursor-pointer transition-colors ${getNodeClasses()}`}
       onClick={handleClick}
     >
       <Handle
@@ -83,25 +112,44 @@ export const ConditionNode = React.memo(function ConditionNode({ data }: Conditi
       
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center space-x-2">
-          <GitBranch className={`h-4 w-4 ${isConfigured() ? 'text-yellow-700' : 'text-gray-500'}`} />
-          <div className={`font-medium text-sm ${isConfigured() ? 'text-yellow-800' : 'text-gray-700'}`}>
+          {isWaiting ? (
+            <Clock className="h-4 w-4 text-orange-600 animate-spin" style={{ animationDuration: '3s' }} />
+          ) : (
+            <GitBranch className={`h-4 w-4 ${getIconColor()}`} />
+          )}
+          <div className={`font-medium text-sm ${getTextColor()}`}>
             {data.label}
           </div>
         </div>
-        <Settings className={`h-3 w-3 ${isConfigured() ? 'text-yellow-600' : 'text-gray-400'}`} />
+        {isWaiting ? (
+          <span className="text-xs bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded-full font-medium">
+            Waiting
+          </span>
+        ) : (
+          <Settings className={`h-3 w-3 ${isConfigured() ? 'text-yellow-600' : 'text-gray-400'}`} />
+        )}
       </div>
       
-      <div className={`text-xs mb-1 font-medium ${isConfigured() ? 'text-yellow-700' : 'text-gray-500'}`}>
-        {getConditionType()}
+      <div className={`text-xs mb-1 font-medium ${getSubTextColor()}`}>
+        {isWaiting ? 'Waiting for value' : getConditionType()}
       </div>
       
-      <div className={`text-xs break-words ${isConfigured() ? 'text-yellow-600' : 'text-gray-400'}`}>
-        {getConditionPreview()}
+      <div className={`text-xs break-words ${isWaiting ? 'text-orange-600' : (isConfigured() ? 'text-yellow-600' : 'text-gray-400')}`}>
+        {isWaiting && data.waitingFields?.length 
+          ? `Fields: ${data.waitingFields.join(', ')}`
+          : getConditionPreview()
+        }
       </div>
 
-      {data.config?.description && (
+      {data.config?.description && !isWaiting && (
         <div className={`text-xs mt-1 italic line-clamp-2 break-words w-full whitespace-normal ${isConfigured() ? 'text-yellow-500' : 'text-gray-400'}`}>
           {data.config.description}
+        </div>
+      )}
+
+      {isWaiting && (
+        <div className="text-xs mt-1 text-orange-500 italic">
+          Will resume when values are provided
         </div>
       )}
 

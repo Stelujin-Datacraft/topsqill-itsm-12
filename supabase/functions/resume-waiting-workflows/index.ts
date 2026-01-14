@@ -1519,8 +1519,27 @@ Deno.serve(async (req) => {
                 return String(v).toLowerCase().trim()
               }
               
-              // Evaluate a single legacy condition
-              const evaluateLegacyCondition = (condition: any): boolean => {
+              // Check if a value is considered "empty" and should trigger waiting state
+              const isEmptyValue = (v: any): boolean => {
+                if (v === null || v === undefined) return true
+                if (typeof v === 'string') {
+                  const trimmed = v.trim().toLowerCase()
+                  return trimmed === '' || trimmed === 'n/a' || trimmed === 'na' || trimmed === 'null' || trimmed === 'undefined'
+                }
+                if (Array.isArray(v) && v.length === 0) return true
+                return false
+              }
+              
+              // Result type for condition evaluation that includes waiting state
+              type ConditionResult = { result: boolean; waiting: boolean; waitingField?: string }
+              
+              // Check if operator should bypass waiting logic (exists/not_exists are checking for emptiness intentionally)
+              const shouldBypassWaiting = (operator: string): boolean => {
+                return ['exists', 'not_exists'].includes(operator)
+              }
+              
+              // Evaluate a single legacy condition with waiting support
+              const evaluateLegacyConditionWithWaiting = (condition: any): ConditionResult => {
                 const { field, operator, value } = condition
                 
                 // Try to get field value from submission data first, then trigger data
@@ -1531,55 +1550,81 @@ Deno.serve(async (req) => {
                 
                 console.log(`📊 Evaluating legacy: ${field} ${operator} ${value} (actual: ${fieldValue})`)
                 
+                // Check if field value is empty and should trigger waiting (unless operator is exists/not_exists)
+                if (!shouldBypassWaiting(operator) && isEmptyValue(fieldValue)) {
+                  console.log(`⏳ Field "${field}" has empty value, should wait for actual value`)
+                  return { result: false, waiting: true, waitingField: field }
+                }
+                
                 const normalizedFieldValue = normalizeValue(fieldValue)
                 const normalizedValue = normalizeValue(value)
                 
+                let result = false
                 switch (operator) {
                   case 'equals':
                   case '==':
-                    return normalizedFieldValue === normalizedValue
+                    result = normalizedFieldValue === normalizedValue
+                    break
                   case 'not_equals':
                   case '!=':
-                    return normalizedFieldValue !== normalizedValue
+                    result = normalizedFieldValue !== normalizedValue
+                    break
                   case 'contains':
-                    return normalizedFieldValue.includes(normalizedValue)
+                    result = normalizedFieldValue.includes(normalizedValue)
+                    break
                   case 'not_contains':
-                    return !normalizedFieldValue.includes(normalizedValue)
+                    result = !normalizedFieldValue.includes(normalizedValue)
+                    break
                   case 'greater_than':
                   case '>':
-                    return parseFloat(normalizedFieldValue) > parseFloat(normalizedValue)
+                    result = parseFloat(normalizedFieldValue) > parseFloat(normalizedValue)
+                    break
                   case 'less_than':
                   case '<':
-                    return parseFloat(normalizedFieldValue) < parseFloat(normalizedValue)
+                    result = parseFloat(normalizedFieldValue) < parseFloat(normalizedValue)
+                    break
                   case 'greater_than_or_equal':
                   case '>=':
-                    return parseFloat(normalizedFieldValue) >= parseFloat(normalizedValue)
+                    result = parseFloat(normalizedFieldValue) >= parseFloat(normalizedValue)
+                    break
                   case 'less_than_or_equal':
                   case '<=':
-                    return parseFloat(normalizedFieldValue) <= parseFloat(normalizedValue)
+                    result = parseFloat(normalizedFieldValue) <= parseFloat(normalizedValue)
+                    break
                   case 'exists':
-                    return fieldValue !== undefined && fieldValue !== null && fieldValue !== ''
+                    result = fieldValue !== undefined && fieldValue !== null && fieldValue !== ''
+                    break
                   case 'not_exists':
-                    return fieldValue === undefined || fieldValue === null || fieldValue === ''
+                    result = fieldValue === undefined || fieldValue === null || fieldValue === ''
+                    break
                   case 'starts_with':
-                    return normalizedFieldValue.startsWith(normalizedValue)
+                    result = normalizedFieldValue.startsWith(normalizedValue)
+                    break
                   case 'ends_with':
-                    return normalizedFieldValue.endsWith(normalizedValue)
+                    result = normalizedFieldValue.endsWith(normalizedValue)
+                    break
                   default:
                     console.log(`⚠️ Unknown operator: ${operator}`)
-                    return false
+                    result = false
                 }
+                
+                return { result, waiting: false }
               }
               
-              // Evaluate enhanced field-level condition
-              const evaluateFieldLevelCondition = (flc: any): boolean => {
+              // Legacy wrapper for backward compatibility
+              const evaluateLegacyCondition = (condition: any): boolean => {
+                return evaluateLegacyConditionWithWaiting(condition).result
+              }
+              
+              // Evaluate enhanced field-level condition with waiting support
+              const evaluateFieldLevelConditionWithWaiting = (flc: any): ConditionResult => {
                 const fieldId = flc?.fieldId
                 const operator = flc?.operator
                 const expectedValue = flc?.value
                 
                 if (!fieldId) {
                   console.log(`⚠️ No fieldId in field-level condition`)
-                  return false
+                  return { result: false, waiting: false }
                 }
                 
                 // Get field value from submission data using field ID
@@ -1587,49 +1632,75 @@ Deno.serve(async (req) => {
                 
                 console.log(`📊 Evaluating field-level: fieldId=${fieldId}, operator=${operator}, expected=${expectedValue}, actual=${actualValue}`)
                 
+                // Check if field value is empty and should trigger waiting (unless operator is exists/not_exists)
+                if (!shouldBypassWaiting(operator) && isEmptyValue(actualValue)) {
+                  console.log(`⏳ Field "${fieldId}" has empty value, should wait for actual value`)
+                  return { result: false, waiting: true, waitingField: fieldId }
+                }
+                
                 const normalizedActual = normalizeValue(actualValue)
                 const normalizedExpected = normalizeValue(expectedValue)
                 
+                let result = false
                 switch (operator) {
                   case 'equals':
                   case '==':
-                    return normalizedActual === normalizedExpected
+                    result = normalizedActual === normalizedExpected
+                    break
                   case 'not_equals':
                   case '!=':
-                    return normalizedActual !== normalizedExpected
+                    result = normalizedActual !== normalizedExpected
+                    break
                   case 'contains':
-                    return normalizedActual.includes(normalizedExpected)
+                    result = normalizedActual.includes(normalizedExpected)
+                    break
                   case 'not_contains':
-                    return !normalizedActual.includes(normalizedExpected)
+                    result = !normalizedActual.includes(normalizedExpected)
+                    break
                   case 'greater_than':
                   case '>':
-                    return parseFloat(normalizedActual) > parseFloat(normalizedExpected)
+                    result = parseFloat(normalizedActual) > parseFloat(normalizedExpected)
+                    break
                   case 'less_than':
                   case '<':
-                    return parseFloat(normalizedActual) < parseFloat(normalizedExpected)
+                    result = parseFloat(normalizedActual) < parseFloat(normalizedExpected)
+                    break
                   case 'greater_than_or_equal':
                   case '>=':
-                    return parseFloat(normalizedActual) >= parseFloat(normalizedExpected)
+                    result = parseFloat(normalizedActual) >= parseFloat(normalizedExpected)
+                    break
                   case 'less_than_or_equal':
                   case '<=':
-                    return parseFloat(normalizedActual) <= parseFloat(normalizedExpected)
+                    result = parseFloat(normalizedActual) <= parseFloat(normalizedExpected)
+                    break
                   case 'exists':
-                    return actualValue !== undefined && actualValue !== null && actualValue !== ''
+                    result = actualValue !== undefined && actualValue !== null && actualValue !== ''
+                    break
                   case 'not_exists':
-                    return actualValue === undefined || actualValue === null || actualValue === ''
+                    result = actualValue === undefined || actualValue === null || actualValue === ''
+                    break
                   case 'starts_with':
-                    return normalizedActual.startsWith(normalizedExpected)
+                    result = normalizedActual.startsWith(normalizedExpected)
+                    break
                   case 'ends_with':
-                    return normalizedActual.endsWith(normalizedExpected)
+                    result = normalizedActual.endsWith(normalizedExpected)
+                    break
                   default:
                     console.log(`⚠️ Unknown operator in field-level condition: ${operator}`)
-                    return false
+                    result = false
                 }
+                
+                return { result, waiting: false }
               }
               
-              // Evaluate enhanced condition (new format)
-              const evaluateEnhancedCondition = (ec: any): boolean => {
-                if (!ec) return true
+              // Legacy wrapper for backward compatibility
+              const evaluateFieldLevelCondition = (flc: any): boolean => {
+                return evaluateFieldLevelConditionWithWaiting(flc).result
+              }
+              
+              // Evaluate enhanced condition (new format) with waiting support
+              const evaluateEnhancedConditionWithWaiting = (ec: any): ConditionResult => {
+                if (!ec) return { result: true, waiting: false }
                 
                 const conditions = ec.conditions || []
                 const useManualExpression = ec.useManualExpression
@@ -1640,31 +1711,43 @@ Deno.serve(async (req) => {
                 if (conditions.length === 0) {
                   // If single condition via fieldLevelCondition
                   if (ec.fieldLevelCondition) {
-                    return evaluateFieldLevelCondition(ec.fieldLevelCondition)
+                    return evaluateFieldLevelConditionWithWaiting(ec.fieldLevelCondition)
                   }
                   console.log(`⚠️ No conditions in enhanced condition`)
-                  return true
+                  return { result: true, waiting: false }
                 }
                 
-                // Evaluate each condition
-                const results: boolean[] = []
+                // Evaluate each condition and track waiting state
+                const results: ConditionResult[] = []
                 for (const cond of conditions) {
-                  let result = false
+                  let condResult: ConditionResult = { result: false, waiting: false }
                   
                   if (cond.fieldLevelCondition) {
-                    result = evaluateFieldLevelCondition(cond.fieldLevelCondition)
+                    condResult = evaluateFieldLevelConditionWithWaiting(cond.fieldLevelCondition)
                   } else if (cond.fieldCondition) {
                     // Legacy field condition format
-                    result = evaluateLegacyCondition({
+                    condResult = evaluateLegacyConditionWithWaiting({
                       field: cond.fieldCondition.fieldId,
                       operator: cond.fieldCondition.operator,
                       value: cond.fieldCondition.value
                     })
                   }
                   
-                  console.log(`   Condition ${cond.id}: ${result}`)
-                  results.push(result)
+                  console.log(`   Condition ${cond.id}: result=${condResult.result}, waiting=${condResult.waiting}`)
+                  results.push(condResult)
                 }
+                
+                // Check if any condition is waiting for a value
+                const waitingConditions = results.filter(r => r.waiting)
+                if (waitingConditions.length > 0) {
+                  // If any condition is waiting, the overall result is waiting
+                  const waitingFields = waitingConditions.map(r => r.waitingField).filter(Boolean).join(', ')
+                  console.log(`⏳ Enhanced condition has ${waitingConditions.length} conditions waiting for values: ${waitingFields}`)
+                  return { result: false, waiting: true, waitingField: waitingFields }
+                }
+                
+                // All conditions have actual values, evaluate normally
+                const boolResults = results.map(r => r.result)
                 
                 // Handle manual expression like "1 AND 2" or "1 OR 2"
                 if (useManualExpression && manualExpression) {
@@ -1672,14 +1755,14 @@ Deno.serve(async (req) => {
                   try {
                     // Replace condition numbers with their results
                     let expr = manualExpression.toString()
-                    for (let i = results.length; i >= 1; i--) {
-                      expr = expr.replace(new RegExp(`\\b${i}\\b`, 'g'), results[i - 1] ? 'true' : 'false')
+                    for (let i = boolResults.length; i >= 1; i--) {
+                      expr = expr.replace(new RegExp(`\\b${i}\\b`, 'g'), boolResults[i - 1] ? 'true' : 'false')
                     }
                     expr = expr.replace(/\bAND\b/gi, '&&').replace(/\bOR\b/gi, '||').replace(/\bNOT\b/gi, '!')
                     console.log(`   Parsed expression: ${expr}`)
                     const evalResult = Function('"use strict"; return (' + expr + ')')()
                     console.log(`   Expression result: ${evalResult}`)
-                    return Boolean(evalResult)
+                    return { result: Boolean(evalResult), waiting: false }
                   } catch (e) {
                     console.log(`⚠️ Error evaluating expression: ${e}`)
                     // Fall through to default AND logic
@@ -1690,33 +1773,135 @@ Deno.serve(async (req) => {
                 // Check if any condition has OR logic
                 const hasOrLogic = conditions.some((c: any) => c.logicalOperatorWithNext === 'OR')
                 if (hasOrLogic) {
-                  return results.some(r => r)
+                  return { result: boolResults.some(r => r), waiting: false }
                 }
-                return results.every(r => r)
+                return { result: boolResults.every(r => r), waiting: false }
               }
               
-              // Evaluate all conditions
+              // Legacy wrapper for backward compatibility
+              const evaluateEnhancedCondition = (ec: any): boolean => {
+                return evaluateEnhancedConditionWithWaiting(ec).result
+              }
+              
+              // Evaluate all conditions with waiting support
               let conditionResult = true
+              let isWaitingForValue = false
+              let waitingFields: string[] = []
               const logicalOperator = conditionConfig?.logicalOperator || 'AND'
               
               // Check for enhanced condition format first
               if (enhancedCondition) {
-                console.log(`📊 Using enhanced condition evaluation`)
-                conditionResult = evaluateEnhancedCondition(enhancedCondition)
+                console.log(`📊 Using enhanced condition evaluation with waiting support`)
+                const evalResult = evaluateEnhancedConditionWithWaiting(enhancedCondition)
+                conditionResult = evalResult.result
+                isWaitingForValue = evalResult.waiting
+                if (evalResult.waitingField) {
+                  waitingFields.push(evalResult.waitingField)
+                }
               } else if (legacyConditions.length > 0) {
-                console.log(`📊 Using legacy condition evaluation`)
+                console.log(`📊 Using legacy condition evaluation with waiting support`)
+                const evalResults: ConditionResult[] = legacyConditions.map((c: any) => evaluateLegacyConditionWithWaiting(c))
+                
+                // Check if any condition is waiting
+                const waitingResults = evalResults.filter(r => r.waiting)
+                if (waitingResults.length > 0) {
+                  isWaitingForValue = true
+                  waitingFields = waitingResults.map(r => r.waitingField).filter(Boolean) as string[]
+                }
+                
+                // Calculate result from non-waiting conditions
+                const boolResults = evalResults.map(r => r.result)
                 if (logicalOperator === 'OR') {
-                  conditionResult = legacyConditions.some((c: any) => evaluateLegacyCondition(c))
+                  conditionResult = boolResults.some(r => r)
                 } else {
-                  conditionResult = legacyConditions.every((c: any) => evaluateLegacyCondition(c))
+                  conditionResult = boolResults.every(r => r)
                 }
               } else {
                 console.log(`⚠️ No conditions configured - defaulting to TRUE`)
               }
               
-              console.log(`📊 Condition result: ${conditionResult} (operator: ${logicalOperator})`)
+              console.log(`📊 Condition result: ${conditionResult}, waiting: ${isWaitingForValue} (operator: ${logicalOperator})`)
               
-              // Determine which branch to take based on result
+              // *** WAITING LOGIC: If condition would be FALSE and field values are empty, WAIT instead ***
+              if (!conditionResult && isWaitingForValue) {
+                console.log(`⏳ WAITING FOR VALUES: Condition is FALSE but field(s) "${waitingFields.join(', ')}" have empty values`)
+                console.log(`⏳ Pausing workflow at condition node until actual values are provided`)
+                
+                // Set up wait state at this condition node (poll every 5 minutes)
+                const pollIntervalMinutes = 5
+                const newResumeAt = new Date(Date.now() + pollIntervalMinutes * 60 * 1000)
+                
+                // Track iteration for this condition node
+                const loopIteration = nodeExecutionCounts.get(nodeData.id) || 1
+                
+                const currentExecutionData = execution.execution_data || {}
+                const conditionWaitState = {
+                  ...(currentExecutionData.conditionWaitState || {}),
+                  [nodeData.id]: {
+                    iteration: loopIteration,
+                    lastCheckedAt: new Date().toISOString(),
+                    waitingFields,
+                    reason: 'Waiting for field values to be populated'
+                  }
+                }
+                
+                await supabase
+                  .from('workflow_executions')
+                  .update({
+                    status: 'waiting',
+                    current_node_id: nodeData.id,
+                    scheduled_resume_at: newResumeAt.toISOString(),
+                    wait_node_id: nodeData.id,
+                    wait_config: {
+                      waitType: 'condition_waiting_for_value',
+                      waitingFields,
+                      pollIntervalMinutes,
+                      conditionNodeId: nodeData.id,
+                      conditionNodeLabel: nodeData.label
+                    },
+                    execution_data: {
+                      ...currentExecutionData,
+                      resumedAt: new Date().toISOString(),
+                      conditionWaitState,
+                      isWaitingForConditionValue: true,
+                      lastWaitingFields: waitingFields
+                    }
+                  })
+                  .eq('id', execution.id)
+                
+                // Update log to waiting status
+                if (logEntryId) {
+                  await supabase
+                    .from('workflow_instance_logs')
+                    .update({
+                      status: 'waiting',
+                      output_data: {
+                        scheduledResumeAt: newResumeAt.toISOString(),
+                        waitType: 'condition_waiting_for_value',
+                        waitingFields,
+                        loopIteration,
+                        message: `Waiting for field value(s): ${waitingFields.join(', ')}. Will check again in ${pollIntervalMinutes} minutes.`
+                      }
+                    })
+                    .eq('id', logEntryId)
+                }
+                
+                console.log(`⏳ Condition wait scheduled for: ${newResumeAt.toISOString()} (iteration: ${loopIteration})`)
+                allNodesProcessed = false
+                nodeOutputData = {
+                  waiting: true,
+                  waitingForValues: true,
+                  waitingFields,
+                  scheduledResumeAt: newResumeAt.toISOString(),
+                  loopIteration,
+                  message: `Waiting for field value(s): ${waitingFields.join(', ')}`,
+                  success: true
+                }
+                // Skip branching logic - workflow is paused
+                continue
+              }
+              
+              // Determine which branch to take based on result (only if not waiting)
               const branchType = conditionResult ? 'true' : 'false'
               
               // Get the next nodes for this branch
@@ -1774,7 +1959,9 @@ Deno.serve(async (req) => {
                         ...execution.execution_data,
                         conditionResult,
                         branchTaken: branchType,
-                        lastConditionNode: nodeData.id
+                        lastConditionNode: nodeData.id,
+                        // Clear waiting state since we're proceeding
+                        isWaitingForConditionValue: false
                       }
                     })
                     .eq('id', execution.id)
