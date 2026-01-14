@@ -407,12 +407,100 @@ export class ConditionEvaluator {
     return current;
   }
 
+  // Helper to parse date/time values
+  private static parseDateValue(value: any): Date | null {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    
+    const strValue = String(value).trim();
+    if (!strValue) return null;
+    
+    // Try parsing as ISO date/datetime
+    const date = new Date(strValue);
+    if (!isNaN(date.getTime())) return date;
+    
+    return null;
+  }
+
+  // Helper to normalize time string for comparison (HH:MM:SS format)
+  private static normalizeTime(timeStr: string): string {
+    if (!timeStr) return '';
+    const parts = timeStr.split(':').map(p => p.padStart(2, '0'));
+    while (parts.length < 3) parts.push('00');
+    return parts.slice(0, 3).join(':');
+  }
+
+  // Check if a value is a time string (HH:MM or HH:MM:SS)
+  private static isTimeValue(value: any): boolean {
+    if (typeof value !== 'string') return false;
+    return /^\d{1,2}:\d{2}(:\d{2})?$/.test(value.trim());
+  }
+
+  // Get start and end of various time periods
+  private static getDateRanges() {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    return {
+      today: { start: today, end: tomorrow },
+      yesterday: { 
+        start: new Date(today.getTime() - 86400000), 
+        end: today 
+      },
+      tomorrow: { 
+        start: tomorrow, 
+        end: new Date(tomorrow.getTime() + 86400000) 
+      },
+      currentWeek: {
+        start: new Date(today.getTime() - today.getDay() * 86400000),
+        end: new Date(today.getTime() + (7 - today.getDay()) * 86400000)
+      },
+      lastWeek: {
+        start: new Date(today.getTime() - (today.getDay() + 7) * 86400000),
+        end: new Date(today.getTime() - today.getDay() * 86400000)
+      },
+      nextWeek: {
+        start: new Date(today.getTime() + (7 - today.getDay()) * 86400000),
+        end: new Date(today.getTime() + (14 - today.getDay()) * 86400000)
+      },
+      currentMonth: {
+        start: new Date(now.getFullYear(), now.getMonth(), 1),
+        end: new Date(now.getFullYear(), now.getMonth() + 1, 1)
+      },
+      lastMonth: {
+        start: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+        end: new Date(now.getFullYear(), now.getMonth(), 1)
+      },
+      nextMonth: {
+        start: new Date(now.getFullYear(), now.getMonth() + 1, 1),
+        end: new Date(now.getFullYear(), now.getMonth() + 2, 1)
+      },
+      currentYear: {
+        start: new Date(now.getFullYear(), 0, 1),
+        end: new Date(now.getFullYear() + 1, 0, 1)
+      },
+      lastYear: {
+        start: new Date(now.getFullYear() - 1, 0, 1),
+        end: new Date(now.getFullYear(), 0, 1)
+      }
+    };
+  }
+
   private static compareValues(left: any, right: any, operator: ComparisonOperator): boolean {
     // Handle null/undefined cases
     if (left === null || left === undefined) {
       switch (operator) {
         case 'exists': return false;
         case 'not_exists': return true;
+        // For relative date operators, null means condition is false
+        case 'is_today': case 'is_yesterday': case 'is_tomorrow':
+        case 'is_current_week': case 'is_last_week': case 'is_next_week':
+        case 'is_current_month': case 'is_last_month': case 'is_next_month':
+        case 'is_current_year': case 'is_last_year':
+        case 'last_n_days': case 'next_n_days':
+          return false;
         default: return false;
       }
     }
@@ -421,6 +509,12 @@ export class ConditionEvaluator {
       switch (operator) {
         case '==': return left === right;
         case '!=': return left !== right;
+        // For date operators that don't need a value, continue evaluation
+        case 'is_today': case 'is_yesterday': case 'is_tomorrow':
+        case 'is_current_week': case 'is_last_week': case 'is_next_week':
+        case 'is_current_month': case 'is_last_month': case 'is_next_month':
+        case 'is_current_year': case 'is_last_year':
+          break; // Continue to evaluate
         default: return false;
       }
     }
@@ -560,6 +654,166 @@ export class ConditionEvaluator {
           return leftValues.length === 0 || leftValues.every(v => v === '');
         }
         return left === null || left === undefined || left === '';
+
+      // Date/Time comparison operators
+      case 'after': {
+        // Handle time-only comparison
+        if (this.isTimeValue(left) && this.isTimeValue(right)) {
+          return this.normalizeTime(String(left)) > this.normalizeTime(String(right));
+        }
+        const leftDate = this.parseDateValue(left);
+        const rightDate = this.parseDateValue(right);
+        if (!leftDate || !rightDate) return false;
+        return leftDate > rightDate;
+      }
+      case 'before': {
+        if (this.isTimeValue(left) && this.isTimeValue(right)) {
+          return this.normalizeTime(String(left)) < this.normalizeTime(String(right));
+        }
+        const leftDate = this.parseDateValue(left);
+        const rightDate = this.parseDateValue(right);
+        if (!leftDate || !rightDate) return false;
+        return leftDate < rightDate;
+      }
+      case 'on_or_after': {
+        if (this.isTimeValue(left) && this.isTimeValue(right)) {
+          return this.normalizeTime(String(left)) >= this.normalizeTime(String(right));
+        }
+        const leftDate = this.parseDateValue(left);
+        const rightDate = this.parseDateValue(right);
+        if (!leftDate || !rightDate) return false;
+        return leftDate >= rightDate;
+      }
+      case 'on_or_before': {
+        if (this.isTimeValue(left) && this.isTimeValue(right)) {
+          return this.normalizeTime(String(left)) <= this.normalizeTime(String(right));
+        }
+        const leftDate = this.parseDateValue(left);
+        const rightDate = this.parseDateValue(right);
+        if (!leftDate || !rightDate) return false;
+        return leftDate <= rightDate;
+      }
+      case 'between': {
+        const parts = String(right).split(',').map(v => v.trim());
+        if (parts.length !== 2) return false;
+        const [startStr, endStr] = parts;
+
+        // Handle time-only comparison
+        if (this.isTimeValue(left)) {
+          const leftTime = this.normalizeTime(String(left));
+          const startTime = this.normalizeTime(startStr);
+          const endTime = this.normalizeTime(endStr);
+          return leftTime >= startTime && leftTime <= endTime;
+        }
+
+        // Handle numeric comparison
+        const numValue = parseFloat(String(left));
+        if (!isNaN(numValue)) {
+          const numStart = parseFloat(startStr);
+          const numEnd = parseFloat(endStr);
+          if (!isNaN(numStart) && !isNaN(numEnd)) {
+            return numValue >= numStart && numValue <= numEnd;
+          }
+        }
+
+        // Handle date comparison
+        const leftDate = this.parseDateValue(left);
+        const startDate = this.parseDateValue(startStr);
+        const endDate = this.parseDateValue(endStr);
+        if (leftDate && startDate && endDate) {
+          return leftDate >= startDate && leftDate <= endDate;
+        }
+        return false;
+      }
+
+      // Relative date operators
+      case 'is_today': {
+        const leftDate = this.parseDateValue(left);
+        if (!leftDate) return false;
+        const { today } = this.getDateRanges();
+        return leftDate >= today.start && leftDate < today.end;
+      }
+      case 'is_yesterday': {
+        const leftDate = this.parseDateValue(left);
+        if (!leftDate) return false;
+        const { yesterday } = this.getDateRanges();
+        return leftDate >= yesterday.start && leftDate < yesterday.end;
+      }
+      case 'is_tomorrow': {
+        const leftDate = this.parseDateValue(left);
+        if (!leftDate) return false;
+        const { tomorrow } = this.getDateRanges();
+        return leftDate >= tomorrow.start && leftDate < tomorrow.end;
+      }
+      case 'is_current_week': {
+        const leftDate = this.parseDateValue(left);
+        if (!leftDate) return false;
+        const { currentWeek } = this.getDateRanges();
+        return leftDate >= currentWeek.start && leftDate < currentWeek.end;
+      }
+      case 'is_last_week': {
+        const leftDate = this.parseDateValue(left);
+        if (!leftDate) return false;
+        const { lastWeek } = this.getDateRanges();
+        return leftDate >= lastWeek.start && leftDate < lastWeek.end;
+      }
+      case 'is_next_week': {
+        const leftDate = this.parseDateValue(left);
+        if (!leftDate) return false;
+        const { nextWeek } = this.getDateRanges();
+        return leftDate >= nextWeek.start && leftDate < nextWeek.end;
+      }
+      case 'is_current_month': {
+        const leftDate = this.parseDateValue(left);
+        if (!leftDate) return false;
+        const { currentMonth } = this.getDateRanges();
+        return leftDate >= currentMonth.start && leftDate < currentMonth.end;
+      }
+      case 'is_last_month': {
+        const leftDate = this.parseDateValue(left);
+        if (!leftDate) return false;
+        const { lastMonth } = this.getDateRanges();
+        return leftDate >= lastMonth.start && leftDate < lastMonth.end;
+      }
+      case 'is_next_month': {
+        const leftDate = this.parseDateValue(left);
+        if (!leftDate) return false;
+        const { nextMonth } = this.getDateRanges();
+        return leftDate >= nextMonth.start && leftDate < nextMonth.end;
+      }
+      case 'is_current_year': {
+        const leftDate = this.parseDateValue(left);
+        if (!leftDate) return false;
+        const { currentYear } = this.getDateRanges();
+        return leftDate >= currentYear.start && leftDate < currentYear.end;
+      }
+      case 'is_last_year': {
+        const leftDate = this.parseDateValue(left);
+        if (!leftDate) return false;
+        const { lastYear } = this.getDateRanges();
+        return leftDate >= lastYear.start && leftDate < lastYear.end;
+      }
+      case 'last_n_days': {
+        const leftDate = this.parseDateValue(left);
+        if (!leftDate) return false;
+        const nDays = parseInt(String(right), 10);
+        if (isNaN(nDays) || nDays <= 0) return false;
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const startDate = new Date(today.getTime() - nDays * 86400000);
+        return leftDate >= startDate && leftDate < new Date(today.getTime() + 86400000);
+      }
+      case 'next_n_days': {
+        const leftDate = this.parseDateValue(left);
+        if (!leftDate) return false;
+        const nDays = parseInt(String(right), 10);
+        if (isNaN(nDays) || nDays <= 0) return false;
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const endDate = new Date(today.getTime() + (nDays + 1) * 86400000);
+        return leftDate >= today && leftDate < endDate;
+      }
+
       default:
         return false;
     }

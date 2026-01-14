@@ -1607,10 +1607,55 @@ Deno.serve(async (req) => {
                 return false
               }
               
-              // Compare values with proper array handling
+              // Compare values with proper array handling and date/time operators
               const compareValues = (left: any, right: any, operator: string): boolean => {
                 const isLeftArray = isArrayField(left)
                 const rightStr = normalizeValue(right)
+                
+                // Helper to parse date values
+                const parseDateValue = (value: any): Date | null => {
+                  if (!value) return null
+                  if (value instanceof Date) return value
+                  const strValue = String(value).trim()
+                  if (!strValue) return null
+                  const date = new Date(strValue)
+                  if (!isNaN(date.getTime())) return date
+                  return null
+                }
+                
+                // Helper to normalize time strings
+                const normalizeTime = (timeStr: string): string => {
+                  if (!timeStr) return ''
+                  const parts = timeStr.split(':').map(p => p.padStart(2, '0'))
+                  while (parts.length < 3) parts.push('00')
+                  return parts.slice(0, 3).join(':')
+                }
+                
+                // Check if value is time format
+                const isTimeValue = (value: any): boolean => {
+                  if (typeof value !== 'string') return false
+                  return /^\d{1,2}:\d{2}(:\d{2})?$/.test(value.trim())
+                }
+                
+                // Get date ranges for relative operators
+                const getDateRanges = () => {
+                  const now = new Date()
+                  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+                  const tomorrow = new Date(today.getTime() + 86400000)
+                  return {
+                    today: { start: today, end: tomorrow },
+                    yesterday: { start: new Date(today.getTime() - 86400000), end: today },
+                    tomorrow: { start: tomorrow, end: new Date(tomorrow.getTime() + 86400000) },
+                    currentWeek: { start: new Date(today.getTime() - today.getDay() * 86400000), end: new Date(today.getTime() + (7 - today.getDay()) * 86400000) },
+                    lastWeek: { start: new Date(today.getTime() - (today.getDay() + 7) * 86400000), end: new Date(today.getTime() - today.getDay() * 86400000) },
+                    nextWeek: { start: new Date(today.getTime() + (7 - today.getDay()) * 86400000), end: new Date(today.getTime() + (14 - today.getDay()) * 86400000) },
+                    currentMonth: { start: new Date(now.getFullYear(), now.getMonth(), 1), end: new Date(now.getFullYear(), now.getMonth() + 1, 1) },
+                    lastMonth: { start: new Date(now.getFullYear(), now.getMonth() - 1, 1), end: new Date(now.getFullYear(), now.getMonth(), 1) },
+                    nextMonth: { start: new Date(now.getFullYear(), now.getMonth() + 1, 1), end: new Date(now.getFullYear(), now.getMonth() + 2, 1) },
+                    currentYear: { start: new Date(now.getFullYear(), 0, 1), end: new Date(now.getFullYear() + 1, 0, 1) },
+                    lastYear: { start: new Date(now.getFullYear() - 1, 0, 1), end: new Date(now.getFullYear(), 0, 1) }
+                  }
+                }
                 
                 switch (operator) {
                   case 'equals':
@@ -1676,11 +1721,10 @@ Deno.serve(async (req) => {
                     }
                     return normalizeValue(left).endsWith(rightStr)
                   case 'in':
-                  case 'not_in':
+                  case 'not_in': {
                     const rightList = Array.isArray(right) 
                       ? right.map(item => normalizeValue(item))
                       : rightStr.split(',').map(s => s.trim().toLowerCase())
-                    
                     if (isLeftArray) {
                       const leftValues = getArrayValues(left)
                       const hasMatch = leftValues.some(lv => rightList.includes(lv))
@@ -1689,6 +1733,66 @@ Deno.serve(async (req) => {
                     const leftNorm = normalizeValue(left)
                     const isIn = rightList.includes(leftNorm)
                     return operator === 'in' ? isIn : !isIn
+                  }
+                  // Date/Time operators
+                  case 'after': {
+                    if (isTimeValue(left) && isTimeValue(right)) return normalizeTime(String(left)) > normalizeTime(String(right))
+                    const leftDate = parseDateValue(left), rightDate = parseDateValue(right)
+                    return leftDate && rightDate ? leftDate > rightDate : false
+                  }
+                  case 'before': {
+                    if (isTimeValue(left) && isTimeValue(right)) return normalizeTime(String(left)) < normalizeTime(String(right))
+                    const leftDate = parseDateValue(left), rightDate = parseDateValue(right)
+                    return leftDate && rightDate ? leftDate < rightDate : false
+                  }
+                  case 'on_or_after': {
+                    if (isTimeValue(left) && isTimeValue(right)) return normalizeTime(String(left)) >= normalizeTime(String(right))
+                    const leftDate = parseDateValue(left), rightDate = parseDateValue(right)
+                    return leftDate && rightDate ? leftDate >= rightDate : false
+                  }
+                  case 'on_or_before': {
+                    if (isTimeValue(left) && isTimeValue(right)) return normalizeTime(String(left)) <= normalizeTime(String(right))
+                    const leftDate = parseDateValue(left), rightDate = parseDateValue(right)
+                    return leftDate && rightDate ? leftDate <= rightDate : false
+                  }
+                  case 'between': {
+                    const parts = String(right).split(',').map(v => v.trim())
+                    if (parts.length !== 2) return false
+                    if (isTimeValue(left)) {
+                      const lt = normalizeTime(String(left)), st = normalizeTime(parts[0]), et = normalizeTime(parts[1])
+                      return lt >= st && lt <= et
+                    }
+                    const numVal = parseFloat(String(left))
+                    if (!isNaN(numVal)) {
+                      const ns = parseFloat(parts[0]), ne = parseFloat(parts[1])
+                      if (!isNaN(ns) && !isNaN(ne)) return numVal >= ns && numVal <= ne
+                    }
+                    const ld = parseDateValue(left), sd = parseDateValue(parts[0]), ed = parseDateValue(parts[1])
+                    return ld && sd && ed ? ld >= sd && ld <= ed : false
+                  }
+                  case 'is_today': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.today.start && d < r.today.end }
+                  case 'is_yesterday': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.yesterday.start && d < r.yesterday.end }
+                  case 'is_tomorrow': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.tomorrow.start && d < r.tomorrow.end }
+                  case 'is_current_week': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.currentWeek.start && d < r.currentWeek.end }
+                  case 'is_last_week': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.lastWeek.start && d < r.lastWeek.end }
+                  case 'is_next_week': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.nextWeek.start && d < r.nextWeek.end }
+                  case 'is_current_month': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.currentMonth.start && d < r.currentMonth.end }
+                  case 'is_last_month': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.lastMonth.start && d < r.lastMonth.end }
+                  case 'is_next_month': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.nextMonth.start && d < r.nextMonth.end }
+                  case 'is_current_year': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.currentYear.start && d < r.currentYear.end }
+                  case 'is_last_year': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.lastYear.start && d < r.lastYear.end }
+                  case 'last_n_days': {
+                    const d = parseDateValue(left); if (!d) return false
+                    const n = parseInt(String(right), 10); if (isNaN(n) || n <= 0) return false
+                    const now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+                    return d >= new Date(today.getTime() - n * 86400000) && d < new Date(today.getTime() + 86400000)
+                  }
+                  case 'next_n_days': {
+                    const d = parseDateValue(left); if (!d) return false
+                    const n = parseInt(String(right), 10); if (isNaN(n) || n <= 0) return false
+                    const now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+                    return d >= today && d < new Date(today.getTime() + (n + 1) * 86400000)
+                  }
                   default:
                     console.log(`⚠️ Unknown operator: ${operator}`)
                     return false

@@ -607,6 +607,117 @@ const FormLevelConditionBuilder = React.memo(({ condition, forms, onChange }: Fo
   );
 });
 
+// Helper function to get operators based on field type
+const getOperatorsForFieldType = (fieldType: string): Array<{ value: ComparisonOperator; label: string }> => {
+  const normalizedType = (fieldType || '').toLowerCase().replace(/[_\s]/g, '-');
+  
+  // Base operators available for all fields
+  const baseOperators: Array<{ value: ComparisonOperator; label: string }> = [
+    { value: '==', label: 'Equals' },
+    { value: '!=', label: 'Not Equals' },
+    { value: 'exists', label: 'Has Value' },
+    { value: 'not_exists', label: 'Is Empty' },
+  ];
+  
+  // Text operators for text-like fields
+  const textOperators: Array<{ value: ComparisonOperator; label: string }> = [
+    { value: 'contains', label: 'Contains' },
+    { value: 'not_contains', label: 'Does Not Contain' },
+    { value: 'starts_with', label: 'Starts With' },
+    { value: 'ends_with', label: 'Ends With' },
+  ];
+  
+  // Date/Time specific operators
+  const dateTimeOperators: Array<{ value: ComparisonOperator; label: string }> = [
+    { value: 'after', label: 'After' },
+    { value: 'before', label: 'Before' },
+    { value: 'on_or_after', label: 'On or After' },
+    { value: 'on_or_before', label: 'On or Before' },
+    { value: 'between', label: 'Between' },
+    { value: 'is_today', label: 'Is Today' },
+    { value: 'is_yesterday', label: 'Is Yesterday' },
+    { value: 'is_tomorrow', label: 'Is Tomorrow' },
+    { value: 'is_current_week', label: 'Is Current Week' },
+    { value: 'is_last_week', label: 'Is Last Week' },
+    { value: 'is_next_week', label: 'Is Next Week' },
+    { value: 'is_current_month', label: 'Is Current Month' },
+    { value: 'is_last_month', label: 'Is Last Month' },
+    { value: 'is_next_month', label: 'Is Next Month' },
+    { value: 'is_current_year', label: 'Is Current Year' },
+    { value: 'is_last_year', label: 'Is Last Year' },
+    { value: 'last_n_days', label: 'Last N Days' },
+    { value: 'next_n_days', label: 'Next N Days' },
+  ];
+  
+  // Time only operators (subset of dateTime)
+  const timeOnlyOperators: Array<{ value: ComparisonOperator; label: string }> = [
+    { value: 'after', label: 'After' },
+    { value: 'before', label: 'Before' },
+    { value: 'on_or_after', label: 'On or After' },
+    { value: 'on_or_before', label: 'On or Before' },
+    { value: 'between', label: 'Between' },
+  ];
+  
+  // Numeric operators
+  const numericOperators: Array<{ value: ComparisonOperator; label: string }> = [
+    { value: '>', label: 'Greater Than' },
+    { value: '<', label: 'Less Than' },
+    { value: '>=', label: 'Greater or Equal' },
+    { value: '<=', label: 'Less or Equal' },
+    { value: 'between', label: 'Between' },
+  ];
+  
+  // Date fields
+  if (normalizedType === 'date') {
+    return [...baseOperators, ...dateTimeOperators];
+  }
+  
+  // DateTime fields
+  if (normalizedType === 'datetime' || normalizedType === 'date-time' || normalizedType === 'datetime-local') {
+    return [...baseOperators, ...dateTimeOperators];
+  }
+  
+  // Time fields
+  if (normalizedType === 'time') {
+    return [...baseOperators, ...timeOnlyOperators];
+  }
+  
+  // Numeric fields
+  if (['number', 'currency', 'slider', 'range', 'rating', 'star-rating', 'starrating'].includes(normalizedType)) {
+    return [...baseOperators, ...numericOperators];
+  }
+  
+  // Text-like fields
+  if (['text', 'textarea', 'email', 'url', 'phone', 'phonenumber', 'phone-number'].includes(normalizedType)) {
+    return [...baseOperators, ...textOperators];
+  }
+  
+  // Default: base + text operators
+  return [...baseOperators, { value: 'contains', label: 'Contains' }, { value: 'not_contains', label: 'Does Not Contain' }];
+};
+
+// Check if operator requires no value input (relative date operators)
+const isNoValueOperator = (operator: ComparisonOperator): boolean => {
+  const noValueOperators: ComparisonOperator[] = [
+    'exists', 'not_exists',
+    'is_today', 'is_yesterday', 'is_tomorrow',
+    'is_current_week', 'is_last_week', 'is_next_week',
+    'is_current_month', 'is_last_month', 'is_next_month',
+    'is_current_year', 'is_last_year'
+  ];
+  return noValueOperators.includes(operator);
+};
+
+// Check if operator requires a number input (N days)
+const isNDaysOperator = (operator: ComparisonOperator): boolean => {
+  return ['last_n_days', 'next_n_days'].includes(operator);
+};
+
+// Check if operator requires two values (between)
+const isBetweenOperator = (operator: ComparisonOperator): boolean => {
+  return operator === 'between';
+};
+
 // Specialized Value Input Component for different field types
 interface FieldValueInputProps {
   fieldType: string;
@@ -614,9 +725,10 @@ interface FieldValueInputProps {
   onChange: (value: string) => void;
   valueOptions: Array<{ value: string; label: string }> | null;
   selectedFieldData?: any;
+  operator?: ComparisonOperator;
 }
 
-const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, selectedFieldData }: FieldValueInputProps) => {
+const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, selectedFieldData, operator }: FieldValueInputProps) => {
   const normalizedType = (fieldType || '').toLowerCase().replace(/[_\s]/g, '-');
   const { countries, loading: countriesLoading } = useCountries();
   const { users: orgUsers, loading: usersLoading } = useOrganizationUsers();
@@ -738,8 +850,124 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
     return { users: [], groups: [], hasConfig: false };
   }, [normalizedType, selectedFieldData, orgUsers, orgGroups]);
 
+  // Parse between values for date/time/number fields
+  const [betweenStart, betweenEnd] = useMemo(() => {
+    if (!value) return ['', ''];
+    const parts = value.split(',').map(v => v.trim());
+    return [parts[0] || '', parts[1] || ''];
+  }, [value]);
+
   // Render specialized input based on field type
   const renderInput = () => {
+    // Handle no-value operators (relative date operators, exists, not_exists)
+    if (operator && isNoValueOperator(operator)) {
+      return (
+        <div className="h-8 text-xs flex items-center text-muted-foreground italic bg-muted/30 rounded px-2">
+          No value required
+        </div>
+      );
+    }
+    
+    // Handle N days operators
+    if (operator && isNDaysOperator(operator)) {
+      return (
+        <Input
+          type="number"
+          min={1}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Number of days"
+          className="h-8 text-xs"
+        />
+      );
+    }
+    
+    // Handle between operator for date fields
+    if (operator === 'between' && normalizedType === 'date') {
+      return (
+        <div className="flex gap-1 items-center">
+          <Input
+            type="date"
+            value={betweenStart}
+            onChange={(e) => onChange(`${e.target.value},${betweenEnd}`)}
+            className="h-8 text-xs flex-1"
+          />
+          <span className="text-xs text-muted-foreground">to</span>
+          <Input
+            type="date"
+            value={betweenEnd}
+            onChange={(e) => onChange(`${betweenStart},${e.target.value}`)}
+            className="h-8 text-xs flex-1"
+          />
+        </div>
+      );
+    }
+    
+    // Handle between operator for datetime fields
+    if (operator === 'between' && (normalizedType === 'datetime' || normalizedType === 'date-time' || normalizedType === 'datetime-local')) {
+      return (
+        <div className="flex gap-1 items-center">
+          <Input
+            type="datetime-local"
+            value={betweenStart}
+            onChange={(e) => onChange(`${e.target.value},${betweenEnd}`)}
+            className="h-8 text-xs flex-1"
+          />
+          <span className="text-xs text-muted-foreground">to</span>
+          <Input
+            type="datetime-local"
+            value={betweenEnd}
+            onChange={(e) => onChange(`${betweenStart},${e.target.value}`)}
+            className="h-8 text-xs flex-1"
+          />
+        </div>
+      );
+    }
+    
+    // Handle between operator for time fields
+    if (operator === 'between' && normalizedType === 'time') {
+      return (
+        <div className="flex gap-1 items-center">
+          <Input
+            type="time"
+            value={betweenStart}
+            onChange={(e) => onChange(`${e.target.value},${betweenEnd}`)}
+            className="h-8 text-xs flex-1"
+          />
+          <span className="text-xs text-muted-foreground">to</span>
+          <Input
+            type="time"
+            value={betweenEnd}
+            onChange={(e) => onChange(`${betweenStart},${e.target.value}`)}
+            className="h-8 text-xs flex-1"
+          />
+        </div>
+      );
+    }
+    
+    // Handle between operator for number fields
+    if (operator === 'between' && ['number', 'currency', 'slider', 'range', 'rating', 'star-rating', 'starrating'].includes(normalizedType)) {
+      return (
+        <div className="flex gap-1 items-center">
+          <Input
+            type="number"
+            value={betweenStart}
+            onChange={(e) => onChange(`${e.target.value},${betweenEnd}`)}
+            placeholder="Min"
+            className="h-8 text-xs flex-1"
+          />
+          <span className="text-xs text-muted-foreground">to</span>
+          <Input
+            type="number"
+            value={betweenEnd}
+            onChange={(e) => onChange(`${betweenStart},${e.target.value}`)}
+            placeholder="Max"
+            className="h-8 text-xs flex-1"
+          />
+        </div>
+      );
+    }
+    
     // Date field - date picker
     if (normalizedType === 'date') {
       return (
@@ -1187,6 +1415,22 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
     return fields.find(f => f.id === selectedField);
   }, [fields, selectedField]);
 
+  // Get operators based on selected field type
+  const availableOperators = useMemo(() => {
+    return getOperatorsForFieldType(selectedFieldData?.type || 'text');
+  }, [selectedFieldData?.type]);
+  
+  // Reset operator if it's not valid for the new field type
+  React.useEffect(() => {
+    if (selectedFieldData) {
+      const validOperators = getOperatorsForFieldType(selectedFieldData.type || 'text');
+      const isOperatorValid = validOperators.some(op => op.value === operator);
+      if (!isOperatorValid && validOperators.length > 0) {
+        setOperator(validOperators[0].value);
+      }
+    }
+  }, [selectedFieldData?.type]);
+
   // Generate value options based on field type
   const valueOptions = useMemo((): Array<{ value: string; label: string }> | null => {
     if (!selectedFieldData) {
@@ -1294,17 +1538,16 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
 
       <div>
         <Label className="text-xs text-muted-foreground mb-1 block">Operator</Label>
-        <Select value={operator} onValueChange={(v) => setOperator(v as ComparisonOperator)}>
+        <Select value={operator} onValueChange={(v) => { setOperator(v as ComparisonOperator); if (isNoValueOperator(v as ComparisonOperator)) setValue(''); }}>
           <SelectTrigger className="h-8 text-xs">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="==">Equals</SelectItem>
-            <SelectItem value="!=">Not Equals</SelectItem>
-            <SelectItem value="contains">Contains</SelectItem>
-            <SelectItem value="not_contains">Not Contains</SelectItem>
-            <SelectItem value="exists">Exists</SelectItem>
-            <SelectItem value="not_exists">Not Exists</SelectItem>
+          <SelectContent className="max-h-60">
+            {availableOperators.map((op) => (
+              <SelectItem key={op.value} value={op.value}>
+                {op.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -1315,6 +1558,7 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
         onChange={setValue}
         valueOptions={valueOptions}
         selectedFieldData={selectedFieldData}
+        operator={operator}
       />
 
       {selectedForm && selectedField && (
@@ -1322,8 +1566,8 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
           <CheckCircle className="h-3 w-3 text-green-600" />
           <span>
             <strong>{selectedFieldData?.label || 'Field'}</strong>
-            {' '}{operator === '==' ? 'equals' : operator === '!=' ? 'not equals' : operator}{' '}
-            <strong>"{value}"</strong>
+            {' '}{availableOperators.find(op => op.value === operator)?.label || operator}{' '}
+            {!isNoValueOperator(operator) && <strong>"{value}"</strong>}
           </span>
         </div>
       )}
