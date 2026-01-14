@@ -43,6 +43,7 @@ export function ReportEditor({
     [componentId: string]: {
       path: string[];
       values: string[];
+      crossRefParentId?: string; // Separate storage for cross-ref parent ID (not shown in filter UI)
     };
   }>({});
   const navigate = useNavigate();
@@ -354,14 +355,16 @@ export function ReportEditor({
       });
     }
   };
-  const handleDrilldown = (componentId: string, drilldownLevel: string, drilldownValue: string) => {
+  // Extended drilldown handler that supports cross-ref parent ID as separate parameter
+  const handleDrilldown = (componentId: string, drilldownLevel: string, drilldownValue: string, crossRefParentId?: string) => {
     // Handle reset case
     if (!drilldownLevel && !drilldownValue) {
       setDrilldownStates(prev => ({
         ...prev,
         [componentId]: {
           path: [],
-          values: []
+          values: [],
+          crossRefParentId: undefined
         }
       }));
       return;
@@ -369,7 +372,8 @@ export function ReportEditor({
     setDrilldownStates(prev => {
       const currentState = prev[componentId] || {
         path: [],
-        values: []
+        values: [],
+        crossRefParentId: undefined
       };
       const component = components.find(c => c.id === componentId);
       const config = component?.config as any;
@@ -397,11 +401,15 @@ export function ReportEditor({
         newValues.splice(currentLevel + 1);
       }
       
+      // For cross-ref charts: store the parent ID separately (only set on first click)
+      const newCrossRefParentId = crossRefParentId || currentState.crossRefParentId;
+      
       const newState = {
         ...prev,
         [componentId]: {
           path: drilldownLevels.slice(0, newValues.length),
-          values: newValues
+          values: newValues,
+          crossRefParentId: newCrossRefParentId
         }
       };
       
@@ -416,7 +424,7 @@ export function ReportEditor({
     
     switch (component.type) {
       case 'chart':
-        return <ChartPreview key={`${component.id}-${configKey}`} config={component.config as any} hideControls={true} onDrilldown={(level, value) => handleDrilldown(component.id, level, value)} drilldownState={drilldownStates[component.id]} />;
+        return <ChartPreview key={`${component.id}-${configKey}`} config={component.config as any} hideControls={true} onDrilldown={(level, value, crossRefParentId) => handleDrilldown(component.id, level, value, crossRefParentId)} drilldownState={drilldownStates[component.id]} />;
       case 'table':
         return <EnhancedDynamicTable key={`${component.id}-${configKey}`} config={component.config as any} onEdit={() => handleEditComponent(component)} onDrilldown={(level, value) => handleDrilldown(component.id, level, value)} drilldownState={drilldownStates[component.id]} />;
       case 'form-submissions':
