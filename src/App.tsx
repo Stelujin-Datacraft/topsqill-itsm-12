@@ -12,6 +12,7 @@ import { FormProvider } from "@/contexts/FormContext";
 import { WorkflowProvider } from "@/contexts/WorkflowContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
+import Documentation from "./pages/Documentation";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import Login from "./pages/Login";
@@ -66,6 +67,7 @@ const App = () => (
                 <BrowserRouter>
                   <Routes>
                     <Route path="/" element={<Index />} />
+                    <Route path="/docs" element={<Documentation />} />
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
