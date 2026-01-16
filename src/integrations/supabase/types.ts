@@ -1387,6 +1387,105 @@ export type Database = {
         }
         Relationships: []
       }
+      security_templates: {
+        Row: {
+          access_end_time: string | null
+          access_start_time: string | null
+          allowed_days: string[] | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_default: boolean | null
+          lockout_duration_minutes: number | null
+          max_concurrent_sessions: number | null
+          max_failed_login_attempts: number | null
+          mfa_max_attempts: number | null
+          mfa_method: string | null
+          mfa_pin_expiry_minutes: number | null
+          mfa_required: boolean | null
+          name: string
+          organization_id: string
+          password_change_min_hours: number | null
+          password_expiry_days: number | null
+          password_expiry_warning_days: number | null
+          password_history_count: number | null
+          password_min_length: number | null
+          password_require_lowercase: boolean | null
+          password_require_numbers: boolean | null
+          password_require_special: boolean | null
+          password_require_uppercase: boolean | null
+          session_timeout_minutes: number | null
+          session_timeout_warning_seconds: number | null
+          static_session_timeout: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          access_end_time?: string | null
+          access_start_time?: string | null
+          allowed_days?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          lockout_duration_minutes?: number | null
+          max_concurrent_sessions?: number | null
+          max_failed_login_attempts?: number | null
+          mfa_max_attempts?: number | null
+          mfa_method?: string | null
+          mfa_pin_expiry_minutes?: number | null
+          mfa_required?: boolean | null
+          name: string
+          organization_id: string
+          password_change_min_hours?: number | null
+          password_expiry_days?: number | null
+          password_expiry_warning_days?: number | null
+          password_history_count?: number | null
+          password_min_length?: number | null
+          password_require_lowercase?: boolean | null
+          password_require_numbers?: boolean | null
+          password_require_special?: boolean | null
+          password_require_uppercase?: boolean | null
+          session_timeout_minutes?: number | null
+          session_timeout_warning_seconds?: number | null
+          static_session_timeout?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          access_end_time?: string | null
+          access_start_time?: string | null
+          allowed_days?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          lockout_duration_minutes?: number | null
+          max_concurrent_sessions?: number | null
+          max_failed_login_attempts?: number | null
+          mfa_max_attempts?: number | null
+          mfa_method?: string | null
+          mfa_pin_expiry_minutes?: number | null
+          mfa_required?: boolean | null
+          name?: string
+          organization_id?: string
+          password_change_min_hours?: number | null
+          password_expiry_days?: number | null
+          password_expiry_warning_days?: number | null
+          password_history_count?: number | null
+          password_min_length?: number | null
+          password_require_lowercase?: boolean | null
+          password_require_numbers?: boolean | null
+          password_require_special?: boolean | null
+          password_require_uppercase?: boolean | null
+          session_timeout_minutes?: number | null
+          session_timeout_warning_seconds?: number | null
+          static_session_timeout?: boolean | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       smtp_configs: {
         Row: {
           created_at: string
@@ -1564,11 +1663,13 @@ export type Database = {
           password_require_numbers: boolean | null
           password_require_special: boolean | null
           password_require_uppercase: boolean | null
+          security_template_id: string | null
           session_timeout_minutes: number | null
           session_timeout_warning_seconds: number | null
           static_session_timeout: boolean | null
           updated_at: string
           updated_by: string | null
+          use_template_settings: boolean | null
           user_id: string
         }
         Insert: {
@@ -1602,11 +1703,13 @@ export type Database = {
           password_require_numbers?: boolean | null
           password_require_special?: boolean | null
           password_require_uppercase?: boolean | null
+          security_template_id?: string | null
           session_timeout_minutes?: number | null
           session_timeout_warning_seconds?: number | null
           static_session_timeout?: boolean | null
           updated_at?: string
           updated_by?: string | null
+          use_template_settings?: boolean | null
           user_id: string
         }
         Update: {
@@ -1640,14 +1743,24 @@ export type Database = {
           password_require_numbers?: boolean | null
           password_require_special?: boolean | null
           password_require_uppercase?: boolean | null
+          security_template_id?: string | null
           session_timeout_minutes?: number | null
           session_timeout_warning_seconds?: number | null
           static_session_timeout?: boolean | null
           updated_at?: string
           updated_by?: string | null
+          use_template_settings?: boolean | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_security_parameters_security_template_id_fkey"
+            columns: ["security_template_id"]
+            isOneToOne: false
+            referencedRelation: "security_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workflow_connections: {
         Row: {
@@ -2118,6 +2231,10 @@ export type Database = {
       can_view_project: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
+      }
+      create_default_security_templates: {
+        Args: { creator_id: string; org_id: string }
+        Returns: undefined
       }
       generate_reference_id: {
         Args: { name_text: string; table_name: string }

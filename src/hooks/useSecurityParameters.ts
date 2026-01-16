@@ -45,6 +45,10 @@ export interface UserSecurityParameters {
   mfa_pin_expiry_minutes: number;
   mfa_max_attempts: number;
   
+  // Template Reference
+  security_template_id: string | null;
+  use_template_settings: boolean;
+  
   // Metadata
   last_password_change: string | null;
   last_login: string | null;
@@ -120,6 +124,8 @@ const DEFAULT_SECURITY_PARAMS: Omit<UserSecurityParameters, 'id' | 'user_id' | '
   mfa_method: 'email',
   mfa_pin_expiry_minutes: 5,
   mfa_max_attempts: 3,
+  security_template_id: null,
+  use_template_settings: true,
   last_password_change: null,
   last_login: null,
 };

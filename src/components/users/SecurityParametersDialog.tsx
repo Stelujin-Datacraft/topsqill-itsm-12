@@ -26,9 +26,11 @@ import {
   AlertTriangle,
   Unlock,
   Save,
-  RotateCcw
+  RotateCcw,
+  FileText
 } from 'lucide-react';
 import { useSecurityParameters, UserSecurityParameters } from '@/hooks/useSecurityParameters';
+import { useSecurityTemplates } from '@/hooks/useSecurityTemplates';
 
 interface SecurityParametersDialogProps {
   open: boolean;
@@ -65,6 +67,8 @@ export function SecurityParametersDialog({
     getEffectiveValue,
     defaultParams,
   } = useSecurityParameters(userId);
+
+  const { templates, loading: templatesLoading } = useSecurityTemplates();
 
   // Form state
   const [formData, setFormData] = useState<Partial<UserSecurityParameters>>({});
@@ -126,34 +130,93 @@ export function SecurityParametersDialog({
           </div>
         </DialogHeader>
 
-        {loading ? (
+        {loading || templatesLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
           </div>
         ) : (
-          <Tabs defaultValue="password" className="mt-4">
-            <TabsList className="grid grid-cols-5 w-full">
-              <TabsTrigger value="password" className="flex items-center gap-1.5 text-xs">
-                <Key className="h-3.5 w-3.5" />
-                Password
-              </TabsTrigger>
-              <TabsTrigger value="lockout" className="flex items-center gap-1.5 text-xs">
-                <Lock className="h-3.5 w-3.5" />
-                Lockout
-              </TabsTrigger>
-              <TabsTrigger value="session" className="flex items-center gap-1.5 text-xs">
-                <Clock className="h-3.5 w-3.5" />
-                Session
-              </TabsTrigger>
-              <TabsTrigger value="access" className="flex items-center gap-1.5 text-xs">
-                <Globe className="h-3.5 w-3.5" />
-                Access
-              </TabsTrigger>
-              <TabsTrigger value="mfa" className="flex items-center gap-1.5 text-xs">
-                <Smartphone className="h-3.5 w-3.5" />
-                MFA
-              </TabsTrigger>
-            </TabsList>
+          <div className="mt-4 space-y-4">
+            {/* Template Selection Card */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" />
+                  Security Template
+                </CardTitle>
+                <CardDescription>
+                  Assign a template or customize individual settings
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Assigned Template</Label>
+                    <Select
+                      value={formData.security_template_id ?? 'none'}
+                      onValueChange={(value) => updateField('security_template_id', value === 'none' ? null : value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="No template assigned" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No template (use defaults)</SelectItem>
+                        {templates.map((template) => (
+                          <SelectItem key={template.id} value={template.id}>
+                            {template.name}
+                            {template.is_default && ' (Default)'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center justify-between pt-6">
+                    <div>
+                      <Label>Use Template Settings</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Override with custom values when off
+                      </p>
+                    </div>
+                    <Switch
+                      checked={formData.use_template_settings ?? true}
+                      onCheckedChange={(checked) => updateField('use_template_settings', checked)}
+                      disabled={!formData.security_template_id}
+                    />
+                  </div>
+                </div>
+                {formData.security_template_id && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                    <Shield className="h-4 w-4" />
+                    {formData.use_template_settings 
+                      ? 'Template settings will be applied. Individual overrides below are disabled.'
+                      : 'Custom overrides are enabled. Settings below will override the template.'}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Tabs defaultValue="password">
+              <TabsList className="grid grid-cols-5 w-full">
+                <TabsTrigger value="password" className="flex items-center gap-1.5 text-xs">
+                  <Key className="h-3.5 w-3.5" />
+                  Password
+                </TabsTrigger>
+                <TabsTrigger value="lockout" className="flex items-center gap-1.5 text-xs">
+                  <Lock className="h-3.5 w-3.5" />
+                  Lockout
+                </TabsTrigger>
+                <TabsTrigger value="session" className="flex items-center gap-1.5 text-xs">
+                  <Clock className="h-3.5 w-3.5" />
+                  Session
+                </TabsTrigger>
+                <TabsTrigger value="access" className="flex items-center gap-1.5 text-xs">
+                  <Globe className="h-3.5 w-3.5" />
+                  Access
+                </TabsTrigger>
+                <TabsTrigger value="mfa" className="flex items-center gap-1.5 text-xs">
+                  <Smartphone className="h-3.5 w-3.5" />
+                  MFA
+                </TabsTrigger>
+              </TabsList>
 
             {/* Password Policy Tab */}
             <TabsContent value="password" className="mt-4 space-y-4">
@@ -622,6 +685,7 @@ export function SecurityParametersDialog({
               </Card>
             </TabsContent>
           </Tabs>
+          </div>
         )}
 
         {/* Footer Actions */}

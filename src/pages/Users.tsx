@@ -27,6 +27,7 @@ import { useUserManagement } from '@/hooks/useUserManagement';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useToast } from '@/hooks/use-toast';
 import { SecurityParametersDialog } from '@/components/users/SecurityParametersDialog';
+import { SecurityTemplatesManager } from '@/components/users/SecurityTemplatesManager';
 
 const Users = () => {
   const { currentOrganization } = useOrganization();
@@ -54,6 +55,7 @@ const Users = () => {
   const [userToDelete, setUserToDelete] = useState<{ id: string; name: string } | null>(null);
   const [securityDialogOpen, setSecurityDialogOpen] = useState(false);
   const [selectedUserForSecurity, setSelectedUserForSecurity] = useState<{ id: string; name: string; email: string } | null>(null);
+  const [templatesManagerOpen, setTemplatesManagerOpen] = useState(false);
 
   const filteredUsers = users.filter(user =>
     (user.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
@@ -253,6 +255,10 @@ const Users = () => {
                 <CardDescription className="mt-1">Manage your organization's team members</CardDescription>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => setTemplatesManagerOpen(true)} className="border-border/60 hover:bg-muted/50">
+                  <Shield className="h-4 w-4 mr-2" />
+                  Security Templates
+                </Button>
                 <UserImportButton onImportComplete={handleImportUsers} />
                 <UserUpdateButton onUpdateComplete={handleUpdateUsers} />
                 <Button size="sm" variant="outline" onClick={() => setIsRequestsOpen(true)} className="relative border-border/60 hover:bg-muted/50">
