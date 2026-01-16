@@ -160,14 +160,15 @@ export function SecurityParametersDialog({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex items-center gap-3 justify-end">
-                  <Label className="text-sm whitespace-nowrap">Use Template Settings</Label>
-                  <Switch
-                    checked={formData.use_template_settings ?? true}
-                    onCheckedChange={(checked) => updateField('use_template_settings', checked)}
-                    disabled={!formData.security_template_id}
-                  />
-                </div>
+                {formData.security_template_id && (
+                  <div className="flex items-center gap-3 justify-end">
+                    <Label className="text-sm whitespace-nowrap">Use Template Settings</Label>
+                    <Switch
+                      checked={formData.use_template_settings ?? false}
+                      onCheckedChange={(checked) => updateField('use_template_settings', checked)}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
