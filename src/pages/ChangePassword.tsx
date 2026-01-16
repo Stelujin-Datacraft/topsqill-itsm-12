@@ -1,0 +1,278 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from '@/hooks/use-toast';
+import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicator';
+import { validatePassword, DEFAULT_PASSWORD_POLICY } from '@/utils/passwordValidation';
+import { getUserPasswordPolicy } from '@/utils/securityEnforcement';
+import { Lock, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+
+const ChangePassword = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [passwordPolicy, setPasswordPolicy] = useState(DEFAULT_PASSWORD_POLICY);
+  const [lastPasswordChange, setLastPasswordChange] = useState<Date | null>(null);
+  const [minChangeHours, setMinChangeHours] = useState(24);
+  const [canChangePassword, setCanChangePassword] = useState(true);
+  const [hoursUntilChange, setHoursUntilChange] = useState(0);
+
+  useEffect(() => {
+    if (user) {
+      loadPasswordPolicy();
+    }
+  }, [user]);
+
+  const loadPasswordPolicy = async () => {
+    if (!user) return;
+
+    const policy = await getUserPasswordPolicy(user.id);
+    if (policy) {
+      setPasswordPolicy({
+        password_min_length: policy.password_min_length,
+        password_require_uppercase: policy.password_require_uppercase,
+        password_require_lowercase: policy.password_require_lowercase,
+        password_require_numbers: policy.password_require_numbers,
+        password_require_special: policy.password_require_special,
+      });
+      setMinChangeHours(policy.password_change_min_hours);
+    }
+
+    // Get last password change time
+    const { data: securityParams } = await supabase
+      .from('user_security_parameters')
+      .select('last_password_change')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (securityParams?.last_password_change) {
+      const lastChange = new Date(securityParams.last_password_change);
+      setLastPasswordChange(lastChange);
+
+      // Check if enough time has passed
+      const minMs = (policy?.password_change_min_hours || 24) * 60 * 60 * 1000;
+      const timeSinceChange = Date.now() - lastChange.getTime();
+
+      if (timeSinceChange < minMs) {
+        setCanChangePassword(false);
+        setHoursUntilChange(Math.ceil((minMs - timeSinceChange) / (60 * 60 * 1000)));
+      }
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!user) {
+      toast({
+        title: 'Error',
+        description: 'You must be logged in to change your password',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!canChangePassword) {
+      toast({
+        title: 'Password change restricted',
+        description: `You must wait ${hoursUntilChange} more hours before changing your password again.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: 'Passwords do not match',
+        description: 'Please ensure both passwords are identical',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate password against policy
+    const validation = validatePassword(newPassword, passwordPolicy);
+    if (!validation.isValid) {
+      toast({
+        title: 'Password does not meet requirements',
+        description: validation.errors[0],
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // First verify current password by attempting to sign in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email!,
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        toast({
+          title: 'Current password incorrect',
+          description: 'Please enter your correct current password',
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Update password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) {
+        toast({
+          title: 'Password update failed',
+          description: updateError.message,
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Update last password change timestamp
+      await supabase
+        .from('user_security_parameters')
+        .update({
+          last_password_change: new Date().toISOString(),
+        })
+        .eq('user_id', user.id);
+
+      toast({
+        title: 'Password updated',
+        description: 'Your password has been successfully changed',
+      });
+
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Error changing password:', error);
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred',
+        variant: 'destructive',
+      });
+    }
+
+    setIsLoading(false);
+  };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="py-8 text-center text-muted-foreground">
+            Please log in to change your password
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="flex justify-center mb-4">
+            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+              <Lock className="h-6 w-6 text-primary" />
+            </div>
+          </div>
+          <CardTitle className="text-2xl">Change Password</CardTitle>
+          <CardDescription>
+            Update your password to keep your account secure
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!canChangePassword && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                You must wait {hoursUntilChange} more hours before you can change your password again.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="current-password">Current Password</Label>
+              <Input
+                id="current-password"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                required
+                disabled={!canChangePassword}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                disabled={!canChangePassword}
+              />
+              {newPassword && (
+                <PasswordStrengthIndicator
+                  password={newPassword}
+                  policy={passwordPolicy}
+                />
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirm New Password</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                disabled={!canChangePassword}
+              />
+              {confirmPassword && newPassword !== confirmPassword && (
+                <p className="text-sm text-destructive">Passwords do not match</p>
+              )}
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isLoading || !canChangePassword}
+            >
+              {isLoading ? 'Updating...' : 'Update Password'}
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full"
+              onClick={() => navigate('/dashboard')}
+            >
+              Cancel
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default ChangePassword;

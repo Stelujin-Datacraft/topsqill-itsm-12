@@ -10,6 +10,9 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Building2, Mail, UserPlus } from 'lucide-react';
+import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicator';
+import { validatePassword, DEFAULT_PASSWORD_POLICY, PasswordPolicy } from '@/utils/passwordValidation';
+import { getOrganizationPasswordPolicy } from '@/utils/securityEnforcement';
 
 const Auth = () => {
   const [activeTab, setActiveTab] = useState('signin');
@@ -17,6 +20,10 @@ const Auth = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get('returnTo');
+
+  // Password policy state
+  const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy>(DEFAULT_PASSWORD_POLICY);
+  const [policyLoading, setPolicyLoading] = useState(false);
 
   // Redirect authenticated users
   useEffect(() => {
@@ -52,6 +59,30 @@ const Auth = () => {
     message: ''
   });
 
+  // Load password policy when organization domain changes (for join tab)
+  const loadPolicyFromDomain = async (domain: string) => {
+    if (!domain) return;
+    
+    setPolicyLoading(true);
+    try {
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('id')
+        .eq('domain', domain)
+        .maybeSingle();
+
+      if (org) {
+        const policy = await getOrganizationPasswordPolicy(org.id);
+        if (policy) {
+          setPasswordPolicy(policy);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading password policy:', error);
+    }
+    setPolicyLoading(false);
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -75,6 +106,17 @@ const Auth = () => {
   const handleRegisterOrganization = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate password against default policy
+    const validation = validatePassword(orgRegData.admin_password, passwordPolicy);
+    if (!validation.isValid) {
+      toast({
+        title: "Password does not meet requirements",
+        description: validation.errors[0],
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { error } = await registerOrganization(orgRegData);
     if (error) {
       toast({
@@ -270,6 +312,12 @@ const Auth = () => {
                     onChange={(e) => setOrgRegData({ ...orgRegData, admin_password: e.target.value })}
                     required
                   />
+                  {orgRegData.admin_password && (
+                    <PasswordStrengthIndicator
+                      password={orgRegData.admin_password}
+                      policy={passwordPolicy}
+                    />
+                  )}
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? 'Registering...' : 'Register Organization'}
@@ -289,7 +337,13 @@ const Auth = () => {
                     id="join-domain"
                     placeholder="acmecorp.com"
                     value={joinData.organization_domain}
-                    onChange={(e) => setJoinData({ ...joinData, organization_domain: e.target.value })}
+                    onChange={(e) => {
+                      setJoinData({ ...joinData, organization_domain: e.target.value });
+                      // Load password policy when domain is entered
+                      if (e.target.value.length > 3) {
+                        loadPolicyFromDomain(e.target.value);
+                      }
+                    }}
                     required
                   />
                 </div>

@@ -680,6 +680,42 @@ export type Database = {
           },
         ]
       }
+      mfa_codes: {
+        Row: {
+          attempts: number
+          code: string
+          created_at: string
+          expires_at: string
+          id: string
+          max_attempts: number
+          method: string
+          user_id: string
+          verified_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          code: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          max_attempts?: number
+          method?: string
+          user_id: string
+          verified_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          code?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          max_attempts?: number
+          method?: string
+          user_id?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string | null
@@ -889,6 +925,27 @@ export type Database = {
           name?: string
           status?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      password_history: {
+        Row: {
+          created_at: string
+          id: string
+          password_hash: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          password_hash: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          password_hash?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1639,6 +1696,7 @@ export type Database = {
           allowed_days: string[] | null
           created_at: string
           created_by: string | null
+          current_password_hash: string | null
           failed_login_count: number | null
           id: string
           ip_blacklist: string[] | null
@@ -1679,6 +1737,7 @@ export type Database = {
           allowed_days?: string[] | null
           created_at?: string
           created_by?: string | null
+          current_password_hash?: string | null
           failed_login_count?: number | null
           id?: string
           ip_blacklist?: string[] | null
@@ -1719,6 +1778,7 @@ export type Database = {
           allowed_days?: string[] | null
           created_at?: string
           created_by?: string | null
+          current_password_hash?: string | null
           failed_login_count?: number | null
           id?: string
           ip_blacklist?: string[] | null
@@ -1761,6 +1821,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          ip_address: string | null
+          is_active: boolean
+          last_activity: string
+          session_token: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          ip_address?: string | null
+          is_active?: boolean
+          last_activity?: string
+          session_token: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          ip_address?: string | null
+          is_active?: boolean
+          last_activity?: string
+          session_token?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       workflow_connections: {
         Row: {
