@@ -539,24 +539,33 @@ export class ConditionEvaluator {
       });
     };
 
-    // Helper to extract array of normalized values from left operand
+    // Helper to extract array of normalized values from a value (handles arrays and submission-access objects)
     const getArrayValues = (v: any): string[] => {
       if (Array.isArray(v)) {
         return v.map(item => normalizeValue(item));
       }
       // Handle submission-access field format {users: [], groups: []}
       if (typeof v === 'object' && v !== null) {
+        const results: string[] = [];
         if ('users' in v && Array.isArray(v.users)) {
-          return v.users.map((u: any) => normalizeValue(u));
+          results.push(...v.users.map((u: any) => normalizeValue(u)));
         }
         if ('groups' in v && Array.isArray(v.groups)) {
-          return v.groups.map((g: any) => normalizeValue(g));
+          results.push(...v.groups.map((g: any) => normalizeValue(g)));
         }
+        if (results.length > 0) return results;
       }
       return [normalizeValue(v)];
     };
 
-    const isLeftArray = Array.isArray(left) || (typeof left === 'object' && left !== null && ('users' in left || 'groups' in left));
+    // Check if value is an array-like type (array or submission-access object)
+    const isArrayLikeValue = (v: any): boolean => {
+      if (Array.isArray(v)) return true;
+      if (typeof v === 'object' && v !== null && ('users' in v || 'groups' in v)) return true;
+      return false;
+    };
+
+    const isLeftArray = isArrayLikeValue(left);
     
     // Parse right operand if it's a JSON string (for multi-select conditions)
     let parsedRight = right;
@@ -567,7 +576,7 @@ export class ConditionEvaluator {
         // Keep as string if not valid JSON
       }
     }
-    const isRightArray = Array.isArray(parsedRight);
+    const isRightArray = isArrayLikeValue(parsedRight);
     
     const rightStr = normalizeValue(right);
     const leftNum = Number(left);

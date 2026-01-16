@@ -1583,24 +1583,26 @@ Deno.serve(async (req) => {
                 return String(v).toLowerCase().trim()
               }
               
-              // Helper to extract array of normalized values from a field value
+              // Helper to extract array of normalized values from a field value (handles arrays and submission-access objects)
               const getArrayValues = (v: any): string[] => {
                 if (Array.isArray(v)) {
                   return v.map(item => normalizeValue(item))
                 }
                 // Handle submission-access field format {users: [], groups: []}
                 if (typeof v === 'object' && v !== null) {
+                  const results: string[] = []
                   if ('users' in v && Array.isArray(v.users)) {
-                    return v.users.map((u: any) => normalizeValue(u))
+                    results.push(...v.users.map((u: any) => normalizeValue(u)))
                   }
                   if ('groups' in v && Array.isArray(v.groups)) {
-                    return v.groups.map((g: any) => normalizeValue(g))
+                    results.push(...v.groups.map((g: any) => normalizeValue(g)))
                   }
+                  if (results.length > 0) return results
                 }
                 return [normalizeValue(v)]
               }
               
-              // Check if value is an array-based field
+              // Check if value is an array-like type (array or submission-access object)
               const isArrayField = (v: any): boolean => {
                 if (Array.isArray(v)) return true
                 if (typeof v === 'object' && v !== null && ('users' in v || 'groups' in v)) return true
@@ -1620,7 +1622,8 @@ Deno.serve(async (req) => {
                     // Keep as string if not valid JSON
                   }
                 }
-                const isRightArray = Array.isArray(parsedRight)
+                // Check if right operand is array-like (including submission-access format)
+                const isRightArray = isArrayField(parsedRight)
                 
                 const rightStr = normalizeValue(right)
                 
