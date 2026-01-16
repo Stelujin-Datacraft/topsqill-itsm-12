@@ -6,7 +6,12 @@ import {
   checkAccountLockout, 
   recordFailedLogin, 
   recordSuccessfulLogin,
-  checkAccessTimeRestrictions 
+  checkAccessTimeRestrictions,
+  checkMfaRequired,
+  checkPasswordExpiry,
+  checkConcurrentSessions,
+  createSession,
+  invalidateSession,
 } from '@/utils/securityEnforcement';
 
 interface UserProfile {
@@ -40,11 +45,15 @@ interface AuthContextType {
   organization: Organization | null;
   session: Session | null;
   isLoading: boolean;
+  pendingMfa: { userId: string; email: string } | null;
+  passwordExpired: boolean;
   signUp: (email: string, password: string, userData: { first_name: string; last_name: string; organization_id: string }) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: any; requiresMfa?: boolean; passwordExpired?: boolean }>;
   signOut: () => Promise<void>;
   registerOrganization: (orgData: { name: string; domain: string; description?: string; admin_email: string; admin_password: string; admin_first_name: string; admin_last_name: string }) => Promise<{ error: any }>;
   requestToJoinOrganization: (orgId: string, userData: { email: string; first_name: string; last_name: string; message?: string }) => Promise<{ error: any }>;
+  completeMfaVerification: () => void;
+  clearPasswordExpired: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,6 +64,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [pendingMfa, setPendingMfa] = useState<{ userId: string; email: string } | null>(null);
+  const [passwordExpired, setPasswordExpired] = useState(false);
 
   const loadUserProfile = async (userId: string) => {
     try {
@@ -210,6 +221,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
         }
 
+        // Check concurrent sessions
+        const sessionCheck = await checkConcurrentSessions(data.user.id);
+        if (!sessionCheck.allowed) {
+          await supabase.auth.signOut();
+          return { 
+            error: { 
+              message: sessionCheck.reason || 'Maximum concurrent sessions reached',
+              code: 'session_limit'
+            } 
+          };
+        }
+
+        // Check if MFA is required
+        const mfaRequired = await checkMfaRequired(data.user.id);
+        if (mfaRequired) {
+          // Don't complete login yet - wait for MFA verification
+          setPendingMfa({ userId: data.user.id, email: data.user.email! });
+          return { error: null, requiresMfa: true };
+        }
+
+        // Check password expiry
+        const expiryCheck = await checkPasswordExpiry(data.user.id);
+        if (!expiryCheck.allowed && expiryCheck.passwordExpired) {
+          setPasswordExpired(true);
+          // Record successful login but flag password expiry
+          await recordSuccessfulLogin(data.user.id);
+          return { error: null, passwordExpired: true };
+        }
+
+        // Create session record
+        if (data.session) {
+          await createSession(data.user.id, data.session.access_token);
+        }
+
         // Record successful login
         await recordSuccessfulLogin(data.user.id);
       }
@@ -222,11 +267,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
+      // Invalidate session record
+      if (session?.access_token) {
+        await invalidateSession(session.access_token);
+      }
+      
       await supabase.auth.signOut();
       setUser(null);
       setUserProfile(null);
       setOrganization(null);
       setSession(null);
+      setPendingMfa(null);
+      setPasswordExpired(false);
     } catch (error) {
       // Silent error handling
     }
@@ -324,6 +376,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const completeMfaVerification = async () => {
+    if (pendingMfa && user) {
+      // MFA verified - record successful login and create session
+      await recordSuccessfulLogin(user.id);
+      if (session) {
+        await createSession(user.id, session.access_token);
+      }
+      setPendingMfa(null);
+    }
+  };
+
+  const clearPasswordExpired = () => {
+    setPasswordExpired(false);
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -331,11 +398,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       organization,
       session,
       isLoading,
+      pendingMfa,
+      passwordExpired,
       signUp,
       signIn,
       signOut,
       registerOrganization,
       requestToJoinOrganization,
+      completeMfaVerification,
+      clearPasswordExpired,
     }}>
       {children}
     </AuthContext.Provider>

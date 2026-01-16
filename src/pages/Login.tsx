@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,17 +7,48 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
+import { MfaVerificationDialog } from '@/components/MfaVerificationDialog';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { signIn, isLoading } = useAuth();
+  const { signIn, isLoading, pendingMfa, completeMfaVerification, passwordExpired, clearPasswordExpired } = useAuth();
   const navigate = useNavigate();
+  const [showMfa, setShowMfa] = useState(false);
+
+  useEffect(() => {
+    if (pendingMfa) {
+      setShowMfa(true);
+    }
+  }, [pendingMfa]);
+
+  useEffect(() => {
+    if (passwordExpired) {
+      toast({
+        title: "Password Expired",
+        description: "You must change your password to continue.",
+        variant: "destructive",
+      });
+      clearPasswordExpired();
+      navigate('/change-password');
+    }
+  }, [passwordExpired, navigate, clearPasswordExpired]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const { error } = await signIn(email, password);
+    const { error, requiresMfa, passwordExpired: pwExpired } = await signIn(email, password);
+    
+    if (requiresMfa) {
+      // MFA dialog will show automatically via useEffect
+      return;
+    }
+
+    if (pwExpired) {
+      // Will redirect via useEffect
+      return;
+    }
+
     if (!error) {
       toast({
         title: "Welcome back!",
@@ -25,21 +56,40 @@ const Login = () => {
       });
       navigate('/dashboard');
     } else {
-      // Handle specific security errors
       const errorMessage = error.code === 'account_locked' 
         ? error.message 
         : error.code === 'access_restricted'
+        ? error.message
+        : error.code === 'session_limit'
         ? error.message
         : "Invalid email or password. Please try again.";
         
       toast({
         title: error.code === 'account_locked' ? "Account Locked" : 
                error.code === 'access_restricted' ? "Access Restricted" : 
+               error.code === 'session_limit' ? "Session Limit Reached" :
                "Login failed",
         description: errorMessage,
         variant: "destructive",
       });
     }
+  };
+
+  const handleMfaVerified = () => {
+    setShowMfa(false);
+    completeMfaVerification();
+    toast({
+      title: "Welcome back!",
+      description: "You have been successfully logged in.",
+    });
+    navigate('/dashboard');
+  };
+
+  const handleMfaCancel = async () => {
+    setShowMfa(false);
+    // Sign out since MFA was not completed
+    const { signOut } = useAuth();
+    await signOut();
   };
 
   return (
@@ -95,6 +145,16 @@ const Login = () => {
           </div>
         </CardContent>
       </Card>
+
+      {pendingMfa && (
+        <MfaVerificationDialog
+          open={showMfa}
+          email={pendingMfa.email}
+          userId={pendingMfa.userId}
+          onVerified={handleMfaVerified}
+          onCancel={handleMfaCancel}
+        />
+      )}
     </div>
   );
 };

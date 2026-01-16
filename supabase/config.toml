@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.form-api]
 verify_jwt = false
+
+[functions.send-mfa-code]
+verify_jwt = false
+
+[functions.verify-mfa-code]
+verify_jwt = false
