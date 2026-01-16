@@ -24,7 +24,6 @@ import {
   Plus, 
   Edit2, 
   Trash2, 
-  Wand2,
   Key,
   Clock,
   Lock,
@@ -46,7 +45,6 @@ export function SecurityTemplatesManager({ open, onOpenChange }: SecurityTemplat
     createTemplate, 
     updateTemplate, 
     deleteTemplate,
-    initializeDefaultTemplates,
     defaultTemplate 
   } = useSecurityTemplates();
 
@@ -141,12 +139,6 @@ export function SecurityTemplatesManager({ open, onOpenChange }: SecurityTemplat
                   <Plus className="h-4 w-4 mr-2" />
                   Create Template
                 </Button>
-                {templates.length === 0 && (
-                  <Button variant="outline" size="sm" onClick={initializeDefaultTemplates} disabled={saving}>
-                    <Wand2 className="h-4 w-4 mr-2" />
-                    Generate Defaults
-                  </Button>
-                )}
               </div>
 
               {/* Templates List */}
@@ -156,7 +148,7 @@ export function SecurityTemplatesManager({ open, onOpenChange }: SecurityTemplat
                     <Shield className="h-12 w-12 text-muted-foreground/50 mb-4" />
                     <p className="text-muted-foreground text-center">
                       No security templates yet.<br />
-                      Create one or generate default templates.
+                      Create one to get started.
                     </p>
                   </CardContent>
                 </Card>
