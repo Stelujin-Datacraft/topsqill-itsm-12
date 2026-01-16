@@ -469,6 +469,12 @@ const Users = () => {
           userEmail={selectedUserForSecurity.email}
         />
       )}
+
+      {/* Security Templates Manager */}
+      <SecurityTemplatesManager
+        open={templatesManagerOpen}
+        onOpenChange={setTemplatesManagerOpen}
+      />
     </DashboardLayout>
   );
 };
