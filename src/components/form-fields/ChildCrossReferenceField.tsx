@@ -85,7 +85,11 @@ export function ChildCrossReferenceField({
   // Only need parentFormId and parentFieldId since targetFormId should always be parentFormId
   const hasAutoConfig = field.customConfig?.parentFormId && field.customConfig?.parentFieldId;
 
+  // Determine if we're in edit mode (existing submission) vs create mode (new submission)
+  const isEditMode = !!currentSubmissionId;
+
   // Get auto-selected records for child cross-reference
+  // Only fetch when in edit mode (has a submission ID to look for references)
   const {
     autoSelectedRecords,
     loading: autoSelectionLoading
@@ -95,7 +99,7 @@ export function ChildCrossReferenceField({
     parentFormId: field.customConfig?.parentFormId,
     crossReferenceFieldId: field.customConfig?.parentFieldId,
     displayColumns: field.customConfig?.tableDisplayFields || field.customConfig?.displayColumns || [],
-    enabled: hasAutoConfig && !!currentSubmissionId && !isPreview
+    enabled: hasAutoConfig && isEditMode && !isPreview
   });
 
   // Create properly typed config object with better defaults
