@@ -411,6 +411,7 @@ export const useUserManagement = () => {
     mobile?: string;
     gender?: string;
     timezone?: string;
+    securityTemplateId?: string;
   }) => {
     if (!currentOrganization?.id) {
       toast({
@@ -438,6 +439,7 @@ export const useUserManagement = () => {
           mobile: userData.mobile,
           gender: userData.gender,
           timezone: userData.timezone,
+          securityTemplateId: userData.securityTemplateId,
         }
       });
 
