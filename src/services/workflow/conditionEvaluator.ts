@@ -417,13 +417,24 @@ export class ConditionEvaluator {
     return current;
   }
 
-  // Helper to parse date/time values
+  // Helper to parse date/time values - handles date-only strings properly
   private static parseDateValue(value: any): Date | null {
     if (!value) return null;
     if (value instanceof Date) return value;
     
     const strValue = String(value).trim();
     if (!strValue) return null;
+    
+    // Check if it's a date-only string (YYYY-MM-DD format)
+    // For date-only strings, parse as local date to avoid timezone issues
+    const dateOnlyMatch = strValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateOnlyMatch) {
+      const year = parseInt(dateOnlyMatch[1], 10);
+      const month = parseInt(dateOnlyMatch[2], 10) - 1; // JS months are 0-indexed
+      const day = parseInt(dateOnlyMatch[3], 10);
+      const date = new Date(year, month, day);
+      if (!isNaN(date.getTime())) return date;
+    }
     
     // Try parsing as ISO date/datetime
     const date = new Date(strValue);
@@ -435,6 +446,15 @@ export class ConditionEvaluator {
   // Helper to normalize time string for comparison (HH:MM:SS format)
   private static normalizeTime(timeStr: string): string {
     if (!timeStr) return '';
+    // Handle ISO datetime strings - extract time part
+    if (timeStr.includes('T')) {
+      const timePart = timeStr.split('T')[1];
+      if (timePart) {
+        const parts = timePart.split(':').map(p => p.replace(/[^\d]/g, '').padStart(2, '0'));
+        while (parts.length < 3) parts.push('00');
+        return parts.slice(0, 3).join(':');
+      }
+    }
     const parts = timeStr.split(':').map(p => p.padStart(2, '0'));
     while (parts.length < 3) parts.push('00');
     return parts.slice(0, 3).join(':');
@@ -610,6 +630,12 @@ export class ConditionEvaluator {
 
     switch (operator) {
       case '==':
+        // Handle time value comparison for equals
+        if (this.isTimeValue(left) || this.isTimeValue(right)) {
+          const leftTime = this.normalizeTime(String(left));
+          const rightTime = this.normalizeTime(String(right));
+          return leftTime === rightTime;
+        }
         if (isLeftArray && isRightArray) {
           // Both are arrays - check if ALL right values are in left AND same length (exact match)
           const leftValues = getArrayValues(left);
