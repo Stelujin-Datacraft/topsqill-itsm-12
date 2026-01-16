@@ -147,7 +147,7 @@ export function useSecurityParameters(userId?: string) {
       setLoading(true);
 
       // Load user-specific parameters
-      const { data: userParams, error: userError } = await supabase
+      let { data: userParams, error: userError } = await supabase
         .from('user_security_parameters')
         .select('*')
         .eq('user_id', userId)
@@ -155,6 +155,25 @@ export function useSecurityParameters(userId?: string) {
 
       if (userError) {
         console.error('Error loading user security parameters:', userError);
+      }
+
+      // Auto-initialize security parameters if they don't exist
+      if (!userParams) {
+        const { data: newParams, error: insertError } = await supabase
+          .from('user_security_parameters')
+          .insert({
+            user_id: userId,
+            organization_id: currentOrganization.id,
+            ...DEFAULT_SECURITY_PARAMS,
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('Error auto-initializing security parameters:', insertError);
+        } else {
+          userParams = newParams;
+        }
       }
 
       // Load organization defaults
