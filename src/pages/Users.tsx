@@ -17,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Trash2, UserPlus, Users as UsersIcon, UserCheck, UserX, Clock } from 'lucide-react';
+import { Search, Trash2, UserPlus, Users as UsersIcon, UserCheck, UserX, Clock, Shield } from 'lucide-react';
 import UserInviteDialog from '@/components/users/UserInviteDialog';
 import UserRequestsDialog from '@/components/users/UserRequestsDialog';
 import UserCreateDialog from '@/components/users/UserCreateDialog';
@@ -26,6 +26,7 @@ import { UserUpdateButton } from '@/components/users/UserUpdateButton';
 import { useUserManagement } from '@/hooks/useUserManagement';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useToast } from '@/hooks/use-toast';
+import { SecurityParametersDialog } from '@/components/users/SecurityParametersDialog';
 
 const Users = () => {
   const { currentOrganization } = useOrganization();
@@ -51,6 +52,8 @@ const Users = () => {
   const [selectedRequests, setSelectedRequests] = useState<Set<string>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [securityDialogOpen, setSecurityDialogOpen] = useState(false);
+  const [selectedUserForSecurity, setSelectedUserForSecurity] = useState<{ id: string; name: string; email: string } | null>(null);
 
   const filteredUsers = users.filter(user =>
     (user.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
@@ -295,7 +298,7 @@ const Users = () => {
                     <TableHead className="font-semibold text-foreground/80">Role</TableHead>
                     <TableHead className="font-semibold text-foreground/80">Status</TableHead>
                     <TableHead className="font-semibold text-foreground/80">Joined</TableHead>
-                    <TableHead className="w-[80px] font-semibold text-foreground/80">Actions</TableHead>
+                    <TableHead className="w-[100px] font-semibold text-foreground/80">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -360,19 +363,39 @@ const Users = () => {
                           })}
                         </TableCell>
                         <TableCell>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                            onClick={() => confirmDelete(
-                              user.id, 
-                              user.first_name && user.last_name 
-                                ? `${user.first_name} ${user.last_name}` 
-                                : user.email
-                            )}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                              onClick={() => {
+                                setSelectedUserForSecurity({
+                                  id: user.id,
+                                  name: user.first_name && user.last_name 
+                                    ? `${user.first_name} ${user.last_name}` 
+                                    : user.email.split('@')[0],
+                                  email: user.email
+                                });
+                                setSecurityDialogOpen(true);
+                              }}
+                              title="Security Parameters"
+                            >
+                              <Shield className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              onClick={() => confirmDelete(
+                                user.id, 
+                                user.first_name && user.last_name 
+                                  ? `${user.first_name} ${user.last_name}` 
+                                  : user.email
+                              )}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -429,6 +452,17 @@ const Users = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Security Parameters Dialog */}
+      {selectedUserForSecurity && (
+        <SecurityParametersDialog
+          open={securityDialogOpen}
+          onOpenChange={setSecurityDialogOpen}
+          userId={selectedUserForSecurity.id}
+          userName={selectedUserForSecurity.name}
+          userEmail={selectedUserForSecurity.email}
+        />
+      )}
     </DashboardLayout>
   );
 };
