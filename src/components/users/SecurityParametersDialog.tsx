@@ -66,6 +66,7 @@ export function SecurityParametersDialog({
     unlockAccount,
     getEffectiveValue,
     defaultParams,
+    refetch,
   } = useSecurityParameters(userId);
 
   const { templates, loading: templatesLoading } = useSecurityTemplates();
@@ -73,13 +74,21 @@ export function SecurityParametersDialog({
   // Form state
   const [formData, setFormData] = useState<Partial<UserSecurityParameters>>({});
 
+  // Reset form data when dialog opens or when parameters change
   useEffect(() => {
-    if (parameters) {
+    if (open && parameters) {
       setFormData({ ...parameters });
-    } else {
+    } else if (open && !parameters) {
       setFormData({});
     }
-  }, [parameters]);
+  }, [parameters, open]);
+
+  // Refetch when dialog opens with a new userId
+  useEffect(() => {
+    if (open && userId) {
+      refetch();
+    }
+  }, [open, userId]);
 
   const handleSave = async () => {
     const success = await saveParameters(formData);
