@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useSecurityTemplates } from '@/hooks/useSecurityTemplates';
 
 
 interface UserCreateDialogProps {
@@ -18,10 +19,11 @@ export interface UserCreateData {
   lastName: string;
   role: string;
   nationality?: string;
-  password?:string;
+  password?: string;
   mobile?: string;
   gender?: string;
   timezone?: string;
+  securityTemplateId?: string;
 }
 
 const ROLE_OPTIONS = [
@@ -194,6 +196,7 @@ const NATIONALITY_OPTIONS = [
 ];
 
 const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogProps) => {
+  const { templates, loading: templatesLoading } = useSecurityTemplates();
   const [formData, setFormData] = useState<UserCreateData>({
     email: '',
     firstName: '',
@@ -204,6 +207,7 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
     mobile: '',
     gender: '',
     timezone: 'UTC',
+    securityTemplateId: '',
   });
   const [loading, setLoading] = useState(false);
 
@@ -223,6 +227,7 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
         mobile: '',
         gender: '',
         timezone: 'UTC',
+        securityTemplateId: '',
       });
       onOpenChange(false);
     } finally {
@@ -369,6 +374,33 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="securityTemplate">Security Template</Label>
+              <Select
+                value={formData.securityTemplateId}
+                onValueChange={(value) => setFormData({ ...formData, securityTemplateId: value })}
+                disabled={templatesLoading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Use default parameters" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Use default parameters</SelectItem>
+                  {templates.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.name}
+                      {template.is_default && ' (Default)'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {formData.securityTemplateId 
+                  ? 'Template settings will be applied to this user'
+                  : 'Organization default security settings will be used'}
+              </p>
             </div>
           </div>
 
