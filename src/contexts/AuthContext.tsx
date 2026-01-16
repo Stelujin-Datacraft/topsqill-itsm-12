@@ -2,6 +2,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
+import { 
+  checkAccountLockout, 
+  recordFailedLogin, 
+  recordSuccessfulLogin,
+  checkAccessTimeRestrictions 
+} from '@/utils/securityEnforcement';
 
 interface UserProfile {
   id: string;
@@ -168,12 +174,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      // Check account lockout before attempting login
+      const lockoutCheck = await checkAccountLockout(email);
+      if (!lockoutCheck.allowed) {
+        return { 
+          error: { 
+            message: lockoutCheck.reason || 'Account is locked',
+            code: 'account_locked'
+          } 
+        };
+      }
+
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
       
-      return { error };
+      if (error) {
+        // Record failed login attempt
+        await recordFailedLogin(email);
+        return { error };
+      }
+
+      if (data.user) {
+        // Check access time restrictions
+        const accessCheck = await checkAccessTimeRestrictions(data.user.id);
+        if (!accessCheck.allowed) {
+          // Sign out immediately if access is restricted
+          await supabase.auth.signOut();
+          return { 
+            error: { 
+              message: accessCheck.reason || 'Access is restricted at this time',
+              code: 'access_restricted'
+            } 
+          };
+        }
+
+        // Record successful login
+        await recordSuccessfulLogin(data.user.id);
+      }
+
+      return { error: null };
     } catch (error) {
       return { error };
     }
