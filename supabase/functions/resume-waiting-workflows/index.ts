@@ -1673,35 +1673,43 @@ Deno.serve(async (req) => {
                   case 'equals':
                   case '==':
                     if (isLeftArray && isRightArray) {
-                      // Both are arrays - check if ANY value matches
+                      // Both are arrays - check if ALL right values are in left AND same length (exact match)
                       const leftValues = getArrayValues(left)
                       const rightValues = getArrayValues(parsedRight)
-                      return leftValues.some(lv => rightValues.includes(lv))
+                      // For exact equality, lengths must match and all right values must be in left
+                      if (leftValues.length !== rightValues.length) return false
+                      return rightValues.every(rv => leftValues.includes(rv))
                     }
                     if (isLeftArray) {
+                      // Left is array, right is single value - check if ONLY that value exists in array
                       const leftValues = getArrayValues(left)
-                      return leftValues.includes(rightStr)
+                      // For equality, array should have exactly that one value
+                      return leftValues.length === 1 && leftValues.includes(rightStr)
                     }
                     if (isRightArray) {
+                      // Left is single value, right is array - check if left value is the ONLY value expected
                       const rightValues = getArrayValues(parsedRight)
-                      return rightValues.includes(normalizeValue(left))
+                      return rightValues.length === 1 && rightValues.includes(normalizeValue(left))
                     }
                     return normalizeValue(left) === rightStr
                   case 'not_equals':
                   case '!=':
                     if (isLeftArray && isRightArray) {
-                      // Both are arrays - check if NO value matches
+                      // Both are arrays - NOT equal means different lengths or different values
                       const leftValues = getArrayValues(left)
                       const rightValues = getArrayValues(parsedRight)
-                      return !leftValues.some(lv => rightValues.includes(lv))
+                      if (leftValues.length !== rightValues.length) return true
+                      return !rightValues.every(rv => leftValues.includes(rv))
                     }
                     if (isLeftArray) {
+                      // For array fields with != single value, true if array has more/less than just that value
                       const leftValues = getArrayValues(left)
-                      return !leftValues.includes(rightStr)
+                      return leftValues.length !== 1 || !leftValues.includes(rightStr)
                     }
                     if (isRightArray) {
+                      // Left is single value, right is array - not equal if not exactly that one value
                       const rightValues = getArrayValues(parsedRight)
-                      return !rightValues.includes(normalizeValue(left))
+                      return rightValues.length !== 1 || !rightValues.includes(normalizeValue(left))
                     }
                     return normalizeValue(left) !== rightStr
                   case 'contains':

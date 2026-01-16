@@ -1142,50 +1142,75 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
       );
     }
 
-    // Submission access field - show configured users/groups from organization
+    // Submission access field - show configured users/groups from organization with multi-select
     if (normalizedType === 'submission-access' || normalizedType === 'submissionaccess') {
       // Show loading state
       if (usersLoading || groupsLoading) {
         return (
-          <Select disabled>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Loading..." />
-            </SelectTrigger>
-          </Select>
+          <div className="h-8 flex items-center text-xs text-muted-foreground">
+            Loading users and groups...
+          </div>
         );
       }
 
       const allOptions = [...submissionAccessOptions.users, ...submissionAccessOptions.groups];
       
+      // Parse current selected values
+      const selectedAccessValues: string[] = (() => {
+        if (!value) return [];
+        try {
+          const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+          return Array.isArray(parsed) ? parsed : [value];
+        } catch {
+          return value ? [value] : [];
+        }
+      })();
+      
+      const toggleAccessOption = (optValue: string) => {
+        const newValues = selectedAccessValues.includes(optValue)
+          ? selectedAccessValues.filter((v: string) => v !== optValue)
+          : [...selectedAccessValues, optValue];
+        onChange(JSON.stringify(newValues));
+      };
+      
       if (allOptions.length > 0) {
         return (
-          <Select value={value} onValueChange={onChange}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Select user or group" />
-            </SelectTrigger>
-            <SelectContent className="max-h-60">
-              {submissionAccessOptions.users.length > 0 && (
-                <>
-                  <div className="px-2 py-1 text-xs font-medium text-muted-foreground">Users</div>
-                  {submissionAccessOptions.users.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
+          <div className="space-y-2 max-h-40 overflow-y-auto border rounded-md p-2 bg-background">
+            {submissionAccessOptions.users.length > 0 && (
+              <div className="space-y-1">
+                <div className="text-xs font-medium text-muted-foreground">Users</div>
+                {submissionAccessOptions.users.map((opt) => (
+                  <div key={opt.value} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`access-user-${opt.value}`}
+                      checked={selectedAccessValues.includes(opt.value)}
+                      onCheckedChange={() => toggleAccessOption(opt.value)}
+                    />
+                    <label htmlFor={`access-user-${opt.value}`} className="text-xs cursor-pointer">
                       {opt.label}
-                    </SelectItem>
-                  ))}
-                </>
-              )}
-              {submissionAccessOptions.groups.length > 0 && (
-                <>
-                  <div className="px-2 py-1 text-xs font-medium text-muted-foreground border-t mt-1 pt-1">Groups</div>
-                  {submissionAccessOptions.groups.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            )}
+            {submissionAccessOptions.groups.length > 0 && (
+              <div className="space-y-1">
+                <div className="text-xs font-medium text-muted-foreground border-t pt-2 mt-2">Groups</div>
+                {submissionAccessOptions.groups.map((opt) => (
+                  <div key={opt.value} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`access-group-${opt.value}`}
+                      checked={selectedAccessValues.includes(opt.value)}
+                      onCheckedChange={() => toggleAccessOption(opt.value)}
+                    />
+                    <label htmlFor={`access-group-${opt.value}`} className="text-xs cursor-pointer">
                       {opt.label}
-                    </SelectItem>
-                  ))}
-                </>
-              )}
-            </SelectContent>
-          </Select>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         );
       }
       
