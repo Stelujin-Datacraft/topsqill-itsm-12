@@ -136,41 +136,66 @@ export function SecurityParametersDialog({
           </div>
         ) : (
           <div className="mt-4 space-y-4">
-            {/* Template Selection Card - Compact */}
-            <div className="flex items-center gap-4 p-3 bg-muted/30 rounded-lg border">
-              <FileText className="h-5 w-5 text-primary shrink-0" />
-              <div className="flex-1 grid grid-cols-2 gap-4 items-center">
-                <div className="flex items-center gap-3">
-                  <Label className="text-sm whitespace-nowrap">Template:</Label>
-                  <Select
-                    value={formData.security_template_id ?? 'none'}
-                    onValueChange={(value) => updateField('security_template_id', value === 'none' ? null : value)}
-                  >
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="No template" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No template (use defaults)</SelectItem>
-                      {templates.map((template) => (
-                        <SelectItem key={template.id} value={template.id}>
-                          {template.name}
-                          {template.is_default && ' (Default)'}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {formData.security_template_id && (
-                  <div className="flex items-center gap-3 justify-end">
-                    <Label className="text-sm whitespace-nowrap">Use Template Settings</Label>
-                    <Switch
-                      checked={formData.use_template_settings ?? false}
-                      onCheckedChange={(checked) => updateField('use_template_settings', checked)}
-                    />
+            {/* Template Selection Card */}
+            <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-4">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <FileText className="h-5 w-5 text-primary" />
                   </div>
-                )}
-              </div>
-            </div>
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium">Security Template</h4>
+                        <p className="text-xs text-muted-foreground">Apply predefined security policies</p>
+                      </div>
+                      {formData.security_template_id && (
+                        <div className="flex items-center gap-2 bg-background/80 px-3 py-1.5 rounded-full border">
+                          <Label className="text-xs font-medium whitespace-nowrap">Use Template</Label>
+                          <Switch
+                            checked={formData.use_template_settings ?? false}
+                            onCheckedChange={(checked) => updateField('use_template_settings', checked)}
+                            className="scale-90"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <Select
+                      value={formData.security_template_id ?? 'none'}
+                      onValueChange={(value) => updateField('security_template_id', value === 'none' ? null : value)}
+                    >
+                      <SelectTrigger className="w-full bg-background">
+                        <SelectValue placeholder="Select a template..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">
+                          <div className="flex items-center gap-2">
+                            <span>No template</span>
+                            <span className="text-xs text-muted-foreground">(use organization defaults)</span>
+                          </div>
+                        </SelectItem>
+                        {templates.map((template) => (
+                          <SelectItem key={template.id} value={template.id}>
+                            <div className="flex items-center gap-2">
+                              <span>{template.name}</span>
+                              {template.is_default && (
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Default</Badge>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {formData.security_template_id && formData.use_template_settings && (
+                      <p className="text-xs text-emerald-600 flex items-center gap-1.5">
+                        <Shield className="h-3 w-3" />
+                        Template settings are active. Individual parameters below are hidden.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Only show parameter tabs when template is not assigned OR use_template_settings is false */}
             {(!formData.security_template_id || !formData.use_template_settings) && (
