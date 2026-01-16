@@ -52,6 +52,9 @@ import EmailTemplatesPage from "./pages/EmailTemplatesPage";
 import SettingsPage from "./pages/SettingsPage";
 import UserProfile from "./pages/UserProfile";
 import ChangePassword from "./pages/ChangePassword";
+import ManageSessions from "./pages/ManageSessions";
+import AuditLogs from "./pages/AuditLogs";
+import PasswordExpiryWarning from "./components/PasswordExpiryWarning";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -67,6 +70,7 @@ const App = () => (
                 <Toaster />
                 <Sonner />
                 <SessionTimeoutWarning />
+                <PasswordExpiryWarning />
                 <BrowserRouter>
                   <Routes>
                     <Route path="/" element={<Index />} />
@@ -112,6 +116,8 @@ const App = () => (
                      <Route path="/email-templates/:templateId" element={<ProtectedRoute><EmailTemplatesPage /></ProtectedRoute>} />
                      <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
                      <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
+                     <Route path="/manage-sessions" element={<ProtectedRoute><ManageSessions /></ProtectedRoute>} />
+                     <Route path="/audit-logs" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
                      <Route path="*" element={<NotFound />} />
                   </Routes>
                 </BrowserRouter>
