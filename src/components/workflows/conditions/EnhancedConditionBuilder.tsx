@@ -818,7 +818,8 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
           const user = orgUsers.find(u => u.id === userId);
           if (user) {
             const label = `${user.first_name || ''} ${user.last_name || ''} (${user.email})`.trim();
-            users.push({ value: `user:${user.email}`, label });
+            // Store UUID instead of email for comparison with submission data
+            users.push({ value: `user:${userId}`, label });
           }
         });
       }
@@ -829,7 +830,8 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
         allowedGroupIds.forEach((groupId: string) => {
           const group = orgGroups.find(g => g.id === groupId);
           if (group) {
-            groups.push({ value: `group:${group.name}`, label: `Group: ${group.name}` });
+            // Store UUID instead of name for comparison with submission data
+            groups.push({ value: `group:${groupId}`, label: `Group: ${group.name}` });
           }
         });
       }
@@ -838,10 +840,12 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
       if (users.length === 0 && groups.length === 0) {
         orgUsers?.forEach(user => {
           const label = `${user.first_name || ''} ${user.last_name || ''} (${user.email})`.trim();
-          users.push({ value: `user:${user.email}`, label });
+          // Store UUID instead of email for comparison with submission data
+          users.push({ value: `user:${user.id}`, label });
         });
         orgGroups?.forEach(group => {
-          groups.push({ value: `group:${group.name}`, label: `Group: ${group.name}` });
+          // Store UUID instead of name for comparison with submission data
+          groups.push({ value: `group:${group.id}`, label: `Group: ${group.name}` });
         });
       }
       

@@ -1584,6 +1584,7 @@ Deno.serve(async (req) => {
               }
               
               // Helper to extract array of normalized values from a field value (handles arrays and submission-access objects)
+              // Also strips "user:" and "group:" prefixes from condition values for comparison with raw UUIDs
               const getArrayValues = (v: any): string[] => {
                 if (Array.isArray(v)) {
                   // Flatten nested objects in arrays - extract value/id if present
@@ -1592,7 +1593,11 @@ Deno.serve(async (req) => {
                       if ('value' in item) return String(item.value).toLowerCase().trim()
                       if ('id' in item) return String(item.id).toLowerCase().trim()
                     }
-                    return normalizeValue(item)
+                    // Strip user:/group: prefix if present (condition format uses these prefixes)
+                    const strVal = String(item).toLowerCase().trim()
+                    if (strVal.startsWith('user:')) return strVal.substring(5)
+                    if (strVal.startsWith('group:')) return strVal.substring(6)
+                    return strVal
                   })
                 }
                 // Handle submission-access field format {users: [], groups: []}
@@ -1606,7 +1611,11 @@ Deno.serve(async (req) => {
                   }
                   if (results.length > 0) return results
                 }
-                return [normalizeValue(v)]
+                // Handle single string value - strip prefix if present
+                const strVal = normalizeValue(v)
+                if (strVal.startsWith('user:')) return [strVal.substring(5)]
+                if (strVal.startsWith('group:')) return [strVal.substring(6)]
+                return [strVal]
               }
               
               // Check if value is an array-like type (array or submission-access object)
