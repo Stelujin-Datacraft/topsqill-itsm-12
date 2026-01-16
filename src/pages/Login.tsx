@@ -25,9 +25,18 @@ const Login = () => {
       });
       navigate('/dashboard');
     } else {
+      // Handle specific security errors
+      const errorMessage = error.code === 'account_locked' 
+        ? error.message 
+        : error.code === 'access_restricted'
+        ? error.message
+        : "Invalid email or password. Please try again.";
+        
       toast({
-        title: "Login failed",
-        description: "Invalid email or password. Please try again.",
+        title: error.code === 'account_locked' ? "Account Locked" : 
+               error.code === 'access_restricted' ? "Access Restricted" : 
+               "Login failed",
+        description: errorMessage,
         variant: "destructive",
       });
     }

@@ -10,6 +10,7 @@ import { OrganizationProvider } from "@/contexts/OrganizationContext";
 import { ProjectProvider } from "@/contexts/ProjectContext";
 import { FormProvider } from "@/contexts/FormContext";
 import { WorkflowProvider } from "@/contexts/WorkflowContext";
+import { SessionTimeoutWarning } from "@/components/SessionTimeoutWarning";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Documentation from "./pages/Documentation";
@@ -64,6 +65,7 @@ const App = () => (
               <TooltipProvider>
                 <Toaster />
                 <Sonner />
+                <SessionTimeoutWarning />
                 <BrowserRouter>
                   <Routes>
                     <Route path="/" element={<Index />} />
