@@ -1652,12 +1652,24 @@ Deno.serve(async (req) => {
                   console.log(`   🔍 Left values: ${JSON.stringify(leftVals)}, Right values: ${JSON.stringify(rightVals)}`)
                 }
                 
-                // Helper to parse date values
+                // Helper to parse date values - handles date-only strings properly
                 const parseDateValue = (value: any): Date | null => {
                   if (!value) return null
                   if (value instanceof Date) return value
                   const strValue = String(value).trim()
                   if (!strValue) return null
+                  
+                  // Check if it's a date-only string (YYYY-MM-DD format)
+                  // For date-only strings, parse as local date to avoid timezone issues
+                  const dateOnlyMatch = strValue.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+                  if (dateOnlyMatch) {
+                    const year = parseInt(dateOnlyMatch[1], 10)
+                    const month = parseInt(dateOnlyMatch[2], 10) - 1 // JS months are 0-indexed
+                    const day = parseInt(dateOnlyMatch[3], 10)
+                    const date = new Date(year, month, day)
+                    if (!isNaN(date.getTime())) return date
+                  }
+                  
                   const date = new Date(strValue)
                   if (!isNaN(date.getTime())) return date
                   return null
@@ -1666,6 +1678,15 @@ Deno.serve(async (req) => {
                 // Helper to normalize time strings
                 const normalizeTime = (timeStr: string): string => {
                   if (!timeStr) return ''
+                  // Handle ISO datetime strings - extract time part
+                  if (timeStr.includes('T')) {
+                    const timePart = timeStr.split('T')[1]
+                    if (timePart) {
+                      const parts = timePart.split(':').map(p => p.replace(/[^\d]/g, '').padStart(2, '0'))
+                      while (parts.length < 3) parts.push('00')
+                      return parts.slice(0, 3).join(':')
+                    }
+                  }
                   const parts = timeStr.split(':').map(p => p.padStart(2, '0'))
                   while (parts.length < 3) parts.push('00')
                   return parts.slice(0, 3).join(':')
@@ -1700,6 +1721,13 @@ Deno.serve(async (req) => {
                 switch (operator) {
                   case 'equals':
                   case '==':
+                    // Handle time value comparison for equals
+                    if (isTimeValue(left) || isTimeValue(right)) {
+                      const leftTime = normalizeTime(String(left))
+                      const rightTime = normalizeTime(String(right))
+                      console.log(`   🕐 Time comparison: ${leftTime} === ${rightTime}`)
+                      return leftTime === rightTime
+                    }
                     if (isLeftArray && isRightArray) {
                       // Both are arrays - check if ALL right values are in left AND same length (exact match)
                       const leftValues = getArrayValues(left)
@@ -1814,21 +1842,39 @@ Deno.serve(async (req) => {
                   }
                   // Date/Time operators
                   case 'after': {
-                    if (isTimeValue(left) && isTimeValue(right)) return normalizeTime(String(left)) > normalizeTime(String(right))
+                    console.log(`   📅 'after' operator: left=${left}, right=${right}`)
+                    if (isTimeValue(left) && isTimeValue(right)) {
+                      const result = normalizeTime(String(left)) > normalizeTime(String(right))
+                      console.log(`   📅 Time comparison: ${normalizeTime(String(left))} > ${normalizeTime(String(right))} = ${result}`)
+                      return result
+                    }
                     const leftDate = parseDateValue(left), rightDate = parseDateValue(right)
-                    return leftDate && rightDate ? leftDate > rightDate : false
+                    console.log(`   📅 Date comparison: leftDate=${leftDate?.toISOString()}, rightDate=${rightDate?.toISOString()}`)
+                    const result = leftDate && rightDate ? leftDate > rightDate : false
+                    console.log(`   📅 Result: ${result}`)
+                    return result
                   }
                   case 'before': {
+                    console.log(`   📅 'before' operator: left=${left}, right=${right}`)
                     if (isTimeValue(left) && isTimeValue(right)) return normalizeTime(String(left)) < normalizeTime(String(right))
                     const leftDate = parseDateValue(left), rightDate = parseDateValue(right)
                     return leftDate && rightDate ? leftDate < rightDate : false
                   }
                   case 'on_or_after': {
-                    if (isTimeValue(left) && isTimeValue(right)) return normalizeTime(String(left)) >= normalizeTime(String(right))
+                    console.log(`   📅 'on_or_after' operator: left=${left}, right=${right}`)
+                    if (isTimeValue(left) && isTimeValue(right)) {
+                      const result = normalizeTime(String(left)) >= normalizeTime(String(right))
+                      console.log(`   📅 Time comparison: ${normalizeTime(String(left))} >= ${normalizeTime(String(right))} = ${result}`)
+                      return result
+                    }
                     const leftDate = parseDateValue(left), rightDate = parseDateValue(right)
-                    return leftDate && rightDate ? leftDate >= rightDate : false
+                    console.log(`   📅 Date comparison: leftDate=${leftDate?.toISOString()}, rightDate=${rightDate?.toISOString()}`)
+                    const result = leftDate && rightDate ? leftDate >= rightDate : false
+                    console.log(`   📅 Result: ${result}`)
+                    return result
                   }
                   case 'on_or_before': {
+                    console.log(`   📅 'on_or_before' operator: left=${left}, right=${right}`)
                     if (isTimeValue(left) && isTimeValue(right)) return normalizeTime(String(left)) <= normalizeTime(String(right))
                     const leftDate = parseDateValue(left), rightDate = parseDateValue(right)
                     return leftDate && rightDate ? leftDate <= rightDate : false
@@ -1848,16 +1894,52 @@ Deno.serve(async (req) => {
                     const ld = parseDateValue(left), sd = parseDateValue(parts[0]), ed = parseDateValue(parts[1])
                     return ld && sd && ed ? ld >= sd && ld <= ed : false
                   }
-                  case 'is_today': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.today.start && d < r.today.end }
+                  case 'is_today': { 
+                    const d = parseDateValue(left)
+                    console.log(`   📅 'is_today' operator: left=${left}, parsed=${d?.toISOString()}`)
+                    if (!d) return false
+                    const r = getDateRanges()
+                    console.log(`   📅 Today range: ${r.today.start.toISOString()} to ${r.today.end.toISOString()}`)
+                    const result = d >= r.today.start && d < r.today.end
+                    console.log(`   📅 Result: ${result}`)
+                    return result
+                  }
                   case 'is_yesterday': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.yesterday.start && d < r.yesterday.end }
                   case 'is_tomorrow': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.tomorrow.start && d < r.tomorrow.end }
-                  case 'is_current_week': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.currentWeek.start && d < r.currentWeek.end }
+                  case 'is_current_week': { 
+                    const d = parseDateValue(left)
+                    console.log(`   📅 'is_current_week' operator: left=${left}, parsed=${d?.toISOString()}`)
+                    if (!d) return false
+                    const r = getDateRanges()
+                    console.log(`   📅 Current week range: ${r.currentWeek.start.toISOString()} to ${r.currentWeek.end.toISOString()}`)
+                    const result = d >= r.currentWeek.start && d < r.currentWeek.end
+                    console.log(`   📅 Result: ${result}`)
+                    return result
+                  }
                   case 'is_last_week': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.lastWeek.start && d < r.lastWeek.end }
                   case 'is_next_week': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.nextWeek.start && d < r.nextWeek.end }
-                  case 'is_current_month': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.currentMonth.start && d < r.currentMonth.end }
+                  case 'is_current_month': { 
+                    const d = parseDateValue(left)
+                    console.log(`   📅 'is_current_month' operator: left=${left}, parsed=${d?.toISOString()}`)
+                    if (!d) return false
+                    const r = getDateRanges()
+                    console.log(`   📅 Current month range: ${r.currentMonth.start.toISOString()} to ${r.currentMonth.end.toISOString()}`)
+                    const result = d >= r.currentMonth.start && d < r.currentMonth.end
+                    console.log(`   📅 Result: ${result}`)
+                    return result
+                  }
                   case 'is_last_month': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.lastMonth.start && d < r.lastMonth.end }
                   case 'is_next_month': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.nextMonth.start && d < r.nextMonth.end }
-                  case 'is_current_year': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.currentYear.start && d < r.currentYear.end }
+                  case 'is_current_year': { 
+                    const d = parseDateValue(left)
+                    console.log(`   📅 'is_current_year' operator: left=${left}, parsed=${d?.toISOString()}`)
+                    if (!d) return false
+                    const r = getDateRanges()
+                    console.log(`   📅 Current year range: ${r.currentYear.start.toISOString()} to ${r.currentYear.end.toISOString()}`)
+                    const result = d >= r.currentYear.start && d < r.currentYear.end
+                    console.log(`   📅 Result: ${result}`)
+                    return result
+                  }
                   case 'is_last_year': { const d = parseDateValue(left); if (!d) return false; const r = getDateRanges(); return d >= r.lastYear.start && d < r.lastYear.end }
                   case 'last_n_days': {
                     const d = parseDateValue(left); if (!d) return false
