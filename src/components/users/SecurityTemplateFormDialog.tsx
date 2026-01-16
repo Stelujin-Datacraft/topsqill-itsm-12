@@ -114,24 +114,14 @@ export function SecurityTemplateFormDialog({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Template Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => updateField('name', e.target.value)}
-                    placeholder="e.g., Standard User, Contractor"
-                  />
-                </div>
-                <div className="flex items-center justify-between pt-6">
-                  <Label htmlFor="is_default">Set as Default</Label>
-                  <Switch
-                    id="is_default"
-                    checked={formData.is_default}
-                    onCheckedChange={(checked) => updateField('is_default', checked)}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="name">Template Name *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => updateField('name', e.target.value)}
+                  placeholder="e.g., Standard User, Contractor"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
