@@ -255,7 +255,7 @@ const Users = () => {
                 <CardDescription className="mt-1">Manage your organization's team members</CardDescription>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => setTemplatesManagerOpen(true)} className="border-border/60 hover:bg-muted/50">
+                <Button size="sm" onClick={() => setTemplatesManagerOpen(true)} className="shadow-sm bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20">
                   <Shield className="h-4 w-4 mr-2" />
                   Security Templates
                 </Button>
