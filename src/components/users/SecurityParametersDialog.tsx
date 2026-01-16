@@ -168,6 +168,11 @@ export function SecurityParametersDialog({
                         ))}
                       </SelectContent>
                     </Select>
+                    {templates.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        No templates available. Create one in Security Templates.
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center justify-between pt-6">
                     <div>
@@ -183,14 +188,16 @@ export function SecurityParametersDialog({
                     />
                   </div>
                 </div>
-                {formData.security_template_id && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-                    <Shield className="h-4 w-4" />
-                    {formData.use_template_settings 
+                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                  <Shield className="h-4 w-4" />
+                  {formData.security_template_id ? (
+                    formData.use_template_settings 
                       ? 'Template settings will be applied. Individual overrides below are disabled.'
-                      : 'Custom overrides are enabled. Settings below will override the template.'}
-                  </div>
-                )}
+                      : 'Custom overrides are enabled. Settings below will override the template.'
+                  ) : (
+                    'No template assigned. Default security settings are being used. You can customize individual settings below.'
+                  )}
+                </div>
               </CardContent>
             </Card>
 
