@@ -379,15 +379,15 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
             <div className="space-y-2">
               <Label htmlFor="securityTemplate">Security Template</Label>
               <Select
-                value={formData.securityTemplateId}
-                onValueChange={(value) => setFormData({ ...formData, securityTemplateId: value })}
+                value={formData.securityTemplateId || '__none__'}
+                onValueChange={(value) => setFormData({ ...formData, securityTemplateId: value === '__none__' ? '' : value })}
                 disabled={templatesLoading}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Use default parameters" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Use default parameters</SelectItem>
+                  <SelectItem value="__none__">Use default parameters</SelectItem>
                   {templates.map((template) => (
                     <SelectItem key={template.id} value={template.id}>
                       {template.name}
