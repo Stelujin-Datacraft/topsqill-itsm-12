@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -55,9 +55,18 @@ export function SecurityTemplateFormDialog({
   onSave,
   saving,
 }: SecurityTemplateFormDialogProps) {
-  const [formData, setFormData] = useState<SecurityTemplateInput>(
-    template ? { ...template } : { ...defaultValues }
-  );
+  const [formData, setFormData] = useState<SecurityTemplateInput>({ ...defaultValues });
+
+  // Reset form data when dialog opens or template changes
+  useEffect(() => {
+    if (open) {
+      if (template) {
+        setFormData({ ...template });
+      } else {
+        setFormData({ ...defaultValues });
+      }
+    }
+  }, [open, template, defaultValues]);
 
   const handleSave = async () => {
     if (!formData.name.trim()) {
