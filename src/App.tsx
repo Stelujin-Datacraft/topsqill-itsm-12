@@ -70,8 +70,8 @@ const App = () => (
                 <Toaster />
                 <Sonner />
                 <SessionTimeoutWarning />
-                <PasswordExpiryWarning />
                 <BrowserRouter>
+                  <PasswordExpiryWarning />
                   <Routes>
                     <Route path="/" element={<Index />} />
                     <Route path="/docs" element={<Documentation />} />
