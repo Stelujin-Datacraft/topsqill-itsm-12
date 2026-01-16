@@ -32,7 +32,8 @@ serve(async (req) => {
       password,
       mobile,
       gender,
-      timezone
+      timezone,
+      securityTemplateId
     } = requestBody
 
     // Validate required fields
@@ -237,6 +238,30 @@ serve(async (req) => {
     }
 
     console.log('✅ User profile created successfully')
+
+    // Create user security parameters if securityTemplateId is provided or use defaults
+    console.log('🔐 Creating user security parameters...')
+    const securityParamsData: any = {
+      user_id: authUser.user.id,
+      organization_id: organizationId,
+    }
+    
+    if (securityTemplateId) {
+      securityParamsData.security_template_id = securityTemplateId
+      securityParamsData.use_template_settings = true
+      console.log('📋 Assigning security template:', securityTemplateId)
+    }
+    
+    const { error: securityError } = await supabaseAdmin
+      .from('user_security_parameters')
+      .insert(securityParamsData)
+    
+    if (securityError) {
+      console.error('⚠️ Error creating security parameters:', securityError)
+      // Don't fail the whole operation, just log the error
+    } else {
+      console.log('✅ User security parameters created successfully')
+    }
 
     // Try to send welcome email - but don't fail the whole operation if it fails
     let emailSent = false
