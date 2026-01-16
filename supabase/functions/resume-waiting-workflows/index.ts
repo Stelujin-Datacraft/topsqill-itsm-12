@@ -1610,6 +1610,18 @@ Deno.serve(async (req) => {
               // Compare values with proper array handling and date/time operators
               const compareValues = (left: any, right: any, operator: string): boolean => {
                 const isLeftArray = isArrayField(left)
+                
+                // Parse right operand if it's a JSON string (for multi-select conditions)
+                let parsedRight = right
+                if (typeof right === 'string' && (right.startsWith('[') || right.startsWith('{'))) {
+                  try {
+                    parsedRight = JSON.parse(right)
+                  } catch {
+                    // Keep as string if not valid JSON
+                  }
+                }
+                const isRightArray = Array.isArray(parsedRight)
+                
                 const rightStr = normalizeValue(right)
                 
                 // Helper to parse date values
@@ -1660,16 +1672,36 @@ Deno.serve(async (req) => {
                 switch (operator) {
                   case 'equals':
                   case '==':
+                    if (isLeftArray && isRightArray) {
+                      // Both are arrays - check if ANY value matches
+                      const leftValues = getArrayValues(left)
+                      const rightValues = getArrayValues(parsedRight)
+                      return leftValues.some(lv => rightValues.includes(lv))
+                    }
                     if (isLeftArray) {
                       const leftValues = getArrayValues(left)
                       return leftValues.includes(rightStr)
                     }
+                    if (isRightArray) {
+                      const rightValues = getArrayValues(parsedRight)
+                      return rightValues.includes(normalizeValue(left))
+                    }
                     return normalizeValue(left) === rightStr
                   case 'not_equals':
                   case '!=':
+                    if (isLeftArray && isRightArray) {
+                      // Both are arrays - check if NO value matches
+                      const leftValues = getArrayValues(left)
+                      const rightValues = getArrayValues(parsedRight)
+                      return !leftValues.some(lv => rightValues.includes(lv))
+                    }
                     if (isLeftArray) {
                       const leftValues = getArrayValues(left)
                       return !leftValues.includes(rightStr)
+                    }
+                    if (isRightArray) {
+                      const rightValues = getArrayValues(parsedRight)
+                      return !rightValues.includes(normalizeValue(left))
                     }
                     return normalizeValue(left) !== rightStr
                   case 'contains':
@@ -1722,8 +1754,8 @@ Deno.serve(async (req) => {
                     return normalizeValue(left).endsWith(rightStr)
                   case 'in':
                   case 'not_in': {
-                    const rightList = Array.isArray(right) 
-                      ? right.map(item => normalizeValue(item))
+                    const rightList = (isRightArray || Array.isArray(right))
+                      ? getArrayValues(parsedRight)
                       : rightStr.split(',').map(s => s.trim().toLowerCase())
                     if (isLeftArray) {
                       const leftValues = getArrayValues(left)

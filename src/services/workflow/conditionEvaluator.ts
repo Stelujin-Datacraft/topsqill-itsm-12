@@ -557,23 +557,57 @@ export class ConditionEvaluator {
     };
 
     const isLeftArray = Array.isArray(left) || (typeof left === 'object' && left !== null && ('users' in left || 'groups' in left));
+    
+    // Parse right operand if it's a JSON string (for multi-select conditions)
+    let parsedRight = right;
+    if (typeof right === 'string' && (right.startsWith('[') || right.startsWith('{'))) {
+      try {
+        parsedRight = JSON.parse(right);
+      } catch {
+        // Keep as string if not valid JSON
+      }
+    }
+    const isRightArray = Array.isArray(parsedRight);
+    
     const rightStr = normalizeValue(right);
     const leftNum = Number(left);
     const rightNum = Number(right);
 
     switch (operator) {
       case '==':
+        if (isLeftArray && isRightArray) {
+          // Both are arrays - check if ANY value matches
+          const leftValues = getArrayValues(left);
+          const rightValues = getArrayValues(parsedRight);
+          return leftValues.some(lv => rightValues.includes(lv));
+        }
         if (isLeftArray) {
-          // For array fields, check if the right value is IN the array
+          // Left is array, right is single value - check if right value is IN the left array
           const leftValues = getArrayValues(left);
           return leftValues.includes(rightStr);
         }
+        if (isRightArray) {
+          // Left is single value, right is array - check if left value is IN the right array
+          const rightValues = getArrayValues(parsedRight);
+          return rightValues.includes(normalizeValue(left));
+        }
         return left === right || normalizeValue(left) === rightStr;
       case '!=':
+        if (isLeftArray && isRightArray) {
+          // Both are arrays - check if NO value matches
+          const leftValues = getArrayValues(left);
+          const rightValues = getArrayValues(parsedRight);
+          return !leftValues.some(lv => rightValues.includes(lv));
+        }
         if (isLeftArray) {
           // For array fields, check if the right value is NOT in the array
           const leftValues = getArrayValues(left);
           return !leftValues.includes(rightStr);
+        }
+        if (isRightArray) {
+          // Left is single value, right is array - check if left is NOT in the right array
+          const rightValues = getArrayValues(parsedRight);
+          return !rightValues.includes(normalizeValue(left));
         }
         return left !== right && normalizeValue(left) !== rightStr;
       case '<':
@@ -611,8 +645,8 @@ export class ConditionEvaluator {
         }
         return normalizeValue(left).endsWith(rightStr);
       case 'in':
-        if (Array.isArray(right)) {
-          const rightValues = right.map(item => normalizeValue(item));
+        if (isRightArray || Array.isArray(right)) {
+          const rightValues = getArrayValues(parsedRight);
           if (isLeftArray) {
             // Check if ANY left value is in right array
             const leftValues = getArrayValues(left);
@@ -627,8 +661,8 @@ export class ConditionEvaluator {
         }
         return rightList.includes(normalizeValue(left));
       case 'not_in':
-        if (Array.isArray(right)) {
-          const rightValues = right.map(item => normalizeValue(item));
+        if (isRightArray || Array.isArray(right)) {
+          const rightValues = getArrayValues(parsedRight);
           if (isLeftArray) {
             // Check if NO left value is in right array
             const leftValues = getArrayValues(left);
