@@ -1586,7 +1586,14 @@ Deno.serve(async (req) => {
               // Helper to extract array of normalized values from a field value (handles arrays and submission-access objects)
               const getArrayValues = (v: any): string[] => {
                 if (Array.isArray(v)) {
-                  return v.map(item => normalizeValue(item))
+                  // Flatten nested objects in arrays - extract value/id if present
+                  return v.map(item => {
+                    if (typeof item === 'object' && item !== null) {
+                      if ('value' in item) return String(item.value).toLowerCase().trim()
+                      if ('id' in item) return String(item.id).toLowerCase().trim()
+                    }
+                    return normalizeValue(item)
+                  })
                 }
                 // Handle submission-access field format {users: [], groups: []}
                 if (typeof v === 'object' && v !== null) {
@@ -1903,6 +1910,7 @@ Deno.serve(async (req) => {
                 const fieldId = flc?.fieldId
                 const operator = flc?.operator
                 const expectedValue = flc?.value
+                const fieldType = flc?.fieldType
                 
                 if (!fieldId) {
                   console.log(`⚠️ No fieldId in field-level condition`)
@@ -1912,7 +1920,23 @@ Deno.serve(async (req) => {
                 // Get field value from submission data using field ID
                 let actualValue = submissionData[fieldId]
                 
-                console.log(`📊 Evaluating field-level: fieldId=${fieldId}, operator=${operator}, expected=${expectedValue}, actual=${JSON.stringify(actualValue)}, isArray: ${isArrayField(actualValue)}`)
+                // Parse expected value if it's a JSON string
+                let parsedExpected = expectedValue
+                if (typeof expectedValue === 'string' && (expectedValue.startsWith('[') || expectedValue.startsWith('{'))) {
+                  try {
+                    parsedExpected = JSON.parse(expectedValue)
+                  } catch {
+                    // Keep as string if not valid JSON
+                  }
+                }
+                
+                // Log detailed comparison info
+                const actualArrayValues = isArrayField(actualValue) ? getArrayValues(actualValue) : null
+                const expectedArrayValues = isArrayField(parsedExpected) ? getArrayValues(parsedExpected) : null
+                console.log(`📊 Evaluating field-level: fieldId=${fieldId}, fieldType=${fieldType}, operator=${operator}`)
+                console.log(`   Expected raw: ${JSON.stringify(expectedValue)}, parsed: ${JSON.stringify(parsedExpected)}, array values: ${JSON.stringify(expectedArrayValues)}`)
+                console.log(`   Actual raw: ${JSON.stringify(actualValue)}, array values: ${JSON.stringify(actualArrayValues)}`)
+                console.log(`   isActualArray: ${isArrayField(actualValue)}, isExpectedArray: ${isArrayField(parsedExpected)}`)
                 
                 // Check if field value is empty and should trigger waiting (unless operator is exists/not_exists)
                 if (!shouldBypassWaiting(operator) && isEmptyValue(actualValue)) {
@@ -1921,7 +1945,7 @@ Deno.serve(async (req) => {
                 }
                 
                 // Use the unified compareValues function that handles arrays properly
-                const result = compareValues(actualValue, expectedValue, operator)
+                const result = compareValues(actualValue, parsedExpected, operator)
                 console.log(`📊 Field-level condition result: ${result}`)
                 
                 return { result, waiting: false }

@@ -233,7 +233,17 @@ export class ConditionEvaluator {
       return { result: false, waiting: true, waitingField: condition.fieldId };
     }
     
-    return { result: this.compareValues(fieldValue, condition.value, condition.operator), waiting: false };
+    // Parse expected value if it's a JSON string (for multi-select/submission-access conditions)
+    let parsedExpectedValue = condition.value;
+    if (typeof condition.value === 'string' && (condition.value.startsWith('[') || condition.value.startsWith('{'))) {
+      try {
+        parsedExpectedValue = JSON.parse(condition.value);
+      } catch {
+        // Keep as string if not valid JSON
+      }
+    }
+    
+    return { result: this.compareValues(fieldValue, parsedExpectedValue, condition.operator), waiting: false };
   }
 
   private static evaluateFieldLevelCondition(
@@ -542,7 +552,14 @@ export class ConditionEvaluator {
     // Helper to extract array of normalized values from a value (handles arrays and submission-access objects)
     const getArrayValues = (v: any): string[] => {
       if (Array.isArray(v)) {
-        return v.map(item => normalizeValue(item));
+        // Flatten nested objects in arrays - extract value/id if present
+        return v.map(item => {
+          if (typeof item === 'object' && item !== null) {
+            if ('value' in item) return String(item.value).toLowerCase().trim();
+            if ('id' in item) return String(item.id).toLowerCase().trim();
+          }
+          return normalizeValue(item);
+        });
       }
       // Handle submission-access field format {users: [], groups: []}
       if (typeof v === 'object' && v !== null) {
