@@ -136,71 +136,43 @@ export function SecurityParametersDialog({
           </div>
         ) : (
           <div className="mt-4 space-y-4">
-            {/* Template Selection Card */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-primary" />
-                  Security Template
-                </CardTitle>
-                <CardDescription>
-                  Assign a template or customize individual settings
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Assigned Template</Label>
-                    <Select
-                      value={formData.security_template_id ?? 'none'}
-                      onValueChange={(value) => updateField('security_template_id', value === 'none' ? null : value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="No template assigned" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No template (use defaults)</SelectItem>
-                        {templates.map((template) => (
-                          <SelectItem key={template.id} value={template.id}>
-                            {template.name}
-                            {template.is_default && ' (Default)'}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {templates.length === 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        No templates available. Create one in Security Templates.
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between pt-6">
-                    <div>
-                      <Label>Use Template Settings</Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Override with custom values when off
-                      </p>
-                    </div>
-                    <Switch
-                      checked={formData.use_template_settings ?? true}
-                      onCheckedChange={(checked) => updateField('use_template_settings', checked)}
-                      disabled={!formData.security_template_id}
-                    />
-                  </div>
+            {/* Template Selection Card - Compact */}
+            <div className="flex items-center gap-4 p-3 bg-muted/30 rounded-lg border">
+              <FileText className="h-5 w-5 text-primary shrink-0" />
+              <div className="flex-1 grid grid-cols-2 gap-4 items-center">
+                <div className="flex items-center gap-3">
+                  <Label className="text-sm whitespace-nowrap">Template:</Label>
+                  <Select
+                    value={formData.security_template_id ?? 'none'}
+                    onValueChange={(value) => updateField('security_template_id', value === 'none' ? null : value)}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="No template" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No template (use defaults)</SelectItem>
+                      {templates.map((template) => (
+                        <SelectItem key={template.id} value={template.id}>
+                          {template.name}
+                          {template.is_default && ' (Default)'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-                  <Shield className="h-4 w-4" />
-                  {formData.security_template_id ? (
-                    formData.use_template_settings 
-                      ? 'Template settings will be applied. Individual overrides below are disabled.'
-                      : 'Custom overrides are enabled. Settings below will override the template.'
-                  ) : (
-                    'No template assigned. Default security settings are being used. You can customize individual settings below.'
-                  )}
+                <div className="flex items-center gap-3 justify-end">
+                  <Label className="text-sm whitespace-nowrap">Use Template Settings</Label>
+                  <Switch
+                    checked={formData.use_template_settings ?? true}
+                    onCheckedChange={(checked) => updateField('use_template_settings', checked)}
+                    disabled={!formData.security_template_id}
+                  />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
+            {/* Only show parameter tabs when template is not assigned OR use_template_settings is false */}
+            {(!formData.security_template_id || !formData.use_template_settings) && (
             <Tabs defaultValue="password">
               <TabsList className="grid grid-cols-5 w-full">
                 <TabsTrigger value="password" className="flex items-center gap-1.5 text-xs">
@@ -692,6 +664,21 @@ export function SecurityParametersDialog({
               </Card>
             </TabsContent>
           </Tabs>
+            )}
+
+            {/* Show message when template settings are active */}
+            {formData.security_template_id && formData.use_template_settings && (
+              <div className="flex items-center gap-3 p-4 bg-primary/5 rounded-lg border border-primary/20">
+                <Shield className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="text-sm font-medium">Template Settings Active</p>
+                  <p className="text-xs text-muted-foreground">
+                    Security parameters from the assigned template are being used. 
+                    Turn off "Use Template Settings" to customize individual parameters.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
