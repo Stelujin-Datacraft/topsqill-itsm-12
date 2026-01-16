@@ -144,15 +144,6 @@ const ChangePassword = () => {
         return;
       }
 
-      // Store password in history (we store a hash representation, not the actual password)
-      // Note: In production, this should be done server-side with proper hashing
-      await supabase
-        .from('password_history')
-        .insert({
-          user_id: user.id,
-          password_hash: btoa(newPassword), // Base64 encode for demo - use proper hashing in production
-        });
-
       // Update last password change timestamp
       await supabase
         .from('user_security_parameters')
@@ -160,14 +151,6 @@ const ChangePassword = () => {
           last_password_change: new Date().toISOString(),
         })
         .eq('user_id', user.id);
-
-      // Log audit event
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        event_type: 'password_changed',
-        event_category: 'security',
-        description: 'User changed their password',
-      });
 
       toast({
         title: 'Password updated',

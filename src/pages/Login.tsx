@@ -12,7 +12,7 @@ import { MfaVerificationDialog } from '@/components/MfaVerificationDialog';
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { signIn, signOut, isLoading, pendingMfa, completeMfaVerification, passwordExpired, clearPasswordExpired } = useAuth();
+  const { signIn, isLoading, pendingMfa, completeMfaVerification, passwordExpired, clearPasswordExpired } = useAuth();
   const navigate = useNavigate();
   const [showMfa, setShowMfa] = useState(false);
 
@@ -88,6 +88,7 @@ const Login = () => {
   const handleMfaCancel = async () => {
     setShowMfa(false);
     // Sign out since MFA was not completed
+    const { signOut } = useAuth();
     await signOut();
   };
 

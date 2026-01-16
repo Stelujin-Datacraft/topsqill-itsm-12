@@ -204,13 +204,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         // Record failed login attempt
         await recordFailedLogin(email);
-        // Log failed login audit event
-        await supabase.from('audit_logs').insert({
-          event_type: 'login_failed',
-          event_category: 'authentication',
-          description: `Failed login attempt for ${email}`,
-          metadata: { email, error_code: error.code },
-        });
         return { error };
       }
 
@@ -264,14 +257,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Record successful login
         await recordSuccessfulLogin(data.user.id);
-
-        // Log audit event
-        await supabase.from('audit_logs').insert({
-          user_id: data.user.id,
-          event_type: 'login_success',
-          event_category: 'authentication',
-          description: 'User logged in successfully',
-        });
       }
 
       return { error: null };
@@ -282,16 +267,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
-      // Log audit event before signing out
-      if (user) {
-        await supabase.from('audit_logs').insert({
-          user_id: user.id,
-          event_type: 'logout',
-          event_category: 'authentication',
-          description: 'User logged out',
-        });
-      }
-      
       // Invalidate session record
       if (session?.access_token) {
         await invalidateSession(session.access_token);
