@@ -1621,6 +1621,7 @@ Deno.serve(async (req) => {
                 const isLeftArray = isArrayField(left)
                 
                 // Parse right operand if it's a JSON string (for multi-select conditions)
+                // Note: This might already be parsed by the caller, but we parse again for safety
                 let parsedRight = right
                 if (typeof right === 'string' && (right.startsWith('[') || right.startsWith('{'))) {
                   try {
@@ -1633,6 +1634,14 @@ Deno.serve(async (req) => {
                 const isRightArray = isArrayField(parsedRight)
                 
                 const rightStr = normalizeValue(right)
+                
+                // Log comparison details for debugging
+                console.log(`   🔍 compareValues: operator=${operator}, isLeftArray=${isLeftArray}, isRightArray=${isRightArray}`)
+                if (isLeftArray || isRightArray) {
+                  const leftVals = isLeftArray ? getArrayValues(left) : [normalizeValue(left)]
+                  const rightVals = isRightArray ? getArrayValues(parsedRight) : [rightStr]
+                  console.log(`   🔍 Left values: ${JSON.stringify(leftVals)}, Right values: ${JSON.stringify(rightVals)}`)
+                }
                 
                 // Helper to parse date values
                 const parseDateValue = (value: any): Date | null => {
@@ -1686,20 +1695,30 @@ Deno.serve(async (req) => {
                       // Both are arrays - check if ALL right values are in left AND same length (exact match)
                       const leftValues = getArrayValues(left)
                       const rightValues = getArrayValues(parsedRight)
+                      console.log(`   🔍 Array comparison: leftLen=${leftValues.length}, rightLen=${rightValues.length}`)
                       // For exact equality, lengths must match and all right values must be in left
-                      if (leftValues.length !== rightValues.length) return false
-                      return rightValues.every(rv => leftValues.includes(rv))
+                      if (leftValues.length !== rightValues.length) {
+                        console.log(`   🔍 Length mismatch - returning FALSE`)
+                        return false
+                      }
+                      const result = rightValues.every(rv => leftValues.includes(rv))
+                      console.log(`   🔍 All values match: ${result}`)
+                      return result
                     }
                     if (isLeftArray) {
                       // Left is array, right is single value - check if ONLY that value exists in array
                       const leftValues = getArrayValues(left)
                       // For equality, array should have exactly that one value
-                      return leftValues.length === 1 && leftValues.includes(rightStr)
+                      const result = leftValues.length === 1 && leftValues.includes(rightStr)
+                      console.log(`   🔍 Left array vs single: result=${result}`)
+                      return result
                     }
                     if (isRightArray) {
                       // Left is single value, right is array - check if left value is the ONLY value expected
                       const rightValues = getArrayValues(parsedRight)
-                      return rightValues.length === 1 && rightValues.includes(normalizeValue(left))
+                      const result = rightValues.length === 1 && rightValues.includes(normalizeValue(left))
+                      console.log(`   🔍 Single vs right array: result=${result}`)
+                      return result
                     }
                     return normalizeValue(left) === rightStr
                   case 'not_equals':
