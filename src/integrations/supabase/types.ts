@@ -763,6 +763,99 @@ export type Database = {
           },
         ]
       }
+      organization_security_defaults: {
+        Row: {
+          access_end_time: string | null
+          access_start_time: string | null
+          allowed_days: string[] | null
+          created_at: string
+          created_by: string | null
+          id: string
+          lockout_duration_minutes: number | null
+          max_concurrent_sessions: number | null
+          max_failed_login_attempts: number | null
+          mfa_max_attempts: number | null
+          mfa_method: string | null
+          mfa_pin_expiry_minutes: number | null
+          mfa_required: boolean | null
+          organization_id: string
+          password_change_min_hours: number | null
+          password_expiry_days: number | null
+          password_expiry_warning_days: number | null
+          password_history_count: number | null
+          password_min_length: number | null
+          password_require_lowercase: boolean | null
+          password_require_numbers: boolean | null
+          password_require_special: boolean | null
+          password_require_uppercase: boolean | null
+          session_timeout_minutes: number | null
+          session_timeout_warning_seconds: number | null
+          static_session_timeout: boolean | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          access_end_time?: string | null
+          access_start_time?: string | null
+          allowed_days?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lockout_duration_minutes?: number | null
+          max_concurrent_sessions?: number | null
+          max_failed_login_attempts?: number | null
+          mfa_max_attempts?: number | null
+          mfa_method?: string | null
+          mfa_pin_expiry_minutes?: number | null
+          mfa_required?: boolean | null
+          organization_id: string
+          password_change_min_hours?: number | null
+          password_expiry_days?: number | null
+          password_expiry_warning_days?: number | null
+          password_history_count?: number | null
+          password_min_length?: number | null
+          password_require_lowercase?: boolean | null
+          password_require_numbers?: boolean | null
+          password_require_special?: boolean | null
+          password_require_uppercase?: boolean | null
+          session_timeout_minutes?: number | null
+          session_timeout_warning_seconds?: number | null
+          static_session_timeout?: boolean | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          access_end_time?: string | null
+          access_start_time?: string | null
+          allowed_days?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lockout_duration_minutes?: number | null
+          max_concurrent_sessions?: number | null
+          max_failed_login_attempts?: number | null
+          mfa_max_attempts?: number | null
+          mfa_method?: string | null
+          mfa_pin_expiry_minutes?: number | null
+          mfa_required?: boolean | null
+          organization_id?: string
+          password_change_min_hours?: number | null
+          password_expiry_days?: number | null
+          password_expiry_warning_days?: number | null
+          password_history_count?: number | null
+          password_min_length?: number | null
+          password_require_lowercase?: boolean | null
+          password_require_numbers?: boolean | null
+          password_require_special?: boolean | null
+          password_require_uppercase?: boolean | null
+          session_timeout_minutes?: number | null
+          session_timeout_warning_seconds?: number | null
+          static_session_timeout?: boolean | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       organizations: {
         Row: {
           admin_email: string
@@ -1439,6 +1532,123 @@ export type Database = {
           },
         ]
       }
+      user_security_parameters: {
+        Row: {
+          access_end_time: string | null
+          access_start_time: string | null
+          account_locked_until: string | null
+          allowed_days: string[] | null
+          created_at: string
+          created_by: string | null
+          failed_login_count: number | null
+          id: string
+          ip_blacklist: string[] | null
+          ip_whitelist: string[] | null
+          last_failed_login: string | null
+          last_login: string | null
+          last_password_change: string | null
+          lockout_duration_minutes: number | null
+          max_concurrent_sessions: number | null
+          max_failed_login_attempts: number | null
+          mfa_max_attempts: number | null
+          mfa_method: string | null
+          mfa_pin_expiry_minutes: number | null
+          mfa_required: boolean | null
+          organization_id: string
+          password_change_min_hours: number | null
+          password_expiry_days: number | null
+          password_expiry_warning_days: number | null
+          password_history_count: number | null
+          password_min_length: number | null
+          password_require_lowercase: boolean | null
+          password_require_numbers: boolean | null
+          password_require_special: boolean | null
+          password_require_uppercase: boolean | null
+          session_timeout_minutes: number | null
+          session_timeout_warning_seconds: number | null
+          static_session_timeout: boolean | null
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          access_end_time?: string | null
+          access_start_time?: string | null
+          account_locked_until?: string | null
+          allowed_days?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          failed_login_count?: number | null
+          id?: string
+          ip_blacklist?: string[] | null
+          ip_whitelist?: string[] | null
+          last_failed_login?: string | null
+          last_login?: string | null
+          last_password_change?: string | null
+          lockout_duration_minutes?: number | null
+          max_concurrent_sessions?: number | null
+          max_failed_login_attempts?: number | null
+          mfa_max_attempts?: number | null
+          mfa_method?: string | null
+          mfa_pin_expiry_minutes?: number | null
+          mfa_required?: boolean | null
+          organization_id: string
+          password_change_min_hours?: number | null
+          password_expiry_days?: number | null
+          password_expiry_warning_days?: number | null
+          password_history_count?: number | null
+          password_min_length?: number | null
+          password_require_lowercase?: boolean | null
+          password_require_numbers?: boolean | null
+          password_require_special?: boolean | null
+          password_require_uppercase?: boolean | null
+          session_timeout_minutes?: number | null
+          session_timeout_warning_seconds?: number | null
+          static_session_timeout?: boolean | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          access_end_time?: string | null
+          access_start_time?: string | null
+          account_locked_until?: string | null
+          allowed_days?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          failed_login_count?: number | null
+          id?: string
+          ip_blacklist?: string[] | null
+          ip_whitelist?: string[] | null
+          last_failed_login?: string | null
+          last_login?: string | null
+          last_password_change?: string | null
+          lockout_duration_minutes?: number | null
+          max_concurrent_sessions?: number | null
+          max_failed_login_attempts?: number | null
+          mfa_max_attempts?: number | null
+          mfa_method?: string | null
+          mfa_pin_expiry_minutes?: number | null
+          mfa_required?: boolean | null
+          organization_id?: string
+          password_change_min_hours?: number | null
+          password_expiry_days?: number | null
+          password_expiry_warning_days?: number | null
+          password_history_count?: number | null
+          password_min_length?: number | null
+          password_require_lowercase?: boolean | null
+          password_require_numbers?: boolean | null
+          password_require_special?: boolean | null
+          password_require_uppercase?: boolean | null
+          session_timeout_minutes?: number | null
+          session_timeout_warning_seconds?: number | null
+          static_session_timeout?: boolean | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       workflow_connections: {
         Row: {
           condition_type: string | null
@@ -1994,6 +2204,10 @@ export type Database = {
         Returns: {
           permission_type: string
         }[]
+      }
+      get_user_effective_security_params: {
+        Args: { target_user_id: string }
+        Returns: Json
       }
       get_user_email: { Args: { _user_id: string }; Returns: string }
       get_user_form_permissions: {
