@@ -299,7 +299,7 @@ const AuditLogs: React.FC = () => {
                     
                     {/* Timestamp & IP */}
                     <div className="col-span-3 text-right">
-                      <span className="text-xs text-muted-foreground">{formatDate(log.created_at)}</span>
+                      <span className="text-sm font-medium text-foreground">{formatDate(log.created_at)}</span>
                       {log.ip_address && (
                         <p className="text-xs text-muted-foreground mt-1">IP: {log.ip_address}</p>
                       )}

@@ -106,7 +106,7 @@ export function useFormMutations() {
     }
   };
 
-  const updateForm = async (id: string, updates: Partial<Form>, userProfile?: any, formName?: string) => {
+  const updateForm = async (id: string, updates: Partial<Form>, userProfile?: any, formName?: string, skipAuditLog?: boolean) => {
     try {
       const updateData: any = {};
       if (updates.name) updateData.name = updates.name;
@@ -131,8 +131,22 @@ export function useFormMutations() {
         throw error;
       }
 
-      // Log audit event if user profile is available
-      if (userProfile?.id) {
+      // Log audit event if user profile is available and not skipped
+      if (userProfile?.id && !skipAuditLog) {
+        // Check if this form was just created (within last 5 seconds) - skip update log if so
+        const { data: recentCreated } = await supabase
+          .from('form_audit_logs')
+          .select('id, created_at')
+          .eq('form_id', id)
+          .eq('event_type', 'form_created')
+          .gte('created_at', new Date(Date.now() - 5000).toISOString())
+          .limit(1);
+
+        if (recentCreated && recentCreated.length > 0) {
+          console.log('🟡 Skipping form_updated log - form was just created:', id);
+          return;
+        }
+
         console.log('🟡 About to log form_updated event for:', id, formName);
         const logResult = await logFormAuditEvent({
           userId: userProfile.id,

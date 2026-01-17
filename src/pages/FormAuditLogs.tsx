@@ -189,9 +189,10 @@ const FormAuditLogs: React.FC = () => {
 
   const getEventColor = (eventType: string) => {
     if (eventType.includes('created')) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
-    if (eventType.includes('deleted')) return 'bg-destructive/10 text-destructive border-destructive/20';
-    if (eventType.includes('updated') || eventType.includes('changed')) return 'bg-primary/10 text-primary border-primary/20';
+    if (eventType.includes('deleted')) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800';
+    if (eventType.includes('updated') || eventType.includes('changed')) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800';
     if (eventType.includes('duplicated')) return 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-800';
+    if (eventType.includes('published')) return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800';
     if (eventType.includes('permission') || eventType.includes('access')) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800';
     return 'bg-muted text-muted-foreground border-border';
   };
@@ -409,7 +410,7 @@ const FormAuditLogs: React.FC = () => {
                       
                       {/* Timestamp */}
                       <div className="col-span-3 text-right">
-                        <span className="text-xs text-muted-foreground">{formatDate(log.created_at)}</span>
+                        <span className="text-sm font-medium text-foreground">{formatDate(log.created_at)}</span>
                       </div>
                     </div>
                   );
