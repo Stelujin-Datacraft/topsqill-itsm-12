@@ -350,14 +350,11 @@ const FormAuditLogs: React.FC = () => {
                       
                       {/* Action & Form */}
                       <div className="col-span-4">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge className={`font-semibold ${getEventColor(log.event_type)}`}>
-                            {formatEventType(log.event_type)}
-                          </Badge>
-                          <span className="text-muted-foreground text-sm">on</span>
-                        </div>
-                        <p className="text-sm font-medium mt-1 truncate" title={getFormName(log)}>
-                          {getFormName(log)}
+                        <Badge className={`font-semibold ${getEventColor(log.event_type)}`}>
+                          {formatEventType(log.event_type)}
+                        </Badge>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Form: <span className="font-medium text-foreground">{getFormName(log)}</span>
                         </p>
                         {log.field_label && (
                           <p className="text-xs text-muted-foreground mt-1">
