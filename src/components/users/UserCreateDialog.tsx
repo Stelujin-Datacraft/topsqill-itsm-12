@@ -402,6 +402,43 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="userDomain">User Domain</Label>
+              <Input
+                id="userDomain"
+                value={formData.userDomain}
+                onChange={(e) => setFormData({ ...formData, userDomain: e.target.value })}
+                placeholder="e.g., sales, engineering, marketing"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="securityTemplate">Security Template *</Label>
+              <Select
+                value={formData.securityTemplateId || ''}
+                onValueChange={(value) => setFormData({ ...formData, securityTemplateId: value })}
+                disabled={templatesLoading}
+                required
+              >
+                <SelectTrigger className={!formData.securityTemplateId ? 'border-muted-foreground/50' : ''}>
+                  <SelectValue placeholder="Select a security template" />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.name}
+                      {template.is_default && ' (Default)'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {formData.securityTemplateId 
+                  ? 'Template settings will be applied to this user'
+                  : 'Please select a template to define password requirements'}
+              </p>
+            </div>
+
             <div className="space-y-2 col-span-2">
               <Label htmlFor="password">Password *</Label>
               <div className="relative">
@@ -451,7 +488,7 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
               {/* Prompt to select template first */}
               {!selectedTemplate && formData.password && (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Select a Security Template below to see password requirements
+                  Select a Security Template above to see password requirements
                 </p>
               )}
             </div>
@@ -524,17 +561,7 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="userDomain">User Domain</Label>
-              <Input
-                id="userDomain"
-                value={formData.userDomain}
-                onChange={(e) => setFormData({ ...formData, userDomain: e.target.value })}
-                placeholder="e.g., sales, engineering, marketing"
-              />
-            </div>
-
-            <div className="space-y-2">
+            <div className="space-y-2 col-span-2">
               <Label>Account Status *</Label>
               <RadioGroup
                 value={formData.status}
@@ -550,33 +577,6 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
                   <Label htmlFor="status-inactive" className="cursor-pointer font-normal">Inactive</Label>
                 </div>
               </RadioGroup>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="securityTemplate">Security Template *</Label>
-              <Select
-                value={formData.securityTemplateId || ''}
-                onValueChange={(value) => setFormData({ ...formData, securityTemplateId: value })}
-                disabled={templatesLoading}
-                required
-              >
-                <SelectTrigger className={!formData.securityTemplateId ? 'border-muted-foreground/50' : ''}>
-                  <SelectValue placeholder="Select a security template" />
-                </SelectTrigger>
-                <SelectContent>
-                  {templates.map((template) => (
-                    <SelectItem key={template.id} value={template.id}>
-                      {template.name}
-                      {template.is_default && ' (Default)'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {formData.securityTemplateId 
-                  ? 'Template settings will be applied to this user'
-                  : 'Please select a template to define password requirements'}
-              </p>
             </div>
           </div>
 
