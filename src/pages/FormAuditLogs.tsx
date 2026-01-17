@@ -195,11 +195,24 @@ const FormAuditLogs: React.FC = () => {
     return 'bg-muted text-muted-foreground border-border';
   };
 
-  const formatEventType = (eventType: string) => {
-    return eventType
-      .replace('form_', '')
-      .replace(/_/g, ' ')
-      .replace(/\b\w/g, l => l.toUpperCase());
+  const formatEventType = (eventType: string): string => {
+    const eventLabels: Record<string, string> = {
+      'form_created': 'Created',
+      'form_updated': 'Updated',
+      'form_deleted': 'Deleted',
+      'form_duplicated': 'Duplicated',
+      'form_published': 'Published',
+      'form_archived': 'Archived',
+      'form_field_added': 'Field Added',
+      'form_field_updated': 'Field Updated',
+      'form_field_deleted': 'Field Deleted',
+      'form_fields_reordered': 'Fields Reordered',
+      'form_settings_changed': 'Settings Changed',
+      'form_permissions_changed': 'Permissions Changed',
+      'form_access_granted': 'Access Granted',
+      'form_access_revoked': 'Access Revoked',
+    };
+    return eventLabels[eventType] || eventType.replace('form_', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
   const formatDate = (dateStr: string) => {
