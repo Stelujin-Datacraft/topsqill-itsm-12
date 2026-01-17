@@ -342,14 +342,20 @@ const ManageSessions: React.FC = () => {
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
-                              variant="outline"
+                              variant="destructive"
                               size="sm"
                               disabled={terminatingId === sess.id}
                             >
                               {terminatingId === sess.id ? (
-                                <RefreshCw className="h-4 w-4 animate-spin" />
+                                <>
+                                  <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                                  Signing Out...
+                                </>
                               ) : (
-                                <LogOut className="h-4 w-4" />
+                                <>
+                                  <LogOut className="h-4 w-4 mr-1" />
+                                  Sign Out
+                                </>
                               )}
                             </Button>
                           </AlertDialogTrigger>
