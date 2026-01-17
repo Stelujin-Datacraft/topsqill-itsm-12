@@ -349,53 +349,67 @@ const FormAuditLogs: React.FC = () => {
                   return (
                     <div
                       key={log.id}
-                      className="flex items-start gap-4 p-4 rounded-lg border hover:bg-muted/50 transition-colors"
+                      className="grid grid-cols-12 gap-4 p-4 rounded-lg border hover:bg-muted/50 transition-colors items-start"
                     >
-                      <div className="p-2 rounded-lg bg-muted">
-                        {getEventIcon(log.event_type)}
+                      {/* Icon */}
+                      <div className="col-span-1 flex justify-center">
+                        <div className="p-2 rounded-lg bg-muted">
+                          {getEventIcon(log.event_type)}
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
+                      
+                      {/* Action & Form */}
+                      <div className="col-span-4">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant="secondary" className="font-semibold">
+                          <Badge className={`font-semibold ${getEventColor(log.event_type)}`}>
                             {formatEventType(log.event_type)}
                           </Badge>
-                          <span className="text-muted-foreground">on</span>
-                          <Badge variant="outline" className={getEventColor(log.event_type)}>
-                            {getFormName(log)}
-                          </Badge>
+                          <span className="text-muted-foreground text-sm">on</span>
                         </div>
-                        
-                        {/* User Info with Role */}
-                        <div className="flex items-center gap-2 mt-2">
+                        <p className="text-sm font-medium mt-1 truncate" title={getFormName(log)}>
+                          {getFormName(log)}
+                        </p>
+                        {log.field_label && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Field: <span className="font-medium">{log.field_label}</span>
+                          </p>
+                        )}
+                      </div>
+                      
+                      {/* User Info */}
+                      <div className="col-span-4">
+                        <div className="flex items-center gap-2">
                           <Avatar className="h-6 w-6">
                             <AvatarFallback className="text-xs bg-primary/10 text-primary">
                               {getUserInitials(userInfo)}
                             </AvatarFallback>
                           </Avatar>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">{getUserDisplayName(userInfo)}</span>
-                            {userInfo?.role && (
-                              <Badge variant="outline" className="text-xs capitalize">
-                                {userInfo.role}
-                              </Badge>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">{getUserDisplayName(userInfo)}</span>
+                              {userInfo?.role && (
+                                <Badge 
+                                  variant="outline" 
+                                  className={`text-xs capitalize ${
+                                    userInfo.role === 'admin' 
+                                      ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-800' 
+                                      : 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border-sky-200 dark:border-sky-800'
+                                  }`}
+                                >
+                                  {userInfo.role}
+                                </Badge>
+                              )}
+                            </div>
+                            {userInfo?.email && (userInfo.first_name || userInfo.last_name) && (
+                              <span className="text-xs text-muted-foreground">{userInfo.email}</span>
                             )}
                           </div>
                         </div>
-                        {userInfo?.email && (userInfo.first_name || userInfo.last_name) && (
-                          <span className="text-xs text-muted-foreground ml-8">{userInfo.email}</span>
-                        )}
-                        
-
-                        {/* Show field info if available */}
-                        {log.field_label && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Field: <span className="font-medium">{log.field_label}</span>
-                          </p>
-                        )}
-
-                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                          <span>{formatDate(log.created_at)}</span>
-                        </div>
+                      </div>
+                      
+                      {/* Timestamp */}
+                      <div className="col-span-3 text-right">
+                        <span className="text-xs text-muted-foreground">{formatDate(log.created_at)}</span>
                       </div>
                     </div>
                   );
