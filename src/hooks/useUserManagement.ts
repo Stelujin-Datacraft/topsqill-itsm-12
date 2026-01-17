@@ -412,6 +412,8 @@ export const useUserManagement = () => {
     gender?: string;
     timezone?: string;
     securityTemplateId?: string;
+    userDomain?: string;
+    status?: 'active' | 'inactive';
   }) => {
     if (!currentOrganization?.id) {
       toast({
@@ -440,6 +442,8 @@ export const useUserManagement = () => {
           gender: userData.gender,
           timezone: userData.timezone,
           securityTemplateId: userData.securityTemplateId,
+          userDomain: userData.userDomain,
+          status: userData.status || 'active',
         }
       });
 

@@ -33,7 +33,9 @@ serve(async (req) => {
       mobile,
       gender,
       timezone,
-      securityTemplateId
+      securityTemplateId,
+      userDomain,
+      status
     } = requestBody
 
     // Validate required fields
@@ -112,7 +114,7 @@ serve(async (req) => {
         last_name: lastName,
         organization_id: organizationId,
         role: role || 'user',
-        status: 'active'
+        status: status || 'active'
       }
       
       // Add optional fields if provided
@@ -215,7 +217,7 @@ serve(async (req) => {
       last_name: lastName,
       organization_id: organizationId,
       role: role || 'user',
-      status: 'active'
+      status: status || 'active'
     }
     
     // Add optional fields if provided
