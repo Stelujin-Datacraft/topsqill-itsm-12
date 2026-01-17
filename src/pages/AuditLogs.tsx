@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import DashboardLayout from '@/components/DashboardLayout';
 import {
-  ArrowLeft,
   RefreshCw,
   Search,
   Shield,
@@ -19,7 +18,8 @@ import {
   User,
   Settings,
   FileText,
-  Filter
+  Filter,
+  ClipboardList
 } from 'lucide-react';
 import {
   Select,
@@ -42,7 +42,6 @@ interface AuditLog {
 }
 
 const AuditLogs: React.FC = () => {
-  const navigate = useNavigate();
   const { user, userProfile } = useAuth();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,15 +107,15 @@ const AuditLogs: React.FC = () => {
   const getCategoryColor = (category: string) => {
     switch (category) {
       case 'security':
-        return 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300';
+        return 'bg-destructive/10 text-destructive border-destructive/20';
       case 'authentication':
-        return 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300';
+        return 'bg-primary/10 text-primary border-primary/20';
       case 'user_management':
-        return 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300';
+        return 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-800';
       case 'data_access':
-        return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300';
+        return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
       default:
-        return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+        return 'bg-muted text-muted-foreground border-border';
     }
   };
 
@@ -129,29 +128,28 @@ const AuditLogs: React.FC = () => {
     fetchLogs();
   };
 
+  const headerActions = (
+    <Button variant="outline" onClick={fetchLogs} disabled={loading}>
+      <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+      Refresh
+    </Button>
+  );
+
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <FileText className="h-6 w-6" />
-              Audit Logs
-            </h1>
-            <p className="text-muted-foreground">
-              {userProfile?.role === 'admin' ? 'View all security and activity logs' : 'View your activity logs'}
-            </p>
-          </div>
-        </div>
+    <DashboardLayout title="Audit Logs" actions={headerActions}>
+      <div className="space-y-6">
+        <p className="text-muted-foreground">
+          {userProfile?.role === 'admin' ? 'View all security and activity logs across the organization' : 'View your activity logs'}
+        </p>
 
         <Card>
           <CardHeader>
             <div className="flex flex-col sm:flex-row gap-4 justify-between">
               <div>
-                <CardTitle>Activity History</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <ClipboardList className="h-5 w-5" />
+                  Activity History
+                </CardTitle>
                 <CardDescription>
                   {totalCount} total event{totalCount !== 1 ? 's' : ''}
                 </CardDescription>
@@ -170,7 +168,7 @@ const AuditLogs: React.FC = () => {
                   </Button>
                 </div>
                 <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setPage(0); }}>
-                  <SelectTrigger className="w-40">
+                  <SelectTrigger className="w-44">
                     <Filter className="h-4 w-4 mr-2" />
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
@@ -183,9 +181,6 @@ const AuditLogs: React.FC = () => {
                     <SelectItem value="system">System</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" onClick={fetchLogs} disabled={loading}>
-                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                </Button>
               </div>
             </div>
           </CardHeader>
@@ -195,7 +190,11 @@ const AuditLogs: React.FC = () => {
                 <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : logs.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No audit logs found</p>
+              <div className="text-center py-12">
+                <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No audit logs found</p>
+                <p className="text-sm text-muted-foreground mt-1">Activity logs will appear here as events occur</p>
+              </div>
             ) : (
               <div className="space-y-2">
                 {logs.map((log) => (
@@ -229,7 +228,7 @@ const AuditLogs: React.FC = () => {
             )}
 
             {totalCount > pageSize && (
-              <div className="flex justify-center gap-2 mt-6">
+              <div className="flex justify-center gap-2 mt-6 pt-4 border-t">
                 <Button
                   variant="outline"
                   onClick={() => setPage(p => Math.max(0, p - 1))}
@@ -252,7 +251,7 @@ const AuditLogs: React.FC = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </DashboardLayout>
   );
 };
 
