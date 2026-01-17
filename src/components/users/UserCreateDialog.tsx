@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useSecurityTemplates } from '@/hooks/useSecurityTemplates';
+import { useSecurityTemplates, SecurityTemplate } from '@/hooks/useSecurityTemplates';
+import { AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
 
 interface UserCreateDialogProps {
@@ -195,8 +196,75 @@ const NATIONALITY_OPTIONS = [
   { value: 'VN', label: 'Vietnam' },
 ];
 
+// Default password policy when no template is selected
+const DEFAULT_PASSWORD_POLICY = {
+  password_min_length: 8,
+  password_require_uppercase: true,
+  password_require_lowercase: true,
+  password_require_numbers: true,
+  password_require_special: true,
+};
+
+interface PasswordValidation {
+  isValid: boolean;
+  errors: string[];
+  checks: {
+    label: string;
+    passed: boolean;
+  }[];
+}
+
+const validatePassword = (
+  password: string, 
+  template: SecurityTemplate | null
+): PasswordValidation => {
+  const policy = template || DEFAULT_PASSWORD_POLICY;
+  const errors: string[] = [];
+  const checks: { label: string; passed: boolean }[] = [];
+
+  // Minimum length check
+  const minLength = policy.password_min_length || 8;
+  const lengthPassed = password.length >= minLength;
+  checks.push({ label: `At least ${minLength} characters`, passed: lengthPassed });
+  if (!lengthPassed) errors.push(`Password must be at least ${minLength} characters`);
+
+  // Uppercase check
+  if (policy.password_require_uppercase) {
+    const hasUppercase = /[A-Z]/.test(password);
+    checks.push({ label: 'Contains uppercase letter', passed: hasUppercase });
+    if (!hasUppercase) errors.push('Password must contain an uppercase letter');
+  }
+
+  // Lowercase check
+  if (policy.password_require_lowercase) {
+    const hasLowercase = /[a-z]/.test(password);
+    checks.push({ label: 'Contains lowercase letter', passed: hasLowercase });
+    if (!hasLowercase) errors.push('Password must contain a lowercase letter');
+  }
+
+  // Numbers check
+  if (policy.password_require_numbers) {
+    const hasNumber = /[0-9]/.test(password);
+    checks.push({ label: 'Contains number', passed: hasNumber });
+    if (!hasNumber) errors.push('Password must contain a number');
+  }
+
+  // Special character check
+  if (policy.password_require_special) {
+    const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+    checks.push({ label: 'Contains special character', passed: hasSpecial });
+    if (!hasSpecial) errors.push('Password must contain a special character');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    checks,
+  };
+};
+
 const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogProps) => {
-  const { templates, loading: templatesLoading } = useSecurityTemplates();
+  const { templates, loading: templatesLoading, defaultTemplate } = useSecurityTemplates();
   const [formData, setFormData] = useState<UserCreateData>({
     email: '',
     firstName: '',
@@ -210,9 +278,30 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
     securityTemplateId: '',
   });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Get the selected template for password validation
+  const selectedTemplate = useMemo(() => {
+    if (!formData.securityTemplateId) return null;
+    return templates.find(t => t.id === formData.securityTemplateId) || null;
+  }, [formData.securityTemplateId, templates]);
+
+  // Validate password against selected template
+  const passwordValidation = useMemo(() => {
+    if (!formData.password) {
+      return { isValid: false, errors: [], checks: [] };
+    }
+    return validatePassword(formData.password, selectedTemplate);
+  }, [formData.password, selectedTemplate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check password validation before submitting
+    if (!passwordValidation.isValid) {
+      return;
+    }
+    
     setLoading(true);
     
     try {
@@ -297,15 +386,51 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
               />
             </div>
 
-             <div className="space-y-2">
+            <div className="space-y-2 col-span-2">
               <Label htmlFor="password">Password *</Label>
-              <Input
-                id="password"
-                required
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder="Enter Password"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  placeholder="Enter Password"
+                  className={formData.password && !passwordValidation.isValid ? 'border-destructive pr-10' : 'pr-10'}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                </Button>
+              </div>
+              
+              {/* Password Requirements Checklist */}
+              {formData.password && (
+                <div className="mt-2 p-3 rounded-md bg-muted/50 border">
+                  <p className="text-xs font-medium mb-2 text-muted-foreground">
+                    Password Requirements {selectedTemplate ? `(${selectedTemplate.name})` : '(Default Policy)'}:
+                  </p>
+                  <div className="grid grid-cols-2 gap-1">
+                    {passwordValidation.checks.map((check, index) => (
+                      <div key={index} className="flex items-center gap-1.5 text-xs">
+                        {check.passed ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                        ) : (
+                          <AlertCircle className="h-3.5 w-3.5 text-destructive" />
+                        )}
+                        <span className={check.passed ? 'text-muted-foreground' : 'text-destructive'}>
+                          {check.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -408,7 +533,7 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || !passwordValidation.isValid}>
               {loading ? 'Creating...' : 'Create User'}
             </Button>
           </div>
