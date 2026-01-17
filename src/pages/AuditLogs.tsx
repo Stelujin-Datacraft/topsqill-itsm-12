@@ -242,48 +242,67 @@ const AuditLogs: React.FC = () => {
                   return (
                   <div
                     key={log.id}
-                    className="flex items-start gap-4 p-4 rounded-lg border hover:bg-muted/50 transition-colors"
+                    className="grid grid-cols-12 gap-4 p-4 rounded-lg border hover:bg-muted/50 transition-colors items-start"
                   >
-                    <div className="p-2 rounded-lg bg-muted">
-                      {getEventIcon(log.event_type)}
+                    {/* Icon */}
+                    <div className="col-span-1 flex justify-center">
+                      <div className="p-2 rounded-lg bg-muted">
+                        {getEventIcon(log.event_type)}
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
+                    
+                    {/* Event Type & Category */}
+                    <div className="col-span-4">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium">
                           {log.event_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                         </span>
-                        <Badge variant="outline" className={getCategoryColor(log.event_category)}>
-                          {log.event_category.replace(/_/g, ' ')}
-                        </Badge>
                       </div>
-                      
-                      {/* User Info with Role */}
-                      <div className="flex items-center gap-2 mt-2">
+                      <Badge variant="outline" className={`mt-1 ${getCategoryColor(log.event_category)}`}>
+                        {log.event_category.replace(/_/g, ' ')}
+                      </Badge>
+                      {log.description && (
+                        <p className="text-sm text-muted-foreground mt-2">{log.description}</p>
+                      )}
+                    </div>
+                    
+                    {/* User Info */}
+                    <div className="col-span-4">
+                      <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
                           <AvatarFallback className="text-xs bg-primary/10 text-primary">
                             {getUserInitials(userInfo)}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">{getUserDisplayName(userInfo)}</span>
-                          {userInfo?.role && (
-                            <Badge variant="outline" className="text-xs capitalize">
-                              {userInfo.role}
-                            </Badge>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{getUserDisplayName(userInfo)}</span>
+                            {userInfo?.role && (
+                              <Badge 
+                                variant="outline" 
+                                className={`text-xs capitalize ${
+                                  userInfo.role === 'admin' 
+                                    ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-800' 
+                                    : 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border-sky-200 dark:border-sky-800'
+                                }`}
+                              >
+                                {userInfo.role}
+                              </Badge>
+                            )}
+                          </div>
+                          {userInfo?.email && (userInfo.first_name || userInfo.last_name) && (
+                            <span className="text-xs text-muted-foreground">{userInfo.email}</span>
                           )}
                         </div>
                       </div>
-                      {userInfo?.email && (userInfo.first_name || userInfo.last_name) && (
-                        <span className="text-xs text-muted-foreground ml-8">{userInfo.email}</span>
+                    </div>
+                    
+                    {/* Timestamp & IP */}
+                    <div className="col-span-3 text-right">
+                      <span className="text-xs text-muted-foreground">{formatDate(log.created_at)}</span>
+                      {log.ip_address && (
+                        <p className="text-xs text-muted-foreground mt-1">IP: {log.ip_address}</p>
                       )}
-                      
-                      {log.description && (
-                        <p className="text-sm text-muted-foreground mt-2">{log.description}</p>
-                      )}
-                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                        <span>{formatDate(log.created_at)}</span>
-                        {log.ip_address && <span>IP: {log.ip_address}</span>}
-                      </div>
                     </div>
                   </div>
                   );

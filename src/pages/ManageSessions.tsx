@@ -261,66 +261,83 @@ const ManageSessions: React.FC = () => {
                   return (
                   <div
                     key={sess.id}
-                    className={`p-4 rounded-lg border transition-colors ${
+                    className={`grid grid-cols-12 gap-4 p-4 rounded-lg border transition-colors items-start ${
                       isCurrentSession(sess.session_token)
                         ? 'border-primary bg-primary/5'
                         : 'border-border hover:bg-muted/50'
                     }`}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-4">
-                        <div className="p-3 rounded-lg bg-muted">
-                          {getDeviceIcon(sess.user_agent)}
-                        </div>
-                        <div className="space-y-1">
+                    {/* Device Icon */}
+                    <div className="col-span-1 flex justify-center">
+                      <div className="p-3 rounded-lg bg-muted">
+                        {getDeviceIcon(sess.user_agent)}
+                      </div>
+                    </div>
+                    
+                    {/* Device & Browser */}
+                    <div className="col-span-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">
+                          {getBrowserInfo(sess.user_agent)}
+                        </span>
+                        {isCurrentSession(sess.session_token) && (
+                          <Badge variant="default" className="text-xs bg-emerald-500 hover:bg-emerald-600">
+                            Current
+                          </Badge>
+                        )}
+                      </div>
+                      {sess.ip_address && (
+                        <span className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+                          <Globe className="h-3 w-3" />
+                          {sess.ip_address}
+                        </span>
+                      )}
+                    </div>
+                    
+                    {/* User Info */}
+                    <div className="col-span-4">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                            {getUserInitials(userInfo)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">
-                              {getBrowserInfo(sess.user_agent)}
-                            </span>
-                            {isCurrentSession(sess.session_token) && (
-                              <Badge variant="default" className="text-xs">
-                                Current Session
+                            <span className="text-sm font-medium">{getUserDisplayName(userInfo)}</span>
+                            {userInfo?.role && (
+                              <Badge 
+                                variant="outline" 
+                                className={`text-xs capitalize ${
+                                  userInfo.role === 'admin' 
+                                    ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-800' 
+                                    : 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border-sky-200 dark:border-sky-800'
+                                }`}
+                              >
+                                {userInfo.role}
                               </Badge>
                             )}
                           </div>
-                          
-                          {/* User Info with Role */}
-                          <div className="flex items-center gap-2 mt-2">
-                            <Avatar className="h-6 w-6">
-                              <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                                {getUserInitials(userInfo)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">{getUserDisplayName(userInfo)}</span>
-                              {userInfo?.role && (
-                                <Badge variant="outline" className="text-xs capitalize">
-                                  {userInfo.role}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
                           {userInfo?.email && (userInfo.first_name || userInfo.last_name) && (
-                            <span className="text-xs text-muted-foreground ml-8">{userInfo.email}</span>
+                            <span className="text-xs text-muted-foreground">{userInfo.email}</span>
                           )}
-                          
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
-                            {sess.ip_address && (
-                              <span className="flex items-center gap-1">
-                                <Globe className="h-3 w-3" />
-                                {sess.ip_address}
-                              </span>
-                            )}
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              Last active: {formatDate(sess.last_activity)}
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Created: {formatDate(sess.created_at)}
-                          </p>
                         </div>
                       </div>
+                    </div>
+                    
+                    {/* Timestamps */}
+                    <div className="col-span-3">
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        Last: {formatDate(sess.last_activity)}
+                      </span>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Created: {formatDate(sess.created_at)}
+                      </p>
+                    </div>
+                    
+                    {/* Action */}
+                    <div className="col-span-1 flex justify-end">
                       {!isCurrentSession(sess.session_token) && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -332,10 +349,7 @@ const ManageSessions: React.FC = () => {
                               {terminatingId === sess.id ? (
                                 <RefreshCw className="h-4 w-4 animate-spin" />
                               ) : (
-                                <>
-                                  <LogOut className="h-4 w-4 mr-1" />
-                                  Sign out
-                                </>
+                                <LogOut className="h-4 w-4" />
                               )}
                             </Button>
                           </AlertDialogTrigger>
