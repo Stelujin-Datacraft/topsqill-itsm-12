@@ -363,9 +363,10 @@ const ManageSessions: React.FC = () => {
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 onClick={() => terminateSession(sess.id, sess.session_token)}
                               >
-                                Sign out
+                                Sign Out
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
