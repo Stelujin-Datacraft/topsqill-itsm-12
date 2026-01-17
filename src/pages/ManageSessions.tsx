@@ -44,6 +44,7 @@ interface UserInfo {
   email: string;
   first_name: string | null;
   last_name: string | null;
+  role: string;
 }
 
 const ManageSessions: React.FC = () => {
@@ -79,7 +80,7 @@ const ManageSessions: React.FC = () => {
       if (userIds.length > 0) {
         const { data: usersData, error: usersError } = await supabase
           .from('user_profiles')
-          .select('id, email, first_name, last_name')
+          .select('id, email, first_name, last_name, role')
           .in('id', userIds);
 
         if (!usersError && usersData) {
@@ -283,20 +284,25 @@ const ManageSessions: React.FC = () => {
                             )}
                           </div>
                           
-                          {/* User Info */}
+                          {/* User Info with Role */}
                           <div className="flex items-center gap-2 mt-2">
                             <Avatar className="h-6 w-6">
                               <AvatarFallback className="text-xs bg-primary/10 text-primary">
                                 {getUserInitials(userInfo)}
                               </AvatarFallback>
                             </Avatar>
-                            <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
                               <span className="text-sm font-medium">{getUserDisplayName(userInfo)}</span>
-                              {userInfo?.email && (userInfo.first_name || userInfo.last_name) && (
-                                <span className="text-xs text-muted-foreground">{userInfo.email}</span>
+                              {userInfo?.role && (
+                                <Badge variant="outline" className="text-xs capitalize">
+                                  {userInfo.role}
+                                </Badge>
                               )}
                             </div>
                           </div>
+                          {userInfo?.email && (userInfo.first_name || userInfo.last_name) && (
+                            <span className="text-xs text-muted-foreground ml-8">{userInfo.email}</span>
+                          )}
                           
                           <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
                             {sess.ip_address && (
