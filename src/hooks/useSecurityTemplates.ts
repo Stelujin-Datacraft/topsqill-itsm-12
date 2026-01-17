@@ -223,6 +223,29 @@ export function useSecurityTemplates() {
 
   useEffect(() => {
     loadTemplates();
+    
+    // Set up realtime subscription for templates
+    if (currentOrganization?.id) {
+      const channel = supabase
+        .channel('security-templates-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'security_templates',
+            filter: `organization_id=eq.${currentOrganization.id}`,
+          },
+          () => {
+            loadTemplates();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
   }, [currentOrganization?.id]);
 
   return {
