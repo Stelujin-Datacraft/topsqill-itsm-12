@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface AuditLog {
   id: string;
@@ -41,9 +42,17 @@ interface AuditLog {
   created_at: string;
 }
 
+interface UserInfo {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+}
+
 const AuditLogs: React.FC = () => {
   const { user, userProfile } = useAuth();
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [usersMap, setUsersMap] = useState<Record<string, UserInfo>>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -81,6 +90,21 @@ const AuditLogs: React.FC = () => {
 
       setLogs(data || []);
       setTotalCount(count || 0);
+
+      // Fetch user info for all unique user IDs
+      const userIds = [...new Set((data || []).filter(l => l.user_id).map(l => l.user_id as string))];
+      if (userIds.length > 0) {
+        const { data: usersData, error: usersError } = await supabase
+          .from('user_profiles')
+          .select('id, email, first_name, last_name')
+          .in('id', userIds);
+
+        if (!usersError && usersData) {
+          const map: Record<string, UserInfo> = {};
+          usersData.forEach(u => { map[u.id] = u; });
+          setUsersMap(map);
+        }
+      }
     } catch (error) {
       console.error('Error fetching audit logs:', error);
       toast.error('Failed to load audit logs');
@@ -121,6 +145,21 @@ const AuditLogs: React.FC = () => {
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString();
+  };
+
+  const getUserInitials = (userInfo: UserInfo | undefined): string => {
+    if (!userInfo) return '?';
+    const first = userInfo.first_name?.charAt(0) || '';
+    const last = userInfo.last_name?.charAt(0) || '';
+    return (first + last).toUpperCase() || userInfo.email.charAt(0).toUpperCase();
+  };
+
+  const getUserDisplayName = (userInfo: UserInfo | undefined): string => {
+    if (!userInfo) return 'System';
+    if (userInfo.first_name || userInfo.last_name) {
+      return `${userInfo.first_name || ''} ${userInfo.last_name || ''}`.trim();
+    }
+    return userInfo.email;
   };
 
   const handleSearch = () => {
@@ -197,7 +236,9 @@ const AuditLogs: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-2">
-                {logs.map((log) => (
+                {logs.map((log) => {
+                  const userInfo = log.user_id ? usersMap[log.user_id] : undefined;
+                  return (
                   <div
                     key={log.id}
                     className="flex items-start gap-4 p-4 rounded-lg border hover:bg-muted/50 transition-colors"
@@ -214,8 +255,24 @@ const AuditLogs: React.FC = () => {
                           {log.event_category.replace(/_/g, ' ')}
                         </Badge>
                       </div>
+                      
+                      {/* User Info */}
+                      <div className="flex items-center gap-2 mt-2">
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                            {getUserInitials(userInfo)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium">{getUserDisplayName(userInfo)}</span>
+                          {userInfo?.email && (userInfo.first_name || userInfo.last_name) && (
+                            <span className="text-xs text-muted-foreground">{userInfo.email}</span>
+                          )}
+                        </div>
+                      </div>
+                      
                       {log.description && (
-                        <p className="text-sm text-muted-foreground mt-1">{log.description}</p>
+                        <p className="text-sm text-muted-foreground mt-2">{log.description}</p>
                       )}
                       <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                         <span>{formatDate(log.created_at)}</span>
@@ -223,7 +280,8 @@ const AuditLogs: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
