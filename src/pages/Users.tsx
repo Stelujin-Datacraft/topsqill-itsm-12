@@ -150,7 +150,7 @@ const Users = () => {
     const styles: Record<string, string> = {
       active: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
       pending: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
-      inactive: 'bg-muted text-muted-foreground border-border',
+      inactive: 'bg-destructive/10 text-destructive border-destructive/20',
     };
     return styles[status] || styles.inactive;
   };

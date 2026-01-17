@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useSecurityTemplates, SecurityTemplate } from '@/hooks/useSecurityTemplates';
 import { AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
@@ -25,6 +26,8 @@ export interface UserCreateData {
   gender?: string;
   timezone?: string;
   securityTemplateId?: string;
+  userDomain?: string;
+  status: 'active' | 'inactive';
 }
 
 const ROLE_OPTIONS = [
@@ -276,6 +279,8 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
     gender: '',
     timezone: 'UTC',
     securityTemplateId: '',
+    userDomain: '',
+    status: 'active',
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -326,6 +331,8 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
         gender: '',
         timezone: 'UTC',
         securityTemplateId: '',
+        userDomain: '',
+        status: 'active',
       });
       onOpenChange(false);
     } finally {
@@ -515,6 +522,34 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="userDomain">User Domain</Label>
+              <Input
+                id="userDomain"
+                value={formData.userDomain}
+                onChange={(e) => setFormData({ ...formData, userDomain: e.target.value })}
+                placeholder="e.g., sales, engineering, marketing"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Account Status *</Label>
+              <RadioGroup
+                value={formData.status}
+                onValueChange={(value: 'active' | 'inactive') => setFormData({ ...formData, status: value })}
+                className="flex gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="active" id="status-active" />
+                  <Label htmlFor="status-active" className="cursor-pointer font-normal">Active</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="inactive" id="status-inactive" />
+                  <Label htmlFor="status-inactive" className="cursor-pointer font-normal">Inactive</Label>
+                </div>
+              </RadioGroup>
             </div>
 
             <div className="space-y-2">
