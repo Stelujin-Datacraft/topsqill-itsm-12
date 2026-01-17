@@ -264,7 +264,7 @@ const validatePassword = (
 };
 
 const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogProps) => {
-  const { templates, loading: templatesLoading, defaultTemplate } = useSecurityTemplates();
+  const { templates, loading: templatesLoading } = useSecurityTemplates();
   const [formData, setFormData] = useState<UserCreateData>({
     email: '',
     firstName: '',
@@ -281,12 +281,17 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
   const [showPassword, setShowPassword] = useState(false);
 
   // Get the selected template for password validation
+  // Falls back to the organization's default template (is_default = true) when none selected
   const selectedTemplate = useMemo(() => {
-    if (!formData.securityTemplateId) return null;
-    return templates.find(t => t.id === formData.securityTemplateId) || null;
+    if (formData.securityTemplateId) {
+      return templates.find(t => t.id === formData.securityTemplateId) || null;
+    }
+    // If no template selected, use the default template from the organization
+    const orgDefaultTemplate = templates.find(t => t.is_default);
+    return orgDefaultTemplate || null;
   }, [formData.securityTemplateId, templates]);
 
-  // Validate password against selected template
+  // Validate password against selected template or default policy
   const passwordValidation = useMemo(() => {
     if (!formData.password) {
       return { isValid: false, errors: [], checks: [] };
