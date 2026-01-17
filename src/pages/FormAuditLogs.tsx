@@ -355,9 +355,10 @@ const FormAuditLogs: React.FC = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium">
+                          <Badge variant="secondary" className="font-semibold">
                             {formatEventType(log.event_type)}
-                          </span>
+                          </Badge>
+                          <span className="text-muted-foreground">on</span>
                           <Badge variant="outline" className={getEventColor(log.event_type)}>
                             {getFormName(log)}
                           </Badge>
