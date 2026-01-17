@@ -313,6 +313,59 @@ export type Database = {
           },
         ]
       }
+      form_audit_logs: {
+        Row: {
+          changes: Json | null
+          created_at: string
+          description: string | null
+          event_type: string
+          field_id: string | null
+          field_label: string | null
+          form_id: string | null
+          form_name: string | null
+          id: string
+          metadata: Json | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          changes?: Json | null
+          created_at?: string
+          description?: string | null
+          event_type: string
+          field_id?: string | null
+          field_label?: string | null
+          form_id?: string | null
+          form_name?: string | null
+          id?: string
+          metadata?: Json | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          changes?: Json | null
+          created_at?: string
+          description?: string | null
+          event_type?: string
+          field_id?: string | null
+          field_label?: string | null
+          form_id?: string | null
+          form_name?: string | null
+          id?: string
+          metadata?: Json | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_audit_logs_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       form_fields: {
         Row: {
           created_at: string
