@@ -107,7 +107,9 @@ export function useFormsData() {
     const form = forms.find(f => f.id === formId);
     if (!form) return;
 
-    const reorderedFields = await reorderFieldsMutation(formId, startIndex, endIndex, form.fields);
+    // Pass audit info for reorder logging
+    const auditInfo = userProfile ? { userId: userProfile.id, formName: form.name } : undefined;
+    const reorderedFields = await reorderFieldsMutation(formId, startIndex, endIndex, form.fields, auditInfo);
     setForms(prev =>
       prev.map(f =>
         f.id === formId ? { ...f, fields: reorderedFields } : f

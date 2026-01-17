@@ -36,6 +36,16 @@ interface FormAuditLogEntry {
  */
 export const logFormAuditEvent = async (entry: FormAuditLogEntry): Promise<boolean> => {
   try {
+    // Validate required fields
+    if (!entry.userId || !entry.formId) {
+      console.warn('logFormAuditEvent: Missing required userId or formId', { 
+        userId: entry.userId, 
+        formId: entry.formId,
+        eventType: entry.eventType 
+      });
+      return false;
+    }
+
     const metadata: Record<string, unknown> = {};
 
     if (entry.changes) {
@@ -46,7 +56,7 @@ export const logFormAuditEvent = async (entry: FormAuditLogEntry): Promise<boole
       Object.assign(metadata, entry.additionalMetadata);
     }
 
-    const { error } = await supabase.from('form_audit_logs').insert([{
+    const insertData = {
       user_id: entry.userId,
       event_type: entry.eventType,
       form_id: entry.formId,
@@ -57,13 +67,18 @@ export const logFormAuditEvent = async (entry: FormAuditLogEntry): Promise<boole
       changes: entry.changes as Json || null,
       metadata: Object.keys(metadata).length > 0 ? metadata as Json : null,
       user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null
-    }]);
+    };
+
+    console.log('logFormAuditEvent: Inserting audit log', { eventType: entry.eventType, formId: entry.formId });
+
+    const { error } = await supabase.from('form_audit_logs').insert([insertData]);
 
     if (error) {
       console.error('Failed to log form audit event:', error);
       return false;
     }
 
+    console.log('logFormAuditEvent: Successfully logged', entry.eventType);
     return true;
   } catch (error) {
     console.error('Error logging form audit event:', error);
