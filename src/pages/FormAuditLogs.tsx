@@ -156,11 +156,9 @@ const FormAuditLogs: React.FC = () => {
     if (!user) return;
 
     try {
-      // Only fetch forms that are not deleted (active or draft status)
       const { data, error } = await supabase
         .from('forms')
         .select('id, name')
-        .in('status', ['active', 'draft'])
         .order('name');
 
       if (!error && data) {
