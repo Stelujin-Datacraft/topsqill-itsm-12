@@ -1,6 +1,6 @@
 
 import * as React from "react"
-import { LayoutDashboard, FolderKanban, GalleryVerticalEnd, Calendar, ChevronUp, User2, Plus, LogOut, Bell, Building2, Shield, FileText, Mail, GitBranch, BarChart3, Database } from "lucide-react"
+import { LayoutDashboard, FolderKanban, GalleryVerticalEnd, Calendar, ChevronUp, User2, Plus, LogOut, Bell, Building2, Shield, FileText, Mail, GitBranch, BarChart3, Database, Monitor, ClipboardList } from "lucide-react"
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
@@ -92,12 +92,24 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         url: "/settings",
         icon: Mail,
       },
-      // Add Roles and Access tab only for admins
-      ...(userProfile?.role === 'admin' ? [{
-        title: "Roles and Access",
-        url: "/roles-and-access",
-        icon: Shield,
-      }] : []),
+      // Add admin-only navigation items
+      ...(userProfile?.role === 'admin' ? [
+        {
+          title: "Roles and Access",
+          url: "/roles-and-access",
+          icon: Shield,
+        },
+        {
+          title: "Manage Sessions",
+          url: "/manage-sessions",
+          icon: Monitor,
+        },
+        {
+          title: "Audit Logs",
+          url: "/audit-logs",
+          icon: ClipboardList,
+        },
+      ] : []),
     ],
     projects: projects.map(project => ({
       name: project.name,
