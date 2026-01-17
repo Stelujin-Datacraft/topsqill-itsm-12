@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Form } from '@/types/form';
 import { supabase } from '@/integrations/supabase/client';
 import { useProject } from './ProjectContext';
+import { logFormAuditEvent } from '@/utils/formAuditLogger';
 
 interface FormContextType {
   forms: Form[];
@@ -226,6 +227,17 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
       }
 
       const createdForm = transformDatabaseFormToAppForm(data);
+      
+      // Log audit event for form creation
+      console.log('🔵 FormContext: Logging form_created event for:', createdForm.id, createdForm.name);
+      await logFormAuditEvent({
+        userId: user.id,
+        eventType: 'form_created',
+        formId: createdForm.id,
+        formName: createdForm.name,
+        description: `Created form "${createdForm.name}"`,
+      });
+      
       setForms([...forms, createdForm]);
       setCurrentForm(createdForm);
       return createdForm;

@@ -254,17 +254,6 @@ const FormAuditLogs: React.FC = () => {
     { value: 'form_created', label: 'Form Created' },
     { value: 'form_updated', label: 'Form Updated' },
     { value: 'form_deleted', label: 'Form Deleted' },
-    { value: 'form_duplicated', label: 'Form Duplicated' },
-    { value: 'form_published', label: 'Form Published' },
-    { value: 'form_archived', label: 'Form Archived' },
-    { value: 'form_field_added', label: 'Field Added' },
-    { value: 'form_field_updated', label: 'Field Updated' },
-    { value: 'form_field_deleted', label: 'Field Deleted' },
-    { value: 'form_fields_reordered', label: 'Fields Reordered' },
-    { value: 'form_settings_changed', label: 'Settings Changed' },
-    { value: 'form_permissions_changed', label: 'Permissions Changed' },
-    { value: 'form_access_granted', label: 'Access Granted' },
-    { value: 'form_access_revoked', label: 'Access Revoked' },
   ];
 
   const headerActions = (
