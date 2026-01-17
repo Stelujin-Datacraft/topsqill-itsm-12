@@ -83,14 +83,16 @@ export function useFormMutations() {
         pages: JSON.parse(data.pages as string),
       };
 
-      // Log audit event
-      await logFormAuditEvent({
+      // Log audit event for form creation - MUST happen before returning
+      console.log('🔵 About to log form_created event for:', newForm.id, newForm.name);
+      const logResult = await logFormAuditEvent({
         userId: userProfile.id,
         eventType: 'form_created',
         formId: newForm.id,
         formName: newForm.name,
         description: `Created form "${newForm.name}"`,
       });
+      console.log('🔵 form_created log result:', logResult);
 
       return newForm;
     } catch (error) {
@@ -131,14 +133,16 @@ export function useFormMutations() {
 
       // Log audit event if user profile is available
       if (userProfile?.id) {
-        await logFormAuditEvent({
+        console.log('🟡 About to log form_updated event for:', id, formName);
+        const logResult = await logFormAuditEvent({
           userId: userProfile.id,
           eventType: 'form_updated',
           formId: id,
           formName: formName || updates.name,
-          description: describeFormChanges(updates),
+          description: `Updated form "${formName || updates.name || id}"`,
           changes: updates as Record<string, unknown>,
         });
+        console.log('🟡 form_updated log result:', logResult);
       }
     } catch (error) {
       console.error('useFormMutations: Error updating form:', error);
@@ -152,6 +156,21 @@ export function useFormMutations() {
   };
 
   const deleteForm = async (id: string, userProfile?: any, formName?: string) => {
+    // Log audit event BEFORE deleting the form (so the form_id reference still exists)
+    if (userProfile?.id) {
+      console.log('🔴 About to log form_deleted event for:', id, formName);
+      const logResult = await logFormAuditEvent({
+        userId: userProfile.id,
+        eventType: 'form_deleted',
+        formId: id,
+        formName: formName,
+        description: `Deleted form "${formName || id}"`,
+      });
+      console.log('🔴 form_deleted log result:', logResult);
+    } else {
+      console.warn('🔴 Cannot log form_deleted - userProfile is missing:', userProfile);
+    }
+
     try {
       const { error } = await supabase
         .from('forms')
@@ -161,17 +180,6 @@ export function useFormMutations() {
       if (error) {
         console.error('useFormMutations: Error deleting form:', error);
         throw error;
-      }
-
-      // Log audit event if user profile is available
-      if (userProfile?.id) {
-        await logFormAuditEvent({
-          userId: userProfile.id,
-          eventType: 'form_deleted',
-          formId: id,
-          formName: formName,
-          description: `Deleted form "${formName || id}"`,
-        });
       }
     } catch (error) {
       console.error('useFormMutations: Error deleting form:', error);
