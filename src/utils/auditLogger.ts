@@ -6,7 +6,8 @@ export type AuditEventCategory =
   | 'authentication' 
   | 'user_management' 
   | 'data_access' 
-  | 'system';
+  | 'system'
+  | 'form_management';
 
 export type AuditEventType = 
   // Authentication events
@@ -40,7 +41,22 @@ export type AuditEventType =
   // Settings events
   | 'mfa_settings_updated'
   | 'security_settings_updated'
-  | 'profile_updated';
+  | 'profile_updated'
+  // Form management events
+  | 'form_created'
+  | 'form_updated'
+  | 'form_deleted'
+  | 'form_duplicated'
+  | 'form_published'
+  | 'form_archived'
+  | 'form_field_added'
+  | 'form_field_updated'
+  | 'form_field_deleted'
+  | 'form_fields_reordered'
+  | 'form_settings_changed'
+  | 'form_permissions_changed'
+  | 'form_access_granted'
+  | 'form_access_revoked';
 
 interface AuditLogEntry {
   userId?: string;

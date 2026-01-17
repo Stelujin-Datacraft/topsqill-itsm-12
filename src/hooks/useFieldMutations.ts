@@ -1,10 +1,11 @@
 import { supabase } from '@/integrations/supabase/client';
 import { FormField } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
+import { logFormAuditEvent } from '@/utils/formAuditLogger';
 
 export function useFieldMutations() {
   // Single field update (used for individual field changes outside of save)
-  const updateField = async (fieldId: string, updates: Partial<FormField>) => {
+  const updateField = async (fieldId: string, updates: Partial<FormField>, auditInfo?: { userId: string; formId: string; formName?: string }) => {
     try {
       const updateData: any = {};
       if (updates.label !== undefined) updateData.label = updates.label;
@@ -45,6 +46,19 @@ export function useFieldMutations() {
       if (error) {
         console.error('useFieldMutations: Error updating field:', error);
         throw error;
+      }
+
+      // Log audit event if audit info is provided
+      if (auditInfo?.userId && auditInfo?.formId) {
+        await logFormAuditEvent({
+          userId: auditInfo.userId,
+          eventType: 'form_field_updated',
+          formId: auditInfo.formId,
+          formName: auditInfo.formName,
+          fieldId: fieldId,
+          fieldLabel: updates.label,
+          description: `Updated field "${updates.label || fieldId}"`,
+        });
       }
     } catch (error) {
       console.error('useFieldMutations: Error updating field:', error);
@@ -265,7 +279,7 @@ export function useFieldMutations() {
     }
   };
 
-  const deleteField = async (fieldId: string) => {
+  const deleteField = async (fieldId: string, auditInfo?: { userId: string; formId: string; formName?: string; fieldLabel?: string }) => {
     try {
       const { error } = await supabase
         .from('form_fields')
@@ -274,6 +288,19 @@ export function useFieldMutations() {
 
       if (error) {
         throw error;
+      }
+
+      // Log audit event if audit info is provided
+      if (auditInfo?.userId && auditInfo?.formId) {
+        await logFormAuditEvent({
+          userId: auditInfo.userId,
+          eventType: 'form_field_deleted',
+          formId: auditInfo.formId,
+          formName: auditInfo.formName,
+          fieldId: fieldId,
+          fieldLabel: auditInfo.fieldLabel,
+          description: `Deleted field "${auditInfo.fieldLabel || fieldId}"`,
+        });
       }
     } catch (error) {
       console.error('useFieldMutations: Error deleting field:', error);
