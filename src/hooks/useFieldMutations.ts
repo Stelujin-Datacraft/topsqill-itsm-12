@@ -327,7 +327,13 @@ export function useFieldMutations() {
     }
   };
 
-  const reorderFields = async (formId: string, startIndex: number, endIndex: number, fields: FormField[]) => {
+  const reorderFields = async (
+    formId: string, 
+    startIndex: number, 
+    endIndex: number, 
+    fields: FormField[],
+    auditInfo?: { userId: string; formName?: string }
+  ) => {
     try {
       const reorderedFields = [...fields];
       const [removed] = reorderedFields.splice(startIndex, 1);
@@ -347,6 +353,25 @@ export function useFieldMutations() {
 
       if (error) {
         throw error;
+      }
+
+      // Log audit event for field reordering
+      if (auditInfo?.userId) {
+        await logFormAuditEvent({
+          userId: auditInfo.userId,
+          eventType: 'form_fields_reordered',
+          formId: formId,
+          formName: auditInfo.formName,
+          fieldId: removed.id,
+          fieldLabel: removed.label,
+          description: `Moved field "${removed.label}" from position ${startIndex + 1} to ${endIndex + 1}`,
+          changes: { 
+            fieldId: removed.id, 
+            fieldLabel: removed.label,
+            fromPosition: startIndex + 1, 
+            toPosition: endIndex + 1 
+          },
+        });
       }
 
       return reorderedFields;
