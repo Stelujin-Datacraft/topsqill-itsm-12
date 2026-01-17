@@ -142,7 +142,7 @@ export function useFieldMutations() {
     }
   };
 
-  const addField = async (formId: string, fieldData: Omit<FormField, 'id'> & { id?: string }, userProfile: any) => {
+  const addField = async (formId: string, fieldData: Omit<FormField, 'id'> & { id?: string }, userProfile: any, formName?: string) => {
     if (!userProfile?.organization_id) {
       toast({
         title: "Authentication required",
@@ -249,7 +249,7 @@ export function useFieldMutations() {
         } catch { }
       }
 
-      return {
+      const newField = {
         id: data.id,
         type: data.field_type as FormField['type'],
         label: data.label,
@@ -268,6 +268,21 @@ export function useFieldMutations() {
         pageId: fieldData.pageId || 'default',
         customConfig: parsedCustomConfig,
       } as FormField;
+
+      // Log audit event for field creation
+      if (userProfile?.id) {
+        await logFormAuditEvent({
+          userId: userProfile.id,
+          eventType: 'form_field_added',
+          formId: formId,
+          formName: formName,
+          fieldId: data.id,
+          fieldLabel: data.label,
+          description: `Added field "${data.label}"`,
+        });
+      }
+
+      return newField;
     } catch (error) {
       console.error('useFieldMutations: Unexpected error adding field:', error);
       toast({
