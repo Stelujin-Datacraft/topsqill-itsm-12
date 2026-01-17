@@ -194,36 +194,10 @@ const ManageSessions: React.FC = () => {
   };
 
   const headerActions = (
-    <div className="flex gap-2">
-      <Button variant="outline" onClick={fetchSessions} disabled={loading}>
-        <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-        Refresh
-      </Button>
-      {sessions.length > 1 && (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="destructive">
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign out all other sessions
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent className="bg-background">
-            <AlertDialogHeader>
-              <AlertDialogTitle>Sign out all other sessions?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will sign you out from all other devices and browsers. Your current session will remain active.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={terminateAllOtherSessions}>
-                Sign out all
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
-    </div>
+    <Button variant="outline" onClick={fetchSessions} disabled={loading}>
+      <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+      Refresh
+    </Button>
   );
 
   return (
