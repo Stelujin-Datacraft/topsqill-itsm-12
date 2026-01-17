@@ -25,9 +25,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface Session {
   id: string;
+  user_id: string;
   session_token: string;
   ip_address: string | null;
   user_agent: string | null;
@@ -37,9 +39,17 @@ interface Session {
   expires_at: string | null;
 }
 
+interface UserInfo {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+}
+
 const ManageSessions: React.FC = () => {
-  const { user, session } = useAuth();
+  const { user, session, userProfile } = useAuth();
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [usersMap, setUsersMap] = useState<Record<string, UserInfo>>({});
   const [loading, setLoading] = useState(true);
   const [terminatingId, setTerminatingId] = useState<string | null>(null);
 
@@ -48,15 +58,36 @@ const ManageSessions: React.FC = () => {
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Admins see all sessions, users only their own
+      let query = supabase
         .from('user_sessions')
         .select('*')
-        .eq('user_id', user.id)
         .eq('is_active', true)
         .order('last_activity', { ascending: false });
 
+      if (userProfile?.role !== 'admin') {
+        query = query.eq('user_id', user.id);
+      }
+
+      const { data, error } = await query;
+
       if (error) throw error;
       setSessions(data || []);
+
+      // Fetch user info for all unique user IDs
+      const userIds = [...new Set((data || []).map(s => s.user_id))];
+      if (userIds.length > 0) {
+        const { data: usersData, error: usersError } = await supabase
+          .from('user_profiles')
+          .select('id, email, first_name, last_name')
+          .in('id', userIds);
+
+        if (!usersError && usersData) {
+          const map: Record<string, UserInfo> = {};
+          usersData.forEach(u => { map[u.id] = u; });
+          setUsersMap(map);
+        }
+      }
     } catch (error) {
       console.error('Error fetching sessions:', error);
       toast.error('Failed to load sessions');
@@ -67,7 +98,7 @@ const ManageSessions: React.FC = () => {
 
   useEffect(() => {
     fetchSessions();
-  }, [user]);
+  }, [user, userProfile]);
 
   const terminateSession = async (sessionId: string, sessionToken: string) => {
     setTerminatingId(sessionId);
@@ -155,6 +186,21 @@ const ManageSessions: React.FC = () => {
     return session?.access_token === sessionToken;
   };
 
+  const getUserInitials = (userInfo: UserInfo | undefined): string => {
+    if (!userInfo) return '?';
+    const first = userInfo.first_name?.charAt(0) || '';
+    const last = userInfo.last_name?.charAt(0) || '';
+    return (first + last).toUpperCase() || userInfo.email.charAt(0).toUpperCase();
+  };
+
+  const getUserDisplayName = (userInfo: UserInfo | undefined): string => {
+    if (!userInfo) return 'Unknown User';
+    if (userInfo.first_name || userInfo.last_name) {
+      return `${userInfo.first_name || ''} ${userInfo.last_name || ''}`.trim();
+    }
+    return userInfo.email;
+  };
+
   const headerActions = (
     <div className="flex gap-2">
       <Button variant="outline" onClick={fetchSessions} disabled={loading}>
@@ -218,7 +264,9 @@ const ManageSessions: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {sessions.map((sess) => (
+                {sessions.map((sess) => {
+                  const userInfo = usersMap[sess.user_id];
+                  return (
                   <div
                     key={sess.id}
                     className={`p-4 rounded-lg border transition-colors ${
@@ -243,7 +291,23 @@ const ManageSessions: React.FC = () => {
                               </Badge>
                             )}
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          
+                          {/* User Info */}
+                          <div className="flex items-center gap-2 mt-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                                {getUserInitials(userInfo)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium">{getUserDisplayName(userInfo)}</span>
+                              {userInfo?.email && (userInfo.first_name || userInfo.last_name) && (
+                                <span className="text-xs text-muted-foreground">{userInfo.email}</span>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
                             {sess.ip_address && (
                               <span className="flex items-center gap-1">
                                 <Globe className="h-3 w-3" />
@@ -298,7 +362,8 @@ const ManageSessions: React.FC = () => {
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
