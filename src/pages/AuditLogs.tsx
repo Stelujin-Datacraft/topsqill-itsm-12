@@ -216,9 +216,6 @@ const AuditLogs: React.FC = () => {
                     <SelectItem value="all">All Categories</SelectItem>
                     <SelectItem value="security">Security</SelectItem>
                     <SelectItem value="authentication">Authentication</SelectItem>
-                    <SelectItem value="user_management">User Management</SelectItem>
-                    <SelectItem value="data_access">Data Access</SelectItem>
-                    <SelectItem value="system">System</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
