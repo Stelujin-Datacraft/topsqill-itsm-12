@@ -36,18 +36,14 @@ interface FormAuditLog {
   id: string;
   user_id: string | null;
   event_type: string;
-  event_category: string;
+  form_id: string | null;
+  form_name: string | null;
+  field_id: string | null;
+  field_label: string | null;
   description: string | null;
-  ip_address: string | null;
+  changes: Record<string, unknown> | null;
+  metadata: Record<string, unknown> | null;
   user_agent: string | null;
-  metadata: {
-    form_id?: string;
-    form_name?: string;
-    changes?: Record<string, unknown>;
-    field_id?: string;
-    field_label?: string;
-    [key: string]: unknown;
-  } | null;
   created_at: string;
 }
 
@@ -83,9 +79,8 @@ const FormAuditLogs: React.FC = () => {
     setLoading(true);
     try {
       let query = supabase
-        .from('audit_logs')
+        .from('form_audit_logs')
         .select('*', { count: 'exact' })
-        .eq('event_category', 'form_management')
         .order('created_at', { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
@@ -99,11 +94,11 @@ const FormAuditLogs: React.FC = () => {
       }
 
       if (formFilter !== 'all') {
-        query = query.contains('metadata', { form_id: formFilter });
+        query = query.eq('form_id', formFilter);
       }
 
       if (searchTerm) {
-        query = query.or(`event_type.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
+        query = query.or(`event_type.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,form_name.ilike.%${searchTerm}%`);
       }
 
       const { data, count, error } = await query;
@@ -112,6 +107,7 @@ const FormAuditLogs: React.FC = () => {
 
       const typedLogs = (data || []).map(log => ({
         ...log,
+        changes: log.changes as FormAuditLog['changes'],
         metadata: log.metadata as FormAuditLog['metadata']
       }));
 
@@ -134,7 +130,7 @@ const FormAuditLogs: React.FC = () => {
       }
 
       // Fetch form info for all unique form IDs
-      const formIds = [...new Set(typedLogs.filter(l => l.metadata?.form_id).map(l => l.metadata!.form_id as string))];
+      const formIds = [...new Set(typedLogs.filter(l => l.form_id).map(l => l.form_id as string))];
       if (formIds.length > 0) {
         const { data: formsData, error: formsError } = await supabase
           .from('forms')
@@ -226,9 +222,9 @@ const FormAuditLogs: React.FC = () => {
   };
 
   const getFormName = (log: FormAuditLog): string => {
-    if (log.metadata?.form_name) return log.metadata.form_name;
-    if (log.metadata?.form_id && formsMap[log.metadata.form_id]) {
-      return formsMap[log.metadata.form_id].name;
+    if (log.form_name) return log.form_name;
+    if (log.form_id && formsMap[log.form_id]) {
+      return formsMap[log.form_id].name;
     }
     return 'Unknown Form';
   };
@@ -374,15 +370,14 @@ const FormAuditLogs: React.FC = () => {
                         )}
 
                         {/* Show field info if available */}
-                        {log.metadata?.field_label && (
+                        {log.field_label && (
                           <p className="text-sm text-muted-foreground mt-1">
-                            Field: <span className="font-medium">{log.metadata.field_label}</span>
+                            Field: <span className="font-medium">{log.field_label}</span>
                           </p>
                         )}
 
                         <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                           <span>{formatDate(log.created_at)}</span>
-                          {log.ip_address && <span>IP: {log.ip_address}</span>}
                         </div>
                       </div>
                     </div>

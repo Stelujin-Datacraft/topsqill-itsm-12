@@ -1,8 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
-import type { AuditEventType } from './auditLogger';
 
-type FormAuditEventType = Extract<AuditEventType, 
+// Independent form audit event types - NOT linked to main audit_logs
+export type FormAuditEventType = 
   | 'form_created'
   | 'form_updated'
   | 'form_deleted'
@@ -16,8 +16,7 @@ type FormAuditEventType = Extract<AuditEventType,
   | 'form_settings_changed'
   | 'form_permissions_changed'
   | 'form_access_granted'
-  | 'form_access_revoked'
->;
+  | 'form_access_revoked';
 
 interface FormAuditLogEntry {
   userId: string;
@@ -32,37 +31,31 @@ interface FormAuditLogEntry {
 }
 
 /**
- * Logs a form-related audit event to the database
+ * Logs a form-related audit event to the dedicated form_audit_logs table
+ * This is INDEPENDENT from the main audit_logs table
  */
 export const logFormAuditEvent = async (entry: FormAuditLogEntry): Promise<boolean> => {
   try {
-    const metadata: Record<string, unknown> = {
-      form_id: entry.formId,
-      form_name: entry.formName,
-    };
+    const metadata: Record<string, unknown> = {};
 
     if (entry.changes) {
       metadata.changes = entry.changes;
-    }
-
-    if (entry.fieldId) {
-      metadata.field_id = entry.fieldId;
-    }
-
-    if (entry.fieldLabel) {
-      metadata.field_label = entry.fieldLabel;
     }
 
     if (entry.additionalMetadata) {
       Object.assign(metadata, entry.additionalMetadata);
     }
 
-    const { error } = await supabase.from('audit_logs').insert([{
+    const { error } = await supabase.from('form_audit_logs').insert([{
       user_id: entry.userId,
       event_type: entry.eventType,
-      event_category: 'form_management',
+      form_id: entry.formId,
+      form_name: entry.formName || null,
+      field_id: entry.fieldId || null,
+      field_label: entry.fieldLabel || null,
       description: entry.description || null,
-      metadata: metadata as Json,
+      changes: entry.changes as Json || null,
+      metadata: Object.keys(metadata).length > 0 ? metadata as Json : null,
       user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null
     }]);
 
