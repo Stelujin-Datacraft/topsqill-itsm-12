@@ -316,7 +316,7 @@ const ManageSessions: React.FC = () => {
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
-                              variant="destructive"
+                              variant="outline"
                               size="sm"
                               disabled={terminatingId === sess.id}
                             >
