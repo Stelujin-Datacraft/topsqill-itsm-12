@@ -59,7 +59,7 @@ const UserCard = ({ user, onRoleChange, onDelete }: UserCardProps) => {
     switch (status) {
       case 'active': return 'default';
       case 'pending': return 'secondary';
-      case 'inactive': return 'outline';
+      case 'inactive': return 'destructive';
       default: return 'secondary';
     }
   };

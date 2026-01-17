@@ -51,7 +51,7 @@ const UserTableRow = ({ user, onRoleChange, onDelete }: UserTableRowProps) => {
     switch (status) {
       case 'active': return 'default';
       case 'pending': return 'secondary';
-      case 'inactive': return 'outline';
+      case 'inactive': return 'destructive';
       default: return 'secondary';
     }
   };
