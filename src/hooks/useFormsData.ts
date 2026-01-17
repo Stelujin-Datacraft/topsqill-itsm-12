@@ -39,7 +39,9 @@ export function useFormsData() {
   };
 
   const updateForm = async (id: string, updates: Partial<Form>) => {
-    await updateFormMutation(id, updates);
+    // Find the current form to get its name for audit logging
+    const currentForm = forms.find(f => f.id === id);
+    await updateFormMutation(id, updates, userProfile, currentForm?.name);
     setForms(prev =>
       prev.map(form =>
         form.id === id
@@ -50,12 +52,16 @@ export function useFormsData() {
   };
 
   const deleteForm = async (id: string) => {
-    await deleteFormMutation(id);
+    // Find the current form to get its name for audit logging
+    const currentForm = forms.find(f => f.id === id);
+    await deleteFormMutation(id, userProfile, currentForm?.name);
     setForms(prev => prev.filter(form => form.id !== id));
   };
 
   const addField = async (formId: string, fieldData: Omit<FormField, 'id'> & { id?: string }) => {
-    const newField = await addFieldMutation(formId, fieldData, userProfile);
+    // Find the form to get its name for audit logging
+    const form = forms.find(f => f.id === formId);
+    const newField = await addFieldMutation(formId, fieldData, userProfile, form?.name);
     if (newField) {
       setForms(prev =>
         prev.map(form =>
@@ -69,7 +75,10 @@ export function useFormsData() {
   };
 
   const updateField = async (fieldId: string, updates: Partial<FormField>) => {
-    await updateFieldMutation(fieldId, updates);
+    // Find the form that contains this field for audit logging
+    const form = forms.find(f => f.fields.some(field => field.id === fieldId));
+    const auditInfo = form && userProfile ? { userId: userProfile.id, formId: form.id, formName: form.name } : undefined;
+    await updateFieldMutation(fieldId, updates, auditInfo);
     setForms(prev =>
       prev.map(form => ({
         ...form,
@@ -81,7 +90,11 @@ export function useFormsData() {
   };
 
   const deleteField = async (fieldId: string) => {
-    await deleteFieldMutation(fieldId);
+    // Find the form and field for audit logging
+    const form = forms.find(f => f.fields.some(field => field.id === fieldId));
+    const field = form?.fields.find(f => f.id === fieldId);
+    const auditInfo = form && userProfile ? { userId: userProfile.id, formId: form.id, formName: form.name, fieldLabel: field?.label } : undefined;
+    await deleteFieldMutation(fieldId, auditInfo);
     setForms(prev =>
       prev.map(form => ({
         ...form,
