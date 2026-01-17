@@ -110,6 +110,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Function to check if the current session is still valid in the database
+  const validateSessionInDb = async (accessToken: string) => {
+    try {
+      const { data: sessionData, error } = await supabase
+        .from('user_sessions')
+        .select('is_active')
+        .eq('session_token', accessToken)
+        .maybeSingle();
+
+      // If session exists and is inactive, sign out the user
+      if (sessionData && sessionData.is_active === false) {
+        console.log('Session terminated by admin, logging out');
+        await supabase.auth.signOut();
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error validating session:', error);
+      return true; // Don't log out on validation errors
+    }
+  };
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -117,8 +139,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          setTimeout(() => {
-            loadUserProfile(session.user.id);
+          // Check if session is still valid in our database
+          setTimeout(async () => {
+            const isValid = await validateSessionInDb(session.access_token);
+            if (isValid) {
+              loadUserProfile(session.user.id);
+            }
           }, 100);
         } else {
           setUserProfile(null);
@@ -128,16 +154,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        loadUserProfile(session.user.id);
+        const isValid = await validateSessionInDb(session.access_token);
+        if (isValid) {
+          loadUserProfile(session.user.id);
+        }
       }
       setIsLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // Set up interval to periodically check session validity
+    const intervalId = setInterval(async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        await validateSessionInDb(session.access_token);
+      }
+    }, 30000); // Check every 30 seconds
+
+    return () => {
+      subscription.unsubscribe();
+      clearInterval(intervalId);
+    };
   }, []);
 
   const signUp = async (email: string, password: string, userData: { first_name: string; last_name: string; organization_id: string }) => {

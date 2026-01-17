@@ -103,21 +103,12 @@ const ManageSessions: React.FC = () => {
   const terminateSession = async (sessionId: string, sessionToken: string) => {
     setTerminatingId(sessionId);
     try {
-      const { error } = await supabase
-        .from('user_sessions')
-        .update({ is_active: false })
-        .eq('id', sessionId);
+      // Call edge function to terminate the session
+      const { data, error } = await supabase.functions.invoke('terminate-session', {
+        body: { sessionId }
+      });
 
       if (error) throw error;
-
-      // Log the action
-      await supabase.from('audit_logs').insert({
-        user_id: user?.id,
-        event_type: 'session_terminated',
-        event_category: 'security',
-        description: 'User terminated a session',
-        metadata: { session_id: sessionId }
-      });
 
       toast.success('Session terminated successfully');
       fetchSessions();
