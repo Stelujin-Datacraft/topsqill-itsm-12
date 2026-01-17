@@ -286,19 +286,28 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
     return templates.find(t => t.id === formData.securityTemplateId) || null;
   }, [formData.securityTemplateId, templates]);
 
-  // Validate password against selected template
+  // Validate password against selected template (only when template is selected)
   const passwordValidation = useMemo(() => {
+    // If no template selected, password validation is not applicable yet
+    if (!selectedTemplate) {
+      return { isValid: false, errors: [], checks: [] };
+    }
     if (!formData.password) {
       return { isValid: false, errors: [], checks: [] };
     }
     return validatePassword(formData.password, selectedTemplate);
   }, [formData.password, selectedTemplate]);
 
+  // Check if form is ready to submit
+  const canSubmit = useMemo(() => {
+    return formData.securityTemplateId && passwordValidation.isValid;
+  }, [formData.securityTemplateId, passwordValidation.isValid]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Check password validation before submitting
-    if (!passwordValidation.isValid) {
+    // Check template and password validation before submitting
+    if (!formData.securityTemplateId || !passwordValidation.isValid) {
       return;
     }
     
@@ -409,11 +418,11 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
                 </Button>
               </div>
               
-              {/* Password Requirements Checklist */}
-              {formData.password && (
+              {/* Password Requirements Checklist - only show when template is selected */}
+              {selectedTemplate && formData.password && (
                 <div className="mt-2 p-3 rounded-md bg-muted/50 border">
                   <p className="text-xs font-medium mb-2 text-muted-foreground">
-                    Password Requirements {selectedTemplate ? `(${selectedTemplate.name})` : '(Default Policy)'}:
+                    Password Requirements ({selectedTemplate.name}):
                   </p>
                   <div className="grid grid-cols-2 gap-1">
                     {passwordValidation.checks.map((check, index) => (
@@ -430,6 +439,13 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
                     ))}
                   </div>
                 </div>
+              )}
+              
+              {/* Prompt to select template first */}
+              {!selectedTemplate && formData.password && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Select a Security Template below to see password requirements
+                </p>
               )}
             </div>
 
@@ -502,17 +518,17 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="securityTemplate">Security Template</Label>
+              <Label htmlFor="securityTemplate">Security Template *</Label>
               <Select
-                value={formData.securityTemplateId || '__none__'}
-                onValueChange={(value) => setFormData({ ...formData, securityTemplateId: value === '__none__' ? '' : value })}
+                value={formData.securityTemplateId || ''}
+                onValueChange={(value) => setFormData({ ...formData, securityTemplateId: value })}
                 disabled={templatesLoading}
+                required
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Use default parameters" />
+                <SelectTrigger className={!formData.securityTemplateId ? 'border-muted-foreground/50' : ''}>
+                  <SelectValue placeholder="Select a security template" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">Use default parameters</SelectItem>
                   {templates.map((template) => (
                     <SelectItem key={template.id} value={template.id}>
                       {template.name}
@@ -524,7 +540,7 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
               <p className="text-xs text-muted-foreground">
                 {formData.securityTemplateId 
                   ? 'Template settings will be applied to this user'
-                  : 'Organization default security settings will be used'}
+                  : 'Please select a template to define password requirements'}
               </p>
             </div>
           </div>
@@ -533,7 +549,7 @@ const UserCreateDialog = ({ isOpen, onOpenChange, onCreate }: UserCreateDialogPr
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || !passwordValidation.isValid}>
+            <Button type="submit" disabled={loading || !canSubmit}>
               {loading ? 'Creating...' : 'Create User'}
             </Button>
           </div>
