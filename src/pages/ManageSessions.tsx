@@ -1,20 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import DashboardLayout from '@/components/DashboardLayout';
 import { 
-  ArrowLeft, 
   Monitor, 
   Smartphone, 
   Globe, 
   Clock, 
   LogOut, 
   RefreshCw,
-  Shield
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -40,7 +38,6 @@ interface Session {
 }
 
 const ManageSessions: React.FC = () => {
-  const navigate = useNavigate();
   const { user, session } = useAuth();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,57 +155,52 @@ const ManageSessions: React.FC = () => {
     return session?.access_token === sessionToken;
   };
 
+  const headerActions = (
+    <div className="flex gap-2">
+      <Button variant="outline" onClick={fetchSessions} disabled={loading}>
+        <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+        Refresh
+      </Button>
+      {sessions.length > 1 && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive">
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign out all other sessions
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent className="bg-background">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Sign out all other sessions?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will sign you out from all other devices and browsers. Your current session will remain active.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={terminateAllOtherSessions}>
+                Sign out all
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <DashboardLayout title="Manage Sessions" actions={headerActions}>
+      <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                <Shield className="h-6 w-6" />
-                Manage Sessions
-              </h1>
-              <p className="text-muted-foreground">View and manage your active sessions</p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={fetchSessions} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            {sessions.length > 1 && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive">
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Sign out all other sessions
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Sign out all other sessions?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will sign you out from all other devices and browsers. Your current session will remain active.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={terminateAllOtherSessions}>
-                      Sign out all
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-          </div>
+          <p className="text-muted-foreground">View and manage your active sessions across devices</p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Active Sessions</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Monitor className="h-5 w-5" />
+              Active Sessions
+            </CardTitle>
             <CardDescription>
               {sessions.length} active session{sessions.length !== 1 ? 's' : ''} found
             </CardDescription>
@@ -219,21 +211,25 @@ const ManageSessions: React.FC = () => {
                 <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : sessions.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No active sessions found</p>
+              <div className="text-center py-12">
+                <Monitor className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No active sessions found</p>
+                <p className="text-sm text-muted-foreground mt-1">Sessions will appear here after you log in</p>
+              </div>
             ) : (
               <div className="space-y-4">
                 {sessions.map((sess) => (
                   <div
                     key={sess.id}
-                    className={`p-4 rounded-lg border ${
+                    className={`p-4 rounded-lg border transition-colors ${
                       isCurrentSession(sess.session_token)
                         ? 'border-primary bg-primary/5'
-                        : 'border-border'
+                        : 'border-border hover:bg-muted/50'
                     }`}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-4">
-                        <div className="p-2 rounded-lg bg-muted">
+                        <div className="p-3 rounded-lg bg-muted">
                           {getDeviceIcon(sess.user_agent)}
                         </div>
                         <div className="space-y-1">
@@ -282,7 +278,7 @@ const ManageSessions: React.FC = () => {
                               )}
                             </Button>
                           </AlertDialogTrigger>
-                          <AlertDialogContent>
+                          <AlertDialogContent className="bg-background">
                             <AlertDialogHeader>
                               <AlertDialogTitle>Sign out this session?</AlertDialogTitle>
                               <AlertDialogDescription>
@@ -308,7 +304,7 @@ const ManageSessions: React.FC = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </DashboardLayout>
   );
 };
 
