@@ -54,6 +54,7 @@ import UserProfile from "./pages/UserProfile";
 import ChangePassword from "./pages/ChangePassword";
 import ManageSessions from "./pages/ManageSessions";
 import AuditLogs from "./pages/AuditLogs";
+import FormAuditLogs from "./pages/FormAuditLogs";
 import PasswordExpiryWarning from "./components/PasswordExpiryWarning";
 import NotFound from "./pages/NotFound";
 
@@ -118,6 +119,7 @@ const App = () => (
                      <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
                      <Route path="/manage-sessions" element={<ProtectedRoute><ManageSessions /></ProtectedRoute>} />
                      <Route path="/audit-logs" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
+                     <Route path="/form-audit-logs" element={<ProtectedRoute><FormAuditLogs /></ProtectedRoute>} />
                      <Route path="*" element={<NotFound />} />
                   </Routes>
                 </BrowserRouter>

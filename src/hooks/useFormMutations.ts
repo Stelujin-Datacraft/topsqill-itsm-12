@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Form } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
+import { logFormAuditEvent, describeFormChanges } from '@/utils/formAuditLogger';
 
 export function useFormMutations() {
   const createForm = async (formData: Omit<Form, 'id' | 'createdAt' | 'updatedAt' | 'fields'>, userProfile: any) => {
@@ -82,6 +83,15 @@ export function useFormMutations() {
         pages: JSON.parse(data.pages as string),
       };
 
+      // Log audit event
+      await logFormAuditEvent({
+        userId: userProfile.id,
+        eventType: 'form_created',
+        formId: newForm.id,
+        formName: newForm.name,
+        description: `Created form "${newForm.name}"`,
+      });
+
       return newForm;
     } catch (error) {
       console.error('useFormMutations: Unexpected error creating form:', error);
@@ -94,7 +104,7 @@ export function useFormMutations() {
     }
   };
 
-  const updateForm = async (id: string, updates: Partial<Form>) => {
+  const updateForm = async (id: string, updates: Partial<Form>, userProfile?: any, formName?: string) => {
     try {
       const updateData: any = {};
       if (updates.name) updateData.name = updates.name;
@@ -118,6 +128,18 @@ export function useFormMutations() {
         console.error('useFormMutations: Error updating form:', error);
         throw error;
       }
+
+      // Log audit event if user profile is available
+      if (userProfile?.id) {
+        await logFormAuditEvent({
+          userId: userProfile.id,
+          eventType: 'form_updated',
+          formId: id,
+          formName: formName || updates.name,
+          description: describeFormChanges(updates),
+          changes: updates as Record<string, unknown>,
+        });
+      }
     } catch (error) {
       console.error('useFormMutations: Error updating form:', error);
       toast({
@@ -129,7 +151,7 @@ export function useFormMutations() {
     }
   };
 
-  const deleteForm = async (id: string) => {
+  const deleteForm = async (id: string, userProfile?: any, formName?: string) => {
     try {
       const { error } = await supabase
         .from('forms')
@@ -139,6 +161,17 @@ export function useFormMutations() {
       if (error) {
         console.error('useFormMutations: Error deleting form:', error);
         throw error;
+      }
+
+      // Log audit event if user profile is available
+      if (userProfile?.id) {
+        await logFormAuditEvent({
+          userId: userProfile.id,
+          eventType: 'form_deleted',
+          formId: id,
+          formName: formName,
+          description: `Deleted form "${formName || id}"`,
+        });
       }
     } catch (error) {
       console.error('useFormMutations: Error deleting form:', error);
