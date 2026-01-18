@@ -1,15 +1,140 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Professional HTML email template
+function generateWelcomeEmailHtml(params: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  organizationName: string;
+  loginUrl: string;
+}) {
+  const { firstName, lastName, email, password, organizationName, loginUrl } = params;
+  
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to ${organizationName}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7fa;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td align="center" style="padding: 40px 0;">
+        <table role="presentation" style="width: 600px; max-width: 100%; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);">
+          
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 40px 30px; border-radius: 12px 12px 0 0; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">
+                Welcome to ${organizationName}! 🎉
+              </h1>
+              <p style="margin: 10px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">
+                Your account has been created successfully
+              </p>
+            </td>
+          </tr>
+          
+          <!-- Body -->
+          <tr>
+            <td style="padding: 40px;">
+              <p style="margin: 0 0 20px; color: #333; font-size: 16px; line-height: 1.6;">
+                Hi <strong>${firstName} ${lastName}</strong>,
+              </p>
+              <p style="margin: 0 0 25px; color: #555; font-size: 15px; line-height: 1.6;">
+                We're excited to have you on board! Your account has been set up and you're ready to get started. Below are your login credentials:
+              </p>
+              
+              <!-- Credentials Box -->
+              <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 25px 0;">
+                <tr>
+                  <td style="background-color: #f8f9fc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 25px;">
+                    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 8px 0;">
+                          <span style="color: #64748b; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Email Address</span>
+                          <p style="margin: 5px 0 0; color: #1e293b; font-size: 16px; font-weight: 600;">${email}</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 15px 0 8px; border-top: 1px dashed #e2e8f0;">
+                          <span style="color: #64748b; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Temporary Password</span>
+                          <p style="margin: 5px 0 0;">
+                            <code style="background-color: #fef3c7; color: #92400e; padding: 8px 14px; border-radius: 6px; font-size: 15px; font-weight: 600; display: inline-block;">${password}</code>
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+              
+              <!-- Security Notice -->
+              <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 25px 0;">
+                <tr>
+                  <td style="background-color: #fef2f2; border-left: 4px solid #ef4444; border-radius: 0 8px 8px 0; padding: 15px 20px;">
+                    <p style="margin: 0; color: #991b1b; font-size: 14px; font-weight: 500;">
+                      🔐 <strong>Security Notice:</strong> Please change your password immediately after your first login.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+              
+              <!-- CTA Button -->
+              <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 30px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="${loginUrl}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 8px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);">
+                      Login to Your Account →
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              
+              <p style="margin: 25px 0 0; color: #555; font-size: 15px; line-height: 1.6;">
+                If you have any questions or need assistance, don't hesitate to reach out to your administrator.
+              </p>
+              <p style="margin: 20px 0 0; color: #333; font-size: 15px;">
+                Welcome to the team! 🚀<br>
+                <strong>The ${organizationName} Team</strong>
+              </p>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8f9fc; padding: 25px 40px; border-radius: 0 0 12px 12px; border-top: 1px solid #e2e8f0;">
+              <p style="margin: 0; color: #64748b; font-size: 13px; text-align: center; line-height: 1.6;">
+                This email was sent by <strong>${organizationName}</strong>.<br>
+                If you didn't expect this email, please contact your administrator.
+              </p>
+              <p style="margin: 15px 0 0; color: #94a3b8; font-size: 12px; text-align: center;">
+                © ${new Date().getFullYear()} ${organizationName}. All rights reserved.
+              </p>
+            </td>
+          </tr>
+          
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+}
+
 serve(async (req) => {
   console.log('🚀 Function started - Method:', req.method)
-  console.log('🔍 Headers:', Object.fromEntries(req.headers.entries()))
 
   if (req.method === 'OPTIONS') {
     console.log('✅ CORS preflight request handled')
@@ -19,7 +144,7 @@ serve(async (req) => {
   try {
     console.log('📥 Parsing request body...')
     const requestBody = await req.json()
-    console.log('📋 Request data received:', JSON.stringify(requestBody, null, 2))
+    console.log('📋 Request data received:', JSON.stringify({ ...requestBody, password: '[REDACTED]' }, null, 2))
     
     const { 
       email, 
@@ -55,12 +180,10 @@ serve(async (req) => {
     console.log('🔑 Checking environment variables...')
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    const resendApiKey = Deno.env.get('RESEND_API_KEY')
     
     console.log('🔍 Environment check:')
     console.log('- SUPABASE_URL:', supabaseUrl ? '✅ Set' : '❌ Missing')
     console.log('- SUPABASE_SERVICE_ROLE_KEY:', supabaseServiceKey ? '✅ Set' : '❌ Missing')
-    console.log('- RESEND_API_KEY:', resendApiKey ? '✅ Set' : '❌ Missing')
 
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error('❌ Missing Supabase environment variables')
@@ -92,7 +215,6 @@ serve(async (req) => {
       user.email?.toLowerCase() === email.toLowerCase()
     )
     console.log('🔍 User exists check:', userExists ? '✅ Found in auth' : '❌ Not found')
-    console.log('📊 Total users in system:', existingUsers?.users?.length || 0)
     
     if (userExists) {
       console.log('👤 User exists in auth, checking profile...')
@@ -210,7 +332,7 @@ serve(async (req) => {
 
     // Create user profile
     console.log('📝 Creating user profile...')
-    const profileData: any = {
+    const profileDataToInsert: any = {
       id: authUser.user.id,
       email: email,
       first_name: firstName,
@@ -221,15 +343,15 @@ serve(async (req) => {
     }
     
     // Add optional fields if provided
-    if (nationality) profileData.nationality = nationality
-    if (mobile) profileData.mobile = mobile
-    if (gender) profileData.gender = gender
-    if (timezone) profileData.timezone = timezone
-    if (password) profileData.password = password
+    if (nationality) profileDataToInsert.nationality = nationality
+    if (mobile) profileDataToInsert.mobile = mobile
+    if (gender) profileDataToInsert.gender = gender
+    if (timezone) profileDataToInsert.timezone = timezone
+    if (password) profileDataToInsert.password = password
     
     const { error: profileError } = await supabaseAdmin
       .from('user_profiles')
-      .insert(profileData)
+      .insert(profileDataToInsert)
 
     if (profileError) {
       console.error('❌ Error creating user profile:', profileError)
@@ -265,65 +387,80 @@ serve(async (req) => {
       console.log('✅ User security parameters created successfully')
     }
 
-    // Try to send welcome email - but don't fail the whole operation if it fails
+    // Try to send welcome email using organization's SMTP config
     let emailSent = false
     let emailError = null
 
-    console.log('📧 Attempting to send welcome email...')
+    console.log('📧 Attempting to send welcome email via SMTP...')
     
-    if (!resendApiKey) {
-      console.warn('⚠️ RESEND_API_KEY not configured, skipping email')
-      emailError = 'RESEND_API_KEY is not configured'
-    } else {
-      try {
-        const emailData = {
-          from: 'DataCraft Pro <onboarding@resend.dev>',
-          to: [email],
-          subject: `Welcome to ${organizationName || 'DataCraft Pro'}`,
-          html: `
-            <h2>Welcome to ${organizationName || 'DataCraft Pro'}!</h2>
-            <p>Hi ${firstName},</p>
-            <p>Your account has been created successfully. Here are your login credentials:</p>
-            <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <p><strong>Email:</strong> ${email}</p>
-              <p><strong>Temporary Password:</strong> <code style="background-color: #e0e0e0; padding: 2px 4px; border-radius: 3px;">${tempPassword}</code></p>
-            </div>
-            <p>Please log in and change your password as soon as possible for security reasons.</p>
-            <p>Welcome to the team!</p>
-            <hr style="margin: 30px 0;">
-            <p style="color: #666; font-size: 12px;">This email was sent by DataCraft Pro. If you believe you received this email in error, please contact your administrator.</p>
-          `
-        }
-
-        console.log('📤 Sending email to:', email)
-        console.log('📧 Email data:', JSON.stringify({ ...emailData, html: '[HTML_CONTENT]' }, null, 2))
-
-        const emailResponse = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${resendApiKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(emailData)
+    try {
+      // Fetch the organization's active SMTP configuration
+      const { data: smtpConfig, error: smtpError } = await supabaseAdmin
+        .from('smtp_configs')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .eq('is_active', true)
+        .order('is_default', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      
+      if (smtpError) {
+        console.error('❌ Error fetching SMTP config:', smtpError)
+        emailError = `Failed to fetch SMTP configuration: ${smtpError.message}`
+      } else if (!smtpConfig) {
+        console.warn('⚠️ No active SMTP configuration found for organization')
+        emailError = 'No active SMTP configuration found for this organization'
+      } else {
+        console.log('✅ SMTP config found:', smtpConfig.name)
+        console.log('📤 SMTP Host:', smtpConfig.host, 'Port:', smtpConfig.port)
+        
+        // Generate the login URL
+        const loginUrl = `${supabaseUrl.replace('.supabase.co', '.lovable.app')}/login`
+        
+        // Generate the email HTML
+        const emailHtml = generateWelcomeEmailHtml({
+          firstName,
+          lastName,
+          email,
+          password: tempPassword,
+          organizationName: organizationName || 'DataCraft Pro',
+          loginUrl
         })
-
-        console.log('📬 Email response status:', emailResponse.status)
-        console.log('📬 Email response headers:', Object.fromEntries(emailResponse.headers.entries()))
-
-        if (!emailResponse.ok) {
-          const errorText = await emailResponse.text()
-          console.error('❌ Error sending email - Status:', emailResponse.status)
-          console.error('❌ Error sending email - Response:', errorText)
-          emailError = `Failed to send welcome email: ${errorText}`
-        } else {
-          const emailResult = await emailResponse.json()
-          console.log('✅ Welcome email sent successfully:', emailResult)
-          emailSent = true
-        }
-      } catch (error) {
-        console.error('❌ Error in email sending process:', error)
-        emailError = error.message
+        
+        // Initialize SMTP client
+        const client = new SMTPClient({
+          connection: {
+            hostname: smtpConfig.host,
+            port: smtpConfig.port,
+            tls: smtpConfig.use_tls,
+            auth: {
+              username: smtpConfig.username,
+              password: smtpConfig.password,
+            },
+          },
+        });
+        
+        console.log('📤 Sending email to:', email)
+        
+        // Send the email
+        await client.send({
+          from: smtpConfig.from_name 
+            ? `${smtpConfig.from_name} <${smtpConfig.from_email}>`
+            : smtpConfig.from_email,
+          to: email,
+          subject: `Welcome to ${organizationName || 'DataCraft Pro'} - Your Account Details`,
+          content: "auto",
+          html: emailHtml,
+        });
+        
+        await client.close();
+        
+        console.log('✅ Welcome email sent successfully via SMTP')
+        emailSent = true
       }
+    } catch (error) {
+      console.error('❌ Error in email sending process:', error)
+      emailError = error.message
     }
 
     // Return success even if email failed - user creation is more important
@@ -334,12 +471,11 @@ serve(async (req) => {
         : `User created successfully, but email failed: ${emailError}`,
       userId: authUser.user.id,
       emailSent: emailSent,
-      emailError: emailError,
-      tempPassword: tempPassword // Include for debugging - remove in production
+      emailError: emailError
     }
 
     console.log('🎉 Function completed successfully')
-    console.log('📤 Response data:', JSON.stringify(responseData, null, 2))
+    console.log('📤 Response data:', JSON.stringify({ ...responseData }, null, 2))
 
     return new Response(
       JSON.stringify(responseData),
