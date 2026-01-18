@@ -218,7 +218,9 @@ export async function checkAccessTimeRestrictions(userId: string): Promise<Secur
  */
 export async function checkMfaRequired(userId: string): Promise<boolean> {
   try {
-    const { data: securityParams } = await supabase
+    console.log('Checking MFA requirement for user:', userId);
+    
+    const { data: securityParams, error } = await supabase
       .from('user_security_parameters')
       .select(`
         mfa_required,
@@ -231,18 +233,29 @@ export async function checkMfaRequired(userId: string): Promise<boolean> {
       .eq('user_id', userId)
       .maybeSingle();
 
-    if (!securityParams) {
+    if (error) {
+      console.error('Error fetching security params for MFA:', error);
       return false;
     }
+
+    if (!securityParams) {
+      console.log('No security params found for user, MFA not required');
+      return false;
+    }
+
+    console.log('Security params:', JSON.stringify(securityParams));
 
     // Determine effective MFA requirement based on use_template_settings
     const template = securityParams.security_templates;
     const useTemplate = securityParams.use_template_settings && template;
     
-    const effectiveMfaRequired = useTemplate && template.mfa_required !== null
+    console.log('Template data:', template, 'Use template:', useTemplate);
+    
+    const effectiveMfaRequired = useTemplate && template?.mfa_required !== null
       ? template.mfa_required
       : securityParams.mfa_required;
 
+    console.log('Effective MFA required:', effectiveMfaRequired);
     return effectiveMfaRequired ?? false;
   } catch (error) {
     console.error('Error checking MFA requirement:', error);
