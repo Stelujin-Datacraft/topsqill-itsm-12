@@ -263,10 +263,10 @@ const FormAuditLogs: React.FC = () => {
     { value: 'form_updated', label: 'Form Updated' },
     { value: 'form_deleted', label: 'Form Deleted' },
     { value: 'form_duplicated', label: 'Form Duplicated' },
-    { value: 'form_published', label: 'Form Published' },
     { value: 'form_field_added', label: 'Field Added' },
     { value: 'form_field_updated', label: 'Field Updated' },
     { value: 'form_field_deleted', label: 'Field Deleted' },
+    { value: 'form_fields_reordered', label: 'Fields Reordered' },
     { value: 'form_workflow_linked', label: 'Workflow Linked' },
     { value: 'form_exported', label: 'Exported' },
   ];
