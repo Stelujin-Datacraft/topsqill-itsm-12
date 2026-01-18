@@ -16,7 +16,9 @@ export type FormAuditEventType =
   | 'form_settings_changed'
   | 'form_permissions_changed'
   | 'form_access_granted'
-  | 'form_access_revoked';
+  | 'form_access_revoked'
+  | 'form_workflow_linked'
+  | 'form_exported';
 
 interface FormAuditLogEntry {
   userId: string;

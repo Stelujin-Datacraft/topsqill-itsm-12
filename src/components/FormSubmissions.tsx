@@ -14,6 +14,7 @@ import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubmissionAccessFilter } from '@/hooks/useSubmissionAccessFilter';
 import { SubmissionUpdateButton } from './submissions/SubmissionUpdateButton';
+import { logFormAuditEvent } from '@/utils/formAuditLogger';
 
 interface FormSubmission {
   id: string;
@@ -176,7 +177,7 @@ export function FormSubmissions({
       setDeletingId(null);
     }
   };
-  const handleExportData = () => {
+  const handleExportData = async () => {
     const allFields = getAllFields();
     
     // Helper to format field value for export
@@ -225,6 +226,21 @@ export function FormSubmissions({
     a.download = `${form.name}_submissions.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
+
+    // Log the export event
+    if (userProfile?.id) {
+      await logFormAuditEvent({
+        userId: userProfile.id,
+        eventType: 'form_exported',
+        formId: form.id,
+        formName: form.name,
+        description: `Exported ${filteredSubmissions.length} submissions to CSV`,
+        additionalMetadata: {
+          exportFormat: 'csv',
+          recordCount: filteredSubmissions.length
+        }
+      });
+    }
   };
   const getFieldValue = (submission: FormSubmission, fieldId: string) => {
     return submission.submissionData[fieldId] || '-';
