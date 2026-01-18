@@ -73,10 +73,20 @@ const ManageSessions: React.FC = () => {
       const { data, error } = await query;
 
       if (error) throw error;
-      setSessions(data || []);
+      
+      // Keep only the most recent session per user
+      const latestSessionsByUser = new Map<string, Session>();
+      (data || []).forEach((sess: Session) => {
+        if (!latestSessionsByUser.has(sess.user_id)) {
+          latestSessionsByUser.set(sess.user_id, sess);
+        }
+      });
+      
+      const uniqueSessions = Array.from(latestSessionsByUser.values());
+      setSessions(uniqueSessions);
 
       // Fetch user info for all unique user IDs
-      const userIds = [...new Set((data || []).map(s => s.user_id))];
+      const userIds = [...new Set(uniqueSessions.map(s => s.user_id))];
       if (userIds.length > 0) {
         const { data: usersData, error: usersError } = await supabase
           .from('user_profiles')
@@ -276,8 +286,11 @@ const ManageSessions: React.FC = () => {
                         <span className="font-medium">
                           {getDeviceName(sess.user_agent)}
                         </span>
+                        <Badge variant="outline" className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
+                          Active
+                        </Badge>
                         {isCurrentSession(sess.session_token) && (
-                          <Badge variant="default" className="text-xs bg-emerald-500 hover:bg-emerald-600">
+                          <Badge variant="default" className="text-xs bg-blue-500 hover:bg-blue-600">
                             Current
                           </Badge>
                         )}
