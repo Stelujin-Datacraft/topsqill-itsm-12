@@ -18,11 +18,26 @@ const ForgotPassword = () => {
     setIsLoading(true);
 
     try {
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        toast({
+          title: "Invalid Email",
+          description: "Please enter a valid email address.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       // Use our custom edge function to send password reset via Hostinger SMTP
+      // Use production URL for redirect
+      const redirectUrl = 'https://topsqill-itsm-12.lovable.app/change-password';
+      
       const { data, error } = await supabase.functions.invoke('send-password-reset', {
         body: { 
-          email,
-          redirectUrl: `${window.location.origin}/change-password`
+          email: email.trim().toLowerCase(),
+          redirectUrl
         },
       });
 

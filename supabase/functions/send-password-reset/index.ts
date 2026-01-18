@@ -50,12 +50,18 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Use the production URL for password reset redirect
+    const productionUrl = 'https://topsqill-itsm-12.lovable.app';
+    const finalRedirectUrl = redirectUrl || `${productionUrl}/change-password`;
+    
+    console.log(`Using redirect URL: ${finalRedirectUrl}`);
+
     // Generate password reset using Supabase Auth
     const { data: resetData, error: resetError } = await supabase.auth.admin.generateLink({
       type: 'recovery',
       email: email,
       options: {
-        redirectTo: redirectUrl || `${req.headers.get('origin')}/change-password`,
+        redirectTo: finalRedirectUrl,
       },
     });
 
