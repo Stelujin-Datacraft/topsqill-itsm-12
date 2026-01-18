@@ -26,6 +26,7 @@ const ChangePassword = () => {
   const [canChangePassword, setCanChangePassword] = useState(true);
   const [hoursUntilChange, setHoursUntilChange] = useState(0);
   const [isResetMode, setIsResetMode] = useState(false);
+  const [policyLoaded, setPolicyLoaded] = useState(false);
 
   useEffect(() => {
     // Check if this is a password reset flow (user came from email link)
@@ -33,21 +34,42 @@ const ChangePassword = () => {
     const accessToken = hashParams.get('access_token');
     const type = hashParams.get('type');
     
+    console.log('ChangePassword: Checking reset mode', { accessToken: !!accessToken, type });
+    
     if (accessToken && type === 'recovery') {
       setIsResetMode(true);
+      // Set the session from the recovery token
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: hashParams.get('refresh_token') || '',
+      }).then(({ data, error }) => {
+        if (error) {
+          console.error('Error setting session:', error);
+          toast({
+            title: 'Session Error',
+            description: 'Invalid or expired reset link. Please request a new one.',
+            variant: 'destructive',
+          });
+          navigate('/forgot-password');
+        } else {
+          console.log('Session set successfully for password reset');
+          // Load policy for the recovered user
+          if (data.user) {
+            loadPasswordPolicyForUser(data.user.id);
+          }
+        }
+      });
     }
   }, []);
 
   useEffect(() => {
-    if (user) {
-      loadPasswordPolicy();
+    if (user && !policyLoaded) {
+      loadPasswordPolicyForUser(user.id);
     }
-  }, [user]);
+  }, [user, policyLoaded]);
 
-  const loadPasswordPolicy = async () => {
-    if (!user) return;
-
-    const policy = await getUserPasswordPolicy(user.id);
+  const loadPasswordPolicyForUser = async (userId: string) => {
+    const policy = await getUserPasswordPolicy(userId);
     if (policy) {
       setPasswordPolicy({
         password_min_length: policy.password_min_length,
@@ -58,13 +80,14 @@ const ChangePassword = () => {
       });
       setMinChangeHours(policy.password_change_min_hours);
     }
+    setPolicyLoaded(true);
 
     // Only check minimum change time for regular password changes, not resets
     if (!isResetMode) {
       const { data: securityParams } = await supabase
         .from('user_security_parameters')
         .select('last_password_change')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .maybeSingle();
 
       if (securityParams?.last_password_change) {
