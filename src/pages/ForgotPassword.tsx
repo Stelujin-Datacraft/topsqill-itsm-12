@@ -18,14 +18,19 @@ const ForgotPassword = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/change-password`,
+      // Use our custom edge function to send password reset via Hostinger SMTP
+      const { data, error } = await supabase.functions.invoke('send-password-reset', {
+        body: { 
+          email,
+          redirectUrl: `${window.location.origin}/change-password`
+        },
       });
 
       if (error) {
+        console.error('Password reset error:', error);
         toast({
           title: "Error",
-          description: error.message,
+          description: "Failed to send reset link. Please try again.",
           variant: "destructive",
         });
       } else {
@@ -36,6 +41,7 @@ const ForgotPassword = () => {
         });
       }
     } catch (error) {
+      console.error('Password reset error:', error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
