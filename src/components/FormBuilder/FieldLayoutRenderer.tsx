@@ -1,8 +1,8 @@
-
 import React from 'react';
-import { DragDropContext, Droppable } from 'react-beautiful-dnd';
+import { DragDropContext } from 'react-beautiful-dnd';
 import { FormField } from '@/types/form';
 import { FieldRenderer } from './FieldRenderer';
+import { StrictModeDroppable } from './StrictModeDroppable';
 import { Plus } from 'lucide-react';
 
 interface FieldLayoutRendererProps {
@@ -24,13 +24,6 @@ export function FieldLayoutRenderer({
   onFieldDelete,
   onDragEnd,
 }: FieldLayoutRendererProps) {
-  // Check if field is full-width based on type or explicit setting
-  const isFullWidthField = (field: FormField) => {
-    const fullWidthTypes = ['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'record-table', 'matrix-grid', 
-      'cross-reference', 'child-cross-reference', 'approval', 'geo-location', 'query-field', 'workflow-trigger', 'full-width-container'];
-    return fullWidthTypes.includes(field.type) || field.isFullWidth || field.fieldCategory === 'full-width';
-  };
-
   if (fields.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -43,12 +36,12 @@ export function FieldLayoutRenderer({
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <Droppable droppableId="all-fields">
-        {(provided) => (
+      <StrictModeDroppable droppableId="all-fields">
+        {(provided, snapshot) => (
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className="space-y-4"
+            className={`space-y-4 ${snapshot.isDraggingOver ? 'bg-muted/30 rounded-lg' : ''}`}
           >
             {/* Render all fields in a flat list - required for react-beautiful-dnd */}
             {fields.map((field, index) => (
@@ -65,7 +58,7 @@ export function FieldLayoutRenderer({
             {provided.placeholder}
           </div>
         )}
-      </Droppable>
+      </StrictModeDroppable>
     </DragDropContext>
   );
 }
