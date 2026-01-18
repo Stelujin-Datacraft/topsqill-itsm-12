@@ -153,21 +153,43 @@ const ManageSessions: React.FC = () => {
   const getDeviceIcon = (userAgent: string | null) => {
     if (!userAgent) return <Globe className="h-5 w-5" />;
     const ua = userAgent.toLowerCase();
-    if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')) {
+    if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone') || ua.includes('ipad')) {
       return <Smartphone className="h-5 w-5" />;
     }
     return <Monitor className="h-5 w-5" />;
   };
 
-  const getBrowserInfo = (userAgent: string | null): string => {
-    if (!userAgent) return 'Unknown browser';
+  const getDeviceName = (userAgent: string | null): string => {
+    if (!userAgent) return 'Unknown Device';
+    const ua = userAgent.toLowerCase();
     
-    if (userAgent.includes('Chrome')) return 'Chrome';
-    if (userAgent.includes('Firefox')) return 'Firefox';
-    if (userAgent.includes('Safari')) return 'Safari';
-    if (userAgent.includes('Edge')) return 'Edge';
-    if (userAgent.includes('Opera')) return 'Opera';
-    return 'Unknown browser';
+    // Mobile devices
+    if (ua.includes('iphone')) return 'iPhone';
+    if (ua.includes('ipad')) return 'iPad';
+    if (ua.includes('android')) {
+      if (ua.includes('mobile')) return 'Android Phone';
+      return 'Android Tablet';
+    }
+    
+    // Desktop OS
+    if (ua.includes('windows')) return 'Windows PC';
+    if (ua.includes('macintosh') || ua.includes('mac os')) return 'Mac';
+    if (ua.includes('linux')) return 'Linux PC';
+    if (ua.includes('chromeos')) return 'Chromebook';
+    
+    return 'Desktop';
+  };
+
+  const getBrowserInfo = (userAgent: string | null): string => {
+    if (!userAgent) return 'Unknown Browser';
+    
+    // Order matters - check Edge before Chrome as Edge contains Chrome in UA
+    if (userAgent.includes('Edg/') || userAgent.includes('Edge/')) return 'Microsoft Edge';
+    if (userAgent.includes('OPR/') || userAgent.includes('Opera')) return 'Opera';
+    if (userAgent.includes('Firefox/')) return 'Mozilla Firefox';
+    if (userAgent.includes('Chrome/')) return 'Google Chrome';
+    if (userAgent.includes('Safari/') && !userAgent.includes('Chrome')) return 'Safari';
+    return 'Unknown Browser';
   };
 
   const formatDate = (dateStr: string) => {
@@ -250,9 +272,9 @@ const ManageSessions: React.FC = () => {
                     
                     {/* Device & Browser */}
                     <div className="col-span-3">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium">
-                          {getBrowserInfo(sess.user_agent)}
+                          {getDeviceName(sess.user_agent)}
                         </span>
                         {isCurrentSession(sess.session_token) && (
                           <Badge variant="default" className="text-xs bg-emerald-500 hover:bg-emerald-600">
@@ -260,8 +282,11 @@ const ManageSessions: React.FC = () => {
                           </Badge>
                         )}
                       </div>
+                      <span className="text-sm text-muted-foreground mt-1 block">
+                        {getBrowserInfo(sess.user_agent)}
+                      </span>
                       {sess.ip_address && (
-                        <span className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
                           <Globe className="h-3 w-3" />
                           {sess.ip_address}
                         </span>
