@@ -177,7 +177,7 @@ const FormAuditLogs: React.FC = () => {
   }, [user, page, eventFilter, formFilter]);
 
   const getEventIcon = (eventType: string) => {
-    if (eventType.includes('created')) return <Plus className="h-4 w-4" />;
+    if (eventType.includes('created') || eventType.includes('added')) return <Plus className="h-4 w-4" />;
     if (eventType.includes('updated') || eventType.includes('changed')) return <Edit className="h-4 w-4" />;
     if (eventType.includes('deleted')) return <Trash2 className="h-4 w-4" />;
     if (eventType.includes('duplicated')) return <Copy className="h-4 w-4" />;
@@ -192,12 +192,13 @@ const FormAuditLogs: React.FC = () => {
   };
 
   const getEventColor = (eventType: string) => {
-    if (eventType.includes('created')) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
+    if (eventType.includes('created') || eventType.includes('added')) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
     if (eventType.includes('deleted')) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800';
     if (eventType.includes('updated') || eventType.includes('changed')) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800';
     if (eventType.includes('duplicated')) return 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-800';
     if (eventType.includes('published')) return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800';
     if (eventType.includes('permission') || eventType.includes('access')) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800';
+    if (eventType.includes('reorder')) return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 border-orange-200 dark:border-orange-800';
     if (eventType.includes('workflow_linked')) return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800';
     if (eventType.includes('exported')) return 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 border-teal-200 dark:border-teal-800';
     return 'bg-muted text-muted-foreground border-border';
