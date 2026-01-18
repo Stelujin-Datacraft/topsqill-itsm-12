@@ -386,7 +386,22 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 export function useProject() {
   const context = useContext(ProjectContext);
   if (context === undefined) {
-    throw new Error('useProject must be used within a ProjectProvider');
+    // Return a default safe object during hot reload instead of throwing
+    return {
+      projects: [],
+      currentProject: null,
+      loading: true,
+      setCurrentProject: () => {},
+      createProject: async () => null,
+      loadProjects: async () => {},
+      getProjectUsers: async () => [],
+      addUserToProject: async () => {},
+      removeUserFromProject: async () => {},
+      updateUserRole: async () => {},
+      hasProjectPermission: async () => false,
+      canCreateAssets: async () => false,
+      userProjectPermissions: {},
+    } as ProjectContextType;
   }
   return context;
 }
