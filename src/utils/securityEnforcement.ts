@@ -220,11 +220,30 @@ export async function checkMfaRequired(userId: string): Promise<boolean> {
   try {
     const { data: securityParams } = await supabase
       .from('user_security_parameters')
-      .select('mfa_required')
+      .select(`
+        mfa_required,
+        use_template_settings,
+        security_template_id,
+        security_templates (
+          mfa_required
+        )
+      `)
       .eq('user_id', userId)
       .maybeSingle();
 
-    return securityParams?.mfa_required ?? false;
+    if (!securityParams) {
+      return false;
+    }
+
+    // Determine effective MFA requirement based on use_template_settings
+    const template = securityParams.security_templates;
+    const useTemplate = securityParams.use_template_settings && template;
+    
+    const effectiveMfaRequired = useTemplate && template.mfa_required !== null
+      ? template.mfa_required
+      : securityParams.mfa_required;
+
+    return effectiveMfaRequired ?? false;
   } catch (error) {
     console.error('Error checking MFA requirement:', error);
     return false;
