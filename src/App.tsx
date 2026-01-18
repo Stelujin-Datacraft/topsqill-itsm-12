@@ -52,6 +52,7 @@ import EmailTemplatesPage from "./pages/EmailTemplatesPage";
 import SettingsPage from "./pages/SettingsPage";
 import UserProfile from "./pages/UserProfile";
 import ChangePassword from "./pages/ChangePassword";
+import ForgotPassword from "./pages/ForgotPassword";
 import ManageSessions from "./pages/ManageSessions";
 import AuditLogs from "./pages/AuditLogs";
 import FormAuditLogs from "./pages/FormAuditLogs";
@@ -78,6 +79,7 @@ const App = () => (
                     <Route path="/docs" element={<Documentation />} />
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/login" element={<Login />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
                     <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                     <Route path="/query" element={<ProtectedRoute><QueryPage /></ProtectedRoute>} />
                     <Route path="/forms" element={<ProtectedRoute><Forms /></ProtectedRoute>} />
@@ -116,7 +118,7 @@ const App = () => (
                      <Route path="/email-templates" element={<ProtectedRoute><EmailTemplatesPage /></ProtectedRoute>} />
                      <Route path="/email-templates/:templateId" element={<ProtectedRoute><EmailTemplatesPage /></ProtectedRoute>} />
                      <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
-                     <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
+                     <Route path="/change-password" element={<ChangePassword />} />
                      <Route path="/manage-sessions" element={<ProtectedRoute><ManageSessions /></ProtectedRoute>} />
                      <Route path="/audit-logs" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
                      <Route path="/form-audit-logs" element={<ProtectedRoute><FormAuditLogs /></ProtectedRoute>} />

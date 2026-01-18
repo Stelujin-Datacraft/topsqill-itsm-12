@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -26,7 +25,7 @@ const Login = () => {
     if (passwordExpired) {
       toast({
         title: "Password Expired",
-        description: "You must change your password to continue.",
+        description: "Your password has expired. Please change it to continue.",
         variant: "destructive",
       });
       clearPasswordExpired();
@@ -120,11 +119,19 @@ const Login = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <Link 
+                  to="/forgot-password" 
+                  className="text-sm text-primary hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <Input
                 id="password"
                 type="password"
-                placeholder="admin123"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -134,11 +141,17 @@ const Login = () => {
               {isLoading ? 'Signing in...' : 'Sign in'}
             </Button>
           </form>
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              Demo credentials: admin@topsqill.com / admin123
-            </p>
-            <Link to="/" className="text-sm text-primary hover:underline">
+          <div className="mt-6 space-y-2 text-center">
+            <div className="flex items-center justify-center gap-4 text-sm">
+              <Link to="/forgot-password" className="text-primary hover:underline">
+                Forgot Password
+              </Link>
+              <span className="text-muted-foreground">|</span>
+              <Link to="/change-password" className="text-primary hover:underline">
+                Change Password
+              </Link>
+            </div>
+            <Link to="/" className="block text-sm text-muted-foreground hover:text-primary">
               Back to home
             </Link>
           </div>

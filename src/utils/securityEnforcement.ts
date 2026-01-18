@@ -250,13 +250,10 @@ export async function checkPasswordExpiry(userId: string): Promise<SecurityCheck
       ? new Date(securityParams.last_password_change)
       : null;
 
+    // If no password change recorded, don't force change on first login
+    // Only enforce expiry if there's a last_password_change and it has expired
     if (!lastChange) {
-      // No password change recorded - password is expired
-      return { 
-        allowed: false, 
-        passwordExpired: true,
-        reason: 'You must set a new password to continue.'
-      };
+      return { allowed: true };
     }
 
     const expiryDate = new Date(lastChange.getTime() + securityParams.password_expiry_days * 24 * 60 * 60 * 1000);
