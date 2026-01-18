@@ -286,28 +286,42 @@ export function useFormSnapshot(initialForm: Form | null) {
       const page = prev.form.pages.find(p => p.id === pageId);
       if (!page) return prev;
 
-      // Get all fields for this page, maintaining the current order
+      // Get all fields for this page, sorted by the page's field order
+      const pageFieldIds = page.fields || [];
       const pageFields = prev.form.fields
-        .filter(field => field.pageId === pageId || page.fields.includes(field.id))
+        .filter(field => field.pageId === pageId || pageFieldIds.includes(field.id))
         .sort((a, b) => {
-          // Get current index from the fields array to maintain order
-          const aIndex = prev.form!.fields.findIndex(f => f.id === a.id);
-          const bIndex = prev.form!.fields.findIndex(f => f.id === b.id);
-          return aIndex - bIndex;
+          const aIndex = pageFieldIds.indexOf(a.id);
+          const bIndex = pageFieldIds.indexOf(b.id);
+          // If both are in the page order, sort by that
+          if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+          if (aIndex !== -1) return -1;
+          if (bIndex !== -1) return 1;
+          return 0;
         });
 
       if (sourceIndex >= pageFields.length || destinationIndex >= pageFields.length) {
         return prev; // Invalid indices
       }
 
-      // Perform the reordering
+      // Perform the reordering on page fields
       const reorderedPageFields = [...pageFields];
       const [movedField] = reorderedPageFields.splice(sourceIndex, 1);
       reorderedPageFields.splice(destinationIndex, 0, movedField);
 
+      // Update the page's field IDs to reflect the new order
+      const updatedPageFieldIds = reorderedPageFields.map(f => f.id);
+
+      // Update pages with the new field order
+      const updatedPages = prev.form.pages.map(p => 
+        p.id === pageId 
+          ? { ...p, fields: updatedPageFieldIds }
+          : p
+      );
+
       // Update the main fields array with new order
       const otherFields = prev.form.fields.filter(field => 
-        field.pageId !== pageId && !page.fields.includes(field.id)
+        field.pageId !== pageId && !pageFieldIds.includes(field.id)
       );
 
       // Combine other fields with reordered page fields, maintaining positions
@@ -315,7 +329,7 @@ export function useFormSnapshot(initialForm: Form | null) {
       
       // Find where to insert the reordered fields (preserve original position block)
       const firstPageFieldIndex = prev.form.fields.findIndex(field => 
-        field.pageId === pageId || page.fields.includes(field.id)
+        field.pageId === pageId || pageFieldIds.includes(field.id)
       );
       
       if (firstPageFieldIndex >= 0) {
@@ -327,6 +341,7 @@ export function useFormSnapshot(initialForm: Form | null) {
       const updatedForm = {
         ...prev.form,
         fields: updatedFields,
+        pages: updatedPages,
       };
 
       saveToLocalStorage(updatedForm);
@@ -426,8 +441,16 @@ export function useFormSnapshot(initialForm: Form | null) {
   }, [saveToLocalStorage]);
 
   // Mark as saved (after successful save to DB)
-  // NOTE: We don't clear localStorage here - drafts persist until explicitly cleared
+  // Clear localStorage after successful save to prevent stale drafts
   const markAsSaved = useCallback(() => {
+    // Clear localStorage to ensure fresh data on next load
+    if (snapshot.form?.id) {
+      clearLocalStorage(snapshot.form.id);
+    }
+    
+    // Update the original ref to match current saved state
+    originalFormRef.current = snapshot.form ? { ...snapshot.form } : null;
+    
     setSnapshot(prev => {
       return {
         ...prev,
@@ -435,9 +458,8 @@ export function useFormSnapshot(initialForm: Form | null) {
         lastSaved: new Date(),
       };
     });
-    originalFormRef.current = snapshot.form;
-    console.log('✅ Form marked as saved, draft still in localStorage for recovery');
-  }, [snapshot.form]);
+    console.log('✅ Form saved and localStorage cleared for fresh reload');
+  }, [snapshot.form, clearLocalStorage]);
 
   // Reset to original (discard changes)
   const resetSnapshot = useCallback(() => {
