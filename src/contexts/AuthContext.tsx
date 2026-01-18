@@ -481,7 +481,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    // Return a default safe object during hot reload instead of throwing
+    return {
+      user: null,
+      userProfile: null,
+      organization: null,
+      session: null,
+      isLoading: true,
+      pendingMfa: null,
+      passwordExpired: false,
+      signUp: async () => ({ error: new Error('AuthProvider not mounted') }),
+      signIn: async () => ({ error: new Error('AuthProvider not mounted') }),
+      signOut: async () => {},
+      registerOrganization: async () => ({ error: new Error('AuthProvider not mounted') }),
+      requestToJoinOrganization: async () => ({ error: new Error('AuthProvider not mounted') }),
+      completeMfaVerification: () => {},
+      clearPasswordExpired: () => {},
+    } as AuthContextType;
   }
   return context;
 };
