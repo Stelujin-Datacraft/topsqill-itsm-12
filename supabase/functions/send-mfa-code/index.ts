@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { Resend } from 'https://esm.sh/resend@2.0.0';
+import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,7 +20,6 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -33,15 +32,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get user's MFA settings
+    // Get user's organization and MFA settings
     const { data: securityParams } = await supabase
       .from('user_security_parameters')
-      .select('mfa_pin_expiry_minutes, mfa_max_attempts')
+      .select('mfa_pin_expiry_minutes, mfa_max_attempts, organization_id')
       .eq('user_id', userId)
       .maybeSingle();
 
     const expiryMinutes = securityParams?.mfa_pin_expiry_minutes || 5;
     const maxAttempts = securityParams?.mfa_max_attempts || 3;
+    const organizationId = securityParams?.organization_id;
 
     // Generate 6-digit code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -73,45 +73,72 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Send email with code
-    if (resendApiKey) {
-      const resend = new Resend(resendApiKey);
-      
-      const { error: emailError } = await resend.emails.send({
-        from: 'Topsqill Security <security@topsqill.com>',
-        to: email,
-        subject: 'Your Verification Code',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #333;">Your Verification Code</h2>
-            <p>Use the following code to complete your login:</p>
-            <div style="background-color: #f4f4f4; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
-              <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #333;">${code}</span>
-            </div>
-            <p style="color: #666;">This code will expire in ${expiryMinutes} minutes.</p>
-            <p style="color: #666;">If you didn't request this code, please ignore this email.</p>
-            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-            <p style="color: #999; font-size: 12px;">This is an automated message from Topsqill Security.</p>
-          </div>
-        `,
-      });
+    // Send email with code using SMTP
+    let emailSent = false;
+    let smtpConfig = null;
 
-      if (emailError) {
-        console.error('Error sending MFA email:', emailError);
-        // Don't fail the request - code is still valid in database
+    if (organizationId) {
+      // Try to get organization's SMTP config - prioritize Hostinger
+      const { data: configs } = await supabase
+        .from('smtp_configs')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .eq('is_active', true)
+        .order('is_default', { ascending: false });
+
+      if (configs && configs.length > 0) {
+        // Prioritize Hostinger SMTP
+        smtpConfig = configs.find(c => c.host.includes('hostinger')) || configs[0];
       }
-    } else {
-      console.log('RESEND_API_KEY not set, MFA code:', code);
     }
 
-    console.log(`MFA code generated for user ${userId}, expires at ${expiresAt}`);
+    if (smtpConfig) {
+      try {
+        console.log(`Using SMTP config: ${smtpConfig.name} (${smtpConfig.host})`);
+        
+        const client = new SMTPClient({
+          connection: {
+            hostname: smtpConfig.host,
+            port: smtpConfig.port,
+            tls: smtpConfig.use_tls,
+            auth: {
+              username: smtpConfig.username,
+              password: smtpConfig.password,
+            },
+          },
+        });
+
+        const htmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Verification Code</title></head><body style="margin:0;padding:0;font-family:Arial,sans-serif;background-color:#f4f4f4;"><table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background-color:#ffffff;"><tr><td style="padding:40px 30px;text-align:center;background-color:#1a1a2e;"><h1 style="color:#ffffff;margin:0;font-size:24px;">Security Verification</h1></td></tr><tr><td style="padding:40px 30px;"><h2 style="color:#333333;margin:0 0 20px;">Your Verification Code</h2><p style="color:#666666;font-size:16px;line-height:1.5;margin:0 0 30px;">Use the following code to complete your login:</p><div style="background-color:#f8f9fa;padding:25px;border-radius:8px;text-align:center;margin:0 0 30px;"><span style="font-size:36px;font-weight:bold;letter-spacing:10px;color:#1a1a2e;">${code}</span></div><p style="color:#666666;font-size:14px;margin:0 0 10px;"><strong>This code will expire in ${expiryMinutes} minutes.</strong></p><p style="color:#999999;font-size:14px;margin:0;">If you didn't request this code, please ignore this email or contact support if you have concerns.</p></td></tr><tr><td style="padding:30px;background-color:#f8f9fa;text-align:center;border-top:1px solid #eeeeee;"><p style="color:#999999;font-size:12px;margin:0;">This is an automated message from Topsqill Security.<br>Please do not reply to this email.</p></td></tr></table></body></html>`;
+
+        await client.send({
+          from: smtpConfig.from_name 
+            ? `${smtpConfig.from_name} <${smtpConfig.from_email}>`
+            : smtpConfig.from_email,
+          to: email,
+          subject: 'Your Verification Code - Topsqill Security',
+          content: `Your verification code is: ${code}\n\nThis code will expire in ${expiryMinutes} minutes.\n\nIf you didn't request this code, please ignore this email.`,
+          html: htmlContent,
+        });
+
+        await client.close();
+        emailSent = true;
+        console.log(`MFA code email sent successfully to ${email}`);
+      } catch (smtpError) {
+        console.error('Error sending MFA email via SMTP:', smtpError);
+      }
+    } else {
+      console.log('No active SMTP configuration found for organization');
+    }
+
+    console.log(`MFA code generated for user ${userId}, expires at ${expiresAt}, email sent: ${emailSent}`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         expiresAt,
         expiryMinutes,
-        maxAttempts 
+        maxAttempts,
+        emailSent
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
