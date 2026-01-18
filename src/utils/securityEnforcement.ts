@@ -144,9 +144,21 @@ export async function recordSuccessfulLogin(userId: string): Promise<void> {
  */
 export async function checkAccessTimeRestrictions(userId: string): Promise<SecurityCheckResult> {
   try {
+    // Fetch user security params with template data to respect use_template_settings
     const { data: securityParams } = await supabase
       .from('user_security_parameters')
-      .select('access_start_time, access_end_time, allowed_days')
+      .select(`
+        access_start_time, 
+        access_end_time, 
+        allowed_days,
+        use_template_settings,
+        security_template_id,
+        security_templates (
+          access_start_time,
+          access_end_time,
+          allowed_days
+        )
+      `)
       .eq('user_id', userId)
       .maybeSingle();
 
@@ -154,13 +166,29 @@ export async function checkAccessTimeRestrictions(userId: string): Promise<Secur
       return { allowed: true };
     }
 
+    // Determine effective values based on use_template_settings
+    const template = securityParams.security_templates;
+    const useTemplate = securityParams.use_template_settings && template;
+    
+    const effectiveAllowedDays = useTemplate && template.allowed_days 
+      ? template.allowed_days 
+      : securityParams.allowed_days;
+    
+    const effectiveStartTime = useTemplate && template.access_start_time 
+      ? template.access_start_time 
+      : securityParams.access_start_time;
+    
+    const effectiveEndTime = useTemplate && template.access_end_time 
+      ? template.access_end_time 
+      : securityParams.access_end_time;
+
     const now = new Date();
     const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
     const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
 
     // Check allowed days
-    if (securityParams.allowed_days && securityParams.allowed_days.length > 0) {
-      if (!securityParams.allowed_days.includes(currentDay)) {
+    if (effectiveAllowedDays && effectiveAllowedDays.length > 0) {
+      if (!effectiveAllowedDays.includes(currentDay)) {
         return {
           allowed: false,
           reason: `Access is not permitted on ${currentDay.charAt(0).toUpperCase() + currentDay.slice(1)}s.`,
@@ -169,11 +197,11 @@ export async function checkAccessTimeRestrictions(userId: string): Promise<Secur
     }
 
     // Check time restrictions
-    if (securityParams.access_start_time && securityParams.access_end_time) {
-      if (currentTime < securityParams.access_start_time || currentTime > securityParams.access_end_time) {
+    if (effectiveStartTime && effectiveEndTime) {
+      if (currentTime < effectiveStartTime || currentTime > effectiveEndTime) {
         return {
           allowed: false,
-          reason: `Access is only permitted between ${securityParams.access_start_time} and ${securityParams.access_end_time}.`,
+          reason: `Access is only permitted between ${effectiveStartTime} and ${effectiveEndTime}.`,
         };
       }
     }
