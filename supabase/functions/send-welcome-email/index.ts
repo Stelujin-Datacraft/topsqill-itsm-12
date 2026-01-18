@@ -19,118 +19,8 @@ function generateWelcomeEmailHtml(params: {
 }) {
   const { firstName, lastName, email, password, organizationName, loginUrl } = params;
   
-  return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome to ${organizationName}</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7fa;">
-  <table role="presentation" style="width: 100%; border-collapse: collapse;">
-    <tr>
-      <td align="center" style="padding: 40px 0;">
-        <table role="presentation" style="width: 600px; max-width: 100%; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);">
-          
-          <!-- Header -->
-          <tr>
-            <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 40px 30px; border-radius: 12px 12px 0 0; text-align: center;">
-              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">
-                Welcome to ${organizationName}! 🎉
-              </h1>
-              <p style="margin: 10px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">
-                Your account has been created successfully
-              </p>
-            </td>
-          </tr>
-          
-          <!-- Body -->
-          <tr>
-            <td style="padding: 40px;">
-              <p style="margin: 0 0 20px; color: #333; font-size: 16px; line-height: 1.6;">
-                Hi <strong>${firstName} ${lastName}</strong>,
-              </p>
-              <p style="margin: 0 0 25px; color: #555; font-size: 15px; line-height: 1.6;">
-                We're excited to have you on board! Your account has been set up and you're ready to get started. Below are your login credentials:
-              </p>
-              
-              <!-- Credentials Box -->
-              <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 25px 0;">
-                <tr>
-                  <td style="background-color: #f8f9fc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 25px;">
-                    <table role="presentation" style="width: 100%; border-collapse: collapse;">
-                      <tr>
-                        <td style="padding: 8px 0;">
-                          <span style="color: #64748b; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Email Address</span>
-                          <p style="margin: 5px 0 0; color: #1e293b; font-size: 16px; font-weight: 600;">${email}</p>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 15px 0 8px; border-top: 1px dashed #e2e8f0;">
-                          <span style="color: #64748b; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Temporary Password</span>
-                          <p style="margin: 5px 0 0;">
-                            <code style="background-color: #fef3c7; color: #92400e; padding: 8px 14px; border-radius: 6px; font-size: 15px; font-weight: 600; display: inline-block;">${password}</code>
-                          </p>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
-              
-              <!-- Security Notice -->
-              <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 25px 0;">
-                <tr>
-                  <td style="background-color: #fef2f2; border-left: 4px solid #ef4444; border-radius: 0 8px 8px 0; padding: 15px 20px;">
-                    <p style="margin: 0; color: #991b1b; font-size: 14px; font-weight: 500;">
-                      🔐 <strong>Security Notice:</strong> Please change your password immediately after your first login.
-                    </p>
-                  </td>
-                </tr>
-              </table>
-              
-              <!-- CTA Button -->
-              <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 30px 0;">
-                <tr>
-                  <td align="center">
-                    <a href="${loginUrl}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 8px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);">
-                      Login to Your Account →
-                    </a>
-                  </td>
-                </tr>
-              </table>
-              
-              <p style="margin: 25px 0 0; color: #555; font-size: 15px; line-height: 1.6;">
-                If you have any questions or need assistance, don't hesitate to reach out to your administrator.
-              </p>
-              <p style="margin: 20px 0 0; color: #333; font-size: 15px;">
-                Welcome to the team! 🚀<br>
-                <strong>The ${organizationName} Team</strong>
-              </p>
-            </td>
-          </tr>
-          
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: #f8f9fc; padding: 25px 40px; border-radius: 0 0 12px 12px; border-top: 1px solid #e2e8f0;">
-              <p style="margin: 0; color: #64748b; font-size: 13px; text-align: center; line-height: 1.6;">
-                This email was sent by <strong>${organizationName}</strong>.<br>
-                If you didn't expect this email, please contact your administrator.
-              </p>
-              <p style="margin: 15px 0 0; color: #94a3b8; font-size: 12px; text-align: center;">
-                © ${new Date().getFullYear()} ${organizationName}. All rights reserved.
-              </p>
-            </td>
-          </tr>
-          
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-  `;
+  // Using minimal whitespace to avoid =20 encoding issues in email clients
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Welcome to ${organizationName}</title></head><body style="margin:0;padding:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background-color:#f4f7fa;"><table role="presentation" style="width:100%;border-collapse:collapse;"><tr><td align="center" style="padding:40px 0;"><table role="presentation" style="width:600px;max-width:100%;border-collapse:collapse;background-color:#ffffff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.1);"><tr><td style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:40px 40px 30px;border-radius:12px 12px 0 0;text-align:center;"><h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;letter-spacing:-0.5px;">Welcome to ${organizationName}!</h1><p style="margin:10px 0 0;color:rgba(255,255,255,0.9);font-size:16px;">Your account has been created successfully</p></td></tr><tr><td style="padding:40px;"><p style="margin:0 0 20px;color:#333;font-size:16px;line-height:1.6;">Hi <strong>${firstName} ${lastName}</strong>,</p><p style="margin:0 0 25px;color:#555;font-size:15px;line-height:1.6;">We're excited to have you on board! Your account has been set up and you're ready to get started. Below are your login credentials:</p><table role="presentation" style="width:100%;border-collapse:collapse;margin:25px 0;"><tr><td style="background-color:#f8f9fc;border:1px solid #e2e8f0;border-radius:10px;padding:25px;"><table role="presentation" style="width:100%;border-collapse:collapse;"><tr><td style="padding:8px 0;"><span style="color:#64748b;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">Email Address</span><p style="margin:5px 0 0;color:#1e293b;font-size:16px;font-weight:600;">${email}</p></td></tr><tr><td style="padding:15px 0 8px;border-top:1px dashed #e2e8f0;"><span style="color:#64748b;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">Temporary Password</span><p style="margin:5px 0 0;"><code style="background-color:#fef3c7;color:#92400e;padding:8px 14px;border-radius:6px;font-size:15px;font-weight:600;display:inline-block;">${password}</code></p></td></tr></table></td></tr></table><table role="presentation" style="width:100%;border-collapse:collapse;margin:25px 0;"><tr><td style="background-color:#fef2f2;border-left:4px solid #ef4444;border-radius:0 8px 8px 0;padding:15px 20px;"><p style="margin:0;color:#991b1b;font-size:14px;font-weight:500;"><strong>Security Notice:</strong> Please change your password immediately after your first login.</p></td></tr></table><table role="presentation" style="width:100%;border-collapse:collapse;margin:30px 0;"><tr><td align="center"><a href="${loginUrl}" style="display:inline-block;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:8px;font-size:16px;font-weight:600;box-shadow:0 4px 14px rgba(102,126,234,0.4);">Login to Your Account</a></td></tr></table><p style="margin:25px 0 0;color:#555;font-size:15px;line-height:1.6;">If you have any questions or need assistance, don't hesitate to reach out to your administrator.</p><p style="margin:20px 0 0;color:#333;font-size:15px;">Welcome to the team!<br><strong>The ${organizationName} Team</strong></p></td></tr><tr><td style="background-color:#f8f9fc;padding:25px 40px;border-radius:0 0 12px 12px;border-top:1px solid #e2e8f0;"><p style="margin:0;color:#64748b;font-size:13px;text-align:center;line-height:1.6;">This email was sent by <strong>${organizationName}</strong>.<br>If you didn't expect this email, please contact your administrator.</p><p style="margin:15px 0 0;color:#94a3b8;font-size:12px;text-align:center;">&copy; ${new Date().getFullYear()} ${organizationName}. All rights reserved.</p></td></tr></table></td></tr></table></body></html>`;
 }
 
 serve(async (req) => {
@@ -433,8 +323,8 @@ serve(async (req) => {
         console.log('✅ SMTP config found:', smtpConfig.name, '(Host:', smtpConfig.host, ')')
         console.log('📤 SMTP Host:', smtpConfig.host, 'Port:', smtpConfig.port)
         
-        // Generate the login URL
-        const loginUrl = `${supabaseUrl.replace('.supabase.co', '.lovable.app')}/login`
+        // Generate the login URL - use production domain
+        const loginUrl = 'https://itsm.topsqill.com'
         
         // Generate the email HTML
         const emailHtml = generateWelcomeEmailHtml({
