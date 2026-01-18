@@ -395,23 +395,42 @@ serve(async (req) => {
     
     try {
       // Fetch the organization's active SMTP configuration
-      const { data: smtpConfig, error: smtpError } = await supabaseAdmin
+      // Prefer Hostinger SMTP (exclude SendGrid)
+      const { data: smtpConfigs, error: smtpError } = await supabaseAdmin
         .from('smtp_configs')
         .select('*')
         .eq('organization_id', organizationId)
         .eq('is_active', true)
         .order('is_default', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+      
+      // Filter out SendGrid and prefer Hostinger
+      let smtpConfig = null
+      if (smtpConfigs && smtpConfigs.length > 0) {
+        // First try to find Hostinger SMTP
+        smtpConfig = smtpConfigs.find(config => 
+          config.host?.toLowerCase().includes('hostinger') ||
+          config.from_email?.toLowerCase().includes('topsqill.tech')
+        )
+        // If no Hostinger found, use any non-SendGrid config
+        if (!smtpConfig) {
+          smtpConfig = smtpConfigs.find(config => 
+            !config.host?.toLowerCase().includes('sendgrid')
+          )
+        }
+        // Last resort: use first available (but log warning)
+        if (!smtpConfig && smtpConfigs.length > 0) {
+          console.warn('⚠️ Only SendGrid config available, skipping email send')
+        }
+      }
       
       if (smtpError) {
         console.error('❌ Error fetching SMTP config:', smtpError)
         emailError = `Failed to fetch SMTP configuration: ${smtpError.message}`
       } else if (!smtpConfig) {
-        console.warn('⚠️ No active SMTP configuration found for organization')
-        emailError = 'No active SMTP configuration found for this organization'
+        console.warn('⚠️ No suitable SMTP configuration found (Hostinger preferred, SendGrid excluded)')
+        emailError = 'No suitable SMTP configuration found. Please configure Hostinger SMTP.'
       } else {
-        console.log('✅ SMTP config found:', smtpConfig.name)
+        console.log('✅ SMTP config found:', smtpConfig.name, '(Host:', smtpConfig.host, ')')
         console.log('📤 SMTP Host:', smtpConfig.host, 'Port:', smtpConfig.port)
         
         // Generate the login URL
