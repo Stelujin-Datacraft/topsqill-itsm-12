@@ -142,15 +142,9 @@ const Login = () => {
             </Button>
           </form>
           <div className="mt-6 space-y-2 text-center">
-            <div className="flex items-center justify-center gap-4 text-sm">
-              <Link to="/forgot-password" className="text-primary hover:underline">
-                Forgot Password
-              </Link>
-              <span className="text-muted-foreground">|</span>
-              <Link to="/change-password" className="text-primary hover:underline">
-                Change Password
-              </Link>
-            </div>
+            <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+              Forgot Password?
+            </Link>
             <Link to="/" className="block text-sm text-muted-foreground hover:text-primary">
               Back to home
             </Link>
