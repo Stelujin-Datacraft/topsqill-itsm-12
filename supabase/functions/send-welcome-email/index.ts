@@ -8,7 +8,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Professional HTML email template
+// Professional HTML email template with compact footer
 function generateWelcomeEmailHtml(params: {
   firstName: string;
   lastName: string;
@@ -18,9 +18,11 @@ function generateWelcomeEmailHtml(params: {
   loginUrl: string;
 }) {
   const { firstName, lastName, email, password, organizationName, loginUrl } = params;
+  const year = new Date().getFullYear();
   
   // Using minimal whitespace to avoid =20 encoding issues in email clients
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Welcome to ${organizationName}</title></head><body style="margin:0;padding:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background-color:#f4f7fa;"><table role="presentation" style="width:100%;border-collapse:collapse;"><tr><td align="center" style="padding:40px 0;"><table role="presentation" style="width:600px;max-width:100%;border-collapse:collapse;background-color:#ffffff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.1);"><tr><td style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:40px 40px 30px;border-radius:12px 12px 0 0;text-align:center;"><h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;letter-spacing:-0.5px;">Welcome to ${organizationName}!</h1><p style="margin:10px 0 0;color:rgba(255,255,255,0.9);font-size:16px;">Your account has been created successfully</p></td></tr><tr><td style="padding:40px;"><p style="margin:0 0 20px;color:#333;font-size:16px;line-height:1.6;">Hi <strong>${firstName} ${lastName}</strong>,</p><p style="margin:0 0 25px;color:#555;font-size:15px;line-height:1.6;">We're excited to have you on board! Your account has been set up and you're ready to get started. Below are your login credentials:</p><table role="presentation" style="width:100%;border-collapse:collapse;margin:25px 0;"><tr><td style="background-color:#f8f9fc;border:1px solid #e2e8f0;border-radius:10px;padding:25px;"><table role="presentation" style="width:100%;border-collapse:collapse;"><tr><td style="padding:8px 0;"><span style="color:#64748b;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">Email Address</span><p style="margin:5px 0 0;color:#1e293b;font-size:16px;font-weight:600;">${email}</p></td></tr><tr><td style="padding:15px 0 8px;border-top:1px dashed #e2e8f0;"><span style="color:#64748b;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">Temporary Password</span><p style="margin:5px 0 0;"><code style="background-color:#fef3c7;color:#92400e;padding:8px 14px;border-radius:6px;font-size:15px;font-weight:600;display:inline-block;">${password}</code></p></td></tr></table></td></tr></table><table role="presentation" style="width:100%;border-collapse:collapse;margin:25px 0;"><tr><td style="background-color:#fef2f2;border-left:4px solid #ef4444;border-radius:0 8px 8px 0;padding:15px 20px;"><p style="margin:0;color:#991b1b;font-size:14px;font-weight:500;"><strong>Security Notice:</strong> Please change your password immediately after your first login.</p></td></tr></table><table role="presentation" style="width:100%;border-collapse:collapse;margin:30px 0;"><tr><td align="center"><a href="${loginUrl}" style="display:inline-block;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:8px;font-size:16px;font-weight:600;box-shadow:0 4px 14px rgba(102,126,234,0.4);">Login to Your Account</a></td></tr></table><p style="margin:25px 0 0;color:#555;font-size:15px;line-height:1.6;">If you have any questions or need assistance, don't hesitate to reach out to your administrator.</p><p style="margin:20px 0 0;color:#333;font-size:15px;">Welcome to the team!<br><strong>The ${organizationName} Team</strong></p></td></tr><tr><td style="background-color:#f8f9fc;padding:25px 40px;border-radius:0 0 12px 12px;border-top:1px solid #e2e8f0;"><p style="margin:0;color:#64748b;font-size:13px;text-align:center;line-height:1.6;">This email was sent by <strong>${organizationName}</strong>.<br>If you didn't expect this email, please contact your administrator.</p><p style="margin:15px 0 0;color:#94a3b8;font-size:12px;text-align:center;">&copy; ${new Date().getFullYear()} ${organizationName}. All rights reserved.</p></td></tr></table></td></tr></table></body></html>`;
+  // Footer is now compact with reduced padding
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Welcome to ${organizationName}</title></head><body style="margin:0;padding:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background-color:#f4f7fa;"><table role="presentation" style="width:100%;border-collapse:collapse;"><tr><td align="center" style="padding:40px 0;"><table role="presentation" style="width:600px;max-width:100%;border-collapse:collapse;background-color:#ffffff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.1);"><tr><td style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:30px;border-radius:12px 12px 0 0;text-align:center;"><h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;">Welcome to ${organizationName}!</h1><p style="margin:8px 0 0;color:rgba(255,255,255,0.9);font-size:14px;">Your account has been created successfully</p></td></tr><tr><td style="padding:30px;"><p style="margin:0 0 15px;color:#333;font-size:15px;line-height:1.5;">Hi <strong>${firstName} ${lastName}</strong>,</p><p style="margin:0 0 20px;color:#555;font-size:14px;line-height:1.5;">We're excited to have you on board! Below are your login credentials:</p><table role="presentation" style="width:100%;border-collapse:collapse;margin:20px 0;"><tr><td style="background-color:#f8f9fc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;"><table role="presentation" style="width:100%;border-collapse:collapse;"><tr><td style="padding:6px 0;"><span style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Email</span><p style="margin:4px 0 0;color:#1e293b;font-size:14px;font-weight:600;">${email}</p></td></tr><tr><td style="padding:12px 0 6px;border-top:1px dashed #e2e8f0;"><span style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Temporary Password</span><p style="margin:4px 0 0;"><code style="background-color:#fef3c7;color:#92400e;padding:6px 12px;border-radius:4px;font-size:14px;font-weight:600;display:inline-block;">${password}</code></p></td></tr></table></td></tr></table><table role="presentation" style="width:100%;border-collapse:collapse;margin:15px 0;"><tr><td style="background-color:#fef2f2;border-left:3px solid #ef4444;border-radius:0 6px 6px 0;padding:10px 15px;"><p style="margin:0;color:#991b1b;font-size:13px;"><strong>Security:</strong> Please change your password after first login.</p></td></tr></table><table role="presentation" style="width:100%;border-collapse:collapse;margin:20px 0;"><tr><td align="center"><a href="${loginUrl}" style="display:inline-block;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#ffffff;text-decoration:none;padding:12px 30px;border-radius:6px;font-size:14px;font-weight:600;">Login to Your Account</a></td></tr></table><p style="margin:15px 0 0;color:#333;font-size:14px;">Best regards,<br><strong>The ${organizationName} Team</strong></p></td></tr><tr><td style="background-color:#f8f9fc;padding:12px 20px;border-radius:0 0 12px 12px;border-top:1px solid #e2e8f0;text-align:center;"><p style="margin:0;color:#94a3b8;font-size:11px;line-height:1.4;">${organizationName} | &copy; ${year} All rights reserved</p></td></tr></table></td></tr></table></body></html>`;
 }
 
 serve(async (req) => {
@@ -277,66 +279,52 @@ serve(async (req) => {
       console.log('✅ User security parameters created successfully')
     }
 
-    // Try to send welcome email using organization's SMTP config
-    let emailSent = false
-    let emailError = null
+    // Return success immediately - email will be sent in background
+    const responseData = { 
+      success: true, 
+      message: 'User created successfully. Welcome email will be sent shortly.',
+      userId: authUser.user.id,
+      emailSent: false,
+      emailError: null
+    }
 
-    console.log('📧 Attempting to send welcome email via SMTP...')
-    
-    try {
-      // Fetch the organization's active SMTP configuration
-      // Prefer Hostinger SMTP (exclude SendGrid)
-      const { data: smtpConfigs, error: smtpError } = await supabaseAdmin
-        .from('smtp_configs')
-        .select('*')
-        .eq('organization_id', organizationId)
-        .eq('is_active', true)
-        .order('is_default', { ascending: false })
-      
-      // Filter out SendGrid and prefer Hostinger
-      let smtpConfig = null
-      if (smtpConfigs && smtpConfigs.length > 0) {
-        // First try to find Hostinger SMTP
-        smtpConfig = smtpConfigs.find(config => 
-          config.host?.toLowerCase().includes('hostinger') ||
-          config.from_email?.toLowerCase().includes('topsqill.tech')
-        )
-        // If no Hostinger found, use any non-SendGrid config
-        if (!smtpConfig) {
+    // Send welcome email in background using EdgeRuntime.waitUntil
+    const sendEmailInBackground = async () => {
+      try {
+        console.log('📧 [Background] Sending welcome email...')
+        
+        const { data: smtpConfigs } = await supabaseAdmin
+          .from('smtp_configs')
+          .select('*')
+          .eq('organization_id', organizationId)
+          .eq('is_active', true)
+          .order('is_default', { ascending: false })
+        
+        let smtpConfig = null
+        if (smtpConfigs && smtpConfigs.length > 0) {
           smtpConfig = smtpConfigs.find(config => 
+            config.host?.toLowerCase().includes('hostinger') ||
+            config.from_email?.toLowerCase().includes('topsqill.tech')
+          ) || smtpConfigs.find(config => 
             !config.host?.toLowerCase().includes('sendgrid')
           )
         }
-        // Last resort: use first available (but log warning)
-        if (!smtpConfig && smtpConfigs.length > 0) {
-          console.warn('⚠️ Only SendGrid config available, skipping email send')
+        
+        if (!smtpConfig) {
+          console.warn('⚠️ [Background] No suitable SMTP config found')
+          return
         }
-      }
-      
-      if (smtpError) {
-        console.error('❌ Error fetching SMTP config:', smtpError)
-        emailError = `Failed to fetch SMTP configuration: ${smtpError.message}`
-      } else if (!smtpConfig) {
-        console.warn('⚠️ No suitable SMTP configuration found (Hostinger preferred, SendGrid excluded)')
-        emailError = 'No suitable SMTP configuration found. Please configure Hostinger SMTP.'
-      } else {
-        console.log('✅ SMTP config found:', smtpConfig.name, '(Host:', smtpConfig.host, ')')
-        console.log('📤 SMTP Host:', smtpConfig.host, 'Port:', smtpConfig.port)
-        
-        // Generate the login URL - use production domain
+
         const loginUrl = 'https://itsm.topsqill.com'
-        
-        // Generate the email HTML
         const emailHtml = generateWelcomeEmailHtml({
           firstName,
           lastName,
           email,
           password: tempPassword,
-          organizationName: organizationName || 'DataCraft Pro',
+          organizationName: organizationName || 'TOPSQILL',
           loginUrl
         })
         
-        // Initialize SMTP client
         const client = new SMTPClient({
           connection: {
             hostname: smtpConfig.host,
@@ -347,71 +335,41 @@ serve(async (req) => {
               password: smtpConfig.password,
             },
           },
-        });
+        })
         
-        console.log('📤 Sending email to:', email)
-        
-        // Send the email
         await client.send({
           from: smtpConfig.from_name 
             ? `${smtpConfig.from_name} <${smtpConfig.from_email}>`
             : smtpConfig.from_email,
           to: email,
-          subject: `Welcome to ${organizationName || 'DataCraft Pro'} - Your Account Details`,
+          subject: `Welcome to ${organizationName || 'TOPSQILL'} - Your Account Details`,
           content: "auto",
           html: emailHtml,
-        });
+        })
         
-        await client.close();
-        
-        console.log('✅ Welcome email sent successfully via SMTP')
-        emailSent = true
+        await client.close()
+        console.log('✅ [Background] Welcome email sent successfully')
+      } catch (error) {
+        console.error('❌ [Background] Email error:', error)
       }
-    } catch (error) {
-      console.error('❌ Error in email sending process:', error)
-      emailError = error.message
     }
 
-    // Return success even if email failed - user creation is more important
-    const responseData = { 
-      success: true, 
-      message: emailSent 
-        ? 'User created and welcome email sent successfully'
-        : `User created successfully, but email failed: ${emailError}`,
-      userId: authUser.user.id,
-      emailSent: emailSent,
-      emailError: emailError
-    }
+    // Start background email task
+    EdgeRuntime.waitUntil(sendEmailInBackground())
 
-    console.log('🎉 Function completed successfully')
-    console.log('📤 Response data:', JSON.stringify({ ...responseData }, null, 2))
+    console.log('🎉 Function completed - returning response immediately')
 
     return new Response(
       JSON.stringify(responseData),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      },
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
 
   } catch (error) {
-    console.error('💥 Error in send-welcome-email function:', error)
-    console.error('💥 Error stack:', error.stack)
-    
-    const errorResponse = { 
-      error: error.message || 'Internal server error',
-      success: false,
-      stack: error.stack
-    }
-    
-    console.log('❌ Error response:', JSON.stringify(errorResponse, null, 2))
+    console.error('💥 Error:', error)
     
     return new Response(
-      JSON.stringify(errorResponse),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      },
+      JSON.stringify({ error: error.message || 'Internal server error', success: false }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     )
   }
 })

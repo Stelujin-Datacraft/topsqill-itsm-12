@@ -7,23 +7,17 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  console.log('🚀 Delete User Function started - Method:', req.method)
-
   if (req.method === 'OPTIONS') {
-    console.log('✅ CORS preflight request handled')
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    console.log('📥 Parsing request body...')
     const { userId } = await req.json()
-    console.log('📋 Request to delete user ID:', userId)
 
     if (!userId) {
       throw new Error('User ID is required')
     }
 
-    // Initialize Supabase admin client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
@@ -38,54 +32,36 @@ serve(async (req) => {
       }
     })
 
-    console.log('🗑️ Deleting user profile from user_profiles table...')
-    // First delete from user_profiles
-    const { error: profileError } = await supabaseAdmin
-      .from('user_profiles')
-      .delete()
-      .eq('id', userId)
+    // Delete user profile and security parameters in parallel, then delete auth user
+    const [profileResult, securityResult] = await Promise.all([
+      supabaseAdmin.from('user_profiles').delete().eq('id', userId),
+      supabaseAdmin.from('user_security_parameters').delete().eq('user_id', userId)
+    ])
 
-    if (profileError) {
-      console.error('❌ Error deleting user profile:', profileError)
-      // Continue anyway to try to delete from auth
-    } else {
-      console.log('✅ User profile deleted successfully')
+    if (profileResult.error) {
+      console.error('Error deleting profile:', profileResult.error)
+    }
+    if (securityResult.error) {
+      console.error('Error deleting security params:', securityResult.error)
     }
 
-    console.log('🗑️ Deleting user from auth.users...')
-    // Then delete from auth
+    // Delete from auth
     const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId)
 
     if (authError) {
-      console.error('❌ Error deleting auth user:', authError)
-      throw new Error(`Failed to delete user from authentication: ${authError.message}`)
+      throw new Error(`Failed to delete user: ${authError.message}`)
     }
 
-    console.log('✅ User deleted successfully from auth')
-
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'User deleted successfully from both auth and user_profiles'
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      },
+      JSON.stringify({ success: true, message: 'User deleted successfully' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
 
   } catch (error) {
-    console.error('💥 Error in delete-user function:', error)
-    
+    console.error('Error:', error)
     return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Internal server error',
-        success: false
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      },
+      JSON.stringify({ error: error.message || 'Internal server error', success: false }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     )
   }
 })
