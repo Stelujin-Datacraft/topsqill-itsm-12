@@ -16,7 +16,7 @@ import Index from "./pages/Index";
 import Documentation from "./pages/Documentation";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
-import Login from "./pages/Login";
+import { Navigate } from "react-router-dom";
 import QueryPage from "./pages/QueryPage";
 import Forms from "./pages/Forms";
 import FormBuilder from "./pages/FormBuilder";
@@ -78,7 +78,7 @@ const App = () => (
                     <Route path="/" element={<Index />} />
                     <Route path="/docs" element={<Documentation />} />
                     <Route path="/auth" element={<Auth />} />
-                    <Route path="/login" element={<Login />} />
+                    <Route path="/login" element={<Navigate to="/auth" replace />} />
                     <Route path="/forgot-password" element={<ForgotPassword />} />
                     <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                     <Route path="/query" element={<ProtectedRoute><QueryPage /></ProtectedRoute>} />

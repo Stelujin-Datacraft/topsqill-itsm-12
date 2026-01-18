@@ -94,7 +94,7 @@ const ForgotPassword = () => {
               >
                 Try another email
               </Button>
-              <Link to="/login" className="w-full">
+              <Link to="/auth" className="w-full">
                 <Button variant="ghost" className="w-full">
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back to login
@@ -140,7 +140,7 @@ const ForgotPassword = () => {
             </Button>
           </form>
           <div className="mt-6 text-center">
-            <Link to="/login" className="text-sm text-primary hover:underline inline-flex items-center gap-1">
+            <Link to="/auth" className="text-sm text-primary hover:underline inline-flex items-center gap-1">
               <ArrowLeft className="w-4 h-4" />
               Back to login
             </Link>

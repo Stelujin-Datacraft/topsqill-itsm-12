@@ -123,7 +123,7 @@ export function SessionTimeoutWarning() {
   const handleLogout = async () => {
     setShowWarning(false);
     await signOut();
-    window.location.href = '/login?reason=timeout';
+    window.location.href = '/auth?reason=timeout';
   };
 
   const handleExtendSession = () => {
