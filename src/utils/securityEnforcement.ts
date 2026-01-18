@@ -344,12 +344,16 @@ export async function createSession(userId: string, sessionToken: string): Promi
     const timeoutMinutes = securityParams?.session_timeout_minutes || 30;
     const expiresAt = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
 
+    // Capture user agent from browser
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : null;
+
     await supabase
       .from('user_sessions')
       .insert({
         user_id: userId,
         session_token: sessionToken,
         expires_at: expiresAt,
+        user_agent: userAgent,
       });
   } catch (error) {
     console.error('Error creating session:', error);
