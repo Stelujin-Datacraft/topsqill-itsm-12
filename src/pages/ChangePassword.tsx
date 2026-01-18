@@ -266,7 +266,7 @@ const ChangePassword = () => {
         <Card className="w-full max-w-md">
           <CardContent className="py-8 text-center space-y-4">
             <p className="text-muted-foreground">Please log in to change your password</p>
-            <Link to="/login">
+            <Link to="/auth">
               <Button>
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Go to Login
@@ -367,7 +367,7 @@ const ChangePassword = () => {
               type="button"
               variant="ghost"
               className="w-full"
-              onClick={() => navigate((user || recoveryUser) ? '/dashboard' : '/login')}
+              onClick={() => navigate((user || recoveryUser) ? '/dashboard' : '/auth')}
             >
               Cancel
             </Button>
