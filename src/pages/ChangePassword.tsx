@@ -27,39 +27,49 @@ const ChangePassword = () => {
   const [hoursUntilChange, setHoursUntilChange] = useState(0);
   const [isResetMode, setIsResetMode] = useState(false);
   const [policyLoaded, setPolicyLoaded] = useState(false);
+  const [isCheckingRecovery, setIsCheckingRecovery] = useState(true);
+  const [recoveryUser, setRecoveryUser] = useState<any>(null);
 
   useEffect(() => {
     // Check if this is a password reset flow (user came from email link)
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const accessToken = hashParams.get('access_token');
-    const type = hashParams.get('type');
-    
-    console.log('ChangePassword: Checking reset mode', { accessToken: !!accessToken, type });
-    
-    if (accessToken && type === 'recovery') {
-      setIsResetMode(true);
-      // Set the session from the recovery token
-      supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: hashParams.get('refresh_token') || '',
-      }).then(({ data, error }) => {
-        if (error) {
-          console.error('Error setting session:', error);
-          toast({
-            title: 'Session Error',
-            description: 'Invalid or expired reset link. Please request a new one.',
-            variant: 'destructive',
+    const checkRecoveryFlow = async () => {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      const type = hashParams.get('type');
+      
+      console.log('ChangePassword: Checking reset mode', { accessToken: !!accessToken, type, hash: window.location.hash });
+      
+      if (accessToken && type === 'recovery') {
+        setIsResetMode(true);
+        try {
+          // Set the session from the recovery token
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: hashParams.get('refresh_token') || '',
           });
-          navigate('/forgot-password');
-        } else {
-          console.log('Session set successfully for password reset');
-          // Load policy for the recovered user
-          if (data.user) {
+          
+          if (error) {
+            console.error('Error setting session:', error);
+            toast({
+              title: 'Session Error',
+              description: 'Invalid or expired reset link. Please request a new one.',
+              variant: 'destructive',
+            });
+            navigate('/forgot-password');
+          } else if (data.user) {
+            console.log('Session set successfully for password reset, user:', data.user.email);
+            setRecoveryUser(data.user);
+            // Load policy for the recovered user
             loadPasswordPolicyForUser(data.user.id);
           }
+        } catch (err) {
+          console.error('Recovery flow error:', err);
         }
-      });
-    }
+      }
+      setIsCheckingRecovery(false);
+    };
+
+    checkRecoveryFlow();
   }, []);
 
   useEffect(() => {
@@ -108,7 +118,9 @@ const ChangePassword = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!user && !isResetMode) {
+    const activeUser = user || recoveryUser;
+    
+    if (!activeUser && !isResetMode) {
       toast({
         title: 'Error',
         description: 'You must be logged in to change your password',
@@ -230,8 +242,25 @@ const ChangePassword = () => {
     setIsLoading(false);
   };
 
+  // Show loading while checking for recovery flow
+  if (isCheckingRecovery) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="py-8 text-center space-y-4">
+            <div className="flex justify-center">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+            <p className="text-muted-foreground">Loading...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // Show login prompt only if not in reset mode and no user
-  if (!user && !isResetMode) {
+  const activeUser = user || recoveryUser;
+  if (!activeUser && !isResetMode) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
         <Card className="w-full max-w-md">
@@ -338,7 +367,7 @@ const ChangePassword = () => {
               type="button"
               variant="ghost"
               className="w-full"
-              onClick={() => navigate(user ? '/dashboard' : '/login')}
+              onClick={() => navigate((user || recoveryUser) ? '/dashboard' : '/login')}
             >
               Cancel
             </Button>
