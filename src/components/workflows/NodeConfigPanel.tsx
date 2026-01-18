@@ -31,6 +31,8 @@ import { useRoles } from '@/hooks/useRoles';
 import { EnhancedCondition } from '@/types/conditions';
 import { FormFieldOption } from '@/types/conditions';
 import { supabase } from '@/integrations/supabase/client';
+import { logFormAuditEvent } from '@/utils/formAuditLogger';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface NodeConfigPanelProps {
   node: WorkflowNode;
@@ -50,6 +52,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
   const { users: organizationUsers, loading: loadingUsers } = useOrganizationUsers();
   const { roles, loading: loadingRoles } = useRoles();
   const { toast } = useToast();
+  const { userProfile } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Use local state for the config to prevent re-renders from parent
@@ -309,11 +312,41 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
     if (!dbTriggerType) return;
 
     try {
-      await createTrigger(workflowId, dbTriggerType, formId, {
+      const result = await createTrigger(workflowId, dbTriggerType, formId, {
         nodeId: node.id,
         nodeType: node.type
       });
       
+      // Log form workflow linked event
+      if (result && userProfile?.id) {
+        // Fetch form name for the audit log
+        const { data: formData } = await supabase
+          .from('forms')
+          .select('name')
+          .eq('id', formId)
+          .single();
+
+        // Fetch workflow name for the audit log
+        const { data: workflowData } = await supabase
+          .from('workflows')
+          .select('name')
+          .eq('id', workflowId)
+          .single();
+
+        await logFormAuditEvent({
+          userId: userProfile.id,
+          eventType: 'form_workflow_linked',
+          formId: formId,
+          formName: formData?.name || undefined,
+          description: `Linked workflow "${workflowData?.name || workflowId}" with trigger type "${dbTriggerType}"`,
+          additionalMetadata: {
+            workflowId,
+            workflowName: workflowData?.name,
+            triggerType: dbTriggerType
+          }
+        });
+      }
+
       toast({
         title: "Trigger Created",
         description: "Workflow trigger has been created successfully.",

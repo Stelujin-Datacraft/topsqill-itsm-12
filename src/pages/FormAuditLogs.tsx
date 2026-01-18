@@ -21,7 +21,9 @@ import {
   Filter,
   ClipboardList,
   ArrowUpDown,
-  Globe
+  Globe,
+  Link,
+  Download
 } from 'lucide-react';
 import {
   Select,
@@ -184,6 +186,8 @@ const FormAuditLogs: React.FC = () => {
     if (eventType.includes('settings')) return <Settings className="h-4 w-4" />;
     if (eventType.includes('permission') || eventType.includes('access')) return <Users className="h-4 w-4" />;
     if (eventType.includes('reorder')) return <ArrowUpDown className="h-4 w-4" />;
+    if (eventType.includes('workflow_linked')) return <Link className="h-4 w-4" />;
+    if (eventType.includes('exported')) return <Download className="h-4 w-4" />;
     return <FileText className="h-4 w-4" />;
   };
 
@@ -194,6 +198,8 @@ const FormAuditLogs: React.FC = () => {
     if (eventType.includes('duplicated')) return 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-800';
     if (eventType.includes('published')) return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800';
     if (eventType.includes('permission') || eventType.includes('access')) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800';
+    if (eventType.includes('workflow_linked')) return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800';
+    if (eventType.includes('exported')) return 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 border-teal-200 dark:border-teal-800';
     return 'bg-muted text-muted-foreground border-border';
   };
 
@@ -213,6 +219,8 @@ const FormAuditLogs: React.FC = () => {
       'form_permissions_changed': 'Permissions Changed',
       'form_access_granted': 'Access Granted',
       'form_access_revoked': 'Access Revoked',
+      'form_workflow_linked': 'Workflow Linked',
+      'form_exported': 'Exported',
     };
     return eventLabels[eventType] || eventType.replace('form_', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
@@ -254,6 +262,13 @@ const FormAuditLogs: React.FC = () => {
     { value: 'form_created', label: 'Form Created' },
     { value: 'form_updated', label: 'Form Updated' },
     { value: 'form_deleted', label: 'Form Deleted' },
+    { value: 'form_duplicated', label: 'Form Duplicated' },
+    { value: 'form_published', label: 'Form Published' },
+    { value: 'form_field_added', label: 'Field Added' },
+    { value: 'form_field_updated', label: 'Field Updated' },
+    { value: 'form_field_deleted', label: 'Field Deleted' },
+    { value: 'form_workflow_linked', label: 'Workflow Linked' },
+    { value: 'form_exported', label: 'Exported' },
   ];
 
   const headerActions = (
