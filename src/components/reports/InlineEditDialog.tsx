@@ -9,6 +9,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { logRecordFieldChanges, detectRecordChanges } from '@/utils/recordHistoryLogger';
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -33,6 +35,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
   const [originalData, setOriginalData] = useState<Record<string, Record<string, any>>>({});
   const [saving, setSaving] = useState(false);
   const { users, groups, getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
+  const { user } = useAuth();
   
   // Get cross-reference records from all forms - we'll filter by target form in renderFieldInput
   const [crossRefRecordsByForm, setCrossRefRecordsByForm] = useState<Record<string, any[]>>({});
@@ -136,6 +139,12 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           submission_data: data
         }));
 
+      // Build field labels map for history logging
+      const fieldLabels: Record<string, string> = {};
+      formFields.forEach(field => {
+        fieldLabels[field.id] = field.label || field.id;
+      });
+
       for (const update of updates) {
         const { error } = await supabase
           .from('form_submissions')
@@ -144,6 +153,24 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
 
         if (error) {
           throw error;
+        }
+
+        // Log changes to record history
+        if (user?.id && originalData[update.id]) {
+          const changes = detectRecordChanges(
+            originalData[update.id],
+            update.submission_data,
+            fieldLabels
+          );
+
+          if (changes.length > 0) {
+            await logRecordFieldChanges({
+              submissionId: update.id,
+              changes,
+              changedBy: user.id,
+              changeType: 'updated'
+            });
+          }
         }
       }
 
@@ -165,8 +192,6 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
       setSaving(false);
     }
   };
-
-  // ensure options are always [{ value: string, label: string }]
   const normalizeOptions = (field: any) => {
     let raw = field.field_options?.options ?? field.options ?? [];
 
