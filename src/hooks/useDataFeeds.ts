@@ -9,7 +9,10 @@ export function useDataFeeds(projectId: string) {
   const { toast } = useToast();
 
   const fetchFeeds = useCallback(async () => {
-    if (!projectId) return;
+    if (!projectId) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     try {
