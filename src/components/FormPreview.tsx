@@ -248,7 +248,13 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
     const currentPage = pages.find(p => p.id === currentPageId);
     if (!currentPage || !Array.isArray(currentPage.fields)) return safeFormFields;
     
-    return safeFormFields.filter(field => currentPage.fields.includes(field.id));
+    // Filter fields and sort by the order in pages.fields
+    const filteredFields = safeFormFields.filter(field => currentPage.fields.includes(field.id));
+    return filteredFields.sort((a, b) => {
+      const aIndex = currentPage.fields.indexOf(a.id);
+      const bIndex = currentPage.fields.indexOf(b.id);
+      return aIndex - bIndex;
+    });
   };
 
   const handlePageChange = (pageId: string) => {
