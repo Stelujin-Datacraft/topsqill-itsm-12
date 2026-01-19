@@ -1,10 +1,11 @@
+import { useEffect } from 'react';
 import { DataFeed } from '@/types/dataFeed';
 import { useDataFeedRuns } from '@/hooks/useDataFeeds';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { RefreshCw, CheckCircle, XCircle, AlertCircle, Clock, Calendar } from 'lucide-react';
+import { RefreshCw, CheckCircle, XCircle, AlertCircle, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface DataFeedHistoryDialogProps {
@@ -14,7 +15,14 @@ interface DataFeedHistoryDialogProps {
 }
 
 export function DataFeedHistoryDialog({ open, onOpenChange, feed }: DataFeedHistoryDialogProps) {
-  const { runs, loading } = useDataFeedRuns(feed?.id || '', open);
+  const { runs, loading, refetch } = useDataFeedRuns(feed?.id || '');
+
+  // Refetch when dialog opens or feed changes
+  useEffect(() => {
+    if (open && feed?.id) {
+      refetch();
+    }
+  }, [open, feed?.id, refetch]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
