@@ -8,14 +8,20 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Download, FileText, FileJson, Database } from 'lucide-react';
 import { ExportData, exportToCSV, exportToPDF, exportToJSON, exportToParquet, exportToAvro } from '@/utils/exportUtils';
+import { logFormAuditEvent } from '@/utils/formAuditLogger';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ExportDropdownProps {
   data: ExportData;
   disabled?: boolean;
+  formId?: string;
+  formName?: string;
 }
 
-export function ExportDropdown({ data, disabled }: ExportDropdownProps) {
-  const handleExport = (format: string) => {
+export function ExportDropdown({ data, disabled, formId, formName }: ExportDropdownProps) {
+  const { userProfile } = useAuth();
+
+  const handleExport = async (format: string) => {
     switch (format) {
       case 'csv':
         exportToCSV(data);
@@ -32,6 +38,21 @@ export function ExportDropdown({ data, disabled }: ExportDropdownProps) {
       case 'avro':
         exportToAvro(data);
         break;
+    }
+
+    // Log the export event if form context is available
+    if (formId && userProfile?.id) {
+      await logFormAuditEvent({
+        userId: userProfile.id,
+        eventType: 'form_exported',
+        formId: formId,
+        formName: formName,
+        description: `Exported ${data.data.length} records to ${format.toUpperCase()}`,
+        additionalMetadata: {
+          exportFormat: format,
+          recordCount: data.data.length
+        }
+      });
     }
   };
 

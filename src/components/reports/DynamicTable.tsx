@@ -909,7 +909,7 @@ export function DynamicTable({
               label: f.label
             }))} sortConfigs={sortConfigs} onAddSort={handleAddSort} onRemoveSort={handleRemoveSort} onToggleDirection={handleToggleDirection} />}
 
-               <ExportDropdown data={exportData} />
+               <ExportDropdown data={exportData} formId={config.formId} formName={currentForm?.name} />
               
               <SubmissionUpdateButton formId={config.formId} onUpdateComplete={loadData} />
               
