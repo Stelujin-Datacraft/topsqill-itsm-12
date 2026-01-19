@@ -222,12 +222,15 @@ export function useDataFeeds(projectId: string) {
   };
 }
 
-export function useDataFeedRuns(feedId: string, isOpen?: boolean) {
+export function useDataFeedRuns(feedId: string) {
   const [runs, setRuns] = useState<DataFeedRun[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  const fetchRuns = useCallback(async () => {
-    if (!feedId) return;
+  const refetch = useCallback(async () => {
+    if (!feedId) {
+      setRuns([]);
+      return;
+    }
     
     setLoading(true);
     try {
@@ -253,14 +256,12 @@ export function useDataFeedRuns(feedId: string, isOpen?: boolean) {
     }
   }, [feedId]);
 
-  // Fetch when feedId changes or when dialog opens
+  // Initial fetch when feedId changes
   useEffect(() => {
-    if (!feedId) return;
-    // Only fetch when dialog is open (if isOpen is provided) or always (if not provided)
-    if (isOpen === undefined || isOpen) {
-      fetchRuns();
+    if (feedId) {
+      refetch();
     }
-  }, [feedId, isOpen, fetchRuns]);
+  }, [feedId, refetch]);
 
-  return { runs, loading, refetch: fetchRuns };
+  return { runs, loading, refetch };
 }
