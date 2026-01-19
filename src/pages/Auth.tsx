@@ -13,10 +13,11 @@ import { Building2, Mail, UserPlus } from 'lucide-react';
 import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicator';
 import { validatePassword, DEFAULT_PASSWORD_POLICY, PasswordPolicy } from '@/utils/passwordValidation';
 import { getOrganizationPasswordPolicy } from '@/utils/securityEnforcement';
+import { MfaVerificationDialog } from '@/components/MfaVerificationDialog';
 
 const Auth = () => {
   const [activeTab, setActiveTab] = useState('signin');
-  const { signIn, signUp, registerOrganization, requestToJoinOrganization, isLoading, user } = useAuth();
+  const { signIn, signUp, registerOrganization, requestToJoinOrganization, isLoading, user, pendingMfa, completeMfaVerification } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get('returnTo');
@@ -86,12 +87,18 @@ const Auth = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const { error } = await signIn(signInData.email, signInData.password);
-    if (error) {
+    const result = await signIn(signInData.email, signInData.password);
+    if (result.error) {
       toast({
         title: "Sign in failed",
-        description: error.message || "Invalid email or password. Please try again.",
+        description: result.error.message || "Invalid email or password. Please try again.",
         variant: "destructive",
+      });
+    } else if (result.requiresMfa) {
+      // MFA is required - dialog will be shown via pendingMfa state
+      toast({
+        title: "Verification Required",
+        description: "Please enter the verification code sent to your email.",
       });
     } else {
       toast({
@@ -101,6 +108,25 @@ const Auth = () => {
       const redirectPath = returnTo || '/dashboard';
       navigate(redirectPath, { replace: true });
     }
+  };
+
+  const handleMfaVerified = async () => {
+    await completeMfaVerification();
+    toast({
+      title: "Welcome back!",
+      description: "You have been successfully signed in.",
+    });
+    const redirectPath = returnTo || '/dashboard';
+    navigate(redirectPath, { replace: true });
+  };
+
+  const handleMfaCancel = () => {
+    // Clear pending MFA and sign out
+    supabase.auth.signOut();
+    toast({
+      title: "Sign in cancelled",
+      description: "MFA verification was cancelled.",
+    });
   };
 
   const handleRegisterOrganization = async (e: React.FormEvent) => {
@@ -409,6 +435,17 @@ const Auth = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* MFA Verification Dialog */}
+      {pendingMfa && (
+        <MfaVerificationDialog
+          open={!!pendingMfa}
+          email={pendingMfa.email}
+          userId={pendingMfa.userId}
+          onVerified={handleMfaVerified}
+          onCancel={handleMfaCancel}
+        />
+      )}
     </div>
   );
 };
