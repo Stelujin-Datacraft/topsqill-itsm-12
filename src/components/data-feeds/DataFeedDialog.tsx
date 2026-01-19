@@ -317,7 +317,7 @@ export function DataFeedDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh]">
+      <DialogContent className="max-w-4xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>{feed ? 'Edit Data Feed' : 'Create Data Feed'}</DialogTitle>
         </DialogHeader>
@@ -331,25 +331,27 @@ export function DataFeedDialog({
             </TabsList>
 
             <TabsContent value="general" className="space-y-4 p-1">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="My Data Feed"
-                />
-              </div>
+              {/* Two column layout for name and description */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="My Data Feed"
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Describe what this feed does..."
-                  rows={2}
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Input
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Describe what this feed does..."
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -594,28 +596,57 @@ export function DataFeedDialog({
             </TabsContent>
 
             <TabsContent value="matching" className="space-y-4 p-1">
-              <div className="space-y-3">
-                <Label>Matching Type</Label>
-                <RadioGroup
-                  value={formData.matching_type}
-                  onValueChange={(value) => setFormData(prev => ({ 
-                    ...prev, 
-                    matching_type: value as 'cross_reference' | 'field_matching' 
-                  }))}
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="field_matching" id="field_matching" />
-                    <Label htmlFor="field_matching" className="font-normal">
-                      Field Value Matching
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="cross_reference" id="cross_reference" />
-                    <Label htmlFor="cross_reference" className="font-normal">
-                      Cross-Reference Field
-                    </Label>
-                  </div>
-                </RadioGroup>
+              {/* Two column layout for matching options */}
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <Label>Matching Type</Label>
+                  <RadioGroup
+                    value={formData.matching_type}
+                    onValueChange={(value) => setFormData(prev => ({ 
+                      ...prev, 
+                      matching_type: value as 'cross_reference' | 'field_matching' 
+                    }))}
+                    className="space-y-2"
+                  >
+                    <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
+                      <RadioGroupItem value="field_matching" id="field_matching" />
+                      <Label htmlFor="field_matching" className="font-normal cursor-pointer flex-1">
+                        Field Value Matching
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
+                      <RadioGroupItem value="cross_reference" id="cross_reference" />
+                      <Label htmlFor="cross_reference" className="font-normal cursor-pointer flex-1">
+                        Cross-Reference Field
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                <div className="space-y-3">
+                  <Label>When No Match Found</Label>
+                  <RadioGroup
+                    value={formData.no_match_behavior}
+                    onValueChange={(value) => setFormData(prev => ({ 
+                      ...prev, 
+                      no_match_behavior: value as 'skip' | 'create' 
+                    }))}
+                    className="space-y-2"
+                  >
+                    <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
+                      <RadioGroupItem value="skip" id="skip" />
+                      <Label htmlFor="skip" className="font-normal cursor-pointer flex-1">
+                        Skip (update existing only)
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
+                      <RadioGroupItem value="create" id="create" />
+                      <Label htmlFor="create" className="font-normal cursor-pointer flex-1">
+                        Create new record in target form
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
               </div>
 
               {formData.matching_type === 'cross_reference' && (
@@ -757,29 +788,6 @@ export function DataFeedDialog({
                 </div>
               )}
 
-              <div className="space-y-3">
-                <Label>When No Match Found</Label>
-                <RadioGroup
-                  value={formData.no_match_behavior}
-                  onValueChange={(value) => setFormData(prev => ({ 
-                    ...prev, 
-                    no_match_behavior: value as 'skip' | 'create' 
-                  }))}
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="skip" id="skip" />
-                    <Label htmlFor="skip" className="font-normal">
-                      Skip (update existing only)
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="create" id="create" />
-                    <Label htmlFor="create" className="font-normal">
-                      Create new record in target form
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
             </TabsContent>
 
             <TabsContent value="mappings" className="space-y-4 p-1">
