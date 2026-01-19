@@ -87,12 +87,16 @@ export const RecordHistoryDialog: React.FC<RecordHistoryDialogProps> = ({
       const userIds = [...new Set(extractedUserIds)];
       
       if (userIds.length > 0) {
-        const { data: usersData } = await supabase
+        console.log('Fetching user profiles for IDs:', userIds);
+        const { data: usersData, error: usersError } = await supabase
           .from('user_profiles')
           .select('id, email, first_name, last_name')
           .in('id', userIds);
 
-        if (usersData) {
+        if (usersError) {
+          console.error('Error fetching user profiles:', usersError);
+        } else if (usersData) {
+          console.log('Fetched user profiles:', usersData);
           const usersMap: Record<string, UserInfo> = {};
           usersData.forEach(u => {
             usersMap[u.id] = u;

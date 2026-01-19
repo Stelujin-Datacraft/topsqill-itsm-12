@@ -2477,7 +2477,7 @@ Deno.serve(async (req) => {
                   conditionResult,
                   branchTaken: branchType,
                   nextNodeIds: branchNodeIds,
-                  conditions: conditions.length,
+                  conditionCount: enhancedCondition?.conditions?.length || legacyConditions.length || 0,
                   logicalOperator,
                   success: true
                 }
