@@ -68,8 +68,19 @@ export const RecordHistoryDialog: React.FC<RecordHistoryDialogProps> = ({
 
       setHistory(data || []);
 
-      // Fetch user info for all changed_by users
-      const userIds = [...new Set((data || []).map(h => h.changed_by).filter(Boolean))] as string[];
+      // Fetch user info for all changed_by users (handle both direct user IDs and workflow:userId format)
+      const rawUserIds = (data || []).map(h => h.changed_by).filter(Boolean) as string[];
+      const extractedUserIds = rawUserIds.map(id => {
+        // Extract user ID from workflow format if present
+        if (id.startsWith('workflow:')) {
+          const extracted = id.replace('workflow:', '');
+          return extracted === 'system' ? null : extracted;
+        }
+        return id;
+      }).filter(Boolean) as string[];
+      
+      const userIds = [...new Set(extractedUserIds)];
+      
       if (userIds.length > 0) {
         const { data: usersData } = await supabase
           .from('user_profiles')
@@ -92,9 +103,35 @@ export const RecordHistoryDialog: React.FC<RecordHistoryDialogProps> = ({
     }
   };
 
-  const getUserDisplayName = (userId: string | null) => {
-    if (!userId) return 'System';
-    const user = users[userId];
+  // Check if changed_by is a workflow identifier (format: "workflow:<userId>" or "workflow:system")
+  const isWorkflowChange = (changedBy: string | null) => {
+    return changedBy?.startsWith('workflow:') || false;
+  };
+
+  // Extract user ID from workflow changed_by format
+  const getWorkflowUserId = (changedBy: string | null) => {
+    if (!changedBy?.startsWith('workflow:')) return null;
+    const userId = changedBy.replace('workflow:', '');
+    return userId === 'system' ? null : userId;
+  };
+
+  const getUserDisplayName = (changedBy: string | null) => {
+    if (!changedBy) return 'System';
+    
+    // Handle workflow changes
+    if (isWorkflowChange(changedBy)) {
+      const userId = getWorkflowUserId(changedBy);
+      if (!userId) return 'System';
+      const user = users[userId];
+      if (!user) return 'Unknown User';
+      if (user.first_name && user.last_name) {
+        return `${user.first_name} ${user.last_name}`;
+      }
+      return user.email;
+    }
+    
+    // Regular user changes
+    const user = users[changedBy];
     if (!user) return 'Unknown User';
     if (user.first_name && user.last_name) {
       return `${user.first_name} ${user.last_name}`;
@@ -102,7 +139,12 @@ export const RecordHistoryDialog: React.FC<RecordHistoryDialogProps> = ({
     return user.email;
   };
 
-  const getChangeTypeBadge = (changeType: string) => {
+  const getChangeTypeBadge = (changeType: string, changedBy: string | null) => {
+    // Show Workflow badge for workflow-initiated changes
+    if (isWorkflowChange(changedBy)) {
+      return <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">Workflow</Badge>;
+    }
+    
     switch (changeType) {
       case 'created':
         return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Created</Badge>;
@@ -175,7 +217,7 @@ export const RecordHistoryDialog: React.FC<RecordHistoryDialogProps> = ({
                       <Clock className="h-4 w-4" />
                       <span>{format(new Date(group.timestamp), 'MMM d, yyyy h:mm:ss a')}</span>
                     </div>
-                    {getChangeTypeBadge(group.changeType)}
+                    {getChangeTypeBadge(group.changeType, group.changedBy)}
                   </div>
 
                   {/* Field changes */}
