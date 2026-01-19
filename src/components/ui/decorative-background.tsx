@@ -1,23 +1,4 @@
 import { cn } from "@/lib/utils";
-import { 
-  LayoutDashboard, 
-  FolderKanban, 
-  Building2, 
-  Database, 
-  Calendar, 
-  FileText, 
-  GitBranch, 
-  BarChart3, 
-  User2, 
-  Mail, 
-  History, 
-  Shield,
-  Bell,
-  Settings,
-  Search,
-  ChevronDown,
-  Plus
-} from "lucide-react";
 
 interface DecorativeBackgroundProps {
   children: React.ReactNode;
@@ -27,180 +8,87 @@ interface DecorativeBackgroundProps {
 export const DecorativeBackground = ({ children, className }: DecorativeBackgroundProps) => {
   return (
     <div className={cn("relative min-h-screen overflow-hidden", className)}>
-      {/* Blurred Dashboard Background - Matching our app design */}
-      <div className="absolute inset-0 bg-slate-50 dark:bg-slate-900">
+      {/* Base gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50/50 to-indigo-100/70 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/50" />
+      
+      {/* Animated gradient orbs */}
+      <div className="absolute inset-0 overflow-hidden">
+        {/* Large primary gradient orb - top right */}
+        <div 
+          className="absolute -top-32 -right-32 h-[500px] w-[500px] rounded-full opacity-60"
+          style={{
+            background: 'radial-gradient(circle, hsl(217.2 91.2% 59.8% / 0.3) 0%, hsl(217.2 91.2% 59.8% / 0.1) 50%, transparent 70%)',
+          }}
+        />
         
-        {/* Sidebar - Matching AppSidebar */}
-        <div className="absolute left-0 top-0 h-full w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
-          {/* Team Switcher Area */}
-          <div className="p-4 border-b border-sidebar-border">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <Building2 className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <div className="flex-1">
-                <div className="h-3 w-24 bg-sidebar-accent rounded" />
-                <div className="h-2 w-16 bg-sidebar-accent/50 rounded mt-1" />
-              </div>
-              <ChevronDown className="w-4 h-4 text-sidebar-foreground/50" />
-            </div>
-          </div>
-
-          {/* Platform Section */}
-          <div className="p-4">
-            <div className="text-xs font-medium text-sidebar-foreground/50 mb-3">Platform</div>
-            <div className="space-y-1">
-              {[
-                { icon: LayoutDashboard, label: "Dashboard", active: true },
-                { icon: FolderKanban, label: "Projects" },
-                { icon: Building2, label: "Organizations" },
-                { icon: Database, label: "Data Explorer" },
-              ].map((item, i) => (
-                <div 
-                  key={i} 
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-md",
-                    item.active ? "bg-sidebar-accent" : ""
-                  )}
-                >
-                  <item.icon className="w-4 h-4 text-sidebar-foreground/70" />
-                  <span className="text-sm text-sidebar-foreground/80">{item.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Current Project Section */}
-          <div className="p-4 border-t border-sidebar-border">
-            <div className="text-xs font-medium text-sidebar-foreground/50 mb-3">Current Project</div>
-            <div className="space-y-1">
-              {[
-                { icon: Calendar, label: "Form Builder" },
-                { icon: FileText, label: "My Submissions" },
-                { icon: GitBranch, label: "Task Automation" },
-                { icon: BarChart3, label: "Report Analytics" },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-md">
-                  <item.icon className="w-4 h-4 text-sidebar-foreground/70" />
-                  <span className="text-sm text-sidebar-foreground/80">{item.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Settings Section */}
-          <div className="p-4 border-t border-sidebar-border">
-            <div className="space-y-1">
-              {[
-                { icon: User2, label: "Team Members" },
-                { icon: Mail, label: "Email Config" },
-                { icon: History, label: "Form History" },
-                { icon: Shield, label: "Roles and Access" },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-md">
-                  <item.icon className="w-4 h-4 text-sidebar-foreground/70" />
-                  <span className="text-sm text-sidebar-foreground/80">{item.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* User Area */}
-          <div className="mt-auto p-4 border-t border-sidebar-border">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/60" />
-              <div className="flex-1">
-                <div className="h-3 w-20 bg-sidebar-accent rounded" />
-                <div className="h-2 w-28 bg-sidebar-accent/50 rounded mt-1" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content Area */}
-        <div className="absolute left-64 top-0 right-0 h-full">
-          {/* Header - Matching DashboardLayout */}
-          <div className="h-16 bg-background/95 backdrop-blur border-b border-border flex items-center justify-between px-6">
-            <div className="flex items-center gap-4">
-              <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-md border border-border flex items-center justify-center">
-                <Bell className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <div className="w-9 h-9 rounded-md border border-border flex items-center justify-center">
-                <Settings className="w-4 h-4 text-muted-foreground" />
-              </div>
-            </div>
-          </div>
-
-          {/* Dashboard Content */}
-          <div className="p-6">
-            {/* Quick Actions - Matching our blue-50 style */}
-            <div className="bg-card rounded-lg border border-border shadow-sm p-6 mb-6">
-              <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
-              <div className="grid grid-cols-4 gap-4">
-                {[
-                  { icon: Plus, title: "New Form", desc: "Create a new form" },
-                  { icon: GitBranch, title: "New Workflow", desc: "Automate tasks" },
-                  { icon: BarChart3, title: "New Report", desc: "Build analytics" },
-                  { icon: User2, title: "Invite User", desc: "Add team member" },
-                ].map((action, i) => (
-                  <div 
-                    key={i} 
-                    className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800"
-                  >
-                    <action.icon className="w-6 h-6 text-primary mb-2" />
-                    <div className="font-medium text-sm text-foreground">{action.title}</div>
-                    <div className="text-xs text-muted-foreground">{action.desc}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Stats Cards - Matching Dashboard.tsx */}
-            <div className="grid grid-cols-3 gap-6 mb-6">
-              {[
-                { title: "Total Projects", value: "5", desc: "projects available", icon: FolderKanban },
-                { title: "Current Role", value: "Admin", desc: "Organization member", icon: User2 },
-                { title: "Active Project", value: "1", desc: "Project selected", icon: FileText },
-              ].map((stat, i) => (
-                <div key={i} className="bg-card rounded-lg border border-border shadow-sm p-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-muted-foreground">{stat.title}</span>
-                    <stat.icon className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                  <div className="text-2xl font-bold text-foreground">{stat.value}</div>
-                  <p className="text-xs text-muted-foreground">{stat.desc}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Recent Activity Card */}
-            <div className="bg-card rounded-lg border border-border shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-foreground mb-4">Recent Activity</h2>
-              <div className="space-y-3">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="h-3 w-32 bg-muted rounded" />
-                      <div className="h-2 w-48 bg-muted/60 rounded mt-2" />
-                    </div>
-                    <div className="h-2 w-16 bg-muted/60 rounded" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Secondary gradient orb - bottom left */}
+        <div 
+          className="absolute -bottom-48 -left-48 h-[600px] w-[600px] rounded-full opacity-50"
+          style={{
+            background: 'radial-gradient(circle, hsl(222.2 47.4% 11.2% / 0.15) 0%, hsl(217.2 91.2% 59.8% / 0.1) 40%, transparent 70%)',
+          }}
+        />
+        
+        {/* Accent orb - center right */}
+        <div 
+          className="absolute top-1/3 -right-20 h-[400px] w-[400px] rounded-full opacity-40"
+          style={{
+            background: 'radial-gradient(circle, hsl(199.2 95.7% 39.4% / 0.2) 0%, transparent 60%)',
+          }}
+        />
+        
+        {/* Small accent orb - top left */}
+        <div 
+          className="absolute top-20 left-20 h-[200px] w-[200px] rounded-full opacity-30"
+          style={{
+            background: 'radial-gradient(circle, hsl(217.2 91.2% 59.8% / 0.25) 0%, transparent 60%)',
+          }}
+        />
       </div>
-
-      {/* Blur Overlay */}
-      <div className="absolute inset-0 backdrop-blur-[2px] bg-slate-900/50 dark:bg-slate-950/60" />
-
+      
+      {/* Geometric pattern overlay */}
+      <div className="absolute inset-0">
+        <svg className="h-full w-full opacity-[0.03]" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="grid-pattern-decorative" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="1" className="text-primary" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#grid-pattern-decorative)" />
+        </svg>
+      </div>
+      
+      {/* Floating geometric shapes */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Large ring - top left */}
+        <div className="absolute -top-16 -left-16 h-64 w-64 rounded-full border border-primary/10" />
+        <div className="absolute -top-8 -left-8 h-48 w-48 rounded-full border border-accent/10" />
+        
+        {/* Large ring - bottom right */}
+        <div className="absolute -bottom-20 -right-20 h-80 w-80 rounded-full border border-primary/10" />
+        <div className="absolute -bottom-10 -right-10 h-60 w-60 rounded-full border border-accent/10" />
+        
+        {/* Floating dots */}
+        <div className="absolute top-1/4 left-[15%] h-3 w-3 rounded-full bg-accent/20" />
+        <div className="absolute top-[20%] right-[20%] h-2 w-2 rounded-full bg-primary/15" />
+        <div className="absolute bottom-1/3 left-[10%] h-4 w-4 rounded-full bg-accent/15" />
+        <div className="absolute bottom-[25%] right-[15%] h-2 w-2 rounded-full bg-primary/20" />
+        <div className="absolute top-1/2 left-[5%] h-2 w-2 rounded-full bg-accent/25" />
+        <div className="absolute top-[60%] right-[8%] h-3 w-3 rounded-full bg-primary/10" />
+        
+        {/* Decorative lines */}
+        <div className="absolute top-[15%] left-[25%] w-24 h-px bg-gradient-to-r from-transparent via-accent/20 to-transparent" />
+        <div className="absolute bottom-[20%] right-[25%] w-32 h-px bg-gradient-to-r from-transparent via-primary/15 to-transparent" />
+      </div>
+      
+      {/* Subtle noise texture overlay */}
+      <div 
+        className="absolute inset-0 opacity-[0.015] mix-blend-overlay"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+        }}
+      />
+      
       {/* Content */}
       <div className="relative z-10 flex min-h-screen items-center justify-center p-4">
         {children}
