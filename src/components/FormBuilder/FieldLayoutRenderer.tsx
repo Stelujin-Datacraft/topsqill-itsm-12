@@ -15,13 +15,6 @@ interface FieldLayoutRendererProps {
   onDragEnd: (result: any) => void;
 }
 
-// Full-width field types that should span all columns
-const fullWidthTypes = [
-  'header', 'description', 'section-break', 'horizontal-line', 'rich-text', 
-  'record-table', 'matrix-grid', 'cross-reference', 'child-cross-reference', 
-  'approval', 'geo-location', 'query-field', 'workflow-trigger'
-];
-
 export function FieldLayoutRenderer({
   fields,
   columnLayout,
@@ -40,11 +33,6 @@ export function FieldLayoutRenderer({
       </div>
     );
   }
-
-  // Check if a field should be full-width
-  const isFullWidthField = (field: FormField) => {
-    return fullWidthTypes.includes(field.type) || field.isFullWidth || field.fieldCategory === 'full-width';
-  };
 
   // Get grid column class based on layout
   const getGridClass = () => {
@@ -65,20 +53,16 @@ export function FieldLayoutRenderer({
             className={`grid ${getGridClass()} gap-4 ${snapshot.isDraggingOver ? 'bg-muted/30 rounded-lg' : ''}`}
           >
             {fields.map((field, index) => (
-              <div 
+              <FieldRenderer
                 key={field.id}
-                className={isFullWidthField(field) ? `col-span-${columnLayout}` : ''}
-                style={isFullWidthField(field) ? { gridColumn: `span ${columnLayout} / span ${columnLayout}` } : undefined}
-              >
-                <FieldRenderer
-                  field={field}
-                  index={index}
-                  selectedFieldId={selectedFieldId}
-                  highlightedFieldId={highlightedFieldId}
-                  onFieldClick={onFieldClick}
-                  onFieldDelete={onFieldDelete}
-                />
-              </div>
+                field={field}
+                index={index}
+                selectedFieldId={selectedFieldId}
+                highlightedFieldId={highlightedFieldId}
+                onFieldClick={onFieldClick}
+                onFieldDelete={onFieldDelete}
+                columnLayout={columnLayout}
+              />
             ))}
             {provided.placeholder}
           </div>
