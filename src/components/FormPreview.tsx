@@ -288,7 +288,6 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
   const renderFieldsWithSmartLayout = () => {
     const currentFields = getCurrentPageFields();
     const columns = (form.layout?.columns as 1 | 2 | 3) || 1;
-    console.log('🎨 FormPreview columns:', columns, 'layout:', form.layout, 'fields count:', currentFields.length);
     const renderedElements: React.ReactNode[] = [];
     let standardFieldsBuffer: FormField[] = [];
     let elementIndex = 0;

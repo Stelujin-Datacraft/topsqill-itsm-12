@@ -64,11 +64,12 @@ export function SubmissionFormRenderer({
     const flushStandardFields = () => {
       if (standardFieldsBuffer.length > 0) {
         const columns = (form.layout?.columns as 1 | 2 | 3) || 1;
+        // Apply columns directly without responsive breakpoints for consistent layout
         renderedElements.push(
           <div key={`grid-${renderedElements.length}`} className={`grid gap-6 ${
             columns === 1 ? 'grid-cols-1' : 
-            columns === 2 ? 'grid-cols-1 md:grid-cols-2' : 
-            'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+            columns === 2 ? 'grid-cols-2' : 
+            'grid-cols-3'
           }`}>
             {standardFieldsBuffer.map((field) => (
               <div 

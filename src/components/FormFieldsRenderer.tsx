@@ -1183,8 +1183,8 @@ case 'query-field':
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className={`grid gap-6 ${
         columns === 1 ? 'grid-cols-1' : 
-        columns === 2 ? 'grid-cols-1 md:grid-cols-2' : 
-        'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+        columns === 2 ? 'grid-cols-2' : 
+        'grid-cols-3'
       }`}>
         {fields.map((field) => (
           <div 
