@@ -139,10 +139,6 @@ export function DataFeedList({
                           <Pencil className="mr-2 h-4 w-4" />
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onViewHistory(feed)}>
-                          <History className="mr-2 h-4 w-4" />
-                          View History
-                        </DropdownMenuItem>
                         <DropdownMenuItem 
                           onClick={() => setDeleteTarget(feed)}
                           className="text-destructive"
