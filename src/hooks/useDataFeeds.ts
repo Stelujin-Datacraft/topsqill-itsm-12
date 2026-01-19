@@ -222,40 +222,45 @@ export function useDataFeeds(projectId: string) {
   };
 }
 
-export function useDataFeedRuns(feedId: string) {
+export function useDataFeedRuns(feedId: string, isOpen?: boolean) {
   const [runs, setRuns] = useState<DataFeedRun[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchRuns = useCallback(async () => {
     if (!feedId) return;
+    
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('data_feed_runs')
+        .select('*')
+        .eq('data_feed_id', feedId)
+        .order('started_at', { ascending: false })
+        .limit(20);
 
-    const fetchRuns = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('data_feed_runs')
-          .select('*')
-          .eq('data_feed_id', feedId)
-          .order('started_at', { ascending: false })
-          .limit(20);
+      if (error) throw error;
 
-        if (error) throw error;
+      const parsed = (data || []).map(run => ({
+        ...run,
+        run_log: Array.isArray(run.run_log) ? run.run_log : JSON.parse(run.run_log as any || '[]'),
+      })) as DataFeedRun[];
 
-        const parsed = (data || []).map(run => ({
-          ...run,
-          run_log: Array.isArray(run.run_log) ? run.run_log : JSON.parse(run.run_log as any || '[]'),
-        })) as DataFeedRun[];
-
-        setRuns(parsed);
-      } catch (error) {
-        console.error('Error fetching feed runs:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRuns();
+      setRuns(parsed);
+    } catch (error) {
+      console.error('Error fetching feed runs:', error);
+    } finally {
+      setLoading(false);
+    }
   }, [feedId]);
 
-  return { runs, loading };
+  // Fetch when feedId changes or when dialog opens
+  useEffect(() => {
+    if (!feedId) return;
+    // Only fetch when dialog is open (if isOpen is provided) or always (if not provided)
+    if (isOpen === undefined || isOpen) {
+      fetchRuns();
+    }
+  }, [feedId, isOpen, fetchRuns]);
+
+  return { runs, loading, refetch: fetchRuns };
 }
