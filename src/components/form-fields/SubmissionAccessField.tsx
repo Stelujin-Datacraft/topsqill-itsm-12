@@ -156,6 +156,19 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
     );
   }, [transformedGroups, (config as any)?.allowedGroups, searchValue]);
 
+  // Check if admin has configured but selected nothing (empty arrays exist)
+  const hasEmptyConfiguration = React.useMemo(() => {
+    const allowedUsers = (config as any)?.allowedUsers;
+    const allowedGroups = (config as any)?.allowedGroups;
+    
+    // If both arrays exist and are empty, show the message
+    const usersEmpty = Array.isArray(allowedUsers) && allowedUsers.length === 0;
+    const groupsEmpty = Array.isArray(allowedGroups) && allowedGroups.length === 0;
+    
+    // Show message if both are explicitly set to empty
+    return usersEmpty && groupsEmpty;
+  }, [(config as any)?.allowedUsers, (config as any)?.allowedGroups]);
+
   const selectedUsers = React.useMemo(() => {
     return transformedUsers.filter(user => selectedUserIds.includes(user.id));
   }, [transformedUsers, selectedUserIds]);
@@ -235,6 +248,18 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
       </Badge>
     );
   };
+
+  // Show message if no users/groups are configured
+  if (hasEmptyConfiguration) {
+    return (
+      <div className="p-4 bg-muted/50 border border-dashed rounded-lg text-center">
+        <Users className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+        <p className="text-sm text-muted-foreground">
+          No users or groups have been configured for this field.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <>
