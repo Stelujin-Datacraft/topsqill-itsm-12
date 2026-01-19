@@ -4,16 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowLeft, Edit, Save, X, Hash, Calendar, Clock } from 'lucide-react';
+import { ArrowLeft, Edit, Save, X, Hash, Calendar, Clock, History } from 'lucide-react';
 import { FormFieldsRenderer } from './FormFieldsRenderer';
 import { FormPagination } from './FormPagination';
 import { FormNavigationPanel } from './FormNavigationPanel';
 import { SubmissionFormRenderer } from './SubmissionFormRenderer';
 import { LifecycleStatusBar } from './LifecycleStatusBar';
+import { RecordHistoryDialog } from './RecordHistoryDialog';
 import { Form, FormField } from '@/types/form';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-
 interface SubmissionFormViewProps {
   submissionId: string;
   onBack?: () => void;
@@ -45,6 +45,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
   const [selectedField, setSelectedField] = useState<FormField | null>(null);
   const [navigationVisible, setNavigationVisible] = useState(true);
   const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(null);
+  const [showRecordHistory, setShowRecordHistory] = useState(false);
 
   // Find lifecycle dropdown fields (select fields with displayAsLifecycle enabled)
   // Must be called before any early returns to follow Rules of Hooks
@@ -544,10 +545,20 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
               </Button>
             </>
           ) : (
-            <Button size="sm" onClick={() => setIsEditing(true)}>
-              <Edit className="h-4 w-4 mr-1" />
-              Edit
-            </Button>
+            <>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowRecordHistory(true)}
+              >
+                <History className="h-4 w-4 mr-1" />
+                History
+              </Button>
+              <Button size="sm" onClick={() => setIsEditing(true)}>
+                <Edit className="h-4 w-4 mr-1" />
+                Edit
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -604,6 +615,13 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
           </CardContent>
         </Card>
       </div>
+
+      {/* Record History Dialog */}
+      <RecordHistoryDialog
+        open={showRecordHistory}
+        onOpenChange={setShowRecordHistory}
+        submissionId={submissionId}
+      />
     </div>
   );
 }
