@@ -3,6 +3,26 @@ import { NodeExecutionContext } from '../nodeActions';
 import { ActionExecutionResult } from './actionExecutors';
 import { logRecordFieldChanges, detectRecordChanges } from '@/utils/recordHistoryLogger';
 
+// Helper to get workflow creator ID for history logging
+async function getWorkflowCreatorId(workflowId: string): Promise<string | null> {
+  try {
+    const { data } = await supabase
+      .from('workflows')
+      .select('created_by')
+      .eq('id', workflowId)
+      .single();
+    return data?.created_by || null;
+  } catch (error) {
+    console.error('Error fetching workflow creator:', error);
+    return null;
+  }
+}
+
+// Format workflow changed_by identifier: "workflow:<creatorUserId>"
+function formatWorkflowChangedBy(creatorId: string | null): string {
+  return creatorId ? `workflow:${creatorId}` : 'workflow:system';
+}
+
 export class RecordActionExecutors {
   static async executeChangeFieldValueAction(context: NodeExecutionContext): Promise<ActionExecutionResult> {
     console.log('🔧 EXECUTING CHANGE FIELD VALUE ACTION');
@@ -288,14 +308,17 @@ export class RecordActionExecutors {
           );
 
           if (changes.length > 0) {
-            // Use 'workflow' as the changedBy identifier since this is automated
+            // Get workflow creator for attribution
+            const creatorId = await getWorkflowCreatorId(context.workflowId);
+            const changedBy = formatWorkflowChangedBy(creatorId);
+            
             await logRecordFieldChanges({
               submissionId,
               changes,
-              changedBy: 'workflow',
+              changedBy,
               changeType: 'updated'
             });
-            console.log('📝 Logged', changes.length, 'field change(s) to record history');
+            console.log('📝 Logged', changes.length, 'field change(s) to record history by', changedBy);
           }
         } catch (historyError) {
           // Don't fail the action if history logging fails
@@ -618,6 +641,47 @@ export class RecordActionExecutors {
         if (newSubmission) {
           createdRecords.push(newSubmission.id);
           console.log(`✅ Created record ${i + 1}: ${newSubmission.id}`);
+          
+          // Log record creation to history
+          try {
+            const creatorId = await getWorkflowCreatorId(context.workflowId);
+            const changedBy = formatWorkflowChangedBy(creatorId);
+            
+            // Build field labels from fieldValues config and fieldMappings
+            const fieldLabels: Record<string, string> = {};
+            for (const fv of fieldValues) {
+              if (fv.fieldId) {
+                fieldLabels[fv.fieldId] = fv.fieldId;
+              }
+            }
+            if (config.fieldMappings) {
+              for (const mapping of config.fieldMappings as Array<{targetFieldId: string; targetFieldName?: string}>) {
+                if (mapping.targetFieldId) {
+                  fieldLabels[mapping.targetFieldId] = mapping.targetFieldName || mapping.targetFieldId;
+                }
+              }
+            }
+            
+            // For created records, all fields are "new" (old value is null)
+            const changes = Object.entries(submissionData).map(([fieldId, value]) => ({
+              fieldId,
+              fieldLabel: fieldLabels[fieldId] || fieldId,
+              oldValue: null,
+              newValue: value !== null && value !== undefined ? (typeof value === 'object' ? JSON.stringify(value) : String(value)) : null
+            }));
+            
+            if (changes.length > 0) {
+              await logRecordFieldChanges({
+                submissionId: newSubmission.id,
+                changes,
+                changedBy,
+                changeType: 'created'
+              });
+              console.log('📝 Logged record creation to history by', changedBy);
+            }
+          } catch (historyError) {
+            console.error('⚠️ Failed to log record creation history:', historyError);
+          }
         }
       }
 
