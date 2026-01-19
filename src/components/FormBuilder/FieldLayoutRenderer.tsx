@@ -15,6 +15,13 @@ interface FieldLayoutRendererProps {
   onDragEnd: (result: any) => void;
 }
 
+// Full-width field types that should span all columns
+const fullWidthTypes = [
+  'header', 'description', 'section-break', 'horizontal-line', 'rich-text', 
+  'record-table', 'matrix-grid', 'cross-reference', 'child-cross-reference', 
+  'approval', 'geo-location', 'query-field', 'workflow-trigger'
+];
+
 export function FieldLayoutRenderer({
   fields,
   columnLayout,
@@ -34,6 +41,20 @@ export function FieldLayoutRenderer({
     );
   }
 
+  // Check if a field should be full-width
+  const isFullWidthField = (field: FormField) => {
+    return fullWidthTypes.includes(field.type) || field.isFullWidth || field.fieldCategory === 'full-width';
+  };
+
+  // Get grid column class based on layout
+  const getGridClass = () => {
+    switch (columnLayout) {
+      case 2: return 'grid-cols-2';
+      case 3: return 'grid-cols-3';
+      default: return 'grid-cols-1';
+    }
+  };
+
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <StrictModeDroppable droppableId="all-fields">
@@ -41,19 +62,23 @@ export function FieldLayoutRenderer({
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className={`space-y-4 ${snapshot.isDraggingOver ? 'bg-muted/30 rounded-lg' : ''}`}
+            className={`grid ${getGridClass()} gap-4 ${snapshot.isDraggingOver ? 'bg-muted/30 rounded-lg' : ''}`}
           >
-            {/* Render all fields in a flat list - required for react-beautiful-dnd */}
             {fields.map((field, index) => (
-              <FieldRenderer
+              <div 
                 key={field.id}
-                field={field}
-                index={index}
-                selectedFieldId={selectedFieldId}
-                highlightedFieldId={highlightedFieldId}
-                onFieldClick={onFieldClick}
-                onFieldDelete={onFieldDelete}
-              />
+                className={isFullWidthField(field) ? `col-span-${columnLayout}` : ''}
+                style={isFullWidthField(field) ? { gridColumn: `span ${columnLayout} / span ${columnLayout}` } : undefined}
+              >
+                <FieldRenderer
+                  field={field}
+                  index={index}
+                  selectedFieldId={selectedFieldId}
+                  highlightedFieldId={highlightedFieldId}
+                  onFieldClick={onFieldClick}
+                  onFieldDelete={onFieldDelete}
+                />
+              </div>
             ))}
             {provided.placeholder}
           </div>
