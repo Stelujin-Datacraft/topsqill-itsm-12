@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.send-password-reset]
 verify_jwt = false
+
+[functions.execute-data-feed]
+verify_jwt = false
+
+[functions.run-scheduled-data-feeds]
+verify_jwt = false

@@ -1,0 +1,307 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface FieldMapping {
+  sourceFieldId: string;
+  targetFieldId: string;
+  sourceFieldName?: string;
+  targetFieldName?: string;
+}
+
+interface MatchingRule {
+  sourceFieldId: string;
+  targetFieldId: string;
+}
+
+interface DataFeed {
+  id: string;
+  name: string;
+  source_form_id: string;
+  target_form_id: string;
+  matching_type: 'cross_reference' | 'field_matching';
+  cross_reference_field_id?: string;
+  matching_rules: MatchingRule[];
+  field_mappings: FieldMapping[];
+  no_match_behavior: 'skip' | 'create';
+}
+
+interface RunStats {
+  recordsProcessed: number;
+  recordsUpdated: number;
+  recordsCreated: number;
+  recordsSkipped: number;
+  errors: number;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { feedId, triggeredBy = 'manual' } = await req.json();
+
+    if (!feedId) {
+      return new Response(
+        JSON.stringify({ error: 'feedId is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`📊 Starting data feed execution: ${feedId}`);
+
+    // Fetch the data feed configuration
+    const { data: feed, error: feedError } = await supabase
+      .from('data_feeds')
+      .select('*')
+      .eq('id', feedId)
+      .single();
+
+    if (feedError || !feed) {
+      console.error('❌ Feed not found:', feedError);
+      return new Response(
+        JSON.stringify({ error: 'Data feed not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Create a run record
+    const { data: runRecord, error: runError } = await supabase
+      .from('data_feed_runs')
+      .insert({
+        data_feed_id: feedId,
+        status: 'running',
+        triggered_by: triggeredBy
+      })
+      .select()
+      .single();
+
+    if (runError) {
+      console.error('❌ Failed to create run record:', runError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to create run record' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const runId = runRecord.id;
+    const runLog: any[] = [];
+    const stats: RunStats = {
+      recordsProcessed: 0,
+      recordsUpdated: 0,
+      recordsCreated: 0,
+      recordsSkipped: 0,
+      errors: 0
+    };
+
+    try {
+      // Fetch source form submissions
+      const { data: sourceSubmissions, error: sourceError } = await supabase
+        .from('form_submissions')
+        .select('id, submission_data, submission_ref_id')
+        .eq('form_id', feed.source_form_id);
+
+      if (sourceError) {
+        throw new Error(`Failed to fetch source submissions: ${sourceError.message}`);
+      }
+
+      console.log(`📥 Found ${sourceSubmissions?.length || 0} source submissions`);
+      runLog.push({ type: 'info', message: `Found ${sourceSubmissions?.length || 0} source submissions`, timestamp: new Date().toISOString() });
+
+      // Fetch target form submissions for matching
+      const { data: targetSubmissions, error: targetError } = await supabase
+        .from('form_submissions')
+        .select('id, submission_data, submission_ref_id')
+        .eq('form_id', feed.target_form_id);
+
+      if (targetError) {
+        throw new Error(`Failed to fetch target submissions: ${targetError.message}`);
+      }
+
+      console.log(`📤 Found ${targetSubmissions?.length || 0} target submissions`);
+      runLog.push({ type: 'info', message: `Found ${targetSubmissions?.length || 0} target submissions`, timestamp: new Date().toISOString() });
+
+      const fieldMappings = (feed.field_mappings || []) as FieldMapping[];
+      const matchingRules = (feed.matching_rules || []) as MatchingRule[];
+
+      // Process each source submission
+      for (const sourceSubmission of sourceSubmissions || []) {
+        stats.recordsProcessed++;
+        const sourceData = sourceSubmission.submission_data as Record<string, any>;
+
+        try {
+          // Find matching target submission(s)
+          let matchedTargets: any[] = [];
+
+          if (feed.matching_type === 'field_matching' && matchingRules.length > 0) {
+            // Field-based matching
+            matchedTargets = (targetSubmissions || []).filter(target => {
+              const targetData = target.submission_data as Record<string, any>;
+              return matchingRules.every(rule => {
+                const sourceValue = sourceData[rule.sourceFieldId];
+                const targetValue = targetData[rule.targetFieldId];
+                return sourceValue !== undefined && targetValue !== undefined && 
+                       String(sourceValue) === String(targetValue);
+              });
+            });
+          } else if (feed.matching_type === 'cross_reference' && feed.cross_reference_field_id) {
+            // Cross-reference matching
+            const crossRefValue = sourceData[feed.cross_reference_field_id];
+            if (crossRefValue) {
+              // Handle both single and array cross-reference values
+              const refIds = Array.isArray(crossRefValue) ? crossRefValue : [crossRefValue];
+              matchedTargets = (targetSubmissions || []).filter(target => 
+                refIds.includes(target.id) || refIds.includes(target.submission_ref_id)
+              );
+            }
+          }
+
+          if (matchedTargets.length > 0) {
+            // Update matched target submissions
+            for (const target of matchedTargets) {
+              const updatedData = { ...(target.submission_data as Record<string, any>) };
+              
+              for (const mapping of fieldMappings) {
+                if (sourceData[mapping.sourceFieldId] !== undefined) {
+                  updatedData[mapping.targetFieldId] = sourceData[mapping.sourceFieldId];
+                }
+              }
+
+              const { error: updateError } = await supabase
+                .from('form_submissions')
+                .update({ submission_data: updatedData })
+                .eq('id', target.id);
+
+              if (updateError) {
+                console.error(`❌ Failed to update target ${target.id}:`, updateError);
+                stats.errors++;
+                runLog.push({ type: 'error', message: `Failed to update target ${target.id}: ${updateError.message}`, timestamp: new Date().toISOString() });
+              } else {
+                stats.recordsUpdated++;
+                runLog.push({ type: 'success', message: `Updated target record ${target.submission_ref_id || target.id}`, timestamp: new Date().toISOString() });
+              }
+            }
+          } else if (feed.no_match_behavior === 'create') {
+            // Create new target record
+            const newData: Record<string, any> = {};
+            
+            for (const mapping of fieldMappings) {
+              if (sourceData[mapping.sourceFieldId] !== undefined) {
+                newData[mapping.targetFieldId] = sourceData[mapping.sourceFieldId];
+              }
+            }
+
+            const { error: insertError } = await supabase
+              .from('form_submissions')
+              .insert({
+                form_id: feed.target_form_id,
+                submission_data: newData,
+                approval_status: 'pending'
+              });
+
+            if (insertError) {
+              console.error(`❌ Failed to create target record:`, insertError);
+              stats.errors++;
+              runLog.push({ type: 'error', message: `Failed to create target record: ${insertError.message}`, timestamp: new Date().toISOString() });
+            } else {
+              stats.recordsCreated++;
+              runLog.push({ type: 'success', message: `Created new target record from source ${sourceSubmission.submission_ref_id || sourceSubmission.id}`, timestamp: new Date().toISOString() });
+            }
+          } else {
+            stats.recordsSkipped++;
+            runLog.push({ type: 'info', message: `Skipped source ${sourceSubmission.submission_ref_id || sourceSubmission.id} - no match found`, timestamp: new Date().toISOString() });
+          }
+        } catch (processError) {
+          console.error(`❌ Error processing source ${sourceSubmission.id}:`, processError);
+          stats.errors++;
+          runLog.push({ type: 'error', message: `Error processing source ${sourceSubmission.id}: ${String(processError)}`, timestamp: new Date().toISOString() });
+        }
+      }
+
+      // Update run record with success
+      const runStatus = stats.errors > 0 ? (stats.recordsUpdated > 0 || stats.recordsCreated > 0 ? 'partial' : 'failed') : 'completed';
+      
+      await supabase
+        .from('data_feed_runs')
+        .update({
+          status: runStatus,
+          completed_at: new Date().toISOString(),
+          records_processed: stats.recordsProcessed,
+          records_updated: stats.recordsUpdated,
+          records_created: stats.recordsCreated,
+          records_skipped: stats.recordsSkipped,
+          errors_count: stats.errors,
+          run_log: runLog
+        })
+        .eq('id', runId);
+
+      // Update data feed with last run info
+      await supabase
+        .from('data_feeds')
+        .update({
+          last_run_at: new Date().toISOString(),
+          last_run_status: runStatus,
+          last_run_stats: stats
+        })
+        .eq('id', feedId);
+
+      console.log(`✅ Data feed execution completed: ${JSON.stringify(stats)}`);
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          runId,
+          stats,
+          status: runStatus
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+
+    } catch (executionError) {
+      console.error('❌ Execution error:', executionError);
+      
+      // Update run record with failure
+      await supabase
+        .from('data_feed_runs')
+        .update({
+          status: 'failed',
+          completed_at: new Date().toISOString(),
+          error_details: { message: String(executionError) },
+          run_log: [...runLog, { type: 'error', message: String(executionError), timestamp: new Date().toISOString() }]
+        })
+        .eq('id', runId);
+
+      await supabase
+        .from('data_feeds')
+        .update({
+          last_run_at: new Date().toISOString(),
+          last_run_status: 'failed'
+        })
+        .eq('id', feedId);
+
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: String(executionError),
+          runId
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+  } catch (error) {
+    console.error('❌ Fatal error:', error);
+    return new Response(
+      JSON.stringify({ error: String(error) }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});
