@@ -10,6 +10,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { logRecordFieldChanges, detectRecordChanges } from '@/utils/recordHistoryLogger';
 import { Save, Users, Star, Calendar, Eye } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
@@ -38,6 +40,7 @@ export function MultiLineEditDialog({
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
   const { users, groups, getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
+  const { user } = useAuth();
   
   // Helper function to ensure options are always an array
   const ensureOptionsArray = (opts: any): any[] => {
@@ -139,6 +142,12 @@ export function MultiLineEditDialog({
         submission_data: editData[submission.id]
       }));
 
+      // Build field labels map for history logging
+      const fieldLabels: Record<string, string> = {};
+      formFields.forEach(field => {
+        fieldLabels[field.id] = field.label || field.id;
+      });
+
       // Perform bulk update
       for (const update of updates) {
         const { error } = await supabase
@@ -148,6 +157,24 @@ export function MultiLineEditDialog({
 
         if (error) {
           throw error;
+        }
+
+        // Log changes to record history
+        if (user?.id && originalData[update.id]) {
+          const changes = detectRecordChanges(
+            originalData[update.id],
+            update.submission_data,
+            fieldLabels
+          );
+
+          if (changes.length > 0) {
+            await logRecordFieldChanges({
+              submissionId: update.id,
+              changes,
+              changedBy: user.id,
+              changeType: 'updated'
+            });
+          }
         }
       }
 

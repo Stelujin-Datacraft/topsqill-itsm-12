@@ -1323,6 +1323,57 @@ export type Database = {
         }
         Relationships: []
       }
+      record_field_history: {
+        Row: {
+          change_type: string
+          changed_at: string
+          changed_by: string | null
+          field_id: string | null
+          field_label: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          submission_id: string
+        }
+        Insert: {
+          change_type?: string
+          changed_at?: string
+          changed_by?: string | null
+          field_id?: string | null
+          field_label: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          submission_id: string
+        }
+        Update: {
+          change_type?: string
+          changed_at?: string
+          changed_by?: string | null
+          field_id?: string | null
+          field_label?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "record_field_history_field_id_fkey"
+            columns: ["field_id"]
+            isOneToOne: false
+            referencedRelation: "form_fields"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_field_history_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       report_components: {
         Row: {
           config: Json

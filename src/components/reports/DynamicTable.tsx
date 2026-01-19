@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3, FileText, User, Calendar, CheckCircle, ExternalLink, Move } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3, FileText, User, Calendar, CheckCircle, ExternalLink, Move, History } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
@@ -38,6 +38,7 @@ import { ColumnOrderManager } from './ColumnOrderManager';
 import { CopyRecordsDialog } from './CopyRecordsDialog';
 import { ImportButton } from '@/components/ImportButton';
 import { SubmissionUpdateButton } from '@/components/submissions/SubmissionUpdateButton';
+import { RecordHistoryDialog } from '@/components/RecordHistoryDialog';
 interface TableConfig {
   title: string;
   formId: string;
@@ -91,6 +92,8 @@ export function DynamicTable({
   const [crossReferenceDisplayFields, setCrossReferenceDisplayFields] = useState<string[]>([]);
   const [highlightedSubmissionRef, setHighlightedSubmissionRef] = useState<string | null>(null);
   const [selectedSubmissionForView, setSelectedSubmissionForView] = useState<{ id: string; refId: string } | null>(null);
+  const [showRecordHistory, setShowRecordHistory] = useState(false);
+  const [recordHistorySubmission, setRecordHistorySubmission] = useState<{ id: string; refId: string } | null>(null);
 
   // Custom hooks
   const {
@@ -1077,6 +1080,13 @@ export function DynamicTable({
                              }} className="h-6 w-6 p-0" title="Edit submission">
                                <Edit3 className="h-3 w-3" />
                              </Button>
+                             <Button variant="ghost" size="sm" onClick={e => {
+                               e.stopPropagation();
+                               setRecordHistorySubmission({ id: row.id, refId: row.submission_ref_id || row.id.slice(0, 8) });
+                               setShowRecordHistory(true);
+                             }} className="h-6 w-6 p-0" title="View record history">
+                               <History className="h-3 w-3" />
+                             </Button>
                              {canDeleteSubmissions && (
                                <DeleteSubmissionButton submissionId={row.id} onDelete={() => handleDeleteSubmission(row.id)} checkPermission={() => checkDeletePermission(row.id)} />
                              )}
@@ -1180,5 +1190,13 @@ export function DynamicTable({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Record History Dialog */}
+      <RecordHistoryDialog
+        open={showRecordHistory}
+        onOpenChange={setShowRecordHistory}
+        submissionId={recordHistorySubmission?.id || ''}
+        submissionRefId={recordHistorySubmission?.refId}
+      />
     </div>;
 }
