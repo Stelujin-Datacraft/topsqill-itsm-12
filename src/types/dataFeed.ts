@@ -72,10 +72,88 @@ export interface DataFeedFormData {
 }
 
 export const SCHEDULE_PRESETS = [
-  { label: 'Every hour', value: '0 * * * *' },
-  { label: 'Every 6 hours', value: '0 */6 * * *' },
-  { label: 'Daily at midnight', value: '0 0 * * *' },
-  { label: 'Daily at 9 AM', value: '0 9 * * *' },
-  { label: 'Weekly (Monday)', value: '0 0 * * 1' },
-  { label: 'Monthly (1st)', value: '0 0 1 * *' },
+  { label: 'Every 15 minutes', value: '*/15 * * * *', category: 'frequent' },
+  { label: 'Every 30 minutes', value: '*/30 * * * *', category: 'frequent' },
+  { label: 'Every hour', value: '0 * * * *', category: 'frequent' },
+  { label: 'Every 2 hours', value: '0 */2 * * *', category: 'hourly' },
+  { label: 'Every 4 hours', value: '0 */4 * * *', category: 'hourly' },
+  { label: 'Every 6 hours', value: '0 */6 * * *', category: 'hourly' },
+  { label: 'Every 12 hours', value: '0 */12 * * *', category: 'hourly' },
+  { label: 'Daily at midnight', value: '0 0 * * *', category: 'daily' },
+  { label: 'Daily at 6 AM', value: '0 6 * * *', category: 'daily' },
+  { label: 'Daily at 9 AM', value: '0 9 * * *', category: 'daily' },
+  { label: 'Daily at 12 PM', value: '0 12 * * *', category: 'daily' },
+  { label: 'Daily at 6 PM', value: '0 18 * * *', category: 'daily' },
+  { label: 'Weekly on Monday', value: '0 0 * * 1', category: 'weekly' },
+  { label: 'Weekly on Friday', value: '0 0 * * 5', category: 'weekly' },
+  { label: 'Weekly on Sunday', value: '0 0 * * 0', category: 'weekly' },
+  { label: 'Bi-weekly (1st & 15th)', value: '0 0 1,15 * *', category: 'monthly' },
+  { label: 'Monthly (1st)', value: '0 0 1 * *', category: 'monthly' },
+  { label: 'Monthly (Last day)', value: '0 0 L * *', category: 'monthly' },
+  { label: 'Quarterly (Jan, Apr, Jul, Oct)', value: '0 0 1 1,4,7,10 *', category: 'monthly' },
 ];
+
+export interface ScheduleConfig {
+  type: 'preset' | 'custom' | 'interval';
+  preset?: string;
+  customCron?: string;
+  intervalValue?: number;
+  intervalUnit?: 'minutes' | 'hours' | 'days';
+  atTime?: string; // HH:mm format for daily/weekly schedules
+  onDays?: number[]; // 0-6 for days of week (0 = Sunday)
+}
+
+export const buildCronFromConfig = (config: ScheduleConfig): string => {
+  if (config.type === 'preset' && config.preset) {
+    return config.preset;
+  }
+  
+  if (config.type === 'custom' && config.customCron) {
+    return config.customCron;
+  }
+  
+  if (config.type === 'interval' && config.intervalValue && config.intervalUnit) {
+    const value = config.intervalValue;
+    switch (config.intervalUnit) {
+      case 'minutes':
+        return `*/${value} * * * *`;
+      case 'hours':
+        return `0 */${value} * * *`;
+      case 'days':
+        const [hours, minutes] = (config.atTime || '00:00').split(':').map(Number);
+        if (config.onDays && config.onDays.length > 0 && config.onDays.length < 7) {
+          return `${minutes} ${hours} * * ${config.onDays.join(',')}`;
+        }
+        return `${minutes} ${hours} */${value} * *`;
+      default:
+        return '';
+    }
+  }
+  
+  return '';
+};
+
+export const parseCronToReadable = (cron: string): string => {
+  if (!cron) return 'No schedule';
+  
+  const preset = SCHEDULE_PRESETS.find(p => p.value === cron);
+  if (preset) return preset.label;
+  
+  // Basic parsing for common patterns
+  const parts = cron.split(' ');
+  if (parts.length !== 5) return cron;
+  
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+  
+  if (minute.startsWith('*/')) {
+    return `Every ${minute.slice(2)} minutes`;
+  }
+  if (hour.startsWith('*/') && minute === '0') {
+    return `Every ${hour.slice(2)} hours`;
+  }
+  if (dayOfMonth.startsWith('*/') && minute !== '*' && hour !== '*') {
+    return `Every ${dayOfMonth.slice(2)} days at ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
+  }
+  
+  return cron;
+};

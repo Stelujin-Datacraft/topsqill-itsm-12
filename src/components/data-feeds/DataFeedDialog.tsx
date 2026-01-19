@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DataFeed, DataFeedFormData, FieldMapping, MatchingRule, SCHEDULE_PRESETS } from '@/types/dataFeed';
+import { DataFeed, DataFeedFormData, FieldMapping, MatchingRule, SCHEDULE_PRESETS, ScheduleConfig, buildCronFromConfig, parseCronToReadable } from '@/types/dataFeed';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,8 +10,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Trash2, ArrowRight } from 'lucide-react';
+import { Plus, Trash2, ArrowRight, Clock, Calendar, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface DataFeedDialogProps {
   open: boolean;
@@ -44,6 +45,24 @@ export function DataFeedDialog({
   const [sourceFields, setSourceFields] = useState<FieldOption[]>([]);
   const [targetFields, setTargetFields] = useState<FieldOption[]>([]);
   const [crossRefFields, setCrossRefFields] = useState<FieldOption[]>([]);
+  const [scheduleType, setScheduleType] = useState<'none' | 'preset' | 'interval' | 'custom'>('none');
+  const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig>({
+    type: 'preset',
+    intervalValue: 1,
+    intervalUnit: 'hours',
+    atTime: '09:00',
+    onDays: [1, 2, 3, 4, 5], // Mon-Fri by default
+  });
+
+  const DAYS_OF_WEEK = [
+    { value: 0, label: 'Sun' },
+    { value: 1, label: 'Mon' },
+    { value: 2, label: 'Tue' },
+    { value: 3, label: 'Wed' },
+    { value: 4, label: 'Thu' },
+    { value: 5, label: 'Fri' },
+    { value: 6, label: 'Sat' },
+  ];
 
   const [formData, setFormData] = useState<DataFeedFormData>({
     name: '',
@@ -300,24 +319,195 @@ export function DataFeedDialog({
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Schedule</Label>
-                <Select
-                  value={formData.schedule || '__none__'}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, schedule: value === '__none__' ? '' : value }))}
+              <div className="space-y-4">
+                <Label className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Schedule
+                </Label>
+                
+                <RadioGroup
+                  value={scheduleType}
+                  onValueChange={(value) => {
+                    const newType = value as 'none' | 'preset' | 'interval' | 'custom';
+                    setScheduleType(newType);
+                    if (newType === 'none') {
+                      setFormData(prev => ({ ...prev, schedule: '' }));
+                    }
+                  }}
+                  className="grid grid-cols-2 gap-2"
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="No schedule (manual only)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">No schedule (manual only)</SelectItem>
-                    {SCHEDULE_PRESETS.map((preset) => (
-                      <SelectItem key={preset.value} value={preset.value}>
-                        {preset.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
+                    <RadioGroupItem value="none" id="schedule_none" />
+                    <Label htmlFor="schedule_none" className="font-normal cursor-pointer flex-1">Manual only</Label>
+                  </div>
+                  <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
+                    <RadioGroupItem value="preset" id="schedule_preset" />
+                    <Label htmlFor="schedule_preset" className="font-normal cursor-pointer flex-1">Preset</Label>
+                  </div>
+                  <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
+                    <RadioGroupItem value="interval" id="schedule_interval" />
+                    <Label htmlFor="schedule_interval" className="font-normal cursor-pointer flex-1">Custom interval</Label>
+                  </div>
+                  <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
+                    <RadioGroupItem value="custom" id="schedule_custom" />
+                    <Label htmlFor="schedule_custom" className="font-normal cursor-pointer flex-1">Cron expression</Label>
+                  </div>
+                </RadioGroup>
+
+                {scheduleType === 'preset' && (
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground">Select a preset schedule</Label>
+                    <Select
+                      value={formData.schedule || ''}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, schedule: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose schedule..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="" disabled>-- Frequent --</SelectItem>
+                        {SCHEDULE_PRESETS.filter(p => p.category === 'frequent').map((preset) => (
+                          <SelectItem key={preset.value} value={preset.value}>
+                            {preset.label}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="" disabled>-- Hourly --</SelectItem>
+                        {SCHEDULE_PRESETS.filter(p => p.category === 'hourly').map((preset) => (
+                          <SelectItem key={preset.value} value={preset.value}>
+                            {preset.label}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="" disabled>-- Daily --</SelectItem>
+                        {SCHEDULE_PRESETS.filter(p => p.category === 'daily').map((preset) => (
+                          <SelectItem key={preset.value} value={preset.value}>
+                            {preset.label}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="" disabled>-- Weekly --</SelectItem>
+                        {SCHEDULE_PRESETS.filter(p => p.category === 'weekly').map((preset) => (
+                          <SelectItem key={preset.value} value={preset.value}>
+                            {preset.label}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="" disabled>-- Monthly --</SelectItem>
+                        {SCHEDULE_PRESETS.filter(p => p.category === 'monthly').map((preset) => (
+                          <SelectItem key={preset.value} value={preset.value}>
+                            {preset.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {scheduleType === 'interval' && (
+                  <div className="space-y-4 p-3 bg-muted/30 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Label className="whitespace-nowrap">Run every</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="60"
+                        className="w-20"
+                        value={scheduleConfig.intervalValue || 1}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 1;
+                          const newConfig = { ...scheduleConfig, intervalValue: value, type: 'interval' as const };
+                          setScheduleConfig(newConfig);
+                          setFormData(prev => ({ ...prev, schedule: buildCronFromConfig(newConfig) }));
+                        }}
+                      />
+                      <Select
+                        value={scheduleConfig.intervalUnit || 'hours'}
+                        onValueChange={(value) => {
+                          const newConfig = { ...scheduleConfig, intervalUnit: value as 'minutes' | 'hours' | 'days', type: 'interval' as const };
+                          setScheduleConfig(newConfig);
+                          setFormData(prev => ({ ...prev, schedule: buildCronFromConfig(newConfig) }));
+                        }}
+                      >
+                        <SelectTrigger className="w-28">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="minutes">Minutes</SelectItem>
+                          <SelectItem value="hours">Hours</SelectItem>
+                          <SelectItem value="days">Days</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {scheduleConfig.intervalUnit === 'days' && (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <Label className="whitespace-nowrap">At time</Label>
+                          <Input
+                            type="time"
+                            className="w-32"
+                            value={scheduleConfig.atTime || '09:00'}
+                            onChange={(e) => {
+                              const newConfig = { ...scheduleConfig, atTime: e.target.value, type: 'interval' as const };
+                              setScheduleConfig(newConfig);
+                              setFormData(prev => ({ ...prev, schedule: buildCronFromConfig(newConfig) }));
+                            }}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm">Run on days</Label>
+                          <div className="flex flex-wrap gap-1">
+                            {DAYS_OF_WEEK.map((day) => (
+                              <label
+                                key={day.value}
+                                className={`flex items-center justify-center w-10 h-8 rounded border cursor-pointer text-xs font-medium transition-colors ${
+                                  scheduleConfig.onDays?.includes(day.value)
+                                    ? 'bg-primary text-primary-foreground border-primary'
+                                    : 'bg-background hover:bg-muted'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="sr-only"
+                                  checked={scheduleConfig.onDays?.includes(day.value) || false}
+                                  onChange={(e) => {
+                                    const newDays = e.target.checked
+                                      ? [...(scheduleConfig.onDays || []), day.value].sort()
+                                      : (scheduleConfig.onDays || []).filter(d => d !== day.value);
+                                    const newConfig = { ...scheduleConfig, onDays: newDays, type: 'interval' as const };
+                                    setScheduleConfig(newConfig);
+                                    setFormData(prev => ({ ...prev, schedule: buildCronFromConfig(newConfig) }));
+                                  }}
+                                />
+                                {day.label}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {scheduleType === 'custom' && (
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground">Enter cron expression (minute hour day month weekday)</Label>
+                    <Input
+                      placeholder="0 9 * * 1-5"
+                      value={formData.schedule || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, schedule: e.target.value }))}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Example: <code className="bg-muted px-1 rounded">0 9 * * 1-5</code> = Every weekday at 9 AM
+                    </p>
+                  </div>
+                )}
+
+                {formData.schedule && (
+                  <div className="flex items-center gap-2 text-sm p-2 bg-primary/10 rounded-md">
+                    <RefreshCw className="h-4 w-4 text-primary" />
+                    <span className="text-muted-foreground">Schedule:</span>
+                    <span className="font-medium">{parseCronToReadable(formData.schedule)}</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-2">

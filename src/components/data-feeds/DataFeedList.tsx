@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DataFeed } from '@/types/dataFeed';
+import { DataFeed, parseCronToReadable } from '@/types/dataFeed';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -164,7 +164,7 @@ export function DataFeedList({
                   {feed.schedule && (
                     <div className="flex items-center gap-1 text-muted-foreground">
                       <Clock className="h-4 w-4" />
-                      <span>{feed.schedule}</span>
+                      <span>{parseCronToReadable(feed.schedule)}</span>
                     </div>
                   )}
                   {feed.last_run_at && (
