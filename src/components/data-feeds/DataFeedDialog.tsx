@@ -365,31 +365,31 @@ export function DataFeedDialog({
                         <SelectValue placeholder="Choose schedule..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="" disabled>-- Frequent --</SelectItem>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Frequent</div>
                         {SCHEDULE_PRESETS.filter(p => p.category === 'frequent').map((preset) => (
                           <SelectItem key={preset.value} value={preset.value}>
                             {preset.label}
                           </SelectItem>
                         ))}
-                        <SelectItem value="" disabled>-- Hourly --</SelectItem>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-1.5">Hourly</div>
                         {SCHEDULE_PRESETS.filter(p => p.category === 'hourly').map((preset) => (
                           <SelectItem key={preset.value} value={preset.value}>
                             {preset.label}
                           </SelectItem>
                         ))}
-                        <SelectItem value="" disabled>-- Daily --</SelectItem>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-1.5">Daily</div>
                         {SCHEDULE_PRESETS.filter(p => p.category === 'daily').map((preset) => (
                           <SelectItem key={preset.value} value={preset.value}>
                             {preset.label}
                           </SelectItem>
                         ))}
-                        <SelectItem value="" disabled>-- Weekly --</SelectItem>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-1.5">Weekly</div>
                         {SCHEDULE_PRESETS.filter(p => p.category === 'weekly').map((preset) => (
                           <SelectItem key={preset.value} value={preset.value}>
                             {preset.label}
                           </SelectItem>
                         ))}
-                        <SelectItem value="" disabled>-- Monthly --</SelectItem>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-1.5">Monthly</div>
                         {SCHEDULE_PRESETS.filter(p => p.category === 'monthly').map((preset) => (
                           <SelectItem key={preset.value} value={preset.value}>
                             {preset.label}
