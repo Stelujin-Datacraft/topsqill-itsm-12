@@ -7,88 +7,105 @@ interface DecorativeBackgroundProps {
 
 export const DecorativeBackground = ({ children, className }: DecorativeBackgroundProps) => {
   return (
-    <div className={cn("relative min-h-screen overflow-hidden", className)}>
-      {/* Base gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50/50 to-indigo-100/70 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/50" />
-      
-      {/* Animated gradient orbs */}
+    <div className={cn("relative min-h-screen overflow-hidden bg-gradient-to-br from-background via-background to-primary/5", className)}>
+      {/* Branded gradient mesh - matching landing page style */}
       <div className="absolute inset-0 overflow-hidden">
-        {/* Large primary gradient orb - top right */}
+        {/* Primary brand gradient - top area */}
         <div 
-          className="absolute -top-32 -right-32 h-[500px] w-[500px] rounded-full opacity-60"
+          className="absolute -top-1/2 left-1/2 -translate-x-1/2 h-[800px] w-[1200px] rounded-full opacity-[0.08]"
           style={{
-            background: 'radial-gradient(circle, hsl(217.2 91.2% 59.8% / 0.3) 0%, hsl(217.2 91.2% 59.8% / 0.1) 50%, transparent 70%)',
+            background: 'radial-gradient(ellipse, hsl(var(--primary)) 0%, transparent 70%)',
           }}
         />
         
-        {/* Secondary gradient orb - bottom left */}
+        {/* Secondary soft gradient - bottom left */}
         <div 
-          className="absolute -bottom-48 -left-48 h-[600px] w-[600px] rounded-full opacity-50"
+          className="absolute -bottom-1/3 -left-1/4 h-[600px] w-[600px] rounded-full opacity-[0.06]"
           style={{
-            background: 'radial-gradient(circle, hsl(222.2 47.4% 11.2% / 0.15) 0%, hsl(217.2 91.2% 59.8% / 0.1) 40%, transparent 70%)',
+            background: 'radial-gradient(circle, hsl(var(--accent)) 0%, transparent 60%)',
           }}
         />
         
-        {/* Accent orb - center right */}
+        {/* Accent gradient - right side */}
         <div 
-          className="absolute top-1/3 -right-20 h-[400px] w-[400px] rounded-full opacity-40"
+          className="absolute top-1/4 -right-1/4 h-[500px] w-[500px] rounded-full opacity-[0.05]"
           style={{
-            background: 'radial-gradient(circle, hsl(199.2 95.7% 39.4% / 0.2) 0%, transparent 60%)',
-          }}
-        />
-        
-        {/* Small accent orb - top left */}
-        <div 
-          className="absolute top-20 left-20 h-[200px] w-[200px] rounded-full opacity-30"
-          style={{
-            background: 'radial-gradient(circle, hsl(217.2 91.2% 59.8% / 0.25) 0%, transparent 60%)',
+            background: 'radial-gradient(circle, hsl(var(--accent)) 0%, transparent 60%)',
           }}
         />
       </div>
-      
-      {/* Geometric pattern overlay */}
-      <div className="absolute inset-0">
-        <svg className="h-full w-full opacity-[0.03]" xmlns="http://www.w3.org/2000/svg">
+
+      {/* Brand watermark logo - subtle centered background */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="relative opacity-[0.03]">
+          <img 
+            src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png" 
+            alt="" 
+            className="w-[400px] h-[400px] object-contain"
+            aria-hidden="true"
+          />
+        </div>
+      </div>
+
+      {/* Grid pattern overlay - matching landing page enterprise feel */}
+      <div className="absolute inset-0 opacity-[0.02]">
+        <svg className="h-full w-full" xmlns="http://www.w3.org/2000/svg">
           <defs>
-            <pattern id="grid-pattern-decorative" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="1" className="text-primary" />
+            <pattern id="auth-grid-pattern" width="60" height="60" patternUnits="userSpaceOnUse">
+              <path d="M 60 0 L 0 0 0 60" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-primary" />
             </pattern>
           </defs>
-          <rect width="100%" height="100%" fill="url(#grid-pattern-decorative)" />
+          <rect width="100%" height="100%" fill="url(#auth-grid-pattern)" />
         </svg>
       </div>
-      
-      {/* Floating geometric shapes */}
+
+      {/* Decorative enterprise elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Large ring - top left */}
-        <div className="absolute -top-16 -left-16 h-64 w-64 rounded-full border border-primary/10" />
-        <div className="absolute -top-8 -left-8 h-48 w-48 rounded-full border border-accent/10" />
+        {/* Corner accents - top left */}
+        <div className="absolute top-0 left-0 w-32 h-32">
+          <div className="absolute top-8 left-8 w-16 h-px bg-gradient-to-r from-primary/20 to-transparent" />
+          <div className="absolute top-8 left-8 w-px h-16 bg-gradient-to-b from-primary/20 to-transparent" />
+        </div>
         
-        {/* Large ring - bottom right */}
-        <div className="absolute -bottom-20 -right-20 h-80 w-80 rounded-full border border-primary/10" />
-        <div className="absolute -bottom-10 -right-10 h-60 w-60 rounded-full border border-accent/10" />
+        {/* Corner accents - top right */}
+        <div className="absolute top-0 right-0 w-32 h-32">
+          <div className="absolute top-8 right-8 w-16 h-px bg-gradient-to-l from-primary/20 to-transparent" />
+          <div className="absolute top-8 right-8 w-px h-16 bg-gradient-to-b from-primary/20 to-transparent" />
+        </div>
         
-        {/* Floating dots */}
-        <div className="absolute top-1/4 left-[15%] h-3 w-3 rounded-full bg-accent/20" />
-        <div className="absolute top-[20%] right-[20%] h-2 w-2 rounded-full bg-primary/15" />
-        <div className="absolute bottom-1/3 left-[10%] h-4 w-4 rounded-full bg-accent/15" />
-        <div className="absolute bottom-[25%] right-[15%] h-2 w-2 rounded-full bg-primary/20" />
-        <div className="absolute top-1/2 left-[5%] h-2 w-2 rounded-full bg-accent/25" />
-        <div className="absolute top-[60%] right-[8%] h-3 w-3 rounded-full bg-primary/10" />
+        {/* Corner accents - bottom left */}
+        <div className="absolute bottom-0 left-0 w-32 h-32">
+          <div className="absolute bottom-8 left-8 w-16 h-px bg-gradient-to-r from-primary/20 to-transparent" />
+          <div className="absolute bottom-8 left-8 w-px h-16 bg-gradient-to-t from-primary/20 to-transparent" />
+        </div>
         
-        {/* Decorative lines */}
-        <div className="absolute top-[15%] left-[25%] w-24 h-px bg-gradient-to-r from-transparent via-accent/20 to-transparent" />
-        <div className="absolute bottom-[20%] right-[25%] w-32 h-px bg-gradient-to-r from-transparent via-primary/15 to-transparent" />
+        {/* Corner accents - bottom right */}
+        <div className="absolute bottom-0 right-0 w-32 h-32">
+          <div className="absolute bottom-8 right-8 w-16 h-px bg-gradient-to-l from-primary/20 to-transparent" />
+          <div className="absolute bottom-8 right-8 w-px h-16 bg-gradient-to-t from-primary/20 to-transparent" />
+        </div>
+
+        {/* Floating brand dots */}
+        <div className="absolute top-[15%] left-[10%] w-2 h-2 rounded-full bg-primary/10" />
+        <div className="absolute top-[25%] right-[15%] w-1.5 h-1.5 rounded-full bg-accent/15" />
+        <div className="absolute bottom-[20%] left-[15%] w-2.5 h-2.5 rounded-full bg-primary/8" />
+        <div className="absolute bottom-[30%] right-[10%] w-2 h-2 rounded-full bg-accent/10" />
+        <div className="absolute top-[50%] left-[5%] w-1.5 h-1.5 rounded-full bg-primary/12" />
+        <div className="absolute top-[40%] right-[5%] w-2 h-2 rounded-full bg-accent/8" />
+        
+        {/* Subtle connecting lines */}
+        <div className="absolute top-[20%] left-[20%] w-20 h-px bg-gradient-to-r from-transparent via-primary/10 to-transparent rotate-45" />
+        <div className="absolute bottom-[25%] right-[20%] w-24 h-px bg-gradient-to-r from-transparent via-accent/10 to-transparent -rotate-45" />
       </div>
-      
-      {/* Subtle noise texture overlay */}
+
+      {/* Soft vignette effect */}
       <div 
-        className="absolute inset-0 opacity-[0.015] mix-blend-overlay"
+        className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+          background: 'radial-gradient(ellipse at center, transparent 0%, transparent 50%, hsl(var(--background) / 0.3) 100%)',
         }}
       />
-      
+
       {/* Content */}
       <div className="relative z-10 flex min-h-screen items-center justify-center p-4">
         {children}
