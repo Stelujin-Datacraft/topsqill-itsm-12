@@ -169,10 +169,18 @@ export function DataFeedDialog({
   };
 
   const updateMatchingRule = (index: number, field: keyof MatchingRule, value: string) => {
+    const sourceField = field === 'sourceFieldId' ? sourceFields.find(f => f.id === value) : null;
+    const targetField = field === 'targetFieldId' ? targetFields.find(f => f.id === value) : null;
+
     setFormData(prev => ({
       ...prev,
       matching_rules: prev.matching_rules.map((rule, i) => 
-        i === index ? { ...rule, [field]: value } : rule
+        i === index ? { 
+          ...rule, 
+          [field]: value,
+          ...(sourceField ? { sourceFieldName: sourceField.label } : {}),
+          ...(targetField ? { targetFieldName: targetField.label } : {}),
+        } : rule
       ),
     }));
   };
@@ -192,8 +200,8 @@ export function DataFeedDialog({
   };
 
   const updateFieldMapping = (index: number, field: keyof FieldMapping, value: string) => {
-    const sourceField = sourceFields.find(f => f.id === value);
-    const targetField = targetFields.find(f => f.id === value);
+    const sourceField = field === 'sourceFieldId' ? sourceFields.find(f => f.id === value) : null;
+    const targetField = field === 'targetFieldId' ? targetFields.find(f => f.id === value) : null;
 
     setFormData(prev => ({
       ...prev,
@@ -201,8 +209,8 @@ export function DataFeedDialog({
         i === index ? { 
           ...mapping, 
           [field]: value,
-          ...(field === 'sourceFieldId' && sourceField ? { sourceFieldName: sourceField.label } : {}),
-          ...(field === 'targetFieldId' && targetField ? { targetFieldName: targetField.label } : {}),
+          ...(sourceField ? { sourceFieldName: sourceField.label } : {}),
+          ...(targetField ? { targetFieldName: targetField.label } : {}),
         } : mapping
       ),
     }));
