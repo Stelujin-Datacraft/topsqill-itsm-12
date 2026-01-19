@@ -14,7 +14,7 @@ interface DataFeedHistoryDialogProps {
 }
 
 export function DataFeedHistoryDialog({ open, onOpenChange, feed }: DataFeedHistoryDialogProps) {
-  const { runs, loading } = useDataFeedRuns(feed?.id || '');
+  const { runs, loading } = useDataFeedRuns(feed?.id || '', open);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
