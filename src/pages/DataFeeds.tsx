@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
 import { DataFeedList } from '@/components/data-feeds/DataFeedList';
 import { DataFeedDialog } from '@/components/data-feeds/DataFeedDialog';
 import { DataFeedHistoryDialog } from '@/components/data-feeds/DataFeedHistoryDialog';
 import { useDataFeeds } from '@/hooks/useDataFeeds';
 import { DataFeed, DataFeedFormData } from '@/types/dataFeed';
+import { useProject } from '@/contexts/ProjectContext';
 
 export default function DataFeeds() {
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('projectId') || '';
+  const { currentProject } = useProject();
+  const projectId = currentProject?.id || '';
 
   const {
     feeds,
