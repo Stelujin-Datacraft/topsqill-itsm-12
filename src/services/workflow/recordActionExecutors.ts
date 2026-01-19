@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { NodeExecutionContext } from '../nodeActions';
 import { ActionExecutionResult } from './actionExecutors';
+import { logRecordFieldChanges, detectRecordChanges } from '@/utils/recordHistoryLogger';
 
 export class RecordActionExecutors {
   static async executeChangeFieldValueAction(context: NodeExecutionContext): Promise<ActionExecutionResult> {
@@ -270,6 +271,36 @@ export class RecordActionExecutors {
         }
 
         console.log('✅ Successfully updated', successfulUpdates.length, 'field(s)');
+
+        // Log record history for workflow-initiated changes
+        try {
+          // Build field labels from the fieldUpdates config
+          const fieldLabels: Record<string, string> = {};
+          for (const update of fieldUpdates) {
+            fieldLabels[update.targetFieldId] = update.targetFieldName || update.targetFieldId;
+          }
+
+          // Detect changes between old and new data
+          const changes = detectRecordChanges(
+            typeof currentData === 'object' ? currentData : {},
+            updatedData,
+            fieldLabels
+          );
+
+          if (changes.length > 0) {
+            // Use 'workflow' as the changedBy identifier since this is automated
+            await logRecordFieldChanges({
+              submissionId,
+              changes,
+              changedBy: 'workflow',
+              changeType: 'updated'
+            });
+            console.log('📝 Logged', changes.length, 'field change(s) to record history');
+          }
+        } catch (historyError) {
+          // Don't fail the action if history logging fails
+          console.error('⚠️ Failed to log record history:', historyError);
+        }
 
         return {
           success: true,
