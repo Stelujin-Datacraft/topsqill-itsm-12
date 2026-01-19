@@ -159,6 +159,7 @@ export type Database = {
           last_run_at: string | null
           last_run_stats: Json | null
           last_run_status: string | null
+          matching_logic: string | null
           matching_rules: Json | null
           matching_type: string
           name: string
@@ -181,6 +182,7 @@ export type Database = {
           last_run_at?: string | null
           last_run_stats?: Json | null
           last_run_status?: string | null
+          matching_logic?: string | null
           matching_rules?: Json | null
           matching_type?: string
           name: string
@@ -203,6 +205,7 @@ export type Database = {
           last_run_at?: string | null
           last_run_stats?: Json | null
           last_run_status?: string | null
+          matching_logic?: string | null
           matching_rules?: Json | null
           matching_type?: string
           name?: string
