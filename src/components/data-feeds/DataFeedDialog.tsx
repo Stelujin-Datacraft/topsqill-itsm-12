@@ -10,9 +10,11 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Trash2, ArrowRight, Clock, Calendar, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, ArrowRight, Clock, Calendar, RefreshCw, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { ExpressionEvaluator } from '@/utils/expressionEvaluator';
 
 interface DataFeedDialogProps {
   open: boolean;
@@ -71,11 +73,14 @@ export function DataFeedDialog({
     target_form_id: '',
     matching_type: 'field_matching',
     matching_rules: [],
+    matching_logic: '',
     field_mappings: [],
     no_match_behavior: 'skip',
     schedule: '',
     is_active: true,
   });
+
+  const [logicError, setLogicError] = useState<string | null>(null);
 
   // Load forms
   useEffect(() => {
@@ -139,6 +144,12 @@ export function DataFeedDialog({
   // Initialize form data when editing
   useEffect(() => {
     if (feed) {
+      // Ensure matching rules have IDs
+      const rulesWithIds = (feed.matching_rules || []).map((rule, idx) => ({
+        ...rule,
+        id: rule.id || String(idx + 1)
+      }));
+      
       setFormData({
         name: feed.name,
         description: feed.description || '',
@@ -146,7 +157,8 @@ export function DataFeedDialog({
         target_form_id: feed.target_form_id,
         matching_type: feed.matching_type,
         cross_reference_field_id: feed.cross_reference_field_id,
-        matching_rules: feed.matching_rules || [],
+        matching_rules: rulesWithIds,
+        matching_logic: feed.matching_logic || '',
         field_mappings: feed.field_mappings || [],
         no_match_behavior: feed.no_match_behavior,
         schedule: feed.schedule || '',
@@ -160,12 +172,14 @@ export function DataFeedDialog({
         target_form_id: '',
         matching_type: 'field_matching',
         matching_rules: [],
+        matching_logic: '',
         field_mappings: [],
         no_match_behavior: 'skip',
         schedule: '',
         is_active: true,
       });
     }
+    setLogicError(null);
   }, [feed, open]);
 
   const handleSave = async () => {
@@ -181,10 +195,19 @@ export function DataFeedDialog({
   };
 
   const addMatchingRule = () => {
-    setFormData(prev => ({
-      ...prev,
-      matching_rules: [...prev.matching_rules, { sourceFieldId: '', targetFieldId: '' }],
-    }));
+    const newId = String(formData.matching_rules.length + 1);
+    setFormData(prev => {
+      const newRules = [...prev.matching_rules, { id: newId, sourceFieldId: '', targetFieldId: '' }];
+      // Auto-generate default logic if we have 2+ rules and no custom logic yet
+      const autoLogic = newRules.length >= 2 && !prev.matching_logic
+        ? newRules.map(r => r.id).join(' AND ')
+        : prev.matching_logic;
+      return {
+        ...prev,
+        matching_rules: newRules,
+        matching_logic: autoLogic,
+      };
+    });
   };
 
   const updateMatchingRule = (index: number, field: keyof MatchingRule, value: string) => {
@@ -205,10 +228,60 @@ export function DataFeedDialog({
   };
 
   const removeMatchingRule = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      matching_rules: prev.matching_rules.filter((_, i) => i !== index),
-    }));
+    setFormData(prev => {
+      const removedId = prev.matching_rules[index]?.id;
+      const newRules = prev.matching_rules.filter((_, i) => i !== index);
+      
+      // Update logic expression to remove references to deleted rule
+      let newLogic = prev.matching_logic || '';
+      if (removedId && newLogic) {
+        // Remove the deleted ID and clean up logic
+        newLogic = newLogic
+          .replace(new RegExp(`\\b${removedId}\\b\\s*(AND|OR)\\s*`, 'gi'), '')
+          .replace(new RegExp(`\\s*(AND|OR)\\s*\\b${removedId}\\b`, 'gi'), '')
+          .replace(new RegExp(`\\b${removedId}\\b`, 'g'), '')
+          .replace(/\(\s*\)/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+      
+      return {
+        ...prev,
+        matching_rules: newRules,
+        matching_logic: newRules.length < 2 ? '' : newLogic,
+      };
+    });
+  };
+
+  const validateLogicExpression = (expression: string): boolean => {
+    if (!expression || formData.matching_rules.length < 2) {
+      setLogicError(null);
+      return true;
+    }
+    
+    const validation = ExpressionEvaluator.validate(expression);
+    if (!validation.valid) {
+      setLogicError(validation.error || 'Invalid expression');
+      return false;
+    }
+    
+    // Check that all referenced IDs exist
+    const referencedIds = ExpressionEvaluator.extractConditionIds(expression);
+    const existingIds = formData.matching_rules.map(r => r.id);
+    const invalidIds = referencedIds.filter(id => !existingIds.includes(id));
+    
+    if (invalidIds.length > 0) {
+      setLogicError(`Unknown rule ID(s): ${invalidIds.join(', ')}`);
+      return false;
+    }
+    
+    setLogicError(null);
+    return true;
+  };
+
+  const handleLogicChange = (value: string) => {
+    setFormData(prev => ({ ...prev, matching_logic: value }));
+    validateLogicExpression(value);
   };
 
   const addFieldMapping = () => {
@@ -588,7 +661,11 @@ export function DataFeedDialog({
                   )}
 
                   {formData.matching_rules.map((rule, index) => (
-                    <div key={index} className="flex items-center gap-2">
+                    <div key={rule.id || index} className="flex items-center gap-2">
+                      <Badge variant="secondary" className="shrink-0 w-6 h-6 flex items-center justify-center p-0 text-xs font-bold">
+                        {rule.id || index + 1}
+                      </Badge>
+                      
                       <Select
                         value={rule.sourceFieldId}
                         onValueChange={(value) => updateMatchingRule(index, 'sourceFieldId', value)}
@@ -633,6 +710,50 @@ export function DataFeedDialog({
                       </Button>
                     </div>
                   ))}
+
+                  {/* Logic Expression UI - Show when 2+ rules */}
+                  {formData.matching_rules.length >= 2 && (
+                    <div className="space-y-2 pt-2 border-t">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm">Logic Expression</Label>
+                        <div className="flex gap-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-6 text-xs px-2"
+                            onClick={() => handleLogicChange(formData.matching_rules.map(r => r.id).join(' AND '))}
+                          >
+                            All (AND)
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-6 text-xs px-2"
+                            onClick={() => handleLogicChange(formData.matching_rules.map(r => r.id).join(' OR '))}
+                          >
+                            Any (OR)
+                          </Button>
+                        </div>
+                      </div>
+                      <Input
+                        value={formData.matching_logic || ''}
+                        onChange={(e) => handleLogicChange(e.target.value)}
+                        placeholder={`e.g., 1 AND 2, (1 OR 2) AND 3`}
+                        className={logicError ? 'border-destructive' : ''}
+                      />
+                      {logicError && (
+                        <div className="flex items-center gap-1 text-xs text-destructive">
+                          <AlertCircle className="h-3 w-3" />
+                          {logicError}
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Use rule numbers with AND, OR, NOT and parentheses. Default: all rules must match (AND).
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 

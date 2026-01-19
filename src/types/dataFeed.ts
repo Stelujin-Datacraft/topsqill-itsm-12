@@ -6,6 +6,7 @@ export interface FieldMapping {
 }
 
 export interface MatchingRule {
+  id?: string; // Unique ID for logic expressions
   sourceFieldId: string;
   targetFieldId: string;
   sourceFieldName?: string;
@@ -23,6 +24,7 @@ export interface DataFeed {
   matching_type: 'cross_reference' | 'field_matching';
   cross_reference_field_id?: string;
   matching_rules: MatchingRule[];
+  matching_logic?: string; // Logic expression e.g. "1 AND 2", "(1 OR 2) AND 3"
   field_mappings: FieldMapping[];
   no_match_behavior: 'skip' | 'create';
   schedule?: string;
@@ -65,6 +67,7 @@ export interface DataFeedFormData {
   matching_type: 'cross_reference' | 'field_matching';
   cross_reference_field_id?: string;
   matching_rules: MatchingRule[];
+  matching_logic?: string; // Logic expression e.g. "1 AND 2", "(1 OR 2) AND 3"
   field_mappings: FieldMapping[];
   no_match_behavior: 'skip' | 'create';
   schedule?: string;
