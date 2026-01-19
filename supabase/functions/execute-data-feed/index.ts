@@ -142,27 +142,54 @@ Deno.serve(async (req) => {
           let matchedTargets: any[] = [];
 
           if (feed.matching_type === 'field_matching' && matchingRules.length > 0) {
-            // Field-based matching
+            // Field-based matching - ALL rules must match (AND logic)
             matchedTargets = (targetSubmissions || []).filter(target => {
               const targetData = target.submission_data as Record<string, any>;
               return matchingRules.every(rule => {
                 const sourceValue = sourceData[rule.sourceFieldId];
                 const targetValue = targetData[rule.targetFieldId];
-                return sourceValue !== undefined && targetValue !== undefined && 
-                       String(sourceValue) === String(targetValue);
+                
+                // Skip rule if source value is undefined/null/empty
+                if (sourceValue === undefined || sourceValue === null || sourceValue === '') {
+                  console.log(`⚠️ Source field ${rule.sourceFieldId} is empty, skipping rule`);
+                  return false;
+                }
+                
+                // Compare as strings for consistency
+                const match = String(sourceValue).trim().toLowerCase() === String(targetValue || '').trim().toLowerCase();
+                console.log(`🔍 Matching: source[${rule.sourceFieldId}]="${sourceValue}" vs target[${rule.targetFieldId}]="${targetValue}" = ${match}`);
+                return match;
               });
             });
           } else if (feed.matching_type === 'cross_reference' && feed.cross_reference_field_id) {
-            // Cross-reference matching
+            // Cross-reference matching - uses existing linked records
             const crossRefValue = sourceData[feed.cross_reference_field_id];
+            console.log(`🔗 Cross-ref field ${feed.cross_reference_field_id} value:`, crossRefValue);
+            
             if (crossRefValue) {
-              // Handle both single and array cross-reference values
-              const refIds = Array.isArray(crossRefValue) ? crossRefValue : [crossRefValue];
+              // Handle both single value and array of cross-reference values
+              let refIds: string[] = [];
+              
+              if (Array.isArray(crossRefValue)) {
+                // Could be array of IDs or array of objects with id property
+                refIds = crossRefValue.map(item => 
+                  typeof item === 'object' && item !== null ? (item.id || item.submission_ref_id || String(item)) : String(item)
+                );
+              } else if (typeof crossRefValue === 'object' && crossRefValue !== null) {
+                refIds = [crossRefValue.id || crossRefValue.submission_ref_id || String(crossRefValue)];
+              } else {
+                refIds = [String(crossRefValue)];
+              }
+              
+              console.log(`🔗 Looking for target records with IDs:`, refIds);
+              
               matchedTargets = (targetSubmissions || []).filter(target => 
                 refIds.includes(target.id) || refIds.includes(target.submission_ref_id)
               );
             }
           }
+
+          console.log(`📎 Found ${matchedTargets.length} matching target(s) for source ${sourceSubmission.submission_ref_id || sourceSubmission.id}`);
 
           if (matchedTargets.length > 0) {
             // Update matched target submissions
