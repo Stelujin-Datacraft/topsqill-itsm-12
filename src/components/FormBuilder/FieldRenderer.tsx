@@ -4,6 +4,13 @@ import { Button } from '@/components/ui/button';
 import { FormField } from '@/types/form';
 import { GripVertical, Settings, Trash2, Copy, Check } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+// Full-width field types that should span all columns
+const fullWidthTypes = [
+  'header', 'description', 'section-break', 'horizontal-line', 'rich-text', 
+  'record-table', 'matrix-grid', 'cross-reference', 'child-cross-reference', 
+  'approval', 'geo-location', 'query-field', 'workflow-trigger'
+];
+
 interface FieldRendererProps {
   field: FormField;
   index: number;
@@ -11,6 +18,7 @@ interface FieldRendererProps {
   highlightedFieldId: string | null;
   onFieldClick: (field: FormField) => void;
   onFieldDelete: (fieldId: string) => void;
+  columnLayout?: 1 | 2 | 3;
 }
 export function FieldRenderer({
   field,
@@ -18,8 +26,19 @@ export function FieldRenderer({
   selectedFieldId,
   highlightedFieldId,
   onFieldClick,
-  onFieldDelete
+  onFieldDelete,
+  columnLayout = 1
 }: FieldRendererProps) {
+  // Check if a field should be full-width
+  const isFullWidth = fullWidthTypes.includes(field.type) || field.isFullWidth || field.fieldCategory === 'full-width';
+  
+  // Get style for grid column span
+  const getGridStyle = (): React.CSSProperties | undefined => {
+    if (isFullWidth && columnLayout > 1) {
+      return { gridColumn: `span ${columnLayout} / span ${columnLayout}` };
+    }
+    return undefined;
+  };
   const [copied, setCopied] = useState(false);
   const handleCopyFieldId = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -40,7 +59,7 @@ export function FieldRenderer({
     }
   };
   return <Draggable key={field.id} draggableId={field.id} index={index}>
-      {(provided, snapshot) => <div ref={provided.innerRef} {...provided.draggableProps} className={`group p-4 border rounded-lg transition-all duration-300 cursor-pointer hover:shadow-md ${selectedFieldId === field.id ? 'ring-2 ring-primary' : ''} ${highlightedFieldId === field.id ? 'ring-2 ring-blue-500 bg-blue-50 animate-pulse' : ''} ${snapshot.isDragging ? 'shadow-lg opacity-90' : ''}`} onClick={() => onFieldClick(field)}>
+      {(provided, snapshot) => <div ref={provided.innerRef} {...provided.draggableProps} style={{ ...provided.draggableProps.style, ...getGridStyle() }} className={`group p-4 border rounded-lg transition-all duration-300 cursor-pointer hover:shadow-md ${selectedFieldId === field.id ? 'ring-2 ring-primary' : ''} ${highlightedFieldId === field.id ? 'ring-2 ring-blue-500 bg-blue-50 animate-pulse' : ''} ${snapshot.isDragging ? 'shadow-lg opacity-90' : ''}`} onClick={() => onFieldClick(field)}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div {...provided.dragHandleProps}>
