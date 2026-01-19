@@ -12,7 +12,6 @@ import { validatePassword, DEFAULT_PASSWORD_POLICY } from '@/utils/passwordValid
 import { getUserPasswordPolicy } from '@/utils/securityEnforcement';
 import { Lock, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { DecorativeBackground } from '@/components/ui/decorative-background';
 
 const ChangePassword = () => {
   const { user } = useAuth();
@@ -246,7 +245,7 @@ const ChangePassword = () => {
   // Show loading while checking for recovery flow
   if (isCheckingRecovery) {
     return (
-      <DecorativeBackground>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
         <Card className="w-full max-w-md">
           <CardContent className="py-8 text-center space-y-4">
             <div className="flex justify-center">
@@ -255,7 +254,7 @@ const ChangePassword = () => {
             <p className="text-muted-foreground">Loading...</p>
           </CardContent>
         </Card>
-      </DecorativeBackground>
+      </div>
     );
   }
 
@@ -263,7 +262,7 @@ const ChangePassword = () => {
   const activeUser = user || recoveryUser;
   if (!activeUser && !isResetMode) {
     return (
-      <DecorativeBackground>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
         <Card className="w-full max-w-md">
           <CardContent className="py-8 text-center space-y-4">
             <p className="text-muted-foreground">Please log in to change your password</p>
@@ -275,12 +274,12 @@ const ChangePassword = () => {
             </Link>
           </CardContent>
         </Card>
-      </DecorativeBackground>
+      </div>
     );
   }
 
   return (
-    <DecorativeBackground>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -375,7 +374,7 @@ const ChangePassword = () => {
           </form>
         </CardContent>
       </Card>
-    </DecorativeBackground>
+    </div>
   );
 };
 

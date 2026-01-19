@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Link } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { ArrowLeft, Mail } from 'lucide-react';
-import { DecorativeBackground } from '@/components/ui/decorative-background';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -70,7 +69,7 @@ const ForgotPassword = () => {
 
   if (emailSent) {
     return (
-      <DecorativeBackground>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="flex items-center justify-center mb-4">
@@ -104,12 +103,12 @@ const ForgotPassword = () => {
             </div>
           </CardContent>
         </Card>
-      </DecorativeBackground>
+      </div>
     );
   }
 
   return (
-    <DecorativeBackground>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
@@ -148,7 +147,7 @@ const ForgotPassword = () => {
           </div>
         </CardContent>
       </Card>
-    </DecorativeBackground>
+    </div>
   );
 };
 

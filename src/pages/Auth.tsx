@@ -13,7 +13,6 @@ import { Building2, Mail, UserPlus } from 'lucide-react';
 import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicator';
 import { validatePassword, DEFAULT_PASSWORD_POLICY, PasswordPolicy } from '@/utils/passwordValidation';
 import { getOrganizationPasswordPolicy } from '@/utils/securityEnforcement';
-import { DecorativeBackground } from '@/components/ui/decorative-background';
 
 const Auth = () => {
   const [activeTab, setActiveTab] = useState('signin');
@@ -182,7 +181,7 @@ const Auth = () => {
   };
 
   return (
-    <DecorativeBackground>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
@@ -410,7 +409,7 @@ const Auth = () => {
           </div>
         </CardContent>
       </Card>
-    </DecorativeBackground>
+    </div>
   );
 };
 
