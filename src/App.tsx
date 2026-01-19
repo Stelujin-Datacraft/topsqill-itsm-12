@@ -48,6 +48,7 @@ import Settings from "./pages/Settings";
 import AnalyticsDashboard from "./pages/AnalyticsDashboard";
 import DataTableBuilder from "./pages/DataTableBuilder";
 import EmailConfigPage from "./pages/EmailConfigPage";
+import DataFeeds from "./pages/DataFeeds";
 import EmailTemplatesPage from "./pages/EmailTemplatesPage";
 import SettingsPage from "./pages/SettingsPage";
 import UserProfile from "./pages/UserProfile";
@@ -117,6 +118,7 @@ const App = () => (
                      <Route path="/email-config/:projectId" element={<ProtectedRoute><EmailConfigPage /></ProtectedRoute>} />
                      <Route path="/email-templates" element={<ProtectedRoute><EmailTemplatesPage /></ProtectedRoute>} />
                      <Route path="/email-templates/:templateId" element={<ProtectedRoute><EmailTemplatesPage /></ProtectedRoute>} />
+                     <Route path="/data-feeds" element={<ProtectedRoute><DataFeeds /></ProtectedRoute>} />
                      <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
                      <Route path="/change-password" element={<ChangePassword />} />
                      <Route path="/manage-sessions" element={<ProtectedRoute><ManageSessions /></ProtectedRoute>} />

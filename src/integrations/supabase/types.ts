@@ -91,6 +91,167 @@ export type Database = {
         }
         Relationships: []
       }
+      data_feed_runs: {
+        Row: {
+          completed_at: string | null
+          data_feed_id: string
+          error_details: Json | null
+          errors_count: number | null
+          id: string
+          records_created: number | null
+          records_processed: number | null
+          records_skipped: number | null
+          records_updated: number | null
+          run_log: Json | null
+          started_at: string
+          status: string
+          triggered_by: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          data_feed_id: string
+          error_details?: Json | null
+          errors_count?: number | null
+          id?: string
+          records_created?: number | null
+          records_processed?: number | null
+          records_skipped?: number | null
+          records_updated?: number | null
+          run_log?: Json | null
+          started_at?: string
+          status?: string
+          triggered_by?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          data_feed_id?: string
+          error_details?: Json | null
+          errors_count?: number | null
+          id?: string
+          records_created?: number | null
+          records_processed?: number | null
+          records_skipped?: number | null
+          records_updated?: number | null
+          run_log?: Json | null
+          started_at?: string
+          status?: string
+          triggered_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_feed_runs_data_feed_id_fkey"
+            columns: ["data_feed_id"]
+            isOneToOne: false
+            referencedRelation: "data_feeds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      data_feeds: {
+        Row: {
+          created_at: string
+          created_by: string
+          cross_reference_field_id: string | null
+          description: string | null
+          field_mappings: Json
+          id: string
+          is_active: boolean
+          last_run_at: string | null
+          last_run_stats: Json | null
+          last_run_status: string | null
+          matching_rules: Json | null
+          matching_type: string
+          name: string
+          no_match_behavior: string
+          organization_id: string | null
+          project_id: string
+          schedule: string | null
+          source_form_id: string
+          target_form_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          cross_reference_field_id?: string | null
+          description?: string | null
+          field_mappings?: Json
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          last_run_stats?: Json | null
+          last_run_status?: string | null
+          matching_rules?: Json | null
+          matching_type?: string
+          name: string
+          no_match_behavior?: string
+          organization_id?: string | null
+          project_id: string
+          schedule?: string | null
+          source_form_id: string
+          target_form_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          cross_reference_field_id?: string | null
+          description?: string | null
+          field_mappings?: Json
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          last_run_stats?: Json | null
+          last_run_status?: string | null
+          matching_rules?: Json | null
+          matching_type?: string
+          name?: string
+          no_match_behavior?: string
+          organization_id?: string | null
+          project_id?: string
+          schedule?: string | null
+          source_form_id?: string
+          target_form_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_feeds_cross_reference_field_id_fkey"
+            columns: ["cross_reference_field_id"]
+            isOneToOne: false
+            referencedRelation: "form_fields"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_feeds_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_feeds_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_feeds_source_form_id_fkey"
+            columns: ["source_form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_feeds_target_form_id_fkey"
+            columns: ["target_form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_logs: {
         Row: {
           content: string | null
