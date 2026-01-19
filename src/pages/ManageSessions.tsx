@@ -48,11 +48,20 @@ interface UserInfo {
 }
 
 const ManageSessions: React.FC = () => {
-  const { user, session, userProfile } = useAuth();
+  const { user, session, userProfile, signOut } = useAuth();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [usersMap, setUsersMap] = useState<Record<string, UserInfo>>({});
   const [loading, setLoading] = useState(true);
   const [terminatingId, setTerminatingId] = useState<string | null>(null);
+
+  const handleSignOutCurrentSession = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+      toast.error('Failed to sign out');
+    }
+  };
 
   const fetchSessions = async () => {
     if (!user) return;
@@ -350,46 +359,54 @@ const ManageSessions: React.FC = () => {
                     
                     {/* Action */}
                     <div className="col-span-1 flex justify-end">
-                      {!isCurrentSession(sess.session_token) && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={terminatingId === sess.id}
-                            >
-                              {terminatingId === sess.id ? (
-                                <>
-                                  <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
-                                  Signing Out...
-                                </>
-                              ) : (
-                                <>
-                                  <LogOut className="h-4 w-4 mr-1" />
-                                  Sign Out
-                                </>
-                              )}
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent className="bg-background">
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Sign out this session?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will sign you out from this device. You'll need to sign in again to access your account from that device.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                onClick={() => terminateSession(sess.id, sess.session_token)}
-                              >
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={terminatingId === sess.id}
+                          >
+                            {terminatingId === sess.id ? (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                                Signing Out...
+                              </>
+                            ) : (
+                              <>
+                                <LogOut className="h-4 w-4 mr-1" />
                                 Sign Out
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
+                              </>
+                            )}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="bg-background">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              {isCurrentSession(sess.session_token) 
+                                ? 'Sign out of your current session?' 
+                                : 'Sign out this session?'}
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {isCurrentSession(sess.session_token)
+                                ? 'You will be logged out immediately and redirected to the login page.'
+                                : "This will sign you out from this device. You'll need to sign in again to access your account from that device."}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              onClick={() => 
+                                isCurrentSession(sess.session_token)
+                                  ? handleSignOutCurrentSession()
+                                  : terminateSession(sess.id, sess.session_token)
+                              }
+                            >
+                              Sign Out
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                   );
