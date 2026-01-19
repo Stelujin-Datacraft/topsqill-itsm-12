@@ -27,6 +27,75 @@ interface WorkflowNode {
   position_y: number
 }
 
+// Helper function to get workflow creator ID
+async function getWorkflowCreatorId(supabase: any, workflowId: string): Promise<string | null> {
+  try {
+    const { data } = await supabase
+      .from('workflows')
+      .select('created_by')
+      .eq('id', workflowId)
+      .single()
+    return data?.created_by || null
+  } catch (error) {
+    console.error('Error fetching workflow creator:', error)
+    return null
+  }
+}
+
+// Format workflow changed_by identifier: "workflow:<creatorUserId>"
+function formatWorkflowChangedBy(creatorId: string | null): string {
+  return creatorId ? `workflow:${creatorId}` : 'workflow:system'
+}
+
+// Log field changes to record_field_history
+async function logRecordFieldChanges(
+  supabase: any,
+  submissionId: string,
+  changes: Array<{ fieldId: string; fieldLabel: string; oldValue: string | null; newValue: string | null }>,
+  changedBy: string,
+  changeType: 'created' | 'updated' | 'deleted' = 'updated'
+): Promise<void> {
+  try {
+    if (changes.length === 0) return
+
+    const historyRecords = changes.map(change => ({
+      submission_id: submissionId,
+      field_id: change.fieldId,
+      field_label: change.fieldLabel,
+      old_value: change.oldValue,
+      new_value: change.newValue,
+      changed_by: changedBy,
+      change_type: changeType
+    }))
+
+    const { error } = await supabase
+      .from('record_field_history')
+      .insert(historyRecords)
+
+    if (error) {
+      console.error('Error logging record field changes:', error)
+    } else {
+      console.log(`✅ Logged ${changes.length} field changes to history`)
+    }
+  } catch (error) {
+    console.error('Exception logging record field changes:', error)
+  }
+}
+
+// Format value for display in history
+function formatDisplayValue(value: any): string | null {
+  if (value === undefined || value === null || value === '') {
+    return null
+  }
+  if (typeof value === 'object') {
+    if (Array.isArray(value)) {
+      return value.join(', ')
+    }
+    return JSON.stringify(value)
+  }
+  return String(value)
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -1068,6 +1137,36 @@ Deno.serve(async (req) => {
                     throw new Error(`Failed to update submission: ${updateError.message}`)
                   }
                   
+                  // Log field changes to record_field_history
+                  try {
+                    const workflowCreatorId = await getWorkflowCreatorId(supabase, execution.workflow_id)
+                    const changedBy = formatWorkflowChangedBy(workflowCreatorId)
+                    
+                    const historyChanges: Array<{ fieldId: string; fieldLabel: string; oldValue: string | null; newValue: string | null }> = []
+                    
+                    for (const [fieldId, newValue] of Object.entries(fieldValueMap)) {
+                      const oldValue = currentData[fieldId]
+                      const oldStr = formatDisplayValue(oldValue)
+                      const newStr = formatDisplayValue(newValue)
+                      
+                      if (oldStr !== newStr) {
+                        // Find the field label from the results array
+                        const fieldResult = results.find(r => r.fieldId === fieldId)
+                        historyChanges.push({
+                          fieldId,
+                          fieldLabel: fieldResult?.fieldName || fieldId,
+                          oldValue: oldStr,
+                          newValue: newStr
+                        })
+                      }
+                    }
+                    
+                    await logRecordFieldChanges(supabase, triggerSubmissionId, historyChanges, changedBy, 'updated')
+                  } catch (historyError) {
+                    console.error('Failed to log field changes to history:', historyError)
+                    // Don't fail the action if history logging fails
+                  }
+                  
                   console.log(`✅ Successfully updated ${successfulUpdates.length} field(s) in trigger submission`)
                   nodeOutputData = {
                     submissionId: triggerSubmissionId,
@@ -1183,6 +1282,44 @@ Deno.serve(async (req) => {
                   
                   createdRecords.push(newRecord)
                   console.log(`✅ Created record ${i + 1}: ${newRecord.id}`)
+                  
+                  // Log creation to record_field_history
+                  try {
+                    const workflowCreatorId = await getWorkflowCreatorId(supabase, execution.workflow_id)
+                    const changedBy = formatWorkflowChangedBy(workflowCreatorId)
+                    
+                    const historyChanges: Array<{ fieldId: string; fieldLabel: string; oldValue: string | null; newValue: string | null }> = []
+                    
+                    // Log all initial field values as created
+                    for (const [fieldId, value] of Object.entries(newSubmissionData)) {
+                      // Try to get field label from config
+                      let fieldLabel = fieldId
+                      if (config.fieldValues) {
+                        const fieldConfig = config.fieldValues.find((f: any) => f.fieldId === fieldId)
+                        if (fieldConfig?.fieldLabel) {
+                          fieldLabel = fieldConfig.fieldLabel
+                        }
+                      }
+                      if (config.fieldMappings) {
+                        const mapping = config.fieldMappings.find((m: any) => m.targetFieldId === fieldId)
+                        if (mapping?.targetFieldLabel) {
+                          fieldLabel = mapping.targetFieldLabel
+                        }
+                      }
+                      
+                      historyChanges.push({
+                        fieldId,
+                        fieldLabel,
+                        oldValue: null,
+                        newValue: formatDisplayValue(value)
+                      })
+                    }
+                    
+                    await logRecordFieldChanges(supabase, newRecord.id, historyChanges, changedBy, 'created')
+                  } catch (historyError) {
+                    console.error('Failed to log record creation to history:', historyError)
+                    // Don't fail the action if history logging fails
+                  }
                 }
                 
                 console.log(`✅ Successfully created ${createdRecords.length} records`)
