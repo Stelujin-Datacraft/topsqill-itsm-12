@@ -26,9 +26,10 @@ interface DataFeed {
   matching_type: 'cross_reference' | 'field_matching';
   cross_reference_field_id?: string;
   matching_rules: MatchingRule[];
-  matching_logic?: string; // Logic expression e.g. "1 AND 2", "(1 OR 2) AND 3"
+  matching_logic?: string;
   field_mappings: FieldMapping[];
   no_match_behavior: 'skip' | 'create';
+  created_by: string;
 }
 
 interface RunStats {
@@ -37,6 +38,90 @@ interface RunStats {
   recordsCreated: number;
   recordsSkipped: number;
   errors: number;
+}
+
+interface FieldChange {
+  fieldId: string;
+  fieldLabel: string;
+  oldValue: string | null;
+  newValue: string | null;
+}
+
+// Helper to format display value for history
+function formatDisplayValue(value: any): string | null {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+  if (typeof value === 'object') {
+    if (Array.isArray(value)) {
+      return value.join(', ');
+    }
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+
+// Log field changes to record_field_history
+async function logRecordFieldChanges(
+  supabase: any,
+  submissionId: string,
+  changes: FieldChange[],
+  changedBy: string,
+  changeType: 'created' | 'updated' | 'deleted' = 'updated'
+): Promise<void> {
+  try {
+    if (changes.length === 0) return;
+
+    const historyRecords = changes.map(change => ({
+      submission_id: submissionId,
+      field_id: change.fieldId,
+      field_label: change.fieldLabel,
+      old_value: change.oldValue,
+      new_value: change.newValue,
+      changed_by: changedBy,
+      change_type: changeType
+    }));
+
+    const { error } = await supabase
+      .from('record_field_history')
+      .insert(historyRecords);
+
+    if (error) {
+      console.error('Error logging record field changes:', error);
+    } else {
+      console.log(`✅ Logged ${changes.length} field changes to history`);
+    }
+  } catch (e) {
+    console.error('Exception logging record field changes:', e);
+  }
+}
+
+// Detect changes between old and new data
+function detectRecordChanges(
+  oldData: Record<string, any>,
+  newData: Record<string, any>,
+  fieldLabels: Record<string, string>
+): FieldChange[] {
+  const changes: FieldChange[] = [];
+  
+  for (const key of Object.keys(newData)) {
+    const oldValue = oldData[key];
+    const newValue = newData[key];
+    
+    const oldStr = oldValue !== undefined && oldValue !== null ? JSON.stringify(oldValue) : null;
+    const newStr = newValue !== undefined && newValue !== null ? JSON.stringify(newValue) : null;
+    
+    if (oldStr !== newStr) {
+      changes.push({
+        fieldId: key,
+        fieldLabel: fieldLabels[key] || key,
+        oldValue: formatDisplayValue(oldValue),
+        newValue: formatDisplayValue(newValue)
+      });
+    }
+  }
+  
+  return changes;
 }
 
 // Simple expression evaluator for matching logic
@@ -282,7 +367,8 @@ Deno.serve(async (req) => {
           if (matchedTargets.length > 0) {
             // Update matched target submissions
             for (const target of matchedTargets) {
-              const updatedData = { ...(target.submission_data as Record<string, any>) };
+              const oldData = target.submission_data as Record<string, any>;
+              const updatedData = { ...oldData };
               
               for (const mapping of fieldMappings) {
                 if (sourceData[mapping.sourceFieldId] !== undefined) {
@@ -302,6 +388,18 @@ Deno.serve(async (req) => {
               } else {
                 stats.recordsUpdated++;
                 runLog.push({ type: 'success', message: `Updated target record ${target.submission_ref_id || target.id}`, timestamp: new Date().toISOString() });
+
+                // Log field changes to record_field_history
+                const fieldLabels: Record<string, string> = {};
+                for (const mapping of fieldMappings) {
+                  fieldLabels[mapping.targetFieldId] = mapping.targetFieldName || mapping.targetFieldId;
+                }
+
+                const changes = detectRecordChanges(oldData, updatedData, fieldLabels);
+                if (changes.length > 0) {
+                  const changedBy = `datafeed:${feed.created_by}`;
+                  await logRecordFieldChanges(supabase, target.id, changes, changedBy, 'updated');
+                }
               }
             }
           } else if (feed.no_match_behavior === 'create') {
@@ -314,13 +412,15 @@ Deno.serve(async (req) => {
               }
             }
 
-            const { error: insertError } = await supabase
+            const { data: insertedRecord, error: insertError } = await supabase
               .from('form_submissions')
               .insert({
                 form_id: feed.target_form_id,
                 submission_data: newData,
                 approval_status: 'pending'
-              });
+              })
+              .select('id')
+              .single();
 
             if (insertError) {
               console.error(`❌ Failed to create target record:`, insertError);
@@ -329,6 +429,20 @@ Deno.serve(async (req) => {
             } else {
               stats.recordsCreated++;
               runLog.push({ type: 'success', message: `Created new target record from source ${sourceSubmission.submission_ref_id || sourceSubmission.id}`, timestamp: new Date().toISOString() });
+
+              // Log field changes for created record
+              if (insertedRecord?.id) {
+                const fieldLabels: Record<string, string> = {};
+                for (const mapping of fieldMappings) {
+                  fieldLabels[mapping.targetFieldId] = mapping.targetFieldName || mapping.targetFieldId;
+                }
+
+                const changes = detectRecordChanges({}, newData, fieldLabels);
+                if (changes.length > 0) {
+                  const changedBy = `datafeed:${feed.created_by}`;
+                  await logRecordFieldChanges(supabase, insertedRecord.id, changes, changedBy, 'created');
+                }
+              }
             }
           } else {
             stats.recordsSkipped++;
