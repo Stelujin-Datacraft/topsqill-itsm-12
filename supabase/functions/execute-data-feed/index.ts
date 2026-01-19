@@ -13,6 +13,7 @@ interface FieldMapping {
 }
 
 interface MatchingRule {
+  id?: string;
   sourceFieldId: string;
   targetFieldId: string;
 }
@@ -25,6 +26,7 @@ interface DataFeed {
   matching_type: 'cross_reference' | 'field_matching';
   cross_reference_field_id?: string;
   matching_rules: MatchingRule[];
+  matching_logic?: string; // Logic expression e.g. "1 AND 2", "(1 OR 2) AND 3"
   field_mappings: FieldMapping[];
   no_match_behavior: 'skip' | 'create';
 }
@@ -35,6 +37,80 @@ interface RunStats {
   recordsCreated: number;
   recordsSkipped: number;
   errors: number;
+}
+
+// Simple expression evaluator for matching logic
+function evaluateLogicExpression(expression: string, context: Record<string, boolean>): boolean {
+  if (!expression || expression.trim() === '') {
+    // Default: AND all conditions
+    return Object.values(context).every(v => v);
+  }
+
+  try {
+    // Tokenize
+    const tokens = expression.toUpperCase()
+      .replace(/\(/g, ' ( ')
+      .replace(/\)/g, ' ) ')
+      .split(/\s+/)
+      .filter(t => t.length > 0);
+
+    // Convert to postfix (Shunting Yard)
+    const output: string[] = [];
+    const operators: string[] = [];
+    const precedence: Record<string, number> = { 'NOT': 3, 'AND': 2, 'OR': 1 };
+
+    for (const token of tokens) {
+      if (token === '(') {
+        operators.push(token);
+      } else if (token === ')') {
+        while (operators.length > 0 && operators[operators.length - 1] !== '(') {
+          output.push(operators.pop()!);
+        }
+        operators.pop(); // Remove '('
+      } else if (token in precedence) {
+        while (
+          operators.length > 0 &&
+          operators[operators.length - 1] !== '(' &&
+          (precedence[operators[operators.length - 1]] || 0) >= precedence[token]
+        ) {
+          output.push(operators.pop()!);
+        }
+        operators.push(token);
+      } else {
+        output.push(token);
+      }
+    }
+    while (operators.length > 0) {
+      output.push(operators.pop()!);
+    }
+
+    // Evaluate postfix
+    const stack: boolean[] = [];
+    for (const token of output) {
+      if (token === 'AND') {
+        const b = stack.pop()!;
+        const a = stack.pop()!;
+        stack.push(a && b);
+      } else if (token === 'OR') {
+        const b = stack.pop()!;
+        const a = stack.pop()!;
+        stack.push(a || b);
+      } else if (token === 'NOT') {
+        const a = stack.pop()!;
+        stack.push(!a);
+      } else {
+        // It's a condition ID
+        const value = context[token] ?? context[token.toLowerCase()] ?? false;
+        stack.push(value);
+      }
+    }
+
+    return stack.length === 1 ? stack[0] : false;
+  } catch (e) {
+    console.error('Error evaluating logic expression:', e);
+    // Fallback to AND logic
+    return Object.values(context).every(v => v);
+  }
 }
 
 Deno.serve(async (req) => {
@@ -131,6 +207,7 @@ Deno.serve(async (req) => {
 
       const fieldMappings = (feed.field_mappings || []) as FieldMapping[];
       const matchingRules = (feed.matching_rules || []) as MatchingRule[];
+      const matchingLogic = feed.matching_logic as string | undefined;
 
       // Process each source submission
       for (const sourceSubmission of sourceSubmissions || []) {
@@ -142,24 +219,35 @@ Deno.serve(async (req) => {
           let matchedTargets: any[] = [];
 
           if (feed.matching_type === 'field_matching' && matchingRules.length > 0) {
-            // Field-based matching - ALL rules must match (AND logic)
+            // Field-based matching with logic expression support
             matchedTargets = (targetSubmissions || []).filter(target => {
               const targetData = target.submission_data as Record<string, any>;
-              return matchingRules.every(rule => {
+              
+              // Build context: evaluate each rule and store result by ID
+              const ruleResults: Record<string, boolean> = {};
+              
+              matchingRules.forEach((rule, idx) => {
+                const ruleId = rule.id || String(idx + 1);
                 const sourceValue = sourceData[rule.sourceFieldId];
                 const targetValue = targetData[rule.targetFieldId];
                 
                 // Skip rule if source value is undefined/null/empty
                 if (sourceValue === undefined || sourceValue === null || sourceValue === '') {
-                  console.log(`⚠️ Source field ${rule.sourceFieldId} is empty, skipping rule`);
-                  return false;
+                  console.log(`⚠️ Source field ${rule.sourceFieldId} is empty for rule ${ruleId}`);
+                  ruleResults[ruleId] = false;
+                  return;
                 }
                 
                 // Compare as strings for consistency
                 const match = String(sourceValue).trim().toLowerCase() === String(targetValue || '').trim().toLowerCase();
-                console.log(`🔍 Matching: source[${rule.sourceFieldId}]="${sourceValue}" vs target[${rule.targetFieldId}]="${targetValue}" = ${match}`);
-                return match;
+                console.log(`🔍 Rule ${ruleId}: source[${rule.sourceFieldId}]="${sourceValue}" vs target[${rule.targetFieldId}]="${targetValue}" = ${match}`);
+                ruleResults[ruleId] = match;
               });
+
+              // Evaluate using logic expression or default AND
+              const result = evaluateLogicExpression(matchingLogic || '', ruleResults);
+              console.log(`📐 Logic evaluation (${matchingLogic || 'default AND'}): ${JSON.stringify(ruleResults)} = ${result}`);
+              return result;
             });
           } else if (feed.matching_type === 'cross_reference' && feed.cross_reference_field_id) {
             // Cross-reference matching - uses existing linked records
