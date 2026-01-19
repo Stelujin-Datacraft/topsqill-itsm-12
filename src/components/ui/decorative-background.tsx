@@ -1,5 +1,23 @@
 import { cn } from "@/lib/utils";
-import { Bell, Home, LayoutDashboard, Settings, Users, FileText, BarChart3, Calendar, Search, ChevronDown } from "lucide-react";
+import { 
+  LayoutDashboard, 
+  FolderKanban, 
+  Building2, 
+  Database, 
+  Calendar, 
+  FileText, 
+  GitBranch, 
+  BarChart3, 
+  User2, 
+  Mail, 
+  History, 
+  Shield,
+  Bell,
+  Settings,
+  Search,
+  ChevronDown,
+  Plus
+} from "lucide-react";
 
 interface DecorativeBackgroundProps {
   children: React.ReactNode;
@@ -9,149 +27,171 @@ interface DecorativeBackgroundProps {
 export const DecorativeBackground = ({ children, className }: DecorativeBackgroundProps) => {
   return (
     <div className={cn("relative min-h-screen overflow-hidden", className)}>
-      {/* Blurred Dashboard Background */}
-      <div className="absolute inset-0 bg-slate-100 dark:bg-slate-900">
-        {/* Sidebar */}
-        <div className="absolute left-0 top-0 h-full w-16 bg-slate-800 dark:bg-slate-950 flex flex-col items-center py-4 gap-6">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-            <Home className="w-5 h-5 text-white" />
-          </div>
-          <div className="flex flex-col gap-4 mt-4">
-            <div className="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center">
-              <LayoutDashboard className="w-5 h-5 text-slate-400" />
-            </div>
-            <div className="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center">
-              <Users className="w-5 h-5 text-slate-400" />
-            </div>
-            <div className="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center">
-              <FileText className="w-5 h-5 text-slate-400" />
-            </div>
-            <div className="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-slate-400" />
-            </div>
-            <div className="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-slate-400" />
+      {/* Blurred Dashboard Background - Matching our app design */}
+      <div className="absolute inset-0 bg-slate-50 dark:bg-slate-900">
+        
+        {/* Sidebar - Matching AppSidebar */}
+        <div className="absolute left-0 top-0 h-full w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
+          {/* Team Switcher Area */}
+          <div className="p-4 border-b border-sidebar-border">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                <Building2 className="w-4 h-4 text-primary-foreground" />
+              </div>
+              <div className="flex-1">
+                <div className="h-3 w-24 bg-sidebar-accent rounded" />
+                <div className="h-2 w-16 bg-sidebar-accent/50 rounded mt-1" />
+              </div>
+              <ChevronDown className="w-4 h-4 text-sidebar-foreground/50" />
             </div>
           </div>
-          <div className="mt-auto">
-            <div className="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center">
-              <Settings className="w-5 h-5 text-slate-400" />
+
+          {/* Platform Section */}
+          <div className="p-4">
+            <div className="text-xs font-medium text-sidebar-foreground/50 mb-3">Platform</div>
+            <div className="space-y-1">
+              {[
+                { icon: LayoutDashboard, label: "Dashboard", active: true },
+                { icon: FolderKanban, label: "Projects" },
+                { icon: Building2, label: "Organizations" },
+                { icon: Database, label: "Data Explorer" },
+              ].map((item, i) => (
+                <div 
+                  key={i} 
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-md",
+                    item.active ? "bg-sidebar-accent" : ""
+                  )}
+                >
+                  <item.icon className="w-4 h-4 text-sidebar-foreground/70" />
+                  <span className="text-sm text-sidebar-foreground/80">{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Current Project Section */}
+          <div className="p-4 border-t border-sidebar-border">
+            <div className="text-xs font-medium text-sidebar-foreground/50 mb-3">Current Project</div>
+            <div className="space-y-1">
+              {[
+                { icon: Calendar, label: "Form Builder" },
+                { icon: FileText, label: "My Submissions" },
+                { icon: GitBranch, label: "Task Automation" },
+                { icon: BarChart3, label: "Report Analytics" },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-md">
+                  <item.icon className="w-4 h-4 text-sidebar-foreground/70" />
+                  <span className="text-sm text-sidebar-foreground/80">{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Settings Section */}
+          <div className="p-4 border-t border-sidebar-border">
+            <div className="space-y-1">
+              {[
+                { icon: User2, label: "Team Members" },
+                { icon: Mail, label: "Email Config" },
+                { icon: History, label: "Form History" },
+                { icon: Shield, label: "Roles and Access" },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-md">
+                  <item.icon className="w-4 h-4 text-sidebar-foreground/70" />
+                  <span className="text-sm text-sidebar-foreground/80">{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* User Area */}
+          <div className="mt-auto p-4 border-t border-sidebar-border">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/60" />
+              <div className="flex-1">
+                <div className="h-3 w-20 bg-sidebar-accent rounded" />
+                <div className="h-2 w-28 bg-sidebar-accent/50 rounded mt-1" />
+              </div>
             </div>
           </div>
         </div>
 
         {/* Main Content Area */}
-        <div className="absolute left-16 top-0 right-0 h-full">
-          {/* Header */}
-          <div className="h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-6">
+        <div className="absolute left-64 top-0 right-0 h-full">
+          {/* Header - Matching DashboardLayout */}
+          <div className="h-16 bg-background/95 backdrop-blur border-b border-border flex items-center justify-between px-6">
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-700 rounded-lg px-4 py-2 w-64">
-                <Search className="w-4 h-4 text-slate-400" />
-                <span className="text-slate-400 text-sm">Search...</span>
-              </div>
+              <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center">
-                <Bell className="w-5 h-5 text-slate-500" />
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-md border border-border flex items-center justify-center">
+                <Bell className="w-4 h-4 text-muted-foreground" />
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500" />
-                <ChevronDown className="w-4 h-4 text-slate-400" />
+              <div className="w-9 h-9 rounded-md border border-border flex items-center justify-center">
+                <Settings className="w-4 h-4 text-muted-foreground" />
               </div>
             </div>
           </div>
 
           {/* Dashboard Content */}
           <div className="p-6">
-            {/* Welcome Header */}
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Welcome Back, User!</h1>
-              <p className="text-slate-500 dark:text-slate-400">Here's what's happening with your projects</p>
-            </div>
-
-            {/* Stats Cards */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="bg-emerald-500 rounded-xl p-4 text-white">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users className="w-5 h-5" />
-                  <span className="text-sm opacity-90">Sales:</span>
-                </div>
-                <span className="text-2xl font-bold">1,250</span>
-              </div>
-              <div className="bg-blue-500 rounded-xl p-4 text-white">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users className="w-5 h-5" />
-                  <span className="text-sm opacity-90">New Users:</span>
-                </div>
-                <span className="text-2xl font-bold">320</span>
-              </div>
-              <div className="bg-orange-500 rounded-xl p-4 text-white">
-                <div className="flex items-center gap-2 mb-2">
-                  <FileText className="w-5 h-5" />
-                  <span className="text-sm opacity-90">Tasks:</span>
-                </div>
-                <span className="text-2xl font-bold">18</span>
-              </div>
-            </div>
-
-            {/* Charts Row */}
-            <div className="grid grid-cols-2 gap-6 mb-6">
-              {/* Pie Chart Card */}
-              <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">Performance Stats</h3>
-                <div className="flex items-center justify-center">
-                  <div className="w-40 h-40 rounded-full border-[20px] border-emerald-500 relative">
-                    <div className="absolute inset-0 rounded-full border-[20px] border-transparent border-t-blue-500 border-r-blue-500 rotate-45" />
-                    <div className="absolute inset-0 rounded-full border-[20px] border-transparent border-b-amber-500 rotate-180" />
-                    <div className="absolute inset-0 rounded-full border-[20px] border-transparent border-l-rose-500 rotate-45" />
+            {/* Quick Actions - Matching our blue-50 style */}
+            <div className="bg-card rounded-lg border border-border shadow-sm p-6 mb-6">
+              <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
+              <div className="grid grid-cols-4 gap-4">
+                {[
+                  { icon: Plus, title: "New Form", desc: "Create a new form" },
+                  { icon: GitBranch, title: "New Workflow", desc: "Automate tasks" },
+                  { icon: BarChart3, title: "New Report", desc: "Build analytics" },
+                  { icon: User2, title: "Invite User", desc: "Add team member" },
+                ].map((action, i) => (
+                  <div 
+                    key={i} 
+                    className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800"
+                  >
+                    <action.icon className="w-6 h-6 text-primary mb-2" />
+                    <div className="font-medium text-sm text-foreground">{action.title}</div>
+                    <div className="text-xs text-muted-foreground">{action.desc}</div>
                   </div>
-                </div>
-              </div>
-
-              {/* Line Chart Card */}
-              <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">Overview</h3>
-                <div className="h-32 flex items-end gap-1">
-                  {[40, 65, 45, 80, 55, 90, 70, 85, 60, 95, 75, 88].map((h, i) => (
-                    <div key={i} className="flex-1 bg-gradient-to-t from-blue-500 to-cyan-400 rounded-t" style={{ height: `${h}%` }} />
-                  ))}
-                </div>
+                ))}
               </div>
             </div>
 
-            {/* Recent Activity */}
-            <div className="grid grid-cols-2 gap-6">
-              <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">Recent Activity</h3>
-                <div className="space-y-3">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-slate-50 dark:bg-slate-700">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-400" />
-                      <div className="flex-1">
-                        <div className="h-3 w-24 bg-slate-200 dark:bg-slate-600 rounded" />
-                        <div className="h-2 w-16 bg-slate-100 dark:bg-slate-500 rounded mt-1" />
-                      </div>
-                      <div className="h-2 w-12 bg-slate-100 dark:bg-slate-500 rounded" />
-                    </div>
-                  ))}
+            {/* Stats Cards - Matching Dashboard.tsx */}
+            <div className="grid grid-cols-3 gap-6 mb-6">
+              {[
+                { title: "Total Projects", value: "5", desc: "projects available", icon: FolderKanban },
+                { title: "Current Role", value: "Admin", desc: "Organization member", icon: User2 },
+                { title: "Active Project", value: "1", desc: "Project selected", icon: FileText },
+              ].map((stat, i) => (
+                <div key={i} className="bg-card rounded-lg border border-border shadow-sm p-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-muted-foreground">{stat.title}</span>
+                    <stat.icon className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div className="text-2xl font-bold text-foreground">{stat.value}</div>
+                  <p className="text-xs text-muted-foreground">{stat.desc}</p>
                 </div>
-              </div>
+              ))}
+            </div>
 
-              <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">Upcoming Events</h3>
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-slate-50 dark:bg-slate-700">
-                      <div className="w-10 h-10 rounded-lg bg-rose-100 dark:bg-rose-900 flex items-center justify-center">
-                        <Calendar className="w-5 h-5 text-rose-500" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="h-3 w-28 bg-slate-200 dark:bg-slate-600 rounded" />
-                        <div className="h-2 w-20 bg-slate-100 dark:bg-slate-500 rounded mt-1" />
-                      </div>
+            {/* Recent Activity Card */}
+            <div className="bg-card rounded-lg border border-border shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-foreground mb-4">Recent Activity</h2>
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-primary" />
                     </div>
-                  ))}
-                </div>
+                    <div className="flex-1">
+                      <div className="h-3 w-32 bg-muted rounded" />
+                      <div className="h-2 w-48 bg-muted/60 rounded mt-2" />
+                    </div>
+                    <div className="h-2 w-16 bg-muted/60 rounded" />
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -159,7 +199,7 @@ export const DecorativeBackground = ({ children, className }: DecorativeBackgrou
       </div>
 
       {/* Blur Overlay */}
-      <div className="absolute inset-0 backdrop-blur-sm bg-slate-900/40 dark:bg-slate-950/50" />
+      <div className="absolute inset-0 backdrop-blur-[2px] bg-slate-900/50 dark:bg-slate-950/60" />
 
       {/* Content */}
       <div className="relative z-10 flex min-h-screen items-center justify-center p-4">
