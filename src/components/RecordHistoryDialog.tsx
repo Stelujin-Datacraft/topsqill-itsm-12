@@ -68,12 +68,17 @@ export const RecordHistoryDialog: React.FC<RecordHistoryDialogProps> = ({
 
       setHistory(data || []);
 
-      // Fetch user info for all changed_by users (handle both direct user IDs and workflow:userId format)
+      // Fetch user info for all changed_by users (handle both direct user IDs and workflow:/datafeed: format)
       const rawUserIds = (data || []).map(h => h.changed_by).filter(Boolean) as string[];
       const extractedUserIds = rawUserIds.map(id => {
         // Extract user ID from workflow format if present
         if (id.startsWith('workflow:')) {
           const extracted = id.replace('workflow:', '');
+          return extracted === 'system' ? null : extracted;
+        }
+        // Extract user ID from datafeed format if present
+        if (id.startsWith('datafeed:')) {
+          const extracted = id.replace('datafeed:', '');
           return extracted === 'system' ? null : extracted;
         }
         return id;
@@ -108,10 +113,22 @@ export const RecordHistoryDialog: React.FC<RecordHistoryDialogProps> = ({
     return changedBy?.startsWith('workflow:') || false;
   };
 
+  // Check if changed_by is a data feed identifier (format: "datafeed:<userId>")
+  const isDataFeedChange = (changedBy: string | null) => {
+    return changedBy?.startsWith('datafeed:') || false;
+  };
+
   // Extract user ID from workflow changed_by format
   const getWorkflowUserId = (changedBy: string | null) => {
     if (!changedBy?.startsWith('workflow:')) return null;
     const userId = changedBy.replace('workflow:', '');
+    return userId === 'system' ? null : userId;
+  };
+
+  // Extract user ID from datafeed changed_by format
+  const getDataFeedUserId = (changedBy: string | null) => {
+    if (!changedBy?.startsWith('datafeed:')) return null;
+    const userId = changedBy.replace('datafeed:', '');
     return userId === 'system' ? null : userId;
   };
 
@@ -121,6 +138,18 @@ export const RecordHistoryDialog: React.FC<RecordHistoryDialogProps> = ({
     // Handle workflow changes
     if (isWorkflowChange(changedBy)) {
       const userId = getWorkflowUserId(changedBy);
+      if (!userId) return 'System';
+      const user = users[userId];
+      if (!user) return 'Unknown User';
+      if (user.first_name && user.last_name) {
+        return `${user.first_name} ${user.last_name}`;
+      }
+      return user.email;
+    }
+
+    // Handle data feed changes
+    if (isDataFeedChange(changedBy)) {
+      const userId = getDataFeedUserId(changedBy);
       if (!userId) return 'System';
       const user = users[userId];
       if (!user) return 'Unknown User';
@@ -140,6 +169,11 @@ export const RecordHistoryDialog: React.FC<RecordHistoryDialogProps> = ({
   };
 
   const getChangeTypeBadge = (changeType: string, changedBy: string | null) => {
+    // Show Data Feed badge for data feed-initiated changes
+    if (isDataFeedChange(changedBy)) {
+      return <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">Data Feed</Badge>;
+    }
+
     // Show Workflow badge for workflow-initiated changes
     if (isWorkflowChange(changedBy)) {
       return <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">Workflow</Badge>;
