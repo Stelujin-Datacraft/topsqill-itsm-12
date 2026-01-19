@@ -687,28 +687,46 @@ export function DynamicTable({
       setLoading(true);
       console.log('🔍 Loading data for form ID:', config.formId);
       
+      // Optimized query - fetch submissions without join first
       const {
         data: submissions,
         error
-      } = await supabase.from('form_submissions').select(`
-          *,
-          user_profiles!left(email)
-        `).eq('form_id', config.formId).order('submitted_at', {
-        ascending: false
-      });
+      } = await supabase
+        .from('form_submissions')
+        .select('id, form_id, submission_data, submission_ref_id, submitted_at, submitted_by, approval_status, approval_notes, approved_by, approval_timestamp, ip_address, user_agent')
+        .eq('form_id', config.formId)
+        .order('submitted_at', { ascending: false });
       
       if (error) {
         console.error('❌ Error fetching submissions:', error);
+        setLoading(false);
         return;
       }
 
       console.log('📊 Raw submissions fetched:', submissions?.length || 0);
-      console.log('📋 Submissions data:', submissions);
+
+      // Fetch user emails in a separate optimized query if needed
+      const userIds = [...new Set((submissions || []).map(s => s.submitted_by).filter(Boolean))];
+      let userEmailMap: Record<string, string> = {};
+      
+      if (userIds.length > 0 && userIds.length <= 100) {
+        const { data: profiles } = await supabase
+          .from('user_profiles')
+          .select('id, email')
+          .in('id', userIds);
+        
+        if (profiles) {
+          userEmailMap = profiles.reduce((acc, p) => {
+            acc[p.id] = p.email;
+            return acc;
+          }, {} as Record<string, string>);
+        }
+      }
 
       // Transform submissions to include user email
       const transformedSubmissions = (submissions || []).map(submission => ({
         ...submission,
-        submitted_by_email: submission.user_profiles?.email || submission.submitted_by
+        submitted_by_email: userEmailMap[submission.submitted_by] || submission.submitted_by
       }));
       
       console.log('✅ Transformed submissions:', transformedSubmissions.length);
