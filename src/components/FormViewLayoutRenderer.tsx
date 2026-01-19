@@ -413,10 +413,10 @@ export function FormViewLayoutRenderer({
     // Flush standard fields into a proper grid
     const flushStandardFields = () => {
       if (standardFieldsBuffer.length > 0) {
-        // Use both responsive classes for screen and print-specific classes for PDF
+        // Apply columns directly without responsive breakpoints for consistent layout
         const gridCols = columns === 1 ? 'grid-cols-1' : 
-                        columns === 2 ? 'grid-cols-1 md:grid-cols-2 print-cols-2' : 
-                        'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 print-cols-3';
+                        columns === 2 ? 'grid-cols-2 print-cols-2' : 
+                        'grid-cols-3 print-cols-3';
         
         renderedElements.push(
           <div key={`standard-grid-${elementIndex++}`} className={`grid ${gridCols} gap-6`} data-print-columns={columns}>
