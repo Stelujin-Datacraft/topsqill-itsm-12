@@ -10,7 +10,9 @@ import { OrganizationProvider } from "@/contexts/OrganizationContext";
 import { ProjectProvider } from "@/contexts/ProjectContext";
 import { FormProvider } from "@/contexts/FormContext";
 import { WorkflowProvider } from "@/contexts/WorkflowContext";
+import { ImpersonationProvider } from "@/contexts/ImpersonationContext";
 import { SessionTimeoutWarning } from "@/components/SessionTimeoutWarning";
+import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Documentation from "./pages/Documentation";
@@ -66,16 +68,18 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <OrganizationProvider>
-        <ProjectProvider>
-          <FormProvider>
-            <WorkflowProvider>
-              <TooltipProvider>
-                <Toaster />
-                <Sonner />
-                <SessionTimeoutWarning />
-                <BrowserRouter>
-                  <PasswordExpiryWarning />
+      <ImpersonationProvider>
+        <OrganizationProvider>
+          <ProjectProvider>
+            <FormProvider>
+              <WorkflowProvider>
+                <TooltipProvider>
+                  <Toaster />
+                  <Sonner />
+                  <SessionTimeoutWarning />
+                  <ImpersonationBanner />
+                  <BrowserRouter>
+                    <PasswordExpiryWarning />
                   <Routes>
                     <Route path="/" element={<Index />} />
                     <Route path="/docs" element={<Documentation />} />
@@ -128,12 +132,13 @@ const App = () => (
                      <Route path="/investigate-access" element={<ProtectedRoute><InvestigateAccess /></ProtectedRoute>} />
                      <Route path="*" element={<NotFound />} />
                   </Routes>
-                </BrowserRouter>
-              </TooltipProvider>
-            </WorkflowProvider>
-          </FormProvider>
-        </ProjectProvider>
-      </OrganizationProvider>
+                  </BrowserRouter>
+                </TooltipProvider>
+              </WorkflowProvider>
+            </FormProvider>
+          </ProjectProvider>
+        </OrganizationProvider>
+      </ImpersonationProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

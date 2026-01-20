@@ -1,17 +1,23 @@
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
+
 interface DashboardLayoutProps {
   children: React.ReactNode;
   title?: string;
   actions?: React.ReactNode;
 }
+
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children,
   title,
   actions
 }) => {
-  return <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+  const { isImpersonating } = useImpersonation();
+  
+  return (
+    <SidebarProvider>
+      <div className={`min-h-screen flex w-full ${isImpersonating ? 'pt-12' : ''}`}>
         <AppSidebar />
         <main className="flex-1 flex flex-col">
           <header className="border-b bg-background/95 backdrop-blur p-4">
@@ -28,6 +34,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </div>
         </main>
       </div>
-    </SidebarProvider>;
+    </SidebarProvider>
+  );
 };
+
 export default DashboardLayout;
