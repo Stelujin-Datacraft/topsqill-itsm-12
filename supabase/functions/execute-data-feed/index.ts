@@ -229,7 +229,76 @@ function evaluateSourceFilter(filter: SourceFilter, sourceData: Record<string, a
            (!Array.isArray(fieldValue) || fieldValue.length > 0);
   }
   
-  // Convert to string for comparison
+  // Boolean operators
+  if (filter.operator === 'is_true') {
+    return fieldValue === true || fieldValue === 'true' || fieldValue === '1' || fieldValue === 1;
+  }
+  if (filter.operator === 'is_false') {
+    return fieldValue === false || fieldValue === 'false' || fieldValue === '0' || fieldValue === 0 ||
+           fieldValue === undefined || fieldValue === null;
+  }
+  
+  // Selection "in" and "not_in" operators - compare against comma-separated list
+  if (filter.operator === 'in' || filter.operator === 'not_in') {
+    const compareValues = compareValue.split(',').map(v => v.toLowerCase().trim());
+    let matches = false;
+    
+    if (Array.isArray(fieldValue)) {
+      // Multi-select field: check if any selected value is in the compare list
+      matches = fieldValue.some(v => compareValues.includes(String(v).toLowerCase().trim()));
+    } else {
+      // Single value: check if it's in the compare list
+      matches = compareValues.includes(String(fieldValue ?? '').toLowerCase().trim());
+    }
+    
+    return filter.operator === 'in' ? matches : !matches;
+  }
+  
+  // Date/time operators
+  if (['before', 'after', 'on_or_before', 'on_or_after'].includes(filter.operator)) {
+    const fieldDate = new Date(fieldValue);
+    const compareDate = new Date(compareValue);
+    
+    if (isNaN(fieldDate.getTime()) || isNaN(compareDate.getTime())) {
+      console.warn(`Date comparison failed: invalid date - field: ${fieldValue}, compare: ${compareValue}`);
+      return false;
+    }
+    
+    switch (filter.operator) {
+      case 'before':
+        return fieldDate < compareDate;
+      case 'after':
+        return fieldDate > compareDate;
+      case 'on_or_before':
+        return fieldDate <= compareDate;
+      case 'on_or_after':
+        return fieldDate >= compareDate;
+    }
+  }
+  
+  // Numeric operators
+  if (['greater_than', 'less_than', 'greater_than_or_equal', 'less_than_or_equal'].includes(filter.operator)) {
+    const numField = parseFloat(String(fieldValue ?? ''));
+    const numCompare = parseFloat(compareValue);
+    
+    if (isNaN(numField) || isNaN(numCompare)) {
+      console.warn(`Numeric comparison failed: invalid number - field: ${fieldValue}, compare: ${compareValue}`);
+      return false;
+    }
+    
+    switch (filter.operator) {
+      case 'greater_than':
+        return numField > numCompare;
+      case 'less_than':
+        return numField < numCompare;
+      case 'greater_than_or_equal':
+        return numField >= numCompare;
+      case 'less_than_or_equal':
+        return numField <= numCompare;
+    }
+  }
+  
+  // Text-based operators (string comparison)
   const fieldStr = String(fieldValue ?? '').toLowerCase().trim();
   const compareStr = compareValue.toLowerCase().trim();
   
@@ -246,15 +315,8 @@ function evaluateSourceFilter(filter: SourceFilter, sourceData: Record<string, a
       return fieldStr.startsWith(compareStr);
     case 'ends_with':
       return fieldStr.endsWith(compareStr);
-    case 'greater_than':
-      const numField = parseFloat(fieldStr);
-      const numCompare = parseFloat(compareStr);
-      return !isNaN(numField) && !isNaN(numCompare) && numField > numCompare;
-    case 'less_than':
-      const numField2 = parseFloat(fieldStr);
-      const numCompare2 = parseFloat(compareStr);
-      return !isNaN(numField2) && !isNaN(numCompare2) && numField2 < numCompare2;
     default:
+      console.warn(`Unknown filter operator: ${filter.operator}`);
       return true;
   }
 }

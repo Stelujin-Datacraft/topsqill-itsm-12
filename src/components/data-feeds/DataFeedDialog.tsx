@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DataFeed, DataFeedFormData, FieldMapping, MatchingRule, SourceFilter, FilterOperator, SCHEDULE_PRESETS, FILTER_OPERATORS, ScheduleConfig, buildCronFromConfig, parseCronToReadable } from '@/types/dataFeed';
+import { DataFeed, DataFeedFormData, FieldMapping, MatchingRule, SourceFilter, FilterOperator, SCHEDULE_PRESETS, FILTER_OPERATORS, ScheduleConfig, buildCronFromConfig, parseCronToReadable, getOperatorsForFieldType, getFieldCategory } from '@/types/dataFeed';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { ExpressionEvaluator } from '@/utils/expressionEvaluator';
 import { Separator } from '@/components/ui/separator';
+import { FilterValueInput } from './FilterValueInput';
 
 interface DataFeedDialogProps {
   open: boolean;
@@ -34,6 +35,7 @@ interface FieldOption {
   id: string;
   label: string;
   field_type: string;
+  options?: { label: string; value: string }[];
   custom_config?: any;
 }
 
@@ -124,11 +126,14 @@ export function DataFeedDialog({
     const fetchFields = async () => {
       const { data } = await supabase
         .from('form_fields')
-        .select('id, label, field_type, custom_config')
+        .select('id, label, field_type, options, custom_config')
         .eq('form_id', formData.source_form_id)
         .order('field_order');
 
-      const fields = data || [];
+      const fields = (data || []).map(f => ({
+        ...f,
+        options: f.options as { label: string; value: string }[] | undefined
+      }));
       setSourceFields(fields);
       
       const crossRefs = fields.filter(f => f.field_type === 'cross-reference');
@@ -273,13 +278,25 @@ export function DataFeedDialog({
 
     setFormData(prev => ({
       ...prev,
-      source_filters: (prev.source_filters || []).map((filter, i) => 
-        i === index ? { 
-          ...filter, 
-          [field]: value,
-          ...(sourceField ? { fieldName: sourceField.label } : {}),
-        } : filter
-      ),
+      source_filters: (prev.source_filters || []).map((filter, i) => {
+        if (i !== index) return filter;
+        
+        const updates: Partial<SourceFilter> = { [field]: value };
+        
+        if (sourceField) {
+          updates.fieldName = sourceField.label;
+          updates.fieldType = sourceField.field_type;
+          // Reset operator to a valid one for the new field type
+          const validOperators = getOperatorsForFieldType(sourceField.field_type);
+          if (!validOperators.find(op => op.value === filter.operator)) {
+            updates.operator = validOperators[0]?.value || 'equals';
+          }
+          // Reset value when field changes
+          updates.value = '';
+        }
+        
+        return { ...filter, ...updates };
+      }),
     }));
   };
 
@@ -797,63 +814,77 @@ export function DataFeedDialog({
                 </div>
               )}
 
-              {(formData.source_filters || []).map((filter, index) => (
-                <div key={filter.id || index} className="flex items-center gap-2 p-2 border rounded-lg bg-muted/30">
-                  <Badge variant="secondary" className="shrink-0 w-6 h-6 flex items-center justify-center p-0 text-xs font-bold">
-                    {filter.id || index + 1}
-                  </Badge>
-                  
-                  <Select
-                    value={filter.fieldId}
-                    onValueChange={(value) => updateSourceFilter(index, 'fieldId', value)}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Select field" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sourceFields.map((field) => (
-                        <SelectItem key={field.id} value={field.id}>
-                          {field.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              {(formData.source_filters || []).map((filter, index) => {
+                const selectedField = sourceFields.find(f => f.id === filter.fieldId);
+                const fieldType = selectedField?.field_type || filter.fieldType || 'text';
+                const availableOperators = getOperatorsForFieldType(fieldType);
+                const currentOperator = availableOperators.find(op => op.value === filter.operator);
+                const requiresValue = currentOperator?.requiresValue !== false;
 
-                  <Select
-                    value={filter.operator}
-                    onValueChange={(value) => updateSourceFilter(index, 'operator', value)}
-                  >
-                    <SelectTrigger className="w-40">
-                      <SelectValue placeholder="Operator" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FILTER_OPERATORS.map((op) => (
-                        <SelectItem key={op.value} value={op.value}>
-                          {op.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                return (
+                  <div key={filter.id || index} className="flex flex-wrap items-center gap-2 p-3 border rounded-lg bg-muted/30">
+                    <Badge variant="secondary" className="shrink-0 w-6 h-6 flex items-center justify-center p-0 text-xs font-bold">
+                      {filter.id || index + 1}
+                    </Badge>
+                    
+                    <Select
+                      value={filter.fieldId}
+                      onValueChange={(value) => updateSourceFilter(index, 'fieldId', value)}
+                    >
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Select field" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sourceFields.map((field) => (
+                          <SelectItem key={field.id} value={field.id}>
+                            <span className="flex items-center gap-2">
+                              {field.label}
+                              <span className="text-xs text-muted-foreground">({field.field_type})</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-                  {!['is_empty', 'is_not_empty'].includes(filter.operator) && (
-                    <Input
-                      value={filter.value}
-                      onChange={(e) => updateSourceFilter(index, 'value', e.target.value)}
-                      placeholder="Value"
-                      className="flex-1"
-                    />
-                  )}
+                    <Select
+                      value={filter.operator}
+                      onValueChange={(value) => updateSourceFilter(index, 'operator', value)}
+                      disabled={!filter.fieldId}
+                    >
+                      <SelectTrigger className="w-[160px]">
+                        <SelectValue placeholder="Operator" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableOperators.map((op) => (
+                          <SelectItem key={op.value} value={op.value}>
+                            {op.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeSourceFilter(index)}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-              ))}
+                    {requiresValue && filter.fieldId && (
+                      <FilterValueInput
+                        fieldType={fieldType}
+                        value={filter.value}
+                        onChange={(value) => updateSourceFilter(index, 'value', value)}
+                        field={selectedField}
+                        operator={filter.operator}
+                        className="flex-1 min-w-[150px]"
+                      />
+                    )}
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeSourceFilter(index)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                );
+              })}
 
               {/* Filter Logic Expression UI */}
               {(formData.source_filters?.length || 0) >= 2 && (

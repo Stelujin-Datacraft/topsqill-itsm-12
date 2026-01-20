@@ -1,19 +1,36 @@
 export type FilterOperator = 
+  // Universal operators
   | 'equals' 
   | 'not_equals' 
+  | 'is_empty' 
+  | 'is_not_empty'
+  // Text operators
   | 'contains' 
   | 'not_contains' 
   | 'starts_with' 
   | 'ends_with' 
+  // Number/Date operators
   | 'greater_than' 
-  | 'less_than' 
-  | 'is_empty' 
-  | 'is_not_empty';
+  | 'less_than'
+  | 'greater_than_or_equal'
+  | 'less_than_or_equal'
+  // Date-specific operators
+  | 'before'
+  | 'after'
+  | 'on_or_before'
+  | 'on_or_after'
+  // Boolean operators
+  | 'is_true'
+  | 'is_false'
+  // Selection operators
+  | 'in'
+  | 'not_in';
 
 export interface SourceFilter {
   id?: string; // Unique ID for logic expressions
   fieldId: string;
   fieldName?: string;
+  fieldType?: string; // Track field type for operator/input selection
   operator: FilterOperator;
   value: string; // Static value to compare against
 }
@@ -105,18 +122,84 @@ export interface DataFeedFormData {
   is_active: boolean;
 }
 
-export const FILTER_OPERATORS: { value: FilterOperator; label: string }[] = [
-  { value: 'equals', label: 'Equals' },
-  { value: 'not_equals', label: 'Not Equals' },
-  { value: 'contains', label: 'Contains' },
-  { value: 'not_contains', label: 'Not Contains' },
-  { value: 'starts_with', label: 'Starts With' },
-  { value: 'ends_with', label: 'Ends With' },
-  { value: 'greater_than', label: 'Greater Than' },
-  { value: 'less_than', label: 'Less Than' },
-  { value: 'is_empty', label: 'Is Empty' },
-  { value: 'is_not_empty', label: 'Is Not Empty' },
+// Field type categories for operator selection
+export type FieldCategory = 'text' | 'number' | 'date' | 'time' | 'boolean' | 'selection' | 'other';
+
+export const getFieldCategory = (fieldType: string): FieldCategory => {
+  switch (fieldType) {
+    case 'text':
+    case 'textarea':
+    case 'email':
+    case 'phone':
+    case 'url':
+    case 'rich-text':
+      return 'text';
+    case 'number':
+    case 'slider':
+    case 'currency':
+      return 'number';
+    case 'date':
+      return 'date';
+    case 'time':
+      return 'time';
+    case 'checkbox':
+    case 'toggle':
+      return 'boolean';
+    case 'dropdown':
+    case 'radio':
+    case 'multi-select':
+    case 'lifecycle':
+      return 'selection';
+    default:
+      return 'other';
+  }
+};
+
+export interface FilterOperatorOption {
+  value: FilterOperator;
+  label: string;
+  categories: FieldCategory[];
+  requiresValue: boolean;
+}
+
+export const FILTER_OPERATORS: FilterOperatorOption[] = [
+  // Universal operators
+  { value: 'equals', label: 'Equals', categories: ['text', 'number', 'date', 'time', 'selection', 'other'], requiresValue: true },
+  { value: 'not_equals', label: 'Not Equals', categories: ['text', 'number', 'date', 'time', 'selection', 'other'], requiresValue: true },
+  { value: 'is_empty', label: 'Is Empty', categories: ['text', 'number', 'date', 'time', 'boolean', 'selection', 'other'], requiresValue: false },
+  { value: 'is_not_empty', label: 'Is Not Empty', categories: ['text', 'number', 'date', 'time', 'boolean', 'selection', 'other'], requiresValue: false },
+  
+  // Text operators
+  { value: 'contains', label: 'Contains', categories: ['text'], requiresValue: true },
+  { value: 'not_contains', label: 'Does Not Contain', categories: ['text'], requiresValue: true },
+  { value: 'starts_with', label: 'Starts With', categories: ['text'], requiresValue: true },
+  { value: 'ends_with', label: 'Ends With', categories: ['text'], requiresValue: true },
+  
+  // Number operators
+  { value: 'greater_than', label: 'Greater Than', categories: ['number'], requiresValue: true },
+  { value: 'less_than', label: 'Less Than', categories: ['number'], requiresValue: true },
+  { value: 'greater_than_or_equal', label: 'Greater Than or Equal', categories: ['number'], requiresValue: true },
+  { value: 'less_than_or_equal', label: 'Less Than or Equal', categories: ['number'], requiresValue: true },
+  
+  // Date operators
+  { value: 'before', label: 'Before', categories: ['date', 'time'], requiresValue: true },
+  { value: 'after', label: 'After', categories: ['date', 'time'], requiresValue: true },
+  { value: 'on_or_before', label: 'On or Before', categories: ['date'], requiresValue: true },
+  { value: 'on_or_after', label: 'On or After', categories: ['date'], requiresValue: true },
+  
+  // Boolean operators
+  { value: 'is_true', label: 'Is True', categories: ['boolean'], requiresValue: false },
+  { value: 'is_false', label: 'Is False', categories: ['boolean'], requiresValue: false },
+  
+  // Selection operators
+  { value: 'in', label: 'Is One Of', categories: ['selection'], requiresValue: true },
+  { value: 'not_in', label: 'Is Not One Of', categories: ['selection'], requiresValue: true },
 ];
+
+export const getOperatorsForFieldType = (fieldType: string): FilterOperatorOption[] => {
+  const category = getFieldCategory(fieldType);
+  return FILTER_OPERATORS.filter(op => op.categories.includes(category));
+};
 
 export const SCHEDULE_PRESETS = [
   { label: 'Every 15 minutes', value: '*/15 * * * *', category: 'frequent' },
