@@ -6,14 +6,14 @@ import { UserRolesTab } from '@/components/roles/UserRolesTab';
 import { GroupRolesTab } from '@/components/roles/GroupRolesTab';
 import { CreateRolesTab } from '@/components/roles/CreateRolesTab';
 import { Shield } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useEffectiveUser } from '@/hooks/useEffectiveUser';
 
 const RolesAndAccess = () => {
-  const { userProfile } = useAuth();
+  const { effectiveRole } = useEffectiveUser();
   const [activeTab, setActiveTab] = useState('create-roles');
 
-  // Only admins can access this page
-  if (!userProfile || userProfile.role !== 'admin') {
+  // Only admins can access this page (respects impersonation)
+  if (effectiveRole !== 'admin') {
     return (
       <DashboardLayout title="Access Denied">
         <div className="text-center py-12">
