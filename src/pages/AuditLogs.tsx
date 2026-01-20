@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEffectiveUser } from '@/hooks/useEffectiveUser';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -51,7 +52,8 @@ interface UserInfo {
 }
 
 const AuditLogs: React.FC = () => {
-  const { user, userProfile } = useAuth();
+  const { user } = useAuth();
+  const { effectiveUserId, effectiveRole } = useEffectiveUser();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [usersMap, setUsersMap] = useState<Record<string, UserInfo>>({});
   const [loading, setLoading] = useState(true);
@@ -72,9 +74,9 @@ const AuditLogs: React.FC = () => {
         .order('created_at', { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
-      // Non-admins can only see their own logs
-      if (userProfile?.role !== 'admin') {
-        query = query.eq('user_id', user.id);
+      // Non-admins can only see their own logs (respects impersonation)
+      if (effectiveRole !== 'admin') {
+        query = query.eq('user_id', effectiveUserId);
       }
 
       if (categoryFilter !== 'all') {
@@ -179,7 +181,7 @@ const AuditLogs: React.FC = () => {
     <DashboardLayout title="Audit Logs" actions={headerActions}>
       <div className="space-y-6">
         <p className="text-muted-foreground">
-          {userProfile?.role === 'admin' ? 'View all security and activity logs across the organization' : 'View your activity logs'}
+          {effectiveRole === 'admin' ? 'View all security and activity logs across the organization' : 'View your activity logs'}
         </p>
 
         <Card>
