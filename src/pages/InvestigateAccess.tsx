@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import { Shield, Search, User, Users, Key, Lock, Monitor, FolderKanban } from 'lucide-react';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
+import { Shield, Search, User, Users, Key, Lock, Monitor, FolderKanban, Eye } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { useUsersAndGroups } from '@/hooks/useUsersAndGroups';
 import { useInvestigateAccess } from '@/hooks/useInvestigateAccess';
 import { UserSelector } from '@/components/investigate/UserSelector';
@@ -18,6 +20,7 @@ import { ExportAccessReport } from '@/components/investigate/ExportAccessReport'
 
 export default function InvestigateAccess() {
   const { userProfile } = useAuth();
+  const { isImpersonating, impersonatedUser, startImpersonation } = useImpersonation();
   const isAdmin = userProfile?.role === 'admin';
   
   // For non-admins, auto-select their own user ID
@@ -66,13 +69,29 @@ export default function InvestigateAccess() {
               </p>
             </div>
           </div>
-          {/* Export Button */}
-          {data.profile && (
-            <ExportAccessReport 
-              data={data} 
-              userName={`${data.profile.first_name || ''} ${data.profile.last_name || ''}`.trim() || data.profile.email}
-            />
-          )}
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            {/* Impersonate Button - Only for admins viewing non-admin users */}
+            {isAdmin && data.profile && data.profile.role !== 'admin' && data.profile.id !== userProfile?.id && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => startImpersonation(data.profile!.id)}
+                disabled={isImpersonating}
+                className="text-amber-600 border-amber-300 hover:bg-amber-50"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Impersonate
+              </Button>
+            )}
+            {/* Export Button */}
+            {data.profile && (
+              <ExportAccessReport 
+                data={data} 
+                userName={`${data.profile.first_name || ''} ${data.profile.last_name || ''}`.trim() || data.profile.email}
+              />
+            )}
+          </div>
         </div>
 
         {/* User Selector - Only for admins */}
