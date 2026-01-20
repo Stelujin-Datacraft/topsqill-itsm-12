@@ -103,17 +103,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         url: "/form-audit-logs",
         icon: History,
       },
+      // My Access - available to all users
+      {
+        title: userProfile?.role === 'admin' ? "Investigate Access" : "My Access",
+        url: "/investigate-access",
+        icon: Search,
+      },
       // Add admin-only navigation items
       ...(userProfile?.role === 'admin' ? [
         {
           title: "Roles and Access",
           url: "/roles-and-access",
           icon: Shield,
-        },
-        {
-          title: "Investigate Access",
-          url: "/investigate-access",
-          icon: Search,
         },
         {
           title: "Manage Sessions",
