@@ -110,16 +110,31 @@ export function DataFeedDialog({
     const fetchFields = async () => {
       const { data } = await supabase
         .from('form_fields')
-        .select('id, label, field_type')
+        .select('id, label, field_type, custom_config')
         .eq('form_id', formData.source_form_id)
         .order('field_order');
 
       setSourceFields(data || []);
-      setCrossRefFields((data || []).filter(f => f.field_type === 'cross-reference'));
+      
+      // Filter cross-reference fields that are linked to the target form
+      const crossRefFieldsFiltered = (data || []).filter(f => {
+        if (f.field_type !== 'cross-reference') return false;
+        
+        // If no target form selected yet, show all cross-reference fields
+        if (!formData.target_form_id) return true;
+        
+        // Check if this cross-reference field links to the target form
+        const config = typeof f.custom_config === 'string' 
+          ? JSON.parse(f.custom_config) 
+          : f.custom_config;
+        return config?.targetFormId === formData.target_form_id;
+      });
+      
+      setCrossRefFields(crossRefFieldsFiltered);
     };
 
     fetchFields();
-  }, [formData.source_form_id]);
+  }, [formData.source_form_id, formData.target_form_id]);
 
   // Load target form fields
   useEffect(() => {
