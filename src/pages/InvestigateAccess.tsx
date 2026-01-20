@@ -14,6 +14,7 @@ import { GroupsTab } from '@/components/investigate/GroupsTab';
 import { SecurityTab } from '@/components/investigate/SecurityTab';
 import { SessionsTab } from '@/components/investigate/SessionsTab';
 import { ProjectsTab } from '@/components/investigate/ProjectsTab';
+import { ExportAccessReport } from '@/components/investigate/ExportAccessReport';
 
 export default function InvestigateAccess() {
   const { userProfile } = useAuth();
@@ -48,21 +49,30 @@ export default function InvestigateAccess() {
     <DashboardLayout title="Investigate Access">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary/10 rounded-lg">
-            <Search className="h-6 w-6 text-primary" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <Search className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">
+                {isAdmin ? 'Investigate Access' : 'My Access'}
+              </h1>
+              <p className="text-muted-foreground">
+                {isAdmin 
+                  ? 'View comprehensive access rights for any user in the system'
+                  : 'View your access permissions, roles, and security settings'
+                }
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold">
-              {isAdmin ? 'Investigate Access' : 'My Access'}
-            </h1>
-            <p className="text-muted-foreground">
-              {isAdmin 
-                ? 'View comprehensive access rights for any user in the system'
-                : 'View your access permissions, roles, and security settings'
-              }
-            </p>
-          </div>
+          {/* Export Button */}
+          {data.profile && (
+            <ExportAccessReport 
+              data={data} 
+              userName={`${data.profile.first_name || ''} ${data.profile.last_name || ''}`.trim() || data.profile.email}
+            />
+          )}
         </div>
 
         {/* User Selector - Only for admins */}
