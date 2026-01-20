@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useEffectiveUser } from '@/hooks/useEffectiveUser';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,8 +48,7 @@ interface UserInfo {
 }
 
 const ManageSessions: React.FC = () => {
-  const { user, session, signOut } = useAuth();
-  const { effectiveUserId, effectiveRole } = useEffectiveUser();
+  const { user, session, userProfile, signOut } = useAuth();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [usersMap, setUsersMap] = useState<Record<string, UserInfo>>({});
   const [loading, setLoading] = useState(true);
@@ -77,9 +75,8 @@ const ManageSessions: React.FC = () => {
         .eq('is_active', true)
         .order('last_activity', { ascending: false });
 
-      // Admins see all sessions, users only their own (respects impersonation)
-      if (effectiveRole !== 'admin') {
-        query = query.eq('user_id', effectiveUserId);
+      if (userProfile?.role !== 'admin') {
+        query = query.eq('user_id', user.id);
       }
 
       const { data, error } = await query;
@@ -121,7 +118,7 @@ const ManageSessions: React.FC = () => {
 
   useEffect(() => {
     fetchSessions();
-  }, [user, effectiveUserId, effectiveRole]);
+  }, [user, userProfile]);
 
   const terminateSession = async (sessionId: string, sessionToken: string) => {
     setTerminatingId(sessionId);
