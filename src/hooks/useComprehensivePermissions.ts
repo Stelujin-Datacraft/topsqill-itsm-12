@@ -1,8 +1,8 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
+import { useEffectiveUser } from '@/hooks/useEffectiveUser';
 import { toast } from 'sonner';
 
 export type EntityType = 'forms' | 'workflows' | 'reports';
@@ -33,9 +33,11 @@ export function useComprehensivePermissions(projectId?: string, userId?: string)
   const [loading, setLoading] = useState(true);
   const { userProfile } = useAuth();
   const { currentProject } = useProject();
+  const { effectiveUserId, effectiveRole } = useEffectiveUser();
 
   const targetProjectId = projectId || currentProject?.id;
-  const targetUserId = userId || userProfile?.id;
+  // Use effective user when impersonating
+  const targetUserId = userId || effectiveUserId || userProfile?.id;
 
   const loadPermissions = async () => {
     if (!targetProjectId || !targetUserId) {
@@ -81,7 +83,8 @@ export function useComprehensivePermissions(projectId?: string, userId?: string)
         console.error('Error loading user profile:', userProfileError);
       }
 
-      const isOrgAdmin = userProfileData?.role === 'admin';
+      // Use effective role for impersonation support
+      const isOrgAdmin = effectiveRole === 'admin';
       const isProjectAdmin = projectUserData?.role === 'admin' || isOrgAdmin;
 
       // Load role permissions (simplified for now - can be expanded)
@@ -111,7 +114,7 @@ export function useComprehensivePermissions(projectId?: string, userId?: string)
 
   useEffect(() => {
     loadPermissions();
-  }, [targetProjectId, targetUserId]);
+  }, [targetProjectId, targetUserId, effectiveRole]);
 
   const hasPermission = (entityType: EntityType, action: ActionType): boolean => {
     // Admin users have all permissions

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
+import { useImpersonation } from './ImpersonationContext';
 import { Project, ProjectPermission } from '@/types/project';
 
 interface ProjectUser {
@@ -35,13 +36,18 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [userProjectPermissions, setUserProjectPermissions] = useState<Record<string, string[]>>({});
   const { userProfile } = useAuth();
+  const { isImpersonating, impersonatedUser } = useImpersonation();
+
+  // Determine effective user for project loading
+  const effectiveUser = isImpersonating && impersonatedUser ? impersonatedUser : userProfile;
+  const effectiveRole = effectiveUser?.role || 'user';
 
   useEffect(() => {
     loadProjects();
-  }, [userProfile?.organization_id]);
+  }, [effectiveUser?.organization_id, effectiveUser?.id, isImpersonating]);
 
   const loadProjects = async () => {
-    if (!userProfile?.organization_id || !userProfile?.id) {
+    if (!effectiveUser?.organization_id || !effectiveUser?.id) {
       setLoading(false);
       return;
     }
@@ -52,11 +58,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       let projectsData = [];
       let permissionsMap: Record<string, string[]> = {};
 
-      if (userProfile.role === 'admin') {
+      // Use effective role instead of userProfile.role
+      if (effectiveRole === 'admin') {
         const { data, error } = await supabase
           .from('projects')
           .select('*')
-          .eq('organization_id', userProfile.organization_id)
+          .eq('organization_id', effectiveUser.organization_id)
           .order('updated_at', { ascending: false });
 
         if (error) {
@@ -69,6 +76,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           permissionsMap[project.id] = ['admin', 'editor', 'viewer', 'create', 'edit', 'delete', 'view'];
         });
       } else {
+        // Non-admin: fetch only projects the effective user has access to
         const { data: userProjects, error: userProjectsError } = await supabase
           .from('project_users')
           .select(`
@@ -76,7 +84,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             role,
             projects (*)
           `)
-          .eq('user_id', userProfile.id);
+          .eq('user_id', effectiveUser.id);
 
         if (userProjectsError) {
           throw userProjectsError;
@@ -85,8 +93,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         const { data: createdProjects, error: createdProjectsError } = await supabase
           .from('projects')
           .select('*')
-          .eq('created_by', userProfile.id)
-          .eq('organization_id', userProfile.organization_id);
+          .eq('created_by', effectiveUser.id)
+          .eq('organization_id', effectiveUser.organization_id);
 
         if (createdProjectsError) {
           throw createdProjectsError;
@@ -164,6 +172,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   };
 
   const createProject = async (projectData: any) => {
+    // Use real user profile for mutations, not effective user
     if (!userProfile?.organization_id) {
       return null;
     }
@@ -172,6 +181,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
 
+    // Only real admins can create projects (not impersonated users)
     if (userProfile.role !== 'admin') {
       return null;
     }
@@ -302,13 +312,15 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   };
 
   const hasProjectPermission = async (projectId: string, resourceType: string, requiredLevel: string): Promise<boolean> => {
-    if (!userProfile?.id) return false;
+    // Use effective user for permission checks
+    const userId = effectiveUser?.id;
+    if (!userId) return false;
 
     try {
       const { data, error } = await supabase
         .rpc('has_project_permission', {
           _project_id: projectId,
-          _user_id: userProfile.id,
+          _user_id: userId,
           _resource_type: resourceType,
           _required_level: requiredLevel
         });

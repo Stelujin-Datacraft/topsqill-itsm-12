@@ -1,6 +1,6 @@
-
 import React from 'react';
 import { useUnifiedAccessControl, EntityType, ActionType } from '@/hooks/useUnifiedAccessControl';
+import { useEffectiveUser } from '@/hooks/useEffectiveUser';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 
@@ -25,7 +25,9 @@ export function AccessControlGuard({
   fallback,
   showAlert = true 
 }: AccessControlGuardProps) {
-  const { hasPermission, loading } = useUnifiedAccessControl(projectId, userId);
+  const { effectiveUserId } = useEffectiveUser();
+  // Pass effective user ID to respect impersonation
+  const { hasPermission, loading } = useUnifiedAccessControl(projectId, userId || effectiveUserId || undefined);
 
   if (loading) {
     return null;

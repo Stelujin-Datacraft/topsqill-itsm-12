@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
+import { useEffectiveUser } from '@/hooks/useEffectiveUser';
 import { toast } from 'sonner';
 
 export type EntityType = 'forms' | 'workflows' | 'reports';
@@ -52,9 +53,11 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
 
   const { userProfile } = useAuth();
   const { currentProject } = useProject();
+  const { effectiveUserId, effectiveRole } = useEffectiveUser();
 
   const targetProjectId = projectId || currentProject?.id;
-  const targetUserId = userId || userProfile?.id;
+  // Use effective user when impersonating, otherwise use provided userId or real user
+  const targetUserId = userId || effectiveUserId || userProfile?.id;
 
   const loadAccessControl = async () => {
     if (!targetProjectId || !targetUserId) {
@@ -79,8 +82,9 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         .eq('user_id', targetUserId)
         .single();
 
-      const isProjectAdmin = projectUserData?.role === 'admin' || userProfile?.role === 'admin';
-      const isOrgAdmin = userProfile?.role === 'admin';
+      // Use effective role for impersonation support
+      const isProjectAdmin = projectUserData?.role === 'admin' || effectiveRole === 'admin';
+      const isOrgAdmin = effectiveRole === 'admin';
 
       const { data: projectData } = await supabase
         .from('projects')
@@ -216,7 +220,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
 
   useEffect(() => {
     loadAccessControl();
-  }, [targetProjectId, targetUserId]);
+  }, [targetProjectId, targetUserId, effectiveRole]);
 
   const hasPermission = (entityType: EntityType, action: ActionType, resourceId?: string): boolean => {
     if (state.isOrgAdmin || state.isProjectAdmin) {
