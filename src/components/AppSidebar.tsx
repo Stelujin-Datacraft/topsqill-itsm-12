@@ -15,25 +15,19 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { useAuth } from "@/contexts/AuthContext"
-import { useImpersonation } from "@/contexts/ImpersonationContext"
 import { useProject } from "@/contexts/ProjectContext"
 import { useOrganization } from "@/contexts/OrganizationContext"
 import { NotificationPanel } from "@/components/NotificationPanel"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { userProfile: realUserProfile } = useAuth();
-  const { isImpersonating, impersonatedUser } = useImpersonation();
+  const { userProfile } = useAuth();
   const { projects, currentProject } = useProject();
   const { currentOrganization } = useOrganization();
   
-  // Use impersonated user's profile when impersonating, otherwise use real profile
-  const effectiveProfile = isImpersonating && impersonatedUser ? impersonatedUser : realUserProfile;
-  const effectiveRole = effectiveProfile?.role || 'user';
-  
   const data = {
     user: {
-      name: effectiveProfile?.first_name ? `${effectiveProfile.first_name} ${effectiveProfile.last_name}` : effectiveProfile?.email || "User",
-      email: effectiveProfile?.email || "",
+      name: userProfile?.first_name ? `${userProfile.first_name} ${userProfile.last_name}` : userProfile?.email || "User",
+      email: userProfile?.email || "",
       avatar: "/avatars/shadcn.jpg",
     },
     teams: [
@@ -111,12 +105,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       },
       // My Access - available to all users
       {
-        title: effectiveRole === 'admin' ? "Investigate Access" : "My Access",
+        title: userProfile?.role === 'admin' ? "Investigate Access" : "My Access",
         url: "/investigate-access",
         icon: Search,
       },
-      // Add admin-only navigation items - only show if effective role is admin
-      ...(effectiveRole === 'admin' ? [
+      // Add admin-only navigation items
+      ...(userProfile?.role === 'admin' ? [
         {
           title: "Roles and Access",
           url: "/roles-and-access",

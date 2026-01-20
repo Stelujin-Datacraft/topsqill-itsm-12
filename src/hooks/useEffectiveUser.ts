@@ -1,16 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
 
-interface EffectiveProfile {
-  id: string;
-  email: string;
-  first_name?: string | null;
-  last_name?: string | null;
-  role: 'admin' | 'user';
-  status: string;
-  organization_id?: string | null;
-}
-
 /**
  * Hook that returns the effective user profile.
  * When impersonating, returns the impersonated user's profile.
@@ -28,20 +18,16 @@ export function useEffectiveUser() {
 
   // When impersonating, return impersonated user info
   if (isImpersonating && impersonatedUser) {
-    const effectiveProfile: EffectiveProfile = {
-      id: impersonatedUser.id,
-      email: impersonatedUser.email,
-      first_name: impersonatedUser.first_name,
-      last_name: impersonatedUser.last_name,
-      role: impersonatedUser.role,
-      status: impersonatedUser.status,
-      organization_id: impersonatedUser.organization_id,
-    };
-    
     return {
-      effectiveProfile,
-      effectiveUserId: impersonatedUser.id,
-      effectiveRole: impersonatedUser.role,
+      effectiveProfile: {
+        id: impersonatedUser.id,
+        email: impersonatedUser.email,
+        first_name: impersonatedUser.first_name,
+        last_name: impersonatedUser.last_name,
+        role: impersonatedUser.role,
+        status: impersonatedUser.status,
+        organization_id: impersonatedUser.organization_id,
+      },
       isImpersonating: true,
       realUserId: originalAdminId,
       realUserProfile: realUserProfile,
@@ -50,9 +36,7 @@ export function useEffectiveUser() {
 
   // Not impersonating - return real user
   return {
-    effectiveProfile: realUserProfile as EffectiveProfile | null,
-    effectiveUserId: realUserProfile?.id || null,
-    effectiveRole: realUserProfile?.role || 'user',
+    effectiveProfile: realUserProfile,
     isImpersonating: false,
     realUserId: realUserProfile?.id || null,
     realUserProfile: realUserProfile,
