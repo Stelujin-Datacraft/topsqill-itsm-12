@@ -17,20 +17,28 @@ import { ProjectsTab } from '@/components/investigate/ProjectsTab';
 
 export default function InvestigateAccess() {
   const { userProfile } = useAuth();
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const isAdmin = userProfile?.role === 'admin';
+  
+  // For non-admins, auto-select their own user ID
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(
+    isAdmin ? null : userProfile?.id || null
+  );
+  
   const { users, loading: usersLoading } = useUsersAndGroups();
   const { data, loading, error, reload } = useInvestigateAccess(selectedUserId);
 
-  // Only admins can access this page
-  if (!userProfile || userProfile.role !== 'admin') {
+  // Set own user ID for non-admins when profile loads
+  React.useEffect(() => {
+    if (!isAdmin && userProfile?.id && !selectedUserId) {
+      setSelectedUserId(userProfile.id);
+    }
+  }, [isAdmin, userProfile?.id, selectedUserId]);
+
+  if (!userProfile) {
     return (
-      <DashboardLayout title="Access Denied">
+      <DashboardLayout title="Loading...">
         <div className="text-center py-12">
-          <Shield className="h-12 w-12 text-destructive mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
-          <p className="text-muted-foreground">
-            You don't have permission to access this page. Only administrators can investigate user access.
-          </p>
+          <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
         </div>
       </DashboardLayout>
     );
@@ -45,14 +53,20 @@ export default function InvestigateAccess() {
             <Search className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Investigate Access</h1>
+            <h1 className="text-2xl font-bold">
+              {isAdmin ? 'Investigate Access' : 'My Access'}
+            </h1>
             <p className="text-muted-foreground">
-              View comprehensive access rights for any user in the system
+              {isAdmin 
+                ? 'View comprehensive access rights for any user in the system'
+                : 'View your access permissions, roles, and security settings'
+              }
             </p>
           </div>
         </div>
 
-        {/* User Selector */}
+        {/* User Selector - Only for admins */}
+        {isAdmin && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Select User</CardTitle>
@@ -69,6 +83,7 @@ export default function InvestigateAccess() {
             />
           </CardContent>
         </Card>
+        )}
 
         {/* User Overview Card */}
         {data.profile && (
@@ -135,8 +150,8 @@ export default function InvestigateAccess() {
           </Tabs>
         )}
 
-        {/* Empty State */}
-        {!selectedUserId && (
+        {/* Empty State - Only for admins when no user selected */}
+        {isAdmin && !selectedUserId && (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <User className="h-12 w-12 text-muted-foreground/50 mb-4" />
