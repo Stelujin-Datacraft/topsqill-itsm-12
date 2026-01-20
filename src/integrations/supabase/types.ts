@@ -167,6 +167,8 @@ export type Database = {
           organization_id: string | null
           project_id: string
           schedule: string | null
+          source_filter_logic: string | null
+          source_filters: Json | null
           source_form_id: string
           target_form_id: string
           updated_at: string
@@ -190,6 +192,8 @@ export type Database = {
           organization_id?: string | null
           project_id: string
           schedule?: string | null
+          source_filter_logic?: string | null
+          source_filters?: Json | null
           source_form_id: string
           target_form_id: string
           updated_at?: string
@@ -213,6 +217,8 @@ export type Database = {
           organization_id?: string | null
           project_id?: string
           schedule?: string | null
+          source_filter_logic?: string | null
+          source_filters?: Json | null
           source_form_id?: string
           target_form_id?: string
           updated_at?: string

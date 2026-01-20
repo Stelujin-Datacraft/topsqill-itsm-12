@@ -10,12 +10,25 @@ interface FieldMapping {
   targetFieldId: string;
   sourceFieldName?: string;
   targetFieldName?: string;
+  sourceType?: 'direct' | 'cross_reference';
+  crossRefFieldId?: string;
+  crossRefFieldName?: string;
+  crossRefSourceFieldId?: string;
+  crossRefSourceFieldName?: string;
 }
 
 interface MatchingRule {
   id?: string;
   sourceFieldId: string;
   targetFieldId: string;
+}
+
+interface SourceFilter {
+  id?: string;
+  fieldId: string;
+  fieldName?: string;
+  operator: string;
+  value: string;
 }
 
 interface DataFeed {
@@ -27,6 +40,8 @@ interface DataFeed {
   cross_reference_field_id?: string;
   matching_rules: MatchingRule[];
   matching_logic?: string;
+  source_filters?: SourceFilter[];
+  source_filter_logic?: string;
   field_mappings: FieldMapping[];
   no_match_behavior: 'skip' | 'create';
   created_by: string;
@@ -37,6 +52,7 @@ interface RunStats {
   recordsUpdated: number;
   recordsCreated: number;
   recordsSkipped: number;
+  recordsFiltered: number;
   errors: number;
 }
 
@@ -198,6 +214,75 @@ function evaluateLogicExpression(expression: string, context: Record<string, boo
   }
 }
 
+// Evaluate a single source filter condition
+function evaluateSourceFilter(filter: SourceFilter, sourceData: Record<string, any>): boolean {
+  const fieldValue = sourceData[filter.fieldId];
+  const compareValue = filter.value;
+  
+  // Handle empty checks first
+  if (filter.operator === 'is_empty') {
+    return fieldValue === undefined || fieldValue === null || fieldValue === '' || 
+           (Array.isArray(fieldValue) && fieldValue.length === 0);
+  }
+  if (filter.operator === 'is_not_empty') {
+    return fieldValue !== undefined && fieldValue !== null && fieldValue !== '' &&
+           (!Array.isArray(fieldValue) || fieldValue.length > 0);
+  }
+  
+  // Convert to string for comparison
+  const fieldStr = String(fieldValue ?? '').toLowerCase().trim();
+  const compareStr = compareValue.toLowerCase().trim();
+  
+  switch (filter.operator) {
+    case 'equals':
+      return fieldStr === compareStr;
+    case 'not_equals':
+      return fieldStr !== compareStr;
+    case 'contains':
+      return fieldStr.includes(compareStr);
+    case 'not_contains':
+      return !fieldStr.includes(compareStr);
+    case 'starts_with':
+      return fieldStr.startsWith(compareStr);
+    case 'ends_with':
+      return fieldStr.endsWith(compareStr);
+    case 'greater_than':
+      const numField = parseFloat(fieldStr);
+      const numCompare = parseFloat(compareStr);
+      return !isNaN(numField) && !isNaN(numCompare) && numField > numCompare;
+    case 'less_than':
+      const numField2 = parseFloat(fieldStr);
+      const numCompare2 = parseFloat(compareStr);
+      return !isNaN(numField2) && !isNaN(numCompare2) && numField2 < numCompare2;
+    default:
+      return true;
+  }
+}
+
+// Evaluate all source filters with logic expression
+function passesSourceFilters(
+  sourceData: Record<string, any>,
+  filters: SourceFilter[],
+  filterLogic: string
+): boolean {
+  if (!filters || filters.length === 0) {
+    return true; // No filters = pass all
+  }
+  
+  const filterResults: Record<string, boolean> = {};
+  
+  filters.forEach((filter, idx) => {
+    const filterId = filter.id || String(idx + 1);
+    const result = evaluateSourceFilter(filter, sourceData);
+    console.log(`🔍 Filter ${filterId}: ${filter.fieldId} ${filter.operator} "${filter.value}" = ${result}`);
+    filterResults[filterId] = result;
+  });
+  
+  const finalResult = evaluateLogicExpression(filterLogic || '', filterResults);
+  console.log(`📐 Filter logic evaluation (${filterLogic || 'default AND'}): ${JSON.stringify(filterResults)} = ${finalResult}`);
+  return finalResult;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -260,6 +345,7 @@ Deno.serve(async (req) => {
       recordsUpdated: 0,
       recordsCreated: 0,
       recordsSkipped: 0,
+      recordsFiltered: 0,
       errors: 0
     };
 
@@ -293,6 +379,52 @@ Deno.serve(async (req) => {
       const fieldMappings = (feed.field_mappings || []) as FieldMapping[];
       const matchingRules = (feed.matching_rules || []) as MatchingRule[];
       const matchingLogic = feed.matching_logic as string | undefined;
+      const sourceFilters = (feed.source_filters || []) as SourceFilter[];
+      const sourceFilterLogic = feed.source_filter_logic as string | undefined;
+
+      // Build a cache of cross-reference submissions for cross-ref field mappings
+      const crossRefCache: Record<string, Record<string, any>> = {};
+      
+      // Get unique cross-ref field IDs from field mappings
+      const crossRefFieldIds = new Set<string>();
+      for (const mapping of fieldMappings) {
+        if (mapping.sourceType === 'cross_reference' && mapping.crossRefFieldId) {
+          crossRefFieldIds.add(mapping.crossRefFieldId);
+        }
+      }
+
+      // Fetch referenced form data for cross-ref mappings if needed
+      if (crossRefFieldIds.size > 0) {
+        // Get the cross-ref field configs to find referenced form IDs
+        const { data: crossRefFields } = await supabase
+          .from('form_fields')
+          .select('id, custom_config')
+          .in('id', Array.from(crossRefFieldIds));
+
+        if (crossRefFields) {
+          for (const field of crossRefFields) {
+            const config = field.custom_config as any;
+            const referencedFormId = config?.referencedFormId;
+            if (referencedFormId) {
+              // Fetch all submissions from the referenced form
+              const { data: refSubmissions } = await supabase
+                .from('form_submissions')
+                .select('id, submission_data, submission_ref_id')
+                .eq('form_id', referencedFormId);
+
+              if (refSubmissions) {
+                for (const sub of refSubmissions) {
+                  crossRefCache[sub.id] = sub.submission_data;
+                  if (sub.submission_ref_id) {
+                    crossRefCache[sub.submission_ref_id] = sub.submission_data;
+                  }
+                }
+              }
+            }
+          }
+        }
+        console.log(`📚 Cached ${Object.keys(crossRefCache).length} cross-reference submissions`);
+      }
 
       // Process each source submission
       for (const sourceSubmission of sourceSubmissions || []) {
@@ -300,6 +432,17 @@ Deno.serve(async (req) => {
         const sourceData = sourceSubmission.submission_data as Record<string, any>;
 
         try {
+          // Apply source filters first
+          if (!passesSourceFilters(sourceData, sourceFilters, sourceFilterLogic || '')) {
+            stats.recordsFiltered++;
+            runLog.push({ 
+              type: 'info', 
+              message: `Filtered source ${sourceSubmission.submission_ref_id || sourceSubmission.id} - did not match filter criteria`, 
+              timestamp: new Date().toISOString() 
+            });
+            continue;
+          }
+
           // Find matching target submission(s)
           let matchedTargets: any[] = [];
 
@@ -371,8 +514,37 @@ Deno.serve(async (req) => {
               const updatedData = { ...oldData };
               
               for (const mapping of fieldMappings) {
-                if (sourceData[mapping.sourceFieldId] !== undefined) {
-                  updatedData[mapping.targetFieldId] = sourceData[mapping.sourceFieldId];
+                let sourceValue: any;
+                
+                if (mapping.sourceType === 'cross_reference' && mapping.crossRefFieldId && mapping.crossRefSourceFieldId) {
+                  // Cross-reference field mapping - get value from linked record
+                  const crossRefValue = sourceData[mapping.crossRefFieldId];
+                  let refId: string | null = null;
+                  
+                  if (crossRefValue) {
+                    if (Array.isArray(crossRefValue) && crossRefValue.length > 0) {
+                      const firstItem = crossRefValue[0];
+                      refId = typeof firstItem === 'object' && firstItem !== null 
+                        ? (firstItem.id || firstItem.submission_ref_id || String(firstItem))
+                        : String(firstItem);
+                    } else if (typeof crossRefValue === 'object' && crossRefValue !== null) {
+                      refId = crossRefValue.id || crossRefValue.submission_ref_id || String(crossRefValue);
+                    } else {
+                      refId = String(crossRefValue);
+                    }
+                  }
+                  
+                  if (refId && crossRefCache[refId]) {
+                    sourceValue = crossRefCache[refId][mapping.crossRefSourceFieldId];
+                    console.log(`🔗 Cross-ref mapping: ${mapping.crossRefFieldId}[${refId}].${mapping.crossRefSourceFieldId} = ${sourceValue}`);
+                  }
+                } else {
+                  // Direct field mapping
+                  sourceValue = sourceData[mapping.sourceFieldId];
+                }
+                
+                if (sourceValue !== undefined) {
+                  updatedData[mapping.targetFieldId] = sourceValue;
                 }
               }
 
@@ -407,8 +579,35 @@ Deno.serve(async (req) => {
             const newData: Record<string, any> = {};
             
             for (const mapping of fieldMappings) {
-              if (sourceData[mapping.sourceFieldId] !== undefined) {
-                newData[mapping.targetFieldId] = sourceData[mapping.sourceFieldId];
+              let sourceValue: any;
+              
+              if (mapping.sourceType === 'cross_reference' && mapping.crossRefFieldId && mapping.crossRefSourceFieldId) {
+                // Cross-reference field mapping
+                const crossRefValue = sourceData[mapping.crossRefFieldId];
+                let refId: string | null = null;
+                
+                if (crossRefValue) {
+                  if (Array.isArray(crossRefValue) && crossRefValue.length > 0) {
+                    const firstItem = crossRefValue[0];
+                    refId = typeof firstItem === 'object' && firstItem !== null 
+                      ? (firstItem.id || firstItem.submission_ref_id || String(firstItem))
+                      : String(firstItem);
+                  } else if (typeof crossRefValue === 'object' && crossRefValue !== null) {
+                    refId = crossRefValue.id || crossRefValue.submission_ref_id || String(crossRefValue);
+                  } else {
+                    refId = String(crossRefValue);
+                  }
+                }
+                
+                if (refId && crossRefCache[refId]) {
+                  sourceValue = crossRefCache[refId][mapping.crossRefSourceFieldId];
+                }
+              } else {
+                sourceValue = sourceData[mapping.sourceFieldId];
+              }
+              
+              if (sourceValue !== undefined) {
+                newData[mapping.targetFieldId] = sourceValue;
               }
             }
 
@@ -472,13 +671,20 @@ Deno.serve(async (req) => {
         })
         .eq('id', runId);
 
-      // Update data feed with last run info
+      // Update the data feed's last run info
       await supabase
         .from('data_feeds')
         .update({
           last_run_at: new Date().toISOString(),
           last_run_status: runStatus,
-          last_run_stats: stats
+          last_run_stats: {
+            recordsProcessed: stats.recordsProcessed,
+            recordsUpdated: stats.recordsUpdated,
+            recordsCreated: stats.recordsCreated,
+            recordsSkipped: stats.recordsSkipped,
+            recordsFiltered: stats.recordsFiltered,
+            errors: stats.errors
+          }
         })
         .eq('id', feedId);
 
@@ -494,8 +700,8 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
 
-    } catch (executionError) {
-      console.error('❌ Execution error:', executionError);
+    } catch (execError) {
+      console.error('❌ Execution error:', execError);
       
       // Update run record with failure
       await supabase
@@ -503,8 +709,8 @@ Deno.serve(async (req) => {
         .update({
           status: 'failed',
           completed_at: new Date().toISOString(),
-          error_details: { message: String(executionError) },
-          run_log: [...runLog, { type: 'error', message: String(executionError), timestamp: new Date().toISOString() }]
+          error_details: { message: String(execError) },
+          run_log: runLog
         })
         .eq('id', runId);
 
@@ -517,17 +723,13 @@ Deno.serve(async (req) => {
         .eq('id', feedId);
 
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: String(executionError),
-          runId
-        }),
+        JSON.stringify({ error: String(execError) }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
   } catch (error) {
-    console.error('❌ Fatal error:', error);
+    console.error('❌ Unexpected error:', error);
     return new Response(
       JSON.stringify({ error: String(error) }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
