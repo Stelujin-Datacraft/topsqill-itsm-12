@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { DataFeed, DataFeedRun, DataFeedFormData, MatchingRule, FieldMapping } from '@/types/dataFeed';
+import { DataFeed, DataFeedRun, DataFeedFormData, MatchingRule, FieldMapping, SourceFilter } from '@/types/dataFeed';
 import { useToast } from '@/hooks/use-toast';
 
 export function useDataFeeds(projectId: string) {
@@ -27,9 +27,16 @@ export function useDataFeeds(projectId: string) {
       // Parse JSONB fields
       const parsed = (data || []).map(feed => ({
         ...feed,
-        matching_rules: Array.isArray(feed.matching_rules) ? feed.matching_rules : JSON.parse(feed.matching_rules as any || '[]'),
-        field_mappings: Array.isArray(feed.field_mappings) ? feed.field_mappings : JSON.parse(feed.field_mappings as any || '[]'),
-        last_run_stats: feed.last_run_stats || undefined,
+        matching_rules: Array.isArray(feed.matching_rules) 
+          ? (feed.matching_rules as unknown as MatchingRule[]) 
+          : [],
+        field_mappings: Array.isArray(feed.field_mappings) 
+          ? (feed.field_mappings as unknown as FieldMapping[]) 
+          : [],
+        source_filters: Array.isArray(feed.source_filters)
+          ? (feed.source_filters as unknown as SourceFilter[])
+          : [],
+        last_run_stats: feed.last_run_stats as DataFeed['last_run_stats'],
       })) as DataFeed[];
 
       setFeeds(parsed);
@@ -64,6 +71,9 @@ export function useDataFeeds(projectId: string) {
           matching_type: data.matching_type,
           cross_reference_field_id: data.cross_reference_field_id,
           matching_rules: data.matching_rules as any,
+          matching_logic: data.matching_logic,
+          source_filters: (data.source_filters || []) as any,
+          source_filter_logic: data.source_filter_logic,
           field_mappings: data.field_mappings as any,
           no_match_behavior: data.no_match_behavior,
           schedule: data.schedule,
@@ -92,6 +102,9 @@ export function useDataFeeds(projectId: string) {
         field_mappings: Array.isArray(newFeed.field_mappings) 
           ? (newFeed.field_mappings as unknown as FieldMapping[]) 
           : [],
+        source_filters: Array.isArray(newFeed.source_filters)
+          ? (newFeed.source_filters as unknown as SourceFilter[])
+          : [],
         last_run_stats: newFeed.last_run_stats as DataFeed['last_run_stats'],
       } as DataFeed;
       
@@ -116,6 +129,9 @@ export function useDataFeeds(projectId: string) {
       }
       if (data.field_mappings) {
         updateData.field_mappings = data.field_mappings as any;
+      }
+      if (data.source_filters !== undefined) {
+        updateData.source_filters = (data.source_filters || []) as any;
       }
 
       const { error } = await supabase
