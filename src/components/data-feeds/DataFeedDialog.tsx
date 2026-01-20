@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DataFeed, DataFeedFormData, FieldMapping, MatchingRule, SCHEDULE_PRESETS, ScheduleConfig, buildCronFromConfig, parseCronToReadable } from '@/types/dataFeed';
+import { DataFeed, DataFeedFormData, FieldMapping, MatchingRule, SourceFilter, FilterOperator, SCHEDULE_PRESETS, FILTER_OPERATORS, ScheduleConfig, buildCronFromConfig, parseCronToReadable } from '@/types/dataFeed';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,11 +10,12 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Trash2, ArrowRight, Clock, Calendar, RefreshCw, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, ArrowRight, Clock, Calendar, RefreshCw, AlertCircle, Filter, Link2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { ExpressionEvaluator } from '@/utils/expressionEvaluator';
+import { Separator } from '@/components/ui/separator';
 
 interface DataFeedDialogProps {
   open: boolean;
@@ -33,6 +34,14 @@ interface FieldOption {
   id: string;
   label: string;
   field_type: string;
+  custom_config?: any;
+}
+
+interface CrossRefFormFields {
+  crossRefFieldId: string;
+  referencedFormId: string;
+  referencedFormName: string;
+  fields: FieldOption[];
 }
 
 export function DataFeedDialog({
@@ -47,6 +56,7 @@ export function DataFeedDialog({
   const [sourceFields, setSourceFields] = useState<FieldOption[]>([]);
   const [targetFields, setTargetFields] = useState<FieldOption[]>([]);
   const [crossRefFields, setCrossRefFields] = useState<FieldOption[]>([]);
+  const [crossRefFormFields, setCrossRefFormFields] = useState<CrossRefFormFields[]>([]);
   const [scheduleType, setScheduleType] = useState<'none' | 'preset' | 'interval' | 'custom'>('none');
   const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig>({
     type: 'preset',
@@ -74,6 +84,8 @@ export function DataFeedDialog({
     matching_type: 'field_matching',
     matching_rules: [],
     matching_logic: '',
+    source_filters: [],
+    source_filter_logic: '',
     field_mappings: [],
     no_match_behavior: 'skip',
     schedule: '',
@@ -81,6 +93,7 @@ export function DataFeedDialog({
   });
 
   const [logicError, setLogicError] = useState<string | null>(null);
+  const [filterLogicError, setFilterLogicError] = useState<string | null>(null);
 
   // Load forms
   useEffect(() => {
@@ -104,18 +117,52 @@ export function DataFeedDialog({
     if (!formData.source_form_id) {
       setSourceFields([]);
       setCrossRefFields([]);
+      setCrossRefFormFields([]);
       return;
     }
 
     const fetchFields = async () => {
       const { data } = await supabase
         .from('form_fields')
-        .select('id, label, field_type')
+        .select('id, label, field_type, custom_config')
         .eq('form_id', formData.source_form_id)
         .order('field_order');
 
-      setSourceFields(data || []);
-      setCrossRefFields((data || []).filter(f => f.field_type === 'cross-reference'));
+      const fields = data || [];
+      setSourceFields(fields);
+      
+      const crossRefs = fields.filter(f => f.field_type === 'cross-reference');
+      setCrossRefFields(crossRefs);
+      
+      // Fetch fields from cross-referenced forms
+      const crossRefData: CrossRefFormFields[] = [];
+      for (const crossRef of crossRefs) {
+        const config = crossRef.custom_config as any;
+        const referencedFormId = config?.referencedFormId;
+        if (referencedFormId) {
+          // Get referenced form name
+          const { data: formData } = await supabase
+            .from('forms')
+            .select('name')
+            .eq('id', referencedFormId)
+            .single();
+          
+          // Get fields from referenced form
+          const { data: refFields } = await supabase
+            .from('form_fields')
+            .select('id, label, field_type')
+            .eq('form_id', referencedFormId)
+            .order('field_order');
+          
+          crossRefData.push({
+            crossRefFieldId: crossRef.id,
+            referencedFormId,
+            referencedFormName: formData?.name || 'Unknown Form',
+            fields: refFields || []
+          });
+        }
+      }
+      setCrossRefFormFields(crossRefData);
     };
 
     fetchFields();
@@ -150,6 +197,12 @@ export function DataFeedDialog({
         id: rule.id || String(idx + 1)
       }));
       
+      // Ensure source filters have IDs
+      const filtersWithIds = (feed.source_filters || []).map((filter, idx) => ({
+        ...filter,
+        id: filter.id || String(idx + 1)
+      }));
+      
       setFormData({
         name: feed.name,
         description: feed.description || '',
@@ -159,6 +212,8 @@ export function DataFeedDialog({
         cross_reference_field_id: feed.cross_reference_field_id,
         matching_rules: rulesWithIds,
         matching_logic: feed.matching_logic || '',
+        source_filters: filtersWithIds,
+        source_filter_logic: feed.source_filter_logic || '',
         field_mappings: feed.field_mappings || [],
         no_match_behavior: feed.no_match_behavior,
         schedule: feed.schedule || '',
@@ -173,6 +228,8 @@ export function DataFeedDialog({
         matching_type: 'field_matching',
         matching_rules: [],
         matching_logic: '',
+        source_filters: [],
+        source_filter_logic: '',
         field_mappings: [],
         no_match_behavior: 'skip',
         schedule: '',
@@ -180,6 +237,7 @@ export function DataFeedDialog({
       });
     }
     setLogicError(null);
+    setFilterLogicError(null);
   }, [feed, open]);
 
   const handleSave = async () => {
@@ -194,11 +252,96 @@ export function DataFeedDialog({
     }
   };
 
+  // ========== Source Filters ==========
+  const addSourceFilter = () => {
+    const newId = String((formData.source_filters?.length || 0) + 1);
+    setFormData(prev => {
+      const newFilters = [...(prev.source_filters || []), { id: newId, fieldId: '', operator: 'equals' as FilterOperator, value: '' }];
+      const autoLogic = newFilters.length >= 2 && !prev.source_filter_logic
+        ? newFilters.map(f => f.id).join(' AND ')
+        : prev.source_filter_logic;
+      return {
+        ...prev,
+        source_filters: newFilters,
+        source_filter_logic: autoLogic,
+      };
+    });
+  };
+
+  const updateSourceFilter = (index: number, field: keyof SourceFilter, value: string) => {
+    const sourceField = field === 'fieldId' ? sourceFields.find(f => f.id === value) : null;
+
+    setFormData(prev => ({
+      ...prev,
+      source_filters: (prev.source_filters || []).map((filter, i) => 
+        i === index ? { 
+          ...filter, 
+          [field]: value,
+          ...(sourceField ? { fieldName: sourceField.label } : {}),
+        } : filter
+      ),
+    }));
+  };
+
+  const removeSourceFilter = (index: number) => {
+    setFormData(prev => {
+      const removedId = (prev.source_filters || [])[index]?.id;
+      const newFilters = (prev.source_filters || []).filter((_, i) => i !== index);
+      
+      let newLogic = prev.source_filter_logic || '';
+      if (removedId && newLogic) {
+        newLogic = newLogic
+          .replace(new RegExp(`\\b${removedId}\\b\\s*(AND|OR)\\s*`, 'gi'), '')
+          .replace(new RegExp(`\\s*(AND|OR)\\s*\\b${removedId}\\b`, 'gi'), '')
+          .replace(new RegExp(`\\b${removedId}\\b`, 'g'), '')
+          .replace(/\(\s*\)/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+      
+      return {
+        ...prev,
+        source_filters: newFilters,
+        source_filter_logic: newFilters.length < 2 ? '' : newLogic,
+      };
+    });
+  };
+
+  const validateFilterLogicExpression = (expression: string): boolean => {
+    if (!expression || (formData.source_filters?.length || 0) < 2) {
+      setFilterLogicError(null);
+      return true;
+    }
+    
+    const validation = ExpressionEvaluator.validate(expression);
+    if (!validation.valid) {
+      setFilterLogicError(validation.error || 'Invalid expression');
+      return false;
+    }
+    
+    const referencedIds = ExpressionEvaluator.extractConditionIds(expression);
+    const existingIds = (formData.source_filters || []).map(f => f.id);
+    const invalidIds = referencedIds.filter(id => !existingIds.includes(id));
+    
+    if (invalidIds.length > 0) {
+      setFilterLogicError(`Unknown filter ID(s): ${invalidIds.join(', ')}`);
+      return false;
+    }
+    
+    setFilterLogicError(null);
+    return true;
+  };
+
+  const handleFilterLogicChange = (value: string) => {
+    setFormData(prev => ({ ...prev, source_filter_logic: value }));
+    validateFilterLogicExpression(value);
+  };
+
+  // ========== Matching Rules ==========
   const addMatchingRule = () => {
     const newId = String(formData.matching_rules.length + 1);
     setFormData(prev => {
       const newRules = [...prev.matching_rules, { id: newId, sourceFieldId: '', targetFieldId: '' }];
-      // Auto-generate default logic if we have 2+ rules and no custom logic yet
       const autoLogic = newRules.length >= 2 && !prev.matching_logic
         ? newRules.map(r => r.id).join(' AND ')
         : prev.matching_logic;
@@ -232,10 +375,8 @@ export function DataFeedDialog({
       const removedId = prev.matching_rules[index]?.id;
       const newRules = prev.matching_rules.filter((_, i) => i !== index);
       
-      // Update logic expression to remove references to deleted rule
       let newLogic = prev.matching_logic || '';
       if (removedId && newLogic) {
-        // Remove the deleted ID and clean up logic
         newLogic = newLogic
           .replace(new RegExp(`\\b${removedId}\\b\\s*(AND|OR)\\s*`, 'gi'), '')
           .replace(new RegExp(`\\s*(AND|OR)\\s*\\b${removedId}\\b`, 'gi'), '')
@@ -265,7 +406,6 @@ export function DataFeedDialog({
       return false;
     }
     
-    // Check that all referenced IDs exist
     const referencedIds = ExpressionEvaluator.extractConditionIds(expression);
     const existingIds = formData.matching_rules.map(r => r.id);
     const invalidIds = referencedIds.filter(id => !existingIds.includes(id));
@@ -284,27 +424,55 @@ export function DataFeedDialog({
     validateLogicExpression(value);
   };
 
-  const addFieldMapping = () => {
+  // ========== Field Mappings ==========
+  const addFieldMapping = (type: 'direct' | 'cross_reference' = 'direct') => {
     setFormData(prev => ({
       ...prev,
-      field_mappings: [...prev.field_mappings, { sourceFieldId: '', targetFieldId: '' }],
+      field_mappings: [...prev.field_mappings, { 
+        sourceFieldId: '', 
+        targetFieldId: '',
+        sourceType: type,
+        crossRefFieldId: type === 'cross_reference' ? '' : undefined,
+        crossRefSourceFieldId: type === 'cross_reference' ? '' : undefined,
+      }],
     }));
   };
 
   const updateFieldMapping = (index: number, field: keyof FieldMapping, value: string) => {
     const sourceField = field === 'sourceFieldId' ? sourceFields.find(f => f.id === value) : null;
     const targetField = field === 'targetFieldId' ? targetFields.find(f => f.id === value) : null;
+    const crossRefField = field === 'crossRefFieldId' ? crossRefFields.find(f => f.id === value) : null;
 
     setFormData(prev => ({
       ...prev,
-      field_mappings: prev.field_mappings.map((mapping, i) => 
-        i === index ? { 
-          ...mapping, 
-          [field]: value,
-          ...(sourceField ? { sourceFieldName: sourceField.label } : {}),
-          ...(targetField ? { targetFieldName: targetField.label } : {}),
-        } : mapping
-      ),
+      field_mappings: prev.field_mappings.map((mapping, i) => {
+        if (i !== index) return mapping;
+        
+        let updates: Partial<FieldMapping> = { [field]: value };
+        
+        if (sourceField) {
+          updates.sourceFieldName = sourceField.label;
+        }
+        if (targetField) {
+          updates.targetFieldName = targetField.label;
+        }
+        if (crossRefField) {
+          updates.crossRefFieldName = crossRefField.label;
+          // Reset the cross-ref source field when changing the cross-ref field
+          updates.crossRefSourceFieldId = '';
+          updates.crossRefSourceFieldName = '';
+        }
+        if (field === 'crossRefSourceFieldId') {
+          // Find the field name from cross-ref form fields
+          const crossRefData = crossRefFormFields.find(c => c.crossRefFieldId === mapping.crossRefFieldId);
+          const refField = crossRefData?.fields.find(f => f.id === value);
+          if (refField) {
+            updates.crossRefSourceFieldName = refField.label;
+          }
+        }
+        
+        return { ...mapping, ...updates };
+      }),
     }));
   };
 
@@ -313,6 +481,16 @@ export function DataFeedDialog({
       ...prev,
       field_mappings: prev.field_mappings.filter((_, i) => i !== index),
     }));
+  };
+
+  const getCrossRefFormFields = (crossRefFieldId: string): FieldOption[] => {
+    const data = crossRefFormFields.find(c => c.crossRefFieldId === crossRefFieldId);
+    return data?.fields || [];
+  };
+
+  const getCrossRefFormName = (crossRefFieldId: string): string => {
+    const data = crossRefFormFields.find(c => c.crossRefFieldId === crossRefFieldId);
+    return data?.referencedFormName || '';
   };
 
   return (
@@ -324,8 +502,9 @@ export function DataFeedDialog({
 
         <ScrollArea className="max-h-[calc(90vh-8rem)]">
           <Tabs defaultValue="general" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="general">General</TabsTrigger>
+              <TabsTrigger value="filters">Source Filters</TabsTrigger>
               <TabsTrigger value="matching">Matching</TabsTrigger>
               <TabsTrigger value="mappings">Field Mappings</TabsTrigger>
             </TabsList>
@@ -476,116 +655,113 @@ export function DataFeedDialog({
                 )}
 
                 {scheduleType === 'interval' && (
-                  <div className="space-y-4 p-3 bg-muted/30 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <Label className="whitespace-nowrap">Run every</Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        max="60"
-                        className="w-20"
-                        value={scheduleConfig.intervalValue || 1}
-                        onChange={(e) => {
-                          const value = parseInt(e.target.value) || 1;
-                          const newConfig = { ...scheduleConfig, intervalValue: value, type: 'interval' as const };
-                          setScheduleConfig(newConfig);
-                          setFormData(prev => ({ ...prev, schedule: buildCronFromConfig(newConfig) }));
-                        }}
-                      />
-                      <Select
-                        value={scheduleConfig.intervalUnit || 'hours'}
-                        onValueChange={(value) => {
-                          const newConfig = { ...scheduleConfig, intervalUnit: value as 'minutes' | 'hours' | 'days', type: 'interval' as const };
-                          setScheduleConfig(newConfig);
-                          setFormData(prev => ({ ...prev, schedule: buildCronFromConfig(newConfig) }));
-                        }}
-                      >
-                        <SelectTrigger className="w-28">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="minutes">Minutes</SelectItem>
-                          <SelectItem value="hours">Hours</SelectItem>
-                          <SelectItem value="days">Days</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm text-muted-foreground">Every</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="number"
+                            min="1"
+                            value={scheduleConfig.intervalValue || 1}
+                            onChange={(e) => {
+                              const value = parseInt(e.target.value) || 1;
+                              setScheduleConfig(prev => ({ ...prev, intervalValue: value }));
+                              const newConfig = { ...scheduleConfig, intervalValue: value };
+                              setFormData(prev => ({ ...prev, schedule: buildCronFromConfig(newConfig) }));
+                            }}
+                            className="w-20"
+                          />
+                          <Select
+                            value={scheduleConfig.intervalUnit || 'hours'}
+                            onValueChange={(value) => {
+                              const unit = value as 'minutes' | 'hours' | 'days';
+                              setScheduleConfig(prev => ({ ...prev, intervalUnit: unit }));
+                              const newConfig = { ...scheduleConfig, intervalUnit: unit };
+                              setFormData(prev => ({ ...prev, schedule: buildCronFromConfig(newConfig) }));
+                            }}
+                          >
+                            <SelectTrigger className="flex-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="minutes">Minutes</SelectItem>
+                              <SelectItem value="hours">Hours</SelectItem>
+                              <SelectItem value="days">Days</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
 
-                    {scheduleConfig.intervalUnit === 'days' && (
-                      <>
-                        <div className="flex items-center gap-2">
-                          <Label className="whitespace-nowrap">At time</Label>
+                      {scheduleConfig.intervalUnit === 'days' && (
+                        <div className="space-y-2">
+                          <Label className="text-sm text-muted-foreground">At time</Label>
                           <Input
                             type="time"
-                            className="w-32"
                             value={scheduleConfig.atTime || '09:00'}
                             onChange={(e) => {
-                              const newConfig = { ...scheduleConfig, atTime: e.target.value, type: 'interval' as const };
-                              setScheduleConfig(newConfig);
+                              setScheduleConfig(prev => ({ ...prev, atTime: e.target.value }));
+                              const newConfig = { ...scheduleConfig, atTime: e.target.value };
                               setFormData(prev => ({ ...prev, schedule: buildCronFromConfig(newConfig) }));
                             }}
                           />
                         </div>
+                      )}
+                    </div>
 
-                        <div className="space-y-2">
-                          <Label className="text-sm">Run on days</Label>
-                          <div className="flex flex-wrap gap-1">
-                            {DAYS_OF_WEEK.map((day) => (
-                              <label
-                                key={day.value}
-                                className={`flex items-center justify-center w-10 h-8 rounded border cursor-pointer text-xs font-medium transition-colors ${
-                                  scheduleConfig.onDays?.includes(day.value)
-                                    ? 'bg-primary text-primary-foreground border-primary'
-                                    : 'bg-background hover:bg-muted'
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  className="sr-only"
-                                  checked={scheduleConfig.onDays?.includes(day.value) || false}
-                                  onChange={(e) => {
-                                    const newDays = e.target.checked
-                                      ? [...(scheduleConfig.onDays || []), day.value].sort()
-                                      : (scheduleConfig.onDays || []).filter(d => d !== day.value);
-                                    const newConfig = { ...scheduleConfig, onDays: newDays, type: 'interval' as const };
-                                    setScheduleConfig(newConfig);
-                                    setFormData(prev => ({ ...prev, schedule: buildCronFromConfig(newConfig) }));
-                                  }}
-                                />
-                                {day.label}
-                              </label>
-                            ))}
-                          </div>
+                    {scheduleConfig.intervalUnit === 'days' && (
+                      <div className="space-y-2">
+                        <Label className="text-sm text-muted-foreground">On days (leave empty for every day)</Label>
+                        <div className="flex gap-1">
+                          {DAYS_OF_WEEK.map((day) => (
+                            <Button
+                              key={day.value}
+                              type="button"
+                              size="sm"
+                              variant={(scheduleConfig.onDays || []).includes(day.value) ? 'default' : 'outline'}
+                              className="h-8 w-10 p-0"
+                              onClick={() => {
+                                const currentDays = scheduleConfig.onDays || [];
+                                const newDays = currentDays.includes(day.value)
+                                  ? currentDays.filter(d => d !== day.value)
+                                  : [...currentDays, day.value].sort();
+                                setScheduleConfig(prev => ({ ...prev, onDays: newDays }));
+                                const newConfig = { ...scheduleConfig, onDays: newDays };
+                                setFormData(prev => ({ ...prev, schedule: buildCronFromConfig(newConfig) }));
+                              }}
+                            >
+                              {day.label}
+                            </Button>
+                          ))}
                         </div>
-                      </>
+                      </div>
                     )}
                   </div>
                 )}
 
                 {scheduleType === 'custom' && (
                   <div className="space-y-2">
-                    <Label className="text-sm text-muted-foreground">Enter cron expression (minute hour day month weekday)</Label>
+                    <Label className="text-sm text-muted-foreground">Cron expression</Label>
                     <Input
-                      placeholder="0 9 * * 1-5"
                       value={formData.schedule || ''}
                       onChange={(e) => setFormData(prev => ({ ...prev, schedule: e.target.value }))}
+                      placeholder="*/15 * * * *"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Example: <code className="bg-muted px-1 rounded">0 9 * * 1-5</code> = Every weekday at 9 AM
+                      Format: minute hour day-of-month month day-of-week
                     </p>
                   </div>
                 )}
 
                 {formData.schedule && (
-                  <div className="flex items-center gap-2 text-sm p-2 bg-primary/10 rounded-md">
-                    <RefreshCw className="h-4 w-4 text-primary" />
-                    <span className="text-muted-foreground">Schedule:</span>
-                    <span className="font-medium">{parseCronToReadable(formData.schedule)}</span>
+                  <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                    <RefreshCw className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">{parseCronToReadable(formData.schedule)}</span>
                   </div>
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center space-x-2">
                 <Switch
                   id="is_active"
                   checked={formData.is_active}
@@ -595,8 +771,136 @@ export function DataFeedDialog({
               </div>
             </TabsContent>
 
+            {/* Source Filters Tab */}
+            <TabsContent value="filters" className="space-y-4 p-1">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4" />
+                    <Label>Source Record Filters</Label>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={addSourceFilter}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Filter
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Only process source records that match these conditions. Leave empty to process all records.
+                </p>
+              </div>
+
+              {(formData.source_filters?.length || 0) === 0 && (
+                <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg text-muted-foreground">
+                  <Filter className="h-8 w-8 mb-2" />
+                  <p className="text-sm">No filters configured</p>
+                  <p className="text-xs">All source records will be processed</p>
+                </div>
+              )}
+
+              {(formData.source_filters || []).map((filter, index) => (
+                <div key={filter.id || index} className="flex items-center gap-2 p-2 border rounded-lg bg-muted/30">
+                  <Badge variant="secondary" className="shrink-0 w-6 h-6 flex items-center justify-center p-0 text-xs font-bold">
+                    {filter.id || index + 1}
+                  </Badge>
+                  
+                  <Select
+                    value={filter.fieldId}
+                    onValueChange={(value) => updateSourceFilter(index, 'fieldId', value)}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select field" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sourceFields.map((field) => (
+                        <SelectItem key={field.id} value={field.id}>
+                          {field.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select
+                    value={filter.operator}
+                    onValueChange={(value) => updateSourceFilter(index, 'operator', value)}
+                  >
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="Operator" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FILTER_OPERATORS.map((op) => (
+                        <SelectItem key={op.value} value={op.value}>
+                          {op.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {!['is_empty', 'is_not_empty'].includes(filter.operator) && (
+                    <Input
+                      value={filter.value}
+                      onChange={(e) => updateSourceFilter(index, 'value', e.target.value)}
+                      placeholder="Value"
+                      className="flex-1"
+                    />
+                  )}
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeSourceFilter(index)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+
+              {/* Filter Logic Expression UI */}
+              {(formData.source_filters?.length || 0) >= 2 && (
+                <div className="space-y-2 pt-2 border-t">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Filter Logic Expression</Label>
+                    <div className="flex gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-xs px-2"
+                        onClick={() => handleFilterLogicChange((formData.source_filters || []).map(f => f.id).join(' AND '))}
+                      >
+                        All (AND)
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-xs px-2"
+                        onClick={() => handleFilterLogicChange((formData.source_filters || []).map(f => f.id).join(' OR '))}
+                      >
+                        Any (OR)
+                      </Button>
+                    </div>
+                  </div>
+                  <Input
+                    value={formData.source_filter_logic || ''}
+                    onChange={(e) => handleFilterLogicChange(e.target.value)}
+                    placeholder={`e.g., 1 AND 2, (1 OR 2) AND 3`}
+                    className={filterLogicError ? 'border-destructive' : ''}
+                  />
+                  {filterLogicError && (
+                    <div className="flex items-center gap-1 text-xs text-destructive">
+                      <AlertCircle className="h-3 w-3" />
+                      {filterLogicError}
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Use filter numbers with AND, OR, NOT and parentheses. Default: all filters must match (AND).
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+
             <TabsContent value="matching" className="space-y-4 p-1">
-              {/* Two column layout for matching options */}
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-3">
                   <Label>Matching Type</Label>
@@ -791,64 +1095,167 @@ export function DataFeedDialog({
             </TabsContent>
 
             <TabsContent value="mappings" className="space-y-4 p-1">
-              <div className="flex items-center justify-between">
-                <Label>Field Mappings</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addFieldMapping}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Mapping
-                </Button>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Field Mappings</Label>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => addFieldMapping('direct')}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Direct Mapping
+                    </Button>
+                    {crossRefFields.length > 0 && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => addFieldMapping('cross_reference')}>
+                        <Link2 className="h-4 w-4 mr-1" />
+                        Cross-Ref Mapping
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Define which fields from the source are copied to the target. Use cross-ref mapping to pull data from linked records.
+                </p>
               </div>
 
               {formData.field_mappings.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  Add mappings to define which source fields update which target fields.
-                </p>
+                <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg text-muted-foreground">
+                  <ArrowRight className="h-8 w-8 mb-2" />
+                  <p className="text-sm">No field mappings configured</p>
+                  <p className="text-xs">Add mappings to define data transfer</p>
+                </div>
               )}
 
               {formData.field_mappings.map((mapping, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <Select
-                    value={mapping.sourceFieldId}
-                    onValueChange={(value) => updateFieldMapping(index, 'sourceFieldId', value)}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Source field" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sourceFields.map((field) => (
-                        <SelectItem key={field.id} value={field.id}>
-                          {field.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div key={index} className="space-y-2 p-3 border rounded-lg bg-muted/30">
+                  {mapping.sourceType === 'cross_reference' ? (
+                    // Cross-reference field mapping
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="outline" className="text-xs">
+                          <Link2 className="h-3 w-3 mr-1" />
+                          Cross-Reference Mapping
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 space-y-1">
+                          <Label className="text-xs text-muted-foreground">Cross-Ref Field</Label>
+                          <Select
+                            value={mapping.crossRefFieldId || ''}
+                            onValueChange={(value) => updateFieldMapping(index, 'crossRefFieldId', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select cross-reference field" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {crossRefFields.map((field) => (
+                                <SelectItem key={field.id} value={field.id}>
+                                  {field.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="flex-1 space-y-1">
+                          <Label className="text-xs text-muted-foreground">
+                            Field from {mapping.crossRefFieldId ? getCrossRefFormName(mapping.crossRefFieldId) : 'linked form'}
+                          </Label>
+                          <Select
+                            value={mapping.crossRefSourceFieldId || ''}
+                            onValueChange={(value) => updateFieldMapping(index, 'crossRefSourceFieldId', value)}
+                            disabled={!mapping.crossRefFieldId}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select field from linked record" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getCrossRefFormFields(mapping.crossRefFieldId || '').map((field) => (
+                                <SelectItem key={field.id} value={field.id}>
+                                  {field.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                  <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 mt-6" />
 
-                  <Select
-                    value={mapping.targetFieldId}
-                    onValueChange={(value) => updateFieldMapping(index, 'targetFieldId', value)}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Target field" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {targetFields.map((field) => (
-                        <SelectItem key={field.id} value={field.id}>
-                          {field.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        <div className="flex-1 space-y-1">
+                          <Label className="text-xs text-muted-foreground">Target Field</Label>
+                          <Select
+                            value={mapping.targetFieldId}
+                            onValueChange={(value) => updateFieldMapping(index, 'targetFieldId', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Target field" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {targetFields.map((field) => (
+                                <SelectItem key={field.id} value={field.id}>
+                                  {field.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeFieldMapping(index)}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="mt-6"
+                          onClick={() => removeFieldMapping(index)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    // Direct field mapping
+                    <div className="flex items-center gap-2">
+                      <Select
+                        value={mapping.sourceFieldId}
+                        onValueChange={(value) => updateFieldMapping(index, 'sourceFieldId', value)}
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Source field" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sourceFields.map((field) => (
+                            <SelectItem key={field.id} value={field.id}>
+                              {field.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+
+                      <Select
+                        value={mapping.targetFieldId}
+                        onValueChange={(value) => updateFieldMapping(index, 'targetFieldId', value)}
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Target field" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {targetFields.map((field) => (
+                            <SelectItem key={field.id} value={field.id}>
+                              {field.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeFieldMapping(index)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
             </TabsContent>

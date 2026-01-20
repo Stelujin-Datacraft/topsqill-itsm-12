@@ -1,8 +1,34 @@
+export type FilterOperator = 
+  | 'equals' 
+  | 'not_equals' 
+  | 'contains' 
+  | 'not_contains' 
+  | 'starts_with' 
+  | 'ends_with' 
+  | 'greater_than' 
+  | 'less_than' 
+  | 'is_empty' 
+  | 'is_not_empty';
+
+export interface SourceFilter {
+  id?: string; // Unique ID for logic expressions
+  fieldId: string;
+  fieldName?: string;
+  operator: FilterOperator;
+  value: string; // Static value to compare against
+}
+
 export interface FieldMapping {
   sourceFieldId: string;
   targetFieldId: string;
   sourceFieldName?: string;
   targetFieldName?: string;
+  // For cross-reference field mapping
+  sourceType?: 'direct' | 'cross_reference'; // 'direct' = from source form, 'cross_reference' = from linked record
+  crossRefFieldId?: string; // The cross-reference field in source form
+  crossRefFieldName?: string;
+  crossRefSourceFieldId?: string; // The field from the cross-referenced form to pull data from
+  crossRefSourceFieldName?: string;
 }
 
 export interface MatchingRule {
@@ -25,6 +51,8 @@ export interface DataFeed {
   cross_reference_field_id?: string;
   matching_rules: MatchingRule[];
   matching_logic?: string; // Logic expression e.g. "1 AND 2", "(1 OR 2) AND 3"
+  source_filters?: SourceFilter[]; // Filters to apply to source records
+  source_filter_logic?: string; // Logic expression for source filters
   field_mappings: FieldMapping[];
   no_match_behavior: 'skip' | 'create';
   schedule?: string;
@@ -36,6 +64,7 @@ export interface DataFeed {
     recordsUpdated: number;
     recordsCreated: number;
     recordsSkipped: number;
+    recordsFiltered: number; // New: count of records filtered out by source filters
     errors: number;
   };
   created_by: string;
@@ -68,11 +97,26 @@ export interface DataFeedFormData {
   cross_reference_field_id?: string;
   matching_rules: MatchingRule[];
   matching_logic?: string; // Logic expression e.g. "1 AND 2", "(1 OR 2) AND 3"
+  source_filters?: SourceFilter[]; // Filters to apply to source records
+  source_filter_logic?: string; // Logic expression for source filters
   field_mappings: FieldMapping[];
   no_match_behavior: 'skip' | 'create';
   schedule?: string;
   is_active: boolean;
 }
+
+export const FILTER_OPERATORS: { value: FilterOperator; label: string }[] = [
+  { value: 'equals', label: 'Equals' },
+  { value: 'not_equals', label: 'Not Equals' },
+  { value: 'contains', label: 'Contains' },
+  { value: 'not_contains', label: 'Not Contains' },
+  { value: 'starts_with', label: 'Starts With' },
+  { value: 'ends_with', label: 'Ends With' },
+  { value: 'greater_than', label: 'Greater Than' },
+  { value: 'less_than', label: 'Less Than' },
+  { value: 'is_empty', label: 'Is Empty' },
+  { value: 'is_not_empty', label: 'Is Not Empty' },
+];
 
 export const SCHEDULE_PRESETS = [
   { label: 'Every 15 minutes', value: '*/15 * * * *', category: 'frequent' },
