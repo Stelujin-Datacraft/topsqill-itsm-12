@@ -12,7 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Plus, FileText, Calendar, User, Eye, Edit, Trash2, Play } from 'lucide-react';
+import { Plus, FileText, Calendar, User, Eye, Edit, Trash2, Play, Share2 } from 'lucide-react';
+import { ShareLinkButton } from '@/components/shared/ShareLinkButton';
 import { format } from 'date-fns';
 import { CreateWorkflowDialog } from './CreateWorkflowDialog';
 import { useToast } from '@/hooks/use-toast';
@@ -166,6 +167,11 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
                       )}
                     </div>
                     <div className="flex space-x-1">
+                      <ShareLinkButton 
+                        assetType="workflow" 
+                        assetId={workflow.id} 
+                        assetName={workflow.name} 
+                      />
                       <Button
                         variant="ghost"
                         size="sm"

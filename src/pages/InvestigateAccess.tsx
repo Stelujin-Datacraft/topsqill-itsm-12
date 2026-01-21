@@ -17,6 +17,7 @@ import { SecurityTab } from '@/components/investigate/SecurityTab';
 import { SessionsTab } from '@/components/investigate/SessionsTab';
 import { ProjectsTab } from '@/components/investigate/ProjectsTab';
 import { ExportAccessReport } from '@/components/investigate/ExportAccessReport';
+import { ExportAllUsersReport } from '@/components/investigate/ExportAllUsersReport';
 
 export default function InvestigateAccess() {
   const { userProfile } = useAuth();
@@ -71,6 +72,10 @@ export default function InvestigateAccess() {
           </div>
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
+            {/* Export All Users - Only for admins */}
+            {isAdmin && (
+              <ExportAllUsersReport />
+            )}
             {/* Impersonate Button - Only for admins viewing non-admin users */}
             {isAdmin && data.profile && data.profile.role !== 'admin' && data.profile.id !== userProfile?.id && (
               <Button
@@ -84,7 +89,7 @@ export default function InvestigateAccess() {
                 Impersonate
               </Button>
             )}
-            {/* Export Button */}
+            {/* Export Single User Button */}
             {data.profile && (
               <ExportAccessReport 
                 data={data} 
