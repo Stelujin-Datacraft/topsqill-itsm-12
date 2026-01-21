@@ -17,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Trash2, UserPlus, Users as UsersIcon, UserCheck, UserX, Clock, Shield } from 'lucide-react';
+import { Search, Trash2, UserPlus, Users as UsersIcon, UserCheck, UserX, UserMinus, Clock, Shield, User } from 'lucide-react';
 import UserInviteDialog from '@/components/users/UserInviteDialog';
 import UserRequestsDialog from '@/components/users/UserRequestsDialog';
 import UserCreateDialog from '@/components/users/UserCreateDialog';
@@ -68,7 +68,9 @@ const Users = () => {
   const totalUsers = users.length;
   const activeUsers = users.filter(u => u.status === 'active').length;
   const pendingUsers = users.filter(u => u.status === 'pending').length;
+  const inactiveUsers = users.filter(u => u.status === 'inactive').length;
   const adminUsers = users.filter(u => u.role === 'admin').length;
+  const regularUsers = users.filter(u => u.role === 'user').length;
 
   const handleApproveSelected = async () => {
     const selectedRequestsList = requests.filter(req => selectedRequests.has(req.id));
@@ -192,7 +194,7 @@ const Users = () => {
     <DashboardLayout title="Team Members">
       <div className="space-y-6">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <Card className="hover:shadow-md transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -236,11 +238,37 @@ const Users = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Inactive</p>
+                  <p className="text-3xl font-bold">{inactiveUsers}</p>
+                </div>
+                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
+                  <UserMinus className="h-6 w-6 text-muted-foreground" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Users</p>
+                  <p className="text-3xl font-bold">{regularUsers}</p>
+                </div>
+                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
+                  <User className="h-6 w-6 text-muted-foreground" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
                   <p className="text-sm font-medium text-muted-foreground">Admins</p>
                   <p className="text-3xl font-bold">{adminUsers}</p>
                 </div>
                 <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
-                  <UserX className="h-6 w-6 text-muted-foreground" />
+                  <Shield className="h-6 w-6 text-muted-foreground" />
                 </div>
               </div>
             </CardContent>
