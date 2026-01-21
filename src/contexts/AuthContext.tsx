@@ -111,13 +111,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Function to check if the current session is still valid in the database
-  const validateSessionInDb = async (accessToken: string) => {
+  const validateSessionInDb = async (userId: string, accessToken: string) => {
     try {
-      const { data: sessionData, error } = await supabase
+      // First try to find by exact token match
+      let { data: sessionData, error } = await supabase
         .from('user_sessions')
-        .select('is_active')
+        .select('id, is_active, session_token')
         .eq('session_token', accessToken)
         .maybeSingle();
+
+      // If no exact match, find the most recent active session for this user
+      if (!sessionData) {
+        const { data: userSession } = await supabase
+          .from('user_sessions')
+          .select('id, is_active, session_token')
+          .eq('user_id', userId)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (userSession) {
+          // Update the session with the new token (token was refreshed)
+          await supabase
+            .from('user_sessions')
+            .update({ 
+              session_token: accessToken,
+              last_activity: new Date().toISOString()
+            })
+            .eq('id', userSession.id);
+          return true;
+        }
+        
+        // No active session found for this user - this is a new login or all sessions were terminated
+        return true; // Don't log out, let the login flow create a new session
+      }
 
       // If session exists and is inactive, sign out the user
       if (sessionData && sessionData.is_active === false) {
@@ -125,6 +153,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await supabase.auth.signOut();
         return false;
       }
+      
+      // Update last activity
+      if (sessionData) {
+        await supabase
+          .from('user_sessions')
+          .update({ last_activity: new Date().toISOString() })
+          .eq('id', sessionData.id);
+      }
+      
       return true;
     } catch (error) {
       console.error('Error validating session:', error);
@@ -141,7 +178,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user) {
           // Check if session is still valid in our database
           setTimeout(async () => {
-            const isValid = await validateSessionInDb(session.access_token);
+            const isValid = await validateSessionInDb(session.user.id, session.access_token);
             if (isValid) {
               loadUserProfile(session.user.id);
             }
@@ -158,7 +195,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        const isValid = await validateSessionInDb(session.access_token);
+        const isValid = await validateSessionInDb(session.user.id, session.access_token);
         if (isValid) {
           loadUserProfile(session.user.id);
         }
@@ -169,8 +206,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set up interval to periodically check session validity
     const intervalId = setInterval(async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        await validateSessionInDb(session.access_token);
+      if (session?.user?.id && session?.access_token) {
+        await validateSessionInDb(session.user.id, session.access_token);
       }
     }, 30000); // Check every 30 seconds
 

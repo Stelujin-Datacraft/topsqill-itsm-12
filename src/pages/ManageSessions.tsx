@@ -55,6 +55,7 @@ const ManageSessions: React.FC = () => {
   const [usersMap, setUsersMap] = useState<Record<string, UserInfo>>({});
   const [loading, setLoading] = useState(true);
   const [terminatingId, setTerminatingId] = useState<string | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   const handleSignOutCurrentSession = async () => {
     try {
@@ -86,19 +87,29 @@ const ManageSessions: React.FC = () => {
 
       if (error) throw error;
       
-      // Keep only the most recent session per user
-      const latestSessionsByUser = new Map<string, Session>();
-      (data || []).forEach((sess: Session) => {
-        if (!latestSessionsByUser.has(sess.user_id)) {
-          latestSessionsByUser.set(sess.user_id, sess);
+      // Show all active sessions (not just one per user)
+      const allSessions = data || [];
+      setSessions(allSessions);
+
+      // Identify current session for the current user (most recent one matching current access token or user)
+      if (user && session?.access_token) {
+        // First try to find session by exact token match
+        const exactMatch = allSessions.find(s => s.session_token === session.access_token);
+        if (exactMatch) {
+          setCurrentSessionId(exactMatch.id);
+        } else {
+          // Fallback: find the most recently created session for current user
+          const userSessions = allSessions
+            .filter(s => s.user_id === user.id)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          if (userSessions.length > 0) {
+            setCurrentSessionId(userSessions[0].id);
+          }
         }
-      });
-      
-      const uniqueSessions = Array.from(latestSessionsByUser.values());
-      setSessions(uniqueSessions);
+      }
 
       // Fetch user info for all unique user IDs
-      const userIds = [...new Set(uniqueSessions.map(s => s.user_id))];
+      const userIds = [...new Set(allSessions.map(s => s.user_id))];
       if (userIds.length > 0) {
         const { data: usersData, error: usersError } = await supabase
           .from('user_profiles')
@@ -218,8 +229,8 @@ const ManageSessions: React.FC = () => {
     return new Date(dateStr).toLocaleString();
   };
 
-  const isCurrentSession = (sessionToken: string) => {
-    return session?.access_token === sessionToken;
+  const isCurrentSession = (sessionId: string) => {
+    return currentSessionId === sessionId;
   };
 
   const getUserInitials = (userInfo: UserInfo | undefined): string => {
@@ -280,7 +291,7 @@ const ManageSessions: React.FC = () => {
                   <div
                     key={sess.id}
                     className={`grid grid-cols-12 gap-4 p-4 rounded-lg border transition-colors items-start ${
-                      isCurrentSession(sess.session_token)
+                      isCurrentSession(sess.id)
                         ? 'border-primary bg-primary/5'
                         : 'border-border hover:bg-muted/50'
                     }`}
@@ -301,7 +312,7 @@ const ManageSessions: React.FC = () => {
                         <Badge variant="outline" className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
                           Active
                         </Badge>
-                        {isCurrentSession(sess.session_token) && (
+                        {isCurrentSession(sess.id) && (
                           <Badge variant="default" className="text-xs bg-blue-500 hover:bg-blue-600">
                             Current
                           </Badge>
@@ -385,12 +396,12 @@ const ManageSessions: React.FC = () => {
                         <AlertDialogContent className="bg-background">
                           <AlertDialogHeader>
                             <AlertDialogTitle>
-                              {isCurrentSession(sess.session_token) 
+                              {isCurrentSession(sess.id) 
                                 ? 'Sign out of your current session?' 
                                 : 'Sign out this session?'}
                             </AlertDialogTitle>
                             <AlertDialogDescription>
-                              {isCurrentSession(sess.session_token)
+                              {isCurrentSession(sess.id)
                                 ? 'You will be logged out immediately and redirected to the login page.'
                                 : "This will sign you out from this device. You'll need to sign in again to access your account from that device."}
                             </AlertDialogDescription>
@@ -400,7 +411,7 @@ const ManageSessions: React.FC = () => {
                             <AlertDialogAction
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                               onClick={() => 
-                                isCurrentSession(sess.session_token)
+                                isCurrentSession(sess.id)
                                   ? handleSignOutCurrentSession()
                                   : terminateSession(sess.id, sess.session_token)
                               }
