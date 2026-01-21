@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.run-scheduled-data-feeds]
 verify_jwt = false
+
+[functions.discover-external-fields]
+verify_jwt = false
