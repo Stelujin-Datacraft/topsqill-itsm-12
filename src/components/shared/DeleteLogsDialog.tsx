@@ -81,15 +81,19 @@ export function DeleteLogsDialog({ tableName, title, onDeleted }: DeleteLogsDial
       
       if (isCustomRange && startDate && endDate) {
         // Custom date range - delete logs between start and end dates
-        const startISO = new Date(startDate.setHours(0, 0, 0, 0)).toISOString();
-        const endISO = new Date(endDate.setHours(23, 59, 59, 999)).toISOString();
-        query = query.gte('created_at', startISO).lte('created_at', endISO);
-      } else if (selectedOption?.hours !== null) {
-        const cutoffDate = new Date(Date.now() - (selectedOption!.hours * 60 * 60 * 1000));
-        query = query.lte('created_at', cutoffDate.toISOString());
+        const startOfDay = new Date(startDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        query = query.gte('created_at', startOfDay.toISOString()).lte('created_at', endOfDay.toISOString());
+      } else if (selectedOption?.hours !== null && selectedOption?.hours !== undefined) {
+        // Delete logs from the last X hours (recent logs)
+        const cutoffDate = new Date(Date.now() - (selectedOption.hours * 60 * 60 * 1000));
+        query = query.gte('created_at', cutoffDate.toISOString());
       } else {
-        // For "all time", delete all records - we need a condition that's always true
-        query = query.gte('created_at', '1970-01-01T00:00:00.000Z');
+        // For "all time", delete all records using a condition that matches everything
+        // Use 'not is null' on id which is always true for existing records
+        query = query.not('id', 'is', null);
       }
 
       const { error, count } = await query;
