@@ -613,65 +613,58 @@ export function DataFeedDialog({
 
         <ScrollArea className="max-h-[calc(90vh-8rem)]">
           <Tabs defaultValue="general" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="general">General</TabsTrigger>
               <TabsTrigger value="source">Data Source</TabsTrigger>
-              <TabsTrigger value="filters">Source Filters</TabsTrigger>
+              <TabsTrigger value="filters">Filters</TabsTrigger>
               <TabsTrigger value="matching">Matching</TabsTrigger>
-              <TabsTrigger value="mappings">Field Mappings</TabsTrigger>
+              <TabsTrigger value="mappings">Mappings</TabsTrigger>
+              <TabsTrigger value="schedule">Schedule</TabsTrigger>
             </TabsList>
 
+            {/* General Tab - Name, Description, Active only */}
             <TabsContent value="general" className="space-y-4 p-1">
-              {/* Two column layout for name and description */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="My Data Feed"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Input
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Describe what this feed does..."
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="name">Name *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="My Data Feed"
+                />
               </div>
 
               <div className="space-y-2">
-                <Label>Target Form *</Label>
-                <Select
-                  value={formData.target_form_id}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, target_form_id: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select target form" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {forms.map((form) => (
-                      <SelectItem key={form.id} value={form.id}>
-                        {form.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Records from the data source will be matched/synced to this form
-                </p>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Describe what this feed does..."
+                  rows={3}
+                />
               </div>
 
+              <div className="flex items-center space-x-2 pt-2">
+                <Switch
+                  id="is_active"
+                  checked={formData.is_active}
+                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
+                />
+                <Label htmlFor="is_active">Active</Label>
+              </div>
+            </TabsContent>
+
+            {/* Schedule Tab */}
+            <TabsContent value="schedule" className="space-y-4 p-1">
               <div className="space-y-4">
-                <Label className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Schedule
-                </Label>
+                <div className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  <div>
+                    <Label className="text-base">Execution Schedule</Label>
+                    <p className="text-sm text-muted-foreground">Configure when this feed runs automatically</p>
+                  </div>
+                </div>
                 
                 <RadioGroup
                   value={scheduleType}
@@ -684,19 +677,19 @@ export function DataFeedDialog({
                   }}
                   className="grid grid-cols-2 gap-2"
                 >
-                  <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
+                  <div className="flex items-center space-x-2 p-3 border rounded-md hover:bg-muted/50">
                     <RadioGroupItem value="none" id="schedule_none" />
                     <Label htmlFor="schedule_none" className="font-normal cursor-pointer flex-1">Manual only</Label>
                   </div>
-                  <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
+                  <div className="flex items-center space-x-2 p-3 border rounded-md hover:bg-muted/50">
                     <RadioGroupItem value="preset" id="schedule_preset" />
                     <Label htmlFor="schedule_preset" className="font-normal cursor-pointer flex-1">Preset</Label>
                   </div>
-                  <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
+                  <div className="flex items-center space-x-2 p-3 border rounded-md hover:bg-muted/50">
                     <RadioGroupItem value="interval" id="schedule_interval" />
                     <Label htmlFor="schedule_interval" className="font-normal cursor-pointer flex-1">Custom interval</Label>
                   </div>
-                  <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
+                  <div className="flex items-center space-x-2 p-3 border rounded-md hover:bg-muted/50">
                     <RadioGroupItem value="custom" id="schedule_custom" />
                     <Label htmlFor="schedule_custom" className="font-normal cursor-pointer flex-1">Cron expression</Label>
                   </div>
@@ -848,20 +841,11 @@ export function DataFeedDialog({
                 )}
 
                 {formData.schedule && (
-                  <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                  <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
                     <RefreshCw className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{parseCronToReadable(formData.schedule)}</span>
+                    <span className="text-sm font-medium">{parseCronToReadable(formData.schedule)}</span>
                   </div>
                 )}
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="is_active"
-                  checked={formData.is_active}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
-                />
-                <Label htmlFor="is_active">Active</Label>
               </div>
             </TabsContent>
 
@@ -931,6 +915,31 @@ export function DataFeedDialog({
                   </div>
                 </div>
               )}
+
+              <Separator className="my-4" />
+
+              {/* Target Form */}
+              <div className="space-y-2">
+                <Label>Target Form *</Label>
+                <Select
+                  value={formData.target_form_id}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, target_form_id: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select target form" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {forms.map((form) => (
+                      <SelectItem key={form.id} value={form.id}>
+                        {form.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Records from the data source will be matched and synced to this form
+                </p>
+              </div>
             </TabsContent>
 
             {/* Source Filters Tab */}
