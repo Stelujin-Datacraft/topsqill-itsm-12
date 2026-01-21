@@ -41,8 +41,8 @@ export function NotificationPanel() {
     setOpen(false);
     
     // Navigate based on notification type
-    if (notification.type === 'organization_request') {
-      navigate('/user-requests');
+    if (notification.type === 'organization_request' || notification.type === 'invitation_accepted') {
+      navigate('/users');
     } else if (notification.type === 'form_assignment') {
       navigate('/forms');
       setTimeout(() => {
