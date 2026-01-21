@@ -679,22 +679,9 @@ Deno.serve(async (req) => {
                 let sourceValue: any;
                 
                 if (mapping.sourceType === 'cross_reference' && mapping.crossRefFieldId && mapping.crossRefSourceFieldId) {
-                  // Cross-reference field mapping - get value from linked record
+                  // Cross-reference field mapping - use matching logic to find the right linked record
                   const crossRefValue = sourceData[mapping.crossRefFieldId];
-                  let refId: string | null = null;
-                  
-                  if (crossRefValue) {
-                    if (Array.isArray(crossRefValue) && crossRefValue.length > 0) {
-                      const firstItem = crossRefValue[0];
-                      refId = typeof firstItem === 'object' && firstItem !== null 
-                        ? (firstItem.id || firstItem.submission_ref_id || String(firstItem))
-                        : String(firstItem);
-                    } else if (typeof crossRefValue === 'object' && crossRefValue !== null) {
-                      refId = crossRefValue.id || crossRefValue.submission_ref_id || String(crossRefValue);
-                    } else {
-                      refId = String(crossRefValue);
-                    }
-                  }
+                  const refId = findMatchingLinkedRecord(crossRefValue, crossRefCache, mapping, sourceData);
                   
                   if (refId && crossRefCache[refId]) {
                     sourceValue = crossRefCache[refId][mapping.crossRefSourceFieldId];
@@ -744,22 +731,9 @@ Deno.serve(async (req) => {
               let sourceValue: any;
               
               if (mapping.sourceType === 'cross_reference' && mapping.crossRefFieldId && mapping.crossRefSourceFieldId) {
-                // Cross-reference field mapping
+                // Cross-reference field mapping - use matching logic
                 const crossRefValue = sourceData[mapping.crossRefFieldId];
-                let refId: string | null = null;
-                
-                if (crossRefValue) {
-                  if (Array.isArray(crossRefValue) && crossRefValue.length > 0) {
-                    const firstItem = crossRefValue[0];
-                    refId = typeof firstItem === 'object' && firstItem !== null 
-                      ? (firstItem.id || firstItem.submission_ref_id || String(firstItem))
-                      : String(firstItem);
-                  } else if (typeof crossRefValue === 'object' && crossRefValue !== null) {
-                    refId = crossRefValue.id || crossRefValue.submission_ref_id || String(crossRefValue);
-                  } else {
-                    refId = String(crossRefValue);
-                  }
-                }
+                const refId = findMatchingLinkedRecord(crossRefValue, crossRefCache, mapping, sourceData);
                 
                 if (refId && crossRefCache[refId]) {
                   sourceValue = crossRefCache[refId][mapping.crossRefSourceFieldId];
