@@ -46,6 +46,13 @@ export interface FieldMapping {
   crossRefFieldName?: string;
   crossRefSourceFieldId?: string; // The field from the cross-referenced form to pull data from
   crossRefSourceFieldName?: string;
+  // For selecting which linked record to use when multiple are linked
+  crossRefMatchType?: 'first' | 'static_value' | 'source_field'; // 'first' = use first record, 'static_value' = match by static value, 'source_field' = match by source field comparison
+  crossRefMatchFieldId?: string; // The field in the linked form to match against
+  crossRefMatchFieldName?: string;
+  crossRefMatchValue?: string; // Static value to match (when crossRefMatchType = 'static_value')
+  crossRefMatchSourceFieldId?: string; // Source field to compare against (when crossRefMatchType = 'source_field')
+  crossRefMatchSourceFieldName?: string;
 }
 
 export interface MatchingRule {

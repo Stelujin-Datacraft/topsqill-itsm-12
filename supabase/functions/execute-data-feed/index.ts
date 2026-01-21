@@ -15,6 +15,13 @@ interface FieldMapping {
   crossRefFieldName?: string;
   crossRefSourceFieldId?: string;
   crossRefSourceFieldName?: string;
+  // For selecting which linked record to use when multiple are linked
+  crossRefMatchType?: 'first' | 'static_value' | 'source_field';
+  crossRefMatchFieldId?: string;
+  crossRefMatchFieldName?: string;
+  crossRefMatchValue?: string;
+  crossRefMatchSourceFieldId?: string;
+  crossRefMatchSourceFieldName?: string;
 }
 
 interface MatchingRule {
@@ -343,6 +350,99 @@ function passesSourceFilters(
   const finalResult = evaluateLogicExpression(filterLogic || '', filterResults);
   console.log(`📐 Filter logic evaluation (${filterLogic || 'default AND'}): ${JSON.stringify(filterResults)} = ${finalResult}`);
   return finalResult;
+}
+
+// Find the matching linked record based on crossRefMatchType
+function findMatchingLinkedRecord(
+  crossRefValue: any,
+  crossRefCache: Record<string, Record<string, any>>,
+  mapping: FieldMapping,
+  sourceData: Record<string, any>
+): string | null {
+  if (!crossRefValue) return null;
+  
+  // Get all linked record IDs
+  const linkedIds: string[] = [];
+  
+  if (Array.isArray(crossRefValue)) {
+    for (const item of crossRefValue) {
+      let id: string | null = null;
+      if (typeof item === 'object' && item !== null) {
+        id = item.id || item.submission_ref_id || String(item);
+      } else {
+        id = String(item);
+      }
+      if (id && crossRefCache[id]) {
+        linkedIds.push(id);
+      }
+    }
+  } else if (typeof crossRefValue === 'object' && crossRefValue !== null) {
+    const id = crossRefValue.id || crossRefValue.submission_ref_id || String(crossRefValue);
+    if (id && crossRefCache[id]) {
+      linkedIds.push(id);
+    }
+  } else {
+    const id = String(crossRefValue);
+    if (id && crossRefCache[id]) {
+      linkedIds.push(id);
+    }
+  }
+  
+  if (linkedIds.length === 0) return null;
+  
+  const matchType = mapping.crossRefMatchType || 'first';
+  
+  // First record - just use the first one
+  if (matchType === 'first') {
+    console.log(`🔗 Using first linked record: ${linkedIds[0]}`);
+    return linkedIds[0];
+  }
+  
+  // Need a match field to proceed with matching
+  if (!mapping.crossRefMatchFieldId) {
+    console.log(`⚠️ No match field configured, falling back to first record: ${linkedIds[0]}`);
+    return linkedIds[0];
+  }
+  
+  // Static value matching - find record where linkedRecord[matchFieldId] === matchValue
+  if (matchType === 'static_value' && mapping.crossRefMatchValue !== undefined) {
+    const targetValue = String(mapping.crossRefMatchValue).toLowerCase().trim();
+    
+    for (const id of linkedIds) {
+      const linkedData = crossRefCache[id];
+      const fieldValue = String(linkedData[mapping.crossRefMatchFieldId] ?? '').toLowerCase().trim();
+      
+      if (fieldValue === targetValue) {
+        console.log(`🔗 Found matching linked record by static value: ${id} (${mapping.crossRefMatchFieldId} = "${targetValue}")`);
+        return id;
+      }
+    }
+    
+    console.log(`⚠️ No linked record matched static value "${targetValue}" for field ${mapping.crossRefMatchFieldId}, falling back to first`);
+    return linkedIds[0];
+  }
+  
+  // Source field comparison - find record where linkedRecord[matchFieldId] === sourceRecord[sourceFieldId]
+  if (matchType === 'source_field' && mapping.crossRefMatchSourceFieldId) {
+    const sourceValue = String(sourceData[mapping.crossRefMatchSourceFieldId] ?? '').toLowerCase().trim();
+    
+    for (const id of linkedIds) {
+      const linkedData = crossRefCache[id];
+      const fieldValue = String(linkedData[mapping.crossRefMatchFieldId] ?? '').toLowerCase().trim();
+      
+      if (fieldValue === sourceValue) {
+        console.log(`🔗 Found matching linked record by source field: ${id} (${mapping.crossRefMatchFieldId} = "${sourceValue}" from source.${mapping.crossRefMatchSourceFieldId})`);
+        return id;
+      }
+    }
+    
+    console.log(`⚠️ No linked record matched source field value "${sourceValue}" for field ${mapping.crossRefMatchFieldId}, falling back to first`);
+    return linkedIds[0];
+  }
+  
+  // Fallback
+  console.log(`⚠️ Unknown match type "${matchType}", falling back to first record: ${linkedIds[0]}`);
+  return linkedIds[0];
 }
 
 Deno.serve(async (req) => {
