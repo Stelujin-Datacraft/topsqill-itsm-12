@@ -92,21 +92,21 @@ serve(async (req) => {
       );
     }
 
-    // Check for existing pending invitation and delete it
-    const { data: existingInvitation } = await supabaseClient
+    // Check for existing invitation (any status) and delete it to allow re-inviting
+    const { data: existingInvitations } = await supabaseClient
       .from('organization_requests')
-      .select('id')
+      .select('id, status')
       .eq('organization_id', organizationId)
-      .eq('email', email.toLowerCase())
-      .eq('status', 'pending')
-      .maybeSingle();
+      .eq('email', email.toLowerCase());
 
-    if (existingInvitation) {
-      await supabaseClient
-        .from('organization_requests')
-        .delete()
-        .eq('id', existingInvitation.id);
-      console.log('🗑️ Deleted existing pending invitation:', existingInvitation.id);
+    if (existingInvitations && existingInvitations.length > 0) {
+      for (const inv of existingInvitations) {
+        await supabaseClient
+          .from('organization_requests')
+          .delete()
+          .eq('id', inv.id);
+        console.log(`🗑️ Deleted existing invitation (${inv.status}):`, inv.id);
+      }
     }
 
     // Calculate expiry date (7 days from now)
