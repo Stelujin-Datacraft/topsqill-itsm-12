@@ -149,7 +149,12 @@ function parseCSV(content: string, hasHeader: boolean = true): any[] {
   });
 }
 
-async function discoverHttpApiFields(config: HttpApiConfig): Promise<DiscoveredField[]> {
+interface DiscoveryResult {
+  fields: DiscoveredField[];
+  previewData: any[];
+}
+
+async function discoverHttpApiFields(config: HttpApiConfig): Promise<DiscoveryResult> {
   const headers: Record<string, string> = {
     'Accept': 'application/json',
     ...(config.headers || {})
@@ -188,10 +193,30 @@ async function discoverHttpApiFields(config: HttpApiConfig): Promise<DiscoveredF
   
   console.log(`Found ${records.length} records`);
   
-  return extractFieldsFromData(records);
+  // Return up to 10 records for preview
+  const previewData = records.slice(0, 10).map((record: any) => {
+    // Flatten nested objects for preview display
+    const flattened: Record<string, any> = {};
+    for (const key of Object.keys(record)) {
+      const value = record[key];
+      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+        flattened[key] = JSON.stringify(value);
+      } else if (Array.isArray(value)) {
+        flattened[key] = JSON.stringify(value);
+      } else {
+        flattened[key] = value;
+      }
+    }
+    return flattened;
+  });
+  
+  return {
+    fields: extractFieldsFromData(records),
+    previewData
+  };
 }
 
-async function discoverFileFields(config: FileConfig, supabase: any): Promise<DiscoveredField[]> {
+async function discoverFileFields(config: FileConfig, supabase: any): Promise<DiscoveryResult> {
   let content: string;
   
   if (config.sourceMode === 'url' && config.fileUrl) {
@@ -211,23 +236,24 @@ async function discoverFileFields(config: FileConfig, supabase: any): Promise<Di
     throw new Error('No file source configured');
   }
   
+  let records: any[] = [];
+  
   if (config.fileType === 'json') {
     const data = JSON.parse(content);
-    const records = Array.isArray(data) ? data : [data];
-    return extractFieldsFromData(records);
-  }
-  
-  if (config.fileType === 'csv') {
-    const records = parseCSV(content, config.hasHeader !== false);
-    return extractFieldsFromData(records);
-  }
-  
-  // Excel requires special handling - for now return error
-  if (config.fileType === 'excel') {
+    records = Array.isArray(data) ? data : [data];
+  } else if (config.fileType === 'csv') {
+    records = parseCSV(content, config.hasHeader !== false);
+  } else if (config.fileType === 'excel') {
     throw new Error('Excel field discovery requires the file to be converted to CSV first');
   }
   
-  return [];
+  // Return up to 10 records for preview
+  const previewData = records.slice(0, 10);
+  
+  return {
+    fields: extractFieldsFromData(records),
+    previewData
+  };
 }
 
 Deno.serve(async (req) => {
@@ -280,31 +306,31 @@ Deno.serve(async (req) => {
       }
     }
 
-    let fields: DiscoveredField[] = [];
+    let result: DiscoveryResult = { fields: [], previewData: [] };
 
     if (sourceType === 'http_api' && externalConfig.httpApi) {
-      fields = await discoverHttpApiFields(externalConfig.httpApi);
+      result = await discoverHttpApiFields(externalConfig.httpApi);
     } else if ((sourceType === 'csv' || sourceType === 'excel' || sourceType === 'file_url') && externalConfig.file) {
-      fields = await discoverFileFields(externalConfig.file, supabase);
+      result = await discoverFileFields(externalConfig.file, supabase);
     } else {
       throw new Error(`Unsupported source type: ${sourceType}`);
     }
 
-    console.log(`Discovered ${fields.length} fields`);
+    console.log(`Discovered ${result.fields.length} fields, ${result.previewData.length} preview records`);
 
     // Update connection with discovered fields if using shared connection
-    if (connectionId && fields.length > 0) {
+    if (connectionId && result.fields.length > 0) {
       await supabase
         .from('data_source_connections')
         .update({ 
-          discovered_fields: fields,
+          discovered_fields: result.fields,
           last_field_discovery_at: new Date().toISOString()
         })
         .eq('id', connectionId);
     }
 
     return new Response(
-      JSON.stringify({ success: true, fields }),
+      JSON.stringify({ success: true, fields: result.fields, previewData: result.previewData }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

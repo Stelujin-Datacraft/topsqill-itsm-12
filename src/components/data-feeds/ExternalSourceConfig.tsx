@@ -73,6 +73,7 @@ export function ExternalSourceConfig({
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [previewData, setPreviewData] = useState<any[]>([]);
 
   // Filter connections by type
   const filteredConnections = sharedConnections.filter(c => {
@@ -147,6 +148,7 @@ export function ExternalSourceConfig({
   const discoverFields = async (overrideConfig?: ExternalSourceConfigType) => {
     setIsDiscovering(true);
     setDiscoveryError(null);
+    setPreviewData([]);
 
     const configToSend = overrideConfig || config;
 
@@ -163,10 +165,12 @@ export function ExternalSourceConfig({
       if (data.error) throw new Error(data.error);
 
       onFieldsDiscovered(data.fields || []);
+      setPreviewData(data.previewData || []);
     } catch (error: any) {
       console.error('Field discovery error:', error);
       setDiscoveryError(error.message || 'Failed to discover fields');
       onFieldsDiscovered([]);
+      setPreviewData([]);
     } finally {
       setIsDiscovering(false);
     }
@@ -539,29 +543,60 @@ export function ExternalSourceConfig({
             )}
 
             {discoveredFields.length > 0 ? (
-              <div className="border rounded-md overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="text-left px-3 py-2 font-medium">Field Name</th>
-                      <th className="text-left px-3 py-2 font-medium">Type</th>
-                      <th className="text-left px-3 py-2 font-medium">Sample Value</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {discoveredFields.map((field, index) => (
-                      <tr key={field.id} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
-                        <td className="px-3 py-2 font-medium">{field.name}</td>
-                        <td className="px-3 py-2">
-                          <Badge variant="outline" className="text-xs">{field.type}</Badge>
-                        </td>
-                        <td className="px-3 py-2 text-muted-foreground text-xs font-mono truncate max-w-[200px]" title={field.sample || '-'}>
-                          {field.sample || <span className="italic">empty</span>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="space-y-4">
+                {/* Fields Summary */}
+                <div className="flex flex-wrap gap-2">
+                  {discoveredFields.map((field) => (
+                    <Badge key={field.id} variant="secondary" className="text-xs">
+                      {field.name} <span className="text-muted-foreground ml-1">({field.type})</span>
+                    </Badge>
+                  ))}
+                </div>
+
+                {/* Data Preview Table */}
+                {previewData.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Data Preview</Label>
+                      <span className="text-xs text-muted-foreground">
+                        Showing {previewData.length} of fetched records
+                      </span>
+                    </div>
+                    <div className="border rounded-md overflow-auto max-h-[300px]">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50 sticky top-0">
+                          <tr>
+                            <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">#</th>
+                            {discoveredFields.map((field) => (
+                              <th key={field.id} className="text-left px-3 py-2 font-medium text-xs whitespace-nowrap">
+                                {field.name}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {previewData.map((row, rowIndex) => (
+                            <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
+                              <td className="px-3 py-2 text-muted-foreground text-xs">{rowIndex + 1}</td>
+                              {discoveredFields.map((field) => (
+                                <td 
+                                  key={field.id} 
+                                  className="px-3 py-2 text-xs font-mono max-w-[150px] truncate"
+                                  title={row[field.id] !== undefined ? String(row[field.id]) : '-'}
+                                >
+                                  {row[field.id] !== undefined && row[field.id] !== null 
+                                    ? String(row[field.id]).substring(0, 50) 
+                                    : <span className="text-muted-foreground italic">-</span>
+                                  }
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center p-4 border-2 border-dashed rounded-md text-muted-foreground">
