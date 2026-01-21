@@ -42,7 +42,12 @@ export function useFormWithFields(formId: string | undefined) {
           .single();
 
         if (formError) {
-          setError('Failed to load form: ' + formError.message);
+          // Check if this is an access denied error (RLS blocking access = no rows returned)
+          if (formError.code === 'PGRST116' || formError.message.includes('multiple (or no) rows returned')) {
+            setError('ACCESS_DENIED');
+          } else {
+            setError('Failed to load form: ' + formError.message);
+          }
           return;
         }
 
