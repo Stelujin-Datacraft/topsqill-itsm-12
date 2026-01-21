@@ -70,13 +70,38 @@ serve(async (req) => {
     );
 
     if (existingUser) {
-      console.log('⚠️ User already exists in auth, updating status only');
+      console.log('⚠️ User already exists in auth, cleaning up invitation');
       
-      // Update invitation status
+      // Delete invitation from pending requests
       await supabaseAdmin
         .from('organization_requests')
-        .update({ status: 'accepted', reviewed_at: new Date().toISOString() })
+        .delete()
         .eq('id', invitation.id);
+
+      // Notify admin
+      const { data: inviter } = await supabaseAdmin
+        .from('user_profiles')
+        .select('id')
+        .eq('organization_id', invitation.organization_id)
+        .eq('role', 'admin')
+        .limit(1)
+        .single();
+
+      if (inviter) {
+        await supabaseAdmin
+          .from('notifications')
+          .insert({
+            user_id: inviter.id,
+            type: 'invitation_accepted',
+            title: 'Invitation Accepted',
+            message: `${invitation.first_name} ${invitation.last_name} (${invitation.email}) has accepted your invitation.`,
+            data: {
+              invitee_email: invitation.email,
+              invitee_name: `${invitation.first_name} ${invitation.last_name}`,
+              organization_id: invitation.organization_id
+            }
+          });
+      }
 
       return new Response(
         JSON.stringify({ 
@@ -163,16 +188,41 @@ serve(async (req) => {
         });
     }
 
-    // Update invitation status to accepted
+    // Delete the invitation from pending requests (remove from list)
     await supabaseAdmin
       .from('organization_requests')
-      .update({ 
-        status: 'accepted', 
-        reviewed_at: new Date().toISOString() 
-      })
+      .delete()
       .eq('id', invitation.id);
 
-    console.log('✅ Invitation accepted, user account created successfully');
+    console.log('✅ Invitation deleted from pending requests');
+
+    // Create notification for inviter
+    const { data: inviter } = await supabaseAdmin
+      .from('user_profiles')
+      .select('id')
+      .eq('organization_id', invitation.organization_id)
+      .eq('role', 'admin')
+      .limit(1)
+      .single();
+
+    if (inviter) {
+      await supabaseAdmin
+        .from('notifications')
+        .insert({
+          user_id: inviter.id,
+          type: 'invitation_accepted',
+          title: 'Invitation Accepted',
+          message: `${invitation.first_name} ${invitation.last_name} (${invitation.email}) has accepted your invitation and joined the organization.`,
+          data: {
+            invitee_email: invitation.email,
+            invitee_name: `${invitation.first_name} ${invitation.last_name}`,
+            organization_id: invitation.organization_id
+          }
+        });
+      console.log('✅ Notification sent to inviter');
+    }
+
+    console.log('✅ User account created successfully');
 
     return new Response(
       JSON.stringify({ 

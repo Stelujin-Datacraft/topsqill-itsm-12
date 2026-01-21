@@ -174,8 +174,9 @@ serve(async (req) => {
       );
     }
 
-    // Build accept URL
-    const acceptUrl = `https://itsm.topsqill.com/accept-invitation?token=${invitation.invitation_token}`;
+    // Build accept URL - use the app's actual URL
+    const appUrl = 'https://topsqill-itsm-12.lovable.app';
+    const acceptUrl = `${appUrl}/accept-invitation?token=${invitation.invitation_token}`;
 
     // Generate email HTML
     const emailHtml = generateInvitationEmailHtml({
