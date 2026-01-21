@@ -539,13 +539,29 @@ export function ExternalSourceConfig({
             )}
 
             {discoveredFields.length > 0 ? (
-              <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/30">
-                {discoveredFields.map((field) => (
-                  <Badge key={field.id} variant="secondary" className="flex items-center gap-1">
-                    <span className="font-medium">{field.name}</span>
-                    <span className="text-xs text-muted-foreground">({field.type})</span>
-                  </Badge>
-                ))}
+              <div className="border rounded-md overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="text-left px-3 py-2 font-medium">Field Name</th>
+                      <th className="text-left px-3 py-2 font-medium">Type</th>
+                      <th className="text-left px-3 py-2 font-medium">Sample Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {discoveredFields.map((field, index) => (
+                      <tr key={field.id} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
+                        <td className="px-3 py-2 font-medium">{field.name}</td>
+                        <td className="px-3 py-2">
+                          <Badge variant="outline" className="text-xs">{field.type}</Badge>
+                        </td>
+                        <td className="px-3 py-2 text-muted-foreground text-xs font-mono truncate max-w-[200px]" title={field.sample || '-'}>
+                          {field.sample || <span className="italic">empty</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             ) : (
               <div className="text-center p-4 border-2 border-dashed rounded-md text-muted-foreground">
