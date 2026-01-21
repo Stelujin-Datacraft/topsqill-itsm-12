@@ -181,7 +181,7 @@ export const useUserManagement = () => {
     }
 
     try {
-      // Check if user already exists
+      // Quick check if user already exists (fast fail)
       const { data: existingUser } = await supabase
         .from('user_profiles')
         .select('id')
@@ -193,24 +193,6 @@ export const useUserManagement = () => {
         toast({
           title: "User already exists",
           description: `A user with email ${inviteData.email} already exists in this organization.`,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Check for pending invitation
-      const { data: existingRequest } = await supabase
-        .from('organization_requests')
-        .select('id, status')
-        .eq('organization_id', currentOrganization.id)
-        .eq('email', inviteData.email.toLowerCase())
-        .eq('status', 'pending')
-        .maybeSingle();
-
-      if (existingRequest) {
-        toast({
-          title: "Already invited",
-          description: `An invitation for ${inviteData.email} is already pending.`,
           variant: "destructive",
         });
         return;
@@ -467,6 +449,23 @@ export const useUserManagement = () => {
 
     try {
       console.log('Creating user with data:', userData);
+
+      // Check if user already exists before calling edge function
+      const { data: existingUser } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('email', userData.email.toLowerCase())
+        .eq('organization_id', currentOrganization.id)
+        .maybeSingle();
+
+      if (existingUser) {
+        toast({
+          title: "User already exists",
+          description: `A user with email ${userData.email} already exists in this organization.`,
+          variant: "destructive",
+        });
+        return;
+      }
 
       // Call edge function to create user
       const { data, error } = await supabase.functions.invoke('send-welcome-email', {
