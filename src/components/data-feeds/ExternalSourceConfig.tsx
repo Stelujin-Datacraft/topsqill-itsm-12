@@ -118,13 +118,24 @@ export function ExternalSourceConfig({
 
       if (error) throw error;
 
-      handleFileConfigChange({
+      const newFileConfig: Partial<FileConfig> = {
         uploadedFilePath: data.path,
         fileType: fileExt === 'xlsx' || fileExt === 'xls' ? 'excel' : fileExt === 'json' ? 'json' : 'csv',
-      });
+        sourceMode: 'upload',
+        hasHeader: config.file?.hasHeader !== false,
+      };
 
-      // Auto-discover fields after upload
-      discoverFields();
+      handleFileConfigChange(newFileConfig);
+
+      // Auto-discover fields after upload with the new config (don't rely on stale state)
+      const updatedConfig: ExternalSourceConfigType = {
+        ...config,
+        file: { 
+          ...(config.file || { sourceMode: 'upload', fileType: 'csv', hasHeader: true }), 
+          ...newFileConfig 
+        } as FileConfig
+      };
+      discoverFields(updatedConfig);
     } catch (error) {
       console.error('File upload error:', error);
       setDiscoveryError('Failed to upload file');
@@ -133,15 +144,17 @@ export function ExternalSourceConfig({
     }
   };
 
-  const discoverFields = async () => {
+  const discoverFields = async (overrideConfig?: ExternalSourceConfigType) => {
     setIsDiscovering(true);
     setDiscoveryError(null);
+
+    const configToSend = overrideConfig || config;
 
     try {
       const { data, error } = await supabase.functions.invoke('discover-external-fields', {
         body: {
           sourceType,
-          config,
+          config: configToSend,
           connectionId: useSharedConnection ? selectedConnectionId : undefined,
         }
       });
@@ -501,7 +514,7 @@ export function ExternalSourceConfig({
                 type="button" 
                 variant="outline" 
                 size="sm" 
-                onClick={discoverFields}
+                onClick={() => discoverFields()}
                 disabled={isDiscovering}
               >
                 {isDiscovering ? (
