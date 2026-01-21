@@ -66,7 +66,10 @@ export function useDataFeeds(projectId: string) {
         .insert({
           name: data.name,
           description: data.description,
+          source_type: data.source_type || 'form',
           source_form_id: data.source_form_id,
+          external_source_config: (data.external_source_config || null) as any,
+          data_source_connection_id: data.data_source_connection_id || null,
           target_form_id: data.target_form_id,
           matching_type: data.matching_type,
           cross_reference_field_id: data.cross_reference_field_id,
@@ -80,7 +83,7 @@ export function useDataFeeds(projectId: string) {
           is_active: data.is_active,
           project_id: projectId,
           created_by: user.user.id,
-        })
+        } as any)
         .select()
         .single();
 
@@ -132,6 +135,15 @@ export function useDataFeeds(projectId: string) {
       }
       if (data.source_filters !== undefined) {
         updateData.source_filters = (data.source_filters || []) as any;
+      }
+      if (data.source_type !== undefined) {
+        updateData.source_type = data.source_type;
+      }
+      if (data.external_source_config !== undefined) {
+        updateData.external_source_config = data.external_source_config || null;
+      }
+      if (data.data_source_connection_id !== undefined) {
+        updateData.data_source_connection_id = data.data_source_connection_id || null;
       }
 
       const { error } = await supabase

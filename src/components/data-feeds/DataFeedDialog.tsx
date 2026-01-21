@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { DataFeed, DataFeedFormData, FieldMapping, MatchingRule, SourceFilter, FilterOperator, SCHEDULE_PRESETS, FILTER_OPERATORS, ScheduleConfig, buildCronFromConfig, parseCronToReadable, getOperatorsForFieldType, getFieldCategory } from '@/types/dataFeed';
+import { DataFeed, DataFeedFormData, FieldMapping, MatchingRule, SourceFilter, FilterOperator, SCHEDULE_PRESETS, FILTER_OPERATORS, ScheduleConfig, buildCronFromConfig, parseCronToReadable, getOperatorsForFieldType, getFieldCategory, SourceType, ExternalSourceConfig as ExternalSourceConfigType, DiscoveredField } from '@/types/dataFeed';
+import { DataSourceConnection } from '@/types/externalDataSource';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { ExpressionEvaluator } from '@/utils/expressionEvaluator';
 import { Separator } from '@/components/ui/separator';
 import { FilterValueInput } from './FilterValueInput';
+import { ExternalSourceConfig } from './ExternalSourceConfig';
 
 interface DataFeedDialogProps {
   open: boolean;
@@ -67,6 +69,10 @@ export function DataFeedDialog({
     atTime: '09:00',
     onDays: [1, 2, 3, 4, 5], // Mon-Fri by default
   });
+  // External source state
+  const [sharedConnections, setSharedConnections] = useState<DataSourceConnection[]>([]);
+  const [useSharedConnection, setUseSharedConnection] = useState(false);
+  const [discoveredFields, setDiscoveredFields] = useState<DiscoveredField[]>([]);
 
   const DAYS_OF_WEEK = [
     { value: 0, label: 'Sun' },
@@ -81,7 +87,9 @@ export function DataFeedDialog({
   const [formData, setFormData] = useState<DataFeedFormData>({
     name: '',
     description: '',
+    source_type: 'form',
     source_form_id: '',
+    external_source_config: {},
     target_form_id: '',
     matching_type: 'field_matching',
     matching_rules: [],
@@ -97,7 +105,7 @@ export function DataFeedDialog({
   const [logicError, setLogicError] = useState<string | null>(null);
   const [filterLogicError, setFilterLogicError] = useState<string | null>(null);
 
-  // Load forms
+  // Load forms and shared connections
   useEffect(() => {
     if (!projectId || !open) return;
 
@@ -111,11 +119,46 @@ export function DataFeedDialog({
       setForms(data || []);
     };
 
+    const fetchConnections = async () => {
+      const { data } = await supabase
+        .from('data_source_connections')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('is_active', true)
+        .order('name');
+      
+      // Map database records to DataSourceConnection type
+      const connections = (data || []).map(conn => ({
+        ...conn,
+        discovered_fields: Array.isArray(conn.discovered_fields) 
+          ? (conn.discovered_fields as unknown as DiscoveredField[]) 
+          : []
+      })) as DataSourceConnection[];
+      setSharedConnections(connections);
+    };
+
     fetchForms();
+    fetchConnections();
   }, [projectId, open]);
 
-  // Load source form fields
+  // Load source form fields (for 'form' source type)
   useEffect(() => {
+    // For external sources, use discovered fields instead
+    if (formData.source_type !== 'form') {
+      // Convert discovered fields to FieldOption format
+      const externalFields = discoveredFields.map(f => ({
+        id: f.name, // Use field name as ID for external sources
+        label: f.name,
+        field_type: f.type,
+        options: undefined,
+        custom_config: undefined
+      }));
+      setSourceFields(externalFields);
+      setCrossRefFields([]);
+      setCrossRefFormFields([]);
+      return;
+    }
+
     if (!formData.source_form_id) {
       setSourceFields([]);
       setCrossRefFields([]);
@@ -171,7 +214,7 @@ export function DataFeedDialog({
     };
 
     fetchFields();
-  }, [formData.source_form_id]);
+  }, [formData.source_form_id, formData.source_type, discoveredFields]);
 
   // Load target form fields
   useEffect(() => {
@@ -207,11 +250,20 @@ export function DataFeedDialog({
         ...filter,
         id: filter.id || String(idx + 1)
       }));
+
+      // Get source_type from feed (cast from database)
+      const feedAny = feed as any;
+      const sourceType: SourceType = feedAny.source_type || 'form';
+      const externalConfig = feedAny.external_source_config || {};
+      const connectionId = feedAny.data_source_connection_id;
       
       setFormData({
         name: feed.name,
         description: feed.description || '',
+        source_type: sourceType,
         source_form_id: feed.source_form_id,
+        external_source_config: externalConfig,
+        data_source_connection_id: connectionId,
         target_form_id: feed.target_form_id,
         matching_type: feed.matching_type,
         cross_reference_field_id: feed.cross_reference_field_id,
@@ -224,11 +276,15 @@ export function DataFeedDialog({
         schedule: feed.schedule || '',
         is_active: feed.is_active,
       });
+      
+      setUseSharedConnection(!!connectionId);
     } else {
       setFormData({
         name: '',
         description: '',
+        source_type: 'form',
         source_form_id: '',
+        external_source_config: {},
         target_form_id: '',
         matching_type: 'field_matching',
         matching_rules: [],
@@ -240,13 +296,21 @@ export function DataFeedDialog({
         schedule: '',
         is_active: true,
       });
+      setUseSharedConnection(false);
+      setDiscoveredFields([]);
     }
     setLogicError(null);
     setFilterLogicError(null);
   }, [feed, open]);
 
   const handleSave = async () => {
-    if (!formData.name || !formData.source_form_id || !formData.target_form_id) return;
+    // For form source type, require source_form_id
+    // For external sources, either need config or connection
+    const hasValidSource = formData.source_type === 'form' 
+      ? formData.source_form_id 
+      : (formData.data_source_connection_id || formData.external_source_config);
+      
+    if (!formData.name || !hasValidSource || !formData.target_form_id) return;
 
     setSaving(true);
     const success = await onSave(formData);
@@ -549,8 +613,9 @@ export function DataFeedDialog({
 
         <ScrollArea className="max-h-[calc(90vh-8rem)]">
           <Tabs defaultValue="general" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="general">General</TabsTrigger>
+              <TabsTrigger value="source">Data Source</TabsTrigger>
               <TabsTrigger value="filters">Source Filters</TabsTrigger>
               <TabsTrigger value="matching">Matching</TabsTrigger>
               <TabsTrigger value="mappings">Field Mappings</TabsTrigger>
@@ -580,44 +645,26 @@ export function DataFeedDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Source Form *</Label>
-                  <Select
-                    value={formData.source_form_id}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, source_form_id: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select source form" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {forms.map((form) => (
-                        <SelectItem key={form.id} value={form.id}>
-                          {form.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Target Form *</Label>
-                  <Select
-                    value={formData.target_form_id}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, target_form_id: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select target form" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {forms.map((form) => (
-                        <SelectItem key={form.id} value={form.id}>
-                          {form.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2">
+                <Label>Target Form *</Label>
+                <Select
+                  value={formData.target_form_id}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, target_form_id: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select target form" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {forms.map((form) => (
+                      <SelectItem key={form.id} value={form.id}>
+                        {form.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Records from the data source will be matched/synced to this form
+                </p>
               </div>
 
               <div className="space-y-4">
@@ -816,6 +863,74 @@ export function DataFeedDialog({
                 />
                 <Label htmlFor="is_active">Active</Label>
               </div>
+            </TabsContent>
+
+            {/* Data Source Tab */}
+            <TabsContent value="source" className="space-y-4 p-1">
+              <ExternalSourceConfig
+                sourceType={formData.source_type || 'form'}
+                onSourceTypeChange={(type) => {
+                  setFormData(prev => ({ 
+                    ...prev, 
+                    source_type: type,
+                    // Clear source_form_id when switching away from form
+                    source_form_id: type === 'form' ? prev.source_form_id : '',
+                    // Clear external config when switching to form
+                    external_source_config: type === 'form' ? {} : prev.external_source_config,
+                  }));
+                  // Clear discovered fields when changing source type
+                  if (type !== formData.source_type) {
+                    setDiscoveredFields([]);
+                  }
+                }}
+                config={formData.external_source_config || {}}
+                onConfigChange={(config) => setFormData(prev => ({ ...prev, external_source_config: config }))}
+                discoveredFields={discoveredFields}
+                onFieldsDiscovered={setDiscoveredFields}
+                projectId={projectId}
+                sharedConnections={sharedConnections}
+                selectedConnectionId={formData.data_source_connection_id}
+                onConnectionSelect={(id) => setFormData(prev => ({ ...prev, data_source_connection_id: id }))}
+                useSharedConnection={useSharedConnection}
+                onUseSharedConnectionChange={setUseSharedConnection}
+              />
+
+              {/* Form source - show form selector */}
+              {formData.source_type === 'form' && (
+                <div className="space-y-2 pt-4 border-t">
+                  <Label>Source Form *</Label>
+                  <Select
+                    value={formData.source_form_id}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, source_form_id: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select source form" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {forms.map((form) => (
+                        <SelectItem key={form.id} value={form.id}>
+                          {form.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Show discovered fields */}
+              {discoveredFields.length > 0 && (
+                <div className="space-y-2 pt-4 border-t">
+                  <Label>Discovered Fields ({discoveredFields.length})</Label>
+                  <div className="flex flex-wrap gap-1">
+                    {discoveredFields.map((field, idx) => (
+                      <Badge key={idx} variant="secondary" className="text-xs">
+                        {field.name}
+                        <span className="ml-1 opacity-60">({field.type})</span>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
             </TabsContent>
 
             {/* Source Filters Tab */}
