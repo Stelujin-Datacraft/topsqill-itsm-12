@@ -40,7 +40,7 @@ import ReportEditor from "./pages/ReportEditor";
 import ReportViewerPage from "./pages/ReportViewer";
 import ReportAccessManagement from "./pages/ReportAccessManagement";
 import Users from "./pages/Users";
-import UserRequests from "./pages/UserRequests";
+
 import RolesAndAccess from "./pages/RolesAndAccess";
 import Projects from "./pages/Projects";
 import ProjectOverview from "./components/projects/ProjectOverview";
@@ -112,7 +112,7 @@ const App = () => (
                      <Route path="/report-view/:id" element={<ProtectedRoute><ReportViewerPage /></ProtectedRoute>} />
                      <Route path="/report/:id/access" element={<ProtectedRoute><ReportAccessManagement /></ProtectedRoute>} />
                     <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
-                    <Route path="/user-requests" element={<ProtectedRoute><UserRequests /></ProtectedRoute>} />
+                    
                     <Route path="/roles-and-access" element={<ProtectedRoute><RolesAndAccess /></ProtectedRoute>} />
                     <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
                     <Route path="/projects/:projectId/access" element={<ProtectedRoute><ProjectAccessPage /></ProtectedRoute>} />
