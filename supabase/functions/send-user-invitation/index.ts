@@ -92,6 +92,23 @@ serve(async (req) => {
       );
     }
 
+    // Check for existing pending invitation and delete it
+    const { data: existingInvitation } = await supabaseClient
+      .from('organization_requests')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .eq('email', email.toLowerCase())
+      .eq('status', 'pending')
+      .maybeSingle();
+
+    if (existingInvitation) {
+      await supabaseClient
+        .from('organization_requests')
+        .delete()
+        .eq('id', existingInvitation.id);
+      console.log('🗑️ Deleted existing pending invitation:', existingInvitation.id);
+    }
+
     // Calculate expiry date (7 days from now)
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
