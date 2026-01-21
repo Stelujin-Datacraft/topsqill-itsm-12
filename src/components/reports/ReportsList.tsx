@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { FileText, Calendar, Eye, Edit, Trash2 } from 'lucide-react';
+import { FileText, Calendar, Eye, Edit, Trash2, Share2 } from 'lucide-react';
+import { ShareLinkButton } from '@/components/shared/ShareLinkButton';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { LoadingScreen } from '@/components/LoadingScreen';
@@ -192,6 +193,11 @@ export function ReportsList({
                       {report.description && <CardDescription>{report.description}</CardDescription>}
                     </div>
                     <div className="flex space-x-1">
+                      <ShareLinkButton 
+                        assetType="report" 
+                        assetId={report.id} 
+                        assetName={report.name} 
+                      />
                       <Button variant="ghost" size="sm" onClick={() => onView(report)} title="View Report">
                         <Eye className="h-4 w-4" />
                       </Button>

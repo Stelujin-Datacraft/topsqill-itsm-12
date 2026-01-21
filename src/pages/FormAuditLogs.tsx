@@ -33,6 +33,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { DeleteLogsDialog } from '@/components/shared/DeleteLogsDialog';
+import { ExportDropdown } from '@/components/reports/ExportDropdown';
 
 interface FormAuditLog {
   id: string;
@@ -268,11 +270,41 @@ const FormAuditLogs: React.FC = () => {
     { value: 'form_exported', label: 'Exported' },
   ];
 
+  const exportData = {
+    title: 'Form Activity History',
+    data: logs.map(log => ({
+      'Event Type': formatEventType(log.event_type),
+      'Form': getFormName(log),
+      'Field': log.field_label || '-',
+      'User': getUserDisplayName(log.user_id ? usersMap[log.user_id] : undefined),
+      'Date': formatDate(log.created_at),
+      'Description': log.description || '-'
+    })),
+    columns: [
+      { key: 'Event Type', label: 'Event Type' },
+      { key: 'Form', label: 'Form' },
+      { key: 'Field', label: 'Field' },
+      { key: 'User', label: 'User' },
+      { key: 'Date', label: 'Date' },
+      { key: 'Description', label: 'Description' }
+    ]
+  };
+
   const headerActions = (
-    <Button variant="outline" onClick={fetchLogs} disabled={loading}>
-      <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-      Refresh
-    </Button>
+    <div className="flex gap-2">
+      {userProfile?.role === 'admin' && (
+        <DeleteLogsDialog 
+          tableName="form_audit_logs" 
+          title="Form History" 
+          onDeleted={fetchLogs} 
+        />
+      )}
+      <ExportDropdown data={exportData} disabled={logs.length === 0} />
+      <Button variant="outline" onClick={fetchLogs} disabled={loading}>
+        <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+        Refresh
+      </Button>
+    </div>
   );
 
   return (

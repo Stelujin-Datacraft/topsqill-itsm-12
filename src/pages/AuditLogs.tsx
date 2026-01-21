@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { DeleteLogsDialog } from '@/components/shared/DeleteLogsDialog';
 
 interface AuditLog {
   id: string;
@@ -171,10 +172,19 @@ const AuditLogs: React.FC = () => {
   };
 
   const headerActions = (
-    <Button variant="outline" onClick={fetchLogs} disabled={loading}>
-      <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-      Refresh
-    </Button>
+    <div className="flex gap-2">
+      {effectiveRole === 'admin' && (
+        <DeleteLogsDialog 
+          tableName="audit_logs" 
+          title="Audit Logs" 
+          onDeleted={fetchLogs} 
+        />
+      )}
+      <Button variant="outline" onClick={fetchLogs} disabled={loading}>
+        <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+        Refresh
+      </Button>
+    </div>
   );
 
   return (
