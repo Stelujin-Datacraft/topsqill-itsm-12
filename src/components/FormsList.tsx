@@ -11,6 +11,7 @@ import { FileText, Eye, Edit, Trash2, Share, Settings, Calendar, User, Grid, Lis
 import { format } from 'date-fns';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import NoProjectSelected from '@/components/NoProjectSelected';
+import { ShareLinkButton } from '@/components/shared/ShareLinkButton';
 export function FormsList() {
   const navigate = useNavigate();
   const {
@@ -184,12 +185,7 @@ export function FormsList() {
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                  {/* <Button variant="ghost" size="sm" onClick={() => handleFormAccess(form.id)} title="User Access" className="text-purple-600 hover:text-purple-700 hover:bg-purple-50">
-                    <User className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleFormShare(form.id)} title="Share Form" className="text-orange-600 hover:text-orange-700 hover:bg-orange-50">
-                    <Share className="h-4 w-4" />
-                  </Button> */}
+                  <ShareLinkButton assetType="form" assetId={form.id} assetName={form.name} />
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -261,7 +257,9 @@ export function FormsList() {
                         <p>{editButtonState.disabled ? editButtonState.tooltip : "Edit Form"}</p>
                       </TooltipContent>
                     </Tooltip>
-                                      <TooltipProvider>
+                  </TooltipProvider>
+                  <ShareLinkButton assetType="form" assetId={form.id} assetName={form.name} />
+                  <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="ghost" size="sm" onClick={() => handleDeleteForm(form.id)} disabled={deleteButtonState.disabled} className="text-red-600 hover:text-red-700 hover:bg-red-50">
@@ -273,21 +271,6 @@ export function FormsList() {
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                  </TooltipProvider>
-                  
-                  
-                  {/* <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="sm" onClick={() => handleFormSettings(form.id)} disabled={editButtonState.disabled} className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
-                          <Settings className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{editButtonState.disabled ? editButtonState.tooltip : "Form Settings"}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider> */}
                 </div>
               </div>
             </CardContent>

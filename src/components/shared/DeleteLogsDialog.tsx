@@ -16,9 +16,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Trash2, AlertTriangle } from 'lucide-react';
+import { Trash2, AlertTriangle, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface DeleteLogsDialogProps {
   tableName: 'audit_logs' | 'form_audit_logs';
@@ -34,6 +38,7 @@ const timeframeOptions = [
   { value: '3w', label: 'Last 3 Weeks', hours: 24 * 21 },
   { value: '3m', label: 'Last 3 Months', hours: 24 * 90 },
   { value: 'all', label: 'All Time', hours: null },
+  { value: 'custom', label: 'Custom Range', hours: null },
 ];
 
 export function DeleteLogsDialog({ tableName, title, onDeleted }: DeleteLogsDialogProps) {
@@ -41,12 +46,27 @@ export function DeleteLogsDialog({ tableName, title, onDeleted }: DeleteLogsDial
   const [timeframe, setTimeframe] = useState<string>('');
   const [deleting, setDeleting] = useState(false);
   const [confirmText, setConfirmText] = useState('');
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
   const selectedOption = timeframeOptions.find(opt => opt.value === timeframe);
+  const isCustomRange = timeframe === 'custom';
+
+  const getDeleteDescription = () => {
+    if (isCustomRange && startDate && endDate) {
+      return `logs from ${format(startDate, 'MMM d, yyyy')} to ${format(endDate, 'MMM d, yyyy')}`;
+    }
+    return selectedOption?.label.toLowerCase() || '';
+  };
 
   const handleDelete = async () => {
     if (!timeframe) {
       toast.error('Please select a timeframe');
+      return;
+    }
+
+    if (isCustomRange && (!startDate || !endDate)) {
+      toast.error('Please select both start and end dates');
       return;
     }
 
@@ -59,7 +79,12 @@ export function DeleteLogsDialog({ tableName, title, onDeleted }: DeleteLogsDial
     try {
       let query = supabase.from(tableName).delete();
       
-      if (selectedOption?.hours !== null) {
+      if (isCustomRange && startDate && endDate) {
+        // Custom date range - delete logs between start and end dates
+        const startISO = new Date(startDate.setHours(0, 0, 0, 0)).toISOString();
+        const endISO = new Date(endDate.setHours(23, 59, 59, 999)).toISOString();
+        query = query.gte('created_at', startISO).lte('created_at', endISO);
+      } else if (selectedOption?.hours !== null) {
         const cutoffDate = new Date(Date.now() - (selectedOption!.hours * 60 * 60 * 1000));
         query = query.lte('created_at', cutoffDate.toISOString());
       } else {
@@ -75,10 +100,12 @@ export function DeleteLogsDialog({ tableName, title, onDeleted }: DeleteLogsDial
         return;
       }
 
-      toast.success(`Successfully deleted ${selectedOption?.label.toLowerCase()} logs`);
+      toast.success(`Successfully deleted ${getDeleteDescription()} logs`);
       setOpen(false);
       setTimeframe('');
       setConfirmText('');
+      setStartDate(undefined);
+      setEndDate(undefined);
       onDeleted();
     } catch (error) {
       console.error('Delete error:', error);
@@ -86,6 +113,14 @@ export function DeleteLogsDialog({ tableName, title, onDeleted }: DeleteLogsDial
     } finally {
       setDeleting(false);
     }
+  };
+
+  const isValidSelection = () => {
+    if (!timeframe) return false;
+    if (isCustomRange) {
+      return startDate && endDate && confirmText === 'DELETE';
+    }
+    return confirmText === 'DELETE';
   };
 
   return (
@@ -124,10 +159,87 @@ export function DeleteLogsDialog({ tableName, title, onDeleted }: DeleteLogsDial
             </Select>
           </div>
 
-          {timeframe && (
+          {/* Custom Date Range Picker */}
+          {isCustomRange && (
+            <div className="space-y-3 p-3 border rounded-md bg-muted/50">
+              <label className="text-sm font-medium">Select Date Range</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Start Date</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !startDate && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {startDate ? format(startDate, "MMM d, yyyy") : "Pick date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={startDate}
+                        onSelect={setStartDate}
+                        initialFocus
+                        disabled={(date) => date > new Date()}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">End Date</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !endDate && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {endDate ? format(endDate, "MMM d, yyyy") : "Pick date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={endDate}
+                        onSelect={setEndDate}
+                        initialFocus
+                        disabled={(date) => 
+                          date > new Date() || 
+                          (startDate ? date < startDate : false)
+                        }
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+              {startDate && endDate && (
+                <p className="text-xs text-muted-foreground">
+                  Will delete logs from {format(startDate, 'MMM d, yyyy')} to {format(endDate, 'MMM d, yyyy')}
+                </p>
+              )}
+            </div>
+          )}
+
+          {timeframe && !isCustomRange && (
             <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
               <p className="text-sm text-destructive font-medium">
                 Warning: This will delete all logs from {selectedOption?.label.toLowerCase()}.
+              </p>
+            </div>
+          )}
+
+          {isCustomRange && startDate && endDate && (
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+              <p className="text-sm text-destructive font-medium">
+                Warning: This will delete all logs from {format(startDate, 'MMM d, yyyy')} to {format(endDate, 'MMM d, yyyy')}.
               </p>
             </div>
           )}
@@ -141,7 +253,7 @@ export function DeleteLogsDialog({ tableName, title, onDeleted }: DeleteLogsDial
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
               placeholder="Type DELETE"
-              className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-destructive"
+              className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-destructive bg-background"
             />
           </div>
         </div>
@@ -153,7 +265,7 @@ export function DeleteLogsDialog({ tableName, title, onDeleted }: DeleteLogsDial
           <Button 
             variant="destructive" 
             onClick={handleDelete}
-            disabled={deleting || !timeframe || confirmText !== 'DELETE'}
+            disabled={deleting || !isValidSelection()}
           >
             {deleting ? 'Deleting...' : 'Delete Logs'}
           </Button>

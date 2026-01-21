@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Download, Users } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Download, FileText, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -221,15 +227,24 @@ export function ExportAllUsersReport() {
   };
 
   return (
-    <div className="flex gap-2">
-      <Button variant="outline" size="sm" onClick={exportToCSV} disabled={exporting}>
-        <Download className="h-4 w-4 mr-2" />
-        Export All (CSV)
-      </Button>
-      <Button variant="outline" size="sm" onClick={exportToPDF} disabled={exporting}>
-        <Users className="h-4 w-4 mr-2" />
-        Export All (PDF)
-      </Button>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" disabled={exporting}>
+          <Download className="h-4 w-4 mr-2" />
+          Export All
+          <ChevronDown className="h-4 w-4 ml-2" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={exportToCSV} disabled={exporting}>
+          <FileSpreadsheet className="h-4 w-4 mr-2" />
+          Export as CSV
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={exportToPDF} disabled={exporting}>
+          <FileText className="h-4 w-4 mr-2" />
+          Export as PDF
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
