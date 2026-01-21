@@ -58,27 +58,66 @@ const FormView = () => {
 
   // Show error if there was an error loading the form
   if (formError) {
+    // Check if this is an access denied error
+    const isAccessDenied = formError === 'ACCESS_DENIED';
+    
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="max-w-md mx-auto">
+          {/* Topsqill Header */}
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-primary rounded-lg flex items-center justify-center mx-auto mb-4">
+              <span className="text-primary-foreground font-bold text-2xl">T</span>
+            </div>
+            <h1 className="text-2xl font-bold text-foreground">Topsqill</h1>
+            <p className="text-muted-foreground">Form Builder Platform</p>
+          </div>
+
           <Card>
             <CardContent className="text-center py-12">
-              <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-red-600 mb-2">Error Loading Form</h2>
+              <AlertCircle className={`h-16 w-16 mx-auto mb-4 ${isAccessDenied ? 'text-orange-500' : 'text-red-500'}`} />
+              <h2 className={`text-2xl font-bold mb-2 ${isAccessDenied ? 'text-orange-600' : 'text-red-600'}`}>
+                {isAccessDenied ? 'Access Denied' : 'Error Loading Form'}
+              </h2>
               <p className="text-muted-foreground mb-6">
-                {formError}
+                {isAccessDenied 
+                  ? "You don't have permission to access this form. Please contact the form owner or your administrator to request access."
+                  : formError
+                }
               </p>
               
               <div className="space-y-3">
+                {user ? (
+                  <Link to="/dashboard" className="block">
+                    <Button className="w-full">
+                      <Home className="h-4 w-4 mr-2" />
+                      Go to Dashboard
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link to="/auth" className="block">
+                    <Button className="w-full">
+                      <LogIn className="h-4 w-4 mr-2" />
+                      Login
+                    </Button>
+                  </Link>
+                )}
+                
                 <Link to="/" className="block">
-                  <Button className="w-full">
-                    <Home className="h-4 w-4 mr-2" />
+                  <Button variant="outline" className="w-full">
+                    <ArrowLeft className="h-4 w-4 mr-2" />
                     Go to Homepage
                   </Button>
                 </Link>
               </div>
             </CardContent>
           </Card>
+          
+          <div className="text-center mt-6">
+            <p className="text-xs text-muted-foreground">
+              © 2024 Topsqill. All rights reserved.
+            </p>
+          </div>
         </div>
       </div>
     );
