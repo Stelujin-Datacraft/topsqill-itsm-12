@@ -1,6 +1,6 @@
 
 import { useAuth } from '@/contexts/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -8,6 +8,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, userProfile, isLoading } = useAuth();
+  const location = useLocation();
 
   console.log('ProtectedRoute - isLoading:', isLoading, 'user:', user?.email, 'userProfile:', userProfile?.id);
 
@@ -20,8 +21,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   if (!user) {
-    console.log('No user found, redirecting to auth');
-    return <Navigate to="/auth" replace />;
+    console.log('No user found, redirecting to auth with returnTo:', location.pathname);
+    // Preserve the intended destination URL so user is redirected back after login
+    const returnTo = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/auth?returnTo=${returnTo}`} replace />;
   }
 
   // Check if user has a profile and organization
