@@ -24,8 +24,11 @@ interface OrganizationRequest {
   first_name: string;
   last_name: string;
   message?: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'accepted';
   requested_at: string;
+  expires_at?: string;
+  role?: string;
+  invitation_type?: 'admin_invite' | 'self_request';
 }
 
 export const useUserManagement = () => {
@@ -82,7 +85,10 @@ export const useUserManagement = () => {
       console.log('Loaded pending requests:', data);
       const typedRequests: OrganizationRequest[] = (data || []).map(request => ({
         ...request,
-        status: request.status as 'pending' | 'approved' | 'rejected'
+        status: request.status as 'pending' | 'approved' | 'rejected' | 'accepted',
+        expires_at: request.expires_at,
+        role: request.role,
+        invitation_type: request.invitation_type as 'admin_invite' | 'self_request' | undefined,
       }));
 
       setRequests(typedRequests);
@@ -144,7 +150,18 @@ export const useUserManagement = () => {
     }
   };
 
-  const handleInviteUser = async (inviteData: { email: string; firstName: string; lastName: string; role: string }) => {
+  const handleInviteUser = async (inviteData: { 
+    email: string; 
+    firstName: string; 
+    lastName: string; 
+    role: string;
+    password: string;
+    securityTemplateId?: string;
+    mobile?: string;
+    gender?: string;
+    nationality?: string;
+    timezone?: string;
+  }) => {
     if (!currentOrganization?.id) {
       toast({
         title: "Error",
@@ -154,123 +171,103 @@ export const useUserManagement = () => {
       return;
     }
 
-    if (!inviteData.email || !inviteData.firstName || !inviteData.lastName) {
+    if (!inviteData.email || !inviteData.firstName || !inviteData.lastName || !inviteData.password) {
       toast({
         title: "Error",
-        description: "Please fill in all required fields.",
+        description: "Please fill in all required fields including password.",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      // Check if invitation already exists for this email
+      // Check if user already exists
+      const { data: existingUser } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('email', inviteData.email.toLowerCase())
+        .eq('organization_id', currentOrganization.id)
+        .maybeSingle();
+
+      if (existingUser) {
+        toast({
+          title: "User already exists",
+          description: `A user with email ${inviteData.email} already exists in this organization.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check for pending invitation
       const { data: existingRequest } = await supabase
         .from('organization_requests')
         .select('id, status')
         .eq('organization_id', currentOrganization.id)
-        .eq('email', inviteData.email)
+        .eq('email', inviteData.email.toLowerCase())
+        .eq('status', 'pending')
         .maybeSingle();
 
       if (existingRequest) {
-        if (existingRequest.status === 'pending') {
-          toast({
-            title: "Already invited",
-            description: `An invitation for ${inviteData.email} is already pending.`,
-            variant: "destructive",
-          });
-          return;
-        }
-        
-        // If rejected or other status, update the existing record
-        const { error: updateError } = await supabase
-          .from('organization_requests')
-          .update({
-            first_name: inviteData.firstName,
-            last_name: inviteData.lastName,
-            message: `Invited as ${inviteData.role}`,
-            status: 'pending',
-            requested_at: new Date().toISOString(),
-            reviewed_at: null,
-            reviewed_by: null
-          })
-          .eq('id', existingRequest.id);
-
-        if (updateError) {
-          console.error('Update invitation error:', updateError);
-          toast({
-            title: "Error",
-            description: `Failed to update invitation: ${updateError.message}`,
-            variant: "destructive",
-          });
-          return;
-        }
-      } else {
-        // Insert new invitation record
-        console.log('Creating invitation with data:', {
-          organization_id: currentOrganization.id,
-          email: inviteData.email,
-          first_name: inviteData.firstName,
-          last_name: inviteData.lastName,
-          message: `Invited as ${inviteData.role}`,
-          status: 'pending'
+        toast({
+          title: "Already invited",
+          description: `An invitation for ${inviteData.email} is already pending.`,
+          variant: "destructive",
         });
-
-        const { error } = await supabase
-          .from('organization_requests')
-          .insert({
-            organization_id: currentOrganization.id,
-            email: inviteData.email,
-            first_name: inviteData.firstName,
-            last_name: inviteData.lastName,
-            message: `Invited as ${inviteData.role}`,
-            status: 'pending'
-          });
-
-        if (error) {
-          console.error('Invitation error:', error);
-          toast({
-            title: "Error",
-            description: `Failed to send invitation: ${error.message}`,
-            variant: "destructive",
-          });
-          return;
-        }
+        return;
       }
 
-      // Send invitation email
-      try {
-        const inviterName = userProfile 
-          ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || userProfile.email
-          : 'Someone';
+      // Call the new edge function to send invitation
+      const inviterName = userProfile 
+        ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || userProfile.email
+        : 'Administrator';
 
-        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-invitation-email', {
-          body: {
-            email: inviteData.email,
-            firstName: inviteData.firstName,
-            lastName: inviteData.lastName,
-            role: inviteData.role,
-            organizationName: currentOrganization.name,
-            inviterName,
-            organizationId: currentOrganization.id
-          }
-        });
-        
-        if (emailError) {
-          toast({
-            title: "User invited",
-            description: `Invitation created for ${inviteData.firstName} ${inviteData.lastName}, but email could not be sent.`,
-          });
-        } else {
-          toast({
-            title: "User invited",
-            description: `Invitation email sent to ${inviteData.firstName} ${inviteData.lastName} (${inviteData.email})`,
-          });
+      const { data, error } = await supabase.functions.invoke('send-user-invitation', {
+        body: {
+          email: inviteData.email,
+          firstName: inviteData.firstName,
+          lastName: inviteData.lastName,
+          role: inviteData.role,
+          password: inviteData.password,
+          organizationName: currentOrganization.name,
+          organizationId: currentOrganization.id,
+          inviterName,
+          securityTemplateId: inviteData.securityTemplateId,
+          mobile: inviteData.mobile,
+          gender: inviteData.gender,
+          nationality: inviteData.nationality,
+          timezone: inviteData.timezone,
         }
-      } catch {
+      });
+
+      if (error) {
+        console.error('Error sending invitation:', error);
         toast({
-          title: "User invited",
-          description: `Invitation created for ${inviteData.firstName} ${inviteData.lastName}, but email could not be sent.`,
+          title: "Error",
+          description: "Failed to send invitation.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!data?.success) {
+        toast({
+          title: "Error",
+          description: data?.error || "Failed to send invitation.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data.emailSent) {
+        toast({
+          title: "Invitation sent",
+          description: `Invitation email sent to ${inviteData.firstName} ${inviteData.lastName}. They will receive an email with login credentials and an Accept button.`,
+        });
+      } else {
+        toast({
+          title: "Invitation created",
+          description: `Invitation created for ${inviteData.firstName} ${inviteData.lastName}, but email could not be sent. Please check SMTP settings.`,
+          variant: "destructive",
         });
       }
       
@@ -280,6 +277,50 @@ export const useUserManagement = () => {
       toast({
         title: "Error",
         description: "Failed to send invitation.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelInvitation = async (invitationId: string) => {
+    try {
+      const { data, error } = await supabase.rpc('cancel_organization_invitation', {
+        invitation_id_param: invitationId
+      });
+
+      if (error) {
+        console.error('Error cancelling invitation:', error);
+        toast({
+          title: "Error",
+          description: "Failed to cancel invitation.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Type assertion for the RPC response
+      const response = data as { success?: boolean; error?: string } | null;
+
+      if (!response?.success) {
+        toast({
+          title: "Error",
+          description: response?.error || "Failed to cancel invitation.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Invitation cancelled",
+        description: "The invitation has been cancelled and the invite link is now invalid.",
+      });
+      
+      loadRequests();
+    } catch (error) {
+      console.error('Error cancelling invitation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to cancel invitation.",
         variant: "destructive",
       });
     }
@@ -633,6 +674,7 @@ export const useUserManagement = () => {
     requests,
     loading,
     handleInviteUser,
+    handleCancelInvitation,
     handleApproveRequest,
     handleRejectRequest,
     handleRoleChange,
