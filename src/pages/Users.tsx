@@ -37,6 +37,7 @@ const Users = () => {
     requests,
     loading,
     handleInviteUser,
+    handleCancelInvitation,
     handleApproveRequest,
     handleRejectRequest,
     handleRoleChange,
@@ -418,12 +419,7 @@ const Users = () => {
         isOpen={isRequestsOpen}
         onOpenChange={setIsRequestsOpen}
         requests={requests}
-        selectedRequests={selectedRequests}
-        onToggleSelection={toggleRequestSelection}
-        onApproveRequest={handleApproveRequest}
-        onRejectRequest={handleRejectRequest}
-        onApproveSelected={handleApproveSelected}
-        onApproveAll={handleApproveAll}
+        onCancelInvitation={handleCancelInvitation}
       />
       
       <UserCreateDialog

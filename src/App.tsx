@@ -61,6 +61,7 @@ import AuditLogs from "./pages/AuditLogs";
 import FormAuditLogs from "./pages/FormAuditLogs";
 import InvestigateAccess from "./pages/InvestigateAccess";
 import PasswordExpiryWarning from "./components/PasswordExpiryWarning";
+import AcceptInvitation from "./pages/AcceptInvitation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -86,6 +87,7 @@ const App = () => (
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/login" element={<Navigate to="/auth" replace />} />
                     <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/accept-invitation" element={<AcceptInvitation />} />
                     <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                     <Route path="/query" element={<ProtectedRoute><QueryPage /></ProtectedRoute>} />
                     <Route path="/forms" element={<ProtectedRoute><Forms /></ProtectedRoute>} />

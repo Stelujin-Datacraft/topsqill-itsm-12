@@ -1126,39 +1126,69 @@ export type Database = {
       organization_requests: {
         Row: {
           email: string
+          expires_at: string | null
           first_name: string
+          gender: string | null
           id: string
+          invitation_token: string | null
+          invitation_type: string | null
           last_name: string
           message: string | null
+          mobile: string | null
+          nationality: string | null
           organization_id: string | null
+          password_hash: string | null
           requested_at: string
           reviewed_at: string | null
           reviewed_by: string | null
+          role: string | null
+          security_template_id: string | null
           status: string
+          timezone: string | null
         }
         Insert: {
           email: string
+          expires_at?: string | null
           first_name: string
+          gender?: string | null
           id?: string
+          invitation_token?: string | null
+          invitation_type?: string | null
           last_name: string
           message?: string | null
+          mobile?: string | null
+          nationality?: string | null
           organization_id?: string | null
+          password_hash?: string | null
           requested_at?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          role?: string | null
+          security_template_id?: string | null
           status?: string
+          timezone?: string | null
         }
         Update: {
           email?: string
+          expires_at?: string | null
           first_name?: string
+          gender?: string | null
           id?: string
+          invitation_token?: string | null
+          invitation_type?: string | null
           last_name?: string
           message?: string | null
+          mobile?: string | null
+          nationality?: string | null
           organization_id?: string | null
+          password_hash?: string | null
           requested_at?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          role?: string | null
+          security_template_id?: string | null
           status?: string
+          timezone?: string | null
         }
         Relationships: [
           {
@@ -1166,6 +1196,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_requests_security_template_id_fkey"
+            columns: ["security_template_id"]
+            isOneToOne: false
+            referencedRelation: "security_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -2729,6 +2766,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_organization_invitation: {
+        Args: { invitation_token_param: string }
+        Returns: Json
+      }
       accept_project_invitation: {
         Args: { invitation_id_param: string }
         Returns: Json
@@ -2749,6 +2790,10 @@ export type Database = {
       can_view_project: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
+      }
+      cancel_organization_invitation: {
+        Args: { invitation_id_param: string }
+        Returns: Json
       }
       create_default_security_templates: {
         Args: { creator_id: string; org_id: string }
