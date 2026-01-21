@@ -174,8 +174,8 @@ serve(async (req) => {
       );
     }
 
-    // Build accept URL - use the app's actual URL
-    const appUrl = 'https://topsqill-itsm-12.lovable.app';
+    // Build accept URL - use the custom domain
+    const appUrl = 'https://itsm.topsqill.com';
     const acceptUrl = `${appUrl}/accept-invitation?token=${invitation.invitation_token}`;
 
     // Generate email HTML
