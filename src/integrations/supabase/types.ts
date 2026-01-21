@@ -152,7 +152,9 @@ export type Database = {
           created_at: string
           created_by: string
           cross_reference_field_id: string | null
+          data_source_connection_id: string | null
           description: string | null
+          external_source_config: Json | null
           field_mappings: Json
           id: string
           is_active: boolean
@@ -170,6 +172,7 @@ export type Database = {
           source_filter_logic: string | null
           source_filters: Json | null
           source_form_id: string
+          source_type: string | null
           target_form_id: string
           updated_at: string
         }
@@ -177,7 +180,9 @@ export type Database = {
           created_at?: string
           created_by: string
           cross_reference_field_id?: string | null
+          data_source_connection_id?: string | null
           description?: string | null
+          external_source_config?: Json | null
           field_mappings?: Json
           id?: string
           is_active?: boolean
@@ -195,6 +200,7 @@ export type Database = {
           source_filter_logic?: string | null
           source_filters?: Json | null
           source_form_id: string
+          source_type?: string | null
           target_form_id: string
           updated_at?: string
         }
@@ -202,7 +208,9 @@ export type Database = {
           created_at?: string
           created_by?: string
           cross_reference_field_id?: string | null
+          data_source_connection_id?: string | null
           description?: string | null
+          external_source_config?: Json | null
           field_mappings?: Json
           id?: string
           is_active?: boolean
@@ -220,6 +228,7 @@ export type Database = {
           source_filter_logic?: string | null
           source_filters?: Json | null
           source_form_id?: string
+          source_type?: string | null
           target_form_id?: string
           updated_at?: string
         }
@@ -229,6 +238,13 @@ export type Database = {
             columns: ["cross_reference_field_id"]
             isOneToOne: false
             referencedRelation: "form_fields"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_feeds_data_source_connection_id_fkey"
+            columns: ["data_source_connection_id"]
+            isOneToOne: false
+            referencedRelation: "data_source_connections"
             referencedColumns: ["id"]
           },
           {
@@ -257,6 +273,102 @@ export type Database = {
             columns: ["target_form_id"]
             isOneToOne: false
             referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      data_source_connections: {
+        Row: {
+          connection_type: string
+          created_at: string
+          created_by: string
+          db_connection_string: string | null
+          db_query: string | null
+          db_type: string | null
+          description: string | null
+          discovered_fields: Json | null
+          file_sheet_name: string | null
+          file_type: string | null
+          file_url: string | null
+          http_auth_config: Json | null
+          http_auth_type: string | null
+          http_headers: Json | null
+          http_method: string | null
+          http_response_path: string | null
+          http_url: string | null
+          id: string
+          is_active: boolean | null
+          last_field_discovery_at: string | null
+          name: string
+          organization_id: string | null
+          project_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          connection_type: string
+          created_at?: string
+          created_by: string
+          db_connection_string?: string | null
+          db_query?: string | null
+          db_type?: string | null
+          description?: string | null
+          discovered_fields?: Json | null
+          file_sheet_name?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          http_auth_config?: Json | null
+          http_auth_type?: string | null
+          http_headers?: Json | null
+          http_method?: string | null
+          http_response_path?: string | null
+          http_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_field_discovery_at?: string | null
+          name: string
+          organization_id?: string | null
+          project_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          connection_type?: string
+          created_at?: string
+          created_by?: string
+          db_connection_string?: string | null
+          db_query?: string | null
+          db_type?: string | null
+          description?: string | null
+          discovered_fields?: Json | null
+          file_sheet_name?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          http_auth_config?: Json | null
+          http_auth_type?: string | null
+          http_headers?: Json | null
+          http_method?: string | null
+          http_response_path?: string | null
+          http_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_field_discovery_at?: string | null
+          name?: string
+          organization_id?: string | null
+          project_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_source_connections_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_source_connections_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]

@@ -1,7 +1,11 @@
+import { SourceType, ExternalSourceConfig, DiscoveredField } from './externalDataSource';
+
+export type { SourceType, ExternalSourceConfig, DiscoveredField };
+
 export type FilterOperator = 
   // Universal operators
   | 'equals' 
-  | 'not_equals' 
+  | 'not_equals'
   | 'is_empty' 
   | 'is_not_empty'
   // Text operators
@@ -115,7 +119,13 @@ export interface DataFeedRun {
 export interface DataFeedFormData {
   name: string;
   description?: string;
-  source_form_id: string;
+  // Source configuration
+  source_type?: SourceType;
+  source_form_id: string; // Still used for 'form' source type
+  external_source_config?: ExternalSourceConfig;
+  data_source_connection_id?: string; // Reference to shared connection
+  discovered_fields?: DiscoveredField[]; // Fields discovered from external source
+  // Target
   target_form_id: string;
   matching_type: 'cross_reference' | 'field_matching';
   cross_reference_field_id?: string;
