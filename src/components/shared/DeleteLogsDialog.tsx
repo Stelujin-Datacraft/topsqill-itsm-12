@@ -37,6 +37,8 @@ const timeframeOptions = [
   { value: '1m', label: 'Last 1 Month', hours: 24 * 30 },
   { value: '3w', label: 'Last 3 Weeks', hours: 24 * 21 },
   { value: '3m', label: 'Last 3 Months', hours: 24 * 90 },
+  { value: '1y', label: 'Last 1 Year', hours: 24 * 365 },
+  { value: '3y', label: 'Last 3 Years', hours: 24 * 365 * 3 },
   { value: 'all', label: 'All Time', hours: null },
   { value: 'custom', label: 'Custom Range', hours: null },
 ];
