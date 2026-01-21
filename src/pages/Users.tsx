@@ -67,8 +67,8 @@ const Users = () => {
   // Stats
   const totalUsers = users.length;
   const activeUsers = users.filter(u => u.status === 'active').length;
-  const pendingUsers = users.filter(u => u.status === 'pending').length;
-  const adminUsers = users.filter(u => u.role === 'admin').length;
+  const inactiveUsers = users.filter(u => u.status === 'inactive').length;
+  const pendingRequests = requests.length;
 
   const handleApproveSelected = async () => {
     const selectedRequestsList = requests.filter(req => selectedRequests.has(req.id));
@@ -200,8 +200,8 @@ const Users = () => {
                   <p className="text-sm font-medium text-muted-foreground">Total Members</p>
                   <p className="text-3xl font-bold">{totalUsers}</p>
                 </div>
-                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
-                  <UsersIcon className="h-6 w-6 text-muted-foreground" />
+                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <UsersIcon className="h-6 w-6 text-primary" />
                 </div>
               </div>
             </CardContent>
@@ -211,23 +211,10 @@ const Users = () => {
               <div className="flex items-center justify-between">
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-muted-foreground">Active</p>
-                  <p className="text-3xl font-bold">{activeUsers}</p>
+                  <p className="text-3xl font-bold text-green-600">{activeUsers}</p>
                 </div>
-                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
-                  <UserCheck className="h-6 w-6 text-muted-foreground" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Pending</p>
-                  <p className="text-3xl font-bold">{pendingUsers}</p>
-                </div>
-                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
-                  <Clock className="h-6 w-6 text-muted-foreground" />
+                <div className="h-12 w-12 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                  <UserCheck className="h-6 w-6 text-green-600" />
                 </div>
               </div>
             </CardContent>
@@ -236,11 +223,24 @@ const Users = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Admins</p>
-                  <p className="text-3xl font-bold">{adminUsers}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Inactive</p>
+                  <p className="text-3xl font-bold text-red-600">{inactiveUsers}</p>
                 </div>
-                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
-                  <UserX className="h-6 w-6 text-muted-foreground" />
+                <div className="h-12 w-12 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <UserX className="h-6 w-6 text-red-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Pending Requests</p>
+                  <p className="text-3xl font-bold text-amber-600">{pendingRequests}</p>
+                </div>
+                <div className="h-12 w-12 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                  <Clock className="h-6 w-6 text-amber-600" />
                 </div>
               </div>
             </CardContent>
