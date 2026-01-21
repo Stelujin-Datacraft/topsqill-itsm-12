@@ -183,13 +183,14 @@ export function DeleteLogsDialog({ tableName, title, onDeleted }: DeleteLogsDial
                         {startDate ? format(startDate, "MMM d, yyyy") : "Pick date"}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent className="w-auto p-0 z-50" align="start">
                       <CalendarComponent
                         mode="single"
                         selected={startDate}
                         onSelect={setStartDate}
                         initialFocus
                         disabled={(date) => date > new Date()}
+                        className="p-3 pointer-events-auto"
                       />
                     </PopoverContent>
                   </Popover>
@@ -209,7 +210,7 @@ export function DeleteLogsDialog({ tableName, title, onDeleted }: DeleteLogsDial
                         {endDate ? format(endDate, "MMM d, yyyy") : "Pick date"}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent className="w-auto p-0 z-50" align="start">
                       <CalendarComponent
                         mode="single"
                         selected={endDate}
@@ -219,6 +220,7 @@ export function DeleteLogsDialog({ tableName, title, onDeleted }: DeleteLogsDial
                           date > new Date() || 
                           (startDate ? date < startDate : false)
                         }
+                        className="p-3 pointer-events-auto"
                       />
                     </PopoverContent>
                   </Popover>
