@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { FormField } from '@/types/form';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Search, X } from 'lucide-react';
 import { HelpTooltip } from '@/components/ui/help-tooltip';
 import { Button } from '@/components/ui/button';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface RadioFieldWithSearchProps {
   field: FormField;
@@ -27,6 +28,7 @@ export function RadioFieldWithSearch({
   fieldState 
 }: RadioFieldWithSearchProps) {
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 150); // Debounce for performance
 
   // Use fieldState.options if available (from rules), otherwise use field.options
   const options = fieldState?.options || field.options || [];
@@ -34,10 +36,12 @@ export function RadioFieldWithSearch({
   const orientation = config.orientation || 'vertical';
   const clearable = config.clearable || false;
   
-  const filteredOptions = options.filter(option =>
-    option.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    option.value.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Memoize filtered options based on debounced search term
+  const filteredOptions = useMemo(() => 
+    options.filter(option =>
+      option.label.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      option.value.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+    ), [options, debouncedSearchTerm]);
 
   const hasScrollbar = filteredOptions.length > 7;
 

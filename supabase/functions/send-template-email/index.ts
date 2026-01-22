@@ -208,11 +208,10 @@ const handler = async (req: Request): Promise<Response> => {
       : undefined;
 
     // Send emails to all recipients
-    console.log(`📮 Processing ${finalRecipients.length} recipient(s)`);
-    const emailResults = [];
+    console.log(`📮 Processing ${finalRecipients.length} recipient(s) in parallel`);
     
-    // Send to each recipient with a fresh SMTP connection to avoid "nested MAIL command" error
-    for (const recipient of finalRecipients) {
+    // Helper function to send a single email
+    const sendSingleEmail = async (recipient: string): Promise<{ recipient: string; status: 'sent' | 'failed'; error?: string }> => {
       console.log(`📧 Sending to: ${recipient}`);
       
       // Create a new SMTP client for each email to avoid connection state issues
@@ -245,8 +244,8 @@ const handler = async (req: Request): Promise<Response> => {
 
         console.log(`✅ Email sent successfully to ${recipient}`);
         
-        // Log successful email
-        await supabaseClient.from('email_logs').insert({
+        // Log successful email (fire and forget for performance)
+        supabaseClient.from('email_logs').insert({
           organization_id: project.organization_id,
           project_id: template.project_id,
           template_id: templateId,
@@ -258,20 +257,17 @@ const handler = async (req: Request): Promise<Response> => {
           status: 'sent',
           sent_at: new Date().toISOString(),
           trigger_context: triggerContext || {},
-        });
+        }).then(() => {}).catch(() => {});
 
-        emailResults.push({
-          recipient,
-          status: 'sent',
-        });
-      } catch (error) {
+        return { recipient, status: 'sent' };
+      } catch (error: any) {
         console.error(`❌ Failed to send email to ${recipient}:`, error);
         
         // Ensure connection is closed even on error
         await smtpClient.close().catch(() => {});
         
-        // Log failed email
-        await supabaseClient.from('email_logs').insert({
+        // Log failed email (fire and forget for performance)
+        supabaseClient.from('email_logs').insert({
           organization_id: project.organization_id,
           project_id: template.project_id,
           template_id: templateId,
@@ -283,13 +279,32 @@ const handler = async (req: Request): Promise<Response> => {
           status: 'failed',
           error_message: error.message,
           trigger_context: triggerContext || {},
-        });
+        }).then(() => {}).catch(() => {});
 
-        emailResults.push({
-          recipient,
-          status: 'failed',
-          error: error.message,
-        });
+        return { recipient, status: 'failed', error: error.message };
+      }
+    };
+
+    // Send all emails in parallel with concurrency limit to avoid overwhelming SMTP server
+    const CONCURRENCY_LIMIT = 5;
+    const emailResults: { recipient: string; status: 'sent' | 'failed'; error?: string }[] = [];
+    
+    // Process in batches for controlled parallelism
+    for (let i = 0; i < finalRecipients.length; i += CONCURRENCY_LIMIT) {
+      const batch = finalRecipients.slice(i, i + CONCURRENCY_LIMIT);
+      const batchResults = await Promise.allSettled(batch.map(sendSingleEmail));
+      
+      for (const result of batchResults) {
+        if (result.status === 'fulfilled') {
+          emailResults.push(result.value);
+        } else {
+          // Handle unexpected rejection
+          emailResults.push({ 
+            recipient: batch[batchResults.indexOf(result)] || 'unknown', 
+            status: 'failed', 
+            error: String(result.reason) 
+          });
+        }
       }
     }
 
