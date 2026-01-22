@@ -5,18 +5,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { cacheManager } from '@/lib/cacheManager';
 import type { Group, GroupMember, CreateGroupData } from './useGroupsQuery';
 
 // Re-export the new hook and types for easy migration
 export { useGroupsQuery } from './useGroupsQuery';
 export type { Group, GroupMember, CreateGroupData } from './useGroupsQuery';
-
-interface UseGroupsLegacy {
-  name: string;
-  roleId?: string;
-  members: { id: string; type: 'user' | 'group' }[];
-}
 
 export function useGroups() {
   const [groups, setGroups] = useState<Group[]>([]);
