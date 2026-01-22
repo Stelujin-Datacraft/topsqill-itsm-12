@@ -187,7 +187,8 @@ export function DataFeedDialog({
       const crossRefData: CrossRefFormFields[] = [];
       for (const crossRef of crossRefs) {
         const config = crossRef.custom_config as any;
-        const referencedFormId = config?.referencedFormId;
+        // Check both targetFormId (current naming) and referencedFormId (legacy naming)
+        const referencedFormId = config?.targetFormId || config?.referencedFormId;
         if (referencedFormId) {
           // Get referenced form name
           const { data: formData } = await supabase
@@ -206,7 +207,7 @@ export function DataFeedDialog({
           crossRefData.push({
             crossRefFieldId: crossRef.id,
             referencedFormId,
-            referencedFormName: formData?.name || 'Unknown Form',
+            referencedFormName: formData?.name || config?.targetFormName || 'Unknown Form',
             fields: refFields || []
           });
         }
