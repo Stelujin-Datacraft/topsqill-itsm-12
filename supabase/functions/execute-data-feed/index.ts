@@ -48,6 +48,26 @@ interface CrossRefMatchRule {
   sourceFieldName?: string;
 }
 
+interface NestedCrossRefFieldMapping {
+  sourceFieldId: string;
+  sourceFieldName?: string;
+  linkedFieldId: string;
+  linkedFieldName?: string;
+}
+
+interface NestedCrossRefMapping {
+  id: string;
+  targetCrossRefFieldId: string;
+  targetCrossRefFieldName?: string;
+  linkedFormId: string;
+  linkedFormName?: string;
+  fieldMappings: NestedCrossRefFieldMapping[];
+  linkToTarget: boolean;
+  operation: 'create' | 'update' | 'create_or_update';
+  matchingRules?: MatchingRule[];
+  matchingLogic?: string;
+}
+
 interface DataFeed {
   id: string;
   name: string;
@@ -63,6 +83,7 @@ interface DataFeed {
   source_filters?: SourceFilter[];
   source_filter_logic?: string;
   field_mappings: FieldMapping[];
+  nested_cross_ref_mappings?: NestedCrossRefMapping[];
   no_match_behavior: 'skip' | 'create';
   created_by: string;
 }
@@ -363,6 +384,154 @@ function passesSourceFilters(
   const finalResult = evaluateLogicExpression(filterLogic || '', filterResults);
   console.log(`📐 Filter logic evaluation (${filterLogic || 'default AND'}): ${JSON.stringify(filterResults)} = ${finalResult}`);
   return finalResult;
+}
+
+// Process nested cross-reference mappings - create/update records in linked forms
+async function processNestedCrossRefMappings(
+  supabase: any,
+  nestedMappings: NestedCrossRefMapping[],
+  sourceData: Record<string, any>,
+  targetRecordId: string,
+  feedCreatedBy: string,
+  runLog: { type: string; message: string; timestamp: string }[]
+): Promise<{ nestedCreated: number; nestedUpdated: number; nestedErrors: number }> {
+  const result = { nestedCreated: 0, nestedUpdated: 0, nestedErrors: 0 };
+
+  if (!nestedMappings || nestedMappings.length === 0) {
+    return result;
+  }
+
+  console.log(`🔗 Processing ${nestedMappings.length} nested cross-reference mappings`);
+
+  for (const nestedMapping of nestedMappings) {
+    try {
+      const { linkedFormId, fieldMappings, linkToTarget, operation, targetCrossRefFieldId } = nestedMapping;
+
+      if (!linkedFormId || !fieldMappings || fieldMappings.length === 0) {
+        console.log(`⚠️ Skipping nested mapping - missing linkedFormId or fieldMappings`);
+        continue;
+      }
+
+      // Build the data for the linked form record
+      const linkedFormData: Record<string, any> = {};
+      for (const fm of fieldMappings) {
+        const sourceValue = sourceData[fm.sourceFieldId];
+        if (sourceValue !== undefined && sourceValue !== null) {
+          linkedFormData[fm.linkedFieldId] = sourceValue;
+        }
+      }
+
+      console.log(`📝 Nested mapping for form ${linkedFormId}:`, linkedFormData);
+
+      let linkedRecordId: string | null = null;
+
+      if (operation === 'create') {
+        // Always create a new record
+        const { data: createdRecord, error: createError } = await supabase
+          .from('form_submissions')
+          .insert({
+            form_id: linkedFormId,
+            submission_data: linkedFormData,
+            approval_status: 'pending'
+          })
+          .select('id')
+          .single();
+
+        if (createError) {
+          console.error(`❌ Failed to create nested record:`, createError);
+          result.nestedErrors++;
+          runLog.push({ type: 'error', message: `Failed to create nested record in linked form: ${createError.message}`, timestamp: new Date().toISOString() });
+          continue;
+        }
+
+        linkedRecordId = createdRecord.id;
+        result.nestedCreated++;
+        runLog.push({ type: 'success', message: `Created nested record in linked form ${linkedFormId}`, timestamp: new Date().toISOString() });
+      } else if (operation === 'update' || operation === 'create_or_update') {
+        // For update operations, we'd need matching rules - for now, just create
+        // This can be extended later with more sophisticated matching
+        console.log(`⚠️ Update/create_or_update not fully implemented - creating new record`);
+        
+        const { data: createdRecord, error: createError } = await supabase
+          .from('form_submissions')
+          .insert({
+            form_id: linkedFormId,
+            submission_data: linkedFormData,
+            approval_status: 'pending'
+          })
+          .select('id')
+          .single();
+
+        if (createError) {
+          console.error(`❌ Failed to create nested record:`, createError);
+          result.nestedErrors++;
+          runLog.push({ type: 'error', message: `Failed to create nested record: ${createError.message}`, timestamp: new Date().toISOString() });
+          continue;
+        }
+
+        linkedRecordId = createdRecord.id;
+        result.nestedCreated++;
+        runLog.push({ type: 'success', message: `Created nested record in linked form ${linkedFormId}`, timestamp: new Date().toISOString() });
+      }
+
+      // Link the created/updated record to the target record if enabled
+      if (linkToTarget && linkedRecordId && targetCrossRefFieldId) {
+        console.log(`🔗 Linking nested record ${linkedRecordId} to target via field ${targetCrossRefFieldId}`);
+
+        // Get current target record data
+        const { data: targetRecord, error: fetchError } = await supabase
+          .from('form_submissions')
+          .select('submission_data')
+          .eq('id', targetRecordId)
+          .single();
+
+        if (fetchError) {
+          console.error(`❌ Failed to fetch target record for linking:`, fetchError);
+          continue;
+        }
+
+        const currentData = (targetRecord?.submission_data as Record<string, any>) || {};
+        const currentCrossRefValue = currentData[targetCrossRefFieldId];
+
+        // Append the new linked record ID to the cross-reference field
+        let newCrossRefValue: any[];
+        if (Array.isArray(currentCrossRefValue)) {
+          newCrossRefValue = [...currentCrossRefValue, { id: linkedRecordId }];
+        } else if (currentCrossRefValue && typeof currentCrossRefValue === 'object') {
+          newCrossRefValue = [currentCrossRefValue, { id: linkedRecordId }];
+        } else if (currentCrossRefValue) {
+          newCrossRefValue = [{ id: currentCrossRefValue }, { id: linkedRecordId }];
+        } else {
+          newCrossRefValue = [{ id: linkedRecordId }];
+        }
+
+        // Update the target record with the linked reference
+        const { error: linkError } = await supabase
+          .from('form_submissions')
+          .update({
+            submission_data: {
+              ...currentData,
+              [targetCrossRefFieldId]: newCrossRefValue
+            }
+          })
+          .eq('id', targetRecordId);
+
+        if (linkError) {
+          console.error(`❌ Failed to link nested record to target:`, linkError);
+          runLog.push({ type: 'error', message: `Failed to link nested record to target: ${linkError.message}`, timestamp: new Date().toISOString() });
+        } else {
+          console.log(`✅ Successfully linked nested record to target`);
+          runLog.push({ type: 'success', message: `Linked nested record to target via ${nestedMapping.targetCrossRefFieldName || targetCrossRefFieldId}`, timestamp: new Date().toISOString() });
+        }
+      }
+    } catch (nestedError) {
+      console.error(`❌ Error processing nested mapping:`, nestedError);
+      result.nestedErrors++;
+      runLog.push({ type: 'error', message: `Nested mapping error: ${String(nestedError)}`, timestamp: new Date().toISOString() });
+    }
+  }
+
+  return result;
 }
 
 // Find the matching linked record based on crossRefMatchType
@@ -775,6 +944,20 @@ Deno.serve(async (req) => {
                   const changedBy = `datafeed:${feed.created_by}`;
                   await logRecordFieldChanges(supabase, target.id, changes, changedBy, 'updated');
                 }
+
+                // Process nested cross-reference mappings for this target record
+                const nestedMappings = feed.nested_cross_ref_mappings || [];
+                if (nestedMappings.length > 0) {
+                  const nestedResult = await processNestedCrossRefMappings(
+                    supabase,
+                    nestedMappings,
+                    sourceData,
+                    target.id,
+                    feed.created_by,
+                    runLog
+                  );
+                  console.log(`🔗 Nested mappings result for target ${target.id}:`, nestedResult);
+                }
               }
             }
           } else if (feed.no_match_behavior === 'create') {
@@ -830,6 +1013,20 @@ Deno.serve(async (req) => {
                 if (changes.length > 0) {
                   const changedBy = `datafeed:${feed.created_by}`;
                   await logRecordFieldChanges(supabase, insertedRecord.id, changes, changedBy, 'created');
+                }
+
+                // Process nested cross-reference mappings for this newly created record
+                const nestedMappings = feed.nested_cross_ref_mappings || [];
+                if (nestedMappings.length > 0) {
+                  const nestedResult = await processNestedCrossRefMappings(
+                    supabase,
+                    nestedMappings,
+                    sourceData,
+                    insertedRecord.id,
+                    feed.created_by,
+                    runLog
+                  );
+                  console.log(`🔗 Nested mappings result for new record ${insertedRecord.id}:`, nestedResult);
                 }
               }
             }

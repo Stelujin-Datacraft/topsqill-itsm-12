@@ -84,6 +84,7 @@ export function useDataFeeds(projectId: string) {
           source_filters: (data.source_filters || []) as any,
           source_filter_logic: data.source_filter_logic,
           field_mappings: data.field_mappings as any,
+          nested_cross_ref_mappings: (data.nested_cross_ref_mappings || []) as any,
           no_match_behavior: data.no_match_behavior,
           schedule: data.schedule,
           is_active: data.is_active,
@@ -162,6 +163,9 @@ export function useDataFeeds(projectId: string) {
       }
       if (data.data_source_connection_id !== undefined) {
         updateData.data_source_connection_id = data.data_source_connection_id || null;
+      }
+      if (data.nested_cross_ref_mappings !== undefined) {
+        updateData.nested_cross_ref_mappings = (data.nested_cross_ref_mappings || []) as any;
       }
 
       const { error } = await supabase

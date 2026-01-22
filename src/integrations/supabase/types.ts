@@ -168,6 +168,7 @@ export type Database = {
           matching_rules: Json | null
           matching_type: string
           name: string
+          nested_cross_ref_mappings: Json | null
           no_match_behavior: string
           organization_id: string | null
           project_id: string
@@ -199,6 +200,7 @@ export type Database = {
           matching_rules?: Json | null
           matching_type?: string
           name: string
+          nested_cross_ref_mappings?: Json | null
           no_match_behavior?: string
           organization_id?: string | null
           project_id: string
@@ -230,6 +232,7 @@ export type Database = {
           matching_rules?: Json | null
           matching_type?: string
           name?: string
+          nested_cross_ref_mappings?: Json | null
           no_match_behavior?: string
           organization_id?: string | null
           project_id?: string
