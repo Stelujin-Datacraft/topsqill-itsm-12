@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DataFeed, DataFeedFormData, FieldMapping, MatchingRule, SourceFilter, FilterOperator, SCHEDULE_PRESETS, FILTER_OPERATORS, ScheduleConfig, buildCronFromConfig, parseCronToReadable, getOperatorsForFieldType, getFieldCategory, SourceType, ExternalSourceConfig as ExternalSourceConfigType, DiscoveredField, CrossRefRecordSelection, CrossRefMatchRule } from '@/types/dataFeed';
+import { DataFeed, DataFeedFormData, FieldMapping, MatchingRule, SourceFilter, FilterOperator, SCHEDULE_PRESETS, FILTER_OPERATORS, ScheduleConfig, buildCronFromConfig, parseCronToReadable, getOperatorsForFieldType, getFieldCategory, SourceType, ExternalSourceConfig as ExternalSourceConfigType, DiscoveredField, CrossRefRecordSelection, CrossRefMatchRule, NestedCrossRefConfig } from '@/types/dataFeed';
 import { DataSourceConnection } from '@/types/externalDataSource';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import { ExpressionEvaluator } from '@/utils/expressionEvaluator';
 import { Separator } from '@/components/ui/separator';
 import { FilterValueInput } from './FilterValueInput';
 import { ExternalSourceConfig } from './ExternalSourceConfig';
+import { NestedCrossRefMappings } from './NestedCrossRefMappings';
 
 interface DataFeedDialogProps {
   open: boolean;
@@ -100,6 +101,7 @@ export function DataFeedDialog({
     source_filters: [],
     source_filter_logic: '',
     field_mappings: [],
+    nested_cross_ref_mappings: [],
     no_match_behavior: 'skip',
     schedule: '',
     is_active: true,
@@ -285,6 +287,7 @@ export function DataFeedDialog({
         source_filters: filtersWithIds,
         source_filter_logic: feed.source_filter_logic || '',
         field_mappings: feed.field_mappings || [],
+        nested_cross_ref_mappings: (feedAny.nested_cross_ref_mappings as NestedCrossRefConfig[]) || [],
         no_match_behavior: feed.no_match_behavior,
         schedule: feed.schedule || '',
         is_active: feed.is_active,
@@ -308,6 +311,7 @@ export function DataFeedDialog({
         source_filters: [],
         source_filter_logic: '',
         field_mappings: [],
+        nested_cross_ref_mappings: [],
         no_match_behavior: 'skip',
         schedule: '',
         is_active: true,
@@ -1689,6 +1693,19 @@ export function DataFeedDialog({
                   </div>
                 </div>
               ))}
+
+              {/* Nested Cross-Reference Mappings Section */}
+              {formData.target_form_id && (
+                <>
+                  <Separator className="my-6" />
+                  <NestedCrossRefMappings
+                    targetFormId={formData.target_form_id}
+                    sourceFields={sourceFields}
+                    nestedMappings={formData.nested_cross_ref_mappings || []}
+                    onChange={(mappings) => setFormData(prev => ({ ...prev, nested_cross_ref_mappings: mappings }))}
+                  />
+                </>
+              )}
             </TabsContent>
           </Tabs>
         </ScrollArea>

@@ -59,6 +59,25 @@ export interface FieldMapping {
   crossRefMatchSourceFieldName?: string;
 }
 
+// Nested mapping for creating/updating records in linked forms via target cross-reference fields
+export interface NestedFieldMapping {
+  sourceFieldId: string; // Field from source form
+  sourceFieldName?: string;
+  linkedFieldId: string; // Field in the linked form
+  linkedFieldName?: string;
+}
+
+export interface NestedCrossRefConfig {
+  targetCrossRefFieldId: string; // The cross-reference field in the target form
+  targetCrossRefFieldName?: string;
+  linkedFormId: string; // The form that the cross-ref links to
+  linkedFormName?: string;
+  behavior: 'create' | 'update_or_create'; // Whether to always create or update if exists
+  matchingFieldId?: string; // For update_or_create: field in linked form to match on
+  matchingSourceFieldId?: string; // Source field to match against
+  fieldMappings: NestedFieldMapping[]; // Mappings from source to linked form fields
+}
+
 export interface MatchingRule {
   id?: string; // Unique ID for logic expressions
   sourceFieldId: string;
@@ -155,6 +174,8 @@ export interface DataFeedFormData {
   source_filters?: SourceFilter[]; // Filters to apply to source records
   source_filter_logic?: string; // Logic expression for source filters
   field_mappings: FieldMapping[];
+  // Nested cross-reference mappings for creating/updating records in linked forms
+  nested_cross_ref_mappings?: NestedCrossRefConfig[];
   no_match_behavior: 'skip' | 'create';
   schedule?: string;
   is_active: boolean;
