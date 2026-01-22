@@ -47,6 +47,7 @@ import {
   Loader2
 } from "lucide-react";
 import { format } from "date-fns";
+import DashboardLayout from "@/components/DashboardLayout";
 
 export default function LdapSettings() {
   const navigate = useNavigate();
@@ -88,25 +89,27 @@ export default function LdapSettings() {
 
   if (userProfile?.role !== 'admin') {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-destructive">
-              <Shield className="h-5 w-5" />
-              Access Denied
-            </CardTitle>
-            <CardDescription>
-              You don't have permission to access LDAP settings. Only administrators can configure LDAP integration.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => navigate('/settings')}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Settings
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <DashboardLayout title="Access Denied">
+        <div className="flex items-center justify-center py-12">
+          <Card className="max-w-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <Shield className="h-5 w-5" />
+                Access Denied
+              </CardTitle>
+              <CardDescription>
+                You don't have permission to access LDAP settings. Only administrators can configure LDAP integration.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={() => navigate('/dashboard')}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Dashboard
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
     );
   }
 
@@ -448,20 +451,8 @@ export default function LdapSettings() {
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">LDAP / Active Directory</h1>
-            <p className="text-muted-foreground">
-              Configure LDAP integration for enterprise authentication
-            </p>
-          </div>
-        </div>
+    <DashboardLayout title="LDAP / Active Directory">
+      <div className="space-y-6">
 
         {/* Content */}
         {isLoading ? (
@@ -714,6 +705,7 @@ export default function LdapSettings() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
