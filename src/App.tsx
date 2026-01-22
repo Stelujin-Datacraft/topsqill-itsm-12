@@ -1,5 +1,4 @@
-
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -68,108 +67,146 @@ const InvestigateAccess = lazy(() => import("./pages/InvestigateAccess"));
 const AcceptInvitation = lazy(() => import("./pages/AcceptInvitation"));
 const LdapSettings = lazy(() => import("./pages/LdapSettings"));
 
-// Loading fallback component
-const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen bg-background">
-    <div className="flex flex-col items-center gap-3">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      <span className="text-sm text-muted-foreground">Loading...</span>
-    </div>
-  </div>
-);
+// Preload critical routes immediately after initial render
+const preloadCriticalRoutes = () => {
+  // Small delay to not block initial render
+  setTimeout(() => {
+    import("./pages/Dashboard");
+    import("./pages/Forms");
+    import("./pages/Projects");
+    import("./pages/Workflows");
+    import("./pages/Reports");
+  }, 1000);
+};
 
-// QueryClient with optimized defaults
+// Delayed loading fallback - only shows spinner after 200ms to avoid flash
+const PageLoader = () => {
+  const [showLoader, setShowLoader] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowLoader(true), 200);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!showLoader) {
+    // Return empty div to maintain layout while waiting
+    return <div className="min-h-screen bg-background" />;
+  }
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="text-sm text-muted-foreground">Loading...</span>
+      </div>
+    </div>
+  );
+};
+
+// Optimized QueryClient with performance-focused defaults
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 2 * 60 * 1000, // 2 minutes - data stays fresh, reduces refetches
-      gcTime: 10 * 60 * 1000, // 10 minutes - keep in cache longer (formerly cacheTime)
-      retry: 1, // Only retry once on failure
-      refetchOnWindowFocus: false, // Don't refetch when user returns to tab
-      refetchOnReconnect: true, // Refetch when network reconnects
+      staleTime: 2 * 60 * 1000, // 2 minutes - data stays fresh longer
+      gcTime: 10 * 60 * 1000, // 10 minutes - cache retention  
+      retry: 1,
+      refetchOnWindowFocus: false, // Prevents unnecessary refetching
+      refetchOnReconnect: true,
     },
   },
 });
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <ImpersonationProvider>
-        <OrganizationProvider>
-          <ProjectProvider>
-            <FormProvider>
-              <WorkflowProvider>
-                <TooltipProvider>
-                  <Toaster />
-                  <Sonner />
-                  <SessionTimeoutWarning />
-                  <ImpersonationBanner />
-                  <BrowserRouter>
-                    <PasswordExpiryWarning />
-                    <Suspense fallback={<PageLoader />}>
-                      <Routes>
-                        <Route path="/" element={<Index />} />
-                        <Route path="/docs" element={<Documentation />} />
-                        <Route path="/auth" element={<Auth />} />
-                        <Route path="/login" element={<Navigate to="/auth" replace />} />
-                        <Route path="/forgot-password" element={<ForgotPassword />} />
-                        <Route path="/accept-invitation" element={<AcceptInvitation />} />
-                        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                        <Route path="/query" element={<ProtectedRoute><QueryPage /></ProtectedRoute>} />
-                        <Route path="/forms" element={<ProtectedRoute><Forms /></ProtectedRoute>} />
-                        <Route path="/form-builder" element={<ProtectedRoute><FormBuilder /></ProtectedRoute>} />
-                        <Route path="/form-builder/:id" element={<ProtectedRoute><FormBuilder /></ProtectedRoute>} />
-                        <Route path="/form-edit/:id" element={<ProtectedRoute><FormEdit /></ProtectedRoute>} />
-                        <Route path="/form/:id" element={<ProtectedRoute><FormView /></ProtectedRoute>} />
-                        <Route path="/form/:id/submit" element={<ProtectedRoute><FormSubmission /></ProtectedRoute>} />
-                        <Route path="/form/:id/preview" element={<ProtectedRoute><FormPreviewPage /></ProtectedRoute>} />
-                        <Route path="/form/:id/access" element={<ProtectedRoute><FormAccessManagement /></ProtectedRoute>} />
-                        <Route path="/form/:id/settings" element={<ProtectedRoute><FormView /></ProtectedRoute>} />
-                        <Route path="/public/form/:id" element={<PublicFormView />} />
-                        <Route path="/my-submissions" element={<ProtectedRoute><MySubmissions /></ProtectedRoute>} />
-                        <Route path="/submission/:submissionId" element={<ProtectedRoute><SubmissionView /></ProtectedRoute>} />
-                        <Route path="/form-submissions" element={<ProtectedRoute><FormSubmissionsTable /></ProtectedRoute>} />
-                        <Route path="/workflows" element={<ProtectedRoute><Workflows /></ProtectedRoute>} />
-                        <Route path="/workflow-view/:id" element={<ProtectedRoute><WorkflowViewerPage /></ProtectedRoute>} />
-                        <Route path="/workflow-designer/:id" element={<ProtectedRoute><WorkflowDesignerPage /></ProtectedRoute>} />
-                        <Route path="/workflow/:id/access" element={<ProtectedRoute><WorkflowAccessManagement /></ProtectedRoute>} />
-                        <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-                        <Route path="/report-editor/:id" element={<ProtectedRoute><ReportEditor /></ProtectedRoute>} />
-                        <Route path="/report-view/:id" element={<ProtectedRoute><ReportViewerPage /></ProtectedRoute>} />
-                        <Route path="/report/:id/access" element={<ProtectedRoute><ReportAccessManagement /></ProtectedRoute>} />
-                        <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
-                        <Route path="/roles-and-access" element={<ProtectedRoute><RolesAndAccess /></ProtectedRoute>} />
-                        <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
-                        <Route path="/projects/:projectId/access" element={<ProtectedRoute><ProjectAccessPage /></ProtectedRoute>} />
-                        <Route path="/projects/:projectId/overview" element={<ProtectedRoute><ProjectOverview /></ProtectedRoute>} />
-                        <Route path="/organizations" element={<ProtectedRoute><Organizations /></ProtectedRoute>} />
-                        <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-                        <Route path="/analytics-dashboard" element={<ProtectedRoute><AnalyticsDashboard /></ProtectedRoute>} />
-                        <Route path="/data-table-builder" element={<ProtectedRoute><DataTableBuilder /></ProtectedRoute>} />
-                        <Route path="/email-config" element={<ProtectedRoute><EmailConfigPage /></ProtectedRoute>} />
-                        <Route path="/email-config/:projectId" element={<ProtectedRoute><EmailConfigPage /></ProtectedRoute>} />
-                        <Route path="/email-templates" element={<ProtectedRoute><EmailTemplatesPage /></ProtectedRoute>} />
-                        <Route path="/email-templates/:templateId" element={<ProtectedRoute><EmailTemplatesPage /></ProtectedRoute>} />
-                        <Route path="/data-feeds" element={<ProtectedRoute><DataFeeds /></ProtectedRoute>} />
-                        <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
-                        <Route path="/change-password" element={<ChangePassword />} />
-                        <Route path="/manage-sessions" element={<ProtectedRoute><ManageSessions /></ProtectedRoute>} />
-                        <Route path="/audit-logs" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
-                        <Route path="/form-audit-logs" element={<ProtectedRoute><FormAuditLogs /></ProtectedRoute>} />
-                        <Route path="/investigate-access" element={<ProtectedRoute><InvestigateAccess /></ProtectedRoute>} />
-                        <Route path="/ldap-settings" element={<ProtectedRoute><LdapSettings /></ProtectedRoute>} />
-                        <Route path="*" element={<NotFound />} />
-                      </Routes>
-                    </Suspense>
-                  </BrowserRouter>
-                </TooltipProvider>
-              </WorkflowProvider>
-            </FormProvider>
-          </ProjectProvider>
-        </OrganizationProvider>
-      </ImpersonationProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  // Preload critical routes after initial mount
+  useEffect(() => {
+    preloadCriticalRoutes();
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <OrganizationProvider>
+              <ImpersonationProvider>
+                <ProjectProvider>
+                  <FormProvider>
+                    <WorkflowProvider>
+                      <ImpersonationBanner />
+                      <SessionTimeoutWarning />
+                      <PasswordExpiryWarning />
+                      <Suspense fallback={<PageLoader />}>
+                        <Routes>
+                          <Route path="/" element={<Index />} />
+                          <Route path="/auth" element={<Auth />} />
+                          <Route path="/forgot-password" element={<ForgotPassword />} />
+                          <Route path="/docs" element={<Documentation />} />
+                          <Route path="/accept-invitation" element={<AcceptInvitation />} />
+                          <Route path="/public/form/:formId" element={<PublicFormView />} />
+                          
+                          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                          <Route path="/query" element={<ProtectedRoute><QueryPage /></ProtectedRoute>} />
+                          <Route path="/forms" element={<ProtectedRoute><Forms /></ProtectedRoute>} />
+                          <Route path="/form-builder" element={<ProtectedRoute><FormBuilder /></ProtectedRoute>} />
+                          <Route path="/form-builder/:formId" element={<ProtectedRoute><FormBuilder /></ProtectedRoute>} />
+                          <Route path="/form-edit/:formId" element={<ProtectedRoute><FormEdit /></ProtectedRoute>} />
+                          <Route path="/form/:formId" element={<ProtectedRoute><FormView /></ProtectedRoute>} />
+                          <Route path="/form/:formId/submissions" element={<ProtectedRoute><FormSubmissionsTable /></ProtectedRoute>} />
+                          <Route path="/form/:formId/submission/:submissionId" element={<ProtectedRoute><FormSubmission /></ProtectedRoute>} />
+                          <Route path="/form-preview/:formId" element={<ProtectedRoute><FormPreviewPage /></ProtectedRoute>} />
+                          <Route path="/form-access/:formId" element={<ProtectedRoute><FormAccessManagement /></ProtectedRoute>} />
+                          <Route path="/my-submissions" element={<ProtectedRoute><MySubmissions /></ProtectedRoute>} />
+                          <Route path="/submissions/:submissionId" element={<ProtectedRoute><SubmissionView /></ProtectedRoute>} />
+                          
+                          <Route path="/workflows" element={<ProtectedRoute><Workflows /></ProtectedRoute>} />
+                          <Route path="/workflow-builder" element={<ProtectedRoute><WorkflowDesignerPage /></ProtectedRoute>} />
+                          <Route path="/workflow-builder/:workflowId" element={<ProtectedRoute><WorkflowDesignerPage /></ProtectedRoute>} />
+                          <Route path="/workflow-viewer/:workflowId" element={<ProtectedRoute><WorkflowViewerPage /></ProtectedRoute>} />
+                          <Route path="/workflow-access/:workflowId" element={<ProtectedRoute><WorkflowAccessManagement /></ProtectedRoute>} />
+                          
+                          <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+                          <Route path="/report-builder" element={<ProtectedRoute><ReportEditor /></ProtectedRoute>} />
+                          <Route path="/report-builder/:reportId" element={<ProtectedRoute><ReportEditor /></ProtectedRoute>} />
+                          <Route path="/report-viewer/:reportId" element={<ProtectedRoute><ReportViewerPage /></ProtectedRoute>} />
+                          <Route path="/report-access/:reportId" element={<ProtectedRoute><ReportAccessManagement /></ProtectedRoute>} />
+                          <Route path="/analytics-dashboard" element={<ProtectedRoute><AnalyticsDashboard /></ProtectedRoute>} />
+                          <Route path="/data-table-builder" element={<ProtectedRoute><DataTableBuilder /></ProtectedRoute>} />
+                          
+                          <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+                          <Route path="/roles-and-access" element={<ProtectedRoute><RolesAndAccess /></ProtectedRoute>} />
+                          <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
+                          <Route path="/projects/:projectId/overview" element={<ProtectedRoute><ProjectOverview /></ProtectedRoute>} />
+                          <Route path="/projects/:projectId/access" element={<ProtectedRoute><ProjectAccessPage /></ProtectedRoute>} />
+                          <Route path="/organizations" element={<ProtectedRoute><Organizations /></ProtectedRoute>} />
+                          
+                          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                          <Route path="/email-config" element={<ProtectedRoute><EmailConfigPage /></ProtectedRoute>} />
+                          <Route path="/email-templates" element={<ProtectedRoute><EmailTemplatesPage /></ProtectedRoute>} />
+                          <Route path="/data-feeds" element={<ProtectedRoute><DataFeeds /></ProtectedRoute>} />
+                          <Route path="/settings-page" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+                          <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
+                          <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
+                          <Route path="/manage-sessions" element={<ProtectedRoute><ManageSessions /></ProtectedRoute>} />
+                          <Route path="/audit-logs" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
+                          <Route path="/form-audit-logs" element={<ProtectedRoute><FormAuditLogs /></ProtectedRoute>} />
+                          <Route path="/investigate-access" element={<ProtectedRoute><InvestigateAccess /></ProtectedRoute>} />
+                          <Route path="/ldap-settings" element={<ProtectedRoute><LdapSettings /></ProtectedRoute>} />
+                          
+                          <Route path="*" element={<NotFound />} />
+                        </Routes>
+                      </Suspense>
+                    </WorkflowProvider>
+                  </FormProvider>
+                </ProjectProvider>
+              </ImpersonationProvider>
+            </OrganizationProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
