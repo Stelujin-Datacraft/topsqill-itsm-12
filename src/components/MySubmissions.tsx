@@ -1,6 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { useDebounce } from '@/hooks/useDebounce';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { TablePagination } from '@/components/ui/table-pagination';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useForm } from '@/contexts/FormContext';
@@ -39,8 +37,6 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 
-const DEFAULT_PAGE_SIZE = 25;
-
 interface FormSubmission {
   id: string;
   form_id: string;
@@ -53,14 +49,10 @@ interface FormSubmission {
 
 export function MySubmissions() {
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [selectedFormId, setSelectedFormId] = useState<string>('all');
   const [currentForm, setCurrentForm] = useState<Form | null>(null);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   
   const { userProfile } = useAuth();
   const { forms } = useForm();
@@ -82,7 +74,6 @@ export function MySubmissions() {
       // Only load submissions if we have a current project
       if (!currentProject) {
         setSubmissions([]);
-        setTotalCount(0);
         return;
       }
 
@@ -98,23 +89,8 @@ export function MySubmissions() {
       
       if (formIds.length === 0) {
         setSubmissions([]);
-        setTotalCount(0);
         return;
       }
-
-      // Get total count
-      const { count, error: countError } = await supabase
-        .from('form_submissions')
-        .select('*', { count: 'exact', head: true })
-        .eq('submitted_by', userProfile.id)
-        .in('form_id', formIds);
-
-      if (countError) throw countError;
-      setTotalCount(count || 0);
-
-      // Fetch paginated data
-      const from = currentPage * pageSize;
-      const to = from + pageSize - 1;
 
       const { data, error } = await supabase
         .from('form_submissions')
@@ -124,8 +100,7 @@ export function MySubmissions() {
         `)
         .eq('submitted_by', userProfile.id)
         .in('form_id', formIds)
-        .order('submitted_at', { ascending: false })
-        .range(from, to);
+        .order('submitted_at', { ascending: false });
 
       if (error) throw error;
 
@@ -154,21 +129,7 @@ export function MySubmissions() {
 
   useEffect(() => {
     loadSubmissions();
-  }, [userProfile?.id, currentProject?.id, currentPage, pageSize]);
-
-  // Reset to first page when filters change
-  useEffect(() => {
-    setCurrentPage(0);
-  }, [debouncedSearchTerm, selectedFormId]);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  const handlePageSizeChange = (size: number) => {
-    setPageSize(size);
-    setCurrentPage(0);
-  };
+  }, [userProfile?.id, currentProject?.id]);
 
   // Load current form structure for access filtering
   useEffect(() => {
@@ -255,18 +216,18 @@ export function MySubmissions() {
     return applyAccessFilter(submissions);
   }, [submissions, applyAccessFilter]);
 
-  // Use debounced search term for filtering (prevents excessive filtering during typing)
-  const filteredSubmissions = useMemo(() => accessFilteredSubmissions.filter(submission => {
-    const matchesSearch = submission.form_name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-                         submission.submission_ref_id?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+  // Filter submissions
+  const filteredSubmissions = accessFilteredSubmissions.filter(submission => {
+    const matchesSearch = submission.form_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         submission.submission_ref_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          Object.values(submission.submission_data).some(value => 
-                           String(value).toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+                           String(value).toLowerCase().includes(searchTerm.toLowerCase())
                          );
     
     const matchesForm = selectedFormId === 'all' || submission.form_id === selectedFormId;
     
     return matchesSearch && matchesForm;
-  }), [accessFilteredSubmissions, debouncedSearchTerm, selectedFormId]);
+  });
 
   // Get unique forms from submissions
   const submissionForms = Array.from(
@@ -417,14 +378,6 @@ export function MySubmissions() {
                   ))}
                 </TableBody>
               </Table>
-              <TablePagination
-                currentPage={currentPage}
-                totalPages={Math.ceil(totalCount / pageSize)}
-                pageSize={pageSize}
-                totalItems={totalCount}
-                onPageChange={handlePageChange}
-                onPageSizeChange={handlePageSizeChange}
-              />
             </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground">

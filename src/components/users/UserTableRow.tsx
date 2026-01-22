@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,7 @@ interface UserTableRowProps {
   onDelete: (userId: string, userName: string) => void;
 }
 
-const UserTableRow = memo(function UserTableRow({ user, onRoleChange, onDelete }: UserTableRowProps) {
+const UserTableRow = ({ user, onRoleChange, onDelete }: UserTableRowProps) => {
   const getInitials = (firstName?: string, lastName?: string, email?: string) => {
     if (firstName && lastName) {
       return `${firstName[0]}${lastName[0]}`.toUpperCase();
@@ -128,6 +128,6 @@ const UserTableRow = memo(function UserTableRow({ user, onRoleChange, onDelete }
       </TableCell>
     </TableRow>
   );
-});
+};
 
 export default UserTableRow;

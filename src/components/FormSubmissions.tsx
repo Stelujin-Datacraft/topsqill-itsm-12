@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useDebounce } from '@/hooks/useDebounce';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { TablePagination } from '@/components/ui/table-pagination';
 import { Form } from '@/types/form';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, Filter, Download, Eye, Trash2, Calendar, User, FileText, CheckCircle, XCircle, Clock } from 'lucide-react';
@@ -17,8 +15,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSubmissionAccessFilter } from '@/hooks/useSubmissionAccessFilter';
 import { SubmissionUpdateButton } from './submissions/SubmissionUpdateButton';
 import { logFormAuditEvent } from '@/utils/formAuditLogger';
-
-const DEFAULT_PAGE_SIZE = 25;
 
 interface FormSubmission {
   id: string;
@@ -44,14 +40,10 @@ export function FormSubmissions({
 }: FormSubmissionsProps) {
   const navigate = useNavigate();
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [approvalFilter, setApprovalFilter] = useState<string>('all');
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const { userProfile } = useAuth();
   const { filterSubmissions: applyAccessFilter, loading: accessFilterLoading } = useSubmissionAccessFilter(form, userProfile?.id);
 
@@ -60,24 +52,12 @@ export function FormSubmissions({
     return form.fields;
   };
 
-  // Load submissions from database with pagination
+  // Load submissions from database
   const loadSubmissions = async () => {
     try {
       setLoading(true);
       
-      // Get total count first
-      const { count, error: countError } = await supabase
-        .from('form_submissions')
-        .select('*', { count: 'exact', head: true })
-        .eq('form_id', form.id);
-
-      if (countError) throw countError;
-      setTotalCount(count || 0);
-
-      // Fetch paginated submissions
-      const from = currentPage * pageSize;
-      const to = from + pageSize - 1;
-      
+      // First, fetch submissions
       const { data, error } = await supabase
         .from('form_submissions')
         .select(`
@@ -89,8 +69,7 @@ export function FormSubmissions({
           )
         `)
         .eq('form_id', form.id)
-        .order('submitted_at', { ascending: false })
-        .range(from, to);
+        .order('submitted_at', { ascending: false });
 
       if (error) {
         throw error;
@@ -155,21 +134,7 @@ export function FormSubmissions({
 
   useEffect(() => {
     loadSubmissions();
-  }, [form.id, currentPage, pageSize]);
-
-  // Reset to first page when filters change
-  useEffect(() => {
-    setCurrentPage(0);
-  }, [debouncedSearchTerm, approvalFilter]);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  const handlePageSizeChange = (size: number) => {
-    setPageSize(size);
-    setCurrentPage(0);
-  };
+  }, [form.id]);
 
   // Apply access control filter first, then other filters
   const accessFilteredSubmissions = useMemo(() => {
@@ -182,12 +147,11 @@ export function FormSubmissions({
     }));
   }, [submissions, applyAccessFilter]);
 
-  // Use debounced search term for filtering (prevents excessive filtering during typing)
-  const filteredSubmissions = useMemo(() => accessFilteredSubmissions.filter(submission => {
-    const matchesSearch = submission.submittedBy.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || Object.values(submission.submissionData).some(value => String(value).toLowerCase().includes(debouncedSearchTerm.toLowerCase()));
+  const filteredSubmissions = accessFilteredSubmissions.filter(submission => {
+    const matchesSearch = submission.submittedBy.toLowerCase().includes(searchTerm.toLowerCase()) || Object.values(submission.submissionData).some(value => String(value).toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesApprovalFilter = approvalFilter === 'all' || submission.approvalStatus === approvalFilter;
     return matchesSearch && matchesApprovalFilter;
-  }), [accessFilteredSubmissions, debouncedSearchTerm, approvalFilter]);
+  });
   const handleViewSubmission = (submission: FormSubmission) => {
     navigate(`/submission/${submission.id}`);
   };
@@ -420,14 +384,6 @@ export function FormSubmissions({
                     </TableRow>)}
                 </TableBody>
               </Table>
-              <TablePagination
-                currentPage={currentPage}
-                totalPages={Math.ceil(totalCount / pageSize)}
-                pageSize={pageSize}
-                totalItems={totalCount}
-                onPageChange={handlePageChange}
-                onPageSizeChange={handlePageSizeChange}
-              />
             </div> : <div className="text-center py-12 text-muted-foreground">
               <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No submissions found</p>

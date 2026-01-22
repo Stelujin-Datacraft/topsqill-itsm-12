@@ -1,6 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
-import { useDebounce } from '@/hooks/useDebounce';
+import React, { useState } from 'react';
 import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -20,7 +19,6 @@ const Projects = () => {
   const { userProfile } = useAuth();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const canCreateProject = userProfile?.role === 'admin';
@@ -49,13 +47,12 @@ const Projects = () => {
     console.log('Invitation accepted for project:', projectId);
   };
 
-  // Use debounced search term for filtering (prevents excessive filtering during typing)
-  const filteredProjects = useMemo(() => projects.filter(project => {
-    const matchesSearch = project.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-                         project.description?.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+  const filteredProjects = projects.filter(project => {
+    const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         project.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
     return matchesSearch && matchesStatus;
-  }), [projects, debouncedSearchTerm, statusFilter]);
+  });
 
   return (
     <DashboardLayout title="Projects">

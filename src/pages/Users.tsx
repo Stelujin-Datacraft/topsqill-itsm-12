@@ -1,5 +1,4 @@
-import { useState, useMemo } from 'react';
-import { useDebounce } from '@/hooks/useDebounce';
+import { useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -56,7 +55,6 @@ const Users = () => {
   } = useUserManagement();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isRequestsOpen, setIsRequestsOpen] = useState(false);
@@ -69,12 +67,11 @@ const Users = () => {
   const [selectedUserForSecurity, setSelectedUserForSecurity] = useState<{ id: string; name: string; email: string } | null>(null);
   const [templatesManagerOpen, setTemplatesManagerOpen] = useState(false);
 
-  // Use debounced search term for filtering (prevents excessive filtering during typing)
-  const filteredUsers = useMemo(() => users.filter(user =>
-    (user.first_name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || '') ||
-    (user.last_name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || '') ||
-    user.email.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-  ), [users, debouncedSearchTerm]);
+  const filteredUsers = users.filter(user =>
+    (user.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
+    (user.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
+    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // Stats
   const totalUsers = users.length;
