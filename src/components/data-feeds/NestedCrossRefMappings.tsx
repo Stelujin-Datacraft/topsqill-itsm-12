@@ -48,10 +48,19 @@ export function NestedCrossRefMappings({
         .from('form_fields')
         .select('id, label, field_type, custom_config')
         .eq('form_id', targetFormId)
-        .eq('field_type', 'cross-reference')
+        .in('field_type', ['cross-reference', 'child-cross-reference'])
         .order('field_order');
 
-      setTargetCrossRefFields(data || []);
+      // Parse custom_config if it's a string
+      const parsedFields = (data || []).map(field => ({
+        ...field,
+        custom_config: typeof field.custom_config === 'string' 
+          ? JSON.parse(field.custom_config || '{}')
+          : field.custom_config || {}
+      }));
+
+      console.log('[NestedCrossRefMappings] Found cross-ref fields:', parsedFields);
+      setTargetCrossRefFields(parsedFields);
       setLoading(false);
     };
 
@@ -60,11 +69,19 @@ export function NestedCrossRefMappings({
 
   // Fetch fields from linked forms when cross-ref fields change
   const fetchLinkedFormFields = async (crossRefFieldId: string, customConfig: any) => {
-    const linkedFormId = customConfig?.targetFormId || customConfig?.referencedFormId;
-    if (!linkedFormId) return;
+    const linkedFormId = customConfig?.targetFormId || customConfig?.referencedFormId || customConfig?.parentFormId;
+    console.log('[NestedCrossRefMappings] fetchLinkedFormFields for:', linkedFormId);
+    
+    if (!linkedFormId) {
+      console.warn('[NestedCrossRefMappings] No linked form ID found');
+      return null;
+    }
 
     // Check if we already have the fields
-    if (linkedFormFields[linkedFormId]) return;
+    if (linkedFormFields[linkedFormId]) {
+      console.log('[NestedCrossRefMappings] Using cached fields for:', linkedFormId);
+      return { formName: undefined, formId: linkedFormId };
+    }
 
     const { data: formData } = await supabase
       .from('forms')
@@ -77,6 +94,8 @@ export function NestedCrossRefMappings({
       .select('id, label, field_type, custom_config')
       .eq('form_id', linkedFormId)
       .order('field_order');
+
+    console.log('[NestedCrossRefMappings] Fetched linked form fields:', fields?.length, 'for form:', formData?.name);
 
     setLinkedFormFields(prev => ({
       ...prev,
@@ -113,8 +132,18 @@ export function NestedCrossRefMappings({
     const field = targetCrossRefFields.find(f => f.id === crossRefFieldId);
     if (!field) return;
 
-    const linkedFormInfo = await fetchLinkedFormFields(crossRefFieldId, field.custom_config);
-    const linkedFormId = field.custom_config?.targetFormId || field.custom_config?.referencedFormId;
+    // For child-cross-reference, the parent is the linked form
+    const config = field.custom_config || {};
+    const linkedFormId = config.targetFormId || config.referencedFormId || config.parentFormId;
+    
+    console.log('[NestedCrossRefMappings] Selected field:', field.label, 'Config:', config, 'LinkedFormId:', linkedFormId);
+
+    if (!linkedFormId) {
+      console.warn('[NestedCrossRefMappings] No linked form ID found in config');
+      return;
+    }
+
+    const linkedFormInfo = await fetchLinkedFormFields(crossRefFieldId, config);
 
     updateNestedMapping(mappingId, {
       targetCrossRefFieldId: crossRefFieldId,

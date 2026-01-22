@@ -39,8 +39,11 @@ export function useDataFeeds(projectId: string) {
         cross_ref_match_rules: Array.isArray((feed as any).cross_ref_match_rules)
           ? ((feed as any).cross_ref_match_rules as unknown as CrossRefMatchRule[])
           : [],
+        nested_cross_ref_mappings: Array.isArray(feed.nested_cross_ref_mappings)
+          ? feed.nested_cross_ref_mappings
+          : [],
         last_run_stats: feed.last_run_stats as DataFeed['last_run_stats'],
-      })) as DataFeed[];
+      })) as unknown as DataFeed[];
 
       setFeeds(parsed);
     } catch (error) {
@@ -118,8 +121,11 @@ export function useDataFeeds(projectId: string) {
         cross_ref_match_rules: Array.isArray((newFeed as any).cross_ref_match_rules)
           ? ((newFeed as any).cross_ref_match_rules as unknown as CrossRefMatchRule[])
           : [],
+        nested_cross_ref_mappings: Array.isArray(newFeed.nested_cross_ref_mappings)
+          ? newFeed.nested_cross_ref_mappings
+          : [],
         last_run_stats: newFeed.last_run_stats as DataFeed['last_run_stats'],
-      } as DataFeed;
+      } as unknown as DataFeed;
       
       return parsed;
     } catch (error) {
