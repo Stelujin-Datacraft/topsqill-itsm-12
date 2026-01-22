@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DataFeed, DataFeedFormData, FieldMapping, MatchingRule, SourceFilter, FilterOperator, SCHEDULE_PRESETS, FILTER_OPERATORS, ScheduleConfig, buildCronFromConfig, parseCronToReadable, getOperatorsForFieldType, getFieldCategory, SourceType, ExternalSourceConfig as ExternalSourceConfigType, DiscoveredField, CrossRefRecordSelection, CrossRefMatchRule } from '@/types/dataFeed';
+import { DataFeed, DataFeedFormData, FieldMapping, MatchingRule, SourceFilter, FilterOperator, SCHEDULE_PRESETS, FILTER_OPERATORS, ScheduleConfig, buildCronFromConfig, parseCronToReadable, getOperatorsForFieldType, getFieldCategory, SourceType, ExternalSourceConfig as ExternalSourceConfigType, DiscoveredField, CrossRefRecordSelection, CrossRefMatchRule, NestedCrossRefMapping } from '@/types/dataFeed';
 import { DataSourceConnection } from '@/types/externalDataSource';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Trash2, ArrowRight, Clock, Calendar, RefreshCw, AlertCircle, Filter, Link2 } from 'lucide-react';
+import { Plus, Trash2, ArrowRight, Clock, Calendar, RefreshCw, AlertCircle, Filter, Link2, GitBranch } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ import { ExpressionEvaluator } from '@/utils/expressionEvaluator';
 import { Separator } from '@/components/ui/separator';
 import { FilterValueInput } from './FilterValueInput';
 import { ExternalSourceConfig } from './ExternalSourceConfig';
+import { NestedCrossRefMappings } from './NestedCrossRefMappings';
 
 interface DataFeedDialogProps {
   open: boolean;
@@ -100,6 +101,7 @@ export function DataFeedDialog({
     source_filters: [],
     source_filter_logic: '',
     field_mappings: [],
+    nested_cross_ref_mappings: [],
     no_match_behavior: 'skip',
     schedule: '',
     is_active: true,
@@ -285,6 +287,7 @@ export function DataFeedDialog({
         source_filters: filtersWithIds,
         source_filter_logic: feed.source_filter_logic || '',
         field_mappings: feed.field_mappings || [],
+        nested_cross_ref_mappings: (feed as any).nested_cross_ref_mappings || [],
         no_match_behavior: feed.no_match_behavior,
         schedule: feed.schedule || '',
         is_active: feed.is_active,
@@ -308,6 +311,7 @@ export function DataFeedDialog({
         source_filters: [],
         source_filter_logic: '',
         field_mappings: [],
+        nested_cross_ref_mappings: [],
         no_match_behavior: 'skip',
         schedule: '',
         is_active: true,
@@ -742,12 +746,16 @@ export function DataFeedDialog({
 
         <ScrollArea className="max-h-[calc(90vh-8rem)]">
           <Tabs defaultValue="general" className="w-full">
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="general">General</TabsTrigger>
               <TabsTrigger value="source">Data Source</TabsTrigger>
               <TabsTrigger value="filters">Filters</TabsTrigger>
               <TabsTrigger value="matching">Matching</TabsTrigger>
               <TabsTrigger value="mappings">Mappings</TabsTrigger>
+              <TabsTrigger value="nested" className="flex items-center gap-1">
+                <GitBranch className="h-3 w-3" />
+                Nested
+              </TabsTrigger>
               <TabsTrigger value="schedule">Schedule</TabsTrigger>
             </TabsList>
 
@@ -1689,6 +1697,18 @@ export function DataFeedDialog({
                   </div>
                 </div>
               ))}
+            </TabsContent>
+
+            {/* Nested Cross-Reference Mappings Tab */}
+            <TabsContent value="nested" className="space-y-4 p-1">
+              <NestedCrossRefMappings
+                targetFormId={formData.target_form_id}
+                sourceFields={sourceFields}
+                mappings={formData.nested_cross_ref_mappings || []}
+                onMappingsChange={(mappings) =>
+                  setFormData((prev) => ({ ...prev, nested_cross_ref_mappings: mappings }))
+                }
+              />
             </TabsContent>
           </Tabs>
         </ScrollArea>
