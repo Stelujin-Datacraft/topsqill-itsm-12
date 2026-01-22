@@ -151,6 +151,9 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          cross_ref_match_logic: string | null
+          cross_ref_match_rules: Json | null
+          cross_ref_record_selection: string | null
           cross_reference_field_id: string | null
           data_source_connection_id: string | null
           description: string | null
@@ -179,6 +182,9 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by: string
+          cross_ref_match_logic?: string | null
+          cross_ref_match_rules?: Json | null
+          cross_ref_record_selection?: string | null
           cross_reference_field_id?: string | null
           data_source_connection_id?: string | null
           description?: string | null
@@ -207,6 +213,9 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          cross_ref_match_logic?: string | null
+          cross_ref_match_rules?: Json | null
+          cross_ref_record_selection?: string | null
           cross_reference_field_id?: string | null
           data_source_connection_id?: string | null
           description?: string | null
