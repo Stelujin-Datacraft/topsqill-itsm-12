@@ -9,11 +9,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building2, Mail, UserPlus } from 'lucide-react';
+import { Building2, Mail, UserPlus, Server } from 'lucide-react';
 import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicator';
 import { validatePassword, DEFAULT_PASSWORD_POLICY, PasswordPolicy } from '@/utils/passwordValidation';
 import { getOrganizationPasswordPolicy } from '@/utils/securityEnforcement';
 import { MfaVerificationDialog } from '@/components/MfaVerificationDialog';
+import { LdapLoginForm } from '@/components/ldap/LdapLoginForm';
 
 const Auth = () => {
   const [activeTab, setActiveTab] = useState('signin');
@@ -26,6 +27,11 @@ const Auth = () => {
   const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy>(DEFAULT_PASSWORD_POLICY);
   const [policyLoading, setPolicyLoading] = useState(false);
 
+  // LDAP state
+  const [showLdapLogin, setShowLdapLogin] = useState(false);
+  const [ldapDomain, setLdapDomain] = useState('');
+  const [ldapEnabled, setLdapEnabled] = useState(false);
+
   // Redirect authenticated users
   useEffect(() => {
     if (user && !isLoading) {
@@ -33,6 +39,41 @@ const Auth = () => {
       navigate(redirectPath, { replace: true });
     }
   }, [user, isLoading, navigate, returnTo]);
+
+  // Check if LDAP is available for the entered email domain
+  const checkLdapAvailability = async (email: string) => {
+    const domain = email.split('@')[1];
+    if (!domain) {
+      setLdapEnabled(false);
+      return;
+    }
+
+    try {
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('id')
+        .eq('domain', domain)
+        .maybeSingle();
+
+      if (org) {
+        const { data: ldapConfig } = await supabase
+          .from('ldap_configurations')
+          .select('id')
+          .eq('organization_id', org.id)
+          .eq('is_enabled', true)
+          .limit(1)
+          .maybeSingle();
+
+        setLdapEnabled(!!ldapConfig);
+        setLdapDomain(domain);
+      } else {
+        setLdapEnabled(false);
+      }
+    } catch (e) {
+      console.error('Error checking LDAP availability:', e);
+      setLdapEnabled(false);
+    }
+  };
 
   // Sign in form state
   const [signInData, setSignInData] = useState({
@@ -230,37 +271,65 @@ const Auth = () => {
             </TabsList>
 
             <TabsContent value="signin" className="space-y-4">
-              <form onSubmit={handleSignIn} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signin-email">Email</Label>
-                  <Input
-                    id="signin-email"
-                    type="email"
-                    placeholder="your.email@company.com"
-                    value={signInData.email}
-                    onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signin-password">Password</Label>
-                  <Input
-                    id="signin-password"
-                    type="password"
-                    value={signInData.password}
-                    onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
-                    required
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? 'Signing in...' : 'Sign In'}
-                </Button>
-                <div className="text-center pt-2">
-                  <Link to="/forgot-password" className="text-sm text-primary hover:underline">
-                    Forgot Password?
-                  </Link>
-                </div>
-              </form>
+              {showLdapLogin ? (
+                <LdapLoginForm
+                  organizationDomain={ldapDomain}
+                  onSuccess={(user) => {
+                    const redirectPath = returnTo || '/dashboard';
+                    navigate(redirectPath, { replace: true });
+                  }}
+                  onFallbackToLocal={() => setShowLdapLogin(false)}
+                />
+              ) : (
+                <form onSubmit={handleSignIn} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-email">Email</Label>
+                    <Input
+                      id="signin-email"
+                      type="email"
+                      placeholder="your.email@company.com"
+                      value={signInData.email}
+                      onChange={(e) => {
+                        setSignInData({ ...signInData, email: e.target.value });
+                        checkLdapAvailability(e.target.value);
+                      }}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-password">Password</Label>
+                    <Input
+                      id="signin-password"
+                      type="password"
+                      value={signInData.password}
+                      onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
+                      required
+                    />
+                  </div>
+                  
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? 'Signing in...' : 'Sign In'}
+                  </Button>
+
+                  {ldapEnabled && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="w-full" 
+                      onClick={() => setShowLdapLogin(true)}
+                    >
+                      <Server className="h-4 w-4 mr-2" />
+                      Sign in with LDAP / Active Directory
+                    </Button>
+                  )}
+
+                  <div className="text-center pt-2">
+                    <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+                      Forgot Password?
+                    </Link>
+                  </div>
+                </form>
+              )}
             </TabsContent>
 
             <TabsContent value="register-org" className="space-y-4">
