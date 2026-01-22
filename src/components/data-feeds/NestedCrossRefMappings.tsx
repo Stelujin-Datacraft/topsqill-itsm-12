@@ -68,7 +68,8 @@ export function NestedCrossRefMappings({
 
         for (const field of crossRefFields) {
           const config = field.custom_config as any;
-          const linkedFormId = config?.referencedFormId;
+          // Check both possible property names for the linked form ID
+          const linkedFormId = config?.targetFormId || config?.referencedFormId;
           
           if (linkedFormId) {
             // Get linked form name
