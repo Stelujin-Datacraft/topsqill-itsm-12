@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { Form } from '@/types/form';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, Filter, Download, Eye, Trash2, Calendar, User, FileText, CheckCircle, XCircle, Clock } from 'lucide-react';
@@ -16,6 +17,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSubmissionAccessFilter } from '@/hooks/useSubmissionAccessFilter';
 import { SubmissionUpdateButton } from './submissions/SubmissionUpdateButton';
 import { logFormAuditEvent } from '@/utils/formAuditLogger';
+
+const DEFAULT_PAGE_SIZE = 25;
 
 interface FormSubmission {
   id: string;
@@ -41,11 +44,14 @@ export function FormSubmissions({
 }: FormSubmissionsProps) {
   const navigate = useNavigate();
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [approvalFilter, setApprovalFilter] = useState<string>('all');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const { userProfile } = useAuth();
   const { filterSubmissions: applyAccessFilter, loading: accessFilterLoading } = useSubmissionAccessFilter(form, userProfile?.id);
 
@@ -54,12 +60,24 @@ export function FormSubmissions({
     return form.fields;
   };
 
-  // Load submissions from database
+  // Load submissions from database with pagination
   const loadSubmissions = async () => {
     try {
       setLoading(true);
       
-      // First, fetch submissions
+      // Get total count first
+      const { count, error: countError } = await supabase
+        .from('form_submissions')
+        .select('*', { count: 'exact', head: true })
+        .eq('form_id', form.id);
+
+      if (countError) throw countError;
+      setTotalCount(count || 0);
+
+      // Fetch paginated submissions
+      const from = currentPage * pageSize;
+      const to = from + pageSize - 1;
+      
       const { data, error } = await supabase
         .from('form_submissions')
         .select(`
@@ -71,7 +89,8 @@ export function FormSubmissions({
           )
         `)
         .eq('form_id', form.id)
-        .order('submitted_at', { ascending: false });
+        .order('submitted_at', { ascending: false })
+        .range(from, to);
 
       if (error) {
         throw error;
@@ -136,7 +155,21 @@ export function FormSubmissions({
 
   useEffect(() => {
     loadSubmissions();
-  }, [form.id]);
+  }, [form.id, currentPage, pageSize]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [debouncedSearchTerm, approvalFilter]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(0);
+  };
 
   // Apply access control filter first, then other filters
   const accessFilteredSubmissions = useMemo(() => {
@@ -387,6 +420,14 @@ export function FormSubmissions({
                     </TableRow>)}
                 </TableBody>
               </Table>
+              <TablePagination
+                currentPage={currentPage}
+                totalPages={Math.ceil(totalCount / pageSize)}
+                pageSize={pageSize}
+                totalItems={totalCount}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+              />
             </div> : <div className="text-center py-12 text-muted-foreground">
               <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No submissions found</p>
