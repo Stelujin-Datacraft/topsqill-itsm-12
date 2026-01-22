@@ -26,7 +26,7 @@ import { FieldTypesPanel } from './FormBuilder/FieldTypesPanel';
 import { FieldPropertiesDialog } from './FormBuilder/FieldPropertiesDialog';
 import { FieldLayoutRenderer } from './FormBuilder/FieldLayoutRenderer';
 import { useFormBuilderState } from './FormBuilder/hooks/useFormBuilderState';
-import { useFieldOperations } from './FormBuilder/hooks/useFieldOperations';
+import { useOptimizedFieldOperations } from './FormBuilder/hooks/useOptimizedFieldOperations';
 import { FormBuilderProps } from './FormBuilder/types/formBuilder';
 import { FormSnapshotProvider, useFormSnapshotContext } from './FormBuilder/contexts/FormSnapshotContext';
 import { useCrossReferenceSync } from '@/hooks/useCrossReferenceSync';
@@ -174,28 +174,8 @@ function FormBuilderContent({
     return newForm;
   };
 
-  // Field operations using the original stable hook
-  const refreshFormData = async () => {
-    if (userProfile?.organization_id && currentProject?.id) {
-      await loadForms();
-    }
-  };
-  
-  const fieldOperations = useFieldOperations(
-    currentForm,
-    state.currentPageId,
-    pages,
-    state.formName,
-    state.formDescription,
-    state.columnLayout,
-    state.setIsCreating,
-    state.setIsSaving,
-    state.setSelectedField,
-    state.setShowFieldProperties,
-    state.setHighlightedFieldId,
-    updateForm,
-    refreshFormData
-  );
+  // Field operations with optimized snapshot handling
+  const fieldOperations = useOptimizedFieldOperations(state.currentPageId, pages, state.formName, state.formDescription, state.columnLayout, state.setIsCreating, state.setSelectedField, state.setShowFieldProperties, state.setHighlightedFieldId, handleCreateForm);
 
   // Optimized save handler - saves snapshot to database
   const handleSave = async (shouldPublish = false) => {

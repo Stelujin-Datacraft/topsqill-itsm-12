@@ -48,26 +48,6 @@ interface CrossRefMatchRule {
   sourceFieldName?: string;
 }
 
-// Nested mapping interfaces for creating/updating records in linked forms
-interface NestedFieldMapping {
-  sourceFieldId: string;
-  sourceFieldName?: string;
-  linkedFieldId: string;
-  linkedFieldName?: string;
-}
-
-interface NestedCrossRefConfig {
-  targetCrossRefFieldId: string;
-  targetCrossRefFieldName?: string;
-  linkedFormId: string;
-  linkedFormName?: string;
-  behavior: 'create' | 'update_or_create';
-  matchingFieldId?: string;
-  matchingSourceFieldId?: string;
-  fieldMappings: NestedFieldMapping[];
-  linkToTarget?: boolean; // Whether to link the created/updated record to the target form's cross-ref field (default: true)
-}
-
 interface DataFeed {
   id: string;
   name: string;
@@ -83,7 +63,6 @@ interface DataFeed {
   source_filters?: SourceFilter[];
   source_filter_logic?: string;
   field_mappings: FieldMapping[];
-  nested_cross_ref_mappings?: NestedCrossRefConfig[];
   no_match_behavior: 'skip' | 'create';
   created_by: string;
 }
@@ -179,134 +158,6 @@ function detectRecordChanges(
   }
   
   return changes;
-}
-
-// Process nested cross-reference mappings - creates/updates records in linked forms
-async function processNestedCrossRefMappings(
-  supabase: any,
-  nestedMappings: NestedCrossRefConfig[],
-  sourceData: Record<string, any>,
-  changedBy: string,
-  runLog: any[]
-): Promise<Record<string, string | null>> {
-  const linkedRecordIds: Record<string, string | null> = {};
-  
-  if (!nestedMappings || nestedMappings.length === 0) {
-    return linkedRecordIds;
-  }
-
-  for (const config of nestedMappings) {
-    if (!config.fieldMappings || config.fieldMappings.length === 0) {
-      console.log(`⏭️ Skipping nested mapping for ${config.targetCrossRefFieldName} - no field mappings`);
-      continue;
-    }
-
-    try {
-      // Build the data for the linked record
-      const linkedData: Record<string, any> = {};
-      const fieldLabels: Record<string, string> = {};
-      
-      for (const mapping of config.fieldMappings) {
-        const sourceValue = sourceData[mapping.sourceFieldId];
-        if (sourceValue !== undefined) {
-          linkedData[mapping.linkedFieldId] = sourceValue;
-          fieldLabels[mapping.linkedFieldId] = mapping.linkedFieldName || mapping.linkedFieldId;
-        }
-      }
-
-      if (Object.keys(linkedData).length === 0) {
-        console.log(`⏭️ Skipping nested mapping for ${config.targetCrossRefFieldName} - no data to map`);
-        continue;
-      }
-
-      let linkedRecordId: string | null = null;
-
-      if (config.behavior === 'update_or_create' && config.matchingFieldId && config.matchingSourceFieldId) {
-        // Try to find existing record to update
-        const matchValue = sourceData[config.matchingSourceFieldId];
-        
-        if (matchValue !== undefined && matchValue !== null) {
-          const { data: existingRecords } = await supabase
-            .from('form_submissions')
-            .select('id, submission_data')
-            .eq('form_id', config.linkedFormId);
-
-          // Find matching record
-          const existingRecord = existingRecords?.find((rec: any) => {
-            const recValue = rec.submission_data?.[config.matchingFieldId!];
-            return String(recValue).toLowerCase().trim() === String(matchValue).toLowerCase().trim();
-          });
-
-          if (existingRecord) {
-            // Update existing record
-            const oldData = existingRecord.submission_data || {};
-            const updatedData = { ...oldData, ...linkedData };
-            
-            const { error: updateError } = await supabase
-              .from('form_submissions')
-              .update({ submission_data: updatedData })
-              .eq('id', existingRecord.id);
-
-            if (updateError) {
-              console.error(`❌ Failed to update nested record:`, updateError);
-              runLog.push({ type: 'error', message: `Failed to update nested record in ${config.linkedFormName}: ${updateError.message}`, timestamp: new Date().toISOString() });
-            } else {
-              linkedRecordId = existingRecord.id;
-              console.log(`✅ Updated nested record ${existingRecord.id} in ${config.linkedFormName}`);
-              runLog.push({ type: 'success', message: `Updated nested record in ${config.linkedFormName}`, timestamp: new Date().toISOString() });
-              
-              // Log changes
-              const changes = detectRecordChanges(oldData, updatedData, fieldLabels);
-              if (changes.length > 0) {
-                await logRecordFieldChanges(supabase, existingRecord.id, changes, changedBy, 'updated');
-              }
-            }
-          }
-        }
-      }
-
-      // Create new record if not found or behavior is 'create'
-      if (!linkedRecordId) {
-        const { data: insertedRecord, error: insertError } = await supabase
-          .from('form_submissions')
-          .insert({
-            form_id: config.linkedFormId,
-            submission_data: linkedData,
-            approval_status: 'pending'
-          })
-          .select('id')
-          .single();
-
-        if (insertError) {
-          console.error(`❌ Failed to create nested record:`, insertError);
-          runLog.push({ type: 'error', message: `Failed to create nested record in ${config.linkedFormName}: ${insertError.message}`, timestamp: new Date().toISOString() });
-        } else {
-          linkedRecordId = insertedRecord.id;
-          console.log(`✅ Created nested record ${insertedRecord.id} in ${config.linkedFormName}`);
-          runLog.push({ type: 'success', message: `Created nested record in ${config.linkedFormName}`, timestamp: new Date().toISOString() });
-          
-          // Log changes for new record
-          const changes = detectRecordChanges({}, linkedData, fieldLabels);
-          if (changes.length > 0) {
-            await logRecordFieldChanges(supabase, insertedRecord.id, changes, changedBy, 'created');
-          }
-        }
-      }
-
-      // Only add to linkedRecordIds if linkToTarget is enabled (default: true)
-      if (config.linkToTarget !== false) {
-        linkedRecordIds[config.targetCrossRefFieldId] = linkedRecordId;
-        console.log(`🔗 Will link record ${linkedRecordId} to target cross-ref field ${config.targetCrossRefFieldName}`);
-      } else {
-        console.log(`⏭️ Skipping link to target for ${config.targetCrossRefFieldName} (linkToTarget = false)`);
-      }
-    } catch (error) {
-      console.error(`❌ Error processing nested mapping for ${config.targetCrossRefFieldName}:`, error);
-      runLog.push({ type: 'error', message: `Error processing nested mapping for ${config.targetCrossRefFieldName}: ${String(error)}`, timestamp: new Date().toISOString() });
-    }
-  }
-
-  return linkedRecordIds;
 }
 
 // Simple expression evaluator for matching logic
@@ -873,16 +724,6 @@ Deno.serve(async (req) => {
           console.log(`📎 Found ${matchedTargets.length} matching target(s) for source ${sourceSubmission.submission_ref_id || sourceSubmission.id}`);
 
           if (matchedTargets.length > 0) {
-            // Process nested cross-reference mappings first (create/update linked records)
-            const nestedMappings = (feed.nested_cross_ref_mappings || []) as NestedCrossRefConfig[];
-            const linkedRecordIds = await processNestedCrossRefMappings(
-              supabase,
-              nestedMappings,
-              sourceData,
-              `datafeed:${feed.created_by}`,
-              runLog
-            );
-
             // Update matched target submissions
             for (const target of matchedTargets) {
               const oldData = target.submission_data as Record<string, any>;
@@ -907,14 +748,6 @@ Deno.serve(async (req) => {
                 
                 if (sourceValue !== undefined) {
                   updatedData[mapping.targetFieldId] = sourceValue;
-                }
-              }
-
-              // Add linked record IDs to target's cross-reference fields
-              for (const [crossRefFieldId, linkedId] of Object.entries(linkedRecordIds)) {
-                if (linkedId) {
-                  // Store as array format for cross-reference compatibility
-                  updatedData[crossRefFieldId] = [{ id: linkedId, submission_ref_id: linkedId }];
                 }
               }
 

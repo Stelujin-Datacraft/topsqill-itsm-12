@@ -17,8 +17,7 @@ export function useOptimizedFieldOperations(
   setSelectedField: (field: any) => void,
   setShowFieldProperties: (show: boolean) => void,
   setHighlightedFieldId: (fieldId: string | null) => void,
-  onCreateForm: (formData: any) => Promise<any>,
-  isLoadingExistingForm: boolean = false
+  onCreateForm: (formData: any) => Promise<any>
 ) {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
@@ -36,22 +35,7 @@ export function useOptimizedFieldOperations(
   const handleAddField = async (type: string) => {
     console.log('Adding field of type:', type, 'to snapshot, page:', currentPageId);
     
-    // If snapshot.form exists, we can add fields directly - no validation needed
-    if (snapshot.form) {
-      // Proceed to add field (code continues below)
-    } else {
-      // No snapshot.form - either creating new form OR still loading existing form
-      
-      // If snapshot says we're expecting a specific form (initializedFormId set), wait for it
-      if (snapshot.initializedFormId || isLoadingExistingForm) {
-        toast({
-          title: "Please wait",
-          description: "Form is still loading. Please try again in a moment.",
-        });
-        return;
-      }
-      
-      // Creating a new form - validate required fields
+    if (!snapshot.form) {
       if (!formName.trim()) {
         toast({
           title: "Form name required",
@@ -101,7 +85,6 @@ export function useOptimizedFieldOperations(
       });
 
       setIsCreating(false);
-      return; // Form created, user needs to click again to add field
     }
 
     // Ensure we have a valid current page ID
