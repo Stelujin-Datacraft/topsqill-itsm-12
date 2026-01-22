@@ -15,7 +15,6 @@ import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import PasswordExpiryWarning from "./components/PasswordExpiryWarning";
 import { Loader2 } from "lucide-react";
-import { cacheManager } from "@/lib/cacheManager";
 
 // Eagerly loaded (critical path)
 import Index from "./pages/Index";
@@ -121,9 +120,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-// Initialize cache manager with query client
-cacheManager.setQueryClient(queryClient);
 
 const App = () => {
   // Preload critical routes after initial mount
