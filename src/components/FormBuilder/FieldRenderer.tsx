@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { memo } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/types/form';
-import { GripVertical, Settings, Trash2, Copy, Check } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { GripVertical, Settings, Trash2 } from 'lucide-react';
+
 // Full-width field types that should span all columns
 const fullWidthTypes = [
   'header', 'description', 'section-break', 'horizontal-line', 'rich-text', 
@@ -20,7 +20,8 @@ interface FieldRendererProps {
   onFieldDelete: (fieldId: string) => void;
   columnLayout?: 1 | 2 | 3;
 }
-export function FieldRenderer({
+
+export const FieldRenderer = memo(function FieldRenderer({
   field,
   index,
   selectedFieldId,
@@ -39,27 +40,17 @@ export function FieldRenderer({
     }
     return undefined;
   };
-  const [copied, setCopied] = useState(false);
-  const handleCopyFieldId = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      await navigator.clipboard.writeText(field.id);
-      setCopied(true);
-      toast({
-        title: "Field ID copied",
-        description: `"${field.id}" copied to clipboard`
-      });
-      setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      toast({
-        title: "Failed to copy",
-        description: "Could not copy field ID to clipboard",
-        variant: "destructive"
-      });
-    }
-  };
-  return <Draggable key={field.id} draggableId={field.id} index={index}>
-      {(provided, snapshot) => <div ref={provided.innerRef} {...provided.draggableProps} style={{ ...provided.draggableProps.style, ...getGridStyle() }} className={`group p-4 border rounded-lg transition-all duration-300 cursor-pointer hover:shadow-md ${selectedFieldId === field.id ? 'ring-2 ring-primary' : ''} ${highlightedFieldId === field.id ? 'ring-2 ring-blue-500 bg-blue-50 animate-pulse' : ''} ${snapshot.isDragging ? 'shadow-lg opacity-90' : ''}`} onClick={() => onFieldClick(field)}>
+
+  return (
+    <Draggable key={field.id} draggableId={field.id} index={index}>
+      {(provided, snapshot) => (
+        <div 
+          ref={provided.innerRef} 
+          {...provided.draggableProps} 
+          style={{ ...provided.draggableProps.style, ...getGridStyle() }} 
+          className={`group p-4 border rounded-lg transition-all duration-300 cursor-pointer hover:shadow-md ${selectedFieldId === field.id ? 'ring-2 ring-primary' : ''} ${highlightedFieldId === field.id ? 'ring-2 ring-blue-500 bg-blue-50 animate-pulse' : ''} ${snapshot.isDragging ? 'shadow-lg opacity-90' : ''}`} 
+          onClick={() => onFieldClick(field)}
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div {...provided.dragHandleProps}>
@@ -68,33 +59,41 @@ export function FieldRenderer({
               <div className="flex-1">
                 <p className="font-medium">{field.label}</p>
                 <p className="text-sm text-muted-foreground">
-  {field.type}{" "}
-  {field.required && (
-    <span className="text-red-500 font-medium">(Required)</span>
-  )}
-  {field.isFullWidth && (
-    <span className="italic text-slate-500"> (full-width)</span>
-  )}
-</p>
-
-                
+                  {field.type}{" "}
+                  {field.required && (
+                    <span className="text-red-500 font-medium">(Required)</span>
+                  )}
+                  {field.isFullWidth && (
+                    <span className="italic text-slate-500"> (full-width)</span>
+                  )}
+                </p>
               </div>
             </div>
             <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-              <Button size="sm" variant="ghost" onClick={e => {
-            e.stopPropagation();
-            onFieldClick(field);
-          }}>
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onFieldClick(field);
+                }}
+              >
                 <Settings className="h-4 w-4" />
               </Button>
-              <Button size="sm" variant="ghost" onClick={e => {
-            e.stopPropagation();
-            onFieldDelete(field.id);
-          }}>
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onFieldDelete(field.id);
+                }}
+              >
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
           </div>
-        </div>}
-    </Draggable>;
-}
+        </div>
+      )}
+    </Draggable>
+  );
+});
