@@ -705,7 +705,6 @@ export default function LdapSettings() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      </div>
     </DashboardLayout>
   );
 }
