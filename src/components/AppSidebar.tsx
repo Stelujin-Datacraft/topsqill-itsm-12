@@ -101,7 +101,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       },
       {
         title: "Email Config",
-        url: "/settings",
+        url: "/email-config",
         icon: Mail,
       },
       {
