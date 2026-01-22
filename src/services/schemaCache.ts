@@ -38,7 +38,8 @@ class SchemaCacheService {
     lastUpdated: 0
   };
   
-  private cacheTimeout = 5 * 60 * 1000; // 5 minutes
+  private cacheTimeout = 10 * 60 * 1000; // 10 minutes (increased from 5)
+  private refreshPromise: Promise<void> | null = null; // Prevent concurrent refreshes
 
   // System columns available for all forms
   private getSystemColumns(): Record<string, SystemColumnDefinition> {
@@ -102,6 +103,20 @@ class SchemaCacheService {
   }
 
   async refreshCache(): Promise<void> {
+    // Prevent concurrent refresh calls - reuse existing promise if in progress
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+    
+    this.refreshPromise = this._doRefresh();
+    try {
+      await this.refreshPromise;
+    } finally {
+      this.refreshPromise = null;
+    }
+  }
+  
+  private async _doRefresh(): Promise<void> {
     try {
       // Fetch all forms with their fields (exclude deleted forms)
       const { data: forms, error: formsError } = await supabase
