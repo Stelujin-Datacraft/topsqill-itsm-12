@@ -1312,29 +1312,26 @@ export function DataFeedDialog({
                   <div>
                     <Label className="text-base">Field Mappings</Label>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {formData.matching_type === 'cross_reference' 
-                        ? 'Map fields from linked records to the target form'
-                        : 'Map fields from your source to the target form'}
+                      Map fields from your source to the target form
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    {/* When matching type is cross_reference, only show linked record mapping */}
-                    {formData.matching_type === 'cross_reference' ? (
+                    {/* Always show direct mapping option */}
+                    <Button type="button" variant="outline" size="sm" onClick={() => addFieldMapping('direct')}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Source Field
+                    </Button>
+                    
+                    {/* Show cross-ref mapping when matching type is cross_reference and field is selected */}
+                    {formData.matching_type === 'cross_reference' && formData.cross_reference_field_id && (
                       <Button 
                         type="button" 
-                        variant="default" 
+                        variant="secondary" 
                         size="sm" 
                         onClick={() => addFieldMapping('cross_reference')}
-                        disabled={!formData.cross_reference_field_id}
                       >
                         <Link2 className="h-4 w-4 mr-1" />
-                        Add Field from Linked Record
-                      </Button>
-                    ) : (
-                      // For field_matching, only show direct mapping option (no cross-reference)
-                      <Button type="button" variant="outline" size="sm" onClick={() => addFieldMapping('direct')}>
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add Mapping
+                        Add from Linked Record
                       </Button>
                     )}
                   </div>
@@ -1346,7 +1343,7 @@ export function DataFeedDialog({
                     <div className="flex items-center gap-2 text-sm text-blue-900">
                       <Link2 className="h-4 w-4" />
                       <span className="font-medium">
-                        Pulling data from: {crossRefFields.find(f => f.id === formData.cross_reference_field_id)?.label || 'Selected Field'}
+                        Cross-Reference Link: {crossRefFields.find(f => f.id === formData.cross_reference_field_id)?.label || 'Selected Field'}
                         {getCrossRefFormName(formData.cross_reference_field_id) && (
                           <span className="text-blue-700 ml-1">
                             (→ {getCrossRefFormName(formData.cross_reference_field_id)})
@@ -1355,7 +1352,7 @@ export function DataFeedDialog({
                       </span>
                     </div>
                     <p className="text-xs text-blue-700 mt-1">
-                      Add mappings to specify which fields from the linked records should be copied to the target form.
+                      Use "Add Source Field" to map from source form, or "Add from Linked Record" to pull data from the linked form.
                     </p>
                     {getCrossRefFormFields(formData.cross_reference_field_id).length === 0 && (
                       <p className="text-xs text-amber-600 mt-1">
@@ -1368,7 +1365,7 @@ export function DataFeedDialog({
                 {formData.matching_type === 'cross_reference' && !formData.cross_reference_field_id && (
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                     <p className="text-sm text-amber-800">
-                      Please select a Cross-Reference Field in the Matching tab first.
+                      Please select a Cross-Reference Field in the Matching tab first to enable linked record mappings.
                     </p>
                   </div>
                 )}
@@ -1624,50 +1621,67 @@ export function DataFeedDialog({
                       )}
                     </div>
                   ) : (
-                    // Direct field mapping
-                    <div className="flex items-center gap-2">
-                      <Select
-                        value={mapping.sourceFieldId}
-                        onValueChange={(value) => updateFieldMapping(index, 'sourceFieldId', value)}
-                      >
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Source field" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {sourceFields.map((field) => (
-                            <SelectItem key={field.id} value={field.id}>
-                              {field.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    // Direct field mapping - Source Form → Target Form
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Badge variant="outline" className="text-xs font-normal">
+                          <Plus className="h-3 w-3 mr-1" />
+                          Source Field Mapping
+                        </Badge>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeFieldMapping(index)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 space-y-1">
+                          <Label className="text-xs text-muted-foreground">
+                            From: {forms.find(f => f.id === formData.source_form_id)?.name || 'Source Form'}
+                          </Label>
+                          <Select
+                            value={mapping.sourceFieldId}
+                            onValueChange={(value) => updateFieldMapping(index, 'sourceFieldId', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select source field..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {sourceFields.map((field) => (
+                                <SelectItem key={field.id} value={field.id}>
+                                  {field.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                      <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 mt-5" />
 
-                      <Select
-                        value={mapping.targetFieldId}
-                        onValueChange={(value) => updateFieldMapping(index, 'targetFieldId', value)}
-                      >
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Target field" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {targetFields.map((field) => (
-                            <SelectItem key={field.id} value={field.id}>
-                              {field.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeFieldMapping(index)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                        <div className="flex-1 space-y-1">
+                          <Label className="text-xs text-muted-foreground">
+                            To: {forms.find(f => f.id === formData.target_form_id)?.name || 'Target Form'}
+                          </Label>
+                          <Select
+                            value={mapping.targetFieldId}
+                            onValueChange={(value) => updateFieldMapping(index, 'targetFieldId', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select target field..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {targetFields.map((field) => (
+                                <SelectItem key={field.id} value={field.id}>
+                                  {field.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
