@@ -2,7 +2,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useForm } from '@/contexts/FormContext';
-import DashboardLayout from '@/components/DashboardLayout';
+import { PageContent } from '@/components/layouts/PageContent';
 import { FormBuilder } from '@/components/FormBuilder';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -33,9 +33,9 @@ const FormEdit = () => {
   );
   
   return (
-    <DashboardLayout title={`Edit Form: ${currentForm?.name || 'Loading...'}`} actions={actions}>
+    <PageContent title={`Edit Form: ${currentForm?.name || 'Loading...'}`} actions={actions}>
       <FormBuilder formId={id} />
-    </DashboardLayout>
+    </PageContent>
   );
 };
 

@@ -4,7 +4,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import DashboardLayout from '@/components/DashboardLayout';
+import { PageContent } from '@/components/layouts/PageContent';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -58,7 +58,7 @@ const Projects = () => {
   }), [projects, debouncedSearchTerm, statusFilter]);
 
   return (
-    <DashboardLayout title="Projects">
+    <PageContent title="Projects">
       <div className="space-y-6">
         {/* Project Invitations */}
         <ProjectInvitationsCard onInvitationAccepted={handleInvitationAccepted} />
@@ -88,13 +88,12 @@ const Projects = () => {
 
         {/* Projects Table */}
         <Card>
-<CardHeader className="flex flex-row items-center justify-between">
-  <CardTitle>Your Projects</CardTitle>
-
-  {canCreateProject && (
-    <CreateProjectDialog onProjectCreated={handleProjectCreated} />
-  )}
-</CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Your Projects</CardTitle>
+            {canCreateProject && (
+              <CreateProjectDialog onProjectCreated={handleProjectCreated} />
+            )}
+          </CardHeader>
           <CardContent>
             {loading ? (
               <div className="flex items-center justify-center h-32">
@@ -121,7 +120,7 @@ const Projects = () => {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+    </PageContent>
   );
 };
 
