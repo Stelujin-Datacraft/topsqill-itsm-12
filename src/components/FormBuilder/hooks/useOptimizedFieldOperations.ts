@@ -36,6 +36,17 @@ export function useOptimizedFieldOperations(
     console.log('Adding field of type:', type, 'to snapshot, page:', currentPageId);
     
     if (!snapshot.form) {
+      // Check if we're still loading an existing form (snapshot not initialized yet)
+      // In this case, the form name might be empty because the form hasn't loaded
+      if (!snapshot.isInitialized) {
+        toast({
+          title: "Please wait",
+          description: "Form is still loading. Please try again in a moment.",
+        });
+        return;
+      }
+      
+      // Use the form name from state (typed by user in the form details panel)
       if (!formName.trim()) {
         toast({
           title: "Form name required",
