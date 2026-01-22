@@ -114,6 +114,9 @@ export function useDataFeeds(projectId: string) {
         source_filters: Array.isArray(newFeed.source_filters)
           ? (newFeed.source_filters as unknown as SourceFilter[])
           : [],
+        cross_ref_match_rules: Array.isArray((newFeed as any).cross_ref_match_rules)
+          ? ((newFeed as any).cross_ref_match_rules as unknown as CrossRefMatchRule[])
+          : [],
         last_run_stats: newFeed.last_run_stats as DataFeed['last_run_stats'],
       } as DataFeed;
       
