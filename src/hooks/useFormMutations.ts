@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Form } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
 import { logFormAuditEvent, describeFormChanges } from '@/utils/formAuditLogger';
+import { cacheManager } from '@/lib/cacheManager';
 
 export function useFormMutations() {
   const createForm = async (formData: Omit<Form, 'id' | 'createdAt' | 'updatedAt' | 'fields'>, userProfile: any) => {
@@ -93,6 +94,9 @@ export function useFormMutations() {
         description: `Created form "${newForm.name}"`,
       });
       console.log('🔵 form_created log result:', logResult);
+
+      // Invalidate caches after form creation
+      cacheManager.invalidateAllForms(newForm.projectId);
 
       return newForm;
     } catch (error) {

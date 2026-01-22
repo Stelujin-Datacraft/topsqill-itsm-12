@@ -1,7 +1,15 @@
+/**
+ * @deprecated Use useDataFeedsQuery for React Query caching benefits
+ * This hook is kept for backwards compatibility
+ */
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { DataFeed, DataFeedRun, DataFeedFormData, MatchingRule, FieldMapping, SourceFilter, CrossRefMatchRule } from '@/types/dataFeed';
 import { useToast } from '@/hooks/use-toast';
+import { cacheManager } from '@/lib/cacheManager';
+
+// Re-export the new hook for easy migration
+export { useDataFeedsQuery } from './useDataFeedsQuery';
 
 export function useDataFeeds(projectId: string) {
   const [feeds, setFeeds] = useState<DataFeed[]>([]);
