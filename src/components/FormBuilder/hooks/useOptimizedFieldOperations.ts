@@ -36,10 +36,14 @@ export function useOptimizedFieldOperations(
   const handleAddField = async (type: string) => {
     console.log('Adding field of type:', type, 'to snapshot, page:', currentPageId);
     
-    if (!snapshot.form) {
-      // If we're loading an existing form (formId in URL) but snapshot hasn't initialized yet
-      // This means the form data is still being fetched from the database
-      if (isLoadingExistingForm && !snapshot.isInitialized) {
+    // If snapshot.form exists, we can add fields directly - no validation needed
+    if (snapshot.form) {
+      // Proceed to add field (code continues below)
+    } else {
+      // No snapshot.form - either creating new form OR still loading existing form
+      
+      // If snapshot says we're expecting a specific form (initializedFormId set), wait for it
+      if (snapshot.initializedFormId || isLoadingExistingForm) {
         toast({
           title: "Please wait",
           description: "Form is still loading. Please try again in a moment.",
@@ -47,7 +51,7 @@ export function useOptimizedFieldOperations(
         return;
       }
       
-      // Use the form name from state (typed by user in the form details panel)
+      // Creating a new form - validate required fields
       if (!formName.trim()) {
         toast({
           title: "Form name required",
@@ -97,6 +101,7 @@ export function useOptimizedFieldOperations(
       });
 
       setIsCreating(false);
+      return; // Form created, user needs to click again to add field
     }
 
     // Ensure we have a valid current page ID
