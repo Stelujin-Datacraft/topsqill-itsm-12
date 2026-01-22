@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Form, FormField } from '@/types/form';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
@@ -21,9 +21,8 @@ export function useFormsData() {
     batchDeleteFields: batchDeleteFieldsMutation
   } = useFieldMutations();
 
-  const createForm = async (formData: Omit<Form, 'id' | 'createdAt' | 'updatedAt' | 'fields'>) => {
+  const createForm = useCallback(async (formData: Omit<Form, 'id' | 'createdAt' | 'updatedAt' | 'fields'>) => {
     if (!currentProject) {
-      console.error('No current project selected');
       return null;
     }
 
@@ -36,10 +35,9 @@ export function useFormsData() {
       setForms(prev => [newForm, ...prev]);
     }
     return newForm;
-  };
+  }, [currentProject, createFormMutation, userProfile, setForms]);
 
-  const updateForm = async (id: string, updates: Partial<Form>) => {
-    // Find the current form to get its name for audit logging
+  const updateForm = useCallback(async (id: string, updates: Partial<Form>) => {
     const currentForm = forms.find(f => f.id === id);
     await updateFormMutation(id, updates, userProfile, currentForm?.name);
     setForms(prev =>
@@ -49,17 +47,15 @@ export function useFormsData() {
           : form
       )
     );
-  };
+  }, [forms, updateFormMutation, userProfile, setForms]);
 
-  const deleteForm = async (id: string) => {
-    // Find the current form to get its name for audit logging
+  const deleteForm = useCallback(async (id: string) => {
     const currentForm = forms.find(f => f.id === id);
     await deleteFormMutation(id, userProfile, currentForm?.name);
     setForms(prev => prev.filter(form => form.id !== id));
-  };
+  }, [forms, deleteFormMutation, userProfile, setForms]);
 
-  const addField = async (formId: string, fieldData: Omit<FormField, 'id'> & { id?: string }) => {
-    // Find the form to get its name for audit logging
+  const addField = useCallback(async (formId: string, fieldData: Omit<FormField, 'id'> & { id?: string }) => {
     const form = forms.find(f => f.id === formId);
     const newField = await addFieldMutation(formId, fieldData, userProfile, form?.name);
     if (newField) {
@@ -72,10 +68,9 @@ export function useFormsData() {
       );
     }
     return newField;
-  };
+  }, [forms, addFieldMutation, userProfile, setForms]);
 
-  const updateField = async (fieldId: string, updates: Partial<FormField>) => {
-    // Find the form that contains this field for audit logging
+  const updateField = useCallback(async (fieldId: string, updates: Partial<FormField>) => {
     const form = forms.find(f => f.fields.some(field => field.id === fieldId));
     const auditInfo = form && userProfile ? { userId: userProfile.id, formId: form.id, formName: form.name } : undefined;
     await updateFieldMutation(fieldId, updates, auditInfo);
@@ -87,10 +82,9 @@ export function useFormsData() {
         )
       }))
     );
-  };
+  }, [forms, userProfile, updateFieldMutation, setForms]);
 
-  const deleteField = async (fieldId: string) => {
-    // Find the form and field for audit logging
+  const deleteField = useCallback(async (fieldId: string) => {
     const form = forms.find(f => f.fields.some(field => field.id === fieldId));
     const field = form?.fields.find(f => f.id === fieldId);
     const auditInfo = form && userProfile ? { userId: userProfile.id, formId: form.id, formName: form.name, fieldLabel: field?.label } : undefined;
@@ -101,13 +95,12 @@ export function useFormsData() {
         fields: form.fields.filter(field => field.id !== fieldId)
       }))
     );
-  };
+  }, [forms, userProfile, deleteFieldMutation, setForms]);
 
-  const reorderFields = async (formId: string, startIndex: number, endIndex: number) => {
+  const reorderFields = useCallback(async (formId: string, startIndex: number, endIndex: number) => {
     const form = forms.find(f => f.id === formId);
     if (!form) return;
 
-    // Pass audit info for reorder logging
     const auditInfo = userProfile ? { userId: userProfile.id, formName: form.name } : undefined;
     const reorderedFields = await reorderFieldsMutation(formId, startIndex, endIndex, form.fields, auditInfo);
     setForms(prev =>
@@ -115,10 +108,9 @@ export function useFormsData() {
         f.id === formId ? { ...f, fields: reorderedFields } : f
       )
     );
-  };
+  }, [forms, userProfile, reorderFieldsMutation, setForms]);
 
-  // Batch save all fields at once (for optimized save)
-  const batchSaveFields = async (formId: string, fields: FormField[], existingFieldIds: string[]) => {
+  const batchSaveFields = useCallback(async (formId: string, fields: FormField[], existingFieldIds: string[]) => {
     await batchUpdateFieldsMutation(formId, fields, new Set(existingFieldIds));
     setForms(prev =>
       prev.map(form =>
@@ -127,10 +119,9 @@ export function useFormsData() {
           : form
       )
     );
-  };
+  }, [batchUpdateFieldsMutation, setForms]);
 
-  // Batch delete multiple fields at once
-  const batchDeleteFields = async (fieldIds: string[]) => {
+  const batchDeleteFields = useCallback(async (fieldIds: string[]) => {
     await batchDeleteFieldsMutation(fieldIds);
     setForms(prev =>
       prev.map(form => ({
@@ -138,7 +129,7 @@ export function useFormsData() {
         fields: form.fields.filter(field => !fieldIds.includes(field.id))
       }))
     );
-  };
+  }, [batchDeleteFieldsMutation, setForms]);
 
   // Load forms when project changes
   useEffect(() => {
@@ -149,7 +140,13 @@ export function useFormsData() {
     }
   }, [currentProject?.id, userProfile?.organization_id, session]);
 
-  return {
+  const refreshForms = useCallback(() => {
+    if (currentProject?.id && userProfile?.organization_id) {
+      loadForms(userProfile.organization_id, currentProject.id);
+    }
+  }, [currentProject?.id, userProfile?.organization_id, loadForms]);
+
+  return useMemo(() => ({
     forms,
     loading,
     createForm,
@@ -161,6 +158,10 @@ export function useFormsData() {
     reorderFields,
     batchSaveFields,
     batchDeleteFields,
-    loadForms: () => currentProject?.id && userProfile?.organization_id && loadForms(userProfile.organization_id, currentProject.id),
-  };
+    loadForms: refreshForms,
+  }), [
+    forms, loading, createForm, updateForm, deleteForm, 
+    addField, updateField, deleteField, reorderFields, 
+    batchSaveFields, batchDeleteFields, refreshForms
+  ]);
 }
