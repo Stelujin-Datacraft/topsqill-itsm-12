@@ -455,6 +455,47 @@ export default function LdapSettings() {
   return (
     <PageContent title="LDAP / Active Directory">
       <div className="space-y-6">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center">
+              <Server className="h-6 w-6 text-primary-foreground" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold">Directory Integration</h2>
+              <p className="text-muted-foreground">
+                Connect your LDAP or Active Directory server for enterprise authentication
+              </p>
+            </div>
+          </div>
+          {configurations.length > 0 && (
+            <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Configuration
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Add LDAP Configuration</DialogTitle>
+                  <DialogDescription>
+                    Configure your LDAP/Active Directory server connection
+                  </DialogDescription>
+                </DialogHeader>
+                <ConfigurationForm />
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => { setShowCreateDialog(false); resetForm(); }}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleCreateConfig} disabled={!formData.server_url || !formData.base_dn}>
+                    Create Configuration
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
 
         {/* Content */}
         {isLoading ? (
@@ -462,17 +503,15 @@ export default function LdapSettings() {
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : configurations.length === 0 ? (
-          <Card className="max-w-2xl mx-auto">
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 p-3 rounded-full bg-primary/10 w-fit">
+          <Card className="border-dashed">
+            <CardContent className="py-12 text-center">
+              <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
                 <Server className="h-8 w-8 text-primary" />
               </div>
-              <CardTitle>No LDAP Configuration</CardTitle>
-              <CardDescription>
-                Connect your organization's LDAP or Active Directory server to enable enterprise authentication.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex justify-center">
+              <h3 className="text-lg font-semibold mb-2">No LDAP Configuration</h3>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                Connect your organization's LDAP or Active Directory server to enable enterprise authentication and automated user provisioning.
+              </p>
               <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
                 <DialogTrigger asChild>
                   <Button>
@@ -502,69 +541,79 @@ export default function LdapSettings() {
           </Card>
         ) : (
           <div className="space-y-6">
+            {/* Configuration Cards */}
             {configurations.map((config) => (
-              <Card key={config.id}>
-                <CardHeader>
+              <Card key={config.id} className={`transition-all hover:shadow-md ${config.is_enabled ? 'ring-1 ring-green-200 bg-green-50/30 dark:bg-green-950/10' : ''}`}>
+                <CardHeader className="pb-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${config.is_enabled ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
-                        <Server className="h-5 w-5" />
+                    <div className="flex items-center gap-4">
+                      <div className={`p-3 rounded-lg ${config.is_enabled ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'}`}>
+                        <Server className={`h-5 w-5 ${config.is_enabled ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`} />
                       </div>
                       <div>
-                        <CardTitle className="flex items-center gap-2">
+                        <CardTitle className="flex items-center gap-2 text-lg">
                           {config.name}
                           {config.is_enabled ? (
-                            <Badge variant="default" className="bg-green-500">Enabled</Badge>
+                            <Badge className="bg-green-500 hover:bg-green-600">Active</Badge>
                           ) : (
                             <Badge variant="secondary">Disabled</Badge>
                           )}
                         </CardTitle>
-                        <CardDescription>{config.server_url}</CardDescription>
+                        <CardDescription className="flex items-center gap-1 mt-1">
+                          <span className="font-mono text-xs">{config.server_url}</span>
+                        </CardDescription>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={config.is_enabled}
-                        onCheckedChange={(checked) => toggleEnabled(config.id, checked)}
-                      />
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {config.is_enabled ? 'Enabled' : 'Disabled'}
+                        </span>
+                        <Switch
+                          checked={config.is_enabled}
+                          onCheckedChange={(checked) => toggleEnabled(config.id, checked)}
+                        />
+                      </div>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                    <div className="flex items-center gap-2 text-sm">
+                <CardContent className="pt-0">
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-lg bg-muted/50 mb-4">
+                    <div className="flex items-center gap-3">
                       <Key className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Base DN:</span>
-                      <span className="font-mono text-xs truncate">{config.base_dn}</span>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Base DN</p>
+                        <p className="font-mono text-xs truncate max-w-32" title={config.base_dn}>{config.base_dn}</p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-3">
                       <Shield className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">SSL:</span>
-                      {config.use_ssl ? (
-                        <Check className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <X className="h-4 w-4 text-red-500" />
-                      )}
+                      <div>
+                        <p className="text-xs text-muted-foreground">Encryption</p>
+                        <p className="text-sm font-medium">{config.use_ssl ? 'SSL/TLS' : config.use_starttls ? 'StartTLS' : 'None'}</p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-3">
                       <Users className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Auto-provision:</span>
-                      {config.auto_provision_users ? (
-                        <Check className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <X className="h-4 w-4 text-muted-foreground" />
-                      )}
+                      <div>
+                        <p className="text-xs text-muted-foreground">Auto-provision</p>
+                        <p className="text-sm font-medium">{config.auto_provision_users ? 'Enabled' : 'Disabled'}</p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-3">
                       <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Last sync:</span>
-                      <span>{config.last_sync_at ? format(new Date(config.last_sync_at), 'MMM d, HH:mm') : 'Never'}</span>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Last Sync</p>
+                        <p className="text-sm font-medium">{config.last_sync_at ? format(new Date(config.last_sync_at), 'MMM d, HH:mm') : 'Never'}</p>
+                      </div>
                     </div>
                   </div>
 
+                  {/* Sync Error Alert */}
                   {config.last_sync_status === 'failed' && config.last_sync_error && (
                     <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-2">
-                      <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
+                      <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
                       <div className="text-sm text-destructive">
                         <span className="font-medium">Last sync failed: </span>
                         {config.last_sync_error}
@@ -572,6 +621,7 @@ export default function LdapSettings() {
                     </div>
                   )}
 
+                  {/* Action Buttons */}
                   <div className="flex flex-wrap gap-2">
                     <Button
                       variant="outline"
@@ -613,7 +663,7 @@ export default function LdapSettings() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="text-destructive hover:text-destructive"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={() => setDeleteConfirmId(config.id)}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
@@ -623,6 +673,8 @@ export default function LdapSettings() {
                 </CardContent>
               </Card>
             ))}
+
+            <Separator />
 
             {/* Group Mappings */}
             <LdapGroupMappings 
