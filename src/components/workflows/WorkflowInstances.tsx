@@ -4,10 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { Eye, Clock, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { ExecutionNodeAccordion } from './ExecutionNodeAccordion';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+
+const DEFAULT_PAGE_SIZE = 25;
 
 interface WorkflowExecution {
   id: string;
@@ -25,26 +28,44 @@ interface WorkflowInstancesProps {
 
 export function WorkflowInstances({ workflowId }: WorkflowInstancesProps) {
   const [executions, setExecutions] = useState<WorkflowExecution[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [selectedExecution, setSelectedExecution] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const { toast } = useToast();
 
   useEffect(() => {
     if (workflowId) {
       loadExecutions();
     }
-  }, [workflowId]);
+  }, [workflowId, currentPage, pageSize]);
 
   const loadExecutions = async () => {
     if (!workflowId) return;
 
     try {
       setLoading(true);
+
+      // Get total count
+      const { count, error: countError } = await supabase
+        .from('workflow_executions')
+        .select('*', { count: 'exact', head: true })
+        .eq('workflow_id', workflowId);
+
+      if (countError) throw countError;
+      setTotalCount(count || 0);
+
+      // Fetch paginated data
+      const from = currentPage * pageSize;
+      const to = from + pageSize - 1;
+
       const { data, error } = await supabase
         .from('workflow_executions')
         .select('*')
         .eq('workflow_id', workflowId)
-        .order('started_at', { ascending: false });
+        .order('started_at', { ascending: false })
+        .range(from, to);
 
       if (error) throw error;
 
@@ -59,6 +80,15 @@ export function WorkflowInstances({ workflowId }: WorkflowInstancesProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(0);
   };
 
   const handleViewDetails = (executionId: string | null) => {
@@ -201,6 +231,16 @@ export function WorkflowInstances({ workflowId }: WorkflowInstancesProps) {
                 ))}
               </TableBody>
             </Table>
+          )}
+          {totalCount > 0 && (
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={Math.ceil(totalCount / pageSize)}
+              pageSize={pageSize}
+              totalItems={totalCount}
+              onPageChange={handlePageChange}
+              onPageSizeChange={handlePageSizeChange}
+            />
           )}
         </CardContent>
       </Card>
