@@ -13,7 +13,7 @@ import {
   ReactFlowProvider,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import DashboardLayout from '@/components/DashboardLayout';
+import { PageContent } from '@/components/layouts/PageContent';
 import { useWorkflowData } from '@/hooks/useWorkflowData';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -152,17 +152,17 @@ const WorkflowViewerPage = () => {
 
   if (loading) {
     return (
-      <DashboardLayout title="Workflow Viewer">
+      <PageContent title="Workflow Viewer">
         <div className="flex items-center justify-center h-64">
           <div className="text-muted-foreground">Loading workflow...</div>
         </div>
-      </DashboardLayout>
+      </PageContent>
     );
   }
 
   if (!workflow) {
     return (
-      <DashboardLayout title="Workflow Viewer">
+      <PageContent title="Workflow Viewer">
         <div className="text-center py-12">
           <p className="text-muted-foreground">Workflow not found</p>
           <Button onClick={() => navigate('/workflows')} className="mt-4">
@@ -170,12 +170,12 @@ const WorkflowViewerPage = () => {
             Back to Workflows
           </Button>
         </div>
-      </DashboardLayout>
+      </PageContent>
     );
   }
 
   return (
-    <DashboardLayout 
+    <PageContent 
       title=""
       actions={
         <div className="flex items-center gap-2">
@@ -310,7 +310,7 @@ const WorkflowViewerPage = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
+    </PageContent>
   );
 };
 

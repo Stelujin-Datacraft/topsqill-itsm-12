@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import DashboardLayout from '@/components/DashboardLayout';
+import { PageContent } from '@/components/layouts/PageContent';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -165,7 +165,7 @@ const Organizations = () => {
   );
 
   return (
-    <DashboardLayout title="Organizations" actions={actions}>
+    <PageContent title="Organizations" actions={actions}>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {organizations.map((org) => (
           <Card key={org.id} className={`hover:shadow-lg transition-shadow ${
@@ -303,7 +303,7 @@ const Organizations = () => {
           </Card>
         ))}
       </div>
-    </DashboardLayout>
+    </PageContent>
   );
 };
 

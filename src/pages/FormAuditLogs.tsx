@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import DashboardLayout from '@/components/DashboardLayout';
+import { PageContent } from '@/components/layouts/PageContent';
 import {
   RefreshCw,
   Search,
@@ -308,7 +308,7 @@ const FormAuditLogs: React.FC = () => {
   );
 
   return (
-    <DashboardLayout title="Form History" actions={headerActions}>
+    <PageContent title="Form History" actions={headerActions}>
       <div className="space-y-6">
         <p className="text-muted-foreground">
           {userProfile?.role === 'admin' ? 'View all form changes and activity across the organization' : 'View your form activity history'}
@@ -472,7 +472,7 @@ const FormAuditLogs: React.FC = () => {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+    </PageContent>
   );
 };
 

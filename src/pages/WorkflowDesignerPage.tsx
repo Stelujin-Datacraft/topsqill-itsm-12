@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import DashboardLayout from '@/components/DashboardLayout';
+import { PageContent } from '@/components/layouts/PageContent';
 import { WorkflowDesigner } from '@/components/workflows/WorkflowDesigner';
 import { WorkflowInstances } from '@/components/workflows/WorkflowInstances';
 
@@ -21,7 +21,6 @@ const WorkflowDesignerPage = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   
-  // Simple local state for workflow data
   const [workflowData, setWorkflowData] = useState<{
     nodes: WorkflowNode[];
     connections: WorkflowConnection[];
@@ -35,15 +34,12 @@ const WorkflowDesignerPage = () => {
   const [running, setRunning] = useState(false);
   const [activeTab, setActiveTab] = useState('designer');
 
-  // Get current workflow info
   const currentWorkflow = workflows.find(w => w.id === id);
 
-  // Check if workflow has manual trigger
   const isManualTrigger = workflowData.nodes.some(
     node => node.type === 'start' && node.data?.config?.triggerType === 'manual'
   );
 
-  // Run workflow manually
   const handleRunWorkflow = async () => {
     if (!id || !user?.id) return;
     
@@ -59,7 +55,6 @@ const WorkflowDesignerPage = () => {
         description: `Workflow execution started. ID: ${executionId?.slice(0, 8)}...`,
       });
       
-      // Switch to execution history tab
       setActiveTab('instances');
     } catch (error) {
       console.error('Error running workflow:', error);
@@ -73,7 +68,6 @@ const WorkflowDesignerPage = () => {
     }
   };
 
-  // Load workflow data only once on mount
   useEffect(() => {
     let isMounted = true;
     
@@ -115,7 +109,6 @@ const WorkflowDesignerPage = () => {
     };
   }, [id, loadWorkflowNodes, toast]);
 
-  // Save workflow to database and update local state
   const handleSave = async (nodes: WorkflowNode[], connections: WorkflowConnection[]) => {
     if (!id) return;
     
@@ -131,7 +124,6 @@ const WorkflowDesignerPage = () => {
           description: "Your workflow has been saved successfully.",
         });
         
-        // Update local state to reflect saved state
         setWorkflowData({ nodes: [...nodes], connections: [...connections] });
       } else {
         toast({
@@ -156,42 +148,43 @@ const WorkflowDesignerPage = () => {
     navigate('/workflows');
   };
 
+  const headerActions = (
+    <div className="flex space-x-2">
+      {isManualTrigger && (
+        <Button 
+          variant="default" 
+          onClick={handleRunWorkflow}
+          disabled={running}
+        >
+          {running ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Play className="h-4 w-4 mr-2" />
+          )}
+          {running ? 'Running...' : 'Run Workflow'}
+        </Button>
+      )}
+      <Button variant="outline" onClick={handleBackToList}>
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Workflows
+      </Button>
+    </div>
+  );
 
   if (loading) {
     return (
-      <DashboardLayout title="Workflow Designer">
+      <PageContent title="Workflow Designer">
         <div className="flex items-center justify-center h-full">
           <div>Loading workflow...</div>
         </div>
-      </DashboardLayout>
+      </PageContent>
     );
   }
 
   return (
-    <DashboardLayout 
+    <PageContent 
       title={`Workflow Designer${currentWorkflow ? ` - ${currentWorkflow.name}` : ''}`}
-      actions={
-        <div className="flex space-x-2">
-          {isManualTrigger && (
-            <Button 
-              variant="default" 
-              onClick={handleRunWorkflow}
-              disabled={running}
-            >
-              {running ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Play className="h-4 w-4 mr-2" />
-              )}
-              {running ? 'Running...' : 'Run Workflow'}
-            </Button>
-          )}
-          <Button variant="outline" onClick={handleBackToList}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Workflows
-          </Button>
-        </div>
-      }
+      actions={headerActions}
     >
       <div className="h-[calc(100vh-140px)] flex flex-col">
         
@@ -222,7 +215,7 @@ const WorkflowDesignerPage = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
+    </PageContent>
   );
 };
 
