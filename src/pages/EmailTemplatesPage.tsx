@@ -17,7 +17,7 @@ import { toast } from '@/hooks/use-toast';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { EmailPreview } from '@/components/email/EmailPreview';
 import { EMAIL_TEMPLATES } from '@/data/emailTemplates';
-import DashboardLayout from '@/components/DashboardLayout';
+import { PageContent } from '@/components/layouts/PageContent';
 
 interface EmailTemplate {
   id: string;
@@ -273,11 +273,11 @@ export default function EmailTemplatesPage() {
 
   if (loading) {
     return (
-      <DashboardLayout title="Email Templates">
+      <PageContent title="Email Templates">
         <div className="flex items-center justify-center p-8">
           <div className="text-muted-foreground">Loading...</div>
         </div>
-      </DashboardLayout>
+      </PageContent>
     );
   }
 
@@ -290,7 +290,7 @@ export default function EmailTemplatesPage() {
     };
 
     return (
-      <DashboardLayout title={editingTemplate ? 'Edit Email Template' : 'Create Email Template'}>
+      <PageContent title={editingTemplate ? 'Edit Email Template' : 'Create Email Template'}>
         <Card className="border rounded-lg">
           <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30">
             <div>
@@ -321,12 +321,12 @@ export default function EmailTemplatesPage() {
             />
           </CardContent>
         </Card>
-      </DashboardLayout>
+      </PageContent>
     );
   }
 
   return (
-    <DashboardLayout title="Email Templates">
+    <PageContent title="Email Templates">
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -425,7 +425,7 @@ export default function EmailTemplatesPage() {
           ))}
         </div>
       </div>
-    </DashboardLayout>
+    </PageContent>
   );
 }
 
