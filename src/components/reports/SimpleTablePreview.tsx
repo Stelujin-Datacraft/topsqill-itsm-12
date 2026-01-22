@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -78,6 +79,7 @@ export function SimpleTablePreview({
   title
 }: SimpleTablePreviewProps) {
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [sortField, setSortField] = useState('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
@@ -135,10 +137,11 @@ export function SimpleTablePreview({
     return { fieldTypeMap: typeMap, fieldConfigMap: configMap };
   }, [displayFields, selectedForm]);
 
+  // Use debounced search term for filtering (prevents excessive filtering during typing)
   const filteredData = useMemo(() => {
-    if (!enableSearch || !searchTerm) return data;
-    return data.filter(row => rowPassesSearch(row, searchTerm, fieldTypeMap, fieldConfigMap));
-  }, [data, searchTerm, enableSearch, fieldTypeMap, fieldConfigMap]);
+    if (!enableSearch || !debouncedSearchTerm) return data;
+    return data.filter(row => rowPassesSearch(row, debouncedSearchTerm, fieldTypeMap, fieldConfigMap));
+  }, [data, debouncedSearchTerm, enableSearch, fieldTypeMap, fieldConfigMap]);
 
   // Sort the filtered data
   const sortedData = useMemo(() => {

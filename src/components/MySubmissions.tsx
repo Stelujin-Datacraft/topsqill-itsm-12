@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +52,7 @@ export function MySubmissions() {
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [selectedFormId, setSelectedFormId] = useState<string>('all');
   const [currentForm, setCurrentForm] = useState<Form | null>(null);
   
@@ -216,18 +218,18 @@ export function MySubmissions() {
     return applyAccessFilter(submissions);
   }, [submissions, applyAccessFilter]);
 
-  // Filter submissions
-  const filteredSubmissions = accessFilteredSubmissions.filter(submission => {
-    const matchesSearch = submission.form_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         submission.submission_ref_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  // Use debounced search term for filtering (prevents excessive filtering during typing)
+  const filteredSubmissions = useMemo(() => accessFilteredSubmissions.filter(submission => {
+    const matchesSearch = submission.form_name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                         submission.submission_ref_id?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
                          Object.values(submission.submission_data).some(value => 
-                           String(value).toLowerCase().includes(searchTerm.toLowerCase())
+                           String(value).toLowerCase().includes(debouncedSearchTerm.toLowerCase())
                          );
     
     const matchesForm = selectedFormId === 'all' || submission.form_id === selectedFormId;
     
     return matchesSearch && matchesForm;
-  });
+  }), [accessFilteredSubmissions, debouncedSearchTerm, selectedFormId]);
 
   // Get unique forms from submissions
   const submissionForms = Array.from(
