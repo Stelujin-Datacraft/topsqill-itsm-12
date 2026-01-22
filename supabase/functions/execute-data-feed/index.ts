@@ -38,6 +38,12 @@ interface SourceFilter {
   value: string;
 }
 
+interface CrossRefMatchConfig {
+  recordSelection: 'first' | 'all' | 'match_by_field';
+  matchFieldId?: string;
+  matchSourceFieldId?: string;
+}
+
 interface DataFeed {
   id: string;
   name: string;
@@ -45,6 +51,7 @@ interface DataFeed {
   target_form_id: string;
   matching_type: 'cross_reference' | 'field_matching';
   cross_reference_field_id?: string;
+  cross_ref_match_config?: CrossRefMatchConfig;
   matching_rules: MatchingRule[];
   matching_logic?: string;
   source_filters?: SourceFilter[];
@@ -661,9 +668,33 @@ Deno.serve(async (req) => {
               
               console.log(`🔗 Looking for target records with IDs:`, refIds);
               
-              matchedTargets = (targetSubmissions || []).filter(target => 
+              // Get all matching targets first
+              let allMatchedTargets = (targetSubmissions || []).filter(target => 
                 refIds.includes(target.id) || refIds.includes(target.submission_ref_id)
               );
+
+              // Apply record selection based on cross_ref_match_config
+              const matchConfig = feed.cross_ref_match_config;
+              const recordSelection = matchConfig?.recordSelection || 'all';
+              
+              if (recordSelection === 'first' && allMatchedTargets.length > 0) {
+                // Only take the first matched record
+                matchedTargets = [allMatchedTargets[0]];
+                console.log(`🔗 Record selection: first - using only first of ${allMatchedTargets.length} matches`);
+              } else if (recordSelection === 'match_by_field' && matchConfig?.matchFieldId && matchConfig?.matchSourceFieldId) {
+                // Filter by field value matching
+                const sourceMatchValue = String(sourceData[matchConfig.matchSourceFieldId] ?? '').toLowerCase().trim();
+                matchedTargets = allMatchedTargets.filter(target => {
+                  const targetData = target.submission_data as Record<string, any>;
+                  const targetMatchValue = String(targetData[matchConfig.matchFieldId!] ?? '').toLowerCase().trim();
+                  return targetMatchValue === sourceMatchValue;
+                });
+                console.log(`🔗 Record selection: match_by_field - ${matchedTargets.length} of ${allMatchedTargets.length} matches (field ${matchConfig.matchFieldId} = "${sourceMatchValue}")`);
+              } else {
+                // Default: all matched records
+                matchedTargets = allMatchedTargets;
+                console.log(`🔗 Record selection: all - using all ${matchedTargets.length} matches`);
+              }
             }
           }
 
