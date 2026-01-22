@@ -11,7 +11,7 @@ import NoProjectSelected from '@/components/NoProjectSelected';
 
 const Workflows = () => {
   const navigate = useNavigate();
-  const { workflows, deleteWorkflow } = useWorkflowData();
+  const { workflows, deleteWorkflow, isLoading: workflowsLoading } = useWorkflowData();
   const { hasPermission, checkPermissionWithAlert, getVisibleResources, loading: permissionLoading } = useUnifiedAccessControl();
   const { currentProject } = useProject();
 
@@ -68,10 +68,14 @@ const Workflows = () => {
   // Filter workflows based on user's permissions
   const visibleWorkflows = getVisibleResources('workflows', workflows);
 
+  // Combined loading state
+  const isLoading = workflowsLoading || permissionLoading;
+
   return (
     <DashboardLayout title="Workflows">
       <WorkflowsList 
         workflows={visibleWorkflows}
+        isLoading={isLoading}
         onView={handleViewWorkflow}
         onEdit={handleEditWorkflow}
         onDelete={handleDeleteWorkflow}
