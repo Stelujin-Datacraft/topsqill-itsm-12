@@ -26,7 +26,7 @@ export function useProjectInvitations(projectId: string) {
     try {
       const { data, error } = await supabase
         .from('project_invitations')
-        .select('*')
+        .select('id, project_id, email, role, invited_by, invited_at, status, expires_at, accepted_at, message')
         .eq('project_id', projectId)
         .order('invited_at', { ascending: false });
 

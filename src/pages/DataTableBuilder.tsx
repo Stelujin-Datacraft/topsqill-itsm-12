@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import DashboardLayout from '@/components/DashboardLayout';
+import { PageContent } from '@/components/layouts/PageContent';
 import { useForm } from '@/contexts/FormContext';
 import { useReports } from '@/hooks/useReports';
 import { Button } from '@/components/ui/button';
@@ -168,16 +168,16 @@ const DataTableBuilder = () => {
 
   if (loading) {
     return (
-      <DashboardLayout title="Creating Report...">
+      <PageContent title="Creating Report...">
         <div className="flex items-center justify-center h-64">
           <SimpleLoadingSpinner size={32} />
         </div>
-      </DashboardLayout>
+      </PageContent>
     );
   }
 
   return (
-    <DashboardLayout title="Data Table Builder">
+    <PageContent title="Data Table Builder">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -391,7 +391,7 @@ const DataTableBuilder = () => {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+    </PageContent>
   );
 };
 
