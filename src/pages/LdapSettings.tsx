@@ -48,6 +48,8 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import DashboardLayout from "@/components/DashboardLayout";
+import { LdapGroupMappings } from "@/components/ldap/LdapGroupMappings";
+import { LdapSyncLogs } from "@/components/ldap/LdapSyncLogs";
 
 export default function LdapSettings() {
   const navigate = useNavigate();
@@ -622,47 +624,19 @@ export default function LdapSettings() {
               </Card>
             ))}
 
+            {/* Group Mappings */}
+            <LdapGroupMappings 
+              configurations={configurations}
+              selectedConfigId={configurations[0]?.id}
+            />
+
             {/* Sync Logs */}
-            {syncLogs.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <History className="h-5 w-5" />
-                    Recent Sync History
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {syncLogs.map((log) => (
-                      <div key={log.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                        <div className="flex items-center gap-3">
-                          <Badge 
-                            variant={
-                              log.status === 'success' ? 'default' : 
-                              log.status === 'failed' ? 'destructive' : 
-                              'secondary'
-                            }
-                          >
-                            {log.status}
-                          </Badge>
-                          <span className="text-sm text-muted-foreground">
-                            {format(new Date(log.started_at), 'MMM d, yyyy HH:mm')}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-4 text-sm">
-                          <span>Found: {log.users_found}</span>
-                          <span className="text-green-600">Created: {log.users_created}</span>
-                          <span className="text-blue-600">Updated: {log.users_updated}</span>
-                          {log.errors_count > 0 && (
-                            <span className="text-red-600">Errors: {log.errors_count}</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            <LdapSyncLogs 
+              syncLogs={syncLogs}
+              configurations={configurations}
+              onRefresh={loadSyncLogs}
+              selectedConfigId={configurations[0]?.id}
+            />
           </div>
         )}
       </div>
