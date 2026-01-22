@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DataFeed, DataFeedFormData, FieldMapping, MatchingRule, SourceFilter, FilterOperator, SCHEDULE_PRESETS, FILTER_OPERATORS, ScheduleConfig, buildCronFromConfig, parseCronToReadable, getOperatorsForFieldType, getFieldCategory, SourceType, ExternalSourceConfig as ExternalSourceConfigType, DiscoveredField } from '@/types/dataFeed';
+import { DataFeed, DataFeedFormData, FieldMapping, MatchingRule, SourceFilter, FilterOperator, SCHEDULE_PRESETS, FILTER_OPERATORS, ScheduleConfig, buildCronFromConfig, parseCronToReadable, getOperatorsForFieldType, getFieldCategory, SourceType, ExternalSourceConfig as ExternalSourceConfigType, DiscoveredField, CrossRefRecordSelection, CrossRefMatchRule } from '@/types/dataFeed';
 import { DataSourceConnection } from '@/types/externalDataSource';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -94,6 +94,9 @@ export function DataFeedDialog({
     matching_type: 'field_matching',
     matching_rules: [],
     matching_logic: '',
+    cross_ref_record_selection: 'all',
+    cross_ref_match_rules: [],
+    cross_ref_match_logic: '',
     source_filters: [],
     source_filter_logic: '',
     field_mappings: [],
@@ -104,6 +107,7 @@ export function DataFeedDialog({
 
   const [logicError, setLogicError] = useState<string | null>(null);
   const [filterLogicError, setFilterLogicError] = useState<string | null>(null);
+  const [crossRefMatchLogicError, setCrossRefMatchLogicError] = useState<string | null>(null);
 
   // Load forms and shared connections
   useEffect(() => {
@@ -251,6 +255,12 @@ export function DataFeedDialog({
         id: filter.id || String(idx + 1)
       }));
 
+      // Ensure cross-ref match rules have IDs
+      const crossRefMatchRulesWithIds = (feed.cross_ref_match_rules || []).map((rule, idx) => ({
+        ...rule,
+        id: rule.id || String(idx + 1)
+      }));
+
       // Get source_type from feed (cast from database)
       const feedAny = feed as any;
       const sourceType: SourceType = feedAny.source_type || 'form';
@@ -267,6 +277,9 @@ export function DataFeedDialog({
         target_form_id: feed.target_form_id,
         matching_type: feed.matching_type,
         cross_reference_field_id: feed.cross_reference_field_id,
+        cross_ref_record_selection: feed.cross_ref_record_selection || 'all',
+        cross_ref_match_rules: crossRefMatchRulesWithIds,
+        cross_ref_match_logic: feed.cross_ref_match_logic || '',
         matching_rules: rulesWithIds,
         matching_logic: feed.matching_logic || '',
         source_filters: filtersWithIds,
@@ -289,6 +302,9 @@ export function DataFeedDialog({
         matching_type: 'field_matching',
         matching_rules: [],
         matching_logic: '',
+        cross_ref_record_selection: 'all',
+        cross_ref_match_rules: [],
+        cross_ref_match_logic: '',
         source_filters: [],
         source_filter_logic: '',
         field_mappings: [],
@@ -301,6 +317,7 @@ export function DataFeedDialog({
     }
     setLogicError(null);
     setFilterLogicError(null);
+    setCrossRefMatchLogicError(null);
   }, [feed, open]);
 
   const handleSave = async () => {
@@ -503,6 +520,118 @@ export function DataFeedDialog({
   const handleLogicChange = (value: string) => {
     setFormData(prev => ({ ...prev, matching_logic: value }));
     validateLogicExpression(value);
+  };
+
+  // ========== Cross-Reference Match Rules (for cross_reference matching type) ==========
+  const getSelectedCrossRefFormFields = (): FieldOption[] => {
+    if (!formData.cross_reference_field_id) return [];
+    const data = crossRefFormFields.find(c => c.crossRefFieldId === formData.cross_reference_field_id);
+    return data?.fields || [];
+  };
+
+  const addCrossRefMatchRule = () => {
+    const newId = String((formData.cross_ref_match_rules?.length || 0) + 1);
+    setFormData(prev => {
+      const newRules = [...(prev.cross_ref_match_rules || []), { 
+        id: newId, 
+        linkedFieldId: '', 
+        matchType: 'source_field' as const,
+        staticValue: '',
+        sourceFieldId: ''
+      }];
+      const autoLogic = newRules.length >= 2 && !prev.cross_ref_match_logic
+        ? newRules.map(r => r.id).join(' AND ')
+        : prev.cross_ref_match_logic;
+      return {
+        ...prev,
+        cross_ref_match_rules: newRules,
+        cross_ref_match_logic: autoLogic,
+      };
+    });
+  };
+
+  const updateCrossRefMatchRule = (index: number, field: keyof CrossRefMatchRule, value: string) => {
+    const linkedFields = getSelectedCrossRefFormFields();
+    const linkedField = field === 'linkedFieldId' ? linkedFields.find(f => f.id === value) : null;
+    const sourceField = field === 'sourceFieldId' ? sourceFields.find(f => f.id === value) : null;
+
+    setFormData(prev => ({
+      ...prev,
+      cross_ref_match_rules: (prev.cross_ref_match_rules || []).map((rule, i) => {
+        if (i !== index) return rule;
+        
+        const updates: Partial<CrossRefMatchRule> = { [field]: value };
+        
+        if (linkedField) {
+          updates.linkedFieldName = linkedField.label;
+        }
+        if (sourceField) {
+          updates.sourceFieldName = sourceField.label;
+        }
+        if (field === 'matchType') {
+          // Reset values when changing match type
+          updates.staticValue = '';
+          updates.sourceFieldId = '';
+          updates.sourceFieldName = '';
+        }
+        
+        return { ...rule, ...updates };
+      }),
+    }));
+  };
+
+  const removeCrossRefMatchRule = (index: number) => {
+    setFormData(prev => {
+      const removedId = (prev.cross_ref_match_rules || [])[index]?.id;
+      const newRules = (prev.cross_ref_match_rules || []).filter((_, i) => i !== index);
+      
+      let newLogic = prev.cross_ref_match_logic || '';
+      if (removedId && newLogic) {
+        newLogic = newLogic
+          .replace(new RegExp(`\\b${removedId}\\b\\s*(AND|OR)\\s*`, 'gi'), '')
+          .replace(new RegExp(`\\s*(AND|OR)\\s*\\b${removedId}\\b`, 'gi'), '')
+          .replace(new RegExp(`\\b${removedId}\\b`, 'g'), '')
+          .replace(/\(\s*\)/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+      
+      return {
+        ...prev,
+        cross_ref_match_rules: newRules,
+        cross_ref_match_logic: newRules.length < 2 ? '' : newLogic,
+      };
+    });
+  };
+
+  const validateCrossRefMatchLogicExpression = (expression: string): boolean => {
+    if (!expression || (formData.cross_ref_match_rules?.length || 0) < 2) {
+      setCrossRefMatchLogicError(null);
+      return true;
+    }
+    
+    const validation = ExpressionEvaluator.validate(expression);
+    if (!validation.valid) {
+      setCrossRefMatchLogicError(validation.error || 'Invalid expression');
+      return false;
+    }
+    
+    const referencedIds = ExpressionEvaluator.extractConditionIds(expression);
+    const existingIds = (formData.cross_ref_match_rules || []).map(r => r.id);
+    const invalidIds = referencedIds.filter(id => !existingIds.includes(id));
+    
+    if (invalidIds.length > 0) {
+      setCrossRefMatchLogicError(`Unknown rule ID(s): ${invalidIds.join(', ')}`);
+      return false;
+    }
+    
+    setCrossRefMatchLogicError(null);
+    return true;
+  };
+
+  const handleCrossRefMatchLogicChange = (value: string) => {
+    setFormData(prev => ({ ...prev, cross_ref_match_logic: value }));
+    validateCrossRefMatchLogicExpression(value);
   };
 
   // ========== Field Mappings ==========
@@ -1139,27 +1268,219 @@ export function DataFeedDialog({
               </div>
 
               {formData.matching_type === 'cross_reference' && (
-                <div className="space-y-2">
-                  <Label>Cross-Reference Field</Label>
-                  <Select
-                    value={formData.cross_reference_field_id || ''}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, cross_reference_field_id: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select cross-reference field" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {crossRefFields.map((field) => (
-                        <SelectItem key={field.id} value={field.id}>
-                          {field.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {crossRefFields.length === 0 && formData.source_form_id && (
-                    <p className="text-sm text-muted-foreground">
-                      No cross-reference fields found in the source form.
-                    </p>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Cross-Reference Field</Label>
+                    <Select
+                      value={formData.cross_reference_field_id || ''}
+                      onValueChange={(value) => setFormData(prev => ({ 
+                        ...prev, 
+                        cross_reference_field_id: value,
+                        // Reset match rules when changing cross-ref field
+                        cross_ref_match_rules: [],
+                        cross_ref_match_logic: ''
+                      }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select cross-reference field" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {crossRefFields.map((field) => (
+                          <SelectItem key={field.id} value={field.id}>
+                            {field.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {crossRefFields.length === 0 && formData.source_form_id && (
+                      <p className="text-sm text-muted-foreground">
+                        No cross-reference fields found in the source form.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Record Selection - which linked records to update */}
+                  {formData.cross_reference_field_id && (
+                    <div className="space-y-3 pt-3 border-t">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Record Selection</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Choose which linked records to update when multiple are linked.
+                        </p>
+                      </div>
+                      
+                      <RadioGroup
+                        value={formData.cross_ref_record_selection || 'all'}
+                        onValueChange={(value) => setFormData(prev => ({ 
+                          ...prev, 
+                          cross_ref_record_selection: value as CrossRefRecordSelection,
+                          // Clear match rules if not using match_by_field
+                          cross_ref_match_rules: value === 'match_by_field' ? prev.cross_ref_match_rules : [],
+                          cross_ref_match_logic: value === 'match_by_field' ? prev.cross_ref_match_logic : ''
+                        }))}
+                        className="space-y-2"
+                      >
+                        <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
+                          <RadioGroupItem value="all" id="cross_ref_all" />
+                          <Label htmlFor="cross_ref_all" className="font-normal cursor-pointer flex-1">
+                            All Records — Update all linked records
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
+                          <RadioGroupItem value="first" id="cross_ref_first" />
+                          <Label htmlFor="cross_ref_first" className="font-normal cursor-pointer flex-1">
+                            First Record — Update only the first linked record
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
+                          <RadioGroupItem value="match_by_field" id="cross_ref_match" />
+                          <Label htmlFor="cross_ref_match" className="font-normal cursor-pointer flex-1">
+                            Match by Field — Update only records matching field rules
+                          </Label>
+                        </div>
+                      </RadioGroup>
+
+                      {/* Field Match Rules */}
+                      {formData.cross_ref_record_selection === 'match_by_field' && (
+                        <div className="space-y-3 pt-3 border-t border-dashed">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm">Field Match Rules</Label>
+                            <Button type="button" variant="outline" size="sm" onClick={addCrossRefMatchRule}>
+                              <Plus className="h-4 w-4 mr-1" />
+                              Add Rule
+                            </Button>
+                          </div>
+
+                          {(formData.cross_ref_match_rules?.length || 0) === 0 && (
+                            <p className="text-sm text-muted-foreground">
+                              Add rules to filter which linked records should be updated.
+                            </p>
+                          )}
+
+                          {(formData.cross_ref_match_rules || []).map((rule, index) => (
+                            <div key={rule.id || index} className="space-y-2 p-3 border rounded-md bg-muted/30">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary" className="shrink-0 w-6 h-6 flex items-center justify-center p-0 text-xs font-bold">
+                                  {rule.id || index + 1}
+                                </Badge>
+                                
+                                {/* Linked field to match */}
+                                <Select
+                                  value={rule.linkedFieldId}
+                                  onValueChange={(value) => updateCrossRefMatchRule(index, 'linkedFieldId', value)}
+                                >
+                                  <SelectTrigger className="flex-1">
+                                    <SelectValue placeholder="Linked record field" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {getSelectedCrossRefFormFields().map((field) => (
+                                      <SelectItem key={field.id} value={field.id}>
+                                        {field.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+
+                                <span className="text-xs text-muted-foreground">=</span>
+
+                                {/* Match type */}
+                                <Select
+                                  value={rule.matchType}
+                                  onValueChange={(value) => updateCrossRefMatchRule(index, 'matchType', value)}
+                                >
+                                  <SelectTrigger className="w-[140px]">
+                                    <SelectValue placeholder="Match type" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="source_field">Source Field</SelectItem>
+                                    <SelectItem value="static_value">Static Value</SelectItem>
+                                  </SelectContent>
+                                </Select>
+
+                                {/* Value input based on match type */}
+                                {rule.matchType === 'static_value' ? (
+                                  <Input
+                                    value={rule.staticValue || ''}
+                                    onChange={(e) => updateCrossRefMatchRule(index, 'staticValue', e.target.value)}
+                                    placeholder="Value"
+                                    className="flex-1"
+                                  />
+                                ) : (
+                                  <Select
+                                    value={rule.sourceFieldId || ''}
+                                    onValueChange={(value) => updateCrossRefMatchRule(index, 'sourceFieldId', value)}
+                                  >
+                                    <SelectTrigger className="flex-1">
+                                      <SelectValue placeholder="Source field" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {sourceFields.map((field) => (
+                                        <SelectItem key={field.id} value={field.id}>
+                                          {field.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeCrossRefMatchRule(index)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+
+                          {/* Logic Expression UI - Show when 2+ rules */}
+                          {(formData.cross_ref_match_rules?.length || 0) >= 2 && (
+                            <div className="space-y-2 pt-2 border-t">
+                              <div className="flex items-center justify-between">
+                                <Label className="text-sm">Logic Expression</Label>
+                                <div className="flex gap-1">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-6 text-xs px-2"
+                                    onClick={() => handleCrossRefMatchLogicChange((formData.cross_ref_match_rules || []).map(r => r.id).join(' AND '))}
+                                  >
+                                    All (AND)
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-6 text-xs px-2"
+                                    onClick={() => handleCrossRefMatchLogicChange((formData.cross_ref_match_rules || []).map(r => r.id).join(' OR '))}
+                                  >
+                                    Any (OR)
+                                  </Button>
+                                </div>
+                              </div>
+                              <Input
+                                value={formData.cross_ref_match_logic || ''}
+                                onChange={(e) => handleCrossRefMatchLogicChange(e.target.value)}
+                                placeholder={`e.g., 1 AND 2, (1 OR 2) AND 3`}
+                                className={crossRefMatchLogicError ? 'border-destructive' : ''}
+                              />
+                              {crossRefMatchLogicError && (
+                                <div className="flex items-center gap-1 text-xs text-destructive">
+                                  <AlertCircle className="h-3 w-3" />
+                                  {crossRefMatchLogicError}
+                                </div>
+                              )}
+                              <p className="text-xs text-muted-foreground">
+                                Use rule numbers with AND, OR, NOT and parentheses. Default: all rules must match (AND).
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               )}

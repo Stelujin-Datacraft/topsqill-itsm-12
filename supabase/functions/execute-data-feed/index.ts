@@ -38,6 +38,16 @@ interface SourceFilter {
   value: string;
 }
 
+interface CrossRefMatchRule {
+  id?: string;
+  linkedFieldId: string;
+  linkedFieldName?: string;
+  matchType: 'static_value' | 'source_field';
+  staticValue?: string;
+  sourceFieldId?: string;
+  sourceFieldName?: string;
+}
+
 interface DataFeed {
   id: string;
   name: string;
@@ -45,6 +55,9 @@ interface DataFeed {
   target_form_id: string;
   matching_type: 'cross_reference' | 'field_matching';
   cross_reference_field_id?: string;
+  cross_ref_record_selection?: 'all' | 'first' | 'match_by_field';
+  cross_ref_match_rules?: CrossRefMatchRule[];
+  cross_ref_match_logic?: string;
   matching_rules: MatchingRule[];
   matching_logic?: string;
   source_filters?: SourceFilter[];
@@ -661,9 +674,50 @@ Deno.serve(async (req) => {
               
               console.log(`🔗 Looking for target records with IDs:`, refIds);
               
-              matchedTargets = (targetSubmissions || []).filter(target => 
+              // Get all matching targets first
+              let allMatchedTargets = (targetSubmissions || []).filter(target => 
                 refIds.includes(target.id) || refIds.includes(target.submission_ref_id)
               );
+
+              // Apply record selection rules
+              const recordSelection = feed.cross_ref_record_selection || 'all';
+              const matchRules = feed.cross_ref_match_rules || [];
+              const matchLogic = feed.cross_ref_match_logic || '';
+
+              if (recordSelection === 'first' && allMatchedTargets.length > 0) {
+                // Only use first record
+                matchedTargets = [allMatchedTargets[0]];
+                console.log(`🔗 Record selection: first - using 1 of ${allMatchedTargets.length}`);
+              } else if (recordSelection === 'match_by_field' && matchRules.length > 0) {
+                // Filter by field match rules
+                matchedTargets = allMatchedTargets.filter(target => {
+                  const targetData = target.submission_data as Record<string, any>;
+                  
+                  const ruleResults: Record<string, boolean> = {};
+                  matchRules.forEach((rule, idx) => {
+                    const ruleId = rule.id || String(idx + 1);
+                    const linkedValue = targetData[rule.linkedFieldId];
+                    let compareValue: any;
+                    
+                    if (rule.matchType === 'static_value') {
+                      compareValue = rule.staticValue;
+                    } else if (rule.matchType === 'source_field' && rule.sourceFieldId) {
+                      compareValue = sourceData[rule.sourceFieldId];
+                    }
+                    
+                    const match = String(linkedValue || '').trim().toLowerCase() === String(compareValue || '').trim().toLowerCase();
+                    console.log(`🔍 CrossRef Rule ${ruleId}: linked[${rule.linkedFieldId}]="${linkedValue}" vs "${compareValue}" = ${match}`);
+                    ruleResults[ruleId] = match;
+                  });
+
+                  return evaluateLogicExpression(matchLogic || '', ruleResults);
+                });
+                console.log(`🔗 Record selection: match_by_field - ${matchedTargets.length} of ${allMatchedTargets.length} matched rules`);
+              } else {
+                // Use all records
+                matchedTargets = allMatchedTargets;
+                console.log(`🔗 Record selection: all - using ${matchedTargets.length} records`);
+              }
             }
           }
 

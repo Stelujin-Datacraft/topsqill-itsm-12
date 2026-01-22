@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { DataFeed, DataFeedRun, DataFeedFormData, MatchingRule, FieldMapping, SourceFilter } from '@/types/dataFeed';
+import { DataFeed, DataFeedRun, DataFeedFormData, MatchingRule, FieldMapping, SourceFilter, CrossRefMatchRule } from '@/types/dataFeed';
 import { useToast } from '@/hooks/use-toast';
 
 export function useDataFeeds(projectId: string) {
@@ -35,6 +35,9 @@ export function useDataFeeds(projectId: string) {
           : [],
         source_filters: Array.isArray(feed.source_filters)
           ? (feed.source_filters as unknown as SourceFilter[])
+          : [],
+        cross_ref_match_rules: Array.isArray((feed as any).cross_ref_match_rules)
+          ? ((feed as any).cross_ref_match_rules as unknown as CrossRefMatchRule[])
           : [],
         last_run_stats: feed.last_run_stats as DataFeed['last_run_stats'],
       })) as DataFeed[];
@@ -73,6 +76,9 @@ export function useDataFeeds(projectId: string) {
           target_form_id: data.target_form_id,
           matching_type: data.matching_type,
           cross_reference_field_id: data.cross_reference_field_id,
+          cross_ref_record_selection: data.cross_ref_record_selection || 'all',
+          cross_ref_match_rules: (data.cross_ref_match_rules || []) as any,
+          cross_ref_match_logic: data.cross_ref_match_logic || '',
           matching_rules: data.matching_rules as any,
           matching_logic: data.matching_logic,
           source_filters: (data.source_filters || []) as any,
@@ -135,6 +141,15 @@ export function useDataFeeds(projectId: string) {
       }
       if (data.source_filters !== undefined) {
         updateData.source_filters = (data.source_filters || []) as any;
+      }
+      if (data.cross_ref_record_selection !== undefined) {
+        updateData.cross_ref_record_selection = data.cross_ref_record_selection;
+      }
+      if (data.cross_ref_match_rules !== undefined) {
+        updateData.cross_ref_match_rules = (data.cross_ref_match_rules || []) as any;
+      }
+      if (data.cross_ref_match_logic !== undefined) {
+        updateData.cross_ref_match_logic = data.cross_ref_match_logic || '';
       }
       if (data.source_type !== undefined) {
         updateData.source_type = data.source_type;

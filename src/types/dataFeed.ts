@@ -67,6 +67,19 @@ export interface MatchingRule {
   targetFieldName?: string;
 }
 
+// Cross-reference matching record selection options
+export type CrossRefRecordSelection = 'all' | 'first' | 'match_by_field';
+
+export interface CrossRefMatchRule {
+  id?: string;
+  linkedFieldId: string; // Field in the linked form to match against
+  linkedFieldName?: string;
+  matchType: 'static_value' | 'source_field'; // Match against static value or source field
+  staticValue?: string; // Static value (when matchType = 'static_value')
+  sourceFieldId?: string; // Source field to compare (when matchType = 'source_field')
+  sourceFieldName?: string;
+}
+
 export interface DataFeed {
   id: string;
   name: string;
@@ -77,6 +90,10 @@ export interface DataFeed {
   target_form_id: string;
   matching_type: 'cross_reference' | 'field_matching';
   cross_reference_field_id?: string;
+  // Cross-reference record selection for matching
+  cross_ref_record_selection?: CrossRefRecordSelection;
+  cross_ref_match_rules?: CrossRefMatchRule[];
+  cross_ref_match_logic?: string; // Logic expression for match rules
   matching_rules: MatchingRule[];
   matching_logic?: string; // Logic expression e.g. "1 AND 2", "(1 OR 2) AND 3"
   source_filters?: SourceFilter[]; // Filters to apply to source records
@@ -129,6 +146,10 @@ export interface DataFeedFormData {
   target_form_id: string;
   matching_type: 'cross_reference' | 'field_matching';
   cross_reference_field_id?: string;
+  // Cross-reference record selection for matching
+  cross_ref_record_selection?: CrossRefRecordSelection;
+  cross_ref_match_rules?: CrossRefMatchRule[];
+  cross_ref_match_logic?: string;
   matching_rules: MatchingRule[];
   matching_logic?: string; // Logic expression e.g. "1 AND 2", "(1 OR 2) AND 3"
   source_filters?: SourceFilter[]; // Filters to apply to source records
