@@ -175,7 +175,9 @@ function FormBuilderContent({
   };
 
   // Field operations with optimized snapshot handling
-  const fieldOperations = useOptimizedFieldOperations(state.currentPageId, pages, state.formName, state.formDescription, state.columnLayout, state.setIsCreating, state.setSelectedField, state.setShowFieldProperties, state.setHighlightedFieldId, handleCreateForm);
+  // Pass whether we're loading an existing form (formId exists but form not loaded yet)
+  const isLoadingExistingForm = !!formId && loading;
+  const fieldOperations = useOptimizedFieldOperations(state.currentPageId, pages, state.formName, state.formDescription, state.columnLayout, state.setIsCreating, state.setSelectedField, state.setShowFieldProperties, state.setHighlightedFieldId, handleCreateForm, isLoadingExistingForm);
 
   // Optimized save handler - saves snapshot to database
   const handleSave = async (shouldPublish = false) => {

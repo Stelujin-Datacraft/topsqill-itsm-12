@@ -17,7 +17,8 @@ export function useOptimizedFieldOperations(
   setSelectedField: (field: any) => void,
   setShowFieldProperties: (show: boolean) => void,
   setHighlightedFieldId: (fieldId: string | null) => void,
-  onCreateForm: (formData: any) => Promise<any>
+  onCreateForm: (formData: any) => Promise<any>,
+  isLoadingExistingForm: boolean = false
 ) {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
@@ -36,9 +37,9 @@ export function useOptimizedFieldOperations(
     console.log('Adding field of type:', type, 'to snapshot, page:', currentPageId);
     
     if (!snapshot.form) {
-      // Check if we're still loading an existing form (snapshot not initialized yet)
-      // In this case, the form name might be empty because the form hasn't loaded
-      if (!snapshot.isInitialized) {
+      // If we're loading an existing form (formId in URL) but snapshot hasn't initialized yet
+      // This means the form data is still being fetched from the database
+      if (isLoadingExistingForm && !snapshot.isInitialized) {
         toast({
           title: "Please wait",
           description: "Form is still loading. Please try again in a moment.",
