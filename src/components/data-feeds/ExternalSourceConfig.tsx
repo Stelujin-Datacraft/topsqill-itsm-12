@@ -5,12 +5,18 @@ import {
   HttpApiConfig,
   DatabaseConfig,
   FileConfig,
+  FtpConfig,
+  CloudStorageConfig,
+  WebhookConfig,
+  GoogleSheetsConfig,
   DiscoveredField,
   SOURCE_TYPE_OPTIONS,
   HTTP_AUTH_OPTIONS,
   DATABASE_TYPE_OPTIONS,
+  CLOUD_STORAGE_PROVIDERS,
   HttpAuthType,
   DatabaseType,
+  CloudStorageProvider,
   DataSourceConnection
 } from '@/types/externalDataSource';
 import { Label } from '@/components/ui/label';
@@ -24,9 +30,9 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FormInput, FileSpreadsheet, Sheet, Globe, Database, Upload, Link, RefreshCw, Eye, EyeOff, Loader2, CheckCircle2, AlertCircle, FolderOpen } from 'lucide-react';
+import { FormInput, FileSpreadsheet, Sheet, Globe, Database, Upload, Link, RefreshCw, Eye, EyeOff, Loader2, CheckCircle2, AlertCircle, FolderOpen, Server, Cloud, Webhook, Table2, Copy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface ExternalSourceConfigProps {
   sourceType: SourceType;
@@ -51,6 +57,10 @@ const getSourceIcon = (sourceType: SourceType) => {
     case 'excel': return <Sheet className="h-5 w-5" />;
     case 'http_api': return <Globe className="h-5 w-5" />;
     case 'database': return <Database className="h-5 w-5" />;
+    case 'google_sheets': return <Table2 className="h-5 w-5" />;
+    case 'ftp': return <Server className="h-5 w-5" />;
+    case 'cloud_storage': return <Cloud className="h-5 w-5" />;
+    case 'webhook': return <Webhook className="h-5 w-5" />;
     default: return <FileSpreadsheet className="h-5 w-5" />;
   }
 };
@@ -74,12 +84,16 @@ export function ExternalSourceConfig({
   const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [previewData, setPreviewData] = useState<any[]>([]);
+  const { toast } = useToast();
 
   // Filter connections by type
   const filteredConnections = sharedConnections.filter(c => {
     if (sourceType === 'http_api') return c.connection_type === 'http_api';
     if (sourceType === 'database') return c.connection_type === 'database';
     if (sourceType === 'csv' || sourceType === 'excel' || sourceType === 'file_url') return c.connection_type === 'file_url';
+    if (sourceType === 'ftp') return c.connection_type === 'ftp';
+    if (sourceType === 'cloud_storage') return c.connection_type === 'cloud_storage';
+    if (sourceType === 'google_sheets') return c.connection_type === 'google_sheets';
     return false;
   });
 
@@ -102,6 +116,47 @@ export function ExternalSourceConfig({
       ...config,
       file: { ...(config.file || { sourceMode: 'upload', fileType: 'csv', hasHeader: true }), ...updates }
     });
+  };
+
+  const handleFtpConfigChange = (updates: Partial<FtpConfig>) => {
+    onConfigChange({
+      ...config,
+      ftp: { ...(config.ftp || { protocol: 'sftp', host: '', port: 22, username: '', remotePath: '', fileType: 'csv', hasHeader: true }), ...updates }
+    });
+  };
+
+  const handleCloudStorageConfigChange = (updates: Partial<CloudStorageConfig>) => {
+    onConfigChange({
+      ...config,
+      cloudStorage: { ...(config.cloudStorage || { provider: 's3', bucketName: '', objectPath: '', fileType: 'csv', hasHeader: true }), ...updates }
+    });
+  };
+
+  const handleWebhookConfigChange = (updates: Partial<WebhookConfig>) => {
+    onConfigChange({
+      ...config,
+      webhook: { ...(config.webhook || { webhookId: crypto.randomUUID() }), ...updates }
+    });
+  };
+
+  const handleGoogleSheetsConfigChange = (updates: Partial<GoogleSheetsConfig>) => {
+    onConfigChange({
+      ...config,
+      googleSheets: { ...(config.googleSheets || { spreadsheetId: '', authType: 'api_key', hasHeader: true }), ...updates }
+    });
+  };
+
+  // Generate webhook URL
+  const getWebhookUrl = () => {
+    const webhookId = config.webhook?.webhookId;
+    if (!webhookId) return '';
+    return `${window.location.origin}/api/webhook/${webhookId}`;
+  };
+
+  const copyWebhookUrl = () => {
+    const url = getWebhookUrl();
+    navigator.clipboard.writeText(url);
+    toast({ title: 'Copied', description: 'Webhook URL copied to clipboard' });
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,7 +183,7 @@ export function ExternalSourceConfig({
 
       handleFileConfigChange(newFileConfig);
 
-      // Auto-discover fields after upload with the new config (don't rely on stale state)
+      // Auto-discover fields after upload with the new config
       const updatedConfig: ExternalSourceConfigType = {
         ...config,
         file: { 
@@ -502,6 +557,365 @@ export function ExternalSourceConfig({
                   </div>
                 </div>
               )}
+
+              {/* Google Sheets Configuration */}
+              {sourceType === 'google_sheets' && (
+                <div className="space-y-4">
+                  <div>
+                    <Label>Spreadsheet ID</Label>
+                    <Input 
+                      value={config.googleSheets?.spreadsheetId || ''} 
+                      onChange={(e) => handleGoogleSheetsConfigChange({ spreadsheetId: e.target.value })}
+                      placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Find the ID in the URL: docs.google.com/spreadsheets/d/<strong>[ID]</strong>/edit
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label>Sheet Name (optional)</Label>
+                      <Input 
+                        value={config.googleSheets?.sheetName || ''} 
+                        onChange={(e) => handleGoogleSheetsConfigChange({ sheetName: e.target.value })}
+                        placeholder="Sheet1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Range (optional)</Label>
+                      <Input 
+                        value={config.googleSheets?.range || ''} 
+                        onChange={(e) => handleGoogleSheetsConfigChange({ range: e.target.value })}
+                        placeholder="A1:Z1000"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Authentication</Label>
+                    <Select 
+                      value={config.googleSheets?.authType || 'api_key'} 
+                      onValueChange={(v) => handleGoogleSheetsConfigChange({ authType: v as 'api_key' | 'service_account' })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="api_key">API Key</SelectItem>
+                        <SelectItem value="service_account">Service Account</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {config.googleSheets?.authType === 'api_key' && (
+                    <div>
+                      <Label>Google API Key</Label>
+                      <Input 
+                        type="password"
+                        value={config.googleSheets?.apiKey || ''} 
+                        onChange={(e) => handleGoogleSheetsConfigChange({ apiKey: e.target.value })}
+                        placeholder="AIza..."
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Get an API key from the Google Cloud Console. Sheet must be publicly accessible.
+                      </p>
+                    </div>
+                  )}
+
+                  {config.googleSheets?.authType === 'service_account' && (
+                    <div>
+                      <Label>Service Account JSON</Label>
+                      <Textarea 
+                        value={config.googleSheets?.serviceAccountJson || ''} 
+                        onChange={(e) => handleGoogleSheetsConfigChange({ serviceAccountJson: e.target.value })}
+                        placeholder='{"type": "service_account", ...}'
+                        rows={4}
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex items-center space-x-2">
+                    <Switch 
+                      checked={config.googleSheets?.hasHeader !== false}
+                      onCheckedChange={(v) => handleGoogleSheetsConfigChange({ hasHeader: v })}
+                    />
+                    <Label>First row contains headers</Label>
+                  </div>
+                </div>
+              )}
+
+              {/* FTP/SFTP Configuration */}
+              {sourceType === 'ftp' && (
+                <div className="space-y-4">
+                  <div>
+                    <Label>Protocol</Label>
+                    <Select 
+                      value={config.ftp?.protocol || 'sftp'} 
+                      onValueChange={(v) => handleFtpConfigChange({ protocol: v as 'ftp' | 'sftp', port: v === 'sftp' ? 22 : 21 })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sftp">SFTP (Secure)</SelectItem>
+                        <SelectItem value="ftp">FTP</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2">
+                      <Label>Host</Label>
+                      <Input 
+                        value={config.ftp?.host || ''} 
+                        onChange={(e) => handleFtpConfigChange({ host: e.target.value })}
+                        placeholder="ftp.example.com"
+                      />
+                    </div>
+                    <div>
+                      <Label>Port</Label>
+                      <Input 
+                        type="number"
+                        value={config.ftp?.port || (config.ftp?.protocol === 'ftp' ? 21 : 22)} 
+                        onChange={(e) => handleFtpConfigChange({ port: parseInt(e.target.value) || 22 })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label>Username</Label>
+                      <Input 
+                        value={config.ftp?.username || ''} 
+                        onChange={(e) => handleFtpConfigChange({ username: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label>Password</Label>
+                      <Input 
+                        type="password"
+                        value={config.ftp?.password || ''} 
+                        onChange={(e) => handleFtpConfigChange({ password: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  {config.ftp?.protocol === 'sftp' && (
+                    <div>
+                      <Label>Private Key (optional - for key-based auth)</Label>
+                      <Textarea 
+                        value={config.ftp?.privateKey || ''} 
+                        onChange={(e) => handleFtpConfigChange({ privateKey: e.target.value })}
+                        placeholder="-----BEGIN RSA PRIVATE KEY-----"
+                        rows={3}
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <Label>Remote File Path</Label>
+                    <Input 
+                      value={config.ftp?.remotePath || ''} 
+                      onChange={(e) => handleFtpConfigChange({ remotePath: e.target.value })}
+                      placeholder="/data/exports/daily_report.csv"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label>File Type</Label>
+                      <Select 
+                        value={config.ftp?.fileType || 'csv'} 
+                        onValueChange={(v) => handleFtpConfigChange({ fileType: v as 'csv' | 'excel' | 'json' })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="csv">CSV</SelectItem>
+                          <SelectItem value="excel">Excel</SelectItem>
+                          <SelectItem value="json">JSON</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center space-x-2 pt-6">
+                      <Switch 
+                        checked={config.ftp?.hasHeader !== false}
+                        onCheckedChange={(v) => handleFtpConfigChange({ hasHeader: v })}
+                      />
+                      <Label>Has headers</Label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Cloud Storage Configuration */}
+              {sourceType === 'cloud_storage' && (
+                <div className="space-y-4">
+                  <div>
+                    <Label>Cloud Provider</Label>
+                    <Select 
+                      value={config.cloudStorage?.provider || 's3'} 
+                      onValueChange={(v) => handleCloudStorageConfigChange({ provider: v as CloudStorageProvider })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CLOUD_STORAGE_PROVIDERS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label>Bucket Name</Label>
+                      <Input 
+                        value={config.cloudStorage?.bucketName || ''} 
+                        onChange={(e) => handleCloudStorageConfigChange({ bucketName: e.target.value })}
+                        placeholder="my-bucket"
+                      />
+                    </div>
+                    {config.cloudStorage?.provider === 's3' && (
+                      <div>
+                        <Label>Region</Label>
+                        <Input 
+                          value={config.cloudStorage?.region || ''} 
+                          onChange={(e) => handleCloudStorageConfigChange({ region: e.target.value })}
+                          placeholder="us-east-1"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label>Object Path</Label>
+                    <Input 
+                      value={config.cloudStorage?.objectPath || ''} 
+                      onChange={(e) => handleCloudStorageConfigChange({ objectPath: e.target.value })}
+                      placeholder="data/exports/report.csv"
+                    />
+                  </div>
+
+                  {/* S3 / GCS Credentials */}
+                  {(config.cloudStorage?.provider === 's3' || config.cloudStorage?.provider === 'gcs') && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label>Access Key ID</Label>
+                        <Input 
+                          value={config.cloudStorage?.accessKeyId || ''} 
+                          onChange={(e) => handleCloudStorageConfigChange({ accessKeyId: e.target.value })}
+                          placeholder="AKIA..."
+                        />
+                      </div>
+                      <div>
+                        <Label>Secret Access Key</Label>
+                        <Input 
+                          type="password"
+                          value={config.cloudStorage?.secretAccessKey || ''} 
+                          onChange={(e) => handleCloudStorageConfigChange({ secretAccessKey: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Azure Connection String */}
+                  {config.cloudStorage?.provider === 'azure_blob' && (
+                    <div>
+                      <Label>Connection String</Label>
+                      <Input 
+                        type="password"
+                        value={config.cloudStorage?.connectionString || ''} 
+                        onChange={(e) => handleCloudStorageConfigChange({ connectionString: e.target.value })}
+                        placeholder="DefaultEndpointsProtocol=https;AccountName=..."
+                      />
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label>File Type</Label>
+                      <Select 
+                        value={config.cloudStorage?.fileType || 'csv'} 
+                        onValueChange={(v) => handleCloudStorageConfigChange({ fileType: v as 'csv' | 'excel' | 'json' })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="csv">CSV</SelectItem>
+                          <SelectItem value="excel">Excel</SelectItem>
+                          <SelectItem value="json">JSON</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center space-x-2 pt-6">
+                      <Switch 
+                        checked={config.cloudStorage?.hasHeader !== false}
+                        onCheckedChange={(v) => handleCloudStorageConfigChange({ hasHeader: v })}
+                      />
+                      <Label>Has headers</Label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Webhook Configuration */}
+              {sourceType === 'webhook' && (
+                <div className="space-y-4">
+                  <Alert>
+                    <Webhook className="h-4 w-4" />
+                    <AlertDescription>
+                      Configure your external system to push data to this webhook URL. The data feed will process incoming data automatically.
+                    </AlertDescription>
+                  </Alert>
+
+                  <div>
+                    <Label>Webhook URL</Label>
+                    <div className="flex gap-2 mt-1">
+                      <Input 
+                        value={getWebhookUrl()} 
+                        readOnly
+                        className="font-mono text-sm"
+                      />
+                      <Button type="button" variant="outline" size="icon" onClick={copyWebhookUrl}>
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      POST JSON data to this URL to trigger the data feed
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label>Secret Key (optional)</Label>
+                    <Input 
+                      type="password"
+                      value={config.webhook?.secretKey || ''} 
+                      onChange={(e) => handleWebhookConfigChange({ secretKey: e.target.value })}
+                      placeholder="For validating incoming requests"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      If set, incoming requests must include this in the X-Webhook-Secret header
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label>Payload Data Path (JSONPath)</Label>
+                    <Input 
+                      value={config.webhook?.payloadPath || ''} 
+                      onChange={(e) => handleWebhookConfigChange({ payloadPath: e.target.value })}
+                      placeholder="$.data or $.records"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Path to the array of records in the webhook payload
+                    </p>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -514,25 +928,27 @@ export function ExternalSourceConfig({
                 <Label>Discovered Fields</Label>
                 <p className="text-xs text-muted-foreground">Fields available for mapping</p>
               </div>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm" 
-                onClick={() => discoverFields()}
-                disabled={isDiscovering}
-              >
-                {isDiscovering ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                    Discovering...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-1" />
-                    Discover Fields
-                  </>
-                )}
-              </Button>
+              {sourceType !== 'webhook' && (
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => discoverFields()}
+                  disabled={isDiscovering}
+                >
+                  {isDiscovering ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      Discovering...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Discover Fields
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
 
             {discoveryError && (

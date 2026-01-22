@@ -38,9 +38,47 @@ interface FileConfig {
   hasHeader?: boolean;
 }
 
+interface FtpConfig {
+  protocol: 'ftp' | 'sftp';
+  host: string;
+  port: number;
+  username: string;
+  password?: string;
+  privateKey?: string;
+  remotePath: string;
+  fileType: 'csv' | 'excel' | 'json';
+  hasHeader?: boolean;
+}
+
+interface CloudStorageConfig {
+  provider: 's3' | 'gcs' | 'azure_blob';
+  bucketName: string;
+  objectPath: string;
+  region?: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  serviceAccountJson?: string;
+  connectionString?: string;
+  fileType: 'csv' | 'excel' | 'json';
+  hasHeader?: boolean;
+}
+
+interface GoogleSheetsConfig {
+  spreadsheetId: string;
+  sheetName?: string;
+  range?: string;
+  authType: 'api_key' | 'service_account';
+  apiKey?: string;
+  serviceAccountJson?: string;
+  hasHeader?: boolean;
+}
+
 interface ExternalSourceConfig {
   httpApi?: HttpApiConfig;
   file?: FileConfig;
+  ftp?: FtpConfig;
+  cloudStorage?: CloudStorageConfig;
+  googleSheets?: GoogleSheetsConfig;
 }
 
 function inferFieldType(value: any): DiscoveredField['type'] {
@@ -101,7 +139,6 @@ function navigateJsonPath(data: any, path: string): any[] {
   for (const part of parts) {
     if (current === null || current === undefined) return [];
     if (part === '*') {
-      // Return current if it's an array
       if (Array.isArray(current)) return current;
       continue;
     }
@@ -115,7 +152,6 @@ function parseCSV(content: string, hasHeader: boolean = true): any[] {
   const lines = content.split(/\r?\n/).filter(line => line.trim());
   if (lines.length === 0) return [];
   
-  // Simple CSV parsing (doesn't handle all edge cases)
   const parseLine = (line: string): string[] => {
     const result: string[] = [];
     let current = '';
@@ -160,7 +196,6 @@ async function discoverHttpApiFields(config: HttpApiConfig): Promise<DiscoveryRe
     ...(config.headers || {})
   };
   
-  // Apply authentication
   if (config.authType === 'bearer' && config.authConfig?.token) {
     headers['Authorization'] = `Bearer ${config.authConfig.token}`;
   } else if (config.authType === 'basic' && config.authConfig?.username) {
@@ -193,9 +228,7 @@ async function discoverHttpApiFields(config: HttpApiConfig): Promise<DiscoveryRe
   
   console.log(`Found ${records.length} records`);
   
-  // Return up to 10 records for preview
   const previewData = records.slice(0, 10).map((record: any) => {
-    // Flatten nested objects for preview display
     const flattened: Record<string, any> = {};
     for (const key of Object.keys(record)) {
       const value = record[key];
@@ -247,13 +280,161 @@ async function discoverFileFields(config: FileConfig, supabase: any): Promise<Di
     throw new Error('Excel field discovery requires the file to be converted to CSV first');
   }
   
-  // Return up to 10 records for preview
   const previewData = records.slice(0, 10);
   
   return {
     fields: extractFieldsFromData(records),
     previewData
   };
+}
+
+async function discoverGoogleSheetsFields(config: GoogleSheetsConfig): Promise<DiscoveryResult> {
+  if (!config.spreadsheetId) {
+    throw new Error('Spreadsheet ID is required');
+  }
+
+  let url = `https://sheets.googleapis.com/v4/spreadsheets/${config.spreadsheetId}/values/`;
+  
+  // Build the range
+  const range = config.sheetName 
+    ? `'${config.sheetName}'!${config.range || 'A:Z'}`
+    : config.range || 'A:Z';
+  
+  url += encodeURIComponent(range);
+  
+  if (config.authType === 'api_key' && config.apiKey) {
+    url += `?key=${config.apiKey}`;
+  } else {
+    throw new Error('API key authentication is required for Google Sheets');
+  }
+
+  console.log(`Fetching Google Sheets: ${config.spreadsheetId}`);
+  
+  const response = await fetch(url);
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Google Sheets API error ${response.status}: ${errorText}`);
+  }
+  
+  const data = await response.json();
+  const values = data.values || [];
+  
+  if (values.length === 0) {
+    return { fields: [], previewData: [] };
+  }
+  
+  // First row is headers if hasHeader is true
+  const headers = config.hasHeader !== false 
+    ? values[0].map((h: string) => String(h).trim())
+    : values[0].map((_: any, i: number) => `column_${i + 1}`);
+  
+  const dataRows = config.hasHeader !== false ? values.slice(1) : values;
+  
+  const records = dataRows.map((row: any[]) => {
+    const obj: Record<string, any> = {};
+    headers.forEach((header: string, i: number) => {
+      obj[header] = row[i] !== undefined ? row[i] : '';
+    });
+    return obj;
+  });
+  
+  console.log(`Found ${records.length} records from Google Sheets`);
+  
+  return {
+    fields: extractFieldsFromData(records),
+    previewData: records.slice(0, 10)
+  };
+}
+
+async function discoverCloudStorageFields(config: CloudStorageConfig): Promise<DiscoveryResult> {
+  let content: string;
+  
+  if (config.provider === 's3') {
+    // For S3, we need to construct a pre-signed URL or use public access
+    // This is a simplified implementation - in production you'd use AWS SDK
+    if (!config.accessKeyId || !config.secretAccessKey) {
+      throw new Error('AWS credentials are required for S3 access');
+    }
+    
+    // Try public URL first for read-only access
+    const s3Url = `https://${config.bucketName}.s3.${config.region || 'us-east-1'}.amazonaws.com/${config.objectPath}`;
+    
+    console.log(`Fetching from S3: ${s3Url}`);
+    
+    const response = await fetch(s3Url);
+    if (!response.ok) {
+      throw new Error(`S3 access error ${response.status}: Ensure the object is publicly readable or use proper AWS SDK authentication`);
+    }
+    content = await response.text();
+    
+  } else if (config.provider === 'gcs') {
+    // Google Cloud Storage public URL
+    const gcsUrl = `https://storage.googleapis.com/${config.bucketName}/${config.objectPath}`;
+    
+    console.log(`Fetching from GCS: ${gcsUrl}`);
+    
+    const response = await fetch(gcsUrl);
+    if (!response.ok) {
+      throw new Error(`GCS access error ${response.status}: Ensure the object is publicly readable`);
+    }
+    content = await response.text();
+    
+  } else if (config.provider === 'azure_blob') {
+    // Azure Blob Storage - requires connection string for private blobs
+    if (!config.connectionString) {
+      throw new Error('Azure connection string is required');
+    }
+    
+    // Extract account name from connection string
+    const accountMatch = config.connectionString.match(/AccountName=([^;]+)/);
+    if (!accountMatch) {
+      throw new Error('Invalid Azure connection string');
+    }
+    const accountName = accountMatch[1];
+    
+    // Try public URL
+    const azureUrl = `https://${accountName}.blob.core.windows.net/${config.bucketName}/${config.objectPath}`;
+    
+    console.log(`Fetching from Azure Blob: ${azureUrl}`);
+    
+    const response = await fetch(azureUrl);
+    if (!response.ok) {
+      throw new Error(`Azure Blob access error ${response.status}: Ensure the blob is publicly readable`);
+    }
+    content = await response.text();
+    
+  } else {
+    throw new Error(`Unsupported cloud provider: ${config.provider}`);
+  }
+  
+  // Parse content based on file type
+  let records: any[] = [];
+  
+  if (config.fileType === 'json') {
+    const data = JSON.parse(content);
+    records = Array.isArray(data) ? data : [data];
+  } else if (config.fileType === 'csv') {
+    records = parseCSV(content, config.hasHeader !== false);
+  } else if (config.fileType === 'excel') {
+    throw new Error('Excel files from cloud storage require conversion to CSV first');
+  }
+  
+  console.log(`Found ${records.length} records from cloud storage`);
+  
+  return {
+    fields: extractFieldsFromData(records),
+    previewData: records.slice(0, 10)
+  };
+}
+
+async function discoverFtpFields(config: FtpConfig): Promise<DiscoveryResult> {
+  // FTP/SFTP requires server-side implementation with proper libraries
+  // This is a placeholder - in production you'd use a library like ssh2-sftp-client
+  throw new Error(
+    `FTP/SFTP field discovery is not yet fully implemented. ` +
+    `Please use HTTP API or Cloud Storage as an alternative, or contact support for FTP integration.`
+  );
 }
 
 Deno.serve(async (req) => {
@@ -312,6 +493,23 @@ Deno.serve(async (req) => {
       result = await discoverHttpApiFields(externalConfig.httpApi);
     } else if ((sourceType === 'csv' || sourceType === 'excel' || sourceType === 'file_url') && externalConfig.file) {
       result = await discoverFileFields(externalConfig.file, supabase);
+    } else if (sourceType === 'google_sheets' && externalConfig.googleSheets) {
+      result = await discoverGoogleSheetsFields(externalConfig.googleSheets);
+    } else if (sourceType === 'cloud_storage' && externalConfig.cloudStorage) {
+      result = await discoverCloudStorageFields(externalConfig.cloudStorage);
+    } else if (sourceType === 'ftp' && externalConfig.ftp) {
+      result = await discoverFtpFields(externalConfig.ftp);
+    } else if (sourceType === 'webhook') {
+      // Webhooks don't have field discovery - fields are determined when data is received
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          fields: [], 
+          previewData: [],
+          message: 'Webhook fields will be discovered when data is first received'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     } else {
       throw new Error(`Unsupported source type: ${sourceType}`);
     }
