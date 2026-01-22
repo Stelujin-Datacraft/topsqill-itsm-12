@@ -42,10 +42,9 @@ export const useUserManagement = () => {
     if (!currentOrganization?.id) return;
 
     try {
-      // Select only needed columns for performance
       const { data, error } = await supabase
         .from('user_profiles')
-        .select('id, email, first_name, last_name, role, status, created_at, nationality, mobile, gender, timezone')
+        .select('*')
         .eq('organization_id', currentOrganization.id)
         .order('created_at', { ascending: false });
 

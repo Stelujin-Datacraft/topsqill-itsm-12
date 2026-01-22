@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React from 'react';
 import { FormField } from '@/types/form';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -42,14 +42,10 @@ export function MetricsSelector({
   label = "Metrics",
   description = "Select numeric fields to measure and analyze"
 }: MetricsSelectorProps) {
-  // Memoize expensive computations to prevent re-renders
-  const metricCompatibleFields = useMemo(() => 
-    getMetricCompatibleFields(formFields), [formFields]);
-  
+  const metricCompatibleFields = getMetricCompatibleFields(formFields);
   const allFields = formFields; // For groupBy, we can use any field
   
-  // Memoize callback functions to prevent child re-renders
-  const addMetric = useCallback((fieldId: string) => {
+  const addMetric = (fieldId: string) => {
     if (selectedMetrics.length < maxMetrics && !selectedMetrics.includes(fieldId)) {
       const newMetrics = [...selectedMetrics, fieldId];
       onMetricsChange(newMetrics);
@@ -62,9 +58,9 @@ export function MetricsSelector({
         onMetricAggregationsChange(newAggregations);
       }
     }
-  }, [selectedMetrics, maxMetrics, onMetricsChange, aggregationEnabled, onMetricAggregationsChange, metricCompatibleFields, metricAggregations]);
+  };
 
-  const removeMetric = useCallback((fieldId: string) => {
+  const removeMetric = (fieldId: string) => {
     const newMetrics = selectedMetrics.filter(id => id !== fieldId);
     onMetricsChange(newMetrics);
     
@@ -73,41 +69,29 @@ export function MetricsSelector({
       const newAggregations = metricAggregations.filter(agg => agg.field !== fieldId);
       onMetricAggregationsChange(newAggregations);
     }
-  }, [selectedMetrics, onMetricsChange, onMetricAggregationsChange, metricAggregations]);
+  };
 
-  const updateAggregation = useCallback((fieldId: string, aggregation: string) => {
+  const updateAggregation = (fieldId: string, aggregation: string) => {
     if (onMetricAggregationsChange) {
       const newAggregations = metricAggregations.map(agg => 
         agg.field === fieldId ? { ...agg, aggregation: aggregation as any } : agg
       );
       onMetricAggregationsChange(newAggregations);
     }
-  }, [onMetricAggregationsChange, metricAggregations]);
+  };
 
-  // Memoize field lookup helpers
-  const fieldLabelMap = useMemo(() => {
-    const map = new Map<string, string>();
-    formFields.forEach(f => map.set(f.id, f.label || 'Unknown Field'));
-    return map;
-  }, [formFields]);
+  const getFieldLabel = (fieldId: string) => {
+    const field = formFields.find(f => f.id === fieldId);
+    return field?.label || 'Unknown Field';
+  };
 
-  const fieldTypeMap = useMemo(() => {
-    const map = new Map<string, string>();
-    formFields.forEach(f => map.set(f.id, (f as any)?.field_type || f?.type || 'unknown'));
-    return map;
-  }, [formFields]);
+  const getFieldType = (fieldId: string) => {
+    const field = formFields.find(f => f.id === fieldId);
+    // Support both .type and .field_type
+    return (field as any)?.field_type || field?.type || 'unknown';
+  };
 
-  const getFieldLabel = useCallback((fieldId: string) => {
-    return fieldLabelMap.get(fieldId) || 'Unknown Field';
-  }, [fieldLabelMap]);
-
-  const getFieldType = useCallback((fieldId: string) => {
-    return fieldTypeMap.get(fieldId) || 'unknown';
-  }, [fieldTypeMap]);
-
-  const availableFields = useMemo(() => 
-    metricCompatibleFields.filter(field => !selectedMetrics.includes(field.id)),
-    [metricCompatibleFields, selectedMetrics]);
+  const availableFields = metricCompatibleFields.filter(field => !selectedMetrics.includes(field.id));
 
   return (
     <div className="space-y-4">

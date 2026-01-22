@@ -13,7 +13,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { CreateReportDialog } from '@/components/reports/CreateReportDialog';
 export interface ReportsListProps {
   reports: Report[];
-  isLoading?: boolean;
   onView: (report: Report) => void;
   onEdit: (report: Report) => void;
   onDelete: (reportId: string) => void;
@@ -26,7 +25,6 @@ export interface ReportsListProps {
 }
 export function ReportsList({
   reports = [],
-  isLoading,
   onView,
   onEdit,
   onDelete,
@@ -105,8 +103,7 @@ export function ReportsList({
   }, [checkPermissionWithAlert, onDelete, toast]);
 
   const createButtonState = getButtonState('reports', 'create');
-  // Show loading state instead of empty state during initial load
-  if (isLoading || loading) {
+  if (loading) {
     return <LoadingScreen message="Loading reports..." />;
   }
 

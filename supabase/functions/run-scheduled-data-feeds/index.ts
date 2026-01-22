@@ -94,56 +94,39 @@ Deno.serve(async (req) => {
 
     const results: { feedId: string; feedName: string; executed: boolean; error?: string }[] = [];
 
-    // Filter feeds that should run now
-    const feedsToRun = (feeds || []).filter(feed => {
-      if (!feed.schedule) return false;
+    for (const feed of feeds || []) {
+      if (!feed.schedule) continue;
+
       const shouldRun = shouldRunNow(feed.schedule, feed.last_run_at);
       console.log(`📋 Feed "${feed.name}" (${feed.id}): schedule=${feed.schedule}, shouldRun=${shouldRun}`);
-      
-      if (!shouldRun) {
-        results.push({ feedId: feed.id, feedName: feed.name, executed: false });
-      }
-      return shouldRun;
-    });
 
-    console.log(`🚀 Executing ${feedsToRun.length} feeds in parallel`);
+      if (shouldRun) {
+        try {
+          // Call the execute-data-feed function
+          const response = await fetch(`${supabaseUrl}/functions/v1/execute-data-feed`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`
+            },
+            body: JSON.stringify({ feedId: feed.id, triggeredBy: 'schedule' })
+          });
 
-    // Execute all eligible feeds in parallel for performance
-    const executionPromises = feedsToRun.map(async (feed) => {
-      try {
-        // Call the execute-data-feed function
-        const response = await fetch(`${supabaseUrl}/functions/v1/execute-data-feed`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseServiceKey}`
-          },
-          body: JSON.stringify({ feedId: feed.id, triggeredBy: 'schedule' })
-        });
-
-        const result = await response.json();
-        
-        if (result.success) {
-          console.log(`✅ Feed "${feed.name}" executed successfully`);
-          return { feedId: feed.id, feedName: feed.name, executed: true };
-        } else {
-          console.error(`❌ Feed "${feed.name}" execution failed:`, result.error);
-          return { feedId: feed.id, feedName: feed.name, executed: true, error: result.error };
+          const result = await response.json();
+          
+          if (result.success) {
+            console.log(`✅ Feed "${feed.name}" executed successfully`);
+            results.push({ feedId: feed.id, feedName: feed.name, executed: true });
+          } else {
+            console.error(`❌ Feed "${feed.name}" execution failed:`, result.error);
+            results.push({ feedId: feed.id, feedName: feed.name, executed: true, error: result.error });
+          }
+        } catch (execError) {
+          console.error(`❌ Error executing feed "${feed.name}":`, execError);
+          results.push({ feedId: feed.id, feedName: feed.name, executed: false, error: String(execError) });
         }
-      } catch (execError) {
-        console.error(`❌ Error executing feed "${feed.name}":`, execError);
-        return { feedId: feed.id, feedName: feed.name, executed: false, error: String(execError) };
-      }
-    });
-
-    // Wait for all executions to complete
-    const executionResults = await Promise.allSettled(executionPromises);
-    
-    for (const result of executionResults) {
-      if (result.status === 'fulfilled') {
-        results.push(result.value);
       } else {
-        results.push({ feedId: 'unknown', feedName: 'unknown', executed: false, error: String(result.reason) });
+        results.push({ feedId: feed.id, feedName: feed.name, executed: false });
       }
     }
 

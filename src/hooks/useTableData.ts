@@ -96,10 +96,9 @@ export function useTableData(
       const from = (currentPage - 1) * pageSize;
       const to = from + pageSize - 1;
 
-      // Select only needed columns for table display performance
       let dataQuery = supabase
         .from('form_submissions')
-        .select('id, form_id, submission_data, submitted_at, submitted_by, submission_ref_id, approval_status, approved_by, approval_timestamp')
+        .select('*')
         .eq('form_id', formId);
 
       const dataResult = await dataQuery

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { FormField } from '@/types/form';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check, ChevronDown, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HelpTooltip } from '@/components/ui/help-tooltip';
-import { useDebounce } from '@/hooks/useDebounce';
 
 interface SelectFieldWithSearchProps {
   field: FormField;
@@ -30,7 +29,6 @@ export function SelectFieldWithSearch({
 }: SelectFieldWithSearchProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
-  const debouncedSearchValue = useDebounce(searchValue, 150); // Debounce for performance
 
   const config = field.customConfig || {};
   const clearable = config.clearable !== false;
@@ -39,12 +37,10 @@ export function SelectFieldWithSearch({
   const options = fieldState?.options || field.options || [];
   const selectedOption = options.find(opt => opt.value === value);
   
-  // Memoize filtered options based on debounced search value
-  const filteredOptions = useMemo(() => 
-    options.filter(option =>
-      option.label.toLowerCase().includes(debouncedSearchValue.toLowerCase()) ||
-      option.value.toLowerCase().includes(debouncedSearchValue.toLowerCase())
-    ), [options, debouncedSearchValue]);
+  const filteredOptions = options.filter(option =>
+    option.label.toLowerCase().includes(searchValue.toLowerCase()) ||
+    option.value.toLowerCase().includes(searchValue.toLowerCase())
+  );
 
   const handleSelect = (optionValue: string) => {
     onChange(optionValue === value ? '' : optionValue);

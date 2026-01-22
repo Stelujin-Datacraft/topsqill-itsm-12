@@ -69,15 +69,11 @@ const Reports = () => {
   // Filter reports based on user's permissions
   const visibleReports = getVisibleResources('reports', reports);
 
-  // Combined loading state
-  const isLoading = loading || permissionLoading;
-
   return (
     <DashboardLayout title="Reports">
       <div className="space-y-6">
         <ReportsList
           reports={visibleReports}
-          isLoading={isLoading}
           onView={handleViewReport}
           onEdit={handleEditReport}
           onDelete={handleDeleteReport}

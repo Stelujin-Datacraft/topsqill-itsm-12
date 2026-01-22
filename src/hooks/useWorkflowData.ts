@@ -18,10 +18,9 @@ export function useWorkflowData() {
     queryFn: async () => {
       if (!currentProject?.id) return [];
 
-      // Select only needed columns for list view performance
       const { data, error } = await supabase
         .from('workflows')
-        .select('id, name, description, organization_id, project_id, status, created_at, updated_at, created_by')
+        .select('*')
         .eq('project_id', currentProject.id)
         .order('created_at', { ascending: false });
 

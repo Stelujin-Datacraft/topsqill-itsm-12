@@ -23,14 +23,13 @@ import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 
 export interface WorkflowsListProps {
   workflows: Workflow[];
-  isLoading?: boolean;
   onView: (workflow: Workflow) => void;
   onEdit: (workflow: Workflow) => void;
   onDelete: (workflowId: string) => void;
   getPermissions?: (workflow: Workflow) => { canEdit: boolean; canDelete: boolean; canView: boolean };
 }
 
-export function WorkflowsList({ workflows, isLoading, onEdit, onDelete, onView, getPermissions }: WorkflowsListProps) {
+export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissions }: WorkflowsListProps) {
   const { createWorkflow, updateWorkflow } = useWorkflowData();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -94,8 +93,7 @@ export function WorkflowsList({ workflows, isLoading, onEdit, onDelete, onView, 
 
   const createButtonState = getButtonState('workflows', 'create');
 
-  // Show loading state instead of empty state during initial load
-  if (isLoading || !workflows) {
+  if (!workflows) {
     return <LoadingScreen message="Loading workflows..." />;
   }
 
