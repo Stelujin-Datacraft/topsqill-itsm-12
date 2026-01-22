@@ -508,13 +508,18 @@ export function DataFeedDialog({
 
   // ========== Field Mappings ==========
   const addFieldMapping = (type: 'direct' | 'cross_reference' = 'direct') => {
+    // When matching type is cross_reference, auto-use the selected cross_reference_field_id
+    const autoFillCrossRefId = type === 'cross_reference' && formData.matching_type === 'cross_reference' 
+      ? formData.cross_reference_field_id 
+      : '';
+    
     setFormData(prev => ({
       ...prev,
       field_mappings: [...prev.field_mappings, { 
         sourceFieldId: '', 
         targetFieldId: '',
         sourceType: type,
-        crossRefFieldId: type === 'cross_reference' ? '' : undefined,
+        crossRefFieldId: type === 'cross_reference' ? autoFillCrossRefId : undefined,
         crossRefSourceFieldId: type === 'cross_reference' ? '' : undefined,
       }],
     }));
@@ -1286,29 +1291,79 @@ export function DataFeedDialog({
                   <div>
                     <Label className="text-base">Field Mappings</Label>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Map fields from your source to the target form
+                      {formData.matching_type === 'cross_reference' 
+                        ? 'Map fields from linked records to the target form'
+                        : 'Map fields from your source to the target form'}
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => addFieldMapping('direct')}>
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add Mapping
-                    </Button>
-                    {crossRefFields.length > 0 && (
-                      <Button type="button" variant="secondary" size="sm" onClick={() => addFieldMapping('cross_reference')}>
+                    {/* When matching type is cross_reference, only show linked record mapping */}
+                    {formData.matching_type === 'cross_reference' ? (
+                      <Button 
+                        type="button" 
+                        variant="default" 
+                        size="sm" 
+                        onClick={() => addFieldMapping('cross_reference')}
+                        disabled={!formData.cross_reference_field_id}
+                      >
                         <Link2 className="h-4 w-4 mr-1" />
-                        From Linked Record
+                        Add Field from Linked Record
                       </Button>
+                    ) : (
+                      <>
+                        <Button type="button" variant="outline" size="sm" onClick={() => addFieldMapping('direct')}>
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Mapping
+                        </Button>
+                        {crossRefFields.length > 0 && (
+                          <Button type="button" variant="secondary" size="sm" onClick={() => addFieldMapping('cross_reference')}>
+                            <Link2 className="h-4 w-4 mr-1" />
+                            From Linked Record
+                          </Button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
+                
+                {/* Show info when using cross-reference matching */}
+                {formData.matching_type === 'cross_reference' && formData.cross_reference_field_id && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center gap-2 text-sm text-blue-900">
+                      <Link2 className="h-4 w-4" />
+                      <span className="font-medium">
+                        Pulling data from: {crossRefFields.find(f => f.id === formData.cross_reference_field_id)?.label || 'Selected Field'}
+                        {getCrossRefFormName(formData.cross_reference_field_id) && (
+                          <span className="text-blue-700 ml-1">
+                            (→ {getCrossRefFormName(formData.cross_reference_field_id)})
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <p className="text-xs text-blue-700 mt-1">
+                      Add mappings to specify which fields from the linked records should be copied to the target form.
+                    </p>
+                  </div>
+                )}
+                
+                {formData.matching_type === 'cross_reference' && !formData.cross_reference_field_id && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-sm text-amber-800">
+                      Please select a Cross-Reference Field in the Matching tab first.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {formData.field_mappings.length === 0 && (
                 <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg text-muted-foreground">
                   <ArrowRight className="h-8 w-8 mb-2" />
                   <p className="text-sm font-medium">No field mappings configured</p>
-                  <p className="text-xs mt-1">Add mappings to copy data from source to target</p>
+                  <p className="text-xs mt-1">
+                    {formData.matching_type === 'cross_reference' 
+                      ? 'Add mappings to pull data from linked records'
+                      : 'Add mappings to copy data from source to target'}
+                  </p>
                 </div>
               )}
 
@@ -1339,42 +1394,46 @@ export function DataFeedDialog({
                         </Button>
                       </div>
                       
-                      {/* Step 1: Select the cross-reference field */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-medium">1</div>
-                          <Label className="text-sm font-medium">Select Cross-Reference Field</Label>
-                        </div>
-                        <p className="text-xs text-muted-foreground ml-7">
-                          Choose which linked form to pull data from
-                        </p>
-                        <div className="ml-7">
-                          <Select
-                            value={mapping.crossRefFieldId || ''}
-                            onValueChange={(value) => updateFieldMapping(index, 'crossRefFieldId', value)}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select a cross-reference field..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {crossRefFields.map((field) => {
-                                const linkedFormName = getCrossRefFormName(field.id);
-                                return (
-                                  <SelectItem key={field.id} value={field.id}>
-                                    {field.label} {linkedFormName && `(→ ${linkedFormName})`}
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      
-                      {/* Step 2: Select source and target fields */}
-                      {mapping.crossRefFieldId && (
+                      {/* Step 1: Select the cross-reference field - Only show when NOT using cross_reference matching type */}
+                      {formData.matching_type !== 'cross_reference' && (
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
-                            <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-medium">2</div>
+                            <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-medium">1</div>
+                            <Label className="text-sm font-medium">Select Cross-Reference Field</Label>
+                          </div>
+                          <p className="text-xs text-muted-foreground ml-7">
+                            Choose which linked form to pull data from
+                          </p>
+                          <div className="ml-7">
+                            <Select
+                              value={mapping.crossRefFieldId || ''}
+                              onValueChange={(value) => updateFieldMapping(index, 'crossRefFieldId', value)}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select a cross-reference field..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {crossRefFields.map((field) => {
+                                  const linkedFormName = getCrossRefFormName(field.id);
+                                  return (
+                                    <SelectItem key={field.id} value={field.id}>
+                                      {field.label} {linkedFormName && `(→ ${linkedFormName})`}
+                                    </SelectItem>
+                                  );
+                                })}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Step for field selection - Use cross_reference_field_id when matching type is cross_reference */}
+                      {(mapping.crossRefFieldId || (formData.matching_type === 'cross_reference' && formData.cross_reference_field_id)) && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-medium">
+                              {formData.matching_type === 'cross_reference' ? '1' : '2'}
+                            </div>
                             <Label className="text-sm font-medium">Map Field Value</Label>
                           </div>
                           <p className="text-xs text-muted-foreground ml-7">
@@ -1383,7 +1442,7 @@ export function DataFeedDialog({
                           <div className="ml-7 flex items-center gap-3">
                             <div className="flex-1 space-y-1">
                               <Label className="text-xs text-muted-foreground">
-                                From: {getCrossRefFormName(mapping.crossRefFieldId)}
+                                From: {getCrossRefFormName(mapping.crossRefFieldId || formData.cross_reference_field_id || '')}
                               </Label>
                               <Select
                                 value={mapping.crossRefSourceFieldId || ''}
@@ -1393,12 +1452,12 @@ export function DataFeedDialog({
                                   <SelectValue placeholder="Select field..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {getCrossRefFormFields(mapping.crossRefFieldId || '').length === 0 ? (
+                                  {getCrossRefFormFields(mapping.crossRefFieldId || formData.cross_reference_field_id || '').length === 0 ? (
                                     <div className="p-2 text-sm text-muted-foreground text-center">
                                       No fields found in linked form
                                     </div>
                                   ) : (
-                                    getCrossRefFormFields(mapping.crossRefFieldId || '').map((field) => (
+                                    getCrossRefFormFields(mapping.crossRefFieldId || formData.cross_reference_field_id || '').map((field) => (
                                       <SelectItem key={field.id} value={field.id}>
                                         {field.label}
                                       </SelectItem>
@@ -1432,8 +1491,8 @@ export function DataFeedDialog({
                         </div>
                       )}
                       
-                      {/* Step 3: Record Selection - Only show when multiple records might be linked */}
-                      {mapping.crossRefFieldId && mapping.crossRefSourceFieldId && (
+                      {/* Step for Record Selection - Only show when field is mapped and NOT using cross_reference matching */}
+                      {formData.matching_type !== 'cross_reference' && mapping.crossRefFieldId && mapping.crossRefSourceFieldId && (
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
                             <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-medium">3</div>
