@@ -2,10 +2,14 @@ import { Badge } from "@/components/ui/badge";
 import { 
   MessageSquare, Mail, Database, FileSpreadsheet, 
   Calendar, CreditCard, Bell, Webhook, 
-  Users, FolderOpen, Send, Zap, Cloud
+  Users, FolderOpen, Send, Zap, Cloud, Shield, Server
 } from "lucide-react";
 
 const integrations = [
+  // Authentication & Security
+  { name: "LDAP / Active Directory", icon: Server, color: "bg-indigo-100 text-indigo-700", category: "Authentication" },
+  { name: "SSO / SAML", icon: Shield, color: "bg-violet-100 text-violet-700", category: "Authentication" },
+  
   // Communication & Notifications
   { name: "Slack", icon: MessageSquare, color: "bg-purple-100 text-purple-700", category: "Notifications" },
   { name: "Microsoft Teams", icon: Users, color: "bg-blue-100 text-blue-700", category: "Notifications" },

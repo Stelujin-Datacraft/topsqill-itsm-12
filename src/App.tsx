@@ -63,6 +63,7 @@ import InvestigateAccess from "./pages/InvestigateAccess";
 import PasswordExpiryWarning from "./components/PasswordExpiryWarning";
 import AcceptInvitation from "./pages/AcceptInvitation";
 import NotFound from "./pages/NotFound";
+import LdapSettings from "./pages/LdapSettings";
 
 const queryClient = new QueryClient();
 
@@ -132,6 +133,7 @@ const App = () => (
                      <Route path="/audit-logs" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
                      <Route path="/form-audit-logs" element={<ProtectedRoute><FormAuditLogs /></ProtectedRoute>} />
                      <Route path="/investigate-access" element={<ProtectedRoute><InvestigateAccess /></ProtectedRoute>} />
+                     <Route path="/ldap-settings" element={<ProtectedRoute><LdapSettings /></ProtectedRoute>} />
                      <Route path="*" element={<NotFound />} />
                   </Routes>
                   </BrowserRouter>

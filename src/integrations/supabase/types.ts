@@ -1009,6 +1009,325 @@ export type Database = {
           },
         ]
       }
+      ldap_configurations: {
+        Row: {
+          allow_self_signed_certs: boolean | null
+          auto_provision_users: boolean | null
+          base_dn: string
+          bind_dn: string | null
+          bind_password_encrypted: string | null
+          connection_timeout_seconds: number | null
+          created_at: string
+          created_by: string
+          display_name_attribute: string | null
+          email_attribute: string | null
+          fallback_to_local_auth: boolean | null
+          first_name_attribute: string | null
+          group_search_base: string | null
+          group_search_filter: string | null
+          id: string
+          is_enabled: boolean
+          last_name_attribute: string | null
+          last_sync_at: string | null
+          last_sync_error: string | null
+          last_sync_status: string | null
+          member_of_attribute: string | null
+          name: string
+          organization_id: string
+          server_url: string
+          sync_enabled: boolean | null
+          sync_interval_minutes: number | null
+          sync_user_status: boolean | null
+          updated_at: string
+          use_ssl: boolean | null
+          use_starttls: boolean | null
+          user_search_base: string | null
+          user_search_filter: string | null
+          username_attribute: string | null
+        }
+        Insert: {
+          allow_self_signed_certs?: boolean | null
+          auto_provision_users?: boolean | null
+          base_dn: string
+          bind_dn?: string | null
+          bind_password_encrypted?: string | null
+          connection_timeout_seconds?: number | null
+          created_at?: string
+          created_by: string
+          display_name_attribute?: string | null
+          email_attribute?: string | null
+          fallback_to_local_auth?: boolean | null
+          first_name_attribute?: string | null
+          group_search_base?: string | null
+          group_search_filter?: string | null
+          id?: string
+          is_enabled?: boolean
+          last_name_attribute?: string | null
+          last_sync_at?: string | null
+          last_sync_error?: string | null
+          last_sync_status?: string | null
+          member_of_attribute?: string | null
+          name?: string
+          organization_id: string
+          server_url: string
+          sync_enabled?: boolean | null
+          sync_interval_minutes?: number | null
+          sync_user_status?: boolean | null
+          updated_at?: string
+          use_ssl?: boolean | null
+          use_starttls?: boolean | null
+          user_search_base?: string | null
+          user_search_filter?: string | null
+          username_attribute?: string | null
+        }
+        Update: {
+          allow_self_signed_certs?: boolean | null
+          auto_provision_users?: boolean | null
+          base_dn?: string
+          bind_dn?: string | null
+          bind_password_encrypted?: string | null
+          connection_timeout_seconds?: number | null
+          created_at?: string
+          created_by?: string
+          display_name_attribute?: string | null
+          email_attribute?: string | null
+          fallback_to_local_auth?: boolean | null
+          first_name_attribute?: string | null
+          group_search_base?: string | null
+          group_search_filter?: string | null
+          id?: string
+          is_enabled?: boolean
+          last_name_attribute?: string | null
+          last_sync_at?: string | null
+          last_sync_error?: string | null
+          last_sync_status?: string | null
+          member_of_attribute?: string | null
+          name?: string
+          organization_id?: string
+          server_url?: string
+          sync_enabled?: boolean | null
+          sync_interval_minutes?: number | null
+          sync_user_status?: boolean | null
+          updated_at?: string
+          use_ssl?: boolean | null
+          use_starttls?: boolean | null
+          user_search_base?: string | null
+          user_search_filter?: string | null
+          username_attribute?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ldap_configurations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ldap_group_mappings: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean | null
+          ldap_config_id: string
+          ldap_group_dn: string
+          ldap_group_name: string
+          mapped_group_id: string | null
+          mapped_role: string | null
+          mapped_security_template_id: string | null
+          organization_id: string
+          priority: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean | null
+          ldap_config_id: string
+          ldap_group_dn: string
+          ldap_group_name: string
+          mapped_group_id?: string | null
+          mapped_role?: string | null
+          mapped_security_template_id?: string | null
+          organization_id: string
+          priority?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean | null
+          ldap_config_id?: string
+          ldap_group_dn?: string
+          ldap_group_name?: string
+          mapped_group_id?: string | null
+          mapped_role?: string | null
+          mapped_security_template_id?: string | null
+          organization_id?: string
+          priority?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ldap_group_mappings_ldap_config_id_fkey"
+            columns: ["ldap_config_id"]
+            isOneToOne: false
+            referencedRelation: "ldap_configurations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ldap_group_mappings_mapped_group_id_fkey"
+            columns: ["mapped_group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ldap_group_mappings_mapped_security_template_id_fkey"
+            columns: ["mapped_security_template_id"]
+            isOneToOne: false
+            referencedRelation: "security_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ldap_group_mappings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ldap_sync_logs: {
+        Row: {
+          completed_at: string | null
+          error_details: Json | null
+          errors_count: number | null
+          groups_synced: number | null
+          id: string
+          ldap_config_id: string
+          organization_id: string
+          started_at: string
+          status: string
+          sync_log: Json | null
+          triggered_by: string | null
+          users_created: number | null
+          users_disabled: number | null
+          users_found: number | null
+          users_updated: number | null
+        }
+        Insert: {
+          completed_at?: string | null
+          error_details?: Json | null
+          errors_count?: number | null
+          groups_synced?: number | null
+          id?: string
+          ldap_config_id: string
+          organization_id: string
+          started_at?: string
+          status?: string
+          sync_log?: Json | null
+          triggered_by?: string | null
+          users_created?: number | null
+          users_disabled?: number | null
+          users_found?: number | null
+          users_updated?: number | null
+        }
+        Update: {
+          completed_at?: string | null
+          error_details?: Json | null
+          errors_count?: number | null
+          groups_synced?: number | null
+          id?: string
+          ldap_config_id?: string
+          organization_id?: string
+          started_at?: string
+          status?: string
+          sync_log?: Json | null
+          triggered_by?: string | null
+          users_created?: number | null
+          users_disabled?: number | null
+          users_found?: number | null
+          users_updated?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ldap_sync_logs_ldap_config_id_fkey"
+            columns: ["ldap_config_id"]
+            isOneToOne: false
+            referencedRelation: "ldap_configurations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ldap_sync_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ldap_user_links: {
+        Row: {
+          created_at: string
+          id: string
+          last_ldap_login_at: string | null
+          last_synced_at: string | null
+          ldap_config_id: string
+          ldap_dn: string
+          ldap_groups: Json | null
+          ldap_uid: string | null
+          ldap_username: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_ldap_login_at?: string | null
+          last_synced_at?: string | null
+          ldap_config_id: string
+          ldap_dn: string
+          ldap_groups?: Json | null
+          ldap_uid?: string | null
+          ldap_username: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_ldap_login_at?: string | null
+          last_synced_at?: string | null
+          ldap_config_id?: string
+          ldap_dn?: string
+          ldap_groups?: Json | null
+          ldap_uid?: string | null
+          ldap_username?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ldap_user_links_ldap_config_id_fkey"
+            columns: ["ldap_config_id"]
+            isOneToOne: false
+            referencedRelation: "ldap_configurations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ldap_user_links_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lifecycle_stage_history: {
         Row: {
           changed_at: string
@@ -2846,6 +3165,50 @@ export type Database = {
         }[]
       }
       get_next_execution_order: { Args: { exec_id: string }; Returns: number }
+      get_org_ldap_config: {
+        Args: { org_id: string }
+        Returns: {
+          allow_self_signed_certs: boolean | null
+          auto_provision_users: boolean | null
+          base_dn: string
+          bind_dn: string | null
+          bind_password_encrypted: string | null
+          connection_timeout_seconds: number | null
+          created_at: string
+          created_by: string
+          display_name_attribute: string | null
+          email_attribute: string | null
+          fallback_to_local_auth: boolean | null
+          first_name_attribute: string | null
+          group_search_base: string | null
+          group_search_filter: string | null
+          id: string
+          is_enabled: boolean
+          last_name_attribute: string | null
+          last_sync_at: string | null
+          last_sync_error: string | null
+          last_sync_status: string | null
+          member_of_attribute: string | null
+          name: string
+          organization_id: string
+          server_url: string
+          sync_enabled: boolean | null
+          sync_interval_minutes: number | null
+          sync_user_status: boolean | null
+          updated_at: string
+          use_ssl: boolean | null
+          use_starttls: boolean | null
+          user_search_base: string | null
+          user_search_filter: string | null
+          username_attribute: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "ldap_configurations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_organization_users: {
         Args: { org_id: string }
         Returns: {
@@ -2969,6 +3332,7 @@ export type Database = {
         Returns: boolean
       }
       is_form_public: { Args: { _form_id: string }; Returns: boolean }
+      is_ldap_user: { Args: { target_user_id: string }; Returns: boolean }
       is_project_member: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
