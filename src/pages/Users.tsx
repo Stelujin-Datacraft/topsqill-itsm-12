@@ -17,12 +17,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Trash2, UserPlus, Users as UsersIcon, UserCheck, UserX, UserMinus, Clock, Shield, User } from 'lucide-react';
+import { Search, Trash2, UserPlus, Users as UsersIcon, UserCheck, UserX, UserMinus, Clock, Shield, User, ChevronDown, Upload, RefreshCw, Mail } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import UserInviteDialog from '@/components/users/UserInviteDialog';
 import UserRequestsDialog from '@/components/users/UserRequestsDialog';
 import UserCreateDialog from '@/components/users/UserCreateDialog';
-import { UserImportButton } from '@/components/users/UserImportButton';
-import { UserUpdateButton } from '@/components/users/UserUpdateButton';
+import { UserImportDialog } from '@/components/users/UserImportDialog';
+import { UserUpdateDialog } from '@/components/users/UserUpdateDialog';
 import { useUserManagement } from '@/hooks/useUserManagement';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useToast } from '@/hooks/use-toast';
@@ -51,6 +58,8 @@ const Users = () => {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isRequestsOpen, setIsRequestsOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isUpdateOpen, setIsUpdateOpen] = useState(false);
   const [selectedRequests, setSelectedRequests] = useState<Set<string>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<{ id: string; name: string } | null>(null);
@@ -288,25 +297,44 @@ const Users = () => {
                   <Shield className="h-4 w-4 mr-2" />
                   Security Templates
                 </Button>
-                <UserImportButton onImportComplete={handleImportUsers} />
-                <UserUpdateButton onUpdateComplete={handleUpdateUsers} />
-                <Button size="sm" variant="outline" onClick={() => setIsRequestsOpen(true)} className="relative border-border/60 hover:bg-muted/50">
-                  <Clock className="h-4 w-4 mr-2" />
-                  Pending Requests
-                  {requests.length > 0 && (
-                    <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5 flex items-center justify-center text-xs bg-primary/10 text-primary border-0">
-                      {requests.length}
-                    </Badge>
-                  )}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setIsInviteOpen(true)} className="border-border/60 hover:bg-muted/50">
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Invite User
-                </Button>
-                <Button size="sm" onClick={() => setIsCreateOpen(true)} className="shadow-sm">
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Create User
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" className="shadow-sm">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Create
+                      <ChevronDown className="h-4 w-4 ml-2" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48 bg-background border border-border shadow-lg z-50">
+                    <DropdownMenuItem onClick={() => setIsCreateOpen(true)} className="cursor-pointer">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Create User
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setIsInviteOpen(true)} className="cursor-pointer">
+                      <Mail className="h-4 w-4 mr-2" />
+                      Invite User
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setIsImportOpen(true)} className="cursor-pointer">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Import Users
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setIsUpdateOpen(true)} className="cursor-pointer">
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Update Users
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setIsRequestsOpen(true)} className="cursor-pointer">
+                      <Clock className="h-4 w-4 mr-2" />
+                      Pending Requests
+                      {requests.length > 0 && (
+                        <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5 flex items-center justify-center text-xs bg-primary/10 text-primary border-0">
+                          {requests.length}
+                        </Badge>
+                      )}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </CardHeader>
@@ -461,6 +489,18 @@ const Users = () => {
         onOpenChange={setIsInviteOpen}
         onInvite={handleInviteUser}
         organizationName={currentOrganization?.name}
+      />
+
+      <UserImportDialog
+        isOpen={isImportOpen}
+        onOpenChange={setIsImportOpen}
+        onImportComplete={handleImportUsers}
+      />
+
+      <UserUpdateDialog
+        isOpen={isUpdateOpen}
+        onOpenChange={setIsUpdateOpen}
+        onUpdateComplete={handleUpdateUsers}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
