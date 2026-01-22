@@ -5,10 +5,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, ArrowRight, ChevronDown, ChevronRight, Link2, Database } from 'lucide-react';
+import { Plus, Trash2, ArrowRight, ChevronDown, ChevronRight, Link2, Database, LinkIcon, Unlink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-
+import { Switch } from '@/components/ui/switch';
 interface FieldOption {
   id: string;
   label: string;
@@ -133,6 +133,7 @@ export function NestedCrossRefMappings({
       linkedFormName: field.linkedFormName,
       behavior: 'create',
       fieldMappings: [],
+      linkToTarget: true, // Default to linking
     };
   };
 
@@ -282,16 +283,48 @@ export function NestedCrossRefMappings({
                     <ArrowRight className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">{field.linkedFormName}</span>
                   </div>
-                  {mappingCount > 0 && (
-                    <Badge variant="secondary" className="ml-2">
-                      {mappingCount} mapping{mappingCount !== 1 ? 's' : ''}
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {config?.linkToTarget === false && (
+                      <Badge variant="outline" className="text-muted-foreground">
+                        <Unlink className="h-3 w-3 mr-1" />
+                        No Link
+                      </Badge>
+                    )}
+                    {mappingCount > 0 && (
+                      <Badge variant="secondary">
+                        {mappingCount} mapping{mappingCount !== 1 ? 's' : ''}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </CollapsibleTrigger>
 
               <CollapsibleContent>
                 <div className="p-4 space-y-4 border-t">
+                  {/* Link to Target Toggle */}
+                  <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      {(config?.linkToTarget !== false) ? (
+                        <LinkIcon className="h-4 w-4 text-primary" />
+                      ) : (
+                        <Unlink className="h-4 w-4 text-muted-foreground" />
+                      )}
+                      <div>
+                        <Label className="text-sm font-medium">Link to Target Record</Label>
+                        <p className="text-xs text-muted-foreground">
+                          {(config?.linkToTarget !== false) 
+                            ? "Created/updated record will be linked to the target form's cross-reference field"
+                            : "Only create/update in linked form without linking to target record"
+                          }
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={config?.linkToTarget !== false}
+                      onCheckedChange={(checked) => updateConfig(field.id, { linkToTarget: checked })}
+                    />
+                  </div>
+
                   {/* Behavior Selection */}
                   <div className="space-y-2">
                     <Label className="text-sm">Record Behavior</Label>

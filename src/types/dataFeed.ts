@@ -76,6 +76,7 @@ export interface NestedCrossRefConfig {
   matchingFieldId?: string; // For update_or_create: field in linked form to match on
   matchingSourceFieldId?: string; // Source field to match against
   fieldMappings: NestedFieldMapping[]; // Mappings from source to linked form fields
+  linkToTarget?: boolean; // Whether to link the created/updated record to the target form's cross-ref field (default: true)
 }
 
 export interface MatchingRule {
