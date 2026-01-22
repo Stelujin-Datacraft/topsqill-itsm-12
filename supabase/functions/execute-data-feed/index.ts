@@ -65,6 +65,7 @@ interface NestedCrossRefConfig {
   matchingFieldId?: string;
   matchingSourceFieldId?: string;
   fieldMappings: NestedFieldMapping[];
+  linkToTarget?: boolean; // Whether to link the created/updated record to the target form's cross-ref field (default: true)
 }
 
 interface DataFeed {
@@ -292,7 +293,13 @@ async function processNestedCrossRefMappings(
         }
       }
 
-      linkedRecordIds[config.targetCrossRefFieldId] = linkedRecordId;
+      // Only add to linkedRecordIds if linkToTarget is enabled (default: true)
+      if (config.linkToTarget !== false) {
+        linkedRecordIds[config.targetCrossRefFieldId] = linkedRecordId;
+        console.log(`🔗 Will link record ${linkedRecordId} to target cross-ref field ${config.targetCrossRefFieldName}`);
+      } else {
+        console.log(`⏭️ Skipping link to target for ${config.targetCrossRefFieldName} (linkToTarget = false)`);
+      }
     } catch (error) {
       console.error(`❌ Error processing nested mapping for ${config.targetCrossRefFieldName}:`, error);
       runLog.push({ type: 'error', message: `Error processing nested mapping for ${config.targetCrossRefFieldName}: ${String(error)}`, timestamp: new Date().toISOString() });
