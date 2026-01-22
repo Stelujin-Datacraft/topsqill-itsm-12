@@ -47,7 +47,7 @@ import {
   Loader2
 } from "lucide-react";
 import { format } from "date-fns";
-import DashboardLayout from "@/components/DashboardLayout";
+import { PageContent } from "@/components/layouts/PageContent";
 import { LdapGroupMappings } from "@/components/ldap/LdapGroupMappings";
 import { LdapSyncLogs } from "@/components/ldap/LdapSyncLogs";
 
@@ -91,7 +91,7 @@ export default function LdapSettings() {
 
   if (userProfile?.role !== 'admin') {
     return (
-      <DashboardLayout title="Access Denied">
+      <PageContent title="Access Denied">
         <div className="flex items-center justify-center py-12">
           <Card className="max-w-md">
             <CardHeader>
@@ -111,7 +111,7 @@ export default function LdapSettings() {
             </CardContent>
           </Card>
         </div>
-      </DashboardLayout>
+      </PageContent>
     );
   }
 
@@ -453,7 +453,7 @@ export default function LdapSettings() {
   );
 
   return (
-    <DashboardLayout title="LDAP / Active Directory">
+    <PageContent title="LDAP / Active Directory">
       <div className="space-y-6">
 
         {/* Content */}
@@ -679,6 +679,6 @@ export default function LdapSettings() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </DashboardLayout>
+    </PageContent>
   );
 }
