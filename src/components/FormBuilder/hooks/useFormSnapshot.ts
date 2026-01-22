@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { Form, FormField, FormPage } from '@/types/form';
 import { v4 as uuidv4 } from 'uuid';
+import { debouncedStorageWrite, flushStorageWrite } from '@/lib/storageUtils';
 
 export interface FormSnapshot {
   form: Form | null;
@@ -11,6 +12,7 @@ export interface FormSnapshot {
 }
 
 const LOCAL_STORAGE_PREFIX = 'form-draft-';
+const DEBOUNCE_DELAY = 2000; // 2 seconds debounce for auto-saves
 
 export function useFormSnapshot(initialForm: Form | null) {
   const [snapshot, setSnapshot] = useState<FormSnapshot>(() => {
@@ -41,20 +43,23 @@ export function useFormSnapshot(initialForm: Form | null) {
 
   const originalFormRef = useRef<Form | null>(initialForm);
 
-  // Local storage utilities
-  const saveToLocalStorage = useCallback((formData: Form) => {
+  // Local storage utilities - now with debouncing for performance
+  const saveToLocalStorage = useCallback((formData: Form, immediate: boolean = false) => {
     if (!formData.id) return;
     
-    try {
-      const storageKey = `${LOCAL_STORAGE_PREFIX}${formData.id}`;
-      const dataToStore = {
-        form: formData,
-        timestamp: new Date().toISOString(),
-      };
-      localStorage.setItem(storageKey, JSON.stringify(dataToStore));
-      console.log('💾 Form draft saved to local storage:', storageKey);
-    } catch (error) {
-      console.error('❌ Failed to save form to local storage:', error);
+    const storageKey = `${LOCAL_STORAGE_PREFIX}${formData.id}`;
+    const dataToStore = {
+      form: formData,
+      timestamp: new Date().toISOString(),
+    };
+
+    if (immediate) {
+      // Immediate save (for critical operations like before navigation)
+      flushStorageWrite(storageKey, dataToStore);
+      console.log('💾 Form draft saved immediately:', storageKey);
+    } else {
+      // Debounced save (for rapid changes like typing)
+      debouncedStorageWrite(storageKey, dataToStore, DEBOUNCE_DELAY);
     }
   }, []);
 
@@ -267,7 +272,7 @@ export function useFormSnapshot(initialForm: Form | null) {
         pages: updatedPages,
       };
 
-      saveToLocalStorage(updatedForm);
+      saveToLocalStorage(updatedForm, true); // Immediate save for structural changes
       console.log('🗑️ Field deleted from snapshot:', fieldId, '| Remaining fields:', updatedFields.length);
 
       return {
@@ -344,7 +349,7 @@ export function useFormSnapshot(initialForm: Form | null) {
         pages: updatedPages,
       };
 
-      saveToLocalStorage(updatedForm);
+      saveToLocalStorage(updatedForm, true); // Immediate save for structural changes
 
       return {
         ...prev,
@@ -364,7 +369,7 @@ export function useFormSnapshot(initialForm: Form | null) {
         pages: [...prev.form.pages, page],
       };
 
-      saveToLocalStorage(updatedForm);
+      saveToLocalStorage(updatedForm, true); // Immediate save for structural changes
 
       return {
         ...prev,
@@ -388,7 +393,7 @@ export function useFormSnapshot(initialForm: Form | null) {
         pages: updatedPages,
       };
 
-      saveToLocalStorage(updatedForm);
+      saveToLocalStorage(updatedForm, true); // Immediate save for page updates
 
       return {
         ...prev,
@@ -430,7 +435,7 @@ export function useFormSnapshot(initialForm: Form | null) {
         fields: updatedFields,
       };
 
-      saveToLocalStorage(updatedForm);
+      saveToLocalStorage(updatedForm, true); // Immediate save for structural changes
 
       return {
         ...prev,
