@@ -4,14 +4,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus, Mail, Server, TestTube } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Trash2, Plus, Server, TestTube, FileText, Mail } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useProject } from '@/contexts/ProjectContext';
 import { toast } from '@/hooks/use-toast';
 import DashboardLayout from '@/components/DashboardLayout';
 import { TestEmailDialog } from '@/components/email/TestEmailDialog';
+import { useNavigate } from 'react-router-dom';
 
 interface SMTPConfig {
   id: string;
@@ -29,6 +31,8 @@ interface SMTPConfig {
 
 export default function EmailConfigPage() {
   const { userProfile } = useAuth();
+  const { currentProject } = useProject();
+  const navigate = useNavigate();
   const [configs, setConfigs] = useState<SMTPConfig[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [editingConfig, setEditingConfig] = useState<SMTPConfig | null>(null);
@@ -36,6 +40,7 @@ export default function EmailConfigPage() {
   const [testingConfig, setTestingConfig] = useState<string | null>(null);
   const [testDialogOpen, setTestDialogOpen] = useState(false);
   const [configToTest, setConfigToTest] = useState<SMTPConfig | null>(null);
+  const [templateCount, setTemplateCount] = useState(0);
 
   const loadConfigs = async () => {
     if (!userProfile?.organization_id) return;
@@ -61,9 +66,27 @@ export default function EmailConfigPage() {
     }
   };
 
+  const loadTemplateCount = async () => {
+    if (!currentProject?.id) return;
+    
+    try {
+      const { count, error } = await supabase
+        .from('email_templates')
+        .select('*', { count: 'exact', head: true })
+        .eq('project_id', currentProject.id);
+      
+      if (!error) {
+        setTemplateCount(count || 0);
+      }
+    } catch (error) {
+      console.error('Error loading template count:', error);
+    }
+  };
+
   useEffect(() => {
     loadConfigs();
-  }, [userProfile?.organization_id]);
+    loadTemplateCount();
+  }, [userProfile?.organization_id, currentProject?.id]);
 
   const createNewConfig = (): SMTPConfig => ({
     id: '',
@@ -190,7 +213,7 @@ export default function EmailConfigPage() {
     }
   };
 
-  if (loading) {
+  if (loading && configs.length === 0) {
     return (
       <DashboardLayout title="Email Configuration">
         <div className="flex items-center justify-center p-8">
@@ -201,100 +224,173 @@ export default function EmailConfigPage() {
   }
 
   return (
-    <DashboardLayout 
-      title="Email Configuration"
-    >
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Server className="h-5 w-5" />
-            <h2 className="text-xl font-semibold">SMTP Configurations</h2>
+    <DashboardLayout title="Email Configuration">
+      <Tabs defaultValue="smtp" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="smtp" className="flex items-center gap-2">
+            <Server className="h-4 w-4" />
+            SMTP Servers
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Email Templates
+            {templateCount > 0 && (
+              <Badge variant="secondary" className="ml-1">{templateCount}</Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        {/* SMTP Configuration Tab */}
+        <TabsContent value="smtp" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <Server className="h-5 w-5" />
+                SMTP Configurations
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Configure SMTP servers for sending emails from the platform
+              </p>
+            </div>
+            <Button onClick={() => setIsCreating(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add SMTP Config
+            </Button>
           </div>
-          <Button onClick={() => setIsCreating(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add SMTP Config
-          </Button>
-        </div>
 
-        {/* Existing Configurations */}
-        <div className="grid gap-4">
-          {configs.map((config) => (
-            <Card key={config.id}>
+          {/* Existing Configurations */}
+          <div className="grid gap-4">
+            {configs.length === 0 && !isCreating ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Mail className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No SMTP Configurations</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Add your first SMTP server to enable email sending
+                  </p>
+                  <Button onClick={() => setIsCreating(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add SMTP Config
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              configs.map((config) => (
+                <Card key={config.id}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          {config.name}
+                          {config.is_default && (
+                            <Badge variant="default">Default</Badge>
+                          )}
+                          {!config.is_active && (
+                            <Badge variant="secondary">Inactive</Badge>
+                          )}
+                        </CardTitle>
+                        <CardDescription>
+                          {config.host}:{config.port} • {config.from_email}
+                        </CardDescription>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openTestDialog(config)}
+                          disabled={testingConfig === config.id}
+                        >
+                          <TestTube className="h-4 w-4 mr-1" />
+                          {testingConfig === config.id ? 'Testing...' : 'Test'}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingConfig(config)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            if (config.is_default) {
+                              const confirmDelete = window.confirm(
+                                '⚠️ This is a default SMTP configuration. Deleting it may affect email templates using it.\n\nAre you sure you want to delete this default configuration?'
+                              );
+                              if (!confirmDelete) return;
+                            }
+                            deleteConfig(config.id);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))
+            )}
+          </div>
+
+          {/* Create/Edit Form */}
+          {(isCreating || editingConfig) && (
+            <Card>
               <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      {config.name}
-                      {config.is_default && (
-                        <Badge variant="default">Default</Badge>
-                      )}
-                      {!config.is_active && (
-                        <Badge variant="secondary">Inactive</Badge>
-                      )}
-                    </CardTitle>
-                    <CardDescription>
-                      {config.host}:{config.port} • {config.from_email}
-                    </CardDescription>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openTestDialog(config)}
-                      disabled={testingConfig === config.id}
-                    >
-                      <TestTube className="h-4 w-4 mr-1" />
-                      {testingConfig === config.id ? 'Testing...' : 'Test'}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setEditingConfig(config)}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        if (config.is_default) {
-                          const confirmDelete = window.confirm(
-                            '⚠️ This is a default SMTP configuration. Deleting it may affect email templates using it.\n\nAre you sure you want to delete this default configuration?'
-                          );
-                          if (!confirmDelete) return;
-                        }
-                        deleteConfig(config.id);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+                <CardTitle>
+                  {editingConfig ? 'Edit SMTP Configuration' : 'Create SMTP Configuration'}
+                </CardTitle>
               </CardHeader>
+              <CardContent>
+                <SMTPConfigForm
+                  config={editingConfig || createNewConfig()}
+                  onSave={saveConfig}
+                  onCancel={() => {
+                    setEditingConfig(null);
+                    setIsCreating(false);
+                  }}
+                />
+              </CardContent>
             </Card>
-          ))}
-        </div>
+          )}
+        </TabsContent>
 
-        {/* Create/Edit Form */}
-        {(isCreating || editingConfig) && (
+        {/* Email Templates Tab */}
+        <TabsContent value="templates" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Email Templates
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Create and manage email templates for automated communications
+              </p>
+            </div>
+            <Button onClick={() => navigate('/email-templates')}>
+              <FileText className="h-4 w-4 mr-2" />
+              Manage Templates
+            </Button>
+          </div>
+
           <Card>
-            <CardHeader>
-              <CardTitle>
-                {editingConfig ? 'Edit SMTP Configuration' : 'Create SMTP Configuration'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <SMTPConfigForm
-                config={editingConfig || createNewConfig()}
-                onSave={saveConfig}
-                onCancel={() => {
-                  setEditingConfig(null);
-                  setIsCreating(false);
-                }}
-              />
+            <CardContent className="py-8 text-center">
+              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">
+                {templateCount > 0 ? `${templateCount} Email Template${templateCount > 1 ? 's' : ''}` : 'No Email Templates'}
+              </h3>
+              <p className="text-muted-foreground mb-4">
+                {templateCount > 0 
+                  ? 'Manage your email templates for workflows and notifications'
+                  : 'Create email templates for automated communications'
+                }
+              </p>
+              <Button onClick={() => navigate('/email-templates')}>
+                {templateCount > 0 ? 'View & Edit Templates' : 'Create First Template'}
+              </Button>
             </CardContent>
           </Card>
-        )}
+        </TabsContent>
 
         {/* Test Email Dialog */}
         <TestEmailDialog
@@ -304,7 +400,7 @@ export default function EmailConfigPage() {
           configName={configToTest?.name || ''}
           defaultEmail={userProfile?.email || ''}
         />
-      </div>
+      </Tabs>
     </DashboardLayout>
   );
 }
@@ -332,7 +428,7 @@ function SMTPConfigForm({ config, onSave, onCancel }: SMTPConfigFormProps) {
             id="name"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="e.g., Gmail SMTP"
+            placeholder="e.g., Hostinger SMTP"
             required
           />
         </div>
@@ -342,7 +438,7 @@ function SMTPConfigForm({ config, onSave, onCancel }: SMTPConfigFormProps) {
             id="host"
             value={formData.host}
             onChange={(e) => setFormData({ ...formData, host: e.target.value })}
-            placeholder="e.g., smtp.gmail.com"
+            placeholder="e.g., smtp.hostinger.com"
             required
           />
         </div>
@@ -392,7 +488,7 @@ function SMTPConfigForm({ config, onSave, onCancel }: SMTPConfigFormProps) {
             type="email"
             value={formData.from_email}
             onChange={(e) => setFormData({ ...formData, from_email: e.target.value })}
-            placeholder="noreply@yourdomain.com"
+            placeholder="contact@topsqill.tech"
             required
           />
         </div>
@@ -402,7 +498,7 @@ function SMTPConfigForm({ config, onSave, onCancel }: SMTPConfigFormProps) {
             id="from_name"
             value={formData.from_name}
             onChange={(e) => setFormData({ ...formData, from_name: e.target.value })}
-            placeholder="Your Company Name"
+            placeholder="TopSqill ITSM"
             required
           />
         </div>
