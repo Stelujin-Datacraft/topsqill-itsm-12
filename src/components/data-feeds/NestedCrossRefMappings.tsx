@@ -53,14 +53,17 @@ export function NestedCrossRefMappings({
       setLoading(true);
       try {
         // Get all fields from target form
-        const { data: fields } = await supabase
+        const { data: fields, error } = await supabase
           .from('form_fields')
           .select('id, label, field_type, custom_config')
           .eq('form_id', targetFormId)
           .order('field_order');
 
+        console.log('📋 Target form fields:', fields?.length, 'Error:', error);
+
         // Filter to only cross-reference fields
         const crossRefFields = (fields || []).filter(f => f.field_type === 'cross-reference');
+        console.log('🔗 Cross-reference fields found:', crossRefFields.length);
         
         // For each cross-ref field, get the linked form info
         const crossRefData: TargetCrossRefField[] = [];
@@ -68,8 +71,11 @@ export function NestedCrossRefMappings({
 
         for (const field of crossRefFields) {
           const config = field.custom_config as any;
+          console.log(`📝 Field "${field.label}" config:`, config);
+          
           // Check both possible property names for the linked form ID
           const linkedFormId = config?.targetFormId || config?.referencedFormId;
+          console.log(`  → Linked form ID: ${linkedFormId || 'NOT CONFIGURED'}`);
           
           if (linkedFormId) {
             // Get linked form name
@@ -94,9 +100,13 @@ export function NestedCrossRefMappings({
             });
 
             linkedFields[field.id] = formFields || [];
+            console.log(`  ✅ Added: "${field.label}" → "${formData?.name}" (${formFields?.length} fields)`);
+          } else {
+            console.log(`  ⚠️ Skipped: "${field.label}" - No linked form configured`);
           }
         }
 
+        console.log('📊 Final cross-ref data:', crossRefData.length, 'fields with valid links');
         setTargetCrossRefFields(crossRefData);
         setLinkedFormFields(linkedFields);
       } finally {
@@ -239,10 +249,21 @@ export function NestedCrossRefMappings({
 
   if (targetCrossRefFields.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg text-muted-foreground">
-        <Database className="h-8 w-8 mb-2" />
-        <p className="text-sm">No cross-reference fields in target form</p>
-        <p className="text-xs">Add cross-reference fields to the target form to enable nested record creation</p>
+      <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg text-muted-foreground bg-muted/20">
+        <Database className="h-8 w-8 mb-3 text-primary/60" />
+        <p className="text-sm font-medium mb-2">No configured cross-reference fields found</p>
+        <div className="text-xs text-center space-y-1 max-w-md">
+          <p className="font-medium text-foreground">To use nested mappings:</p>
+          <ol className="list-decimal list-inside text-left space-y-1 mt-2">
+            <li>Your <strong>Target Form</strong> must have a cross-reference field</li>
+            <li>That cross-reference field must be <strong>linked to another form</strong></li>
+            <li>When the data feed runs, it will create/update records in that linked form</li>
+          </ol>
+          <p className="mt-3 text-muted-foreground">
+            Example: Target Form "Orders" has a cross-reference to "Customers" → 
+            Data feed can auto-create Customer records
+          </p>
+        </div>
       </div>
     );
   }
