@@ -1605,28 +1605,46 @@ export function DataFeedDialog({
                 <div className="flex items-center justify-between">
                   <Label>Field Mappings</Label>
                   <div className="flex gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => addFieldMapping('direct')}>
-                      <Plus className="h-4 w-4 mr-1" />
-                      Direct Mapping
-                    </Button>
-                    {crossRefFields.length > 0 && (
+                    {/* Show Direct Mapping button only for field_matching */}
+                    {formData.matching_type === 'field_matching' && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => addFieldMapping('direct')}>
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Mapping
+                      </Button>
+                    )}
+                    {/* Show Cross-Ref Mapping button only for cross_reference matching */}
+                    {formData.matching_type === 'cross_reference' && crossRefFields.length > 0 && (
                       <Button type="button" variant="outline" size="sm" onClick={() => addFieldMapping('cross_reference')}>
                         <Link2 className="h-4 w-4 mr-1" />
-                        Cross-Ref Mapping
+                        Add Cross-Ref Mapping
                       </Button>
                     )}
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Define which fields from the source are copied to the target. Use cross-ref mapping to pull data from linked records.
+                  {formData.matching_type === 'cross_reference' 
+                    ? 'Pull data from linked records (via the cross-reference field) and map to target fields.'
+                    : 'Map source form fields directly to target form fields.'}
                 </p>
+                {formData.matching_type === 'cross_reference' && crossRefFields.length === 0 && (
+                  <div className="flex items-center gap-2 p-3 border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950 rounded-lg">
+                    <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <p className="text-sm text-amber-700 dark:text-amber-300">
+                      Your source form has no cross-reference fields. Add a cross-reference field to the source form to use this matching type.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {formData.field_mappings.length === 0 && (
                 <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg text-muted-foreground">
                   <ArrowRight className="h-8 w-8 mb-2" />
                   <p className="text-sm">No field mappings configured</p>
-                  <p className="text-xs">Add mappings to define data transfer</p>
+                  <p className="text-xs">
+                    {formData.matching_type === 'cross_reference' 
+                      ? 'Add cross-reference mappings to pull data from linked records'
+                      : 'Add mappings to define data transfer'}
+                  </p>
                 </div>
               )}
 
