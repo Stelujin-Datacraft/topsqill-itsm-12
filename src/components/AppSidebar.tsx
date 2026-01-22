@@ -137,11 +137,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           url: "/audit-logs",
           icon: ClipboardList,
         },
-        {
-          title: "Settings",
-          url: "/settings",
-          icon: Settings,
-        },
       ] : []),
     ],
     projects: projects.map(project => ({
