@@ -1364,16 +1364,16 @@ export function DataFeedDialog({
                                   {rule.id || index + 1}
                                 </Badge>
                                 
-                                {/* Linked field to match */}
+                                {/* Target form field to match */}
                                 <Select
                                   value={rule.linkedFieldId}
                                   onValueChange={(value) => updateCrossRefMatchRule(index, 'linkedFieldId', value)}
                                 >
                                   <SelectTrigger className="flex-1">
-                                    <SelectValue placeholder="Linked record field" />
+                                    <SelectValue placeholder="Target form field" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {getSelectedCrossRefFormFields().map((field) => (
+                                    {targetFields.map((field) => (
                                       <SelectItem key={field.id} value={field.id}>
                                         {field.label}
                                       </SelectItem>
