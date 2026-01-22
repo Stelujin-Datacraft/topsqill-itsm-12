@@ -143,8 +143,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return true;
         }
         
-        // No active session found for this user - this is a new login or all sessions were terminated
-        return true; // Don't log out, let the login flow create a new session
+        // No active session found for this user - create a new session record
+        // This handles cases where user is logged in via Supabase but has no tracked session
+        console.log('No active session found, creating new session record');
+        await createSession(userId, accessToken);
+        return true;
       }
 
       // If session exists and is inactive, sign out the user
@@ -482,9 +485,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (pendingMfa && user) {
       // MFA verified - record successful login and create session
       await recordSuccessfulLogin(user.id);
-      if (session) {
+      
+      // Get the current session from Supabase (state might not be updated yet)
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      if (currentSession) {
+        await createSession(user.id, currentSession.access_token);
+      } else if (session) {
+        // Fallback to state if available
         await createSession(user.id, session.access_token);
       }
+      
       setPendingMfa(null);
     }
   };
