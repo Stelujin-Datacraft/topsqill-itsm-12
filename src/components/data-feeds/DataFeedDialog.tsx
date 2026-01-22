@@ -241,11 +241,20 @@ export function DataFeedDialog({
     }
 
     const fetchFields = async () => {
-      const { data } = await supabase
+      console.log('📊 Fetching target form fields for:', formData.target_form_id);
+      
+      const { data, error } = await supabase
         .from('form_fields')
         .select('id, label, field_type, custom_config')
         .eq('form_id', formData.target_form_id)
         .order('field_order');
+
+      if (error) {
+        console.error('❌ Error fetching target fields:', error);
+        return;
+      }
+
+      console.log('📊 Target form fields loaded:', data?.length, 'fields');
 
       const fields = (data || []).map(f => ({
         ...f,
@@ -257,6 +266,7 @@ export function DataFeedDialog({
       
       // Extract cross-reference fields from target form
       const crossRefs = fields.filter(f => f.field_type === 'cross-reference');
+      console.log('🔗 Cross-reference fields in target form:', crossRefs.length, crossRefs.map(c => ({ id: c.id, label: c.label })));
       setTargetCrossRefFields(crossRefs);
       
       // Fetch fields from cross-referenced forms (for "match by field" feature)
@@ -271,6 +281,8 @@ export function DataFeedDialog({
             config = {};
           }
         }
+        
+        console.log('🔗 Processing cross-ref field:', crossRef.label, 'config:', config);
         
         // Check both targetFormId (current naming) and referencedFormId (legacy naming)
         const referencedFormId = config?.targetFormId || config?.referencedFormId;
@@ -290,6 +302,8 @@ export function DataFeedDialog({
             .eq('form_id', referencedFormId)
             .order('field_order');
           
+          console.log('🔗 Linked form fields for', crossRef.label, ':', refFields?.length, 'fields');
+          
           crossRefData.push({
             crossRefFieldId: crossRef.id,
             referencedFormId,
@@ -298,6 +312,7 @@ export function DataFeedDialog({
           });
         }
       }
+      console.log('🔗 Final targetCrossRefFormFields:', crossRefData.length, 'entries');
       setTargetCrossRefFormFields(crossRefData);
     };
 
