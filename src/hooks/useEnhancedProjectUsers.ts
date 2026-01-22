@@ -4,7 +4,6 @@
  */
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { cacheManager } from '@/lib/cacheManager';
 import type { EnhancedProjectUser } from './useProjectUsersQuery';
 
 // Re-export the new hook and types for easy migration
