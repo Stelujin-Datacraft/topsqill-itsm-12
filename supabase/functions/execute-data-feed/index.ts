@@ -38,23 +38,6 @@ interface SourceFilter {
   value: string;
 }
 
-interface CrossRefMatchRule {
-  id?: string;
-  linkedFieldId: string;
-  sourceFieldId: string;
-  linkedFieldName?: string;
-  sourceFieldName?: string;
-}
-
-interface CrossRefMatchConfig {
-  recordSelection: 'first' | 'all' | 'match_by_field';
-  matchRules?: CrossRefMatchRule[];
-  matchLogic?: string;
-  // Legacy single-rule support
-  matchFieldId?: string;
-  matchSourceFieldId?: string;
-}
-
 interface DataFeed {
   id: string;
   name: string;
@@ -62,7 +45,6 @@ interface DataFeed {
   target_form_id: string;
   matching_type: 'cross_reference' | 'field_matching';
   cross_reference_field_id?: string;
-  cross_ref_match_config?: CrossRefMatchConfig;
   matching_rules: MatchingRule[];
   matching_logic?: string;
   source_filters?: SourceFilter[];
@@ -679,69 +661,9 @@ Deno.serve(async (req) => {
               
               console.log(`🔗 Looking for target records with IDs:`, refIds);
               
-              // Get all matching targets first
-              let allMatchedTargets = (targetSubmissions || []).filter(target => 
+              matchedTargets = (targetSubmissions || []).filter(target => 
                 refIds.includes(target.id) || refIds.includes(target.submission_ref_id)
               );
-
-              // Apply record selection based on cross_ref_match_config
-              const matchConfig = feed.cross_ref_match_config;
-              const recordSelection = matchConfig?.recordSelection || 'all';
-              
-              if (recordSelection === 'first' && allMatchedTargets.length > 0) {
-                // Only take the first matched record
-                matchedTargets = [allMatchedTargets[0]];
-                console.log(`🔗 Record selection: first - using only first of ${allMatchedTargets.length} matches`);
-              } else if (recordSelection === 'match_by_field') {
-                // Handle new multi-rule structure or legacy single-rule
-                const matchRules = matchConfig?.matchRules || [];
-                const matchLogic = matchConfig?.matchLogic || '';
-                
-                if (matchRules.length > 0) {
-                  // New multi-rule matching with logic expressions
-                  matchedTargets = allMatchedTargets.filter(target => {
-                    const targetData = target.submission_data as Record<string, any>;
-                    
-                    // Evaluate each rule
-                    const ruleResults: Record<string, boolean> = {};
-                    for (const rule of matchRules) {
-                      if (rule.linkedFieldId && rule.sourceFieldId) {
-                        const sourceMatchValue = String(sourceData[rule.sourceFieldId] ?? '').toLowerCase().trim();
-                        const targetMatchValue = String(targetData[rule.linkedFieldId] ?? '').toLowerCase().trim();
-                        ruleResults[rule.id || ''] = targetMatchValue === sourceMatchValue;
-                      } else {
-                        ruleResults[rule.id || ''] = false;
-                      }
-                    }
-                    
-                    // Evaluate logic expression (or default to AND)
-                    if (matchLogic && matchRules.length >= 2) {
-                      return evaluateLogicExpression(matchLogic, ruleResults);
-                    } else {
-                      // Default: all rules must match (AND)
-                      return Object.values(ruleResults).every(v => v);
-                    }
-                  });
-                  console.log(`🔗 Record selection: match_by_field (${matchRules.length} rules) - ${matchedTargets.length} of ${allMatchedTargets.length} matches`);
-                } else if (matchConfig?.matchFieldId && matchConfig?.matchSourceFieldId) {
-                  // Legacy single-rule matching
-                  const sourceMatchValue = String(sourceData[matchConfig.matchSourceFieldId] ?? '').toLowerCase().trim();
-                  matchedTargets = allMatchedTargets.filter(target => {
-                    const targetData = target.submission_data as Record<string, any>;
-                    const targetMatchValue = String(targetData[matchConfig.matchFieldId!] ?? '').toLowerCase().trim();
-                    return targetMatchValue === sourceMatchValue;
-                  });
-                  console.log(`🔗 Record selection: match_by_field (legacy) - ${matchedTargets.length} of ${allMatchedTargets.length} matches`);
-                } else {
-                  // No valid matching rules, fall back to all
-                  matchedTargets = allMatchedTargets;
-                  console.log(`🔗 Record selection: match_by_field (no rules) - using all ${matchedTargets.length} matches`);
-                }
-              } else {
-                // Default: all matched records
-                matchedTargets = allMatchedTargets;
-                console.log(`🔗 Record selection: all - using all ${matchedTargets.length} matches`);
-              }
             }
           }
 
