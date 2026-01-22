@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import DashboardLayout from '@/components/DashboardLayout';
+import { PageContent } from '@/components/layouts/PageContent';
 import { DataFeedList } from '@/components/data-feeds/DataFeedList';
 import { DataFeedDialog } from '@/components/data-feeds/DataFeedDialog';
 import { DataFeedHistoryDialog } from '@/components/data-feeds/DataFeedHistoryDialog';
@@ -50,7 +50,7 @@ export default function DataFeeds() {
   };
 
   return (
-    <DashboardLayout>
+    <PageContent title="Data Feeds">
       <div className="container mx-auto py-6 px-4">
         <DataFeedList
           feeds={feeds}
@@ -77,6 +77,6 @@ export default function DataFeeds() {
           feed={selectedFeed}
         />
       </div>
-    </DashboardLayout>
+    </PageContent>
   );
 }

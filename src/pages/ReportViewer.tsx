@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Responsive, WidthProvider } from 'react-grid-layout';
-import DashboardLayout from '@/components/DashboardLayout';
+import { PageContent } from '@/components/layouts/PageContent';
 import { useReports } from '@/hooks/useReports';
 import { Report, ReportComponent } from '@/types/reports';
 import { Button } from '@/components/ui/button';
@@ -197,17 +197,17 @@ const ReportViewerPage = () => {
 
   if (loading) {
     return (
-      <DashboardLayout title="Loading Report...">
+      <PageContent title="Loading Report...">
         <div className="flex items-center justify-center h-64">
           <div className="text-muted-foreground">Loading report...</div>
         </div>
-      </DashboardLayout>
+      </PageContent>
     );
   }
 
   if (!report) {
     return (
-      <DashboardLayout title="Report Not Found">
+      <PageContent title="Report Not Found">
         <div className="text-center py-12">
           <p className="text-muted-foreground mb-4">Report not found</p>
           <Button onClick={() => navigate('/reports')} variant="outline">
@@ -215,12 +215,12 @@ const ReportViewerPage = () => {
             Back to Reports
           </Button>
         </div>
-      </DashboardLayout>
+      </PageContent>
     );
   }
 
   return (
-    <DashboardLayout title="">
+    <PageContent title="">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -349,7 +349,7 @@ const ReportViewerPage = () => {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </PageContent>
   );
 };
 

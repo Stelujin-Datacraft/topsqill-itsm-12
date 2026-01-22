@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import DashboardLayout from '@/components/DashboardLayout';
+import { PageContent } from '@/components/layouts/PageContent';
 import { useReports } from '@/hooks/useReports';
 import { Report } from '@/types/reports';
 import { Button } from '@/components/ui/button';
@@ -28,7 +28,6 @@ const ReportEditorPage = () => {
     try {
       setLoading(true);
       
-      // Handle "new" report creation - redirect to reports page
       if (id === 'new') {
         navigate('/reports');
         return;
@@ -85,17 +84,17 @@ const ReportEditorPage = () => {
 
   if (loading) {
     return (
-      <DashboardLayout title="Report Editor">
+      <PageContent title="Report Editor">
         <div className="flex items-center justify-center h-64">
           <div className="text-muted-foreground">Loading report...</div>
         </div>
-      </DashboardLayout>
+      </PageContent>
     );
   }
 
   if (!report && id !== 'new') {
     return (
-      <DashboardLayout title="Report Editor">
+      <PageContent title="Report Editor">
         <div className="text-center py-12">
           <p className="text-muted-foreground">Report not found</p>
           <Button onClick={() => navigate('/reports')} className="mt-4">
@@ -103,12 +102,12 @@ const ReportEditorPage = () => {
             Back to Reports
           </Button>
         </div>
-      </DashboardLayout>
+      </PageContent>
     );
   }
 
   return (
-    <DashboardLayout title="">
+    <PageContent title="">
       <div className="h-full flex flex-col">
         <div className="flex items-center justify-between mb-4">
           <Button 
@@ -122,13 +121,13 @@ const ReportEditorPage = () => {
 
         <div className="flex-1">
           <ReportEditor
-            reportId={report.id}
-            reportName={report.name}
+            reportId={report!.id}
+            reportName={report!.name}
             onSave={handleSave}
           />
         </div>
       </div>
-    </DashboardLayout>
+    </PageContent>
   );
 };
 

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import DashboardLayout from '@/components/DashboardLayout';
+import { PageContent } from '@/components/layouts/PageContent';
 import { useWorkflowData } from '@/hooks/useWorkflowData';
 import { WorkflowAccessManager } from '@/components/workflows/WorkflowAccessManager';
 import { Button } from '@/components/ui/button';
@@ -17,15 +17,15 @@ const WorkflowAccessManagement = () => {
 
   if (loading) {
     return (
-      <DashboardLayout title="Workflow Access Management">
+      <PageContent title="Workflow Access Management">
         <LoadingScreen message="Loading workflow access..." />
-      </DashboardLayout>
+      </PageContent>
     );
   }
 
   if (!workflow) {
     return (
-      <DashboardLayout title="Workflow Access Management">
+      <PageContent title="Workflow Access Management">
         <div className="text-center py-12">
           <p className="text-muted-foreground">Workflow not found</p>
           <Button onClick={() => navigate('/workflows')} className="mt-4">
@@ -33,12 +33,12 @@ const WorkflowAccessManagement = () => {
             Back to Workflows
           </Button>
         </div>
-      </DashboardLayout>
+      </PageContent>
     );
   }
 
   return (
-    <DashboardLayout title="Workflow Access Management">
+    <PageContent title="Workflow Access Management">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <Button 
@@ -55,7 +55,7 @@ const WorkflowAccessManagement = () => {
           workflowName={workflow.name}
         />
       </div>
-    </DashboardLayout>
+    </PageContent>
   );
 };
 
