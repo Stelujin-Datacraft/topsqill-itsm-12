@@ -14,7 +14,8 @@ import {
   Clock,
   ArrowRight,
   Zap,
-  ArrowLeft
+  ArrowLeft,
+  Shield
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -284,6 +285,33 @@ export default function SettingsPage() {
                 </Button>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* LDAP / Active Directory Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              LDAP / Active Directory
+            </CardTitle>
+            <CardDescription>
+              Enterprise authentication integration
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-center py-6">
+              <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
+                <Server className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <p className="text-muted-foreground mb-4">
+                Connect to your corporate directory for centralized authentication
+              </p>
+              <Button onClick={() => navigate('/ldap-settings')}>
+                <Shield className="h-4 w-4 mr-2" />
+                Configure LDAP
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
