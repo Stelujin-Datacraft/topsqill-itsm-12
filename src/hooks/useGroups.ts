@@ -1,28 +1,18 @@
-
+/**
+ * @deprecated Use useGroupsQuery for React Query caching benefits
+ * This hook is kept for backwards compatibility
+ */
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { cacheManager } from '@/lib/cacheManager';
+import type { Group, GroupMember, CreateGroupData } from './useGroupsQuery';
 
-export interface Group {
-  id: string;
-  name: string;
-  organization_id: string;
-  role_id?: string;
-  created_by: string;
-  created_at: string;
-  updated_at: string;
-  role_name?: string;
-  member_count?: number;
-}
+// Re-export the new hook and types for easy migration
+export { useGroupsQuery } from './useGroupsQuery';
+export type { Group, GroupMember, CreateGroupData } from './useGroupsQuery';
 
-export interface GroupMember {
-  member_id: string;
-  member_type: 'user' | 'group';
-  member_name: string;
-  member_email?: string;
-}
-
-export interface CreateGroupData {
+interface UseGroupsLegacy {
   name: string;
   roleId?: string;
   members: { id: string; type: 'user' | 'group' }[];

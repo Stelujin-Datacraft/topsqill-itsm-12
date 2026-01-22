@@ -1,29 +1,15 @@
-
+/**
+ * @deprecated Use useProjectUsersQuery for React Query caching benefits
+ * This hook is kept for backwards compatibility
+ */
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { cacheManager } from '@/lib/cacheManager';
+import type { EnhancedProjectUser } from './useProjectUsersQuery';
 
-export interface EnhancedProjectUser {
-  user_id: string;
-  email: string;
-  first_name?: string;
-  last_name?: string;
-  role: string;
-  assigned_at: string;
-  assigned_by?: string;
-  last_activity: string;
-  project_permissions: Record<string, string>;
-  asset_permissions: Array<{
-    asset_type: string;
-    asset_id: string;
-    permission_type: string;
-  }>;
-  effective_permissions: {
-    is_project_admin: boolean;
-    is_org_admin: boolean;
-    can_manage_users: boolean;
-    can_manage_settings: boolean;
-  };
-}
+// Re-export the new hook and types for easy migration
+export { useProjectUsersQuery } from './useProjectUsersQuery';
+export type { EnhancedProjectUser } from './useProjectUsersQuery';
 
 export function useEnhancedProjectUsers(projectId: string) {
   const [users, setUsers] = useState<EnhancedProjectUser[]>([]);
