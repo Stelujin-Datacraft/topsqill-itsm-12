@@ -1,8 +1,8 @@
-
 import { LucideIcon } from "lucide-react"
 import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
 import { Link, useLocation } from "react-router-dom"
 import { useProject } from "@/contexts/ProjectContext"
+import { usePrefetch, getPrefetchProps } from "@/hooks/usePrefetch"
 
 export function NavProjects({
   projects,
@@ -15,6 +15,7 @@ export function NavProjects({
 }) {
   const location = useLocation()
   const { setCurrentProject, projects: allProjects } = useProject()
+  const { prefetch, cancelPrefetch } = usePrefetch()
 
   const handleProjectClick = (projectUrl: string) => {
     // Extract project ID from URL and set as current project
@@ -38,6 +39,7 @@ export function NavProjects({
               <Link 
                 to={project.url}
                 onClick={() => handleProjectClick(project.url)}
+                {...getPrefetchProps(prefetch, cancelPrefetch, project.url)}
               >
                 {project.icon && <project.icon />}
                 <span>{project.name}</span>
