@@ -16,7 +16,6 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import PasswordExpiryWarning from "./components/PasswordExpiryWarning";
 import { Loader2 } from "lucide-react";
 import { cacheManager } from "@/lib/cacheManager";
-import { cleanupStaleDrafts } from "@/lib/storageUtils";
 
 // Eagerly loaded (critical path)
 import Index from "./pages/Index";
@@ -125,9 +124,6 @@ const queryClient = new QueryClient({
 
 // Initialize cache manager with query client
 cacheManager.setQueryClient(queryClient);
-
-// Clean up stale localStorage drafts on app start (runs once)
-cleanupStaleDrafts();
 
 const App = () => {
   // Preload critical routes after initial mount

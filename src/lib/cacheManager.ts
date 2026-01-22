@@ -31,10 +31,6 @@ export const queryKeys = {
   // Permissions
   formPermissions: (formId: string) => ['formPermissions', formId] as const,
   assetPermissions: (projectId: string) => ['assetPermissions', projectId] as const,
-  
-  // Saved Queries & Filters
-  savedQueries: () => ['savedQueries'] as const,
-  savedFilters: (formId: string) => ['savedFilters', formId] as const,
 } as const;
 
 class CacheManager {

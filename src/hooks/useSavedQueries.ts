@@ -1,142 +1,192 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import { SavedQuery } from '@/types/queries';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { queryKeys } from '@/lib/cacheManager';
 
-async function fetchSavedQueries(): Promise<SavedQuery[]> {
-  const { data, error } = await (supabase as any)
-    .from('saved_queries')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data || [];
-}
+// Type assertion for saved_queries table until Supabase types are updated
+type SavedQueryRecord = {
+  id: string;
+  name: string;
+  query: string;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+};
 
 export function useSavedQueries() {
-  const queryClient = useQueryClient();
+  const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  const { data: savedQueries = [], isLoading } = useQuery({
-    queryKey: queryKeys.savedQueries(),
-    queryFn: fetchSavedQueries,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-  });
+  // Load saved queries from database
+  const loadSavedQueries = async () => {
+    try {
+      setIsLoading(true);
+      // Use type assertion to bypass TypeScript errors until types are updated
+      const { data, error } = await (supabase as any)
+        .from('saved_queries')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-  const saveMutation = useMutation({
-    mutationFn: async ({ name, query }: { name: string; query: string }) => {
+      if (error) {
+        console.error('Error loading saved queries:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load saved queries",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setSavedQueries(data || []);
+    } catch (error) {
+      console.error('Unexpected error loading saved queries:', error);
+      toast({
+        title: "Error", 
+        description: "Failed to load saved queries",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSavedQueries();
+  }, []);
+
+  const saveQuery = async (name: string, query: string): Promise<SavedQuery | null> => {
+    try {
+      // Get current user or sign in anonymously
       let { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
         const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
-        if (authError) throw new Error('Failed to authenticate user');
+        if (authError) {
+          console.error('Auth error:', authError);
+          toast({
+            title: "Error",
+            description: "Failed to authenticate user",
+            variant: "destructive",
+          });
+          return null;
+        }
         user = authData.user;
       }
 
       const { data, error } = await (supabase as any)
         .from('saved_queries')
-        .insert({ name, query, user_id: user!.id })
+        .insert({
+          name,
+          query,
+          user_id: user.id,
+        })
         .select()
         .single();
 
-      if (error) throw new Error(error.message);
-      return data as SavedQuery;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.savedQueries() });
+      if (error) {
+        console.error('Error saving query:', error);
+        toast({
+          title: "Error",
+          description: "Failed to save query",
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      // Update local state
+      setSavedQueries(prev => [data, ...prev]);
+      
       toast({
         title: "Query Saved",
-        description: `Query "${data.name}" has been saved`,
+        description: `Query "${name}" has been saved`,
       });
-    },
-    onError: (error) => {
-      console.error('Error saving query:', error);
+
+      return data;
+    } catch (error) {
+      console.error('Unexpected error saving query:', error);
       toast({
         title: "Error",
-        description: "Failed to save query",
+        description: "Failed to save query", 
         variant: "destructive",
       });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
-        .from('saved_queries')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw new Error(error.message);
-      return id;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.savedQueries() });
-      toast({
-        title: "Query Deleted",
-        description: "Query has been deleted",
-      });
-    },
-    onError: (error) => {
-      console.error('Error deleting query:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete query",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, name, query }: { id: string; name: string; query: string }) => {
-      const { data, error } = await (supabase as any)
-        .from('saved_queries')
-        .update({ name, query })
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw new Error(error.message);
-      return data as SavedQuery;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.savedQueries() });
-      toast({
-        title: "Query Updated",
-        description: `Query "${data.name}" has been updated`,
-      });
-    },
-    onError: (error) => {
-      console.error('Error updating query:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update query",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const saveQuery = async (name: string, query: string): Promise<SavedQuery | null> => {
-    try {
-      return await saveMutation.mutateAsync({ name, query });
-    } catch {
       return null;
     }
   };
 
   const deleteQuery = async (id: string) => {
-    await deleteMutation.mutateAsync(id);
+    try {
+      const { error } = await (supabase as any)
+        .from('saved_queries')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting query:', error);
+        toast({
+          title: "Error",
+          description: "Failed to delete query",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update local state
+      setSavedQueries(prev => prev.filter(q => q.id !== id));
+      
+      toast({
+        title: "Query Deleted",
+        description: "Query has been deleted",
+      });
+    } catch (error) {
+      console.error('Unexpected error deleting query:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete query",
+        variant: "destructive",
+      });
+    }
   };
 
   const updateQuery = async (id: string, name: string, query: string) => {
-    await updateMutation.mutateAsync({ id, name, query });
-  };
+    try {
+      const { data, error } = await (supabase as any)
+        .from('saved_queries')
+        .update({
+          name,
+          query,
+        })
+        .eq('id', id)
+        .select()
+        .single();
 
-  const refreshQueries = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.savedQueries() });
+      if (error) {
+        console.error('Error updating query:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update query",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update local state
+      setSavedQueries(prev => prev.map(q => 
+        q.id === id ? data : q
+      ));
+      
+      toast({
+        title: "Query Updated",
+        description: `Query "${name}" has been updated`,
+      });
+    } catch (error) {
+      console.error('Unexpected error updating query:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update query",
+        variant: "destructive",
+      });
+    }
   };
 
   return {
@@ -145,6 +195,6 @@ export function useSavedQueries() {
     saveQuery,
     deleteQuery,
     updateQuery,
-    refreshQueries,
+    refreshQueries: loadSavedQueries
   };
 }
