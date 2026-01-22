@@ -38,8 +38,19 @@ interface SourceFilter {
   value: string;
 }
 
+interface CrossRefMatchRule {
+  id?: string;
+  linkedFieldId: string;
+  sourceFieldId: string;
+  linkedFieldName?: string;
+  sourceFieldName?: string;
+}
+
 interface CrossRefMatchConfig {
   recordSelection: 'first' | 'all' | 'match_by_field';
+  matchRules?: CrossRefMatchRule[];
+  matchLogic?: string;
+  // Legacy single-rule support
   matchFieldId?: string;
   matchSourceFieldId?: string;
 }
@@ -681,15 +692,51 @@ Deno.serve(async (req) => {
                 // Only take the first matched record
                 matchedTargets = [allMatchedTargets[0]];
                 console.log(`🔗 Record selection: first - using only first of ${allMatchedTargets.length} matches`);
-              } else if (recordSelection === 'match_by_field' && matchConfig?.matchFieldId && matchConfig?.matchSourceFieldId) {
-                // Filter by field value matching
-                const sourceMatchValue = String(sourceData[matchConfig.matchSourceFieldId] ?? '').toLowerCase().trim();
-                matchedTargets = allMatchedTargets.filter(target => {
-                  const targetData = target.submission_data as Record<string, any>;
-                  const targetMatchValue = String(targetData[matchConfig.matchFieldId!] ?? '').toLowerCase().trim();
-                  return targetMatchValue === sourceMatchValue;
-                });
-                console.log(`🔗 Record selection: match_by_field - ${matchedTargets.length} of ${allMatchedTargets.length} matches (field ${matchConfig.matchFieldId} = "${sourceMatchValue}")`);
+              } else if (recordSelection === 'match_by_field') {
+                // Handle new multi-rule structure or legacy single-rule
+                const matchRules = matchConfig?.matchRules || [];
+                const matchLogic = matchConfig?.matchLogic || '';
+                
+                if (matchRules.length > 0) {
+                  // New multi-rule matching with logic expressions
+                  matchedTargets = allMatchedTargets.filter(target => {
+                    const targetData = target.submission_data as Record<string, any>;
+                    
+                    // Evaluate each rule
+                    const ruleResults: Record<string, boolean> = {};
+                    for (const rule of matchRules) {
+                      if (rule.linkedFieldId && rule.sourceFieldId) {
+                        const sourceMatchValue = String(sourceData[rule.sourceFieldId] ?? '').toLowerCase().trim();
+                        const targetMatchValue = String(targetData[rule.linkedFieldId] ?? '').toLowerCase().trim();
+                        ruleResults[rule.id || ''] = targetMatchValue === sourceMatchValue;
+                      } else {
+                        ruleResults[rule.id || ''] = false;
+                      }
+                    }
+                    
+                    // Evaluate logic expression (or default to AND)
+                    if (matchLogic && matchRules.length >= 2) {
+                      return evaluateLogicExpression(matchLogic, ruleResults);
+                    } else {
+                      // Default: all rules must match (AND)
+                      return Object.values(ruleResults).every(v => v);
+                    }
+                  });
+                  console.log(`🔗 Record selection: match_by_field (${matchRules.length} rules) - ${matchedTargets.length} of ${allMatchedTargets.length} matches`);
+                } else if (matchConfig?.matchFieldId && matchConfig?.matchSourceFieldId) {
+                  // Legacy single-rule matching
+                  const sourceMatchValue = String(sourceData[matchConfig.matchSourceFieldId] ?? '').toLowerCase().trim();
+                  matchedTargets = allMatchedTargets.filter(target => {
+                    const targetData = target.submission_data as Record<string, any>;
+                    const targetMatchValue = String(targetData[matchConfig.matchFieldId!] ?? '').toLowerCase().trim();
+                    return targetMatchValue === sourceMatchValue;
+                  });
+                  console.log(`🔗 Record selection: match_by_field (legacy) - ${matchedTargets.length} of ${allMatchedTargets.length} matches`);
+                } else {
+                  // No valid matching rules, fall back to all
+                  matchedTargets = allMatchedTargets;
+                  console.log(`🔗 Record selection: match_by_field (no rules) - using all ${matchedTargets.length} matches`);
+                }
               } else {
                 // Default: all matched records
                 matchedTargets = allMatchedTargets;
