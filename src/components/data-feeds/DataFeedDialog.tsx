@@ -61,6 +61,9 @@ export function DataFeedDialog({
   const [targetFields, setTargetFields] = useState<FieldOption[]>([]);
   const [crossRefFields, setCrossRefFields] = useState<FieldOption[]>([]);
   const [crossRefFormFields, setCrossRefFormFields] = useState<CrossRefFormFields[]>([]);
+  // Target form cross-reference fields (for matching)
+  const [targetCrossRefFields, setTargetCrossRefFields] = useState<FieldOption[]>([]);
+  const [targetCrossRefFormFields, setTargetCrossRefFormFields] = useState<CrossRefFormFields[]>([]);
   const [scheduleType, setScheduleType] = useState<'none' | 'preset' | 'interval' | 'custom'>('none');
   const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig>({
     type: 'preset',
@@ -183,15 +186,25 @@ export function DataFeedDialog({
       const crossRefs = fields.filter(f => f.field_type === 'cross-reference');
       setCrossRefFields(crossRefs);
       
-      // Fetch fields from cross-referenced forms
+      // Fetch fields from cross-referenced forms (for source form cross-refs, used in mappings)
       const crossRefData: CrossRefFormFields[] = [];
       for (const crossRef of crossRefs) {
-        const config = crossRef.custom_config as any;
+        // Parse custom_config - handle both string and object formats
+        let config: any = crossRef.custom_config;
+        if (typeof config === 'string') {
+          try {
+            config = JSON.parse(config);
+          } catch (e) {
+            config = {};
+          }
+        }
+        
         // Check both targetFormId (current naming) and referencedFormId (legacy naming)
         const referencedFormId = config?.targetFormId || config?.referencedFormId;
+        
         if (referencedFormId) {
           // Get referenced form name
-          const { data: formData } = await supabase
+          const { data: formDataResult } = await supabase
             .from('forms')
             .select('name')
             .eq('id', referencedFormId)
@@ -207,7 +220,7 @@ export function DataFeedDialog({
           crossRefData.push({
             crossRefFieldId: crossRef.id,
             referencedFormId,
-            referencedFormName: formData?.name || config?.targetFormName || 'Unknown Form',
+            referencedFormName: formDataResult?.name || config?.targetFormName || 'Unknown Form',
             fields: refFields || []
           });
         }
@@ -218,21 +231,74 @@ export function DataFeedDialog({
     fetchFields();
   }, [formData.source_form_id, formData.source_type, discoveredFields]);
 
-  // Load target form fields
+  // Load target form fields and cross-reference fields
   useEffect(() => {
     if (!formData.target_form_id) {
       setTargetFields([]);
+      setTargetCrossRefFields([]);
+      setTargetCrossRefFormFields([]);
       return;
     }
 
     const fetchFields = async () => {
       const { data } = await supabase
         .from('form_fields')
-        .select('id, label, field_type')
+        .select('id, label, field_type, custom_config')
         .eq('form_id', formData.target_form_id)
         .order('field_order');
 
-      setTargetFields(data || []);
+      const fields = (data || []).map(f => ({
+        ...f,
+        options: undefined,
+        custom_config: f.custom_config
+      }));
+      
+      setTargetFields(fields);
+      
+      // Extract cross-reference fields from target form
+      const crossRefs = fields.filter(f => f.field_type === 'cross-reference');
+      setTargetCrossRefFields(crossRefs);
+      
+      // Fetch fields from cross-referenced forms (for "match by field" feature)
+      const crossRefData: CrossRefFormFields[] = [];
+      for (const crossRef of crossRefs) {
+        // Parse custom_config - handle both string and object formats
+        let config: any = crossRef.custom_config;
+        if (typeof config === 'string') {
+          try {
+            config = JSON.parse(config);
+          } catch (e) {
+            config = {};
+          }
+        }
+        
+        // Check both targetFormId (current naming) and referencedFormId (legacy naming)
+        const referencedFormId = config?.targetFormId || config?.referencedFormId;
+        
+        if (referencedFormId) {
+          // Get referenced form name
+          const { data: formDataResult } = await supabase
+            .from('forms')
+            .select('name')
+            .eq('id', referencedFormId)
+            .single();
+          
+          // Get fields from referenced form
+          const { data: refFields } = await supabase
+            .from('form_fields')
+            .select('id, label, field_type')
+            .eq('form_id', referencedFormId)
+            .order('field_order');
+          
+          crossRefData.push({
+            crossRefFieldId: crossRef.id,
+            referencedFormId,
+            referencedFormName: formDataResult?.name || config?.targetFormName || 'Unknown Form',
+            fields: refFields || []
+          });
+        }
+      }
+      setTargetCrossRefFormFields(crossRefData);
     };
 
     fetchFields();
@@ -1145,7 +1211,7 @@ export function DataFeedDialog({
               {formData.matching_type === 'cross_reference' && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label>Cross-Reference Field</Label>
+                    <Label>Cross-Reference Field (in Target Form)</Label>
                     <Select
                       value={formData.cross_reference_field_id || ''}
                       onValueChange={(value) => setFormData(prev => ({ ...prev, cross_reference_field_id: value }))}
@@ -1154,16 +1220,16 @@ export function DataFeedDialog({
                         <SelectValue placeholder="Select cross-reference field" />
                       </SelectTrigger>
                       <SelectContent>
-                        {crossRefFields.map((field) => (
+                        {targetCrossRefFields.map((field) => (
                           <SelectItem key={field.id} value={field.id}>
                             {field.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {crossRefFields.length === 0 && formData.source_form_id && (
+                    {targetCrossRefFields.length === 0 && formData.target_form_id && (
                       <p className="text-sm text-muted-foreground">
-                        No cross-reference fields found in the source form.
+                        No cross-reference fields found in the target form.
                       </p>
                     )}
                   </div>
@@ -1225,7 +1291,7 @@ export function DataFeedDialog({
                                 </SelectTrigger>
                                 <SelectContent>
                                   {(() => {
-                                    const crossRefData = crossRefFormFields.find(
+                                    const crossRefData = targetCrossRefFormFields.find(
                                       cf => cf.crossRefFieldId === formData.cross_reference_field_id
                                     );
                                     return crossRefData?.fields.map((field) => (
