@@ -1649,57 +1649,68 @@ export function DataFeedDialog({
               )}
 
               {formData.field_mappings.map((mapping, index) => (
-                <div key={index} className="space-y-2 p-3 border rounded-lg bg-muted/30">
+                <div key={index} className="p-4 border rounded-lg bg-muted/30">
                   {mapping.sourceType === 'cross_reference' ? (
-                    // Cross-reference field mapping
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <Badge variant="outline" className="text-xs">
-                          <Link2 className="h-3 w-3 mr-1" />
-                          Cross-Reference Mapping
-                        </Badge>
+                    // Simplified Cross-reference field mapping
+                    <div className="space-y-4">
+                      {/* Header with delete button */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded bg-primary/10">
+                            <Link2 className="h-4 w-4 text-primary" />
+                          </div>
+                          <span className="font-medium text-sm">Mapping #{index + 1}</span>
+                        </div>
                         <Button
                           type="button"
                           variant="ghost"
-                          size="icon"
+                          size="sm"
                           onClick={() => removeFieldMapping(index)}
+                          className="text-destructive hover:text-destructive"
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                       
-                      {/* Row 1: Cross-Ref Field -> Field from Linked Form -> Target Field */}
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 space-y-1">
-                          <Label className="text-xs text-muted-foreground">Cross-Ref Field</Label>
-                          <Select
-                            value={mapping.crossRefFieldId || ''}
-                            onValueChange={(value) => updateFieldMapping(index, 'crossRefFieldId', value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select cross-reference field" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {crossRefFields.map((field) => (
-                                <SelectItem key={field.id} value={field.id}>
-                                  {field.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div className="flex-1 space-y-1">
-                          <Label className="text-xs text-muted-foreground">
-                            Field from {mapping.crossRefFieldId ? getCrossRefFormName(mapping.crossRefFieldId) : 'linked form'}
+                      {/* Step 1: Select the link field */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">
+                          Step 1: Which linked record to use?
+                        </Label>
+                        <Select
+                          value={mapping.crossRefFieldId || ''}
+                          onValueChange={(value) => updateFieldMapping(index, 'crossRefFieldId', value)}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select the cross-reference field..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {crossRefFields.map((field) => (
+                              <SelectItem key={field.id} value={field.id}>
+                                {field.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {mapping.crossRefFieldId && (
+                          <p className="text-xs text-muted-foreground">
+                            This links to: <span className="font-medium">{getCrossRefFormName(mapping.crossRefFieldId)}</span>
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Step 2: What value to pull (only show after step 1) */}
+                      {mapping.crossRefFieldId && (
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">
+                            Step 2: What value to pull from linked record?
                           </Label>
                           <Select
                             value={mapping.crossRefSourceFieldId || ''}
                             onValueChange={(value) => updateFieldMapping(index, 'crossRefSourceFieldId', value)}
-                            disabled={!mapping.crossRefFieldId}
                           >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select field from linked record" />
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder={`Select field from ${getCrossRefFormName(mapping.crossRefFieldId)}...`} />
                             </SelectTrigger>
                             <SelectContent>
                               {getCrossRefFormFields(mapping.crossRefFieldId || '').map((field) => (
@@ -1710,17 +1721,103 @@ export function DataFeedDialog({
                             </SelectContent>
                           </Select>
                         </div>
+                      )}
 
-                        <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 mt-6" />
+                      {/* Step 3: Where to write (only show after step 2) */}
+                      {mapping.crossRefSourceFieldId && (
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">
+                            Step 3: Where to write this value?
+                          </Label>
+                          <Select
+                            value={mapping.targetFieldId}
+                            onValueChange={(value) => updateFieldMapping(index, 'targetFieldId', value)}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select target field..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {targetFields.map((field) => (
+                                <SelectItem key={field.id} value={field.id}>
+                                  {field.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
 
-                        <div className="flex-1 space-y-1">
-                          <Label className="text-xs text-muted-foreground">Target Field</Label>
+                      {/* Summary when complete */}
+                      {mapping.crossRefFieldId && mapping.crossRefSourceFieldId && mapping.targetFieldId && (
+                        <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+                          <p className="text-sm">
+                            <span className="text-muted-foreground">Summary: </span>
+                            Pull <span className="font-medium text-primary">
+                              {getCrossRefFormFields(mapping.crossRefFieldId).find(f => f.id === mapping.crossRefSourceFieldId)?.label || 'field'}
+                            </span>
+                            {' '}from linked{' '}
+                            <span className="font-medium">{getCrossRefFormName(mapping.crossRefFieldId)}</span>
+                            {' '}→ write to{' '}
+                            <span className="font-medium text-primary">
+                              {targetFields.find(f => f.id === mapping.targetFieldId)?.label || 'target'}
+                            </span>
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // Direct field mapping - simplified
+                    <div className="space-y-3">
+                      {/* Header */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded bg-secondary">
+                            <ArrowRight className="h-4 w-4 text-secondary-foreground" />
+                          </div>
+                          <span className="font-medium text-sm">Mapping #{index + 1}</span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFieldMapping(index)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      {/* Two column layout for source → target */}
+                      <div className="grid grid-cols-[1fr,auto,1fr] gap-3 items-end">
+                        <div className="space-y-2">
+                          <Label className="text-sm">Source Field</Label>
+                          <Select
+                            value={mapping.sourceFieldId}
+                            onValueChange={(value) => updateFieldMapping(index, 'sourceFieldId', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select source field..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {sourceFields.map((field) => (
+                                <SelectItem key={field.id} value={field.id}>
+                                  {field.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <ArrowRight className="h-5 w-5 text-muted-foreground mb-2" />
+
+                        <div className="space-y-2">
+                          <Label className="text-sm">Target Field</Label>
                           <Select
                             value={mapping.targetFieldId}
                             onValueChange={(value) => updateFieldMapping(index, 'targetFieldId', value)}
                           >
                             <SelectTrigger>
-                              <SelectValue placeholder="Target field" />
+                              <SelectValue placeholder="Select target field..." />
                             </SelectTrigger>
                             <SelectContent>
                               {targetFields.map((field) => (
@@ -1732,130 +1829,6 @@ export function DataFeedDialog({
                           </Select>
                         </div>
                       </div>
-                      
-                      {/* Row 2: Record Selection - How to pick which linked record */}
-                      {mapping.crossRefFieldId && (
-                        <div className="pt-2 border-t border-dashed">
-                          <Label className="text-xs text-muted-foreground mb-2 block">
-                            Record Selection (when multiple records are linked)
-                          </Label>
-                          <div className="flex items-start gap-2">
-                            <div className="w-[180px] space-y-1">
-                              <Select
-                                value={mapping.crossRefMatchType || 'first'}
-                                onValueChange={(value) => updateFieldMapping(index, 'crossRefMatchType' as keyof FieldMapping, value)}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selection method" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="first">Use First Record</SelectItem>
-                                  <SelectItem value="static_value">Match by Value</SelectItem>
-                                  <SelectItem value="source_field">Match by Source Field</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            
-                            {(mapping.crossRefMatchType === 'static_value' || mapping.crossRefMatchType === 'source_field') && (
-                              <>
-                                <div className="flex-1 space-y-1">
-                                  <Select
-                                    value={mapping.crossRefMatchFieldId || ''}
-                                    onValueChange={(value) => updateFieldMapping(index, 'crossRefMatchFieldId' as keyof FieldMapping, value)}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Linked field to match" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {getCrossRefFormFields(mapping.crossRefFieldId || '').map((field) => (
-                                        <SelectItem key={field.id} value={field.id}>
-                                          {field.label}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                
-                                <span className="text-xs text-muted-foreground mt-2">=</span>
-                                
-                                {mapping.crossRefMatchType === 'static_value' ? (
-                                  <div className="flex-1 space-y-1">
-                                    <Input
-                                      value={mapping.crossRefMatchValue || ''}
-                                      onChange={(e) => updateFieldMapping(index, 'crossRefMatchValue' as keyof FieldMapping, e.target.value)}
-                                      placeholder="Value to match"
-                                    />
-                                  </div>
-                                ) : (
-                                  <div className="flex-1 space-y-1">
-                                    <Select
-                                      value={mapping.crossRefMatchSourceFieldId || ''}
-                                      onValueChange={(value) => updateFieldMapping(index, 'crossRefMatchSourceFieldId' as keyof FieldMapping, value)}
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Source field to compare" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {sourceFields.map((field) => (
-                                          <SelectItem key={field.id} value={field.id}>
-                                            {field.label}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    // Direct field mapping
-                    <div className="flex items-center gap-2">
-                      <Select
-                        value={mapping.sourceFieldId}
-                        onValueChange={(value) => updateFieldMapping(index, 'sourceFieldId', value)}
-                      >
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Source field" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {sourceFields.map((field) => (
-                            <SelectItem key={field.id} value={field.id}>
-                              {field.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-
-                      <Select
-                        value={mapping.targetFieldId}
-                        onValueChange={(value) => updateFieldMapping(index, 'targetFieldId', value)}
-                      >
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Target field" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {targetFields.map((field) => (
-                            <SelectItem key={field.id} value={field.id}>
-                              {field.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeFieldMapping(index)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
                     </div>
                   )}
                 </div>
