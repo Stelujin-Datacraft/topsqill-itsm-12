@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DataFeed, DataFeedFormData, FieldMapping, MatchingRule, SourceFilter, FilterOperator, SCHEDULE_PRESETS, FILTER_OPERATORS, ScheduleConfig, buildCronFromConfig, parseCronToReadable, getOperatorsForFieldType, getFieldCategory, SourceType, ExternalSourceConfig as ExternalSourceConfigType, DiscoveredField } from '@/types/dataFeed';
+import { DataFeed, DataFeedFormData, FieldMapping, MatchingRule, SourceFilter, FilterOperator, SCHEDULE_PRESETS, FILTER_OPERATORS, ScheduleConfig, buildCronFromConfig, parseCronToReadable, getOperatorsForFieldType, getFieldCategory, SourceType, ExternalSourceConfig as ExternalSourceConfigType, DiscoveredField, CrossRefMatchConfig } from '@/types/dataFeed';
 import { DataSourceConnection } from '@/types/externalDataSource';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -94,6 +94,7 @@ export function DataFeedDialog({
     matching_type: 'field_matching',
     matching_rules: [],
     matching_logic: '',
+    cross_ref_match_config: { recordSelection: 'all' },
     source_filters: [],
     source_filter_logic: '',
     field_mappings: [],
@@ -267,6 +268,7 @@ export function DataFeedDialog({
         target_form_id: feed.target_form_id,
         matching_type: feed.matching_type,
         cross_reference_field_id: feed.cross_reference_field_id,
+        cross_ref_match_config: (feed as any).cross_ref_match_config || { recordSelection: 'all' },
         matching_rules: rulesWithIds,
         matching_logic: feed.matching_logic || '',
         source_filters: filtersWithIds,
@@ -289,6 +291,7 @@ export function DataFeedDialog({
         matching_type: 'field_matching',
         matching_rules: [],
         matching_logic: '',
+        cross_ref_match_config: { recordSelection: 'all' },
         source_filters: [],
         source_filter_logic: '',
         field_mappings: [],
@@ -1139,27 +1142,132 @@ export function DataFeedDialog({
               </div>
 
               {formData.matching_type === 'cross_reference' && (
-                <div className="space-y-2">
-                  <Label>Cross-Reference Field</Label>
-                  <Select
-                    value={formData.cross_reference_field_id || ''}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, cross_reference_field_id: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select cross-reference field" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {crossRefFields.map((field) => (
-                        <SelectItem key={field.id} value={field.id}>
-                          {field.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {crossRefFields.length === 0 && formData.source_form_id && (
-                    <p className="text-sm text-muted-foreground">
-                      No cross-reference fields found in the source form.
-                    </p>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Cross-Reference Field</Label>
+                    <Select
+                      value={formData.cross_reference_field_id || ''}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, cross_reference_field_id: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select cross-reference field" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {crossRefFields.map((field) => (
+                          <SelectItem key={field.id} value={field.id}>
+                            {field.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {crossRefFields.length === 0 && formData.source_form_id && (
+                      <p className="text-sm text-muted-foreground">
+                        No cross-reference fields found in the source form.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Record Selection for Cross-Reference */}
+                  {formData.cross_reference_field_id && (
+                    <div className="space-y-3 p-3 bg-muted/50 rounded-lg border">
+                      <Label className="text-sm font-medium">Record Selection (when multiple records are linked)</Label>
+                      <RadioGroup
+                        value={formData.cross_ref_match_config?.recordSelection || 'all'}
+                        onValueChange={(value) => setFormData(prev => ({
+                          ...prev,
+                          cross_ref_match_config: {
+                            ...prev.cross_ref_match_config,
+                            recordSelection: value as 'first' | 'all' | 'match_by_field'
+                          }
+                        }))}
+                        className="space-y-2"
+                      >
+                        <div className="flex items-center space-x-2 p-2 border rounded-md bg-background hover:bg-muted/50">
+                          <RadioGroupItem value="all" id="cross_ref_all" />
+                          <Label htmlFor="cross_ref_all" className="font-normal cursor-pointer flex-1">
+                            Update all linked records
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2 p-2 border rounded-md bg-background hover:bg-muted/50">
+                          <RadioGroupItem value="first" id="cross_ref_first" />
+                          <Label htmlFor="cross_ref_first" className="font-normal cursor-pointer flex-1">
+                            Update first linked record only
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2 p-2 border rounded-md bg-background hover:bg-muted/50">
+                          <RadioGroupItem value="match_by_field" id="cross_ref_match" />
+                          <Label htmlFor="cross_ref_match" className="font-normal cursor-pointer flex-1">
+                            Match by field value
+                          </Label>
+                        </div>
+                      </RadioGroup>
+
+                      {/* Match by Field Configuration */}
+                      {formData.cross_ref_match_config?.recordSelection === 'match_by_field' && (
+                        <div className="space-y-3 pt-2 border-t border-dashed">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Field in linked record</Label>
+                              <Select
+                                value={formData.cross_ref_match_config?.matchFieldId || ''}
+                                onValueChange={(value) => setFormData(prev => ({
+                                  ...prev,
+                                  cross_ref_match_config: {
+                                    ...prev.cross_ref_match_config,
+                                    recordSelection: 'match_by_field',
+                                    matchFieldId: value
+                                  }
+                                }))}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select field" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {(() => {
+                                    const crossRefData = crossRefFormFields.find(
+                                      cf => cf.crossRefFieldId === formData.cross_reference_field_id
+                                    );
+                                    return crossRefData?.fields.map((field) => (
+                                      <SelectItem key={field.id} value={field.id}>
+                                        {field.label}
+                                      </SelectItem>
+                                    )) || [];
+                                  })()}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Equals source field</Label>
+                              <Select
+                                value={formData.cross_ref_match_config?.matchSourceFieldId || ''}
+                                onValueChange={(value) => setFormData(prev => ({
+                                  ...prev,
+                                  cross_ref_match_config: {
+                                    ...prev.cross_ref_match_config,
+                                    recordSelection: 'match_by_field',
+                                    matchSourceFieldId: value
+                                  }
+                                }))}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select source field" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {sourceFields.map((field) => (
+                                    <SelectItem key={field.id} value={field.id}>
+                                      {field.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Only update linked records where the selected field matches the source field value.
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               )}

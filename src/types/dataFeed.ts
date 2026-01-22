@@ -67,6 +67,15 @@ export interface MatchingRule {
   targetFieldName?: string;
 }
 
+// Cross-reference record selection type for matching
+export type CrossRefRecordSelection = 'first' | 'all' | 'match_by_field';
+
+export interface CrossRefMatchConfig {
+  recordSelection: CrossRefRecordSelection;
+  matchFieldId?: string; // Field in linked record to match against
+  matchSourceFieldId?: string; // Field in source record to compare with
+}
+
 export interface DataFeed {
   id: string;
   name: string;
@@ -77,6 +86,7 @@ export interface DataFeed {
   target_form_id: string;
   matching_type: 'cross_reference' | 'field_matching';
   cross_reference_field_id?: string;
+  cross_ref_match_config?: CrossRefMatchConfig; // Record selection for cross-ref matching
   matching_rules: MatchingRule[];
   matching_logic?: string; // Logic expression e.g. "1 AND 2", "(1 OR 2) AND 3"
   source_filters?: SourceFilter[]; // Filters to apply to source records
@@ -129,6 +139,7 @@ export interface DataFeedFormData {
   target_form_id: string;
   matching_type: 'cross_reference' | 'field_matching';
   cross_reference_field_id?: string;
+  cross_ref_match_config?: CrossRefMatchConfig; // Record selection for cross-ref matching
   matching_rules: MatchingRule[];
   matching_logic?: string; // Logic expression e.g. "1 AND 2", "(1 OR 2) AND 3"
   source_filters?: SourceFilter[]; // Filters to apply to source records
