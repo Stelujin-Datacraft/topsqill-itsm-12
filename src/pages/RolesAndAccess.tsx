@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import DashboardLayout from '@/components/DashboardLayout';
+import { PageContent } from '@/components/layouts/PageContent';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UserRolesTab } from '@/components/roles/UserRolesTab';
 import { GroupRolesTab } from '@/components/roles/GroupRolesTab';
@@ -15,7 +15,7 @@ const RolesAndAccess = () => {
   // Only admins can access this page (respects impersonation)
   if (effectiveRole !== 'admin') {
     return (
-      <DashboardLayout title="Access Denied">
+      <PageContent title="Access Denied">
         <div className="text-center py-12">
           <Shield className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
@@ -23,12 +23,12 @@ const RolesAndAccess = () => {
             You need administrator privileges to access this page.
           </p>
         </div>
-      </DashboardLayout>
+      </PageContent>
     );
   }
 
   return (
-    <DashboardLayout title="Roles and Access">
+    <PageContent title="Roles and Access">
       <div className="space-y-6">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Shield className="h-4 w-4" />
@@ -55,7 +55,7 @@ const RolesAndAccess = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
+    </PageContent>
   );
 };
 

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import DashboardLayout from '@/components/DashboardLayout';
+import { PageContent } from '@/components/layouts/PageContent';
 import { FormsList } from '@/components/FormsList';
 import { CreateFormDialog } from '@/components/CreateFormDialog';
 import { AssignedFormsDialog } from '@/components/AssignedFormsDialog';
@@ -17,9 +17,9 @@ const Forms = () => {
 
   if (!currentProject) {
     return (
-      <DashboardLayout title="Forms">
+      <PageContent title="Forms">
         <NoProjectSelected />
-      </DashboardLayout>
+      </PageContent>
     );
   }
 
@@ -28,14 +28,14 @@ const Forms = () => {
   
   if (!permissionLoading && !canReadForms) {
     return (
-      <DashboardLayout title="Forms">
+      <PageContent title="Forms">
         <div className="text-center py-12">
           <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
           <p className="text-muted-foreground">
             You don't have permission to view forms in this project.
           </p>
         </div>
-      </DashboardLayout>
+      </PageContent>
     );
   }
 
@@ -57,9 +57,9 @@ const Forms = () => {
   );
 
   return (
-    <DashboardLayout title="Forms" actions={actions}>
+    <PageContent title="Forms" actions={actions}>
       <FormsList />
-    </DashboardLayout>
+    </PageContent>
   );
 };
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import DashboardLayout from '@/components/DashboardLayout';
+import { PageContent } from '@/components/layouts/PageContent';
 import { useAuth } from '@/contexts/AuthContext';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { Shield, Search, User, Users, Key, Lock, Monitor, FolderKanban, Eye } from 'lucide-react';
@@ -41,16 +41,16 @@ export default function InvestigateAccess() {
 
   if (!userProfile) {
     return (
-      <DashboardLayout title="Loading...">
+      <PageContent title="Loading...">
         <div className="text-center py-12">
           <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
         </div>
-      </DashboardLayout>
+      </PageContent>
     );
   }
 
   return (
-    <DashboardLayout title="Investigate Access">
+    <PageContent title="Investigate Access">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -207,6 +207,6 @@ export default function InvestigateAccess() {
           </Card>
         )}
       </div>
-    </DashboardLayout>
+    </PageContent>
   );
 }

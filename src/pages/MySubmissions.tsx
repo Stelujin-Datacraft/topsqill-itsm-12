@@ -1,13 +1,13 @@
 
 import React from 'react';
-import DashboardLayout from '@/components/DashboardLayout';
+import { PageContent } from '@/components/layouts/PageContent';
 import { MySubmissions as MySubmissionsComponent } from '@/components/MySubmissions';
 
 const MySubmissions = () => {
   return (
-    <DashboardLayout>
+    <PageContent>
       <MySubmissionsComponent />
-    </DashboardLayout>
+    </PageContent>
   );
 };
 
