@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 
 // Map routes to their lazy-loaded components for prefetching
 const routePrefetchMap: Record<string, () => Promise<unknown>> = {
@@ -29,17 +29,10 @@ const prefetchedRoutes = new Set<string>();
 
 /**
  * Hook to prefetch route components on hover for faster navigation
- * Uses a 100ms delay to avoid prefetching on quick mouse movements
+ * Prefetches immediately on hover for instant navigation
  */
 export function usePrefetch() {
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   const prefetch = useCallback((url: string) => {
-    // Clear any pending prefetch
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-
     // Normalize the URL to match route patterns
     const normalizedUrl = getNormalizedRoute(url);
     
@@ -48,27 +41,21 @@ export function usePrefetch() {
       return;
     }
 
-    // Delay prefetch to avoid loading on quick mouse movements
-    timeoutRef.current = setTimeout(() => {
-      const loader = routePrefetchMap[normalizedUrl];
-      if (loader) {
-        loader()
-          .then(() => {
-            prefetchedRoutes.add(normalizedUrl);
-          })
-          .catch(() => {
-            // Silently fail - prefetch is just an optimization
-          });
-      }
-    }, 100);
-  }, []);
-
-  const cancelPrefetch = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
+    // Prefetch immediately for fastest navigation
+    const loader = routePrefetchMap[normalizedUrl];
+    if (loader) {
+      loader()
+        .then(() => {
+          prefetchedRoutes.add(normalizedUrl);
+        })
+        .catch(() => {
+          // Silently fail - prefetch is just an optimization
+        });
     }
   }, []);
+
+  // No-op cancel since we prefetch immediately
+  const cancelPrefetch = useCallback(() => {}, []);
 
   return { prefetch, cancelPrefetch };
 }
