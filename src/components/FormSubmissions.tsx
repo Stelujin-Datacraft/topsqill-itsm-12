@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,6 +43,7 @@ export function FormSubmissions({
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [approvalFilter, setApprovalFilter] = useState<string>('all');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { userProfile } = useAuth();
@@ -147,11 +149,12 @@ export function FormSubmissions({
     }));
   }, [submissions, applyAccessFilter]);
 
-  const filteredSubmissions = accessFilteredSubmissions.filter(submission => {
-    const matchesSearch = submission.submittedBy.toLowerCase().includes(searchTerm.toLowerCase()) || Object.values(submission.submissionData).some(value => String(value).toLowerCase().includes(searchTerm.toLowerCase()));
+  // Use debounced search term for filtering (prevents excessive filtering during typing)
+  const filteredSubmissions = useMemo(() => accessFilteredSubmissions.filter(submission => {
+    const matchesSearch = submission.submittedBy.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || Object.values(submission.submissionData).some(value => String(value).toLowerCase().includes(debouncedSearchTerm.toLowerCase()));
     const matchesApprovalFilter = approvalFilter === 'all' || submission.approvalStatus === approvalFilter;
     return matchesSearch && matchesApprovalFilter;
-  });
+  }), [accessFilteredSubmissions, debouncedSearchTerm, approvalFilter]);
   const handleViewSubmission = (submission: FormSubmission) => {
     navigate(`/submission/${submission.id}`);
   };
