@@ -11,7 +11,7 @@ import { Loader2, User, Mail, Phone, Globe, Calendar, Edit, ArrowLeft, Shield, C
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
-import { PageContent } from '@/components/layouts/PageContent';
+import DashboardLayout from '@/components/DashboardLayout';
 
 const TIMEZONE_OPTIONS = [
   { value: 'UTC', label: 'UTC' },
@@ -265,11 +265,11 @@ const UserProfile = () => {
 
   if (!userProfile) {
     return (
-      <PageContent title="Profile">
+      <DashboardLayout title="Profile">
         <div className="flex items-center justify-center h-[60vh]">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </PageContent>
+      </DashboardLayout>
     );
   }
 
@@ -295,7 +295,7 @@ const UserProfile = () => {
   );
 
   return (
-    <PageContent title="Profile" actions={headerActions}>
+    <DashboardLayout title="Profile" actions={headerActions}>
       <div className="space-y-6">
         {/* Profile Header Card */}
         <Card className="overflow-hidden">
@@ -576,7 +576,7 @@ const UserProfile = () => {
           </form>
         )}
       </div>
-    </PageContent>
+    </DashboardLayout>
   );
 };
 

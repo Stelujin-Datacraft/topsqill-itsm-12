@@ -26,7 +26,7 @@ import {
   X
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { PageContent } from '@/components/layouts/PageContent';
+import DashboardLayout from '@/components/DashboardLayout';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -215,17 +215,17 @@ export default function ProjectOverview() {
 
   if (loading) {
     return (
-      <PageContent title="Project Overview">
+      <DashboardLayout title="Project Overview">
         <div className="flex items-center justify-center h-64">
           <div className="text-muted-foreground">Loading project...</div>
         </div>
-      </PageContent>
+      </DashboardLayout>
     );
   }
 
   if (!project) {
     return (
-      <PageContent title="Project Not Found">
+      <DashboardLayout title="Project Not Found">
         <Card>
           <CardContent className="p-8 text-center">
             <div className="text-muted-foreground mb-4">Project not found</div>
@@ -235,7 +235,7 @@ export default function ProjectOverview() {
             </Button>
           </CardContent>
         </Card>
-      </PageContent>
+      </DashboardLayout>
     );
   }
 
@@ -243,7 +243,7 @@ export default function ProjectOverview() {
   const canDelete = canDeleteProject();
 
   return (
-    <PageContent 
+    <DashboardLayout 
       title={project.name}
       actions={
         <div className="flex items-center gap-2">
@@ -643,6 +643,6 @@ export default function ProjectOverview() {
           </CardContent>
         </Card>
       </div>
-    </PageContent>
+    </DashboardLayout>
   );
 }

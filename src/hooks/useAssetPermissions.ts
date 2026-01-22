@@ -14,7 +14,7 @@ export function useAssetPermissions(projectId: string) {
     try {
       const { data, error } = await supabase
         .from('asset_permissions')
-        .select('id, project_id, user_id, asset_type, asset_id, permission_type, granted_at, granted_by')
+        .select('*')
         .eq('project_id', projectId);
 
       if (error) {

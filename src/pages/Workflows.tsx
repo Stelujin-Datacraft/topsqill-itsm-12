@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { PageContent } from '@/components/layouts/PageContent';
+import DashboardLayout from '@/components/DashboardLayout';
 import { WorkflowsList } from '@/components/workflows/WorkflowsList';
 import { useWorkflowData } from '@/hooks/useWorkflowData';
 import { useNavigate } from 'react-router-dom';
@@ -17,9 +17,9 @@ const Workflows = () => {
 
   if (!currentProject) {
     return (
-      <PageContent title="Workflows">
+      <DashboardLayout title="Workflows">
         <NoProjectSelected />
-      </PageContent>
+      </DashboardLayout>
     );
   }
 
@@ -28,14 +28,14 @@ const Workflows = () => {
   
   if (!permissionLoading && !canReadWorkflows) {
     return (
-      <PageContent title="Workflows">
+      <DashboardLayout title="Workflows">
         <div className="text-center py-12">
           <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
           <p className="text-muted-foreground">
             You don't have permission to view workflows in this project.
           </p>
         </div>
-      </PageContent>
+      </DashboardLayout>
     );
   }
 
@@ -72,7 +72,7 @@ const Workflows = () => {
   const isLoading = workflowsLoading || permissionLoading;
 
   return (
-    <PageContent title="Workflows">
+    <DashboardLayout title="Workflows">
       <WorkflowsList 
         workflows={visibleWorkflows}
         isLoading={isLoading}
@@ -81,7 +81,7 @@ const Workflows = () => {
         onDelete={handleDeleteWorkflow}
         getPermissions={getWorkflowPermissions}
       />
-    </PageContent>
+    </DashboardLayout>
   );
 };
 

@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { PageContent } from '@/components/layouts/PageContent';
+import DashboardLayout from '@/components/DashboardLayout';
 import { 
   Monitor, 
   Smartphone, 
@@ -256,7 +256,7 @@ const ManageSessions: React.FC = () => {
   );
 
   return (
-    <PageContent title="Manage Sessions" actions={headerActions}>
+    <DashboardLayout title="Manage Sessions" actions={headerActions}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <p className="text-muted-foreground">View and manage your active sessions across devices</p>
@@ -430,7 +430,7 @@ const ManageSessions: React.FC = () => {
           </CardContent>
         </Card>
       </div>
-    </PageContent>
+    </DashboardLayout>
   );
 };
 

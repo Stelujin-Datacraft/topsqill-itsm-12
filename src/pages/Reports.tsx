@@ -1,5 +1,5 @@
 import React from 'react';
-import { PageContent } from '@/components/layouts/PageContent';
+import DashboardLayout from '@/components/DashboardLayout';
 import { ReportsList } from '@/components/reports/ReportsList';
 import { CreateReportDialog } from '@/components/reports/CreateReportDialog';
 import { useReports } from '@/hooks/useReports';
@@ -17,9 +17,9 @@ const Reports = () => {
 
   if (!currentProject) {
     return (
-      <PageContent title="Reports">
+      <DashboardLayout title="Reports">
         <NoProjectSelected />
-      </PageContent>
+      </DashboardLayout>
     );
   }
 
@@ -28,14 +28,14 @@ const Reports = () => {
   
   if (!permissionLoading && !canReadReports) {
     return (
-      <PageContent title="Reports">
+      <DashboardLayout title="Reports">
         <div className="text-center py-12">
           <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
           <p className="text-muted-foreground">
             You don't have permission to view reports in this project.
           </p>
         </div>
-      </PageContent>
+      </DashboardLayout>
     );
   }
 
@@ -73,7 +73,7 @@ const Reports = () => {
   const isLoading = loading || permissionLoading;
 
   return (
-    <PageContent title="Reports">
+    <DashboardLayout title="Reports">
       <div className="space-y-6">
         <ReportsList
           reports={visibleReports}
@@ -85,7 +85,7 @@ const Reports = () => {
           getPermissions={getReportPermissions}
         />
       </div>
-    </PageContent>
+    </DashboardLayout>
   );
 };
 

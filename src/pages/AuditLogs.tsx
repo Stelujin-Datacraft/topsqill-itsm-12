@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { PageContent } from '@/components/layouts/PageContent';
+import DashboardLayout from '@/components/DashboardLayout';
 import {
   RefreshCw,
   Search,
@@ -188,7 +188,7 @@ const AuditLogs: React.FC = () => {
   );
 
   return (
-    <PageContent title="Audit Logs" actions={headerActions}>
+    <DashboardLayout title="Audit Logs" actions={headerActions}>
       <div className="space-y-6">
         <p className="text-muted-foreground">
           {effectiveRole === 'admin' ? 'View all security and activity logs across the organization' : 'View your activity logs'}
@@ -343,7 +343,7 @@ const AuditLogs: React.FC = () => {
           </CardContent>
         </Card>
       </div>
-    </PageContent>
+    </DashboardLayout>
   );
 };
 

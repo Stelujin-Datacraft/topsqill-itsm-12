@@ -2,7 +2,7 @@
 import React from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { SubmissionFormView } from '@/components/SubmissionFormView';
-import { PageContent } from '@/components/layouts/PageContent';
+import DashboardLayout from '@/components/DashboardLayout';
 
 const SubmissionView = () => {
   const { submissionId } = useParams<{ submissionId: string }>();
@@ -12,12 +12,12 @@ const SubmissionView = () => {
 
   if (!submissionId) {
     return (
-      <PageContent title="Invalid Submission">
-        <div className="text-center py-12">
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
           <h2 className="text-2xl font-bold mb-2">Invalid Submission</h2>
           <p className="text-muted-foreground mb-4">No submission ID provided.</p>
         </div>
-      </PageContent>
+      </div>
     );
   }
 
@@ -26,7 +26,7 @@ const SubmissionView = () => {
   };
 
   return (
-    <PageContent 
+    <DashboardLayout 
       title={isEditing ? "Edit Submission" : "Submission Details"}
       actions={
         <button 
@@ -43,7 +43,7 @@ const SubmissionView = () => {
           onBack={handleBack}
         />
       </div>
-    </PageContent>
+    </DashboardLayout>
   );
 };
 

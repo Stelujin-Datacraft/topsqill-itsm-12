@@ -41,7 +41,7 @@ export function useFormSubmissionData(formId?: string) {
       setLoading(true);
       const { data, error } = await supabase
         .from('form_submissions')
-        .select('id, form_id, submitted_by, submitted_at, submission_data, approval_status, approved_by, approval_timestamp, ip_address, user_agent')
+        .select('*')
         .eq('form_id', selectedFormId)
         .order('submitted_at', { ascending: false });
 

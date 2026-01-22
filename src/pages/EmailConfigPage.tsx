@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { toast } from '@/hooks/use-toast';
-import { PageContent } from '@/components/layouts/PageContent';
+import DashboardLayout from '@/components/DashboardLayout';
 import { TestEmailDialog } from '@/components/email/TestEmailDialog';
 import { useNavigate } from 'react-router-dom';
 
@@ -228,16 +228,16 @@ export default function EmailConfigPage() {
 
   if (loading && configs.length === 0) {
     return (
-      <PageContent title="Email Configuration">
+      <DashboardLayout title="Email Configuration">
         <div className="flex items-center justify-center p-8">
           <div className="text-muted-foreground">Loading...</div>
         </div>
-      </PageContent>
+      </DashboardLayout>
     );
   }
 
   return (
-    <PageContent title="Email Configuration">
+    <DashboardLayout title="Email Configuration">
       <div className="space-y-8">
         {/* Header Section */}
         <div className="flex flex-col gap-2">
@@ -561,7 +561,7 @@ export default function EmailConfigPage() {
           defaultEmail={userProfile?.email || ''}
         />
       </div>
-    </PageContent>
+    </DashboardLayout>
   );
 }
 

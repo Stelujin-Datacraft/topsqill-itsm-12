@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { PageContent } from '@/components/layouts/PageContent';
+import DashboardLayout from '@/components/DashboardLayout';
 import { useReports } from '@/hooks/useReports';
 import { ReportAccessManager } from '@/components/reports/ReportAccessManager';
 import { Button } from '@/components/ui/button';
@@ -17,15 +17,15 @@ const ReportAccessManagement = () => {
 
   if (loading) {
     return (
-      <PageContent title="Report Access Management">
+      <DashboardLayout title="Report Access Management">
         <LoadingScreen message="Loading report access..." />
-      </PageContent>
+      </DashboardLayout>
     );
   }
 
   if (!report) {
     return (
-      <PageContent title="Report Access Management">
+      <DashboardLayout title="Report Access Management">
         <div className="text-center py-12">
           <p className="text-muted-foreground">Report not found</p>
           <Button onClick={() => navigate('/reports')} className="mt-4">
@@ -33,12 +33,12 @@ const ReportAccessManagement = () => {
             Back to Reports
           </Button>
         </div>
-      </PageContent>
+      </DashboardLayout>
     );
   }
 
   return (
-    <PageContent title="Report Access Management">
+    <DashboardLayout title="Report Access Management">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <Button 
@@ -55,7 +55,7 @@ const ReportAccessManagement = () => {
           reportName={report.name}
         />
       </div>
-    </PageContent>
+    </DashboardLayout>
   );
 };
 

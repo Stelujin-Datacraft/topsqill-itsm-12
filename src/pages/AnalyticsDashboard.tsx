@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PageContent } from '@/components/layouts/PageContent';
+import DashboardLayout from '@/components/DashboardLayout';
 import { useForm } from '@/contexts/FormContext';
 import { useReports } from '@/hooks/useReports';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -281,7 +281,7 @@ const AnalyticsDashboard = () => {
   };
 
   return (
-    <PageContent title="Analytics Dashboard">
+    <DashboardLayout title="Analytics Dashboard">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <Button 
@@ -678,7 +678,7 @@ const AnalyticsDashboard = () => {
           </Card>
         )}
       </div>
-    </PageContent>
+    </DashboardLayout>
   );
 };
 

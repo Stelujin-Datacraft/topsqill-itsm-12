@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
-import { PageContent } from '@/components/layouts/PageContent';
+import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -194,16 +194,16 @@ const Users = () => {
 
   if (loading) {
     return (
-      <PageContent title="Team Members">
+      <DashboardLayout title="Team Members">
         <div className="flex items-center justify-center py-24">
           <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
         </div>
-      </PageContent>
+      </DashboardLayout>
     );
   }
 
   return (
-    <PageContent title="Team Members">
+    <DashboardLayout title="Team Members">
       <div className="space-y-6">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
@@ -542,7 +542,7 @@ const Users = () => {
         open={templatesManagerOpen}
         onOpenChange={setTemplatesManagerOpen}
       />
-    </PageContent>
+    </DashboardLayout>
   );
 };
 

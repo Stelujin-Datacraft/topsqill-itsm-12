@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { PageContent } from '@/components/layouts/PageContent';
+import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -78,7 +78,7 @@ const Settings = () => {
   };
 
   return (
-    <PageContent title="Settings">
+    <DashboardLayout title="Settings">
       <Tabs defaultValue="profile" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="profile" className="flex items-center gap-2">
@@ -298,7 +298,7 @@ const Settings = () => {
           </Card>
         </TabsContent>
       </Tabs>
-    </PageContent>
+    </DashboardLayout>
   );
 };
 

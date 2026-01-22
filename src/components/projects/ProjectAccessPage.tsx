@@ -7,7 +7,7 @@ import { Project } from '@/types/project';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
-import { PageContent } from '@/components/layouts/PageContent';
+import DashboardLayout from '@/components/DashboardLayout';
 import { ProjectUsersTable } from './ProjectUsersTable';
 import { UserInvitationSection } from './UserInvitationSection';
 import { useEnhancedProjectUsers } from '@/hooks/useEnhancedProjectUsers';
@@ -50,17 +50,17 @@ export default function ProjectAccessPage() {
 
   if (loading) {
     return (
-      <PageContent title="Project Access Management">
+      <DashboardLayout title="Project Access Management">
         <div className="flex items-center justify-center h-64">
           <div className="text-muted-foreground">Loading...</div>
         </div>
-      </PageContent>
+      </DashboardLayout>
     );
   }
 
   if (!project) {
     return (
-      <PageContent title="Project Not Found">
+      <DashboardLayout title="Project Not Found">
         <Card>
           <CardContent className="p-8 text-center">
             <div className="text-muted-foreground mb-4">Project not found</div>
@@ -70,13 +70,13 @@ export default function ProjectAccessPage() {
             </Button>
           </CardContent>
         </Card>
-      </PageContent>
+      </DashboardLayout>
     );
   }
 
   if (!isProjectAdmin()) {
     return (
-      <PageContent title="Access Denied">
+      <DashboardLayout title="Access Denied">
         <Card>
           <CardContent className="p-8 text-center">
             <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -90,12 +90,12 @@ export default function ProjectAccessPage() {
             </Button>
           </CardContent>
         </Card>
-      </PageContent>
+      </DashboardLayout>
     );
   }
 
   return (
-    <PageContent 
+    <DashboardLayout 
       title={`Access Management - ${project.name}`}
       actions={
         <Button variant="outline" onClick={() => navigate(`/projects/${project.id}/overview`)}>
@@ -148,6 +148,6 @@ export default function ProjectAccessPage() {
           </>
         )}
       </div>
-    </PageContent>
+    </DashboardLayout>
   );
 }

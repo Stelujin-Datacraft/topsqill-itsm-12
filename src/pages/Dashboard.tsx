@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { useNavigate } from 'react-router-dom';
-import { PageContent } from '@/components/layouts/PageContent';
+import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CreateProjectDialog } from '@/components/projects/CreateProjectDialog';
@@ -60,7 +60,7 @@ const Dashboard = () => {
   // Add error boundary-like behavior
   try {
     return (
-      <PageContent 
+      <DashboardLayout 
         title="Dashboard"
         actions={
           <div className="flex gap-2">
@@ -172,12 +172,12 @@ const Dashboard = () => {
           {/* Recent Activity */}
           <RecentActivityList />
         </div>
-      </PageContent>
+      </DashboardLayout>
     );
   } catch (error) {
     console.error('Dashboard render error:', error);
     return (
-      <PageContent title="Dashboard">
+      <DashboardLayout title="Dashboard">
         <div className="flex items-center justify-center min-h-[50vh]">
           <Card className="p-6 text-center">
             <CardHeader>
@@ -193,7 +193,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
-      </PageContent>
+      </DashboardLayout>
     );
   }
 };

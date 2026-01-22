@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { PageContent } from '@/components/layouts/PageContent';
+import DashboardLayout from '@/components/DashboardLayout';
 import { QueryEditor, QueryEditorRef } from '@/components/query/QueryEditor';
 import { QueryResultsTable } from '@/components/query/QueryResultsTable';
 import { FormsSidebar } from '@/components/query/FormsSidebar';
@@ -178,7 +178,7 @@ export default function QueryPage() {
   const resultsError = queryResult.errors.length > 0 ? queryResult.errors[0] : null;
 
   return (
-    <PageContent title="SQL Query Builder">
+    <DashboardLayout title="SQL Query Builder">
       <div className="h-[calc(100vh-8rem)] flex overflow-hidden">
         <ResizablePanelGroup direction="horizontal" className="w-full">
           {/* Forms Sidebar */}
@@ -271,6 +271,6 @@ export default function QueryPage() {
         onSave={handleSaveQuery}
         defaultName={`Query ${tabs.length}`}
       />
-    </PageContent>
+    </DashboardLayout>
   );
 }

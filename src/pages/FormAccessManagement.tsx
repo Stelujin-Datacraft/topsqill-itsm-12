@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from '@/contexts/FormContext';
 import { EnhancedFormUserAccess } from '@/components/EnhancedFormUserAccess';
-import { PageContent } from '@/components/layouts/PageContent';
+import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
@@ -47,17 +47,17 @@ const FormAccessManagement = () => {
 
   if (loading) {
     return (
-      <PageContent title="Access Management" actions={actions}>
+      <DashboardLayout title="Access Management" actions={actions}>
         <div className="flex items-center justify-center h-64">
           <div className="text-muted-foreground">Loading...</div>
         </div>
-      </PageContent>
+      </DashboardLayout>
     );
   }
 
   if (!form) {
     return (
-      <PageContent title="Form Not Found" actions={actions}>
+      <DashboardLayout title="Form Not Found" actions={actions}>
         <Card>
           <CardContent className="p-8 text-center">
             <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -71,14 +71,14 @@ const FormAccessManagement = () => {
             </Button>
           </CardContent>
         </Card>
-      </PageContent>
+      </DashboardLayout>
     );
   }
 
   return (
-    <PageContent title="Access Management" actions={actions}>
+    <DashboardLayout title="Access Management" actions={actions}>
       <EnhancedFormUserAccess form={form} onUpdateForm={handleUpdateForm} />
-    </PageContent>
+    </DashboardLayout>
   );
 };
 

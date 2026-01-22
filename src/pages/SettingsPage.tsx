@@ -21,7 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
-import { PageContent } from '@/components/layouts/PageContent';
+import DashboardLayout from '@/components/DashboardLayout';
 
 interface Stats {
   totalConfigs: number;
@@ -140,7 +140,7 @@ export default function SettingsPage() {
   );
 
   return (
-    <PageContent title="Email Configuration" actions={headerActions}>
+    <DashboardLayout title="Email Configuration" actions={headerActions}>
       <div className="space-y-8 max-w-7xl">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -289,6 +289,6 @@ export default function SettingsPage() {
         </Card>
       </div>
       </div>
-    </PageContent>
+    </DashboardLayout>
   );
 }
