@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { memo } from 'react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,7 +16,7 @@ interface RoleTableRowProps {
   onDelete: (roleId: string) => void;
 }
 
-export function RoleTableRow({ role, onUpdate, onEdit, onDelete }: RoleTableRowProps) {
+export const RoleTableRow = memo(function RoleTableRow({ role, onUpdate, onEdit, onDelete }: RoleTableRowProps) {
   const { projects } = useProject();
   const { forms } = useFormsData();
   const { workflows } = useWorkflowData();
@@ -106,4 +105,4 @@ export function RoleTableRow({ role, onUpdate, onEdit, onDelete }: RoleTableRowP
       </TableCell>
     </TableRow>
   );
-}
+});

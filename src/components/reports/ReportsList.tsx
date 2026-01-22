@@ -1,12 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Report } from '@/types/reports';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { FileText, Calendar, Eye, Edit, Trash2, Share2 } from 'lucide-react';
-import { ShareLinkButton } from '@/components/shared/ShareLinkButton';
-import { format } from 'date-fns';
+import { FileText } from 'lucide-react';
+import { ReportCard } from './ReportCard';
 import { useNavigate } from 'react-router-dom';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { useToast } from '@/hooks/use-toast';
@@ -42,13 +40,14 @@ export function ReportsList({
     getButtonState,
     checkPermissionWithAlert
   } = useUnifiedAccessControl();
-  const handleEditClick = (report: Report) => {
+  const handleEditClick = useCallback((report: Report) => {
     if (!checkPermissionWithAlert('reports', 'update', report.id)) {
       return;
     }
     onEdit(report);
-  };
-  const handleDeleteClick = async (report: Report) => {
+  }, [checkPermissionWithAlert, onEdit]);
+
+  const handleDeleteClick = useCallback(async (report: Report) => {
     if (!checkPermissionWithAlert('reports', 'delete', report.id)) {
       return;
     }
@@ -101,7 +100,8 @@ export function ReportsList({
         setLoading(false);
       }
     }
-  };
+  }, [checkPermissionWithAlert, onDelete, toast]);
+
   const createButtonState = getButtonState('reports', 'create');
   if (loading) {
     return <LoadingScreen message="Loading reports..." />;
@@ -183,62 +183,21 @@ export function ReportsList({
           </CardContent>
         </Card> : <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {reports.map(report => {
-        const editButtonState = getButtonState('reports', 'update', report.id);
-        const deleteButtonState = getButtonState('reports', 'delete', report.id);
-        return <Card key={report.id} className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <CardTitle className="text-lg">{report.name}</CardTitle>
-                      {report.description && <CardDescription>{report.description}</CardDescription>}
-                    </div>
-                    <div className="flex space-x-1">
-                      <ShareLinkButton 
-                        assetType="report" 
-                        assetId={report.id} 
-                        assetName={report.name} 
-                      />
-                      <Button variant="ghost" size="sm" onClick={() => onView(report)} title="View Report">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="sm" onClick={() => handleEditClick(report)} disabled={editButtonState.disabled}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{editButtonState.disabled ? editButtonState.tooltip : "Edit Report"}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(report)} disabled={deleteButtonState.disabled || loading}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{deleteButtonState.disabled ? deleteButtonState.tooltip : "Delete Report"}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="h-3 w-3" />
-                      <span>{format(new Date(report.created_at), 'MMM d, yyyy')}</span>
-                    </div>
-                    {report.is_public && <Badge variant="secondary">Public</Badge>}
-                  </div>
-                </CardContent>
-              </Card>;
-      })}
+            const editButtonState = getButtonState('reports', 'update', report.id);
+            const deleteButtonState = getButtonState('reports', 'delete', report.id);
+            return (
+              <ReportCard
+                key={report.id}
+                report={report}
+                editButtonState={editButtonState}
+                deleteButtonState={deleteButtonState}
+                loading={loading}
+                onView={onView}
+                onEdit={handleEditClick}
+                onDelete={handleDeleteClick}
+              />
+            );
+          })}
         </div>}
     </div>;
 }
