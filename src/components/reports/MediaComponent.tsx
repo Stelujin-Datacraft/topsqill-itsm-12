@@ -197,19 +197,33 @@ function DocumentMedia({ media }: { media: ReportMedia }) {
   const url = media.url || media.file_path || '';
   const fileName = media.title || url.split('/').pop() || 'Document';
 
-  const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
+  const openDocument = () => {
+    if (!url) {
+      console.error('No URL available for document');
+      return;
     }
+    
+    // Log for debugging
+    console.log('Opening document URL:', url);
+    
+    // Use a slight delay to ensure the click event is fully processed
+    setTimeout(() => {
+      const newWindow = window.open(url, '_blank');
+      if (!newWindow) {
+        // Fallback: create a link and click it
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    }, 0);
   };
 
   return (
-    <div 
-      onClick={handleClick}
-      className="block p-4 bg-muted/50 rounded hover:bg-muted transition-colors cursor-pointer h-full"
-    >
+    <div className="block p-4 bg-muted/50 rounded hover:bg-muted transition-colors h-full">
       <div className="flex items-center gap-3 h-full">
         <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center shrink-0">
           <FileText className="h-6 w-6 text-primary" />
@@ -222,10 +236,30 @@ function DocumentMedia({ media }: { media: ReportMedia }) {
             </p>
           )}
           {url && (
-            <p className="text-xs text-primary mt-1 truncate">Click to open document</p>
+            <Button 
+              variant="link" 
+              size="sm" 
+              className="p-0 h-auto text-xs text-primary mt-1"
+              onClick={(e) => {
+                e.stopPropagation();
+                openDocument();
+              }}
+            >
+              Click to open document
+            </Button>
           )}
         </div>
-        <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" />
+        <Button
+          variant="ghost"
+          size="sm"
+          className="shrink-0"
+          onClick={(e) => {
+            e.stopPropagation();
+            openDocument();
+          }}
+        >
+          <ExternalLink className="h-4 w-4 text-muted-foreground" />
+        </Button>
       </div>
     </div>
   );

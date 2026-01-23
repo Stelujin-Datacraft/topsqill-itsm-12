@@ -13,8 +13,10 @@ import { ChartPreview } from './ChartPreview';
 import { MetricCard } from './MetricCard';
 import { Plus, Save, BarChart3, Table as TableIcon, Hash, Type, FileText, Move, MousePointer, Edit2, Check, X, Image, Video, Link as LinkIcon, File } from 'lucide-react';
 import { AddMediaDialog } from './AddMediaDialog';
+import { EditMediaDialog } from './EditMediaDialog';
 import { MediaComponent } from './MediaComponent';
 import { useDashboards } from '@/hooks/useDashboards';
+import { ReportMedia } from '@/types/dashboard';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { useNavigate } from 'react-router-dom';
@@ -43,7 +45,9 @@ export function ReportEditor({
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempReportName, setTempReportName] = useState(reportName);
   const [isMediaDialogOpen, setIsMediaDialogOpen] = useState(false);
-  const [mediaItems, setMediaItems] = useState<any[]>([]);
+  const [isEditMediaDialogOpen, setIsEditMediaDialogOpen] = useState(false);
+  const [editingMedia, setEditingMedia] = useState<ReportMedia | null>(null);
+  const [mediaItems, setMediaItems] = useState<ReportMedia[]>([]);
   const [drilldownStates, setDrilldownStates] = useState<{
     [componentId: string]: {
       path: string[];
@@ -60,7 +64,7 @@ export function ReportEditor({
     updateReport,
     forms
   } = useReports();
-  const { fetchReportMedia, addReportMedia, deleteReportMedia } = useDashboards();
+  const { fetchReportMedia, addReportMedia, deleteReportMedia, updateReportMedia } = useDashboards();
   const {
     toast
   } = useToast();
@@ -116,6 +120,31 @@ export function ReportEditor({
       toast({
         title: "Error",
         description: "Failed to delete media",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleEditMedia = (media: ReportMedia) => {
+    setEditingMedia(media);
+    setIsEditMediaDialogOpen(true);
+  };
+
+  const handleUpdateMedia = async (mediaId: string, updates: Partial<ReportMedia>) => {
+    try {
+      const updatedMedia = await updateReportMedia(mediaId, updates);
+      setMediaItems(prev => prev.map(m => m.id === mediaId ? updatedMedia : m));
+      setIsEditMediaDialogOpen(false);
+      setEditingMedia(null);
+      toast({
+        title: "Success",
+        description: "Media updated successfully"
+      });
+    } catch (error) {
+      console.error('Error updating media:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update media",
         variant: "destructive"
       });
     }
@@ -723,16 +752,29 @@ export function ReportEditor({
           <h3 className="text-lg font-semibold mb-4">Media</h3>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {mediaItems.map(media => (
-              <MediaComponent
-                key={media.id}
-                media={media}
-                isEditing={true}
-                onDelete={() => handleDeleteMedia(media.id)}
-              />
+              <div key={media.id} className="h-64">
+                <MediaComponent
+                  media={media}
+                  isEditing={true}
+                  onEdit={handleEditMedia}
+                  onDelete={() => handleDeleteMedia(media.id)}
+                />
+              </div>
             ))}
           </div>
         </div>
       )}
+
+      {/* Edit Media Dialog */}
+      <EditMediaDialog
+        isOpen={isEditMediaDialogOpen}
+        onClose={() => {
+          setIsEditMediaDialogOpen(false);
+          setEditingMedia(null);
+        }}
+        onSave={handleUpdateMedia}
+        media={editingMedia}
+      />
     </div>
   );
 }
