@@ -11,11 +11,11 @@ import { useToast } from '@/hooks/use-toast';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useDashboards } from '@/hooks/useDashboards';
 import { CreateDashboardDialog } from './CreateDashboardDialog';
+import { EditDashboardDialog } from './EditDashboardDialog';
 
 export interface DashboardsListProps {
   dashboards: DashboardWithReports[];
   onView: (dashboard: DashboardWithReports) => void;
-  onEdit: (dashboard: DashboardWithReports) => void;
   onDelete: (dashboardId: string) => void;
   onCreate: () => boolean;
 }
@@ -23,21 +23,21 @@ export interface DashboardsListProps {
 export function DashboardsList({
   dashboards = [],
   onView,
-  onEdit,
   onDelete,
   onCreate
 }: DashboardsListProps) {
   const [loading, setLoading] = useState(false);
+  const [editingDashboard, setEditingDashboard] = useState<DashboardWithReports | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { getButtonState, checkPermissionWithAlert } = useUnifiedAccessControl();
-  const { deleteDashboard } = useDashboards();
+  const { deleteDashboard, refetchDashboards } = useDashboards();
 
   const handleEditClick = (dashboard: DashboardWithReports) => {
     if (!checkPermissionWithAlert('reports', 'update')) {
       return;
     }
-    onEdit(dashboard);
+    setEditingDashboard(dashboard);
   };
 
   const handleDeleteClick = async (dashboard: DashboardWithReports) => {
@@ -227,6 +227,14 @@ export function DashboardsList({
           })}
         </div>
       )}
+
+      {/* Edit Dashboard Dialog */}
+      <EditDashboardDialog
+        dashboard={editingDashboard}
+        isOpen={!!editingDashboard}
+        onClose={() => setEditingDashboard(null)}
+        onSuccess={() => refetchDashboards()}
+      />
     </div>
   );
 }

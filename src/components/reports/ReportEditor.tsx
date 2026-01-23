@@ -11,7 +11,10 @@ import { EnhancedDynamicTable } from './EnhancedDynamicTable';
 import { FormSubmissionsTable } from './FormSubmissionsTable';
 import { ChartPreview } from './ChartPreview';
 import { MetricCard } from './MetricCard';
-import { Plus, Save, BarChart3, Table as TableIcon, Hash, Type, FileText, Move, MousePointer, Edit2, Check, X } from 'lucide-react';
+import { Plus, Save, BarChart3, Table as TableIcon, Hash, Type, FileText, Move, MousePointer, Edit2, Check, X, Image, Video, Link as LinkIcon, File } from 'lucide-react';
+import { AddMediaDialog } from './AddMediaDialog';
+import { MediaComponent } from './MediaComponent';
+import { useDashboards } from '@/hooks/useDashboards';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { useNavigate } from 'react-router-dom';
@@ -39,6 +42,8 @@ export function ReportEditor({
   const [isDragEnabled, setIsDragEnabled] = useState(true);
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempReportName, setTempReportName] = useState(reportName);
+  const [isMediaDialogOpen, setIsMediaDialogOpen] = useState(false);
+  const [mediaItems, setMediaItems] = useState<any[]>([]);
   const [drilldownStates, setDrilldownStates] = useState<{
     [componentId: string]: {
       path: string[];
@@ -55,16 +60,66 @@ export function ReportEditor({
     updateReport,
     forms
   } = useReports();
+  const { fetchReportMedia, addReportMedia, deleteReportMedia } = useDashboards();
   const {
     toast
   } = useToast();
+
   useEffect(() => {
     loadComponents();
+    loadMedia();
   }, [reportId]);
 
   useEffect(() => {
     setTempReportName(reportName);
   }, [reportName]);
+
+  const loadMedia = async () => {
+    if (reportId === 'new') return;
+    try {
+      const media = await fetchReportMedia(reportId);
+      setMediaItems(media);
+    } catch (error) {
+      console.error('Error loading media:', error);
+    }
+  };
+
+  const handleAddMedia = async (mediaData: any) => {
+    try {
+      const newMedia = await addReportMedia({ ...mediaData, report_id: reportId });
+      setMediaItems(prev => [...prev, newMedia]);
+      setIsMediaDialogOpen(false);
+      toast({
+        title: "Success",
+        description: "Media added successfully"
+      });
+    } catch (error) {
+      console.error('Error adding media:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add media",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteMedia = async (mediaId: string) => {
+    try {
+      await deleteReportMedia(mediaId);
+      setMediaItems(prev => prev.filter(m => m.id !== mediaId));
+      toast({
+        title: "Success",
+        description: "Media deleted successfully"
+      });
+    } catch (error) {
+      console.error('Error deleting media:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete media",
+        variant: "destructive"
+      });
+    }
+  };
   const loadComponents = async () => {
     try {
       // Skip loading components for new reports
@@ -547,6 +602,10 @@ export function ReportEditor({
             <Type className="h-4 w-4 mr-2" />
             Add Text
           </Button>
+          <Button variant="outline" onClick={() => setIsMediaDialogOpen(true)}>
+            <Image className="h-4 w-4 mr-2" />
+            Add Media
+          </Button>
           <Button onClick={onSave}>
             <Save className="h-4 w-4 mr-2" />
             Save Report
@@ -649,6 +708,31 @@ export function ReportEditor({
 
       {/* Component Configuration Dialog */}
       <ComponentConfigDialog open={isConfigDialogOpen} onOpenChange={setIsConfigDialogOpen} componentType={newComponentType || editingComponent?.type || ''} initialConfig={editingComponent?.config} onSave={handleSaveComponent} />
+
+      {/* Add Media Dialog */}
+      <AddMediaDialog
+        isOpen={isMediaDialogOpen}
+        onClose={() => setIsMediaDialogOpen(false)}
+        onAdd={handleAddMedia}
+        reportId={reportId}
+      />
+
+      {/* Media Items Section */}
+      {mediaItems.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold mb-4">Media</h3>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {mediaItems.map(media => (
+              <MediaComponent
+                key={media.id}
+                media={media}
+                isEditing={true}
+                onDelete={() => handleDeleteMedia(media.id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
