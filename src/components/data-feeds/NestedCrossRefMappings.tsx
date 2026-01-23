@@ -371,28 +371,36 @@ export function NestedCrossRefMappings({
                 </div>
 
                 {/* Link to target toggle */}
-                <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
-                  <div className="flex items-center gap-3">
-                    {mapping.linkToTarget ? (
-                      <Link2 className="h-5 w-5 text-primary" />
-                    ) : (
-                      <Unlink className="h-5 w-5 text-muted-foreground" />
-                    )}
-                    <div>
-                      <Label className="font-medium">Link to Target Record</Label>
-                      <p className="text-xs text-muted-foreground">
-                        {mapping.linkToTarget
-                          ? 'The created/updated record will be automatically linked to the target record'
-                          : 'The record will be created/updated independently without linking'}
-                      </p>
+                <div className="flex flex-col gap-2 p-3 border rounded-lg bg-muted/20">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {mapping.linkToTarget ? (
+                        <Link2 className="h-5 w-5 text-primary" />
+                      ) : (
+                        <Unlink className="h-5 w-5 text-muted-foreground" />
+                      )}
+                      <div>
+                        <Label className="font-medium">Link to Target Record</Label>
+                        <p className="text-xs text-muted-foreground">
+                          {mapping.linkToTarget
+                            ? 'The nested record will be linked to the target record'
+                            : 'The nested record will be created independently (standalone)'}
+                        </p>
+                      </div>
                     </div>
+                    <Switch
+                      checked={mapping.linkToTarget}
+                      onCheckedChange={(checked) =>
+                        updateNestedMapping(mapping.id, { linkToTarget: checked })
+                      }
+                    />
                   </div>
-                  <Switch
-                    checked={mapping.linkToTarget}
-                    onCheckedChange={(checked) =>
-                      updateNestedMapping(mapping.id, { linkToTarget: checked })
-                    }
-                  />
+                  {mapping.linkToTarget && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-1.5 rounded">
+                      ⚠️ When enabled, nested records are only created when a target record is matched or created. 
+                      Set "No Match Behavior" to "Create" in the Matching tab, or disable this to create standalone records.
+                    </p>
+                  )}
                 </div>
 
                 {/* Field mappings */}
