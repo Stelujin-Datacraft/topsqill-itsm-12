@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { FileText, Calendar, Eye, Edit, Trash2, Share2 } from 'lucide-react';
+import { FileText, Calendar, Eye, Edit, Trash2 } from 'lucide-react';
 import { ShareLinkButton } from '@/components/shared/ShareLinkButton';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -12,7 +12,7 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 import { useToast } from '@/hooks/use-toast';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { supabase } from '@/integrations/supabase/client';
-import { CreateReportDialog } from '@/components/reports/CreateReportDialog';
+
 export interface ReportsListProps {
   reports: Report[];
   onView: (report: Report) => void;
@@ -25,6 +25,7 @@ export interface ReportsListProps {
     canView: boolean;
   };
 }
+
 export function ReportsList({
   reports = [],
   onView,
@@ -35,19 +36,16 @@ export function ReportsList({
 }: ReportsListProps) {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const {
-    toast
-  } = useToast();
-  const {
-    getButtonState,
-    checkPermissionWithAlert
-  } = useUnifiedAccessControl();
+  const { toast } = useToast();
+  const { getButtonState, checkPermissionWithAlert } = useUnifiedAccessControl();
+
   const handleEditClick = (report: Report) => {
     if (!checkPermissionWithAlert('reports', 'update', report.id)) {
       return;
     }
     onEdit(report);
   };
+
   const handleDeleteClick = async (report: Report) => {
     if (!checkPermissionWithAlert('reports', 'delete', report.id)) {
       return;
@@ -57,9 +55,11 @@ export function ReportsList({
         setLoading(true);
 
         // Delete report components first
-        const {
-          error: componentsError
-        } = await supabase.from('report_components').delete().eq('report_id', report.id);
+        const { error: componentsError } = await supabase
+          .from('report_components')
+          .delete()
+          .eq('report_id', report.id);
+
         if (componentsError) {
           console.error('Error deleting report components:', componentsError);
           toast({
@@ -71,9 +71,11 @@ export function ReportsList({
         }
 
         // Delete the report
-        const {
-          error: reportError
-        } = await supabase.from('reports').delete().eq('id', report.id);
+        const { error: reportError } = await supabase
+          .from('reports')
+          .delete()
+          .eq('id', report.id);
+
         if (reportError) {
           console.error('Error deleting report:', reportError);
           toast({
@@ -83,6 +85,7 @@ export function ReportsList({
           });
           return;
         }
+
         toast({
           title: "Success",
           description: "Report deleted successfully"
@@ -102,28 +105,13 @@ export function ReportsList({
       }
     }
   };
-  const createButtonState = getButtonState('reports', 'create');
+
   if (loading) {
     return <LoadingScreen message="Loading reports..." />;
   }
 
-  const CreateReportButton = () => (
-    <CreateReportDialog>
-      <Button disabled={createButtonState.disabled}>
-        Create Report
-      </Button>
-    </CreateReportDialog>
-  );
-
-  const CreateFirstReportButton = () => (
-    <CreateReportDialog>
-      <Button disabled={createButtonState.disabled}>
-        Create Your First Report
-      </Button>
-    </CreateReportDialog>
-  );
-
-  return <div className="space-y-6">
+  return (
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Reports</h2>
@@ -138,54 +126,34 @@ export function ReportsList({
           <Button variant="outline" onClick={() => navigate('/analytics-dashboard')}>
             Form Analysis
           </Button>
-          {createButtonState.disabled ? (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div>
-                    <CreateReportButton />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{createButtonState.tooltip}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ) : (
-            <CreateReportButton />
-          )}
         </div>
       </div>
 
-      {reports.length === 0 ? <Card>
+      {reports.length === 0 ? (
+        <Card>
           <CardContent className="py-12">
             <div className="text-center space-y-4">
               <FileText className="h-12 w-12 text-muted-foreground mx-auto" />
               <div>
                 <h3 className="text-lg font-semibold">No reports yet</h3>
                 <p className="text-muted-foreground">
-                  Get started by creating your first report to visualize your form data.
+                  Reports are now created inside dashboards. Go back to dashboards to create reports.
                 </p>
               </div>
-              {createButtonState.disabled ? <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div>
-                        <CreateFirstReportButton />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{createButtonState.tooltip}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider> : <CreateFirstReportButton />}
+              <Button variant="outline" onClick={() => navigate('/reports')}>
+                Go to Dashboards
+              </Button>
             </div>
           </CardContent>
-        </Card> : <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        </Card>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {reports.map(report => {
-        const editButtonState = getButtonState('reports', 'update', report.id);
-        const deleteButtonState = getButtonState('reports', 'delete', report.id);
-        return <Card key={report.id} className="hover:shadow-md transition-shadow">
+            const editButtonState = getButtonState('reports', 'update', report.id);
+            const deleteButtonState = getButtonState('reports', 'delete', report.id);
+            
+            return (
+              <Card key={report.id} className="hover:shadow-md transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
@@ -204,7 +172,12 @@ export function ReportsList({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button variant="ghost" size="sm" onClick={() => handleEditClick(report)} disabled={editButtonState.disabled}>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleEditClick(report)} 
+                              disabled={editButtonState.disabled}
+                            >
                               <Edit className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
@@ -216,7 +189,12 @@ export function ReportsList({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(report)} disabled={deleteButtonState.disabled || loading}>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleDeleteClick(report)} 
+                              disabled={deleteButtonState.disabled || loading}
+                            >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
@@ -237,8 +215,11 @@ export function ReportsList({
                     {report.is_public && <Badge variant="secondary">Public</Badge>}
                   </div>
                 </CardContent>
-              </Card>;
-      })}
-        </div>}
-    </div>;
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
