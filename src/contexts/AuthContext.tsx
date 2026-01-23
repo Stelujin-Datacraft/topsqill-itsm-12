@@ -495,6 +495,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await createSession(user.id, session.access_token);
       }
       
+      // Log audit event for successful login after MFA verification
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        event_type: 'login_success',
+        event_category: 'authentication',
+        description: 'User logged in successfully (MFA verified)',
+      });
+      
       setPendingMfa(null);
     }
   };
