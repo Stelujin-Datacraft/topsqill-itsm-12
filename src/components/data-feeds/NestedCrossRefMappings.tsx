@@ -395,8 +395,32 @@ export function NestedCrossRefMappings({
                         <SelectItem value="create_or_update">Create or Update</SelectItem>
                       </SelectContent>
                     </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {mapping.operation === 'create' && 'Always creates a new record in the linked form'}
+                      {mapping.operation === 'update' && 'Updates an existing linked record (skips if not found)'}
+                      {mapping.operation === 'create_or_update' && 'Updates if found, creates if not found'}
+                    </p>
                   </div>
                 </div>
+
+                {/* Update matching info - show when update/create_or_update is selected */}
+                {(mapping.operation === 'update' || mapping.operation === 'create_or_update') && (
+                  <div className="p-3 border rounded-lg bg-blue-50 dark:bg-blue-900/20 text-sm">
+                    <p className="font-medium text-blue-800 dark:text-blue-300 mb-1">How Updates Work:</p>
+                    <ul className="text-xs text-blue-700 dark:text-blue-400 space-y-1 list-disc list-inside">
+                      {mapping.linkToTarget && (
+                        <li>First checks for existing records already linked to the target via the cross-reference field</li>
+                      )}
+                      <li>Updates the first matching record found with the mapped field values</li>
+                      {mapping.operation === 'create_or_update' && (
+                        <li>Creates a new record if no existing record is found</li>
+                      )}
+                      {mapping.operation === 'update' && (
+                        <li>Skips if no existing record is found</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
 
                 {/* Link to target toggle */}
                 <div className="flex flex-col gap-2 p-3 border rounded-lg bg-muted/20">

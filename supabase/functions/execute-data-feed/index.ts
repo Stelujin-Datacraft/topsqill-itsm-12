@@ -448,30 +448,125 @@ async function processNestedCrossRefMappings(
         result.nestedCreated++;
         runLog.push({ type: 'success', message: `Created nested record in linked form ${linkedFormId}`, timestamp: new Date().toISOString() });
       } else if (operation === 'update' || operation === 'create_or_update') {
-        // For update operations, we'd need matching rules - for now, just create
-        // This can be extended later with more sophisticated matching
-        console.log(`⚠️ Update/create_or_update not fully implemented - creating new record`);
+        // For update operations, find existing records in the linked form
+        // If linkToTarget is enabled, look for records already linked to the target
+        let existingRecordId: string | null = null;
         
-        const { data: createdRecord, error: createError } = await supabase
-          .from('form_submissions')
-          .insert({
-            form_id: linkedFormId,
-            submission_data: linkedFormData,
-            approval_status: 'pending'
-          })
-          .select('id')
-          .single();
+        // Try to find existing linked record through the target's cross-reference field
+        if (linkToTarget && targetCrossRefFieldId) {
+          const { data: targetRecord } = await supabase
+            .from('form_submissions')
+            .select('submission_data')
+            .eq('id', targetRecordId)
+            .single();
+          
+          if (targetRecord) {
+            const targetData = targetRecord.submission_data as Record<string, any>;
+            const crossRefValue = targetData[targetCrossRefFieldId];
+            
+            // Get the first linked record ID
+            if (Array.isArray(crossRefValue) && crossRefValue.length > 0) {
+              existingRecordId = crossRefValue[0]?.id || crossRefValue[0];
+            } else if (crossRefValue && typeof crossRefValue === 'object') {
+              existingRecordId = crossRefValue.id || null;
+            } else if (typeof crossRefValue === 'string') {
+              existingRecordId = crossRefValue;
+            }
+          }
+        }
+        
+        // If we have matching rules in the nested mapping, use them to find a record
+        const matchingRules = nestedMapping.matchingRules || [];
+        if (!existingRecordId && matchingRules.length > 0) {
+          // Build query based on matching rules
+          let query = supabase
+            .from('form_submissions')
+            .select('id, submission_data')
+            .eq('form_id', linkedFormId);
+          
+          // We can't directly filter on JSONB in a loop, so fetch and filter
+          const { data: candidates } = await query;
+          
+          if (candidates && candidates.length > 0) {
+            // Find matching record
+            for (const candidate of candidates) {
+              const candidateData = candidate.submission_data as Record<string, any>;
+              let matches = true;
+              
+              for (const rule of matchingRules) {
+                const sourceValue = sourceData[rule.sourceFieldId];
+                const targetValue = candidateData[rule.targetFieldId];
+                
+                if (String(sourceValue) !== String(targetValue)) {
+                  matches = false;
+                  break;
+                }
+              }
+              
+              if (matches) {
+                existingRecordId = candidate.id;
+                break;
+              }
+            }
+          }
+        }
+        
+        if (existingRecordId) {
+          // Update existing record
+          const { data: existingRecord } = await supabase
+            .from('form_submissions')
+            .select('submission_data')
+            .eq('id', existingRecordId)
+            .single();
+          
+          const existingData = (existingRecord?.submission_data as Record<string, any>) || {};
+          const updatedLinkedData = { ...existingData, ...linkedFormData };
+          
+          const { error: updateError } = await supabase
+            .from('form_submissions')
+            .update({ submission_data: updatedLinkedData })
+            .eq('id', existingRecordId);
+          
+          if (updateError) {
+            console.error(`❌ Failed to update nested record:`, updateError);
+            result.nestedErrors++;
+            runLog.push({ type: 'error', message: `Failed to update nested record: ${updateError.message}`, timestamp: new Date().toISOString() });
+            continue;
+          }
+          
+          linkedRecordId = existingRecordId;
+          result.nestedUpdated = (result.nestedUpdated || 0) + 1;
+          runLog.push({ type: 'success', message: `Updated nested record in ${nestedMapping.linkedFormName || linkedFormId}`, timestamp: new Date().toISOString() });
+          console.log(`✅ Updated nested record ${existingRecordId}`);
+        } else if (operation === 'create_or_update') {
+          // No existing record found, create new one
+          const { data: createdRecord, error: createError } = await supabase
+            .from('form_submissions')
+            .insert({
+              form_id: linkedFormId,
+              submission_data: linkedFormData,
+              approval_status: 'pending'
+            })
+            .select('id')
+            .single();
 
-        if (createError) {
-          console.error(`❌ Failed to create nested record:`, createError);
-          result.nestedErrors++;
-          runLog.push({ type: 'error', message: `Failed to create nested record: ${createError.message}`, timestamp: new Date().toISOString() });
+          if (createError) {
+            console.error(`❌ Failed to create nested record:`, createError);
+            result.nestedErrors++;
+            runLog.push({ type: 'error', message: `Failed to create nested record: ${createError.message}`, timestamp: new Date().toISOString() });
+            continue;
+          }
+
+          linkedRecordId = createdRecord.id;
+          result.nestedCreated++;
+          runLog.push({ type: 'success', message: `Created nested record in ${nestedMapping.linkedFormName || linkedFormId} (no existing found)`, timestamp: new Date().toISOString() });
+          console.log(`✅ Created nested record ${createdRecord.id} (create_or_update, no match)`);
+        } else {
+          // operation === 'update' but no existing record found
+          console.log(`⚠️ No existing nested record found to update in ${linkedFormId}`);
+          runLog.push({ type: 'info', message: `No existing nested record found to update in ${nestedMapping.linkedFormName || linkedFormId}`, timestamp: new Date().toISOString() });
           continue;
         }
-
-        linkedRecordId = createdRecord.id;
-        result.nestedCreated++;
-        runLog.push({ type: 'success', message: `Created nested record in linked form ${linkedFormId}`, timestamp: new Date().toISOString() });
       }
 
       // Link the created/updated record to the target record if enabled
