@@ -273,6 +273,7 @@ export interface FormField {
     includeMetadata?: boolean;
     showOnlyUserRecords?: boolean;
     isParentReference?: boolean;
+    hyperlinkField?: string; // Field ID to render as a clickable hyperlink to the record
     
     // Dynamic Dropdown specific
     dataSource?: 'form' | 'api';

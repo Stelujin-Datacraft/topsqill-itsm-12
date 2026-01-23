@@ -50,6 +50,7 @@ interface FormDataTableConfig {
   pageSize?: number;
   isParentReference?: boolean;
   tableDisplayField?: string;
+  hyperlinkField?: string; // Field ID to render as a hyperlink to the record
 }
 interface OptimizedFormDataTableProps {
   config: FormDataTableConfig;
@@ -526,6 +527,40 @@ export function OptimizedFormDataTable({
     }
     return String(value);
   };
+
+  // Render a cell as a hyperlink to the record
+  const renderCellWithHyperlink = (
+    row: any, 
+    fieldId: string, 
+    fieldType?: string, 
+    isHyperlink: boolean = false
+  ) => {
+    const value = fieldId === 'submission_ref_id' 
+      ? (row.submission_ref_id || `SUB-${row.id?.slice(0, 8)}`)
+      : row[fieldId];
+    const formattedValue = fieldId === 'submission_ref_id' 
+      ? value 
+      : formatCellValue(value, fieldType);
+
+    if (isHyperlink && row.id) {
+      return (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigate(`/submission-view/${row.id}`);
+          }}
+          className="text-primary hover:text-primary/80 hover:underline font-medium cursor-pointer text-left"
+        >
+          {formattedValue}
+        </button>
+      );
+    }
+
+    return formattedValue;
+  };
+
   const getStatusBadge = (status: string) => {
     const statusColors: Record<string, string> = {
       'pending': 'bg-yellow-100 text-yellow-800',
@@ -885,12 +920,18 @@ export function OptimizedFormDataTable({
                   </TableCell>
                 </TableRow> : displayData.map((row, index) => <TableRow key={row.id || index}>
                     <TableCell className="font-mono text-sm">
-                      {row.submission_ref_id || `SUB-${String(index + 1).padStart(3, '0')}`}
+                      {renderCellWithHyperlink(
+                        row, 
+                        'submission_ref_id', 
+                        undefined, 
+                        config.hyperlinkField === 'submission_ref_id'
+                      )}
                     </TableCell>
                     {visibleColumns.map(fieldId => {
                 const field = formFields.find(f => f.id === fieldId);
+                const isHyperlink = config.hyperlinkField === fieldId;
                 return <TableCell key={fieldId}>
-                          {formatCellValue(row[fieldId], field?.field_type)}
+                          {renderCellWithHyperlink(row, fieldId, field?.field_type, isHyperlink)}
                         </TableCell>;
               })}
                     {!isCrossReference && <TableCell>
