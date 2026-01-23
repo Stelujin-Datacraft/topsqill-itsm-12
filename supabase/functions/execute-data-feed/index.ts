@@ -1031,8 +1031,62 @@ Deno.serve(async (req) => {
               }
             }
           } else {
-            stats.recordsSkipped++;
-            runLog.push({ type: 'info', message: `Skipped source ${sourceSubmission.submission_ref_id || sourceSubmission.id} - no match found`, timestamp: new Date().toISOString() });
+            // Even when skipping the main target, still process nested cross-ref mappings
+            // if they have standalone operation (create) that doesn't depend on a target record
+            const nestedMappings = feed.nested_cross_ref_mappings || [];
+            let nestedProcessed = false;
+            
+            for (const nestedMapping of nestedMappings) {
+              // Only process nested mappings that are set to "create" and DON'T require linking to target
+              if (nestedMapping.operation === 'create' && !nestedMapping.linkToTarget) {
+                const { linkedFormId, fieldMappings } = nestedMapping;
+                
+                if (!linkedFormId || !fieldMappings || fieldMappings.length === 0) {
+                  continue;
+                }
+                
+                // Build the data for the linked form record
+                const linkedFormData: Record<string, any> = {};
+                for (const fm of fieldMappings) {
+                  const sourceValue = sourceData[fm.sourceFieldId];
+                  if (sourceValue !== undefined && sourceValue !== null) {
+                    linkedFormData[fm.linkedFieldId] = sourceValue;
+                  }
+                }
+                
+                if (Object.keys(linkedFormData).length === 0) {
+                  console.log(`⚠️ No data to create for nested mapping in form ${linkedFormId}`);
+                  continue;
+                }
+                
+                const { data: createdRecord, error: createError } = await supabase
+                  .from('form_submissions')
+                  .insert({
+                    form_id: linkedFormId,
+                    submission_data: linkedFormData,
+                    approval_status: 'pending'
+                  })
+                  .select('id')
+                  .single();
+                
+                if (createError) {
+                  console.error(`❌ Failed to create standalone nested record:`, createError);
+                  runLog.push({ type: 'error', message: `Failed to create nested record in form ${nestedMapping.linkedFormName || linkedFormId}: ${createError.message}`, timestamp: new Date().toISOString() });
+                } else {
+                  nestedProcessed = true;
+                  runLog.push({ type: 'success', message: `Created nested record in ${nestedMapping.linkedFormName || linkedFormId} (standalone, no target match)`, timestamp: new Date().toISOString() });
+                  console.log(`✅ Created standalone nested record ${createdRecord.id} in form ${linkedFormId}`);
+                }
+              }
+            }
+            
+            if (!nestedProcessed) {
+              stats.recordsSkipped++;
+              runLog.push({ type: 'info', message: `Skipped source ${sourceSubmission.submission_ref_id || sourceSubmission.id} - no match found`, timestamp: new Date().toISOString() });
+            } else {
+              stats.recordsProcessed++;
+              runLog.push({ type: 'info', message: `Source ${sourceSubmission.submission_ref_id || sourceSubmission.id} - no target match, but nested records created`, timestamp: new Date().toISOString() });
+            }
           }
         } catch (processError) {
           console.error(`❌ Error processing source ${sourceSubmission.id}:`, processError);
