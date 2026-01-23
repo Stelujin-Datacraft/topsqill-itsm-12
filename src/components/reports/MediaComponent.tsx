@@ -37,8 +37,24 @@ export function MediaComponent({ media, onEdit, onDelete, isEditing = false }: M
     }
   };
 
+  // Calculate container style based on media dimensions
+  const getContainerStyle = (): React.CSSProperties => {
+    if (media.media_type === 'image' || media.media_type === 'video') {
+      const customWidth = media.metadata?.width;
+      const customHeight = media.metadata?.height;
+      if (customWidth || customHeight) {
+        return {
+          width: customWidth ? `${customWidth}px` : 'auto',
+          height: customHeight ? `${customHeight + 60}px` : 'auto', // Add space for header
+          maxWidth: '100%',
+        };
+      }
+    }
+    return {};
+  };
+
   return (
-    <Card className="h-full overflow-hidden">
+    <Card className="overflow-hidden inline-block" style={getContainerStyle()}>
       {(media.title || isEditing) && (
         <CardHeader className="py-2 px-3">
           <div className="flex items-center justify-between">
@@ -85,16 +101,19 @@ function ImageMedia({ media }: { media: ReportMedia }) {
     );
   }
 
+  const containerStyle: React.CSSProperties = {
+    width: customWidth ? `${customWidth}px` : '100%',
+    height: customHeight ? `${customHeight}px` : 'auto',
+  };
+
   const imageStyle: React.CSSProperties = {
-    width: customWidth ? `${customWidth}px` : undefined,
-    height: customHeight ? `${customHeight}px` : undefined,
-    maxWidth: '100%',
-    maxHeight: '100%',
+    width: '100%',
+    height: '100%',
     objectFit: 'contain',
   };
 
   return (
-    <div className="relative group h-full w-full flex items-center justify-center bg-muted/30">
+    <div className="relative group flex items-center justify-center bg-muted/30" style={containerStyle}>
       <img 
         src={src} 
         alt={media.title || 'Image'} 
@@ -120,22 +139,24 @@ function VideoMedia({ media }: { media: ReportMedia }) {
   const youtubeMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/);
   const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
 
-  const iframeStyle: React.CSSProperties = {
+  const containerStyle: React.CSSProperties = {
     width: customWidth ? `${customWidth}px` : '100%',
-    height: customHeight ? `${customHeight}px` : '100%',
-    minHeight: '200px',
+    height: customHeight ? `${customHeight}px` : '300px',
+  };
+
+  const iframeStyle: React.CSSProperties = {
+    width: '100%',
+    height: '100%',
   };
 
   const videoStyle: React.CSSProperties = {
-    width: customWidth ? `${customWidth}px` : undefined,
-    height: customHeight ? `${customHeight}px` : undefined,
-    maxWidth: '100%',
-    maxHeight: '100%',
+    width: '100%',
+    height: '100%',
   };
 
   if (youtubeMatch) {
     return (
-      <div className="h-full w-full flex items-center justify-center">
+      <div className="flex items-center justify-center" style={containerStyle}>
         <iframe
           src={`https://www.youtube.com/embed/${youtubeMatch[1]}`}
           style={iframeStyle}
@@ -149,7 +170,7 @@ function VideoMedia({ media }: { media: ReportMedia }) {
 
   if (vimeoMatch) {
     return (
-      <div className="h-full w-full flex items-center justify-center">
+      <div className="flex items-center justify-center" style={containerStyle}>
         <iframe
           src={`https://player.vimeo.com/video/${vimeoMatch[1]}`}
           style={iframeStyle}
@@ -164,7 +185,7 @@ function VideoMedia({ media }: { media: ReportMedia }) {
   // Direct video file
   if (url) {
     return (
-      <div className="h-full w-full flex items-center justify-center bg-muted/30">
+      <div className="flex items-center justify-center bg-muted/30" style={containerStyle}>
         <video 
           src={url} 
           controls 
