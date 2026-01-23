@@ -223,7 +223,36 @@ function LinkMedia({ media }: { media: ReportMedia }) {
 function DocumentMedia({ media }: { media: ReportMedia }) {
   const url = media.url || media.file_path || '';
   const fileName = media.title || url.split('/').pop() || 'Document';
+  const isPdf = url.toLowerCase().endsWith('.pdf');
 
+  // For PDFs, show embedded preview
+  if (isPdf && url) {
+    return (
+      <div className="h-full w-full flex flex-col">
+        <div className="flex items-center justify-between p-2 bg-muted/50 rounded-t">
+          <div className="flex items-center gap-2 min-w-0">
+            <FileText className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-sm font-medium truncate">{fileName}</span>
+          </div>
+          <a
+            href={url}
+            download={fileName}
+            className="shrink-0 p-1.5 rounded bg-primary/10 hover:bg-primary/20 transition-colors no-drag"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ExternalLink className="h-3.5 w-3.5 text-primary" />
+          </a>
+        </div>
+        <iframe
+          src={url}
+          className="flex-1 w-full rounded-b border-0 min-h-[200px]"
+          title={fileName}
+        />
+      </div>
+    );
+  }
+
+  // For other documents, show card with download link
   return (
     <div className="block p-4 bg-muted/50 rounded hover:bg-muted transition-colors h-full">
       <div className="flex items-center gap-3 h-full">
@@ -241,8 +270,7 @@ function DocumentMedia({ media }: { media: ReportMedia }) {
         {url && (
           <a
             href={url}
-            target="_blank"
-            rel="noopener noreferrer"
+            download={fileName}
             className="shrink-0 p-2 rounded bg-primary/10 hover:bg-primary/20 transition-colors no-drag"
             onClick={(e) => e.stopPropagation()}
           >
