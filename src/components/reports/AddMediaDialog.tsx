@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Image, Video, Link2, FileText, Upload } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,11 +28,22 @@ interface AddMediaDialogProps {
 
 type MediaType = 'image' | 'video' | 'link' | 'document';
 
+type SizePreset = 'small' | 'medium' | 'large' | 'full' | 'custom';
+
+const SIZE_PRESETS: Record<SizePreset, { width?: number; height?: number; label: string }> = {
+  small: { width: 200, height: 150, label: 'Small (200×150)' },
+  medium: { width: 400, height: 300, label: 'Medium (400×300)' },
+  large: { width: 800, height: 600, label: 'Large (800×600)' },
+  full: { width: undefined, height: undefined, label: 'Full Width (Auto)' },
+  custom: { width: undefined, height: undefined, label: 'Custom' },
+};
+
 export function AddMediaDialog({ isOpen, onClose, onAdd, reportId }: AddMediaDialogProps) {
   const [mediaType, setMediaType] = useState<MediaType>('image');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
+  const [sizePreset, setSizePreset] = useState<SizePreset>('full');
   const [width, setWidth] = useState('');
   const [height, setHeight] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -44,6 +56,7 @@ export function AddMediaDialog({ isOpen, onClose, onAdd, reportId }: AddMediaDia
     setTitle('');
     setDescription('');
     setUrl('');
+    setSizePreset('full');
     setWidth('');
     setHeight('');
     setMediaType('image');
@@ -123,6 +136,18 @@ export function AddMediaDialog({ isOpen, onClose, onAdd, reportId }: AddMediaDia
     try {
       setSaving(true);
 
+      // Calculate final dimensions based on preset or custom values
+      let finalWidth: number | undefined;
+      let finalHeight: number | undefined;
+      
+      if (sizePreset === 'custom') {
+        finalWidth = width ? parseInt(width, 10) : undefined;
+        finalHeight = height ? parseInt(height, 10) : undefined;
+      } else if (sizePreset !== 'full') {
+        finalWidth = SIZE_PRESETS[sizePreset].width;
+        finalHeight = SIZE_PRESETS[sizePreset].height;
+      }
+
       await onAdd({
         report_id: reportId,
         media_type: mediaType,
@@ -133,8 +158,8 @@ export function AddMediaDialog({ isOpen, onClose, onAdd, reportId }: AddMediaDia
         display_order: 0,
         created_by: userProfile?.id || '',
         metadata: {
-          width: width ? parseInt(width, 10) : undefined,
-          height: height ? parseInt(height, 10) : undefined,
+          width: finalWidth,
+          height: finalHeight,
         },
       });
 
@@ -267,31 +292,51 @@ export function AddMediaDialog({ isOpen, onClose, onAdd, reportId }: AddMediaDia
             </div>
 
             {(mediaType === 'image' || mediaType === 'video') && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="width">Width (px)</Label>
-                  <Input
-                    id="width"
-                    type="number"
-                    value={width}
-                    onChange={(e) => setWidth(e.target.value)}
-                    placeholder="Auto"
-                    min="50"
-                    max="1920"
-                  />
+                  <Label>Size</Label>
+                  <Select value={sizePreset} onValueChange={(v) => setSizePreset(v as SizePreset)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select size" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(SIZE_PRESETS).map(([key, { label }]) => (
+                        <SelectItem key={key} value={key}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="height">Height (px)</Label>
-                  <Input
-                    id="height"
-                    type="number"
-                    value={height}
-                    onChange={(e) => setHeight(e.target.value)}
-                    placeholder="Auto"
-                    min="50"
-                    max="1080"
-                  />
-                </div>
+
+                {sizePreset === 'custom' && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="width">Width (px)</Label>
+                      <Input
+                        id="width"
+                        type="number"
+                        value={width}
+                        onChange={(e) => setWidth(e.target.value)}
+                        placeholder="Auto"
+                        min="50"
+                        max="1920"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="height">Height (px)</Label>
+                      <Input
+                        id="height"
+                        type="number"
+                        value={height}
+                        onChange={(e) => setHeight(e.target.value)}
+                        placeholder="Auto"
+                        min="50"
+                        max="1080"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
