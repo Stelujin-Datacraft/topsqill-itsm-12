@@ -224,29 +224,26 @@ function DocumentMedia({ media }: { media: ReportMedia }) {
   const url = media.url || media.file_path || '';
   const fileName = media.title || url.split('/').pop() || 'Document';
 
-  const openDocument = () => {
+  const openDocument = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (!url) {
       console.error('No URL available for document');
       return;
     }
     
-    // Log for debugging
     console.log('Opening document URL:', url);
     
-    // Use a slight delay to ensure the click event is fully processed
-    setTimeout(() => {
-      const newWindow = window.open(url, '_blank');
-      if (!newWindow) {
-        // Fallback: create a link and click it
-        const link = document.createElement('a');
-        link.href = url;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-    }, 0);
+    // Create a temporary anchor element and trigger click
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -263,30 +260,26 @@ function DocumentMedia({ media }: { media: ReportMedia }) {
             </p>
           )}
           {url && (
-            <Button 
-              variant="link" 
-              size="sm" 
-              className="p-0 h-auto text-xs text-primary mt-1"
-              onClick={(e) => {
-                e.stopPropagation();
-                openDocument();
-              }}
+            <a 
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-primary mt-1 hover:underline inline-block no-drag"
+              onClick={openDocument}
             >
               Click to open document
-            </Button>
+            </a>
           )}
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="shrink-0"
-          onClick={(e) => {
-            e.stopPropagation();
-            openDocument();
-          }}
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0 p-2 rounded hover:bg-muted-foreground/10 no-drag"
+          onClick={openDocument}
         >
           <ExternalLink className="h-4 w-4 text-muted-foreground" />
-        </Button>
+        </a>
       </div>
     </div>
   );
