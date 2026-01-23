@@ -74,6 +74,8 @@ export function MediaComponent({ media, onEdit, onDelete, isEditing = false }: M
 
 function ImageMedia({ media }: { media: ReportMedia }) {
   const src = media.url || media.file_path;
+  const customWidth = media.metadata?.width;
+  const customHeight = media.metadata?.height;
   
   if (!src) {
     return (
@@ -83,12 +85,20 @@ function ImageMedia({ media }: { media: ReportMedia }) {
     );
   }
 
+  const imageStyle: React.CSSProperties = {
+    maxWidth: '100%',
+    objectFit: 'contain',
+    ...(customWidth && { width: customWidth }),
+    ...(customHeight && { height: customHeight }),
+  };
+
   return (
     <div className="relative group h-full w-full flex items-center justify-center bg-muted/30">
       <img 
         src={src} 
         alt={media.title || 'Image'} 
-        className="max-w-full max-h-full object-contain rounded"
+        className="rounded"
+        style={imageStyle}
         loading="lazy"
       />
       {media.description && (
@@ -102,17 +112,32 @@ function ImageMedia({ media }: { media: ReportMedia }) {
 
 function VideoMedia({ media }: { media: ReportMedia }) {
   const url = media.url || '';
+  const customWidth = media.metadata?.width;
+  const customHeight = media.metadata?.height;
   
   // Check if it's a YouTube or Vimeo URL
   const youtubeMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/);
   const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+
+  const iframeStyle: React.CSSProperties = {
+    minHeight: '200px',
+    ...(customWidth && { width: customWidth }),
+    ...(customHeight && { height: customHeight }),
+  };
+
+  const videoStyle: React.CSSProperties = {
+    maxWidth: '100%',
+    ...(customWidth && { width: customWidth }),
+    ...(customHeight && { height: customHeight }),
+  };
 
   if (youtubeMatch) {
     return (
       <div className="h-full w-full flex items-center justify-center">
         <iframe
           src={`https://www.youtube.com/embed/${youtubeMatch[1]}`}
-          className="w-full h-full rounded min-h-[200px]"
+          className={`rounded ${!customWidth && !customHeight ? 'w-full h-full' : ''}`}
+          style={iframeStyle}
           allowFullScreen
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         />
@@ -125,7 +150,8 @@ function VideoMedia({ media }: { media: ReportMedia }) {
       <div className="h-full w-full flex items-center justify-center">
         <iframe
           src={`https://player.vimeo.com/video/${vimeoMatch[1]}`}
-          className="w-full h-full rounded min-h-[200px]"
+          className={`rounded ${!customWidth && !customHeight ? 'w-full h-full' : ''}`}
+          style={iframeStyle}
           allowFullScreen
           allow="autoplay; fullscreen; picture-in-picture"
         />
@@ -140,7 +166,8 @@ function VideoMedia({ media }: { media: ReportMedia }) {
         <video 
           src={url} 
           controls 
-          className="max-w-full max-h-full rounded"
+          className="rounded"
+          style={videoStyle}
           poster={media.thumbnail_url}
         >
           Your browser does not support the video tag.

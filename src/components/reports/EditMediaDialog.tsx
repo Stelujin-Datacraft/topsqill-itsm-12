@@ -17,6 +17,8 @@ export function EditMediaDialog({ isOpen, onClose, onSave, media }: EditMediaDia
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
+  const [width, setWidth] = useState('');
+  const [height, setHeight] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -24,6 +26,8 @@ export function EditMediaDialog({ isOpen, onClose, onSave, media }: EditMediaDia
       setTitle(media.title || '');
       setDescription(media.description || '');
       setUrl(media.url || media.file_path || '');
+      setWidth(media.metadata?.width?.toString() || '');
+      setHeight(media.metadata?.height?.toString() || '');
     }
   }, [media]);
 
@@ -32,11 +36,18 @@ export function EditMediaDialog({ isOpen, onClose, onSave, media }: EditMediaDia
     
     setSaving(true);
     try {
-      await onSave(media.id, {
+      const updates: Partial<ReportMedia> = {
         title,
         description,
         url: media.media_type === 'link' || media.media_type === 'video' ? url : media.url,
-      });
+        metadata: {
+          ...media.metadata,
+          width: width ? parseInt(width, 10) : undefined,
+          height: height ? parseInt(height, 10) : undefined,
+        }
+      };
+      
+      await onSave(media.id, updates);
       onClose();
     } catch (error) {
       console.error('Error updating media:', error);
@@ -54,6 +65,8 @@ export function EditMediaDialog({ isOpen, onClose, onSave, media }: EditMediaDia
       default: return 'Media';
     }
   };
+
+  const showSizeOptions = media?.media_type === 'image' || media?.media_type === 'video';
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -101,6 +114,36 @@ export function EditMediaDialog({ isOpen, onClose, onSave, media }: EditMediaDia
               <Label>File</Label>
               <p className="text-sm text-muted-foreground truncate">
                 {media.file_path.split('/').pop()}
+              </p>
+            </div>
+          )}
+
+          {showSizeOptions && (
+            <div className="space-y-2">
+              <Label>Custom Size (optional)</Label>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Input
+                    id="width"
+                    type="number"
+                    value={width}
+                    onChange={(e) => setWidth(e.target.value)}
+                    placeholder="Width (px)"
+                  />
+                </div>
+                <span className="flex items-center text-muted-foreground">×</span>
+                <div className="flex-1">
+                  <Input
+                    id="height"
+                    type="number"
+                    value={height}
+                    onChange={(e) => setHeight(e.target.value)}
+                    placeholder="Height (px)"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Leave empty to use default sizing. The media will maintain its aspect ratio.
               </p>
             </div>
           )}
