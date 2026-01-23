@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ReportMedia } from '@/types/dashboard';
 
 interface EditMediaDialogProps {
@@ -13,10 +14,31 @@ interface EditMediaDialogProps {
   media: ReportMedia | null;
 }
 
+type SizePreset = 'small' | 'medium' | 'large' | 'full' | 'custom';
+
+const SIZE_PRESETS: Record<SizePreset, { width?: number; height?: number; label: string }> = {
+  small: { width: 200, height: 150, label: 'Small (200×150)' },
+  medium: { width: 400, height: 300, label: 'Medium (400×300)' },
+  large: { width: 800, height: 600, label: 'Large (800×600)' },
+  full: { width: undefined, height: undefined, label: 'Full Width (Auto)' },
+  custom: { width: undefined, height: undefined, label: 'Custom' },
+};
+
+const detectSizePreset = (width?: number, height?: number): SizePreset => {
+  if (!width && !height) return 'full';
+  for (const [key, preset] of Object.entries(SIZE_PRESETS)) {
+    if (preset.width === width && preset.height === height && key !== 'custom' && key !== 'full') {
+      return key as SizePreset;
+    }
+  }
+  return 'custom';
+}
+
 export function EditMediaDialog({ isOpen, onClose, onSave, media }: EditMediaDialogProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
+  const [sizePreset, setSizePreset] = useState<SizePreset>('full');
   const [width, setWidth] = useState('');
   const [height, setHeight] = useState('');
   const [saving, setSaving] = useState(false);
@@ -26,8 +48,12 @@ export function EditMediaDialog({ isOpen, onClose, onSave, media }: EditMediaDia
       setTitle(media.title || '');
       setDescription(media.description || '');
       setUrl(media.url || media.file_path || '');
-      setWidth(media.metadata?.width?.toString() || '');
-      setHeight(media.metadata?.height?.toString() || '');
+      const currentWidth = media.metadata?.width;
+      const currentHeight = media.metadata?.height;
+      const detectedPreset = detectSizePreset(currentWidth, currentHeight);
+      setSizePreset(detectedPreset);
+      setWidth(currentWidth?.toString() || '');
+      setHeight(currentHeight?.toString() || '');
     }
   }, [media]);
 
@@ -36,14 +62,26 @@ export function EditMediaDialog({ isOpen, onClose, onSave, media }: EditMediaDia
     
     setSaving(true);
     try {
+      // Calculate final dimensions based on preset or custom values
+      let finalWidth: number | undefined;
+      let finalHeight: number | undefined;
+      
+      if (sizePreset === 'custom') {
+        finalWidth = width ? parseInt(width, 10) : undefined;
+        finalHeight = height ? parseInt(height, 10) : undefined;
+      } else if (sizePreset !== 'full') {
+        finalWidth = SIZE_PRESETS[sizePreset].width;
+        finalHeight = SIZE_PRESETS[sizePreset].height;
+      }
+
       await onSave(media.id, {
         title,
         description,
         url: media.media_type === 'link' || media.media_type === 'video' ? url : media.url,
         metadata: {
           ...media.metadata,
-          width: width ? parseInt(width, 10) : undefined,
-          height: height ? parseInt(height, 10) : undefined,
+          width: finalWidth,
+          height: finalHeight,
         },
       });
       onClose();
@@ -115,31 +153,51 @@ export function EditMediaDialog({ isOpen, onClose, onSave, media }: EditMediaDia
           )}
 
           {(media?.media_type === 'image' || media?.media_type === 'video') && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-width">Width (px)</Label>
-                <Input
-                  id="edit-width"
-                  type="number"
-                  value={width}
-                  onChange={(e) => setWidth(e.target.value)}
-                  placeholder="Auto"
-                  min="50"
-                  max="1920"
-                />
+                <Label>Size</Label>
+                <Select value={sizePreset} onValueChange={(v) => setSizePreset(v as SizePreset)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select size" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(SIZE_PRESETS).map(([key, { label }]) => (
+                      <SelectItem key={key} value={key}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-height">Height (px)</Label>
-                <Input
-                  id="edit-height"
-                  type="number"
-                  value={height}
-                  onChange={(e) => setHeight(e.target.value)}
-                  placeholder="Auto"
-                  min="50"
-                  max="1080"
-                />
-              </div>
+
+              {sizePreset === 'custom' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-width">Width (px)</Label>
+                    <Input
+                      id="edit-width"
+                      type="number"
+                      value={width}
+                      onChange={(e) => setWidth(e.target.value)}
+                      placeholder="Auto"
+                      min="50"
+                      max="1920"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-height">Height (px)</Label>
+                    <Input
+                      id="edit-height"
+                      type="number"
+                      value={height}
+                      onChange={(e) => setHeight(e.target.value)}
+                      placeholder="Auto"
+                      min="50"
+                      max="1080"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
