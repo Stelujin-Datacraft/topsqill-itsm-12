@@ -1083,7 +1083,7 @@ export function DynamicTable({
                        {/* Form Fields */}
                       {displayFields.map(field => <TableCell key={field.id} className="py-2 max-w-58 bg-white">
                            <div className="min-w-0">
-                             <FormDataCell value={row.submission_data?.[field.id]} fieldType={field.field_type || field.type} field={field} />
+                             <FormDataCell value={row.submission_data?.[field.id]} fieldType={field.field_type || field.type} field={field} submissionId={row.id} />
                            </div>
                          </TableCell>)}
                        

@@ -15,9 +15,11 @@ interface FormDataCellProps {
   value: any;
   fieldType: string;
   field: any;
+  submissionId?: string;
 }
 
-export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
+export function FormDataCell({ value, fieldType, field, submissionId }: FormDataCellProps) {
+  const isHyperlink = field?.custom_config?.isHyperlink || field?.customConfig?.isHyperlink;
   const { getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
 
   function countryCodeToEmoji(code: string) {
@@ -52,6 +54,26 @@ export function FormDataCell({ value, fieldType, field }: FormDataCellProps) {
       );
     }
   }
+
+  // Helper to wrap content with hyperlink if configured
+  const wrapWithHyperlink = (content: React.ReactNode) => {
+    if (isHyperlink && submissionId) {
+      return (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigate(`/submission-view/${submissionId}`);
+          }}
+          className="text-primary hover:text-primary/80 hover:underline font-medium cursor-pointer text-left"
+        >
+          {content}
+        </button>
+      );
+    }
+    return content;
+  };
 
   // Handle null/undefined values
   if (value === null || value === undefined || value === '') {
@@ -1067,5 +1089,5 @@ if (fieldType === "user-picker") {
   }
 
   // Default case - display as string
-  return <span className="text-sm">{value.toString()} </span>;
+  return wrapWithHyperlink(<span className="text-sm">{value.toString()}</span>);
 }
