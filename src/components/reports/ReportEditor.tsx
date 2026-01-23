@@ -298,6 +298,7 @@ export function ReportEditor({
     }
   };
   const handleLayoutChange = async (layout: any[], allLayouts: any) => {
+    // Update components layout
     const updatedComponents = components.map(component => {
       const layoutItem = layout.find(item => item.i === component.id);
       if (layoutItem) {
@@ -315,7 +316,25 @@ export function ReportEditor({
     });
     setComponents(updatedComponents);
 
-    // Save layout changes to database
+    // Update media layout
+    const updatedMedia = mediaItems.map(media => {
+      const layoutItem = layout.find(item => item.i === `media-${media.id}`);
+      if (layoutItem) {
+        return {
+          ...media,
+          layout: {
+            x: layoutItem.x,
+            y: layoutItem.y,
+            w: layoutItem.w,
+            h: layoutItem.h
+          }
+        };
+      }
+      return media;
+    });
+    setMediaItems(updatedMedia);
+
+    // Save component layout changes to database
     for (const component of updatedComponents) {
       try {
         await updateReportComponent(component.id, {
@@ -323,6 +342,20 @@ export function ReportEditor({
         });
       } catch (error) {
         console.error('Error updating component layout:', error);
+      }
+    }
+
+    // Save media layout changes to database
+    for (const media of updatedMedia) {
+      const layoutItem = layout.find(item => item.i === `media-${media.id}`);
+      if (layoutItem) {
+        try {
+          await updateReportMedia(media.id, {
+            layout: media.layout
+          });
+        } catch (error) {
+          console.error('Error updating media layout:', error);
+        }
       }
     }
   };
@@ -541,7 +574,8 @@ export function ReportEditor({
   if (loading) {
     return <LoadingScreen message="Loading report editor..." />;
   }
-  const gridItems = components.map(component => ({
+  // Combine components and media items into a single grid layout
+  const componentGridItems = components.map(component => ({
     i: component.id,
     x: component.layout.x,
     y: component.layout.y,
@@ -550,6 +584,18 @@ export function ReportEditor({
     minW: 2,
     minH: 2
   }));
+
+  const mediaGridItems = mediaItems.map(media => ({
+    i: `media-${media.id}`,
+    x: media.layout?.x ?? 0,
+    y: media.layout?.y ?? Math.max(...components.map(c => c.layout.y + c.layout.h), ...mediaItems.map(m => (m.layout?.y ?? 0) + (m.layout?.h ?? 3)), 0),
+    w: media.layout?.w ?? 6,
+    h: media.layout?.h ?? 3,
+    minW: 2,
+    minH: 2
+  }));
+
+  const gridItems = [...componentGridItems, ...mediaGridItems];
   return (
     <div className="space-y-6">
       {/* Report Name Header */}
@@ -651,7 +697,7 @@ export function ReportEditor({
 
       {/* Grid Layout */}
       <div className={`transition-all duration-300 ${isPropertiesPaneOpen ? (isPropertiesPaneExpanded ? 'mr-[50vw]' : 'mr-80') : 'mr-0'}`}>
-        {components.length > 0 ? <ResponsiveGridLayout 
+        {(components.length > 0 || mediaItems.length > 0) ? <ResponsiveGridLayout 
         className="layout" 
         layouts={{
           lg: gridItems
@@ -675,6 +721,7 @@ export function ReportEditor({
         isResizable={isDragEnabled} 
         draggableCancel="button, input, select, textarea, a, td, th, table, [role='button'], .recharts-wrapper, .no-drag"
         onLayoutChange={isDragEnabled ? handleLayoutChange : undefined}>
+            {/* Render report components */}
             {components.map(component => <div key={component.id} className="relative group">
                 <Card className={`h-full overflow-hidden transition-all ${!isDragEnabled ? 'cursor-pointer' : 'cursor-move'} ${selectedComponent?.id === component.id ? 'ring-2 ring-primary shadow-lg' : !isDragEnabled ? 'hover:shadow-md hover:ring-1 hover:ring-muted-foreground/20' : ''}`} onClick={e => handleComponentClick(component, e)}>
                   <CardContent className="p-4 h-full relative">
@@ -682,17 +729,35 @@ export function ReportEditor({
                   </CardContent>
                 </Card>
               </div>)}
+            {/* Render media items */}
+            {mediaItems.map(media => (
+              <div key={`media-${media.id}`} className="relative group h-full">
+                <Card className={`h-full overflow-hidden transition-all ${isDragEnabled ? 'cursor-move' : ''}`}>
+                  <CardContent className="p-2 h-full relative">
+                    <MediaComponent
+                      media={media}
+                      isEditing={true}
+                      onEdit={handleEditMedia}
+                      onDelete={() => handleDeleteMedia(media.id)}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
           </ResponsiveGridLayout> : <Card className="h-64 flex items-center justify-center">
             <div className="text-center">
               <Plus className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <p className="text-lg font-medium mb-2">Start building your report</p>
-              <p className="text-muted-foreground mb-4">Add charts, tables, metrics, or text components</p>
+              <p className="text-muted-foreground mb-4">Add charts, tables, metrics, text, or media components</p>
               <div className="flex gap-2 justify-center">
                 <Button variant="outline" onClick={() => handleAddComponent('chart')}>
                   Add Chart
                 </Button>
                 <Button variant="outline" onClick={() => handleAddComponent('form-submissions')}>
                   Add Form Submissions
+                </Button>
+                <Button variant="outline" onClick={() => setIsMediaDialogOpen(true)}>
+                  Add Media
                 </Button>
               </div>
             </div>
@@ -746,24 +811,6 @@ export function ReportEditor({
         reportId={reportId}
       />
 
-      {/* Media Items Section */}
-      {mediaItems.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-4">Media</h3>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {mediaItems.map(media => (
-              <div key={media.id} className="h-64">
-                <MediaComponent
-                  media={media}
-                  isEditing={true}
-                  onEdit={handleEditMedia}
-                  onDelete={() => handleDeleteMedia(media.id)}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Edit Media Dialog */}
       <EditMediaDialog
