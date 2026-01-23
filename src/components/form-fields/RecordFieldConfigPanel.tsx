@@ -29,7 +29,8 @@ export function RecordFieldConfigPanel({ field, onConfigChange }: RecordFieldCon
       enableSearch: config.enableSearch !== false,
       pageSize: config.pageSize || 10,
       includeMetadata: config.includeMetadata || false,
-      showOnlyUserRecords: config.showOnlyUserRecords !== false
+      showOnlyUserRecords: config.showOnlyUserRecords !== false,
+      hyperlinkField: config.hyperlinkField || null
     };
   }, [field.id]); // Only depend on field.id to prevent constant re-initialization
 
@@ -46,7 +47,8 @@ export function RecordFieldConfigPanel({ field, onConfigChange }: RecordFieldCon
       enableSearch: config.enableSearch !== false,
       pageSize: config.pageSize || 10,
       includeMetadata: config.includeMetadata || false,
-      showOnlyUserRecords: config.showOnlyUserRecords !== false
+      showOnlyUserRecords: config.showOnlyUserRecords !== false,
+      hyperlinkField: config.hyperlinkField || null
     };
     
     setLocalState(newState);
@@ -334,6 +336,33 @@ export function RecordFieldConfigPanel({ field, onConfigChange }: RecordFieldCon
                 className="w-32"
               />
             </div>
+
+            {/* Hyperlink Field */}
+            {selectedForm && selectedFormFields.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="hyperlink-field">Hyperlink Field (Optional)</Label>
+                <Select
+                  value={localState.hyperlinkField || 'none'}
+                  onValueChange={(value) => updateLocalState('hyperlinkField', value === 'none' ? null : value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a field to make clickable" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="submission_ref_id">Reference ID</SelectItem>
+                    {selectedFormFields.map((formField) => (
+                      <SelectItem key={formField.id} value={formField.id}>
+                        {formField.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground">
+                  Select a field to display as a clickable link to the record
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

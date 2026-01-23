@@ -21,6 +21,38 @@ export function RecordTableConfig({ config, onUpdate, errors, fieldType }: Recor
   const { getFormOptions, loading } = useFormAccess();
   const formOptions = getFormOptions;
 
+  // Get the selected form's fields for the hyperlink dropdown
+  const selectedFormId = config.customConfig?.targetFormId;
+  const selectedForm = formOptions.find(f => f.value === selectedFormId);
+  const [targetFormFields, setTargetFormFields] = React.useState<Array<{ id: string; label: string }>>([]);
+
+  // Fetch target form fields when form is selected
+  React.useEffect(() => {
+    const fetchFields = async () => {
+      if (!selectedFormId) {
+        setTargetFormFields([]);
+        return;
+      }
+      
+      try {
+        const { supabase } = await import('@/integrations/supabase/client');
+        const { data } = await supabase
+          .from('form_fields')
+          .select('id, label, field_type')
+          .eq('form_id', selectedFormId)
+          .not('field_type', 'in', '("header","description","section-break","horizontal-line")');
+        
+        if (data) {
+          setTargetFormFields(data.map(f => ({ id: f.id, label: f.label })));
+        }
+      } catch (error) {
+        console.error('Error fetching target form fields:', error);
+      }
+    };
+    
+    fetchFields();
+  }, [selectedFormId]);
+
   const updateCustomConfig = (key: string, value: any) => {
     onUpdate({
       customConfig: { ...config.customConfig, [key]: value }
@@ -190,6 +222,33 @@ export function RecordTableConfig({ config, onUpdate, errors, fieldType }: Recor
           </div>
         )}
       </div>
+
+      {/* Hyperlink Field */}
+      {selectedFormId && targetFormFields.length > 0 && (
+        <div>
+          <Label htmlFor="hyperlink-field">Hyperlink Field (Optional)</Label>
+          <Select
+            value={config.customConfig?.hyperlinkField || 'none'}
+            onValueChange={(value) => updateCustomConfig('hyperlinkField', value === 'none' ? null : value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select a field to make clickable" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None</SelectItem>
+              <SelectItem value="submission_ref_id">Reference ID</SelectItem>
+              {targetFormFields.map((field) => (
+                <SelectItem key={field.id} value={field.id}>
+                  {field.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-sm text-muted-foreground mt-1">
+            Select a field to display as a clickable link to the record
+          </p>
+        </div>
+      )}
 
       {/* Page Size */}
       <div>
