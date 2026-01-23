@@ -64,7 +64,7 @@ import PasswordExpiryWarning from "./components/PasswordExpiryWarning";
 import AcceptInvitation from "./pages/AcceptInvitation";
 import NotFound from "./pages/NotFound";
 import LdapSettings from "./pages/LdapSettings";
-
+import DashboardView from "./pages/DashboardView";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -109,6 +109,7 @@ const App = () => (
                     <Route path="/workflow-designer/:id" element={<ProtectedRoute><WorkflowDesignerPage /></ProtectedRoute>} />
                     <Route path="/workflow/:id/access" element={<ProtectedRoute><WorkflowAccessManagement /></ProtectedRoute>} />
                      <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+                     <Route path="/dashboard-view/:id" element={<ProtectedRoute><DashboardView /></ProtectedRoute>} />
                      <Route path="/report-editor/:id" element={<ProtectedRoute><ReportEditor /></ProtectedRoute>} />
                      <Route path="/report-view/:id" element={<ProtectedRoute><ReportViewerPage /></ProtectedRoute>} />
                      <Route path="/report/:id/access" element={<ProtectedRoute><ReportAccessManagement /></ProtectedRoute>} />
