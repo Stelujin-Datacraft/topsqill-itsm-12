@@ -17,9 +17,10 @@ import { Plus } from 'lucide-react';
 
 interface CreateReportDialogProps {
   children?: React.ReactNode;
+  dashboardId?: string;
 }
 
-export function CreateReportDialog({ children }: CreateReportDialogProps) {
+export function CreateReportDialog({ children, dashboardId }: CreateReportDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [reportName, setReportName] = useState('');
   const [reportDescription, setReportDescription] = useState('');

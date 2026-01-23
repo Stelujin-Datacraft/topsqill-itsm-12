@@ -91,6 +91,56 @@ export type Database = {
         }
         Relationships: []
       }
+      dashboards: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_public: boolean | null
+          layout: Json | null
+          name: string
+          organization_id: string | null
+          project_id: string
+          reference_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          layout?: Json | null
+          name: string
+          organization_id?: string | null
+          project_id: string
+          reference_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          layout?: Json | null
+          name?: string
+          organization_id?: string | null
+          project_id?: string
+          reference_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboards_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       data_feed_runs: {
         Row: {
           completed_at: string | null
@@ -2062,10 +2112,70 @@ export type Database = {
           },
         ]
       }
+      report_media: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          display_order: number | null
+          file_path: string | null
+          id: string
+          layout: Json | null
+          media_type: string
+          metadata: Json | null
+          report_id: string
+          thumbnail_url: string | null
+          title: string | null
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          display_order?: number | null
+          file_path?: string | null
+          id?: string
+          layout?: Json | null
+          media_type: string
+          metadata?: Json | null
+          report_id: string
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          display_order?: number | null
+          file_path?: string | null
+          id?: string
+          layout?: Json | null
+          media_type?: string
+          metadata?: Json | null
+          report_id?: string
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_media_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           created_at: string
           created_by: string
+          dashboard_id: string | null
           description: string | null
           id: string
           is_public: boolean | null
@@ -2078,6 +2188,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by: string
+          dashboard_id?: string | null
           description?: string | null
           id?: string
           is_public?: boolean | null
@@ -2090,6 +2201,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          dashboard_id?: string | null
           description?: string | null
           id?: string
           is_public?: boolean | null
@@ -2100,6 +2212,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "reports_dashboard_id_fkey"
+            columns: ["dashboard_id"]
+            isOneToOne: false
+            referencedRelation: "dashboards"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reports_organization_id_fkey"
             columns: ["organization_id"]

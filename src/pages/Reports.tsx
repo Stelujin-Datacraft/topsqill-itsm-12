@@ -1,84 +1,76 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { ReportsList } from '@/components/reports/ReportsList';
-import { CreateReportDialog } from '@/components/reports/CreateReportDialog';
-import { useReports } from '@/hooks/useReports';
+import { DashboardsList } from '@/components/dashboards/DashboardsList';
+import { useDashboards } from '@/hooks/useDashboards';
 import { useNavigate } from 'react-router-dom';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useProject } from '@/contexts/ProjectContext';
-import { Report } from '@/types/reports';
+import { DashboardWithReports } from '@/types/dashboard';
 import NoProjectSelected from '@/components/NoProjectSelected';
 
 const Reports = () => {
   const navigate = useNavigate();
-  const { reports, loading, refetchReports } = useReports();
-  const { hasPermission, checkPermissionWithAlert, getVisibleResources, loading: permissionLoading } = useUnifiedAccessControl();
+  const { dashboards, loading, migrateOrphanReports, refetchDashboards } = useDashboards();
+  const { hasPermission, checkPermissionWithAlert, loading: permissionLoading } = useUnifiedAccessControl();
   const { currentProject } = useProject();
+
+  // Auto-migrate orphan reports on mount
+  useEffect(() => {
+    if (currentProject) {
+      migrateOrphanReports();
+    }
+  }, [currentProject]);
 
   if (!currentProject) {
     return (
-      <DashboardLayout title="Reports">
+      <DashboardLayout title="Dashboards">
         <NoProjectSelected />
       </DashboardLayout>
     );
   }
 
-  // Check if user can even see the reports page
   const canReadReports = hasPermission('reports', 'read');
   
   if (!permissionLoading && !canReadReports) {
     return (
-      <DashboardLayout title="Reports">
+      <DashboardLayout title="Dashboards">
         <div className="text-center py-12">
           <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
           <p className="text-muted-foreground">
-            You don't have permission to view reports in this project.
+            You don't have permission to view dashboards in this project.
           </p>
         </div>
       </DashboardLayout>
     );
   }
 
-  const handleViewReport = (report: Report) => {
-    navigate(`/report-view/${report.id}`);
+  const handleViewDashboard = (dashboard: DashboardWithReports) => {
+    navigate(`/dashboard-view/${dashboard.id}`);
   };
 
-  const handleEditReport = (report: Report) => {
-    if (checkPermissionWithAlert('reports', 'update', report.id)) {
-      navigate(`/report-editor/${report.id}`);
+  const handleEditDashboard = (dashboard: DashboardWithReports) => {
+    if (checkPermissionWithAlert('reports', 'update')) {
+      navigate(`/dashboard-view/${dashboard.id}?edit=true`);
     }
   };
 
-  const handleDeleteReport = async (reportId: string) => {
-    if (checkPermissionWithAlert('reports', 'delete', reportId)) {
-      await refetchReports();
-    }
+  const handleDeleteDashboard = async () => {
+    await refetchDashboards();
   };
 
-  const handleCreateReport = () => {
-    // Permission check is handled inside CreateReportDialog
+  const handleCreateDashboard = () => {
     return checkPermissionWithAlert('reports', 'create');
   };
 
-  const getReportPermissions = (report: Report) => ({
-    canEdit: hasPermission('reports', 'update', report.id),
-    canDelete: hasPermission('reports', 'delete', report.id),
-    canView: hasPermission('reports', 'read', report.id)
-  });
-
-  // Filter reports based on user's permissions
-  const visibleReports = getVisibleResources('reports', reports);
-
   return (
-    <DashboardLayout title="Reports">
+    <DashboardLayout title="Dashboards">
       <div className="space-y-6">
-        <ReportsList
-          reports={visibleReports}
-          onView={handleViewReport}
-          onEdit={handleEditReport}
-          onDelete={handleDeleteReport}
-          onCreate={handleCreateReport}
-          getPermissions={getReportPermissions}
+        <DashboardsList
+          dashboards={dashboards}
+          onView={handleViewDashboard}
+          onEdit={handleEditDashboard}
+          onDelete={handleDeleteDashboard}
+          onCreate={handleCreateDashboard}
         />
       </div>
     </DashboardLayout>
