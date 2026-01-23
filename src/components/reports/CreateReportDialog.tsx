@@ -10,14 +10,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useReports } from '@/hooks/useReports';
+import { useDashboards } from '@/hooks/useDashboards';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 
 interface CreateReportDialogProps {
   children?: React.ReactNode;
-  dashboardId?: string;
+  dashboardId: string;
 }
 
 export function CreateReportDialog({ children, dashboardId }: CreateReportDialogProps) {
@@ -25,7 +25,7 @@ export function CreateReportDialog({ children, dashboardId }: CreateReportDialog
   const [reportName, setReportName] = useState('');
   const [reportDescription, setReportDescription] = useState('');
   const [creating, setCreating] = useState(false);
-  const { createReport } = useReports();
+  const { createReportInDashboard } = useDashboards();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -39,10 +39,19 @@ export function CreateReportDialog({ children, dashboardId }: CreateReportDialog
       return;
     }
 
+    if (!dashboardId) {
+      toast({
+        title: "Error",
+        description: "Dashboard is required to create a report",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setCreating(true);
       
-      const newReport = await createReport({
+      const newReport = await createReportInDashboard(dashboardId, {
         name: reportName.trim(),
         description: reportDescription.trim()
       });
