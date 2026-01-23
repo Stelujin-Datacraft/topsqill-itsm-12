@@ -17,6 +17,8 @@ export function EditMediaDialog({ isOpen, onClose, onSave, media }: EditMediaDia
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
+  const [width, setWidth] = useState('');
+  const [height, setHeight] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -24,6 +26,8 @@ export function EditMediaDialog({ isOpen, onClose, onSave, media }: EditMediaDia
       setTitle(media.title || '');
       setDescription(media.description || '');
       setUrl(media.url || media.file_path || '');
+      setWidth(media.metadata?.width?.toString() || '');
+      setHeight(media.metadata?.height?.toString() || '');
     }
   }, [media]);
 
@@ -36,6 +40,11 @@ export function EditMediaDialog({ isOpen, onClose, onSave, media }: EditMediaDia
         title,
         description,
         url: media.media_type === 'link' || media.media_type === 'video' ? url : media.url,
+        metadata: {
+          ...media.metadata,
+          width: width ? parseInt(width, 10) : undefined,
+          height: height ? parseInt(height, 10) : undefined,
+        },
       });
       onClose();
     } catch (error) {
@@ -102,6 +111,35 @@ export function EditMediaDialog({ isOpen, onClose, onSave, media }: EditMediaDia
               <p className="text-sm text-muted-foreground truncate">
                 {media.file_path.split('/').pop()}
               </p>
+            </div>
+          )}
+
+          {(media?.media_type === 'image' || media?.media_type === 'video') && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-width">Width (px)</Label>
+                <Input
+                  id="edit-width"
+                  type="number"
+                  value={width}
+                  onChange={(e) => setWidth(e.target.value)}
+                  placeholder="Auto"
+                  min="50"
+                  max="1920"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-height">Height (px)</Label>
+                <Input
+                  id="edit-height"
+                  type="number"
+                  value={height}
+                  onChange={(e) => setHeight(e.target.value)}
+                  placeholder="Auto"
+                  min="50"
+                  max="1080"
+                />
+              </div>
             </div>
           )}
         </div>

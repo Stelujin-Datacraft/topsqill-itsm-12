@@ -32,6 +32,8 @@ export function AddMediaDialog({ isOpen, onClose, onAdd, reportId }: AddMediaDia
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
+  const [width, setWidth] = useState('');
+  const [height, setHeight] = useState('');
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -42,6 +44,8 @@ export function AddMediaDialog({ isOpen, onClose, onAdd, reportId }: AddMediaDia
     setTitle('');
     setDescription('');
     setUrl('');
+    setWidth('');
+    setHeight('');
     setMediaType('image');
   };
 
@@ -128,6 +132,10 @@ export function AddMediaDialog({ isOpen, onClose, onAdd, reportId }: AddMediaDia
         layout: { x: 0, y: 0, w: 6, h: 4 },
         display_order: 0,
         created_by: userProfile?.id || '',
+        metadata: {
+          width: width ? parseInt(width, 10) : undefined,
+          height: height ? parseInt(height, 10) : undefined,
+        },
       });
 
       toast({
@@ -257,6 +265,35 @@ export function AddMediaDialog({ isOpen, onClose, onAdd, reportId }: AddMediaDia
                 rows={2}
               />
             </div>
+
+            {(mediaType === 'image' || mediaType === 'video') && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="width">Width (px)</Label>
+                  <Input
+                    id="width"
+                    type="number"
+                    value={width}
+                    onChange={(e) => setWidth(e.target.value)}
+                    placeholder="Auto"
+                    min="50"
+                    max="1920"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="height">Height (px)</Label>
+                  <Input
+                    id="height"
+                    type="number"
+                    value={height}
+                    onChange={(e) => setHeight(e.target.value)}
+                    placeholder="Auto"
+                    min="50"
+                    max="1080"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </Tabs>
 
