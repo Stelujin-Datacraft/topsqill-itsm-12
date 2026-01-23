@@ -341,8 +341,9 @@ export function NestedCrossRefMappings({
 
       {/* Mapping cards */}
       {mappings.map((mapping) => {
-        const linkedCrossRefFields = linkedFormCrossRefFields[mapping.linkedFormId] || [];
-        const hasChainSupport = linkedCrossRefFields.length > 0 && depth < maxDepth;
+        // Get cross-ref fields specific to THIS mapping's linked form
+        const thisLinkedCrossRefFields = linkedFormCrossRefFields[mapping.linkedFormId] || [];
+        const hasChainSupport = thisLinkedCrossRefFields.length > 0 && depth < maxDepth;
         
         return (
           <Collapsible
@@ -446,8 +447,8 @@ export function NestedCrossRefMappings({
                       <Label>Operation</Label>
                       <Select
                         value={mapping.operation}
-                        onValueChange={(value: 'create' | 'update' | 'create_or_update') =>
-                          updateNestedMapping(mapping.id, { operation: value })
+                        onValueChange={(value: 'create' | 'update' | 'create_or_update' | 'skip') =>
+                          updateNestedMapping(mapping.id, { operation: value as any })
                         }
                       >
                         <SelectTrigger>
@@ -457,12 +458,14 @@ export function NestedCrossRefMappings({
                           <SelectItem value="create">Create New Record</SelectItem>
                           <SelectItem value="update">Update Existing Record</SelectItem>
                           <SelectItem value="create_or_update">Create or Update</SelectItem>
+                          <SelectItem value="skip">Skip (Pass Through to Chain)</SelectItem>
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
-                        {mapping.operation === 'create' && 'Always creates a new record'}
-                        {mapping.operation === 'update' && 'Updates existing linked record'}
+                        {mapping.operation === 'create' && 'Always creates a new record at this level'}
+                        {mapping.operation === 'update' && 'Updates existing linked record at this level'}
                         {mapping.operation === 'create_or_update' && 'Updates if found, creates if not'}
+                        {mapping.operation === 'skip' && 'Skip this level - only process chain mappings in deeper levels'}
                       </p>
                     </div>
                   </div>
@@ -587,13 +590,14 @@ export function NestedCrossRefMappings({
                   )}
 
                   {/* Chain Mappings - Recursive component for deeper levels */}
-                  {hasChainSupport && mapping.linkedFormId && (
-                    <div className="mt-4">
+                  {/* Only show when linked form actually has cross-ref fields */}
+                  {mapping.linkedFormId && thisLinkedCrossRefFields.length > 0 && depth < maxDepth && (
+                    <div className="mt-4 p-3 border rounded-lg bg-muted/10">
                       <div className="flex items-center gap-2 mb-3">
                         <GitBranch className="h-4 w-4 text-muted-foreground" />
                         <Label className="text-sm font-medium">Chain to Deeper Levels</Label>
                         <Badge variant="outline" className="text-xs">
-                          {linkedCrossRefFields.length} cross-ref field(s) available
+                          {thisLinkedCrossRefFields.length} cross-ref field(s) available
                         </Badge>
                       </div>
                       <NestedCrossRefMappings

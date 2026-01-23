@@ -96,7 +96,7 @@ export interface NestedCrossRefMapping {
   linkedFormName?: string;
   fieldMappings: NestedCrossRefFieldMapping[]; // Source → Linked form field mappings
   linkToTarget: boolean; // Toggle: auto-link the created/updated record to the target?
-  operation: 'create' | 'update' | 'create_or_update'; // What operation to perform
+  operation: 'create' | 'update' | 'create_or_update' | 'skip'; // What operation to perform ('skip' = pass through to chain only)
   matchingRules?: MatchingRule[]; // For finding existing records when updating
   matchingLogic?: string; // Logic expression for matching rules
   // Chain support: nested mappings within this mapping (for Form A → Form B → Form C chains)
