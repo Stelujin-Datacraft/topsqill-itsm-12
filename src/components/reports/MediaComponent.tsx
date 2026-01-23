@@ -109,7 +109,7 @@ function ImageMedia({ media }: { media: ReportMedia }) {
   const imageStyle: React.CSSProperties = {
     width: '100%',
     height: '100%',
-    objectFit: 'contain',
+    objectFit: 'cover',
   };
 
   return (
