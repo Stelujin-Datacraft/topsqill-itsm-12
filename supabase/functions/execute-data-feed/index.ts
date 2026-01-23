@@ -63,7 +63,7 @@ interface NestedCrossRefMapping {
   linkedFormName?: string;
   fieldMappings: NestedCrossRefFieldMapping[];
   linkToTarget: boolean;
-  operation: 'create' | 'update' | 'create_or_update';
+  operation: 'create' | 'update' | 'create_or_update' | 'skip'; // 'skip' = pass through to chain only
   matchingRules?: MatchingRule[];
   matchingLogic?: string;
   // Chain support: nested mappings within this mapping (for Form A → Form B → Form C chains)
@@ -437,7 +437,41 @@ async function processNestedCrossRefMappings(
 
       let linkedRecordId: string | null = null;
 
-      if (operation === 'create') {
+      if (operation === 'skip') {
+        // Skip operation - don't create/update at this level, but find existing record for chain processing
+        console.log(`${depthPrefix}⏭️ Skip operation - passing through to chain mappings only`);
+        runLog.push({ type: 'info', message: `Skipping ${nestedMapping.linkedFormName || linkedFormId} level - processing chain only`, timestamp: new Date().toISOString() });
+        
+        // Try to find existing linked record to use as target for chain mappings
+        if (linkToTarget && targetCrossRefFieldId) {
+          const { data: targetRecord } = await supabase
+            .from('form_submissions')
+            .select('submission_data')
+            .eq('id', targetRecordId)
+            .single();
+          
+          if (targetRecord) {
+            const targetData = targetRecord.submission_data as Record<string, any>;
+            const crossRefValue = targetData[targetCrossRefFieldId];
+            
+            if (Array.isArray(crossRefValue) && crossRefValue.length > 0) {
+              linkedRecordId = crossRefValue[0]?.id || crossRefValue[0];
+            } else if (crossRefValue && typeof crossRefValue === 'object') {
+              linkedRecordId = crossRefValue.id || null;
+            } else if (typeof crossRefValue === 'string') {
+              linkedRecordId = crossRefValue;
+            }
+          }
+        }
+        
+        // If no existing record found and there are chain mappings, we can't proceed with chain
+        if (!linkedRecordId && nestedMapping.chainMappings && nestedMapping.chainMappings.length > 0) {
+          console.warn(`${depthPrefix}⚠️ No existing record found to pass through for chain mappings`);
+          runLog.push({ type: 'warning', message: `No existing record at ${nestedMapping.linkedFormName || linkedFormId} to chain through`, timestamp: new Date().toISOString() });
+        }
+        
+        // Don't continue to create/update logic - just proceed to chain processing below
+      } else if (operation === 'create') {
         // Always create a new record
         const { data: createdRecord, error: createError } = await supabase
           .from('form_submissions')
