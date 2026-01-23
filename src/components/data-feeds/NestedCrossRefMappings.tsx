@@ -37,6 +37,7 @@ export function NestedCrossRefMappings({
   const [targetCrossRefFields, setTargetCrossRefFields] = useState<FieldOption[]>([]);
   const [linkedFormFields, setLinkedFormFields] = useState<Record<string, FieldOption[]>>({});
   const [linkedFormCrossRefFields, setLinkedFormCrossRefFields] = useState<Record<string, FieldOption[]>>({});
+  const [linkedFormCrossRefLoading, setLinkedFormCrossRefLoading] = useState<Record<string, boolean>>({});
   const [expandedMappings, setExpandedMappings] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
 
@@ -118,6 +119,9 @@ export function NestedCrossRefMappings({
       return { formName: undefined, formId: linkedFormId };
     }
 
+    // Set loading state for this specific form
+    setLinkedFormCrossRefLoading(prev => ({ ...prev, [linkedFormId]: true }));
+
     const { data: formData } = await supabase
       .from('forms')
       .select('name')
@@ -148,6 +152,9 @@ export function NestedCrossRefMappings({
       ...prev,
       [linkedFormId]: crossRefFields
     }));
+
+    // Clear loading state
+    setLinkedFormCrossRefLoading(prev => ({ ...prev, [linkedFormId]: false }));
 
     return { formName: formData?.name, formId: linkedFormId };
   };
@@ -343,7 +350,9 @@ export function NestedCrossRefMappings({
       {mappings.map((mapping) => {
         // Get cross-ref fields specific to THIS mapping's linked form
         const thisLinkedCrossRefFields = linkedFormCrossRefFields[mapping.linkedFormId] || [];
-        const hasChainSupport = thisLinkedCrossRefFields.length > 0 && depth < maxDepth;
+        const isLoadingCrossRefFields = linkedFormCrossRefLoading[mapping.linkedFormId] === true;
+        // Only show chain support if: fields loaded (not loading), has cross-ref fields, and under max depth
+        const hasChainSupport = !isLoadingCrossRefFields && thisLinkedCrossRefFields.length > 0 && depth < maxDepth;
         
         return (
           <Collapsible

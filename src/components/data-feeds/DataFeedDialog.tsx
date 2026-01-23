@@ -1217,10 +1217,28 @@ export function DataFeedDialog({
               )}
             </TabsContent>
 
-            <TabsContent value="matching" className="space-y-4 p-1">
+            <TabsContent value="matching" className="space-y-6 p-1">
+              {/* Header explanation */}
+              <div className="p-4 rounded-lg bg-muted/30 border">
+                <h4 className="font-medium text-sm mb-1">How Matching Works</h4>
+                <p className="text-xs text-muted-foreground">
+                  Matching determines how source records are linked to target records. 
+                  Choose a matching strategy and define what happens when no match is found.
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <Label>Matching Type</Label>
+                {/* Matching Type Section */}
+                <div className="space-y-3 p-4 rounded-lg border bg-background">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <span className="text-primary font-bold text-sm">1</span>
+                    </div>
+                    <div>
+                      <Label className="font-medium">Matching Strategy</Label>
+                      <p className="text-xs text-muted-foreground">How to find target records</p>
+                    </div>
+                  </div>
                   <RadioGroup
                     value={formData.matching_type}
                     onValueChange={(value) => setFormData(prev => ({ 
@@ -1229,23 +1247,42 @@ export function DataFeedDialog({
                     }))}
                     className="space-y-2"
                   >
-                    <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
-                      <RadioGroupItem value="field_matching" id="field_matching" />
-                      <Label htmlFor="field_matching" className="font-normal cursor-pointer flex-1">
-                        Field Value Matching
-                      </Label>
+                    <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value="field_matching" id="field_matching" className="mt-0.5" />
+                      <div className="flex-1">
+                        <Label htmlFor="field_matching" className="font-medium cursor-pointer">
+                          Field Value Matching
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Compare specific field values between source and target records
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
-                      <RadioGroupItem value="cross_reference" id="cross_reference" />
-                      <Label htmlFor="cross_reference" className="font-normal cursor-pointer flex-1">
-                        Cross-Reference Field
-                      </Label>
+                    <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value="cross_reference" id="cross_reference" className="mt-0.5" />
+                      <div className="flex-1">
+                        <Label htmlFor="cross_reference" className="font-medium cursor-pointer">
+                          Cross-Reference Lookup
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Use existing cross-reference links to find target records
+                        </p>
+                      </div>
                     </div>
                   </RadioGroup>
                 </div>
 
-                <div className="space-y-3">
-                  <Label>When No Match Found</Label>
+                {/* No Match Behavior Section */}
+                <div className="space-y-3 p-4 rounded-lg border bg-background">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <span className="text-primary font-bold text-sm">2</span>
+                    </div>
+                    <div>
+                      <Label className="font-medium">No Match Behavior</Label>
+                      <p className="text-xs text-muted-foreground">Action when no target found</p>
+                    </div>
+                  </div>
                   <RadioGroup
                     value={formData.no_match_behavior}
                     onValueChange={(value) => setFormData(prev => ({ 
@@ -1254,17 +1291,27 @@ export function DataFeedDialog({
                     }))}
                     className="space-y-2"
                   >
-                    <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
-                      <RadioGroupItem value="skip" id="skip" />
-                      <Label htmlFor="skip" className="font-normal cursor-pointer flex-1">
-                        Skip (update existing only)
-                      </Label>
+                    <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value="skip" id="skip" className="mt-0.5" />
+                      <div className="flex-1">
+                        <Label htmlFor="skip" className="font-medium cursor-pointer">
+                          Skip Record
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Only update existing records, skip if no match found
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
-                      <RadioGroupItem value="create" id="create" />
-                      <Label htmlFor="create" className="font-normal cursor-pointer flex-1">
-                        Create new record in target form
-                      </Label>
+                    <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value="create" id="create" className="mt-0.5" />
+                      <div className="flex-1">
+                        <Label htmlFor="create" className="font-medium cursor-pointer">
+                          Create New Record
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Create a new record in target form if no match found
+                        </p>
+                      </div>
                     </div>
                   </RadioGroup>
                 </div>
@@ -1321,25 +1368,28 @@ export function DataFeedDialog({
                           cross_ref_match_rules: value === 'match_by_field' ? prev.cross_ref_match_rules : [],
                           cross_ref_match_logic: value === 'match_by_field' ? prev.cross_ref_match_logic : ''
                         }))}
-                        className="space-y-2"
+                        className="grid grid-cols-3 gap-2"
                       >
-                        <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
+                        <div className="flex flex-col items-center space-y-2 p-3 border rounded-lg hover:bg-muted/50 text-center cursor-pointer transition-colors">
                           <RadioGroupItem value="all" id="cross_ref_all" />
-                          <Label htmlFor="cross_ref_all" className="font-normal cursor-pointer flex-1">
-                            All Records — Update all linked records
+                          <Label htmlFor="cross_ref_all" className="font-medium cursor-pointer text-sm">
+                            All Records
                           </Label>
+                          <p className="text-xs text-muted-foreground">Update all linked</p>
                         </div>
-                        <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
+                        <div className="flex flex-col items-center space-y-2 p-3 border rounded-lg hover:bg-muted/50 text-center cursor-pointer transition-colors">
                           <RadioGroupItem value="first" id="cross_ref_first" />
-                          <Label htmlFor="cross_ref_first" className="font-normal cursor-pointer flex-1">
-                            First Record — Update only the first linked record
+                          <Label htmlFor="cross_ref_first" className="font-medium cursor-pointer text-sm">
+                            First Record
                           </Label>
+                          <p className="text-xs text-muted-foreground">Update first only</p>
                         </div>
-                        <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50">
+                        <div className="flex flex-col items-center space-y-2 p-3 border rounded-lg hover:bg-muted/50 text-center cursor-pointer transition-colors">
                           <RadioGroupItem value="match_by_field" id="cross_ref_match" />
-                          <Label htmlFor="cross_ref_match" className="font-normal cursor-pointer flex-1">
-                            Match by Field — Update only records matching field rules
+                          <Label htmlFor="cross_ref_match" className="font-medium cursor-pointer text-sm">
+                            Match by Field
                           </Label>
+                          <p className="text-xs text-muted-foreground">Filter by rules</p>
                         </div>
                       </RadioGroup>
 
@@ -1489,9 +1539,17 @@ export function DataFeedDialog({
               )}
 
               {formData.matching_type === 'field_matching' && (
-                <div className="space-y-3">
+                <div className="space-y-4 p-4 rounded-lg border bg-muted/10">
                   <div className="flex items-center justify-between">
-                    <Label>Matching Rules</Label>
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="text-primary font-bold text-xs">3</span>
+                      </div>
+                      <div>
+                        <Label className="font-medium">Field Matching Rules</Label>
+                        <p className="text-xs text-muted-foreground">Define which fields must match to link records</p>
+                      </div>
+                    </div>
                     <Button type="button" variant="outline" size="sm" onClick={addMatchingRule}>
                       <Plus className="h-4 w-4 mr-1" />
                       Add Rule
@@ -1499,59 +1557,66 @@ export function DataFeedDialog({
                   </div>
 
                   {formData.matching_rules.length === 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      Add rules to define how source and target records are matched.
-                    </p>
+                    <div className="p-6 border-2 border-dashed rounded-lg text-center">
+                      <p className="text-sm text-muted-foreground">
+                        No matching rules defined. Click "Add Rule" to specify how source and target records should be matched.
+                      </p>
+                    </div>
                   )}
 
                   {formData.matching_rules.map((rule, index) => (
-                    <div key={rule.id || index} className="flex items-center gap-2">
-                      <Badge variant="secondary" className="shrink-0 w-6 h-6 flex items-center justify-center p-0 text-xs font-bold">
+                    <div key={rule.id || index} className="flex items-center gap-2 p-3 border rounded-lg bg-background">
+                      <Badge variant="secondary" className="shrink-0 w-7 h-7 flex items-center justify-center p-0 text-xs font-bold rounded-full">
                         {rule.id || index + 1}
                       </Badge>
                       
-                      <Select
-                        value={rule.sourceFieldId}
-                        onValueChange={(value) => updateMatchingRule(index, 'sourceFieldId', value)}
-                      >
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Source field" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {sourceFields.map((field) => (
-                            <SelectItem key={field.id} value={field.id}>
-                              {field.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex-1 grid grid-cols-[1fr_auto_1fr_auto] items-center gap-2">
+                        <Select
+                          value={rule.sourceFieldId}
+                          onValueChange={(value) => updateMatchingRule(index, 'sourceFieldId', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Source field" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {sourceFields.map((field) => (
+                              <SelectItem key={field.id} value={field.id}>
+                                {field.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
 
-                      <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <div className="flex items-center justify-center w-8">
+                          <ArrowRight className="h-4 w-4 text-primary" />
+                        </div>
 
-                      <Select
-                        value={rule.targetFieldId}
-                        onValueChange={(value) => updateMatchingRule(index, 'targetFieldId', value)}
-                      >
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Target field" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {targetFields.map((field) => (
-                            <SelectItem key={field.id} value={field.id}>
-                              {field.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        <Select
+                          value={rule.targetFieldId}
+                          onValueChange={(value) => updateMatchingRule(index, 'targetFieldId', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Target field" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {targetFields.map((field) => (
+                              <SelectItem key={field.id} value={field.id}>
+                                {field.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
 
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeMatchingRule(index)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeMatchingRule(index)}
+                          className="h-8 w-8"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
 
