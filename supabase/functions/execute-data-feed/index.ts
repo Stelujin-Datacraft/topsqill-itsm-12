@@ -66,6 +66,8 @@ interface NestedCrossRefMapping {
   operation: 'create' | 'update' | 'create_or_update';
   matchingRules?: MatchingRule[];
   matchingLogic?: string;
+  // Chain support: nested mappings within this mapping (for Form A → Form B → Form C chains)
+  chainMappings?: NestedCrossRefMapping[];
 }
 
 interface DataFeed {
@@ -393,7 +395,9 @@ async function processNestedCrossRefMappings(
   sourceData: Record<string, any>,
   targetRecordId: string,
   feedCreatedBy: string,
-  runLog: { type: string; message: string; timestamp: string }[]
+  runLog: { type: string; message: string; timestamp: string }[],
+  chainDepth: number = 0,
+  maxChainDepth: number = 10
 ): Promise<{ nestedCreated: number; nestedUpdated: number; nestedErrors: number }> {
   const result = { nestedCreated: 0, nestedUpdated: 0, nestedErrors: 0 };
 
@@ -401,7 +405,15 @@ async function processNestedCrossRefMappings(
     return result;
   }
 
-  console.log(`🔗 Processing ${nestedMappings.length} nested cross-reference mappings`);
+  // Prevent infinite recursion
+  if (chainDepth >= maxChainDepth) {
+    console.warn(`⚠️ Max chain depth (${maxChainDepth}) reached, stopping nested processing`);
+    runLog.push({ type: 'warning', message: `Max chain depth (${maxChainDepth}) reached`, timestamp: new Date().toISOString() });
+    return result;
+  }
+
+  const depthPrefix = chainDepth > 0 ? `${'  '.repeat(chainDepth)}[L${chainDepth + 1}] ` : '';
+  console.log(`${depthPrefix}🔗 Processing ${nestedMappings.length} nested cross-reference mappings at depth ${chainDepth}`);
 
   for (const nestedMapping of nestedMappings) {
     try {
@@ -618,6 +630,32 @@ async function processNestedCrossRefMappings(
           console.log(`✅ Successfully linked nested record to target`);
           runLog.push({ type: 'success', message: `Linked nested record to target via ${nestedMapping.targetCrossRefFieldName || targetCrossRefFieldId}`, timestamp: new Date().toISOString() });
         }
+      }
+
+      // Process chain mappings recursively if this nested record was successfully created/updated
+      if (linkedRecordId && nestedMapping.chainMappings && nestedMapping.chainMappings.length > 0) {
+        console.log(`${depthPrefix}🔗 Processing ${nestedMapping.chainMappings.length} chain mappings at depth ${chainDepth + 1}`);
+        runLog.push({ 
+          type: 'info', 
+          message: `Processing chain level ${chainDepth + 2} with ${nestedMapping.chainMappings.length} mapping(s)`, 
+          timestamp: new Date().toISOString() 
+        });
+
+        const chainResult = await processNestedCrossRefMappings(
+          supabase,
+          nestedMapping.chainMappings,
+          sourceData, // Pass the original source data to chain levels
+          linkedRecordId, // The record we just created/updated becomes the target for chain mappings
+          feedCreatedBy,
+          runLog,
+          chainDepth + 1,
+          maxChainDepth
+        );
+
+        // Aggregate chain results
+        result.nestedCreated += chainResult.nestedCreated;
+        result.nestedUpdated += chainResult.nestedUpdated;
+        result.nestedErrors += chainResult.nestedErrors;
       }
     } catch (nestedError) {
       console.error(`❌ Error processing nested mapping:`, nestedError);
@@ -1049,7 +1087,9 @@ Deno.serve(async (req) => {
                     sourceData,
                     target.id,
                     feed.created_by,
-                    runLog
+                    runLog,
+                    0, // Start at chain depth 0
+                    10 // Max chain depth
                   );
                   console.log(`🔗 Nested mappings result for target ${target.id}:`, nestedResult);
                 }
@@ -1119,7 +1159,9 @@ Deno.serve(async (req) => {
                     sourceData,
                     insertedRecord.id,
                     feed.created_by,
-                    runLog
+                    runLog,
+                    0, // Start at chain depth 0
+                    10 // Max chain depth
                   );
                   console.log(`🔗 Nested mappings result for new record ${insertedRecord.id}:`, nestedResult);
                 }
@@ -1171,6 +1213,21 @@ Deno.serve(async (req) => {
                   nestedProcessed = true;
                   runLog.push({ type: 'success', message: `Created nested record in ${nestedMapping.linkedFormName || linkedFormId} (standalone, no target match)`, timestamp: new Date().toISOString() });
                   console.log(`✅ Created standalone nested record ${createdRecord.id} in form ${linkedFormId}`);
+                  
+                  // Process chain mappings for this standalone record
+                  if (nestedMapping.chainMappings && nestedMapping.chainMappings.length > 0) {
+                    const chainResult = await processNestedCrossRefMappings(
+                      supabase,
+                      nestedMapping.chainMappings,
+                      sourceData,
+                      createdRecord.id,
+                      feed.created_by,
+                      runLog,
+                      1, // Start at depth 1 since we're already one level deep
+                      10
+                    );
+                    console.log(`🔗 Chain mappings result for standalone record:`, chainResult);
+                  }
                 }
               }
             }
