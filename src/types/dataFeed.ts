@@ -99,6 +99,8 @@ export interface NestedCrossRefMapping {
   operation: 'create' | 'update' | 'create_or_update'; // What operation to perform
   matchingRules?: MatchingRule[]; // For finding existing records when updating
   matchingLogic?: string; // Logic expression for matching rules
+  // Chain support: nested mappings within this mapping (for Form A → Form B → Form C chains)
+  chainMappings?: NestedCrossRefMapping[]; // Recursive: maps to cross-ref fields in the linked form
 }
 
 export interface DataFeed {
