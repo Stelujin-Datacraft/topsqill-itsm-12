@@ -746,17 +746,12 @@ export function DataFeedDialog({
 
         <ScrollArea className="max-h-[calc(90vh-8rem)]">
           <Tabs defaultValue="general" className="w-full">
-            <TabsList className="grid w-full grid-cols-7">
-              <TabsTrigger value="general">General</TabsTrigger>
-              <TabsTrigger value="source">Data Source</TabsTrigger>
-              <TabsTrigger value="filters">Filters</TabsTrigger>
-              <TabsTrigger value="matching">Matching</TabsTrigger>
-              <TabsTrigger value="mappings">Mappings</TabsTrigger>
-              <TabsTrigger value="nested" className="flex items-center gap-1">
-                <GitBranch className="h-3 w-3" />
-                Nested
-              </TabsTrigger>
-              <TabsTrigger value="schedule">Schedule</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="general">1. General</TabsTrigger>
+              <TabsTrigger value="source">2. Source & Target</TabsTrigger>
+              <TabsTrigger value="filters">3. Filters</TabsTrigger>
+              <TabsTrigger value="matching">4. Matching</TabsTrigger>
+              <TabsTrigger value="mappings">5. Mappings</TabsTrigger>
             </TabsList>
 
             {/* General Tab - Name, Description, Active only */}
@@ -790,15 +785,15 @@ export function DataFeedDialog({
                 />
                 <Label htmlFor="is_active">Active</Label>
               </div>
-            </TabsContent>
 
-            {/* Schedule Tab */}
-            <TabsContent value="schedule" className="space-y-4 p-1">
+              {/* Schedule Section - Moved from separate tab */}
+              <Separator className="my-4" />
+              
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Clock className="h-5 w-5" />
                   <div>
-                    <Label className="text-base">Execution Schedule</Label>
+                    <Label className="text-base font-medium">Execution Schedule</Label>
                     <p className="text-sm text-muted-foreground">Configure when this feed runs automatically</p>
                   </div>
                 </div>
@@ -1608,107 +1603,125 @@ export function DataFeedDialog({
 
             </TabsContent>
 
-            <TabsContent value="mappings" className="space-y-4 p-1">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label>Field Mappings</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={() => addFieldMapping('direct')}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Mapping
-                  </Button>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Define which source fields are copied to target fields. Each mapping transfers a value from the source record to the matched target record.
-                </p>
-              </div>
-
-              {formData.field_mappings.length === 0 && (
-                <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg text-muted-foreground">
-                  <ArrowRight className="h-8 w-8 mb-2" />
-                  <p className="text-sm">No field mappings configured</p>
-                  <p className="text-xs">Add mappings to define which values are copied</p>
-                </div>
-              )}
-
-              {formData.field_mappings.map((mapping, index) => (
-                <div key={index} className="p-4 border rounded-lg bg-muted/30">
-                  <div className="space-y-3">
-                    {/* Header */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 rounded bg-secondary">
-                          <ArrowRight className="h-4 w-4 text-secondary-foreground" />
-                        </div>
-                        <span className="font-medium text-sm">Mapping #{index + 1}</span>
+            <TabsContent value="mappings" className="space-y-6 p-1">
+              {/* Section 1: Direct Field Mappings */}
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ArrowRight className="h-5 w-5 text-primary" />
+                      <div>
+                        <Label className="text-base font-medium">Direct Field Mappings</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Map source fields directly to target form fields
+                        </p>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFieldMapping(index)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
                     </div>
+                    <Button type="button" variant="outline" size="sm" onClick={() => addFieldMapping('direct')}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Mapping
+                    </Button>
+                  </div>
+                </div>
 
-                    {/* Two column layout for source → target */}
-                    <div className="grid grid-cols-[1fr,auto,1fr] gap-3 items-end">
-                      <div className="space-y-2">
-                        <Label className="text-sm">Source Field</Label>
-                        <Select
-                          value={mapping.sourceFieldId}
-                          onValueChange={(value) => updateFieldMapping(index, 'sourceFieldId', value)}
+                {formData.field_mappings.length === 0 && (
+                  <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg text-muted-foreground">
+                    <ArrowRight className="h-8 w-8 mb-2" />
+                    <p className="text-sm">No field mappings configured</p>
+                    <p className="text-xs">Add mappings to define which values are copied</p>
+                  </div>
+                )}
+
+                {formData.field_mappings.map((mapping, index) => (
+                  <div key={index} className="p-4 border rounded-lg bg-muted/30">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded bg-secondary">
+                            <ArrowRight className="h-4 w-4 text-secondary-foreground" />
+                          </div>
+                          <span className="font-medium text-sm">Mapping #{index + 1}</span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFieldMapping(index)}
+                          className="text-destructive hover:text-destructive"
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select source field..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {sourceFields.map((field) => (
-                              <SelectItem key={field.id} value={field.id}>
-                                {field.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
 
-                      <ArrowRight className="h-5 w-5 text-muted-foreground mb-2" />
+                      <div className="grid grid-cols-[1fr,auto,1fr] gap-3 items-end">
+                        <div className="space-y-2">
+                          <Label className="text-sm">Source Field</Label>
+                          <Select
+                            value={mapping.sourceFieldId}
+                            onValueChange={(value) => updateFieldMapping(index, 'sourceFieldId', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select source field..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {sourceFields.map((field) => (
+                                <SelectItem key={field.id} value={field.id}>
+                                  {field.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                      <div className="space-y-2">
-                        <Label className="text-sm">Target Field</Label>
-                        <Select
-                          value={mapping.targetFieldId}
-                          onValueChange={(value) => updateFieldMapping(index, 'targetFieldId', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select target field..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {targetFields.map((field) => (
-                              <SelectItem key={field.id} value={field.id}>
-                                {field.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <ArrowRight className="h-5 w-5 text-muted-foreground mb-2" />
+
+                        <div className="space-y-2">
+                          <Label className="text-sm">Target Field</Label>
+                          <Select
+                            value={mapping.targetFieldId}
+                            onValueChange={(value) => updateFieldMapping(index, 'targetFieldId', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select target field..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {targetFields.map((field) => (
+                                <SelectItem key={field.id} value={field.id}>
+                                  {field.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </TabsContent>
+                ))}
+              </div>
 
-            {/* Nested Cross-Reference Mappings Tab */}
-            <TabsContent value="nested" className="space-y-4 p-1">
-              <NestedCrossRefMappings
-                targetFormId={formData.target_form_id}
-                sourceFields={sourceFields}
-                mappings={formData.nested_cross_ref_mappings || []}
-                onMappingsChange={(mappings) =>
-                  setFormData((prev) => ({ ...prev, nested_cross_ref_mappings: mappings }))
-                }
-              />
+              {/* Section 2: Nested Cross-Reference Mappings */}
+              <Separator />
+              
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <GitBranch className="h-5 w-5 text-primary" />
+                  <div>
+                    <Label className="text-base font-medium">Nested Cross-Reference Mappings</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Create or update records in forms linked via cross-reference fields (optional)
+                    </p>
+                  </div>
+                </div>
+                
+                <NestedCrossRefMappings
+                  targetFormId={formData.target_form_id}
+                  sourceFields={sourceFields}
+                  mappings={formData.nested_cross_ref_mappings || []}
+                  onMappingsChange={(mappings) =>
+                    setFormData((prev) => ({ ...prev, nested_cross_ref_mappings: mappings }))
+                  }
+                />
+              </div>
             </TabsContent>
           </Tabs>
         </ScrollArea>
@@ -1717,7 +1730,15 @@ export function DataFeedDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving || !formData.name || !formData.source_form_id || !formData.target_form_id}>
+          <Button 
+            onClick={handleSave} 
+            disabled={
+              saving || 
+              !formData.name || 
+              !formData.target_form_id ||
+              (formData.source_type === 'form' ? !formData.source_form_id : !(formData.data_source_connection_id || Object.keys(formData.external_source_config || {}).length > 0))
+            }
+          >
             {saving ? 'Saving...' : (feed ? 'Update' : 'Create')}
           </Button>
         </DialogFooter>
