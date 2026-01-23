@@ -12,7 +12,28 @@ interface MediaComponentProps {
 }
 
 export function MediaComponent({ media, onEdit, onDelete, isEditing = false }: MediaComponentProps) {
-  const renderContent = () => {
+  const customWidth = media.metadata?.width;
+  const customHeight = media.metadata?.height;
+  const hasCustomSize = (media.media_type === 'image' || media.media_type === 'video') && (customWidth || customHeight);
+
+  const getIcon = () => {
+    switch (media.media_type) {
+      case 'image': return <Image className="h-4 w-4" />;
+      case 'video': return <Video className="h-4 w-4" />;
+      case 'link': return <Link2 className="h-4 w-4" />;
+      case 'document': return <FileText className="h-4 w-4" />;
+      default: return null;
+    }
+  };
+
+  // Container style based on media dimensions
+  const containerStyle: React.CSSProperties = hasCustomSize ? {
+    width: customWidth ? `${customWidth}px` : 'auto',
+    height: customHeight ? `${customHeight}px` : 'auto',
+    maxWidth: '100%',
+  } : {};
+
+  const renderMediaContent = () => {
     switch (media.media_type) {
       case 'image':
         return <ImageMedia media={media} />;
@@ -27,34 +48,56 @@ export function MediaComponent({ media, onEdit, onDelete, isEditing = false }: M
     }
   };
 
-  const getIcon = () => {
-    switch (media.media_type) {
-      case 'image': return <Image className="h-4 w-4" />;
-      case 'video': return <Video className="h-4 w-4" />;
-      case 'link': return <Link2 className="h-4 w-4" />;
-      case 'document': return <FileText className="h-4 w-4" />;
-      default: return null;
-    }
-  };
+  // For image/video with custom size, use overlay header
+  if (hasCustomSize) {
+    return (
+      <Card className="overflow-hidden relative" style={containerStyle}>
+        {/* Media fills the entire card */}
+        <div className="absolute inset-0">
+          {renderMediaContent()}
+        </div>
+        
+        {/* Overlay header for title and actions */}
+        {(media.title || isEditing) && (
+          <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/70 to-transparent p-2 z-10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-white">
+                {getIcon()}
+                <span className="text-sm font-medium truncate">
+                  {media.title || `${media.media_type} media`}
+                </span>
+              </div>
+              {isEditing && (
+                <div className="flex gap-1">
+                  {onEdit && (
+                    <Button variant="ghost" size="sm" className="text-white hover:bg-white/20" onClick={() => onEdit(media)}>
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                  )}
+                  {onDelete && (
+                    <Button variant="ghost" size="sm" className="text-white hover:bg-white/20" onClick={() => onDelete(media.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
-  // Calculate container style based on media dimensions
-  const getContainerStyle = (): React.CSSProperties => {
-    if (media.media_type === 'image' || media.media_type === 'video') {
-      const customWidth = media.metadata?.width;
-      const customHeight = media.metadata?.height;
-      if (customWidth || customHeight) {
-        return {
-          width: customWidth ? `${customWidth}px` : 'auto',
-          height: customHeight ? `${customHeight + 60}px` : 'auto', // Add space for header
-          maxWidth: '100%',
-        };
-      }
-    }
-    return {};
-  };
+        {/* Description overlay at bottom */}
+        {media.description && (
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 z-10">
+            <p className="text-white text-xs">{media.description}</p>
+          </div>
+        )}
+      </Card>
+    );
+  }
 
+  // Default layout for links, documents, or media without custom size
   return (
-    <Card className="overflow-hidden inline-block" style={getContainerStyle()}>
+    <Card className="h-full overflow-hidden">
       {(media.title || isEditing) && (
         <CardHeader className="py-2 px-3">
           <div className="flex items-center justify-between">
@@ -82,7 +125,7 @@ export function MediaComponent({ media, onEdit, onDelete, isEditing = false }: M
         </CardHeader>
       )}
       <CardContent className={media.title || isEditing ? "p-2" : "p-0"}>
-        {renderContent()}
+        {renderMediaContent()}
       </CardContent>
     </Card>
   );
@@ -90,8 +133,6 @@ export function MediaComponent({ media, onEdit, onDelete, isEditing = false }: M
 
 function ImageMedia({ media }: { media: ReportMedia }) {
   const src = media.url || media.file_path;
-  const customWidth = media.metadata?.width;
-  const customHeight = media.metadata?.height;
   
   if (!src) {
     return (
@@ -101,101 +142,56 @@ function ImageMedia({ media }: { media: ReportMedia }) {
     );
   }
 
-  const containerStyle: React.CSSProperties = {
-    width: customWidth ? `${customWidth}px` : '100%',
-    height: customHeight ? `${customHeight}px` : 'auto',
-  };
-
-  const imageStyle: React.CSSProperties = {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
-  };
-
   return (
-    <div className="relative group flex items-center justify-center bg-muted/30" style={containerStyle}>
-      <img 
-        src={src} 
-        alt={media.title || 'Image'} 
-        style={imageStyle}
-        className="rounded"
-        loading="lazy"
-      />
-      {media.description && (
-        <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white p-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-          {media.description}
-        </div>
-      )}
-    </div>
+    <img 
+      src={src} 
+      alt={media.title || 'Image'} 
+      className="w-full h-full object-cover"
+      loading="lazy"
+    />
   );
 }
 
 function VideoMedia({ media }: { media: ReportMedia }) {
   const url = media.url || '';
-  const customWidth = media.metadata?.width;
-  const customHeight = media.metadata?.height;
   
   // Check if it's a YouTube or Vimeo URL
   const youtubeMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/);
   const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
 
-  const containerStyle: React.CSSProperties = {
-    width: customWidth ? `${customWidth}px` : '100%',
-    height: customHeight ? `${customHeight}px` : '300px',
-  };
-
-  const iframeStyle: React.CSSProperties = {
-    width: '100%',
-    height: '100%',
-  };
-
-  const videoStyle: React.CSSProperties = {
-    width: '100%',
-    height: '100%',
-  };
-
   if (youtubeMatch) {
     return (
-      <div className="flex items-center justify-center" style={containerStyle}>
-        <iframe
-          src={`https://www.youtube.com/embed/${youtubeMatch[1]}`}
-          style={iframeStyle}
-          className="rounded"
-          allowFullScreen
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        />
-      </div>
+      <iframe
+        src={`https://www.youtube.com/embed/${youtubeMatch[1]}`}
+        className="w-full h-full"
+        allowFullScreen
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      />
     );
   }
 
   if (vimeoMatch) {
     return (
-      <div className="flex items-center justify-center" style={containerStyle}>
-        <iframe
-          src={`https://player.vimeo.com/video/${vimeoMatch[1]}`}
-          style={iframeStyle}
-          className="rounded"
-          allowFullScreen
-          allow="autoplay; fullscreen; picture-in-picture"
-        />
-      </div>
+      <iframe
+        src={`https://player.vimeo.com/video/${vimeoMatch[1]}`}
+        className="w-full h-full"
+        allowFullScreen
+        allow="autoplay; fullscreen; picture-in-picture"
+      />
     );
   }
 
   // Direct video file
   if (url) {
     return (
-      <div className="flex items-center justify-center bg-muted/30" style={containerStyle}>
-        <video 
-          src={url} 
-          controls 
-          style={videoStyle}
-          className="rounded"
-          poster={media.thumbnail_url}
-        >
-          Your browser does not support the video tag.
-        </video>
-      </div>
+      <video 
+        src={url} 
+        controls 
+        className="w-full h-full object-cover"
+        poster={media.thumbnail_url}
+      >
+        Your browser does not support the video tag.
+      </video>
     );
   }
 
