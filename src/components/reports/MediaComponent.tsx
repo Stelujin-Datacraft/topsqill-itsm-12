@@ -224,28 +224,6 @@ function DocumentMedia({ media }: { media: ReportMedia }) {
   const url = media.url || media.file_path || '';
   const fileName = media.title || url.split('/').pop() || 'Document';
 
-  const openDocument = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!url) {
-      console.error('No URL available for document');
-      return;
-    }
-    
-    console.log('Opening document URL:', url);
-    
-    // Create a temporary anchor element and trigger click
-    const link = document.createElement('a');
-    link.href = url;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   return (
     <div className="block p-4 bg-muted/50 rounded hover:bg-muted transition-colors h-full">
       <div className="flex items-center gap-3 h-full">
@@ -259,27 +237,18 @@ function DocumentMedia({ media }: { media: ReportMedia }) {
               {media.description}
             </p>
           )}
-          {url && (
-            <a 
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-primary mt-1 hover:underline inline-block no-drag"
-              onClick={openDocument}
-            >
-              Click to open document
-            </a>
-          )}
         </div>
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="shrink-0 p-2 rounded hover:bg-muted-foreground/10 no-drag"
-          onClick={openDocument}
-        >
-          <ExternalLink className="h-4 w-4 text-muted-foreground" />
-        </a>
+        {url && (
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 p-2 rounded bg-primary/10 hover:bg-primary/20 transition-colors no-drag"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ExternalLink className="h-4 w-4 text-primary" />
+          </a>
+        )}
       </div>
     </div>
   );
