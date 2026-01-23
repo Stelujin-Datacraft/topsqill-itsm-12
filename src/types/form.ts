@@ -402,6 +402,9 @@ export interface FormField {
     enableValidation?: boolean;
     formId?: string;
     submissionId?: string;
+    
+    // Display options
+    isHyperlink?: boolean; // Whether this field should be rendered as a hyperlink to the record
   };
 }
 

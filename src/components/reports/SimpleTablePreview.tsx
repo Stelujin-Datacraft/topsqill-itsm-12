@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -77,6 +78,7 @@ export function SimpleTablePreview({
   pageSize,
   title
 }: SimpleTablePreviewProps) {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -385,9 +387,27 @@ export function SimpleTablePreview({
                           displayValue = formatCellValue(row.submission_data?.[field.id], field.type);
                         }
                         
+                        // Check if field is configured as hyperlink
+                        const formField = selectedForm?.fields.find(f => f.id === field.id);
+                        const isHyperlink = formField?.customConfig?.isHyperlink;
+                        
                         return (
                           <TableCell key={field.id} className="whitespace-nowrap max-w-xs truncate" title={displayValue}>
-                            {displayValue}
+                            {isHyperlink && displayValue !== '-' ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  navigate(`/submission-view/${row.id}`);
+                                }}
+                                className="text-primary hover:text-primary/80 hover:underline font-medium cursor-pointer text-left"
+                              >
+                                {displayValue}
+                              </button>
+                            ) : (
+                              displayValue
+                            )}
                           </TableCell>
                         );
                       })}
