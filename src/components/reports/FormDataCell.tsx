@@ -64,9 +64,9 @@ export function FormDataCell({ value, fieldType, field, submissionId }: FormData
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            navigate(`/submission-view/${submissionId}`);
+            navigate(`/submission/${submissionId}`);
           }}
-          className="text-primary hover:text-primary/80 hover:underline font-medium cursor-pointer text-left"
+          className="text-primary underline hover:text-primary/80 font-medium cursor-pointer text-left"
         >
           {content}
         </button>
