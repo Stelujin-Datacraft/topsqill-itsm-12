@@ -48,11 +48,6 @@ const Reports = () => {
     navigate(`/dashboard-view/${dashboard.id}`);
   };
 
-  const handleEditDashboard = (dashboard: DashboardWithReports) => {
-    if (checkPermissionWithAlert('reports', 'update')) {
-      navigate(`/dashboard-view/${dashboard.id}?edit=true`);
-    }
-  };
 
   const handleDeleteDashboard = async () => {
     await refetchDashboards();
@@ -68,7 +63,6 @@ const Reports = () => {
         <DashboardsList
           dashboards={dashboards}
           onView={handleViewDashboard}
-          onEdit={handleEditDashboard}
           onDelete={handleDeleteDashboard}
           onCreate={handleCreateDashboard}
         />
