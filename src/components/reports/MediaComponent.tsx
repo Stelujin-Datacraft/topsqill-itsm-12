@@ -77,18 +77,18 @@ function ImageMedia({ media }: { media: ReportMedia }) {
   
   if (!src) {
     return (
-      <div className="aspect-video bg-muted flex items-center justify-center">
+      <div className="h-full w-full bg-muted flex items-center justify-center min-h-[100px]">
         <Image className="h-8 w-8 text-muted-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="relative group">
+    <div className="relative group h-full w-full flex items-center justify-center bg-muted/30">
       <img 
         src={src} 
         alt={media.title || 'Image'} 
-        className="w-full h-full object-cover rounded"
+        className="max-w-full max-h-full object-contain rounded"
         loading="lazy"
       />
       {media.description && (
@@ -109,10 +109,10 @@ function VideoMedia({ media }: { media: ReportMedia }) {
 
   if (youtubeMatch) {
     return (
-      <div className="aspect-video">
+      <div className="h-full w-full flex items-center justify-center">
         <iframe
           src={`https://www.youtube.com/embed/${youtubeMatch[1]}`}
-          className="w-full h-full rounded"
+          className="w-full h-full rounded min-h-[200px]"
           allowFullScreen
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         />
@@ -122,10 +122,10 @@ function VideoMedia({ media }: { media: ReportMedia }) {
 
   if (vimeoMatch) {
     return (
-      <div className="aspect-video">
+      <div className="h-full w-full flex items-center justify-center">
         <iframe
           src={`https://player.vimeo.com/video/${vimeoMatch[1]}`}
-          className="w-full h-full rounded"
+          className="w-full h-full rounded min-h-[200px]"
           allowFullScreen
           allow="autoplay; fullscreen; picture-in-picture"
         />
@@ -136,11 +136,11 @@ function VideoMedia({ media }: { media: ReportMedia }) {
   // Direct video file
   if (url) {
     return (
-      <div className="aspect-video">
+      <div className="h-full w-full flex items-center justify-center bg-muted/30">
         <video 
           src={url} 
           controls 
-          className="w-full h-full rounded"
+          className="max-w-full max-h-full rounded"
           poster={media.thumbnail_url}
         >
           Your browser does not support the video tag.
@@ -150,7 +150,7 @@ function VideoMedia({ media }: { media: ReportMedia }) {
   }
 
   return (
-    <div className="aspect-video bg-muted flex items-center justify-center">
+    <div className="h-full w-full bg-muted flex items-center justify-center min-h-[100px]">
       <Video className="h-8 w-8 text-muted-foreground" />
     </div>
   );
@@ -197,14 +197,20 @@ function DocumentMedia({ media }: { media: ReportMedia }) {
   const url = media.url || media.file_path || '';
   const fileName = media.title || url.split('/').pop() || 'Document';
 
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   return (
-    <a 
-      href={url} 
-      target="_blank" 
-      rel="noopener noreferrer"
-      className="block p-4 bg-muted/50 rounded hover:bg-muted transition-colors"
+    <div 
+      onClick={handleClick}
+      className="block p-4 bg-muted/50 rounded hover:bg-muted transition-colors cursor-pointer h-full"
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 h-full">
         <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center shrink-0">
           <FileText className="h-6 w-6 text-primary" />
         </div>
@@ -215,9 +221,12 @@ function DocumentMedia({ media }: { media: ReportMedia }) {
               {media.description}
             </p>
           )}
+          {url && (
+            <p className="text-xs text-primary mt-1 truncate">Click to open document</p>
+          )}
         </div>
         <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" />
       </div>
-    </a>
+    </div>
   );
 }
