@@ -67,6 +67,34 @@ export function NestedCrossRefMappings({
     fetchCrossRefFields();
   }, [targetFormId]);
 
+  // Load linked form fields for existing mappings on mount
+  useEffect(() => {
+    const loadExistingMappingFields = async () => {
+      for (const mapping of mappings) {
+        if (mapping.linkedFormId && !linkedFormFields[mapping.linkedFormId]) {
+          console.log('[NestedCrossRefMappings] Loading linked form fields for existing mapping:', mapping.linkedFormId);
+          
+          const { data: fields } = await supabase
+            .from('form_fields')
+            .select('id, label, field_type, custom_config')
+            .eq('form_id', mapping.linkedFormId)
+            .order('field_order');
+
+          if (fields) {
+            setLinkedFormFields(prev => ({
+              ...prev,
+              [mapping.linkedFormId]: fields
+            }));
+          }
+        }
+      }
+    };
+
+    if (mappings.length > 0) {
+      loadExistingMappingFields();
+    }
+  }, [mappings]);
+
   // Fetch fields from linked forms when cross-ref fields change
   const fetchLinkedFormFields = async (crossRefFieldId: string, customConfig: any) => {
     const linkedFormId = customConfig?.targetFormId || customConfig?.referencedFormId || customConfig?.parentFormId;
@@ -425,56 +453,73 @@ export function NestedCrossRefMappings({
                       </p>
                     )}
 
-                    {mapping.fieldMappings.map((fm, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <Select
-                          value={fm.sourceFieldId}
-                          onValueChange={(value) =>
-                            updateFieldMapping(mapping.id, index, 'sourceFieldId', value)
-                          }
-                        >
-                          <SelectTrigger className="flex-1">
-                            <SelectValue placeholder="Source field" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {sourceFields.map((field) => (
-                              <SelectItem key={field.id} value={field.id}>
-                                {field.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                    {mapping.fieldMappings.map((fm, index) => {
+                      const linkedFields = linkedFormFields[mapping.linkedFormId] || [];
+                      const hasLinkedFields = linkedFields.length > 0;
+                      
+                      return (
+                        <div key={index} className="flex items-center gap-2 p-2 border rounded bg-background">
+                          <Select
+                            value={fm.sourceFieldId}
+                            onValueChange={(value) =>
+                              updateFieldMapping(mapping.id, index, 'sourceFieldId', value)
+                            }
+                          >
+                            <SelectTrigger className="flex-1">
+                              <SelectValue placeholder="Source field" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {sourceFields.length === 0 ? (
+                                <div className="p-2 text-sm text-muted-foreground text-center">
+                                  No source fields available
+                                </div>
+                              ) : (
+                                sourceFields.map((field) => (
+                                  <SelectItem key={field.id} value={field.id}>
+                                    {field.label}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
 
-                        <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <ArrowRight className="h-4 w-4 text-primary shrink-0" />
 
-                        <Select
-                          value={fm.linkedFieldId}
-                          onValueChange={(value) =>
-                            updateFieldMapping(mapping.id, index, 'linkedFieldId', value)
-                          }
-                        >
-                          <SelectTrigger className="flex-1">
-                            <SelectValue placeholder="Linked form field" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(linkedFormFields[mapping.linkedFormId] || []).map((field) => (
-                              <SelectItem key={field.id} value={field.id}>
-                                {field.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          <Select
+                            value={fm.linkedFieldId}
+                            onValueChange={(value) =>
+                              updateFieldMapping(mapping.id, index, 'linkedFieldId', value)
+                            }
+                          >
+                            <SelectTrigger className="flex-1">
+                              <SelectValue placeholder={hasLinkedFields ? "Select target field" : "Loading fields..."} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {!hasLinkedFields ? (
+                                <div className="p-2 text-sm text-muted-foreground text-center">
+                                  {mapping.linkedFormId ? 'Loading fields...' : 'Select cross-ref field first'}
+                                </div>
+                              ) : (
+                                linkedFields.map((field) => (
+                                  <SelectItem key={field.id} value={field.id}>
+                                    {field.label}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
 
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeFieldMapping(mapping.id, index)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    ))}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeFieldMapping(mapping.id, index)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
