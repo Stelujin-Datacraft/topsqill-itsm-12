@@ -270,6 +270,25 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
 
     // For form fields, use FormDataCell for proper rendering
     const formField = formFields.find(f => f.id === fieldId);
+    
+    // Check if field is configured as hyperlink
+    if (formField?.custom_config?.isHyperlink && value) {
+      const displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
+      return (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigate(`/submission-view/${submission.id}`);
+          }}
+          className="text-primary hover:text-primary/80 hover:underline font-medium cursor-pointer text-left"
+        >
+          {displayValue}
+        </button>
+      );
+    }
+    
     if (formField) {
       return (
         <FormDataCell 

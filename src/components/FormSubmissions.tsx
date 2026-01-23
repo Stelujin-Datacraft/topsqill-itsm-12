@@ -242,8 +242,28 @@ export function FormSubmissions({
       });
     }
   };
-  const getFieldValue = (submission: FormSubmission, fieldId: string) => {
-    return submission.submissionData[fieldId] || '-';
+  const getFieldValue = (submission: FormSubmission, fieldId: string, field?: any) => {
+    const value = submission.submissionData[fieldId];
+    const displayValue = value || '-';
+    
+    // Check if field is configured as hyperlink
+    if (field?.customConfig?.isHyperlink && value) {
+      return (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigate(`/submission-view/${submission.id}`);
+          }}
+          className="text-primary hover:text-primary/80 hover:underline font-medium cursor-pointer text-left"
+        >
+          {String(displayValue)}
+        </button>
+      );
+    }
+    
+    return displayValue;
   };
   const getApprovalBadge = (status: string) => {
     switch (status) {
@@ -348,7 +368,7 @@ export function FormSubmissions({
                         </div>
                       </TableCell>
                       {allFields.slice(0, 3).map(field => <TableCell key={field.id}>
-                          {getFieldValue(submission, field.id)}
+                          {getFieldValue(submission, field.id, field)}
                         </TableCell>)}
                       <TableCell>
                         <div className="flex gap-2">

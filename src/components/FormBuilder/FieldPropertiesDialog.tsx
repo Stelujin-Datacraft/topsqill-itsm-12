@@ -1047,6 +1047,20 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                       Read-only field
                     </Label>
                   </div>
+
+                  <div className="flex items-center space-x-3">
+                    <Checkbox 
+                      id="field-hyperlink" 
+                      checked={localConfig.customConfig?.isHyperlink || false} 
+                      onCheckedChange={checked => updateCustomConfig('isHyperlink', Boolean(checked))} 
+                    />
+                    <Label htmlFor="field-hyperlink" className="text-sm font-medium">
+                      Use as hyperlink to record
+                    </Label>
+                    <span className="text-xs text-muted-foreground">
+                      (Click to navigate to submission details)
+                    </span>
+                  </div>
                 </CardContent>
               </Card>
             )}
