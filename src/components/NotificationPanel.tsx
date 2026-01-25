@@ -214,7 +214,7 @@ export function NotificationPanel() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
+      <PopoverContent className="w-[600px] p-0" align="end">
         <Card className="border-0 shadow-lg">
           <CardHeader className="pb-2 pt-3 px-3">
             <CardTitle className="text-base">Notifications</CardTitle>
@@ -225,48 +225,62 @@ export function NotificationPanel() {
                 No notifications
               </div>
             ) : (
-              <ScrollArea className="max-h-[400px]">
-                {/* UNREAD SECTION */}
-                {unreadNotifications.length > 0 && (
-                  <div>
-                    <div className="px-3 py-2 bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                      Unread
-                      <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
-                        {unreadNotifications.length}
+              <div className="flex divide-x">
+                {/* UNREAD COLUMN */}
+                <div className="flex-1 min-w-0">
+                  <div className="px-3 py-2 bg-primary/10 text-xs font-semibold text-primary uppercase tracking-wide flex items-center gap-2 border-b">
+                    Unread
+                    <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
+                      {unreadNotifications.length}
+                    </Badge>
+                  </div>
+                  <ScrollArea className="h-[350px]">
+                    {unreadNotifications.length === 0 ? (
+                      <div className="p-4 text-center text-muted-foreground text-xs">
+                        No unread notifications
+                      </div>
+                    ) : (
+                      unreadNotifications.map((notification) => 
+                        renderNotificationItem(notification, false)
+                      )
+                    )}
+                  </ScrollArea>
+                </div>
+
+                {/* READ COLUMN */}
+                <div className="flex-1 min-w-0">
+                  <div className="px-3 py-2 bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center justify-between border-b">
+                    <div className="flex items-center gap-2">
+                      Read
+                      <Badge variant="outline" className="h-4 px-1.5 text-[10px]">
+                        {readNotifications.length}
                       </Badge>
                     </div>
-                    {unreadNotifications.map((notification) => 
-                      renderNotificationItem(notification, false)
-                    )}
-                  </div>
-                )}
-
-                {/* READ SECTION */}
-                {readNotifications.length > 0 && (
-                  <div>
-                    <div className="px-3 py-2 bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        Read
-                        <Badge variant="outline" className="h-4 px-1.5 text-[10px]">
-                          {readNotifications.length}
-                        </Badge>
-                      </div>
+                    {readNotifications.length > 0 && (
                       <Button 
                         variant="ghost" 
                         size="sm" 
                         onClick={handleDeleteAllRead}
-                        className="h-6 text-xs px-2 text-muted-foreground hover:text-destructive"
+                        className="h-5 text-[10px] px-1.5 text-muted-foreground hover:text-destructive"
                       >
-                        <Trash2 className="h-3 w-3 mr-1" />
+                        <Trash2 className="h-2.5 w-2.5 mr-1" />
                         Delete All
                       </Button>
-                    </div>
-                    {readNotifications.map((notification) => 
-                      renderNotificationItem(notification, true)
                     )}
                   </div>
-                )}
-              </ScrollArea>
+                  <ScrollArea className="h-[350px]">
+                    {readNotifications.length === 0 ? (
+                      <div className="p-4 text-center text-muted-foreground text-xs">
+                        No read notifications
+                      </div>
+                    ) : (
+                      readNotifications.map((notification) => 
+                        renderNotificationItem(notification, true)
+                      )
+                    )}
+                  </ScrollArea>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
