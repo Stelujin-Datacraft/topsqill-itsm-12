@@ -549,9 +549,9 @@ export function OptimizedFormDataTable({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            navigate(`/submission/${row.id}`);
+            navigate(`/submission-view/${row.id}`);
           }}
-          className="text-primary underline hover:text-primary/80 font-medium cursor-pointer text-left"
+          className="text-primary hover:text-primary/80 hover:underline font-medium cursor-pointer text-left"
         >
           {formattedValue}
         </button>

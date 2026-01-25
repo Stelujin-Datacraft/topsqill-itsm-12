@@ -14,7 +14,7 @@ interface RecordTableConfigProps {
   config: FieldConfiguration;
   onUpdate: (updates: Partial<FieldConfiguration>) => void;
   errors: Record<string, string>;
-  fieldType: 'record-table' | 'matrix-grid' | 'cross-reference' | 'child-cross-reference';
+  fieldType: 'record-table' | 'matrix-grid' | 'cross-reference';
 }
 
 export function RecordTableConfig({ config, onUpdate, errors, fieldType }: RecordTableConfigProps) {
