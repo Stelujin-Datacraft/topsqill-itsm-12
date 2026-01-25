@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Bell, Trash2 } from 'lucide-react';
+import { Bell, Trash2, Inbox, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Popover,
   PopoverContent,
@@ -27,6 +27,7 @@ export function NotificationPanel() {
   const { notifications, unreadCount, markAsRead, deleteNotification, deleteAllRead } = useNotifications();
   const { acceptInvitation, rejectInvitation } = useUserInvitations();
   const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'unread' | 'read'>('unread');
   const navigate = useNavigate();
 
   // Cast and separate notifications
@@ -209,93 +210,107 @@ export function NotificationPanel() {
           {unreadCount > 0 && (
             <Badge 
               variant="destructive" 
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs font-bold animate-pulse"
+              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs font-bold"
             >
               {unreadCount > 9 ? '9+' : unreadCount}
             </Badge>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[680px] p-0 shadow-xl border-border/50" align="end">
+      <PopoverContent className="w-[400px] p-0 shadow-xl border-border/50" align="end">
         <Card className="border-0 overflow-hidden">
-          <CardHeader className="pb-3 pt-4 px-4 bg-gradient-to-r from-muted/30 to-transparent border-b border-border/50">
-            <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <Bell className="h-5 w-5 text-primary" />
-              Notifications
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {unreadNotifications.length === 0 && readNotifications.length === 0 ? (
-              <div className="p-8 text-center">
-                <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
-                  <Bell className="h-6 w-6 text-muted-foreground/50" />
-                </div>
-                <p className="text-muted-foreground text-sm font-medium">No notifications</p>
-                <p className="text-muted-foreground/60 text-xs mt-1">You're all caught up!</p>
-              </div>
-            ) : (
-              <div className="flex">
-                {/* UNREAD COLUMN */}
-                <div className="flex-1 min-w-0 border-r border-border/50">
-                  <div className="px-4 py-3 bg-gradient-to-r from-primary/10 to-primary/5 text-xs font-semibold uppercase tracking-wider flex items-center gap-2 border-b border-border/50">
-                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                    <span className="text-primary">Unread</span>
-                    <Badge variant="secondary" className="h-5 px-2 text-[10px] font-bold bg-primary/20 text-primary border-0">
-                      {unreadNotifications.length}
-                    </Badge>
-                  </div>
-                  <ScrollArea className="h-[380px]">
-                    {unreadNotifications.length === 0 ? (
-                      <div className="p-6 text-center">
-                        <div className="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center mx-auto mb-2">
-                          <Bell className="h-5 w-5 text-muted-foreground/40" />
-                        </div>
-                        <p className="text-muted-foreground/60 text-xs">No unread notifications</p>
-                      </div>
-                    ) : (
-                      unreadNotifications.map((notification) => 
-                        renderNotificationItem(notification, false)
-                      )
-                    )}
-                  </ScrollArea>
-                </div>
+          {/* Tab Header */}
+          <div className="flex border-b border-border/50">
+            <button
+              onClick={() => setActiveTab('unread')}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                activeTab === 'unread'
+                  ? 'bg-primary/10 text-primary border-b-2 border-primary'
+                  : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+              }`}
+            >
+              <Inbox className="h-4 w-4" />
+              Unread
+              {unreadNotifications.length > 0 && (
+                <Badge 
+                  variant={activeTab === 'unread' ? 'default' : 'secondary'} 
+                  className="h-5 px-1.5 text-[10px] font-bold"
+                >
+                  {unreadNotifications.length}
+                </Badge>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('read')}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                activeTab === 'read'
+                  ? 'bg-muted/60 text-foreground border-b-2 border-foreground/50'
+                  : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+              }`}
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Read
+              {readNotifications.length > 0 && (
+                <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
+                  {readNotifications.length}
+                </Badge>
+              )}
+            </button>
+          </div>
 
-                {/* READ COLUMN */}
-                <div className="flex-1 min-w-0 bg-muted/20">
-                  <div className="px-4 py-3 bg-muted/40 text-xs font-semibold uppercase tracking-wider flex items-center justify-between border-b border-border/50">
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">Read</span>
-                      <Badge variant="outline" className="h-5 px-2 text-[10px] font-medium border-muted-foreground/30">
-                        {readNotifications.length}
-                      </Badge>
+          <CardContent className="p-0">
+            {/* Unread Tab Content */}
+            {activeTab === 'unread' && (
+              <div>
+                {unreadNotifications.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                      <Inbox className="h-7 w-7 text-primary/50" />
                     </div>
-                    {readNotifications.length > 0 && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={handleDeleteAllRead}
-                        className="h-6 text-[10px] px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors"
-                      >
-                        <Trash2 className="h-3 w-3 mr-1" />
-                        Clear All
-                      </Button>
-                    )}
+                    <p className="text-foreground font-medium">All caught up!</p>
+                    <p className="text-muted-foreground text-sm mt-1">No unread notifications</p>
                   </div>
-                  <ScrollArea className="h-[380px]">
-                    {readNotifications.length === 0 ? (
-                      <div className="p-6 text-center">
-                        <div className="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center mx-auto mb-2">
-                          <Bell className="h-5 w-5 text-muted-foreground/40" />
-                        </div>
-                        <p className="text-muted-foreground/60 text-xs">No read notifications</p>
-                      </div>
-                    ) : (
-                      readNotifications.map((notification) => 
-                        renderNotificationItem(notification, true)
-                      )
+                ) : (
+                  <ScrollArea className="h-[400px]">
+                    {unreadNotifications.map((notification) => 
+                      renderNotificationItem(notification, false)
                     )}
                   </ScrollArea>
-                </div>
+                )}
+              </div>
+            )}
+
+            {/* Read Tab Content */}
+            {activeTab === 'read' && (
+              <div>
+                {readNotifications.length > 0 && (
+                  <div className="px-3 py-2 bg-muted/30 border-b border-border/50 flex justify-end">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={handleDeleteAllRead}
+                      className="h-7 text-xs px-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                      Clear All
+                    </Button>
+                  </div>
+                )}
+                {readNotifications.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
+                      <CheckCircle2 className="h-7 w-7 text-muted-foreground/40" />
+                    </div>
+                    <p className="text-foreground font-medium">No history</p>
+                    <p className="text-muted-foreground text-sm mt-1">Read notifications will appear here</p>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[360px]">
+                    {readNotifications.map((notification) => 
+                      renderNotificationItem(notification, true)
+                    )}
+                  </ScrollArea>
+                )}
               </div>
             )}
           </CardContent>
