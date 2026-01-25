@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell } from 'lucide-react';
+import { Bell, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,14 +8,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useUserInvitations } from '@/hooks/useUserInvitations';
 import { useNavigate } from 'react-router-dom';
 
-// Extended notification interface that includes all possible notification types
 interface ExtendedNotification {
   id: string;
-  type: string; // Use string to allow any notification type
+  type: string;
   title: string;
   message: string;
   data: any;
@@ -24,17 +24,23 @@ interface ExtendedNotification {
 }
 
 export function NotificationPanel() {
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, unreadCount, markAsRead, deleteNotification, deleteAllRead } = useNotifications();
   const { acceptInvitation, rejectInvitation } = useUserInvitations();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
 
+  // Cast and separate notifications
+  const extendedNotifications = notifications as ExtendedNotification[];
+  const unreadNotifications = extendedNotifications.filter(n => !n.read);
+  const readNotifications = extendedNotifications.filter(n => n.read);
+
   const handleNotificationClick = async (notification: ExtendedNotification) => {
+    if (notification.read) return; // Already read, no action needed
+    
     markAsRead(notification.id);
     
-    // Handle project invitation notifications
+    // Handle project invitation notifications - don't navigate
     if (notification.type === 'project_invitation') {
-      // Don't navigate, let user interact with the invitation directly
       return;
     }
     
@@ -63,7 +69,6 @@ export function NotificationPanel() {
       const result = await acceptInvitation(invitationId);
       if (result && typeof result === 'object' && 'success' in result && result.success) {
         markAsRead(notification.id);
-        // Navigate to the project
         const projectId = notification.data?.project_id || ('projectId' in result ? result.projectId : null);
         if (projectId) {
           navigate(`/projects`);
@@ -83,7 +88,15 @@ export function NotificationPanel() {
     }
   };
 
-  // ... keep existing code (formatTimeAgo function)
+  const handleDeleteNotification = (e: React.MouseEvent, notificationId: string) => {
+    e.stopPropagation();
+    deleteNotification(notificationId);
+  };
+
+  const handleDeleteAllRead = () => {
+    deleteAllRead();
+  };
+
   const formatTimeAgo = (dateString: string) => {
     const now = new Date();
     const date = new Date(dateString);
@@ -114,8 +127,77 @@ export function NotificationPanel() {
     }
   };
 
-  // Cast notifications to the extended type and filter out read notifications
-  const extendedNotifications = (notifications as ExtendedNotification[]).filter(n => !n.read);
+  const renderNotificationItem = (notification: ExtendedNotification, isRead: boolean) => (
+    <div
+      key={notification.id}
+      onClick={() => !isRead && handleNotificationClick(notification)}
+      className={`p-3 border-b transition-colors relative ${
+        !isRead 
+          ? 'bg-primary/5 hover:bg-primary/10 cursor-pointer' 
+          : 'bg-muted/30'
+      }`}
+    >
+      <div className="flex items-start gap-2">
+        <span className="text-lg flex-shrink-0">
+          {getNotificationIcon(notification.type)}
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm font-medium ${isRead ? 'text-muted-foreground' : 'text-foreground'}`}>
+            {notification.title}
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+            {notification.message}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {formatTimeAgo(notification.created_at)}
+          </p>
+
+          {/* Project invitation actions */}
+          {notification.type === 'project_invitation' && !isRead && (
+            <div className="flex gap-2 mt-2">
+              <Button
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAcceptInvitation(notification);
+                }}
+                className="h-7 text-xs"
+              >
+                Accept
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRejectInvitation(notification);
+                }}
+                className="h-7 text-xs"
+              >
+                Decline
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Unread indicator or delete button */}
+        <div className="flex-shrink-0">
+          {!isRead ? (
+            <div className="w-2 h-2 bg-primary rounded-full mt-1.5"></div>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => handleDeleteNotification(e, notification.id)}
+              className="h-6 w-6 p-0 hover:bg-destructive/10"
+            >
+              <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -134,88 +216,57 @@ export function NotificationPanel() {
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="end">
         <Card className="border-0 shadow-lg">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Notifications</CardTitle>
-              {unreadCount > 0 && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={markAllAsRead}
-                  className="text-xs"
-                >
-                  Mark all read
-                </Button>
-              )}
-            </div>
+          <CardHeader className="pb-2 pt-3 px-3">
+            <CardTitle className="text-base">Notifications</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            {extendedNotifications.length === 0 ? (
-              <div className="p-4 text-center text-muted-foreground">
+            {unreadNotifications.length === 0 && readNotifications.length === 0 ? (
+              <div className="p-4 text-center text-muted-foreground text-sm">
                 No notifications
               </div>
             ) : (
-              <div className="max-h-96 overflow-y-auto">
-                {extendedNotifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={`p-3 border-b transition-colors ${
-                      !notification.read ? 'bg-blue-50/50' : ''
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center">
-                          <span className="mr-2 text-lg">
-                            {getNotificationIcon(notification.type)}
-                          </span>
-                          <p className={`text-sm font-medium ${!notification.read ? 'text-foreground' : 'text-muted-foreground'}`}>
-                            {notification.title}
-                          </p>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1 ml-6">
-                          {notification.message}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1 ml-6">
-                          {formatTimeAgo(notification.created_at)}
-                        </p>
-
-                        {/* Project invitation actions */}
-                        {notification.type === 'project_invitation' && (
-                          <div className="flex gap-2 mt-2 ml-6">
-                            <Button
-                              size="sm"
-                              onClick={() => handleAcceptInvitation(notification)}
-                              className="h-7 text-xs"
-                            >
-                              Accept
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleRejectInvitation(notification)}
-                              className="h-7 text-xs"
-                            >
-                              Decline
-                            </Button>
-                          </div>
-                        )}
-
-                        {/* Regular notification click */}
-                        {!['project_invitation', 'invitation_accepted', 'invitation_rejected'].includes(notification.type) && (
-                          <div
-                            onClick={() => handleNotificationClick(notification)}
-                            className="absolute inset-0 w-full h-full cursor-pointer hover:bg-muted/50 z-10"
-                          />
-                        )}
-                      </div>
-                      {!notification.read && (
-                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-1 ml-2"></div>
-                      )}
+              <ScrollArea className="max-h-[400px]">
+                {/* UNREAD SECTION */}
+                {unreadNotifications.length > 0 && (
+                  <div>
+                    <div className="px-3 py-2 bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                      Unread
+                      <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
+                        {unreadNotifications.length}
+                      </Badge>
                     </div>
+                    {unreadNotifications.map((notification) => 
+                      renderNotificationItem(notification, false)
+                    )}
                   </div>
-                ))}
-              </div>
+                )}
+
+                {/* READ SECTION */}
+                {readNotifications.length > 0 && (
+                  <div>
+                    <div className="px-3 py-2 bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        Read
+                        <Badge variant="outline" className="h-4 px-1.5 text-[10px]">
+                          {readNotifications.length}
+                        </Badge>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={handleDeleteAllRead}
+                        className="h-6 text-xs px-2 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-3 w-3 mr-1" />
+                        Delete All
+                      </Button>
+                    </div>
+                    {readNotifications.map((notification) => 
+                      renderNotificationItem(notification, true)
+                    )}
+                  </div>
+                )}
+              </ScrollArea>
             )}
           </CardContent>
         </Card>
