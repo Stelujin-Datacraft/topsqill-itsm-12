@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, Trash2, Inbox, CheckCircle2 } from 'lucide-react';
+import { Bell, Trash2, Inbox, CheckCircle2, CheckCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -24,7 +24,7 @@ interface ExtendedNotification {
 }
 
 export function NotificationPanel() {
-  const { notifications, unreadCount, markAsRead, deleteNotification, deleteAllRead } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, deleteAllRead } = useNotifications();
   const { acceptInvitation, rejectInvitation } = useUserInvitations();
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'unread' | 'read'>('unread');
@@ -96,6 +96,10 @@ export function NotificationPanel() {
 
   const handleDeleteAllRead = () => {
     deleteAllRead();
+  };
+
+  const handleMarkAllAsRead = () => {
+    markAllAsRead();
   };
 
   const formatTimeAgo = (dateString: string) => {
@@ -262,6 +266,19 @@ export function NotificationPanel() {
             {/* Unread Tab Content */}
             {activeTab === 'unread' && (
               <div>
+                {unreadNotifications.length > 0 && (
+                  <div className="px-3 py-2 bg-primary/5 border-b border-border/50 flex justify-end">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={handleMarkAllAsRead}
+                      className="h-7 text-xs px-3 text-primary hover:text-primary hover:bg-primary/10 rounded-full transition-colors"
+                    >
+                      <CheckCheck className="h-3.5 w-3.5 mr-1.5" />
+                      Mark All as Read
+                    </Button>
+                  </div>
+                )}
                 {unreadNotifications.length === 0 ? (
                   <div className="p-8 text-center">
                     <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
@@ -271,7 +288,7 @@ export function NotificationPanel() {
                     <p className="text-muted-foreground text-sm mt-1">No unread notifications</p>
                   </div>
                 ) : (
-                  <ScrollArea className="h-[400px]">
+                  <ScrollArea className="h-[360px]">
                     {unreadNotifications.map((notification) => 
                       renderNotificationItem(notification, false)
                     )}
