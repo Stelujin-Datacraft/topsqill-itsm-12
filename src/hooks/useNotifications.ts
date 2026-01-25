@@ -178,11 +178,52 @@ export function useNotifications() {
     }
   };
 
+  const deleteNotification = async (notificationId: string) => {
+    // Remove from local state immediately
+    setNotifications(prev => {
+      const updated = prev.filter(n => n.id !== notificationId);
+      setUnreadCount(updated.filter(n => !n.read).length);
+      return updated;
+    });
+
+    // Delete from database (skip org_req_ prefixed ones as they're virtual)
+    if (!notificationId.startsWith('org_req_')) {
+      try {
+        await supabase
+          .from('notifications')
+          .delete()
+          .eq('id', notificationId);
+      } catch (error) {
+        // Silent error handling
+      }
+    }
+  };
+
+  const deleteAllRead = async () => {
+    // Remove read notifications from local state (except org_req_ ones which are virtual)
+    setNotifications(prev => prev.filter(n => !n.read || n.id.startsWith('org_req_')));
+
+    // Delete from database
+    if (userProfile?.id) {
+      try {
+        await supabase
+          .from('notifications')
+          .delete()
+          .eq('user_id', userProfile.id)
+          .eq('read', true);
+      } catch (error) {
+        // Silent error handling
+      }
+    }
+  };
+
   return {
     notifications,
     unreadCount,
     markAsRead,
     markAllAsRead,
+    deleteNotification,
+    deleteAllRead,
     loadNotifications
   };
 }
