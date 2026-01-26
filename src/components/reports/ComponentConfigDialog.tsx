@@ -1751,9 +1751,9 @@ export function ComponentConfigDialog({
                         className="h-5 w-5 p-0 shrink-0"
                         onClick={(e) => {
                           e.stopPropagation();
-                          insertTextAtCursor(`[${form.name}]`);
+                          insertTextAtCursor(`[${form.id}]`);
                         }}
-                        title="Insert form name"
+                        title="Insert form ID"
                       >
                         <Plus className="h-3 w-3" />
                       </Button>
