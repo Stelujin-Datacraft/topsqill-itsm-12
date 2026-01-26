@@ -17,6 +17,7 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { useUsersAndGroups } from '@/hooks/useUsersAndGroups';
 import { useCrossReferenceData } from '@/hooks/useCrossReferenceData';
+import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
 
 
 
@@ -953,13 +954,12 @@ return (
       <div key={submission.id} className="table-row border-b">
         {/* Record ID cell */}
         <div className="table-cell px-3 py-2 align-top w-32">
-          <Badge
-            variant="outline"
-            className="text-xs truncate w-full"
-            title={submission.submission_ref_id || submission.id}
-          >
-            #{submission.submission_ref_id || submission.id.slice(0, 8)}
-          </Badge>
+          <SubmissionRefDisplay
+            submissionRefId={submission.submission_ref_id}
+            submissionId={submission.id}
+            variant="compact"
+            showFormPrefix={false}
+          />
         </div>
 
         {/* Dynamic field cells */}

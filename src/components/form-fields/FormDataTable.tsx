@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { FormDataTableProps, TableFilter, TableSort } from './types/tableTypes';
 import { FilterControls } from './components/FilterControls';
 import { useFormSubmissionTableData, getSubmissionData } from '@/hooks/useFormSubmissionTableData';
+import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
 
 export function FormDataTable({ config, fieldType, currentFormId, targetFormFields = [] }: FormDataTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -315,8 +316,13 @@ export function FormDataTable({ config, fieldType, currentFormId, targetFormFiel
               ) : (
                 data.map((row, index) => (
                   <TableRow key={row.id || index}>
-                    <TableCell className="font-mono text-sm">
-                      {row.submission_ref_id || `SUB-${String(index + 1).padStart(3, '0')}`}
+                    <TableCell>
+                      <SubmissionRefDisplay
+                        submissionRefId={row.submission_ref_id}
+                        submissionId={row.id}
+                        variant="compact"
+                        showFormPrefix={false}
+                      />
                     </TableCell>
                     {displayColumns.map(fieldId => {
                       const field = getFieldById(fieldId);

@@ -218,6 +218,7 @@ const FormView = () => {
               submissionId={submissionResult.submissionId}
               formName={form.name}
               formId={form.id}
+              formReferenceId={form.reference_id}
               onClose={() => setSubmissionResult(null)}
             />
           </div>

@@ -40,6 +40,7 @@ import { ImportButton } from '@/components/ImportButton';
 import { SubmissionUpdateButton } from '@/components/submissions/SubmissionUpdateButton';
 import { RecordHistoryDialog } from '@/components/RecordHistoryDialog';
 import { ManualWorkflowTrigger } from '@/components/ManualWorkflowTrigger';
+import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
 interface TableConfig {
   title: string;
   formId: string;
@@ -1052,8 +1053,15 @@ export function DynamicTable({
                         
                         {/* Submission ID */}
                         <TableCell className="py-2 bg-white">
-                          <Button variant="link" className="font-mono text-xs p-0 h-auto underline" onClick={() => setSelectedSubmissionForView({ id: row.id, refId: row.submission_ref_id || row.id.slice(0, 8) })}>
-                            #{row.submission_ref_id || row.id.slice(0, 8)}
+                          <Button variant="link" className="p-0 h-auto" onClick={() => setSelectedSubmissionForView({ id: row.id, refId: row.submission_ref_id || row.id.slice(0, 8) })}>
+                            <SubmissionRefDisplay
+                              submissionRefId={row.submission_ref_id}
+                              submissionId={row.id}
+                              formReferenceId={currentForm?.reference_id}
+                              formName={currentForm?.name}
+                              variant="compact"
+                              className="underline hover:no-underline"
+                            />
                           </Button>
                         </TableCell>
                         

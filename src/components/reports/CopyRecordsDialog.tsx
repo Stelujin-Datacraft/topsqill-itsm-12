@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Copy } from 'lucide-react';
+import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
 
 interface CopyRecordsDialogProps {
   isOpen: boolean;
@@ -85,8 +86,13 @@ export function CopyRecordsDialog({ isOpen, onOpenChange, selectedCount, selecte
               <div className="max-h-32 overflow-y-auto bg-muted/30 rounded-md p-2">
                 <div className="space-y-1">
                   {selectedRecords.map((record, index) => (
-                    <div key={record.id} className="text-xs font-mono">
-                      #{record.submission_ref_id || record.id.slice(0, 8)}
+                    <div key={record.id} className="text-xs">
+                      <SubmissionRefDisplay
+                        submissionRefId={record.submission_ref_id}
+                        submissionId={record.id}
+                        variant="compact"
+                        showFormPrefix={false}
+                      />
                     </div>
                   ))}
                 </div>
