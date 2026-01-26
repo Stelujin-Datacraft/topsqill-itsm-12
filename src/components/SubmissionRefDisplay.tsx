@@ -28,23 +28,36 @@ export function SubmissionRefDisplay({
   // Get the display ID (submission_ref_id or truncated id)
   const displayId = submissionRefId || (submissionId ? submissionId.slice(0, 8) : 'N/A');
   
-  // Get the form prefix (first 3-4 characters of form reference_id or form name initials)
+  // Get the form prefix (at least 5 characters from form reference_id or form name)
+  // This is DISPLAY ONLY - does not modify the actual submission ID
   const getFormPrefix = (): string | null => {
     if (!showFormPrefix) return null;
     
     if (formReferenceId) {
-      // Extract first 3-4 characters from form reference_id
-      return formReferenceId.slice(0, 3).toUpperCase();
+      // Extract first 5 characters from form reference_id
+      return formReferenceId.slice(0, 5).toUpperCase();
     }
     
     if (formName) {
-      // Generate initials from form name (first letter of each word, max 3)
-      const words = formName.trim().split(/\s+/);
-      const initials = words
-        .slice(0, 3)
-        .map(word => word.charAt(0).toUpperCase())
-        .join('');
-      return initials || null;
+      // Generate prefix from form name (first 5 chars or padded initials)
+      const cleanName = formName.trim().toUpperCase();
+      
+      // If form name is short, use it directly
+      if (cleanName.length <= 5) {
+        return cleanName.padEnd(5, 'X');
+      }
+      
+      // Try to get meaningful prefix: first letters of words, then fill with first word chars
+      const words = cleanName.split(/\s+/);
+      let prefix = words.map(word => word.charAt(0)).join('');
+      
+      // If initials are less than 5, pad with chars from first word
+      if (prefix.length < 5 && words[0]) {
+        prefix = (prefix + words[0].slice(1)).slice(0, 5);
+      }
+      
+      // Ensure minimum 5 characters
+      return prefix.padEnd(5, 'X').slice(0, 5);
     }
     
     return null;
