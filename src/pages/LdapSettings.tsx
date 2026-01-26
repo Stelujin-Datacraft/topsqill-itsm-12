@@ -563,43 +563,48 @@ export default function LdapSettings() {
             </div>
           </div>
         ) : configurations.length === 0 ? (
-          /* Empty State */
-          <Card className="max-w-2xl mx-auto border-dashed">
-            <CardHeader className="text-center pb-4">
-              <div className="mx-auto mb-4 p-4 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 w-fit">
-                <Server className="h-10 w-10 text-primary" />
-              </div>
-              <CardTitle className="text-xl">No LDAP Configuration</CardTitle>
-              <CardDescription className="max-w-md mx-auto">
-                Connect your organization's LDAP or Active Directory server to enable enterprise authentication and automatic user provisioning.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pb-8">
-              <div className="grid sm:grid-cols-3 gap-4 mb-6">
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                  <UserCheck className="h-5 w-5 text-green-600 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-sm">Single Sign-On</p>
-                    <p className="text-xs text-muted-foreground">Use existing credentials</p>
+          /* Empty State - Full width like other pages */
+          <Card className="border-dashed">
+            <CardContent className="py-16">
+              <div className="flex flex-col items-center text-center max-w-2xl mx-auto">
+                <div className="mb-6 p-5 rounded-full bg-gradient-to-br from-primary/20 to-primary/5">
+                  <Server className="h-12 w-12 text-primary" />
+                </div>
+                <h2 className="text-2xl font-semibold mb-2">No LDAP Configuration</h2>
+                <p className="text-muted-foreground mb-8 max-w-md">
+                  Connect your organization's LDAP or Active Directory server to enable enterprise authentication and automatic user provisioning.
+                </p>
+                
+                <div className="grid sm:grid-cols-3 gap-6 mb-8 w-full">
+                  <div className="flex flex-col items-center gap-3 p-6 rounded-xl bg-muted/50 border">
+                    <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/30">
+                      <UserCheck className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div className="text-center">
+                      <p className="font-semibold">Single Sign-On</p>
+                      <p className="text-sm text-muted-foreground">Use existing credentials</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center gap-3 p-6 rounded-xl bg-muted/50 border">
+                    <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/30">
+                      <RefreshCw className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div className="text-center">
+                      <p className="font-semibold">Auto Sync</p>
+                      <p className="text-sm text-muted-foreground">Keep users up-to-date</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center gap-3 p-6 rounded-xl bg-muted/50 border">
+                    <div className="p-3 rounded-full bg-purple-100 dark:bg-purple-900/30">
+                      <Shield className="h-6 w-6 text-purple-600" />
+                    </div>
+                    <div className="text-center">
+                      <p className="font-semibold">Group Mapping</p>
+                      <p className="text-sm text-muted-foreground">Sync roles & permissions</p>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                  <RefreshCw className="h-5 w-5 text-blue-600 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-sm">Auto Sync</p>
-                    <p className="text-xs text-muted-foreground">Keep users up-to-date</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                  <Shield className="h-5 w-5 text-purple-600 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-sm">Group Mapping</p>
-                    <p className="text-xs text-muted-foreground">Sync roles & permissions</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex justify-center">
+                
                 <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
                   <DialogTrigger asChild>
                     <Button size="lg" className="gap-2">
