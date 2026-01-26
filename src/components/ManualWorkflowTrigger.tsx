@@ -50,54 +50,57 @@ export function ManualWorkflowTrigger({
   const loadAvailableWorkflows = async () => {
     setLoading(true);
     try {
-      // Find all active workflows that can be triggered by this form
-      const { data: workflowsData, error: workflowError } = await supabase
+      // Optimized: Fetch workflows with their start nodes in a single query using join
+      const { data: workflowsWithNodes, error } = await supabase
         .from('workflows')
-        .select('id, name, description')
-        .eq('status', 'active');
+        .select(`
+          id, 
+          name, 
+          description,
+          workflow_nodes!inner (
+            id,
+            config
+          )
+        `)
+        .eq('status', 'active')
+        .eq('workflow_nodes.node_type', 'start');
 
-      if (workflowError) throw workflowError;
+      if (error) throw error;
 
-      if (!workflowsData || workflowsData.length === 0) {
+      if (!workflowsWithNodes || workflowsWithNodes.length === 0) {
         setWorkflows([]);
         return;
       }
 
       const availableWorkflows: AvailableWorkflow[] = [];
 
-      // Check each workflow for start nodes that match this form
-      for (const workflow of workflowsData) {
-        const { data: nodes } = await supabase
-          .from('workflow_nodes')
-          .select('id, config')
-          .eq('workflow_id', workflow.id)
-          .eq('node_type', 'start');
+      // Process workflows and their start nodes
+      for (const workflow of workflowsWithNodes) {
+        const nodes = workflow.workflow_nodes || [];
+        
+        for (const node of nodes) {
+          let config: any = {};
+          try {
+            config = typeof node.config === 'string' ? JSON.parse(node.config) : node.config || {};
+          } catch {
+            config = {};
+          }
 
-        if (nodes && nodes.length > 0) {
-          for (const node of nodes) {
-            let config: any = {};
-            try {
-              config = typeof node.config === 'string' ? JSON.parse(node.config) : node.config || {};
-            } catch {
-              config = {};
-            }
+          const triggerType = config.triggerType || 'form_submission';
+          const triggerFormId = config.triggerFormId;
 
-            const triggerType = config.triggerType || 'form_submission';
-            const triggerFormId = config.triggerFormId;
-
-            // Include workflows that trigger on this form's submission/completion
-            if (
-              (triggerType === 'form_submission' || triggerType === 'form_completion') &&
-              triggerFormId === formId
-            ) {
-              availableWorkflows.push({
-                id: workflow.id,
-                name: workflow.name,
-                description: workflow.description || undefined,
-                startNodeId: node.id,
-              });
-              break; // Only add workflow once even if multiple start nodes match
-            }
+          // Include workflows that trigger on this form's submission/completion
+          if (
+            (triggerType === 'form_submission' || triggerType === 'form_completion') &&
+            triggerFormId === formId
+          ) {
+            availableWorkflows.push({
+              id: workflow.id,
+              name: workflow.name,
+              description: workflow.description || undefined,
+              startNodeId: node.id,
+            });
+            break; // Only add workflow once even if multiple start nodes match
           }
         }
       }
