@@ -1716,9 +1716,9 @@ export function ComponentConfigDialog({
       {/* Query Settings with Form/Field Helper */}
       <div className="space-y-4">
         <Label>SQL Query</Label>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-5 gap-4">
           {/* Forms & Fields Sidebar */}
-          <div className="col-span-1 border rounded-lg p-3 max-h-[300px] overflow-y-auto bg-muted/30">
+          <div className="col-span-2 border rounded-lg p-3 max-h-[350px] overflow-y-auto bg-muted/30">
             <div className="text-sm font-medium mb-2 flex items-center gap-2">
               <Database className="h-4 w-4" />
               Forms & Fields
@@ -1799,7 +1799,7 @@ export function ComponentConfigDialog({
           </div>
           
           {/* Query Textarea */}
-          <div className="col-span-2">
+          <div className="col-span-3">
             <Textarea
               ref={queryTextareaRef}
               id="query"
