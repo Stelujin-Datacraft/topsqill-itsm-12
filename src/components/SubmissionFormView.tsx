@@ -11,6 +11,7 @@ import { FormNavigationPanel } from './FormNavigationPanel';
 import { SubmissionFormRenderer } from './SubmissionFormRenderer';
 import { LifecycleStatusBar } from './LifecycleStatusBar';
 import { RecordHistoryDialog } from './RecordHistoryDialog';
+import { ManualWorkflowTrigger } from './ManualWorkflowTrigger';
 import { Form, FormField } from '@/types/form';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -546,6 +547,14 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
             </>
           ) : (
             <>
+              {submission && form && (
+                <ManualWorkflowTrigger
+                  formId={form.id}
+                  submissionId={submission.id}
+                  submissionData={formData}
+                  submissionRefId={submission.submission_ref_id}
+                />
+              )}
               <Button 
                 variant="outline" 
                 size="sm" 
