@@ -36,7 +36,10 @@ import {
   Settings,
   Database,
   Link,
-  Loader2
+  Loader2,
+  Plus,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { ChartConfigurationTabs } from './ChartConfigurationTabs';
 import { ChartPreview } from './ChartPreview';
@@ -107,6 +110,13 @@ export function ComponentConfigDialog({
   const [loadingSecondaryFields, setLoadingSecondaryFields] = useState(false);
   const [useSampleData, setUseSampleData] = useState(false);
   const { forms } = useReports();
+  
+  // Query Chart specific state
+  const [queryChartSelectedFormId, setQueryChartSelectedFormId] = useState<string>('');
+  const [queryChartFormFields, setQueryChartFormFields] = useState<FormField[]>([]);
+  const [queryChartLoadingFields, setQueryChartLoadingFields] = useState(false);
+  const [queryChartExpandedForms, setQueryChartExpandedForms] = useState<Set<string>>(new Set());
+  const queryTextareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   // Fetch form fields from backend
   const fetchFormFields = async (formId: string) => {
@@ -397,6 +407,81 @@ export function ComponentConfigDialog({
     } else {
       setSecondaryFormFields([]);
     }
+  };
+
+  // Fetch fields for query chart form selector
+  const fetchQueryChartFormFields = async (formId: string) => {
+    if (!formId) return [];
+    
+    try {
+      setQueryChartLoadingFields(true);
+      
+      const { data: fields, error } = await supabase
+        .from('form_fields')
+        .select('*')
+        .eq('form_id', formId)
+        .order('field_order', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching query chart form fields:', error);
+        return [];
+      }
+
+      const transformedFields: FormField[] = (fields || []).map(field => ({
+        id: field.id,
+        type: field.field_type as FormField['type'],
+        label: field.label,
+        placeholder: field.placeholder || '',
+        required: field.required || false,
+        options: [],
+        validation: {},
+        customConfig: {},
+        tooltip: field.tooltip || '',
+        isVisible: field.is_visible !== false,
+        isEnabled: field.is_enabled !== false
+      }));
+
+      setQueryChartFormFields(transformedFields);
+      return transformedFields;
+    } catch (error) {
+      console.error('Error fetching query chart form fields:', error);
+      return [];
+    } finally {
+      setQueryChartLoadingFields(false);
+    }
+  };
+
+  // Insert text at cursor position in query textarea
+  const insertTextAtCursor = (text: string) => {
+    const textarea = queryTextareaRef.current;
+    if (!textarea) return;
+    
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentValue = config.query || '';
+    const newValue = currentValue.substring(0, start) + text + currentValue.substring(end);
+    
+    setConfig({ ...config, query: newValue });
+    
+    // Set cursor position after inserted text
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + text.length, start + text.length);
+    }, 0);
+  };
+
+  // Toggle form expansion in query chart helper
+  const toggleFormExpansion = async (formId: string) => {
+    const newExpanded = new Set(queryChartExpandedForms);
+    if (newExpanded.has(formId)) {
+      newExpanded.delete(formId);
+    } else {
+      newExpanded.add(formId);
+      // Fetch fields for this form if expanding
+      await fetchQueryChartFormFields(formId);
+      setQueryChartSelectedFormId(formId);
+    }
+    setQueryChartExpandedForms(newExpanded);
   };
 
   const handleSave = () => {
@@ -1626,21 +1711,106 @@ export function ComponentConfigDialog({
         </div>
       </div>
 
-      {/* Query Settings */}
+      {/* Query Settings with Form/Field Helper */}
       <div className="space-y-4">
-        <div>
-          <Label htmlFor="query">SQL Query</Label>
-          <Textarea
-            id="query"
-            value={config.query || ''}
-            onChange={(e) => setConfig({ ...config, query: e.target.value })}
-            placeholder="Enter your SQL query. First column = labels, second column = values.&#10;&#10;Example:&#10;SELECT status, COUNT(*) as count&#10;FROM [Form Name]&#10;GROUP BY status"
-            rows={6}
-            className="font-mono text-sm"
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            Use [Form Name] syntax to reference forms. First column becomes X-axis labels, second column becomes Y-axis values.
-          </p>
+        <Label>SQL Query</Label>
+        <div className="grid grid-cols-3 gap-4">
+          {/* Forms & Fields Sidebar */}
+          <div className="col-span-1 border rounded-lg p-3 max-h-[300px] overflow-y-auto bg-muted/30">
+            <div className="text-sm font-medium mb-2 flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              Forms & Fields
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              Click + to insert into query
+            </p>
+            
+            {forms.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No forms available</p>
+            ) : (
+              <div className="space-y-1">
+                {forms.map(form => (
+                  <div key={form.id} className="text-sm">
+                    <div 
+                      className="flex items-center justify-between py-1 px-2 rounded hover:bg-muted cursor-pointer"
+                      onClick={() => toggleFormExpansion(form.id)}
+                    >
+                      <div className="flex items-center gap-1 flex-1 min-w-0">
+                        {queryChartExpandedForms.has(form.id) ? (
+                          <ChevronDown className="h-3 w-3 shrink-0" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3 shrink-0" />
+                        )}
+                        <span className="truncate text-xs font-medium">{form.name}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 w-5 p-0 shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          insertTextAtCursor(`[${form.name}]`);
+                        }}
+                        title="Insert form name"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    
+                    {queryChartExpandedForms.has(form.id) && (
+                      <div className="ml-4 pl-2 border-l space-y-0.5">
+                        {queryChartLoadingFields && queryChartSelectedFormId === form.id ? (
+                          <div className="flex items-center gap-1 py-1 text-xs text-muted-foreground">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Loading...
+                          </div>
+                        ) : queryChartSelectedFormId === form.id && queryChartFormFields.length > 0 ? (
+                          queryChartFormFields.map(field => (
+                            <div 
+                              key={field.id}
+                              className="flex items-center justify-between py-0.5 px-1 rounded hover:bg-muted group"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <span className="text-xs truncate block">{field.label}</span>
+                                <span className="text-[10px] text-muted-foreground font-mono truncate block">{field.id}</span>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 shrink-0"
+                                onClick={() => insertTextAtCursor(`FIELD("${field.id}")`)}
+                                title="Insert field reference"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))
+                        ) : queryChartSelectedFormId === form.id ? (
+                          <p className="text-xs text-muted-foreground py-1">No fields</p>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          {/* Query Textarea */}
+          <div className="col-span-2">
+            <Textarea
+              ref={queryTextareaRef}
+              id="query"
+              value={config.query || ''}
+              onChange={(e) => setConfig({ ...config, query: e.target.value })}
+              placeholder="Enter your SQL query. First column = labels, second column = values.&#10;&#10;Example:&#10;SELECT status, COUNT(*) as count&#10;FROM [Form Name]&#10;GROUP BY status"
+              rows={10}
+              className="font-mono text-sm h-full min-h-[250px]"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Use [Form Name] syntax to reference forms. First column becomes X-axis labels, second column becomes Y-axis values.
+            </p>
+          </div>
         </div>
       </div>
 
