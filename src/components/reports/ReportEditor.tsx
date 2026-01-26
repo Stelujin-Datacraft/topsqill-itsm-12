@@ -11,7 +11,8 @@ import { EnhancedDynamicTable } from './EnhancedDynamicTable';
 import { FormSubmissionsTable } from './FormSubmissionsTable';
 import { ChartPreview } from './ChartPreview';
 import { MetricCard } from './MetricCard';
-import { Plus, Save, BarChart3, Table as TableIcon, Hash, Type, FileText, Move, MousePointer, Edit2, Check, X, Image, Video, Link as LinkIcon, File } from 'lucide-react';
+import { QueryChartComponent } from './QueryChartComponent';
+import { Plus, Save, BarChart3, Table as TableIcon, Hash, Type, FileText, Move, MousePointer, Edit2, Check, X, Image, Video, Link as LinkIcon, File, Database } from 'lucide-react';
 import { AddMediaDialog } from './AddMediaDialog';
 import { EditMediaDialog } from './EditMediaDialog';
 import { MediaComponent } from './MediaComponent';
@@ -554,6 +555,8 @@ export function ReportEditor({
         return <FormSubmissionsTable key={`${component.id}-${configKey}`} config={component.config as any} />;
       case 'metric-card':
         return <MetricCard config={component.config as any} />;
+      case 'query-chart':
+        return <QueryChartComponent key={`${component.id}-${configKey}`} config={component.config as any} />;
       case 'text':
         return <div className="h-full" style={{
           fontSize: (component.config as any).fontSize || 'medium',
@@ -676,6 +679,10 @@ export function ReportEditor({
           <Button variant="outline" onClick={() => handleAddComponent('text')}>
             <Type className="h-4 w-4 mr-2" />
             Add Text
+          </Button>
+          <Button variant="outline" onClick={() => handleAddComponent('query-chart')}>
+            <Database className="h-4 w-4 mr-2" />
+            Query Chart
           </Button>
           <Button variant="outline" onClick={() => setIsMediaDialogOpen(true)}>
             <Image className="h-4 w-4 mr-2" />

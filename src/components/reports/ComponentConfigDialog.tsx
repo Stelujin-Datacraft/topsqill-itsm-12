@@ -342,6 +342,16 @@ export function ComponentConfigDialog({
             fontSize: 'medium',
             fontWeight: 'normal',
             textAlign: 'left'
+          },
+          'query-chart': {
+            title: 'Query Chart',
+            description: '',
+            query: '',
+            chartType: 'bar',
+            executeOn: 'load',
+            colorful: true,
+            refreshInterval: 0,
+            maxResults: 100
           }
         };
         setConfig(defaultConfigs[componentType as keyof typeof defaultConfigs] || {});
@@ -1554,6 +1564,161 @@ export function ComponentConfigDialog({
     </div>
   );
 
+  const QUERY_CHART_TYPES = [
+    { value: 'bar', label: 'Bar Chart', icon: BarChart, description: 'Compare values across categories' },
+    { value: 'line', label: 'Line Chart', icon: LineChart, description: 'Show trends over time' },
+    { value: 'area', label: 'Area Chart', icon: TrendingUp, description: 'Filled line chart' },
+    { value: 'pie', label: 'Pie Chart', icon: PieChart, description: 'Show parts of a whole' },
+    { value: 'donut', label: 'Donut Chart', icon: PieChart, description: 'Pie chart with hollow center' },
+    { value: 'scatter', label: 'Scatter Plot', icon: TrendingUp, description: 'Show correlation between variables' },
+    { value: 'bubble', label: 'Bubble Chart', icon: TrendingUp, description: 'Scatter plot with size dimension' },
+  ];
+
+  const renderQueryChartConfig = () => (
+    <div className="space-y-6">
+      {/* Basic Settings */}
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="title">Chart Title</Label>
+          <Input
+            id="title"
+            value={config.title || ''}
+            onChange={(e) => setConfig({ ...config, title: e.target.value })}
+            placeholder="Enter chart title"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="description">Description (Optional)</Label>
+          <Input
+            id="description"
+            value={config.description || ''}
+            onChange={(e) => setConfig({ ...config, description: e.target.value })}
+            placeholder="Enter chart description"
+          />
+        </div>
+
+        {/* Chart Type Selector */}
+        <div>
+          <Label>Chart Type</Label>
+          <div className="grid grid-cols-2 gap-3 mt-2">
+            {QUERY_CHART_TYPES.map((chartType) => {
+              const Icon = chartType.icon;
+              return (
+                <div
+                  key={chartType.value}
+                  className={`p-3 border rounded-lg cursor-pointer transition-all hover:bg-muted/50 ${
+                    config.chartType === chartType.value ? 'border-primary bg-primary/5' : 'border-border'
+                  }`}
+                  onClick={() => setConfig({ ...config, chartType: chartType.value })}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Icon className="h-4 w-4" />
+                    <div>
+                      <div className="font-medium text-sm">{chartType.label}</div>
+                      <div className="text-xs text-muted-foreground">{chartType.description}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Query Settings */}
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="query">SQL Query</Label>
+          <Textarea
+            id="query"
+            value={config.query || ''}
+            onChange={(e) => setConfig({ ...config, query: e.target.value })}
+            placeholder="Enter your SQL query. First column = labels, second column = values.&#10;&#10;Example:&#10;SELECT status, COUNT(*) as count&#10;FROM [Form Name]&#10;GROUP BY status"
+            rows={6}
+            className="font-mono text-sm"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Use [Form Name] syntax to reference forms. First column becomes X-axis labels, second column becomes Y-axis values.
+          </p>
+        </div>
+      </div>
+
+      {/* Execution Settings */}
+      <div className="space-y-4">
+        <div>
+          <Label>Execution Mode</Label>
+          <Select 
+            value={config.executeOn || 'load'} 
+            onValueChange={(value) => setConfig({ ...config, executeOn: value })}
+          >
+            <SelectTrigger className="bg-background mt-1">
+              <SelectValue placeholder="Select execution mode" />
+            </SelectTrigger>
+            <SelectContent className="bg-background border shadow-lg z-50">
+              <SelectItem value="load">
+                <div className="flex flex-col">
+                  <span className="font-medium">Auto on Load</span>
+                  <span className="text-xs text-muted-foreground">Execute query automatically when report loads</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="manual">
+                <div className="flex flex-col">
+                  <span className="font-medium">Manual Refresh</span>
+                  <span className="text-xs text-muted-foreground">User must click refresh button to execute</span>
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label htmlFor="refreshInterval">Auto-Refresh Interval (seconds)</Label>
+          <Input
+            id="refreshInterval"
+            type="number"
+            min="0"
+            value={config.refreshInterval || 0}
+            onChange={(e) => setConfig({ ...config, refreshInterval: parseInt(e.target.value) || 0 })}
+            placeholder="0 = disabled"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Set to 0 to disable auto-refresh. Minimum recommended: 30 seconds.
+          </p>
+        </div>
+
+        <div>
+          <Label htmlFor="maxResults">Max Results</Label>
+          <Input
+            id="maxResults"
+            type="number"
+            min="1"
+            max="1000"
+            value={config.maxResults || 100}
+            onChange={(e) => setConfig({ ...config, maxResults: parseInt(e.target.value) || 100 })}
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Limit the number of data points shown on the chart (1-1000).
+          </p>
+        </div>
+      </div>
+
+      {/* Style Settings */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label>Colorful Mode</Label>
+            <p className="text-xs text-muted-foreground">Use colorful palette instead of grayscale</p>
+          </div>
+          <Switch
+            checked={config.colorful !== false}
+            onCheckedChange={(checked) => setConfig({ ...config, colorful: checked })}
+          />
+        </div>
+      </div>
+    </div>
+  );
+
   const renderConfig = () => {
     switch (componentType) {
       case 'chart':
@@ -1566,6 +1731,8 @@ export function ComponentConfigDialog({
         return renderMetricConfig();
       case 'text':
         return renderTextConfig();
+      case 'query-chart':
+        return renderQueryChartConfig();
       default:
         return <div>Unknown component type</div>;
     }
@@ -1577,7 +1744,8 @@ export function ComponentConfigDialog({
       'table': 'Table Configuration', 
       'form-submissions': 'Form Submissions Table Configuration',
       'metric-card': 'Metric Card Configuration',
-      'text': 'Text Component Configuration'
+      'text': 'Text Component Configuration',
+      'query-chart': 'Query Chart Configuration'
     };
     return titles[componentType as keyof typeof titles] || 'Component Configuration';
   };
@@ -1589,6 +1757,7 @@ export function ComponentConfigDialog({
       case 'form-submissions': return Database;
       case 'metric-card': return TrendingUp;
       case 'text': return Settings;
+      case 'query-chart': return Database;
       default: return Settings;
     }
   };
