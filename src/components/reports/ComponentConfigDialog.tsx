@@ -1661,8 +1661,8 @@ export function ComponentConfigDialog({
 
   const renderQueryChartConfig = () => (
     <div className="space-y-6">
-      {/* Basic Settings */}
-      <div className="space-y-4">
+      {/* Basic Settings - Name & Description side by side */}
+      <div className="grid grid-cols-2 gap-4">
         <div>
           <Label htmlFor="title">Chart Title</Label>
           <Input
@@ -1670,6 +1670,7 @@ export function ComponentConfigDialog({
             value={config.title || ''}
             onChange={(e) => setConfig({ ...config, title: e.target.value })}
             placeholder="Enter chart title"
+            className="mt-1"
           />
         </div>
 
@@ -1680,34 +1681,35 @@ export function ComponentConfigDialog({
             value={config.description || ''}
             onChange={(e) => setConfig({ ...config, description: e.target.value })}
             placeholder="Enter chart description"
+            className="mt-1"
           />
         </div>
+      </div>
 
-        {/* Chart Type Selector */}
-        <div>
-          <Label>Chart Type</Label>
-          <div className="grid grid-cols-2 gap-3 mt-2">
-            {QUERY_CHART_TYPES.map((chartType) => {
-              const Icon = chartType.icon;
-              return (
-                <div
-                  key={chartType.value}
-                  className={`p-3 border rounded-lg cursor-pointer transition-all hover:bg-muted/50 ${
-                    config.chartType === chartType.value ? 'border-primary bg-primary/5' : 'border-border'
-                  }`}
-                  onClick={() => setConfig({ ...config, chartType: chartType.value })}
-                >
-                  <div className="flex items-center space-x-2">
-                    <Icon className="h-4 w-4" />
-                    <div>
-                      <div className="font-medium text-sm">{chartType.label}</div>
-                      <div className="text-xs text-muted-foreground">{chartType.description}</div>
-                    </div>
+      {/* Chart Type Selector */}
+      <div>
+        <Label>Chart Type</Label>
+        <div className="grid grid-cols-4 gap-3 mt-2">
+          {QUERY_CHART_TYPES.map((chartType) => {
+            const Icon = chartType.icon;
+            return (
+              <div
+                key={chartType.value}
+                className={`p-3 border rounded-lg cursor-pointer transition-all hover:bg-muted/50 ${
+                  config.chartType === chartType.value ? 'border-primary bg-primary/5' : 'border-border'
+                }`}
+                onClick={() => setConfig({ ...config, chartType: chartType.value })}
+              >
+                <div className="flex items-center space-x-2">
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="font-medium text-sm">{chartType.label}</div>
+                    <div className="text-xs text-muted-foreground truncate">{chartType.description}</div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -1814,8 +1816,8 @@ export function ComponentConfigDialog({
         </div>
       </div>
 
-      {/* Execution Settings */}
-      <div className="space-y-4">
+      {/* Execution Settings - Side by side layout */}
+      <div className="grid grid-cols-2 gap-4">
         <div>
           <Label>Execution Mode</Label>
           <Select 
@@ -1851,12 +1853,16 @@ export function ComponentConfigDialog({
             value={config.refreshInterval || 0}
             onChange={(e) => setConfig({ ...config, refreshInterval: parseInt(e.target.value) || 0 })}
             placeholder="0 = disabled"
+            className="mt-1"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            Set to 0 to disable auto-refresh. Minimum recommended: 30 seconds.
+            Set to 0 to disable. Min: 30 seconds.
           </p>
         </div>
+      </div>
 
+      {/* Max Results & Colorful Mode - Side by side */}
+      <div className="grid grid-cols-2 gap-4">
         <div>
           <Label htmlFor="maxResults">Max Results</Label>
           <Input
@@ -1866,19 +1872,17 @@ export function ComponentConfigDialog({
             max="1000"
             value={config.maxResults || 100}
             onChange={(e) => setConfig({ ...config, maxResults: parseInt(e.target.value) || 100 })}
+            className="mt-1"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            Limit the number of data points shown on the chart (1-1000).
+            Limit data points shown (1-1000).
           </p>
         </div>
-      </div>
 
-      {/* Style Settings */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between pt-6">
           <div>
             <Label>Colorful Mode</Label>
-            <p className="text-xs text-muted-foreground">Use colorful palette instead of grayscale</p>
+            <p className="text-xs text-muted-foreground">Use colorful palette</p>
           </div>
           <Switch
             checked={config.colorful !== false}
@@ -1936,7 +1940,7 @@ export function ComponentConfigDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className={`max-h-[90vh] overflow-y-auto ${componentType === 'query-chart' ? 'max-w-6xl' : 'max-w-4xl'}`}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <DialogIcon className="h-5 w-5" />
