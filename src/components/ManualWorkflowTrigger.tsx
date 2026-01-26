@@ -19,6 +19,7 @@ interface ManualWorkflowTriggerProps {
   submissionId: string;
   submissionData: Record<string, any>;
   submissionRefId?: string;
+  compact?: boolean; // For table row usage - smaller buttons without text
 }
 
 interface AvailableWorkflow {
@@ -33,6 +34,7 @@ export function ManualWorkflowTrigger({
   submissionId,
   submissionData,
   submissionRefId,
+  compact = false,
 }: ManualWorkflowTriggerProps) {
   const [workflows, setWorkflows] = useState<AvailableWorkflow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -173,6 +175,13 @@ export function ManualWorkflowTrigger({
   };
 
   if (loading) {
+    if (compact) {
+      return (
+        <Button variant="ghost" size="sm" disabled className="h-6 w-6 p-0">
+          <Loader2 className="h-3 w-3 animate-spin" />
+        </Button>
+      );
+    }
     return (
       <Button variant="outline" size="sm" disabled>
         <Loader2 className="h-4 w-4 mr-1 animate-spin" />
@@ -190,6 +199,38 @@ export function ManualWorkflowTrigger({
     const workflow = workflows[0];
     const isExecuting = executing === workflow.id;
     const result = executionResults[workflow.id];
+
+    if (compact) {
+      return (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleTriggerWorkflow(workflow);
+          }}
+          disabled={isExecuting}
+          className={`h-6 w-6 p-0 ${
+            result === 'success'
+              ? 'text-green-600'
+              : result === 'failed'
+              ? 'text-red-600'
+              : ''
+          }`}
+          title={`Run workflow: ${workflow.name}`}
+        >
+          {isExecuting ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : result === 'success' ? (
+            <CheckCircle className="h-3 w-3" />
+          ) : result === 'failed' ? (
+            <XCircle className="h-3 w-3" />
+          ) : (
+            <Play className="h-3 w-3" />
+          )}
+        </Button>
+      );
+    }
 
     return (
       <Button
@@ -223,17 +264,28 @@ export function ManualWorkflowTrigger({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" disabled={executing !== null}>
+        <Button 
+          variant={compact ? "ghost" : "outline"} 
+          size="sm" 
+          disabled={executing !== null}
+          className={compact ? "h-6 w-6 p-0" : ""}
+          title={compact ? "Run workflow" : undefined}
+          onClick={(e) => compact && e.stopPropagation()}
+        >
           {executing ? (
-            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            <Loader2 className={`${compact ? 'h-3 w-3' : 'h-4 w-4 mr-1'} animate-spin`} />
           ) : (
-            <GitBranch className="h-4 w-4 mr-1" />
+            <GitBranch className={compact ? 'h-3 w-3' : 'h-4 w-4 mr-1'} />
           )}
-          Run Workflow
-          <ChevronDown className="h-3 w-3 ml-1" />
+          {!compact && (
+            <>
+              Run Workflow
+              <ChevronDown className="h-3 w-3 ml-1" />
+            </>
+          )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
+      <DropdownMenuContent align="end" className="w-64 bg-background">
         <DropdownMenuLabel className="text-xs text-muted-foreground">
           Available Workflows
         </DropdownMenuLabel>

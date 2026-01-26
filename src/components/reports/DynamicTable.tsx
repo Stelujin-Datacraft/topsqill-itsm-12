@@ -39,6 +39,7 @@ import { CopyRecordsDialog } from './CopyRecordsDialog';
 import { ImportButton } from '@/components/ImportButton';
 import { SubmissionUpdateButton } from '@/components/submissions/SubmissionUpdateButton';
 import { RecordHistoryDialog } from '@/components/RecordHistoryDialog';
+import { ManualWorkflowTrigger } from '@/components/ManualWorkflowTrigger';
 interface TableConfig {
   title: string;
   formId: string;
@@ -1105,6 +1106,13 @@ export function DynamicTable({
                              }} className="h-6 w-6 p-0" title="View record history">
                                <History className="h-3 w-3" />
                              </Button>
+                             <ManualWorkflowTrigger
+                               formId={config.formId}
+                               submissionId={row.id}
+                               submissionData={row.submission_data || {}}
+                               submissionRefId={row.submission_ref_id}
+                               compact
+                             />
                              {canDeleteSubmissions && (
                                <DeleteSubmissionButton submissionId={row.id} onDelete={() => handleDeleteSubmission(row.id)} checkPermission={() => checkDeletePermission(row.id)} />
                              )}
