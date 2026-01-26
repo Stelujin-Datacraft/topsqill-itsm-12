@@ -48,6 +48,7 @@ import { toast } from "@/hooks/use-toast";
 interface LdapGroupMappingsProps {
   configurations: LdapConfiguration[];
   selectedConfigId?: string;
+  onConfigChange?: (configId: string) => void;
 }
 
 interface SecurityTemplate {
@@ -60,7 +61,7 @@ interface Group {
   name: string;
 }
 
-export function LdapGroupMappings({ configurations, selectedConfigId }: LdapGroupMappingsProps) {
+export function LdapGroupMappings({ configurations, selectedConfigId, onConfigChange }: LdapGroupMappingsProps) {
   const { userProfile } = useAuth();
   const { 
     groupMappings, 
@@ -243,10 +244,30 @@ export function LdapGroupMappings({ configurations, selectedConfigId }: LdapGrou
               Map LDAP groups to application roles and security templates
             </CardDescription>
           </div>
-          <Button onClick={() => setShowCreateDialog(true)} size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Mapping
-          </Button>
+          <div className="flex items-center gap-2">
+            {configurations.length > 1 && (
+              <Select 
+                value={selectedConfigId || 'all'}
+                onValueChange={(value) => onConfigChange?.(value === 'all' ? '' : value)}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="All configurations" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All configurations</SelectItem>
+                  {configurations.map(config => (
+                    <SelectItem key={config.id} value={config.id}>
+                      {config.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button onClick={() => setShowCreateDialog(true)} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Mapping
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
