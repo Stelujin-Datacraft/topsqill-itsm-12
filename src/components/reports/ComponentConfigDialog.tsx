@@ -39,7 +39,8 @@ import {
   Loader2,
   Plus,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  AlignLeft
 } from 'lucide-react';
 import { ChartConfigurationTabs } from './ChartConfigurationTabs';
 import { ChartPreview } from './ChartPreview';
@@ -1800,6 +1801,45 @@ export function ComponentConfigDialog({
           
           {/* Query Textarea */}
           <div className="col-span-3">
+            <div className="flex justify-end mb-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const query = config.query || '';
+                  // Simple SQL formatter
+                  const keywords = ['SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'HAVING', 'LIMIT', 'OFFSET', 'JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'INNER JOIN', 'OUTER JOIN', 'ON', 'AND', 'OR', 'AS'];
+                  let formatted = query.trim();
+                  
+                  // Add newlines before major keywords
+                  keywords.forEach(keyword => {
+                    const regex = new RegExp(`\\s+${keyword}\\s+`, 'gi');
+                    formatted = formatted.replace(regex, `\n${keyword} `);
+                  });
+                  
+                  // Clean up multiple spaces
+                  formatted = formatted.replace(/  +/g, ' ');
+                  
+                  // Ensure SELECT is at the start
+                  formatted = formatted.replace(/^\n+/, '');
+                  
+                  // Add proper indentation
+                  const lines = formatted.split('\n');
+                  const indentedLines = lines.map((line, index) => {
+                    const trimmedLine = line.trim();
+                    if (index === 0) return trimmedLine;
+                    if (/^(AND|OR)\s/i.test(trimmedLine)) return '  ' + trimmedLine;
+                    return trimmedLine;
+                  });
+                  
+                  setConfig({ ...config, query: indentedLines.join('\n') });
+                }}
+                className="h-7 text-xs gap-1"
+              >
+                <AlignLeft className="h-3 w-3" />
+                Format
+              </Button>
+            </div>
             <Textarea
               ref={queryTextareaRef}
               id="query"
@@ -1810,7 +1850,7 @@ export function ComponentConfigDialog({
               className="font-mono text-sm h-full min-h-[250px]"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Use [Form Name] syntax to reference forms. First column becomes X-axis labels, second column becomes Y-axis values.
+              Use form ID in quotes to reference forms. First column becomes X-axis labels, second column becomes Y-axis values.
             </p>
           </div>
         </div>
