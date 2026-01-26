@@ -17,9 +17,10 @@ interface TablePreviewProps {
   selectedColumns: string[];
   filters?: any[];
   pageSize?: number;
+  formName?: string;
 }
 
-export function TablePreview({ formId, selectedColumns, filters = [], pageSize = 5 }: TablePreviewProps) {
+export function TablePreview({ formId, selectedColumns, filters = [], pageSize = 5, formName }: TablePreviewProps) {
   const [data, setData] = useState<any[]>([]);
   const [fields, setFields] = useState<FormField[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,8 +98,19 @@ export function TablePreview({ formId, selectedColumns, filters = [], pageSize =
       );
     }
 
-    if (columnId === 'submitted_by' || columnId === 'submission_ref_id') {
+    if (columnId === 'submitted_by') {
       return row[columnId] || '-';
+    }
+
+    if (columnId === 'submission_ref_id') {
+      return (
+        <SubmissionRefDisplay
+          submissionRefId={row.submission_ref_id}
+          submissionId={row.id}
+          formName={formName}
+          variant="compact"
+        />
+      );
     }
 
     // Handle submission data fields

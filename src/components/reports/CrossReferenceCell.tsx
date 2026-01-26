@@ -14,6 +14,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
 
 interface CrossReferenceCellProps {
   submissionRefIds: string[] | string; // can be string (comma-separated) or array
@@ -71,7 +72,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
   // Fetch only if valid targetFormId and submissionRefIds exist
   const shouldFetch = targetFormId && normalizedSubmissionRefIds.length > 0;
 
-  const { records, loading } = useCrossReferenceData(
+  const { records, targetFormName, loading } = useCrossReferenceData(
     shouldFetch ? targetFormId : undefined,
     shouldFetch ? normalizedSubmissionRefIds : undefined,
     tableDisplayFields // Use tableDisplayFields to get field values for display
@@ -120,9 +121,12 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
     
     return (
       <div className="flex flex-col gap-0.5">
-        <span className="text-xs font-medium text-primary">
-          #{record.submission_ref_id}
-        </span>
+        <SubmissionRefDisplay
+          submissionRefId={record.submission_ref_id}
+          submissionId={record.id}
+          formName={targetFormName || undefined}
+          variant="compact"
+        />
         {hasDisplayData && (
           <span className="text-xs text-muted-foreground truncate max-w-[200px]">
             {record.displayData}
@@ -149,9 +153,12 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
             >
               <ExternalLink className="h-3 w-3 mr-1.5 opacity-50 flex-shrink-0" />
               <div className="flex flex-col items-start gap-0.5 overflow-hidden">
-                <span className="text-sm font-medium text-primary">
-                  #{record.submission_ref_id}
-                </span>
+                <SubmissionRefDisplay
+                  submissionRefId={record.submission_ref_id}
+                  submissionId={record.id}
+                  formName={targetFormName || undefined}
+                  variant="compact"
+                />
                 {hasDisplayData && (
                   <span className="text-xs text-muted-foreground truncate max-w-[180px]">
                     {record.displayData}
@@ -163,7 +170,12 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
           {hasDisplayData && (
             <TooltipContent side="top" className="max-w-[300px]">
               <div className="text-xs">
-                <div className="font-medium">#{record.submission_ref_id}</div>
+                <SubmissionRefDisplay
+                  submissionRefId={record.submission_ref_id}
+                  submissionId={record.id}
+                  formName={targetFormName || undefined}
+                  variant="compact"
+                />
                 <div className="text-muted-foreground mt-0.5">{record.displayData}</div>
               </div>
             </TooltipContent>
@@ -201,7 +213,12 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
             >
               <ExternalLink className="h-3 w-3 mt-0.5 opacity-50 flex-shrink-0" />
               <div className="flex flex-col gap-0.5 overflow-hidden">
-                <span className="text-sm font-medium">#{record.submission_ref_id}</span>
+                <SubmissionRefDisplay
+                  submissionRefId={record.submission_ref_id}
+                  submissionId={record.id}
+                  formName={targetFormName || undefined}
+                  variant="compact"
+                />
                 {hasDisplayData && (
                   <span className="text-xs text-muted-foreground truncate">
                     {record.displayData}
