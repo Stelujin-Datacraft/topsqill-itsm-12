@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLdapConfiguration, LdapConfiguration, CreateLdapConfigInput } from "@/hooks/useLdapConfiguration";
@@ -74,12 +74,27 @@ export default function LdapSettings() {
     triggerSync,
   } = useLdapConfiguration();
 
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
+const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingConfig, setEditingConfig] = useState<LdapConfiguration | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("connection");
+  const [selectedConfigId, setSelectedConfigId] = useState<string>('');
+  
+  // Generate unique default name
+  const getDefaultConfigName = () => {
+    const existingNames = configurations.map(c => c.name.toLowerCase());
+    if (!existingNames.includes('primary ldap')) {
+      return 'Primary LDAP';
+    }
+    let counter = 2;
+    while (existingNames.includes(`ldap server ${counter}`.toLowerCase())) {
+      counter++;
+    }
+    return `LDAP Server ${counter}`;
+  };
+
   const [formData, setFormData] = useState<CreateLdapConfigInput>({
-    name: 'Primary LDAP',
+    name: '',
     server_url: '',
     base_dn: '',
     bind_dn: '',
@@ -152,7 +167,7 @@ export default function LdapSettings() {
 
   const resetForm = () => {
     setFormData({
-      name: 'Primary LDAP',
+      name: getDefaultConfigName(),
       server_url: '',
       base_dn: '',
       bind_dn: '',
@@ -169,6 +184,13 @@ export default function LdapSettings() {
     });
     setActiveTab("connection");
   };
+  
+  // Set default selected config when configurations load
+  React.useEffect(() => {
+    if (configurations.length > 0 && !selectedConfigId) {
+      setSelectedConfigId(configurations[0].id);
+    }
+  }, [configurations, selectedConfigId]);
 
   const openEditDialog = (config: LdapConfiguration) => {
     setFormData({
@@ -525,8 +547,13 @@ export default function LdapSettings() {
             </p>
           </div>
           
-          {configurations.length > 0 && (
-            <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        {configurations.length > 0 && (
+            <Dialog open={showCreateDialog} onOpenChange={(open) => {
+              if (open) {
+                setFormData(prev => ({ ...prev, name: getDefaultConfigName() }));
+              }
+              setShowCreateDialog(open);
+            }}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
@@ -605,7 +632,12 @@ export default function LdapSettings() {
                   </div>
                 </div>
                 
-                <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+                <Dialog open={showCreateDialog} onOpenChange={(open) => {
+                  if (open) {
+                    setFormData(prev => ({ ...prev, name: getDefaultConfigName() }));
+                  }
+                  setShowCreateDialog(open);
+                }}>
                   <DialogTrigger asChild>
                     <Button size="lg" className="gap-2">
                       <Plus className="h-5 w-5" />
@@ -863,7 +895,8 @@ export default function LdapSettings() {
             {/* Group Mappings */}
             <LdapGroupMappings 
               configurations={configurations}
-              selectedConfigId={configurations[0]?.id}
+              selectedConfigId={selectedConfigId || configurations[0]?.id}
+              onConfigChange={(configId) => setSelectedConfigId(configId)}
             />
 
             {/* Sync Logs */}
@@ -871,7 +904,11 @@ export default function LdapSettings() {
               syncLogs={syncLogs}
               configurations={configurations}
               onRefresh={loadSyncLogs}
-              selectedConfigId={configurations[0]?.id}
+              selectedConfigId={selectedConfigId || configurations[0]?.id}
+              onConfigChange={(configId) => {
+                setSelectedConfigId(configId);
+                loadSyncLogs(configId);
+              }}
             />
           </div>
         )}

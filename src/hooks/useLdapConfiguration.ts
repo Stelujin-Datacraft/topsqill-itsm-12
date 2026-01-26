@@ -256,9 +256,18 @@ export function useLdapConfiguration() {
       return data as unknown as LdapConfiguration;
     } catch (error: any) {
       console.error('Error creating LDAP configuration:', error);
+      
+      // Handle duplicate name constraint violation
+      let errorMessage = 'Failed to create LDAP configuration';
+      if (error.code === '23505' && error.message?.includes('organization_id_name_key')) {
+        errorMessage = 'A configuration with this name already exists. Please use a unique name.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: 'Error',
-        description: error.message || 'Failed to create LDAP configuration',
+        description: errorMessage,
         variant: 'destructive',
       });
       return null;
