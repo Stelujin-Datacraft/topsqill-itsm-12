@@ -16,7 +16,7 @@ export interface Report {
 export interface ReportComponent {
   id: string;
   report_id: string;
-  type: 'chart' | 'table' | 'metric-card' | 'text' | 'spacer' | 'form-submissions' | 'dynamic-table';
+  type: 'chart' | 'table' | 'metric-card' | 'text' | 'spacer' | 'form-submissions' | 'dynamic-table' | 'query-chart';
   config: ReportConfig;
   layout: {
     x: number;
@@ -248,7 +248,20 @@ export interface EmbeddedChartConfig {
   height?: number; // Chart height in pixels
 }
 
-export type ReportConfig = ChartConfig | TableConfig | MetricConfig | TextConfig | FormSubmissionsTableConfig | MetricCardConfig | DynamicTableConfig | Record<string, any>;
+// Query Chart configuration - renders charts from SQL query results
+export interface QueryChartConfig {
+  title: string;
+  description?: string;
+  query: string;
+  chartType: 'bar' | 'line' | 'pie' | 'scatter' | 'bubble' | 'area' | 'donut';
+  executeOn: 'load' | 'manual'; // Auto execute on load or manual refresh
+  colorful?: boolean; // Use colorful or grayscale palette
+  refreshInterval?: number; // Auto-refresh interval in seconds (0 = disabled)
+  maxResults?: number; // Limit number of results
+  [key: string]: any;
+}
+
+export type ReportConfig = ChartConfig | TableConfig | MetricConfig | TextConfig | FormSubmissionsTableConfig | MetricCardConfig | DynamicTableConfig | QueryChartConfig | Record<string, any>;
 
 export interface ReportAccess {
   id: string;
