@@ -1751,7 +1751,7 @@ export function ComponentConfigDialog({
                         className="h-5 w-5 p-0 shrink-0"
                         onClick={(e) => {
                           e.stopPropagation();
-                          insertTextAtCursor(`[${form.id}]`);
+                          insertTextAtCursor(`"${form.id}"`);
                         }}
                         title="Insert form ID"
                       >
