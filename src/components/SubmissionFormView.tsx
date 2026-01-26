@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowLeft, Edit, Save, X, Hash, Calendar, Clock, History } from 'lucide-react';
+import { ArrowLeft, Edit, Save, X, Calendar, Clock, History } from 'lucide-react';
+import { SubmissionRefDisplay } from './SubmissionRefDisplay';
 import { FormFieldsRenderer } from './FormFieldsRenderer';
 import { FormPagination } from './FormPagination';
 import { FormNavigationPanel } from './FormNavigationPanel';
@@ -496,10 +497,13 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
           <div className="flex flex-col">
             <h2 className="text-lg font-semibold">{submission.form_name}</h2>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <Hash className="h-3 w-3" />
-                <span>ID: {submission.submission_ref_id || submission.id.slice(0, 8)}</span>
-              </div>
+              <SubmissionRefDisplay
+                submissionRefId={submission.submission_ref_id}
+                submissionId={submission.id}
+                formReferenceId={submission.form_reference_id}
+                formName={submission.form_name}
+                variant="default"
+              />
               <div className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 <span>{new Date(submission.submitted_at).toLocaleString()}</span>

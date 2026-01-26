@@ -21,6 +21,7 @@ export function useCrossReferenceData(
       : [displayFieldIds]
     : [];
   const [records, setRecords] = useState<CrossReferenceRecord[]>([]);
+  const [targetFormName, setTargetFormName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +36,17 @@ export function useCrossReferenceData(
       try {
         setLoading(true);
         
+        // Fetch form name for display
+        const { data: formData, error: formError } = await supabase
+          .from('forms')
+          .select('name')
+          .eq('id', targetFormId)
+          .single();
+
+        if (!formError && formData) {
+          setTargetFormName(formData.name);
+        }
+
         // Fetch submissions from the TARGET form that match the reference IDs
         const { data: submissions, error: submissionsError } = await supabase
           .from('form_submissions')
@@ -104,6 +116,7 @@ export function useCrossReferenceData(
 
   return {
     records,
+    targetFormName,
     loading,
     error
   };

@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { extractComparableValue, extractNumericValue } from '@/utils/filterUtils';
 import { FormDataCell } from './FormDataCell';
+import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
 interface TableCellSubmissionsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -570,9 +571,12 @@ export function TableCellSubmissionsDialog({
                             )}
                           </Button>
                         )}
-                        <Badge variant="secondary" className="font-mono">
-                          #{submission.submission_ref_id}
-                        </Badge>
+                        <SubmissionRefDisplay
+                          submissionRefId={submission.submission_ref_id}
+                          submissionId={submission.id}
+                          variant="compact"
+                          showFormPrefix={false}
+                        />
                       </div>
                       <Button
                         variant="outline"

@@ -17,6 +17,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from '@/components/ui/badge';
 import { useUsersAndGroups } from '@/hooks/useUsersAndGroups';
 import { useCrossReferenceData } from '@/hooks/useCrossReferenceData';
+import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
 
 // For Rating (if you are using lucide-react icons)
 import { Eye, Star } from "lucide-react";
@@ -432,7 +433,12 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                       checked={selectedIds.includes(record.submission_ref_id)}
                       onChange={() => {}}
                     />
-                    <span className="text-sm font-medium text-primary">ID: {record.submission_ref_id}</span>
+                    <SubmissionRefDisplay
+                      submissionRefId={record.submission_ref_id}
+                      submissionId={record.id}
+                      variant="compact"
+                      showFormPrefix={false}
+                    />
                     <span className="text-xs text-muted-foreground">- {record.displayData}</span>
                   </div>
                 ))}

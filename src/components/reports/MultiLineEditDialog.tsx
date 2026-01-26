@@ -656,7 +656,12 @@ const renderFieldInput = (field: any, value: any, submissionId: string
               {availableRecords.map(record => (
                 <SelectItem key={record.id} value={record.submission_ref_id}>
                   <div className="flex flex-col">
-                    <span className="font-medium text-primary">ID: {record.submission_ref_id}</span>
+                    <SubmissionRefDisplay
+                      submissionRefId={record.submission_ref_id}
+                      submissionId={record.id}
+                      variant="compact"
+                      showFormPrefix={false}
+                    />
                     <span className="text-xs text-muted-foreground">{record.displayData}</span>
                   </div>
                 </SelectItem>
@@ -677,7 +682,7 @@ const renderFieldInput = (field: any, value: any, submissionId: string
                     variant="outline" 
                     className="bg-primary/10 text-primary text-xs justify-between max-w-full"
                   >
-                    <span className="truncate">ID: {ref}</span>
+                    <span className="truncate"><SubmissionRefDisplay submissionRefId={ref} variant="compact" /></span>
                     <button
                       onClick={() => {
                         const newRefs = displayValues.filter(r => r !== ref);
