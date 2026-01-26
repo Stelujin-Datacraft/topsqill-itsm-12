@@ -2,15 +2,16 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Hash, Eye, ArrowLeft, FileText } from 'lucide-react';
+import { CheckCircle, Eye, ArrowLeft, FileText } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
 
 interface FormSubmissionSuccessProps {
   submissionRefId?: string;
   submissionId?: string;
   formName: string;
   formId?: string;
+  formReferenceId?: string;
   onClose?: () => void;
 }
 
@@ -19,6 +20,7 @@ export function FormSubmissionSuccess({
   submissionId,
   formName,
   formId,
+  formReferenceId,
   onClose 
 }: FormSubmissionSuccessProps) {
   const navigate = useNavigate();
@@ -42,10 +44,15 @@ export function FormSubmissionSuccess({
         {submissionRefId && (
           <div className="mb-6">
             <p className="text-sm text-muted-foreground mb-2">Your submission reference:</p>
-            <Badge variant="outline" className="flex items-center gap-1 justify-center">
-              <Hash className="h-3 w-3" />
-              {submissionRefId}
-            </Badge>
+            <div className="flex justify-center">
+              <SubmissionRefDisplay
+                submissionRefId={submissionRefId}
+                submissionId={submissionId}
+                formReferenceId={formReferenceId}
+                formName={formName}
+                variant="badge"
+              />
+            </div>
           </div>
         )}
 

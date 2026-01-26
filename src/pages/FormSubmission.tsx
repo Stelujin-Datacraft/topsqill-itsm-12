@@ -77,6 +77,7 @@ const FormSubmission = () => {
             submissionId={submissionId}
             formName={form.name}
             formId={form.id}
+            formReferenceId={form.reference_id}
             onClose={() => setIsSubmitted(false)}
           />
         </div>

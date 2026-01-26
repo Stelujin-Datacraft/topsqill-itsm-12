@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { 
   Table, 
   TableBody, 
-  TableCell, 
+  TableCell,
   TableHead, 
   TableHeader, 
   TableRow 
@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
 
 interface FormSubmission {
   id: string;
@@ -324,12 +325,13 @@ export function MySubmissions() {
                   {filteredSubmissions.map((submission) => (
                     <TableRow key={submission.id}>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Hash className="h-4 w-4 text-muted-foreground" />
-                          <Badge variant="outline">
-                            {submission.submission_ref_id || submission.id.slice(0, 8)}
-                          </Badge>
-                        </div>
+                        <SubmissionRefDisplay
+                          submissionRefId={submission.submission_ref_id}
+                          submissionId={submission.id}
+                          formReferenceId={submission.form_reference_id}
+                          formName={submission.form_name}
+                          variant="default"
+                        />
                       </TableCell>
                       <TableCell>
                         <div>

@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
 
 interface FormField {
   id: string;

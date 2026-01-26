@@ -2,10 +2,10 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useCrossReferenceData } from '@/hooks/useCrossReferenceData';
 import { Loader2 } from 'lucide-react';
+import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
 
 interface CrossReferenceDialogProps {
   open: boolean;
@@ -88,10 +88,13 @@ export function CrossReferenceDialog({
                 className="w-full justify-start text-left p-4 h-auto hover:bg-accent"
                 onClick={() => handleSubmissionClick(record.id)}
               >
-                <div className="flex flex-col items-start w-full">
-                  <Badge variant="secondary" className="font-mono mb-1">
-                    #{record.submission_ref_id}
-                  </Badge>
+               <div className="flex flex-col items-start w-full">
+                  <SubmissionRefDisplay
+                    submissionRefId={record.submission_ref_id}
+                    submissionId={record.id}
+                    variant="badge"
+                    showFormPrefix={false}
+                  />
                   {record.displayData && record.displayData !== record.submission_ref_id && (
                     <div className="w-full overflow-auto">
                       <span className="text-sm text-muted-foreground break-words break-all">
