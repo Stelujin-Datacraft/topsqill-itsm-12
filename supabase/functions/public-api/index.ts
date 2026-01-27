@@ -158,7 +158,10 @@ app.get('/docs', (c) => {
       forms: {
         'GET /forms': 'List all accessible forms',
         'GET /forms/:id': 'Get form by ID or reference_id',
-        'GET /forms/:id/fields': 'Get form fields'
+        'GET /forms/:id/fields': 'Get form fields',
+        'POST /forms': 'Create new form',
+        'PUT /forms/:id': 'Update form',
+        'DELETE /forms/:id': 'Delete form'
       },
       submissions: {
         'GET /submissions': 'List submissions (query: form_id, limit, offset)',
@@ -169,18 +172,26 @@ app.get('/docs', (c) => {
       },
       workflows: {
         'GET /workflows': 'List workflows',
-        'POST /workflows/:id/trigger': 'Trigger workflow for submission'
+        'GET /workflows/:id': 'Get workflow by ID or reference_id',
+        'POST /workflows': 'Create new workflow',
+        'POST /workflows/:id/trigger': 'Trigger workflow for submission',
+        'PUT /workflows/:id': 'Update workflow',
+        'DELETE /workflows/:id': 'Delete workflow'
       },
       reports: {
         'GET /reports': 'List reports',
-        'GET /reports/:id/data': 'Get report data'
+        'GET /reports/:id': 'Get report by ID or reference_id',
+        'GET /reports/:id/data': 'Get report data',
+        'POST /reports': 'Create new report',
+        'PUT /reports/:id': 'Update report',
+        'DELETE /reports/:id': 'Delete report'
       }
     },
     permissions: {
-      forms: ['read'],
+      forms: ['read', 'create', 'update', 'delete'],
       submissions: ['read', 'create', 'update', 'delete'],
-      workflows: ['read', 'trigger'],
-      reports: ['read']
+      workflows: ['read', 'create', 'update', 'delete', 'trigger'],
+      reports: ['read', 'create', 'update', 'delete']
     },
     rateLimit: 'Configurable per API key (default: 60 requests/minute)'
   };
@@ -300,6 +311,169 @@ app.get('/forms/:id/fields', validateApiKey, async (c) => {
 
   await logRequest(c, 200);
   return c.json({ data, count: data?.length || 0 }, 200, corsHeaders);
+});
+
+// Create new form
+app.post('/forms', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+
+  if (!hasPermission(keyInfo, 'forms', 'create')) {
+    await logRequest(c, 403, 'Permission denied: forms.create');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    await logRequest(c, 400, 'Invalid JSON body');
+    return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const { name, description, project_id, status = 'draft' } = body;
+
+  if (!name) {
+    await logRequest(c, 400, 'name is required');
+    return c.json({ error: 'name is required' }, 400, corsHeaders);
+  }
+
+  if (!project_id && !keyInfo.project_id) {
+    await logRequest(c, 400, 'project_id is required');
+    return c.json({ error: 'project_id is required' }, 400, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  const { data, error } = await supabase
+    .from('forms')
+    .insert({
+      name,
+      description,
+      project_id: project_id || keyInfo.project_id,
+      organization_id: keyInfo.organization_id,
+      status,
+      created_by: keyInfo.api_key_id
+    })
+    .select('id, name, reference_id, status, created_at')
+    .single();
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to create form', details: error.message }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 201);
+  return c.json({ data, message: 'Form created successfully' }, 201, corsHeaders);
+});
+
+// Update form
+app.put('/forms/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const formId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'forms', 'update')) {
+    await logRequest(c, 403, 'Permission denied: forms.update');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    await logRequest(c, 400, 'Invalid JSON body');
+    return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const { name, description, status } = body;
+
+  const supabase = getServiceClient();
+
+  // Find the form
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(formId);
+  
+  let findQuery = supabase
+    .from('forms')
+    .select('id')
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (isUuid) {
+    findQuery = findQuery.eq('id', formId);
+  } else {
+    findQuery = findQuery.eq('reference_id', formId);
+  }
+
+  const { data: existing } = await findQuery.single();
+
+  if (!existing) {
+    await logRequest(c, 404, 'Form not found');
+    return c.json({ error: 'Form not found' }, 404, corsHeaders);
+  }
+
+  const updateData: any = {};
+  if (name !== undefined) updateData.name = name;
+  if (description !== undefined) updateData.description = description;
+  if (status !== undefined) updateData.status = status;
+
+  const { data, error } = await supabase
+    .from('forms')
+    .update(updateData)
+    .eq('id', existing.id)
+    .select('id, name, reference_id, status, updated_at')
+    .single();
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to update form' }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ data, message: 'Form updated successfully' }, 200, corsHeaders);
+});
+
+// Delete form
+app.delete('/forms/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const formId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'forms', 'delete')) {
+    await logRequest(c, 403, 'Permission denied: forms.delete');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(formId);
+
+  let findQuery = supabase
+    .from('forms')
+    .select('id')
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (isUuid) {
+    findQuery = findQuery.eq('id', formId);
+  } else {
+    findQuery = findQuery.eq('reference_id', formId);
+  }
+
+  const { data: existing } = await findQuery.single();
+
+  if (!existing) {
+    await logRequest(c, 404, 'Form not found');
+    return c.json({ error: 'Form not found' }, 404, corsHeaders);
+  }
+
+  const { error } = await supabase
+    .from('forms')
+    .delete()
+    .eq('id', existing.id);
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to delete form' }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ message: 'Form deleted successfully' }, 200, corsHeaders);
 });
 
 // =============================================
@@ -775,6 +949,206 @@ app.post('/workflows/:id/trigger', validateApiKey, async (c) => {
   }, 202, corsHeaders);
 });
 
+// Get single workflow
+app.get('/workflows/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const workflowId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'workflows', 'read')) {
+    await logRequest(c, 403, 'Permission denied: workflows.read');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workflowId);
+
+  let query = supabase
+    .from('workflows')
+    .select('id, name, description, reference_id, status, trigger_type, trigger_config, created_at, updated_at')
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (isUuid) {
+    query = query.eq('id', workflowId);
+  } else {
+    query = query.eq('reference_id', workflowId);
+  }
+
+  const { data, error } = await query.single();
+
+  if (error || !data) {
+    await logRequest(c, 404, 'Workflow not found');
+    return c.json({ error: 'Workflow not found' }, 404, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ data }, 200, corsHeaders);
+});
+
+// Create workflow
+app.post('/workflows', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+
+  if (!hasPermission(keyInfo, 'workflows', 'create')) {
+    await logRequest(c, 403, 'Permission denied: workflows.create');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    await logRequest(c, 400, 'Invalid JSON body');
+    return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const { name, description, project_id, trigger_type = 'manual', status = 'draft' } = body;
+
+  if (!name) {
+    await logRequest(c, 400, 'name is required');
+    return c.json({ error: 'name is required' }, 400, corsHeaders);
+  }
+
+  if (!project_id && !keyInfo.project_id) {
+    await logRequest(c, 400, 'project_id is required');
+    return c.json({ error: 'project_id is required' }, 400, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  const { data, error } = await supabase
+    .from('workflows')
+    .insert({
+      name,
+      description,
+      project_id: project_id || keyInfo.project_id,
+      organization_id: keyInfo.organization_id,
+      trigger_type,
+      status,
+      created_by: keyInfo.api_key_id
+    })
+    .select('id, name, reference_id, status, created_at')
+    .single();
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to create workflow', details: error.message }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 201);
+  return c.json({ data, message: 'Workflow created successfully' }, 201, corsHeaders);
+});
+
+// Update workflow
+app.put('/workflows/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const workflowId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'workflows', 'update')) {
+    await logRequest(c, 403, 'Permission denied: workflows.update');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    await logRequest(c, 400, 'Invalid JSON body');
+    return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const { name, description, status, trigger_type } = body;
+
+  const supabase = getServiceClient();
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workflowId);
+
+  let findQuery = supabase
+    .from('workflows')
+    .select('id')
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (isUuid) {
+    findQuery = findQuery.eq('id', workflowId);
+  } else {
+    findQuery = findQuery.eq('reference_id', workflowId);
+  }
+
+  const { data: existing } = await findQuery.single();
+
+  if (!existing) {
+    await logRequest(c, 404, 'Workflow not found');
+    return c.json({ error: 'Workflow not found' }, 404, corsHeaders);
+  }
+
+  const updateData: any = {};
+  if (name !== undefined) updateData.name = name;
+  if (description !== undefined) updateData.description = description;
+  if (status !== undefined) updateData.status = status;
+  if (trigger_type !== undefined) updateData.trigger_type = trigger_type;
+
+  const { data, error } = await supabase
+    .from('workflows')
+    .update(updateData)
+    .eq('id', existing.id)
+    .select('id, name, reference_id, status, updated_at')
+    .single();
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to update workflow' }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ data, message: 'Workflow updated successfully' }, 200, corsHeaders);
+});
+
+// Delete workflow
+app.delete('/workflows/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const workflowId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'workflows', 'delete')) {
+    await logRequest(c, 403, 'Permission denied: workflows.delete');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workflowId);
+
+  let findQuery = supabase
+    .from('workflows')
+    .select('id')
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (isUuid) {
+    findQuery = findQuery.eq('id', workflowId);
+  } else {
+    findQuery = findQuery.eq('reference_id', workflowId);
+  }
+
+  const { data: existing } = await findQuery.single();
+
+  if (!existing) {
+    await logRequest(c, 404, 'Workflow not found');
+    return c.json({ error: 'Workflow not found' }, 404, corsHeaders);
+  }
+
+  const { error } = await supabase
+    .from('workflows')
+    .delete()
+    .eq('id', existing.id);
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to delete workflow' }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ message: 'Workflow deleted successfully' }, 200, corsHeaders);
+});
+
 // =============================================
 // REPORTS ENDPOINTS
 // =============================================
@@ -807,6 +1181,205 @@ app.get('/reports', validateApiKey, async (c) => {
 
   await logRequest(c, 200);
   return c.json({ data, count: data?.length || 0 }, 200, corsHeaders);
+});
+
+// Get single report
+app.get('/reports/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const reportId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'reports', 'read')) {
+    await logRequest(c, 403, 'Permission denied: reports.read');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reportId);
+
+  let query = supabase
+    .from('reports')
+    .select('id, name, description, reference_id, dashboard_id, is_public, created_at, updated_at')
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (isUuid) {
+    query = query.eq('id', reportId);
+  } else {
+    query = query.eq('reference_id', reportId);
+  }
+
+  const { data, error } = await query.single();
+
+  if (error || !data) {
+    await logRequest(c, 404, 'Report not found');
+    return c.json({ error: 'Report not found' }, 404, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ data }, 200, corsHeaders);
+});
+
+// Create report
+app.post('/reports', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+
+  if (!hasPermission(keyInfo, 'reports', 'create')) {
+    await logRequest(c, 403, 'Permission denied: reports.create');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    await logRequest(c, 400, 'Invalid JSON body');
+    return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const { name, description, project_id, dashboard_id, is_public = false } = body;
+
+  if (!name) {
+    await logRequest(c, 400, 'name is required');
+    return c.json({ error: 'name is required' }, 400, corsHeaders);
+  }
+
+  if (!project_id && !keyInfo.project_id) {
+    await logRequest(c, 400, 'project_id is required');
+    return c.json({ error: 'project_id is required' }, 400, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  const { data, error } = await supabase
+    .from('reports')
+    .insert({
+      name,
+      description,
+      project_id: project_id || keyInfo.project_id,
+      organization_id: keyInfo.organization_id,
+      dashboard_id,
+      is_public,
+      created_by: keyInfo.api_key_id
+    })
+    .select('id, name, reference_id, created_at')
+    .single();
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to create report', details: error.message }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 201);
+  return c.json({ data, message: 'Report created successfully' }, 201, corsHeaders);
+});
+
+// Update report
+app.put('/reports/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const reportId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'reports', 'update')) {
+    await logRequest(c, 403, 'Permission denied: reports.update');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    await logRequest(c, 400, 'Invalid JSON body');
+    return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const { name, description, is_public } = body;
+
+  const supabase = getServiceClient();
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reportId);
+
+  let findQuery = supabase
+    .from('reports')
+    .select('id')
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (isUuid) {
+    findQuery = findQuery.eq('id', reportId);
+  } else {
+    findQuery = findQuery.eq('reference_id', reportId);
+  }
+
+  const { data: existing } = await findQuery.single();
+
+  if (!existing) {
+    await logRequest(c, 404, 'Report not found');
+    return c.json({ error: 'Report not found' }, 404, corsHeaders);
+  }
+
+  const updateData: any = {};
+  if (name !== undefined) updateData.name = name;
+  if (description !== undefined) updateData.description = description;
+  if (is_public !== undefined) updateData.is_public = is_public;
+
+  const { data, error } = await supabase
+    .from('reports')
+    .update(updateData)
+    .eq('id', existing.id)
+    .select('id, name, reference_id, updated_at')
+    .single();
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to update report' }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ data, message: 'Report updated successfully' }, 200, corsHeaders);
+});
+
+// Delete report
+app.delete('/reports/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const reportId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'reports', 'delete')) {
+    await logRequest(c, 403, 'Permission denied: reports.delete');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reportId);
+
+  let findQuery = supabase
+    .from('reports')
+    .select('id')
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (isUuid) {
+    findQuery = findQuery.eq('id', reportId);
+  } else {
+    findQuery = findQuery.eq('reference_id', reportId);
+  }
+
+  const { data: existing } = await findQuery.single();
+
+  if (!existing) {
+    await logRequest(c, 404, 'Report not found');
+    return c.json({ error: 'Report not found' }, 404, corsHeaders);
+  }
+
+  const { error } = await supabase
+    .from('reports')
+    .delete()
+    .eq('id', existing.id);
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to delete report' }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ message: 'Report deleted successfully' }, 200, corsHeaders);
 });
 
 // Main handler

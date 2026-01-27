@@ -108,6 +108,78 @@ const endpoints: Record<string, Endpoint[]> = {
 }`,
       notes: ['Use these field IDs when submitting data, or set use_labels: true to use labels instead'],
     },
+    {
+      method: 'POST',
+      path: '/forms',
+      title: 'Create Form',
+      description: 'Create a new form in your organization.',
+      permissions: ['forms:create'],
+      bodyParams: [
+        { name: 'name', type: 'string', description: 'Form name', required: true },
+        { name: 'description', type: 'string', description: 'Form description' },
+        { name: 'project_id', type: 'string', description: 'Project UUID (required if API key is not scoped to a project)' },
+        { name: 'status', type: 'string', description: 'Form status: draft, active, archived (default: draft)' },
+      ],
+      requestExample: `{
+  "name": "New Feedback Form",
+  "description": "Collect customer feedback",
+  "project_id": "project-uuid",
+  "status": "draft"
+}`,
+      responseExample: `{
+  "data": {
+    "id": "new-uuid",
+    "name": "New Feedback Form",
+    "reference_id": "NF00001234",
+    "status": "draft",
+    "created_at": "2025-01-15T10:00:00Z"
+  },
+  "message": "Form created successfully"
+}`,
+    },
+    {
+      method: 'PUT',
+      path: '/forms/:id',
+      title: 'Update Form',
+      description: 'Update an existing form\'s metadata.',
+      permissions: ['forms:update'],
+      pathParams: [
+        { name: 'id', type: 'string', description: 'Form UUID or reference_id' },
+      ],
+      bodyParams: [
+        { name: 'name', type: 'string', description: 'Updated form name' },
+        { name: 'description', type: 'string', description: 'Updated description' },
+        { name: 'status', type: 'string', description: 'Updated status: draft, active, archived' },
+      ],
+      requestExample: `{
+  "name": "Updated Form Name",
+  "status": "active"
+}`,
+      responseExample: `{
+  "data": {
+    "id": "uuid",
+    "name": "Updated Form Name",
+    "reference_id": "NF00001234",
+    "status": "active",
+    "updated_at": "2025-01-15T11:00:00Z"
+  },
+  "message": "Form updated successfully"
+}`,
+    },
+    {
+      method: 'DELETE',
+      path: '/forms/:id',
+      title: 'Delete Form',
+      description: 'Permanently delete a form and all its submissions.',
+      permissions: ['forms:delete'],
+      pathParams: [
+        { name: 'id', type: 'string', description: 'Form UUID or reference_id' },
+      ],
+      responseExample: `{
+  "message": "Form deleted successfully"
+}`,
+      notes: ['This action is irreversible', 'All submissions associated with this form will also be deleted'],
+    },
   ],
   submissions: [
     {
@@ -266,6 +338,60 @@ const endpoints: Record<string, Endpoint[]> = {
 }`,
     },
     {
+      method: 'GET',
+      path: '/workflows/:id',
+      title: 'Get Workflow Details',
+      description: 'Retrieve detailed information about a specific workflow.',
+      permissions: ['workflows:read'],
+      pathParams: [
+        { name: 'id', type: 'string', description: 'Workflow UUID or reference_id' },
+      ],
+      responseExample: `{
+  "data": {
+    "id": "uuid",
+    "name": "Approval Workflow",
+    "description": "Automated approval process",
+    "reference_id": "AW00001234",
+    "status": "active",
+    "trigger_type": "form_submission",
+    "trigger_config": { ... },
+    "created_at": "2025-01-10T08:00:00Z",
+    "updated_at": "2025-01-15T09:00:00Z"
+  }
+}`,
+    },
+    {
+      method: 'POST',
+      path: '/workflows',
+      title: 'Create Workflow',
+      description: 'Create a new workflow in your organization.',
+      permissions: ['workflows:create'],
+      bodyParams: [
+        { name: 'name', type: 'string', description: 'Workflow name', required: true },
+        { name: 'description', type: 'string', description: 'Workflow description' },
+        { name: 'project_id', type: 'string', description: 'Project UUID (required if API key is not scoped to a project)' },
+        { name: 'trigger_type', type: 'string', description: 'Trigger type: manual, form_submission, scheduled (default: manual)' },
+        { name: 'status', type: 'string', description: 'Workflow status: draft, active (default: draft)' },
+      ],
+      requestExample: `{
+  "name": "New Approval Workflow",
+  "description": "Automated approval for new requests",
+  "project_id": "project-uuid",
+  "trigger_type": "form_submission",
+  "status": "draft"
+}`,
+      responseExample: `{
+  "data": {
+    "id": "new-uuid",
+    "name": "New Approval Workflow",
+    "reference_id": "NA00001234",
+    "status": "draft",
+    "created_at": "2025-01-15T10:00:00Z"
+  },
+  "message": "Workflow created successfully"
+}`,
+    },
+    {
       method: 'POST',
       path: '/workflows/:id/trigger',
       title: 'Trigger Workflow',
@@ -291,6 +417,50 @@ const endpoints: Record<string, Endpoint[]> = {
 }`,
       notes: ['Workflow must be in "active" status to be triggered', 'Returns HTTP 202 Accepted'],
     },
+    {
+      method: 'PUT',
+      path: '/workflows/:id',
+      title: 'Update Workflow',
+      description: 'Update an existing workflow\'s metadata.',
+      permissions: ['workflows:update'],
+      pathParams: [
+        { name: 'id', type: 'string', description: 'Workflow UUID or reference_id' },
+      ],
+      bodyParams: [
+        { name: 'name', type: 'string', description: 'Updated workflow name' },
+        { name: 'description', type: 'string', description: 'Updated description' },
+        { name: 'status', type: 'string', description: 'Updated status: draft, active' },
+        { name: 'trigger_type', type: 'string', description: 'Updated trigger type' },
+      ],
+      requestExample: `{
+  "name": "Updated Workflow Name",
+  "status": "active"
+}`,
+      responseExample: `{
+  "data": {
+    "id": "uuid",
+    "name": "Updated Workflow Name",
+    "reference_id": "NA00001234",
+    "status": "active",
+    "updated_at": "2025-01-15T11:00:00Z"
+  },
+  "message": "Workflow updated successfully"
+}`,
+    },
+    {
+      method: 'DELETE',
+      path: '/workflows/:id',
+      title: 'Delete Workflow',
+      description: 'Permanently delete a workflow.',
+      permissions: ['workflows:delete'],
+      pathParams: [
+        { name: 'id', type: 'string', description: 'Workflow UUID or reference_id' },
+      ],
+      responseExample: `{
+  "message": "Workflow deleted successfully"
+}`,
+      notes: ['This action is irreversible', 'All execution history associated with this workflow will also be deleted'],
+    },
   ],
   reports: [
     {
@@ -311,7 +481,99 @@ const endpoints: Record<string, Endpoint[]> = {
   ],
   "count": 1
 }`,
-      notes: ['Report data/charts are not available via API - only metadata'],
+    },
+    {
+      method: 'GET',
+      path: '/reports/:id',
+      title: 'Get Report Details',
+      description: 'Retrieve detailed information about a specific report.',
+      permissions: ['reports:read'],
+      pathParams: [
+        { name: 'id', type: 'string', description: 'Report UUID or reference_id' },
+      ],
+      responseExample: `{
+  "data": {
+    "id": "uuid",
+    "name": "Monthly Summary",
+    "description": "Monthly submission summary report",
+    "reference_id": "MS00001234",
+    "dashboard_id": "dashboard-uuid",
+    "is_public": false,
+    "created_at": "2025-01-01T00:00:00Z",
+    "updated_at": "2025-01-15T09:00:00Z"
+  }
+}`,
+    },
+    {
+      method: 'POST',
+      path: '/reports',
+      title: 'Create Report',
+      description: 'Create a new report in your organization.',
+      permissions: ['reports:create'],
+      bodyParams: [
+        { name: 'name', type: 'string', description: 'Report name', required: true },
+        { name: 'description', type: 'string', description: 'Report description' },
+        { name: 'project_id', type: 'string', description: 'Project UUID (required if API key is not scoped to a project)' },
+        { name: 'dashboard_id', type: 'string', description: 'Optional dashboard UUID to associate with' },
+        { name: 'is_public', type: 'boolean', description: 'Whether the report is publicly accessible (default: false)' },
+      ],
+      requestExample: `{
+  "name": "New Monthly Report",
+  "description": "Monthly metrics summary",
+  "project_id": "project-uuid",
+  "is_public": false
+}`,
+      responseExample: `{
+  "data": {
+    "id": "new-uuid",
+    "name": "New Monthly Report",
+    "reference_id": "NM00001234",
+    "created_at": "2025-01-15T10:00:00Z"
+  },
+  "message": "Report created successfully"
+}`,
+    },
+    {
+      method: 'PUT',
+      path: '/reports/:id',
+      title: 'Update Report',
+      description: 'Update an existing report\'s metadata.',
+      permissions: ['reports:update'],
+      pathParams: [
+        { name: 'id', type: 'string', description: 'Report UUID or reference_id' },
+      ],
+      bodyParams: [
+        { name: 'name', type: 'string', description: 'Updated report name' },
+        { name: 'description', type: 'string', description: 'Updated description' },
+        { name: 'is_public', type: 'boolean', description: 'Updated public visibility' },
+      ],
+      requestExample: `{
+  "name": "Updated Report Name",
+  "is_public": true
+}`,
+      responseExample: `{
+  "data": {
+    "id": "uuid",
+    "name": "Updated Report Name",
+    "reference_id": "NM00001234",
+    "updated_at": "2025-01-15T11:00:00Z"
+  },
+  "message": "Report updated successfully"
+}`,
+    },
+    {
+      method: 'DELETE',
+      path: '/reports/:id',
+      title: 'Delete Report',
+      description: 'Permanently delete a report.',
+      permissions: ['reports:delete'],
+      pathParams: [
+        { name: 'id', type: 'string', description: 'Report UUID or reference_id' },
+      ],
+      responseExample: `{
+  "message": "Report deleted successfully"
+}`,
+      notes: ['This action is irreversible'],
     },
   ],
 };
