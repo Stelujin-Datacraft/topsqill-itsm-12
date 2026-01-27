@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Key, Copy, Eye, EyeOff, Trash2, RefreshCw, Shield, Clock, Activity, ExternalLink, AlertCircle } from 'lucide-react';
+import { Plus, Key, Copy, Eye, EyeOff, Trash2, RefreshCw, Shield, Clock, Activity, Book, AlertCircle } from 'lucide-react';
 import { useApiKeys, ApiKey } from '@/hooks/useApiKeys';
 import { toast } from '@/hooks/use-toast';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -26,6 +27,7 @@ const PERMISSION_OPTIONS = {
 };
 
 export function ApiKeyManagement() {
+  const navigate = useNavigate();
   const { apiKeys, requestLogs, loading, createApiKey, updateApiKey, deleteApiKey, revokeApiKey, fetchRequestLogs } = useApiKeys();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedKey, setSelectedKey] = useState<ApiKey | null>(null);
@@ -315,7 +317,7 @@ export function ApiKeyManagement() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <ExternalLink className="h-5 w-5" />
+            <Book className="h-5 w-5" />
             API Documentation
           </CardTitle>
         </CardHeader>
@@ -337,11 +339,9 @@ export function ApiKeyManagement() {
               x-api-key: your_api_key_here
             </code>
           </div>
-          <Button variant="outline" asChild>
-            <a href={`${apiBaseUrl}/docs`} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-4 w-4 mr-2" />
-              View Full API Docs
-            </a>
+          <Button variant="outline" onClick={() => navigate('/docs')}>
+            <Book className="h-4 w-4 mr-2" />
+            View Full API Docs
           </Button>
         </CardContent>
       </Card>
