@@ -40,6 +40,7 @@ import ReportEditor from "./pages/ReportEditor";
 import ReportViewerPage from "./pages/ReportViewer";
 import ReportAccessManagement from "./pages/ReportAccessManagement";
 import Users from "./pages/Users";
+import ApiIntegration from "./pages/ApiIntegration";
 
 import RolesAndAccess from "./pages/RolesAndAccess";
 import Projects from "./pages/Projects";
@@ -135,6 +136,7 @@ const App = () => (
                      <Route path="/form-audit-logs" element={<ProtectedRoute><FormAuditLogs /></ProtectedRoute>} />
                      <Route path="/investigate-access" element={<ProtectedRoute><InvestigateAccess /></ProtectedRoute>} />
                      <Route path="/ldap-settings" element={<ProtectedRoute><LdapSettings /></ProtectedRoute>} />
+                     <Route path="/api-integration" element={<ProtectedRoute><ApiIntegration /></ProtectedRoute>} />
                      <Route path="*" element={<NotFound />} />
                   </Routes>
                   </BrowserRouter>
