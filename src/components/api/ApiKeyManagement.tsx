@@ -20,10 +20,10 @@ import { toast } from '@/hooks/use-toast';
 import { format, formatDistanceToNow } from 'date-fns';
 
 const PERMISSION_OPTIONS = {
-  forms: ['read'],
+  forms: ['read', 'create', 'update', 'delete'],
   submissions: ['read', 'create', 'update', 'delete'],
-  workflows: ['read', 'trigger'],
-  reports: ['read']
+  workflows: ['read', 'create', 'update', 'delete', 'trigger'],
+  reports: ['read', 'create', 'update', 'delete']
 };
 
 export function ApiKeyManagement() {
