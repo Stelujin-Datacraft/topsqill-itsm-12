@@ -41,6 +41,8 @@ import { SubmissionUpdateButton } from '@/components/submissions/SubmissionUpdat
 import { RecordHistoryDialog } from '@/components/RecordHistoryDialog';
 import { ManualWorkflowTrigger } from '@/components/ManualWorkflowTrigger';
 import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
+import { useBulkWorkflowTrigger } from '@/hooks/useBulkWorkflowTrigger';
+import { BulkWorkflowTriggerDialog } from './BulkWorkflowTriggerDialog';
 interface TableConfig {
   title: string;
   formId: string;
@@ -96,6 +98,8 @@ export function DynamicTable({
   const [selectedSubmissionForView, setSelectedSubmissionForView] = useState<{ id: string; refId: string } | null>(null);
   const [showRecordHistory, setShowRecordHistory] = useState(false);
   const [recordHistorySubmission, setRecordHistorySubmission] = useState<{ id: string; refId: string } | null>(null);
+  const [showBulkWorkflowTrigger, setShowBulkWorkflowTrigger] = useState(false);
+  const [bulkWorkflowTriggerMode, setBulkWorkflowTriggerMode] = useState<'selected' | 'all'>('selected');
 
   // Custom hooks
   const {
@@ -107,6 +111,9 @@ export function DynamicTable({
     currentForm,
     userProfile?.id
   );
+  
+  // Bulk workflow trigger hook
+  const { hasWorkflows, executing: workflowExecuting, triggerWorkflowsForRecords } = useBulkWorkflowTrigger(config.formId);
 
   // Helper function to evaluate filter conditions using proper type-aware evaluation
   const evaluateCondition = useCallback((row: any, condition: any) => {
@@ -523,6 +530,33 @@ export function DynamicTable({
   const handleBulkDeleteComplete = () => {
     loadData(); // Reload data after deletion
     setSelectedRows(new Set()); // Clear selection
+  };
+
+  // Bulk workflow trigger handlers
+  const handleRunAllWorkflows = () => {
+    setBulkWorkflowTriggerMode('all');
+    setShowBulkWorkflowTrigger(true);
+  };
+
+  const handleRetriggerSelected = () => {
+    setBulkWorkflowTriggerMode('selected');
+    setShowBulkWorkflowTrigger(true);
+  };
+
+  const handleBulkWorkflowConfirm = async () => {
+    const recordsToTrigger = bulkWorkflowTriggerMode === 'selected'
+      ? filteredAndSortedData.filter(row => selectedRows.has(row.id)).map(row => ({
+          id: row.id,
+          submission_data: row.submission_data || {},
+          submission_ref_id: row.submission_ref_id,
+        }))
+      : filteredAndSortedData.map(row => ({
+          id: row.id,
+          submission_data: row.submission_data || {},
+          submission_ref_id: row.submission_ref_id,
+        }));
+
+    return await triggerWorkflowsForRecords(recordsToTrigger);
   };
   const checkDeletePermission = async (submissionId: string): Promise<boolean> => {
     try {
@@ -1165,7 +1199,21 @@ export function DynamicTable({
        </Card>
 
       {/* Bulk Actions Bar */}
-      {selectedRows.size > 0 && <BulkActionsBar selectedCount={selectedRows.size} onBulkEdit={handleBulkEdit} onMultiLineEdit={handleMultiLineEdit} onCopyRecords={handleCopyRecords} onBulkDelete={handleBulkDelete} onClearSelection={handleClearSelection} canDelete={canDeleteSubmissions} />}
+      {selectedRows.size > 0 && (
+        <BulkActionsBar 
+          selectedCount={selectedRows.size} 
+          totalCount={filteredAndSortedData.length}
+          onBulkEdit={handleBulkEdit} 
+          onMultiLineEdit={handleMultiLineEdit} 
+          onCopyRecords={handleCopyRecords} 
+          onBulkDelete={handleBulkDelete} 
+          onClearSelection={handleClearSelection} 
+          onRunAllWorkflows={handleRunAllWorkflows}
+          onRetriggerSelected={handleRetriggerSelected}
+          canDelete={canDeleteSubmissions}
+          hasWorkflows={hasWorkflows}
+        />
+      )}
 
       {/* Dialogs */}
       <InlineEditDialog isOpen={showInlineEdit} onOpenChange={setShowInlineEdit} submissions={editingSubmission ? Array.isArray(editingSubmission) ? editingSubmission : [editingSubmission] : []} formFields={formFields || []} onSave={handleInlineEditSave} />
@@ -1173,6 +1221,17 @@ export function DynamicTable({
       <MultiLineEditDialog isOpen={showMultiLineEdit} onOpenChange={setShowMultiLineEdit} submissions={editingSubmission ? Array.isArray(editingSubmission) ? editingSubmission : [editingSubmission] : []} formFields={formFields || []} onSave={handleInlineEditSave} />
 
       <BulkDeleteDialog isOpen={showBulkDelete} onOpenChange={setShowBulkDelete} submissionIds={Array.from(selectedRows)} onDelete={handleBulkDeleteComplete} />
+
+      {/* Bulk Workflow Trigger Dialog */}
+      <BulkWorkflowTriggerDialog
+        open={showBulkWorkflowTrigger}
+        onOpenChange={setShowBulkWorkflowTrigger}
+        mode={bulkWorkflowTriggerMode}
+        selectedCount={selectedRows.size}
+        totalCount={filteredAndSortedData.length}
+        onConfirm={handleBulkWorkflowConfirm}
+        executing={workflowExecuting}
+      />
 
       <ColumnOrderManager isOpen={showColumnOrderManager} onOpenChange={setShowColumnOrderManager} formFields={formFields} selectedColumns={columnOrder.length > 0 ? columnOrder : formFields.map(f => f.id)} onColumnOrderChange={handleColumnOrderChange} />
 
