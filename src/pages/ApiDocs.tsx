@@ -1140,6 +1140,14 @@ const ApiDocs: React.FC = () => {
                 <Shield className="h-4 w-4 mr-2" />
                 Authentication
               </Button>
+              <Button
+                variant={activeSection === 'request-format' ? 'secondary' : 'ghost'}
+                className="w-full justify-start"
+                onClick={() => setActiveSection('request-format')}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Request Format
+              </Button>
               <Separator className="my-2" />
               <Button
                 variant={activeSection === 'forms' ? 'secondary' : 'ghost'}
@@ -1317,6 +1325,170 @@ const ApiDocs: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <Badge variant="destructive">429</Badge>
                           <span className="text-sm">Rate limit exceeded</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+              </Card>
+              </div>
+            )}
+
+            {activeSection === 'request-format' && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Request & Response Format</CardTitle>
+                    <CardDescription>
+                      All API requests and responses use JSON format
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <h3 className="font-semibold mb-2">Content-Type Header</h3>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        For all <code className="bg-muted px-1 rounded">POST</code>, <code className="bg-muted px-1 rounded">PUT</code>, and <code className="bg-muted px-1 rounded">PATCH</code> requests, you must include the Content-Type header:
+                      </p>
+                      <code className="block p-3 bg-muted rounded-md text-sm">
+                        Content-Type: application/json
+                      </code>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold mb-2">Request Body Format</h3>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        All request bodies must be valid JSON. Invalid JSON will result in a <code className="bg-muted px-1 rounded">400 Bad Request</code> error.
+                      </p>
+                      <pre className="bg-muted rounded-md p-3 text-xs overflow-x-auto">
+{`// ✅ Valid JSON request body
+{
+  "name": "My Form",
+  "description": "A sample form",
+  "status": "active"
+}
+
+// ❌ Invalid - trailing comma
+{
+  "name": "My Form",
+  "status": "active",
+}
+
+// ❌ Invalid - single quotes
+{
+  'name': 'My Form'
+}`}
+                      </pre>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold mb-2">Response Format</h3>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        All API responses are returned in JSON format with a consistent structure:
+                      </p>
+                      <pre className="bg-muted rounded-md p-3 text-xs overflow-x-auto">
+{`// Success response
+{
+  "data": { ... },      // The requested data
+  "message": "...",     // Optional success message
+  "count": 10,          // Optional count for list endpoints
+  "limit": 100,         // Optional pagination info
+  "offset": 0           // Optional pagination info
+}
+
+// Error response
+{
+  "error": "Error code",
+  "message": "Human-readable error description",
+  "details": { ... }    // Optional additional details
+}`}
+                      </pre>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold mb-2">Required Headers Summary</h3>
+                      <div className="bg-muted rounded-md p-3 space-y-2">
+                        <div className="text-sm">
+                          <code className="text-primary">x-api-key</code>
+                          <Badge variant="destructive" className="ml-2 text-xs">required</Badge>
+                          <span className="ml-2">- Your API key for authentication</span>
+                        </div>
+                        <div className="text-sm">
+                          <code className="text-primary">Content-Type: application/json</code>
+                          <Badge variant="outline" className="ml-2 text-xs">POST/PUT/PATCH</Badge>
+                          <span className="ml-2">- Required for requests with body</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold mb-2">Example: Complete POST Request</h3>
+                      <Tabs defaultValue="curl" className="w-full">
+                        <TabsList className="mb-2">
+                          <TabsTrigger value="curl">cURL</TabsTrigger>
+                          <TabsTrigger value="javascript">JavaScript</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="curl">
+                          <pre className="bg-muted rounded-md p-3 text-xs overflow-x-auto">
+{`curl -X POST '${BASE_URL}/submissions' \\
+  -H 'x-api-key: tsk_your_api_key_here' \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "form_ref_id": "CF00001234",
+    "use_labels": true,
+    "submission_data": {
+      "Full Name": "John Doe",
+      "Email": "john@example.com"
+    }
+  }'`}
+                          </pre>
+                        </TabsContent>
+                        <TabsContent value="javascript">
+                          <pre className="bg-muted rounded-md p-3 text-xs overflow-x-auto">
+{`const response = await fetch('${BASE_URL}/submissions', {
+  method: 'POST',
+  headers: {
+    'x-api-key': 'tsk_your_api_key_here',
+    'Content-Type': 'application/json'  // Required!
+  },
+  body: JSON.stringify({
+    form_ref_id: 'CF00001234',
+    use_labels: true,
+    submission_data: {
+      'Full Name': 'John Doe',
+      'Email': 'john@example.com'
+    }
+  })
+});
+
+const data = await response.json();
+console.log(data);`}
+                          </pre>
+                        </TabsContent>
+                      </Tabs>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold mb-2">Common JSON Errors</h3>
+                      <div className="space-y-2">
+                        <div className="flex items-start gap-2">
+                          <Badge variant="destructive">400</Badge>
+                          <div className="text-sm">
+                            <span className="font-medium">Invalid JSON body</span>
+                            <span className="text-muted-foreground"> - Syntax error in your JSON (missing quotes, trailing commas, etc.)</span>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Badge variant="destructive">400</Badge>
+                          <div className="text-sm">
+                            <span className="font-medium">Missing required field</span>
+                            <span className="text-muted-foreground"> - A required field is not present in the request body</span>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Badge variant="destructive">415</Badge>
+                          <div className="text-sm">
+                            <span className="font-medium">Unsupported Media Type</span>
+                            <span className="text-muted-foreground"> - Missing or incorrect Content-Type header</span>
+                          </div>
                         </div>
                       </div>
                     </div>
