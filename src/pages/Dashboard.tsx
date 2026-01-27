@@ -61,7 +61,8 @@ const Dashboard = () => {
   try {
     return (
       <DashboardLayout 
-        title={`Dashboard${currentProject ? ` - ${currentProject.name}` : ''}`}
+        title="Dashboard"
+        description={currentProject ? `Currently working on: ${currentProject.name}` : 'Select a project to get started or create a new one'}
         actions={
           userProfile?.role === 'admin' ? (
             <CreateProjectDialog onProjectCreated={handleProjectCreated} />

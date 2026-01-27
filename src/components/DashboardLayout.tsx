@@ -5,12 +5,14 @@ import { useImpersonation } from '@/contexts/ImpersonationContext';
 interface DashboardLayoutProps {
   children: React.ReactNode;
   title?: string;
+  description?: string;
   actions?: React.ReactNode;
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children,
   title,
+  description,
   actions
 }) => {
   const { isImpersonating } = useImpersonation();
@@ -24,7 +26,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <SidebarTrigger />
-                {title && <h1 className="text-2xl font-semibold">{title}</h1>}
+                <div>
+                  {title && <h1 className="text-2xl font-semibold">{title}</h1>}
+                  {description && <p className="text-sm text-muted-foreground">{description}</p>}
+                </div>
               </div>
               {actions && <div className="flex items-center gap-2">{actions}</div>}
             </div>

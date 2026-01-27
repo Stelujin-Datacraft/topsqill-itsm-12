@@ -4,7 +4,7 @@ import { ApiKeyManagement } from '@/components/api/ApiKeyManagement';
 
 const ApiIntegration: React.FC = () => {
   return (
-    <DashboardLayout title="API Integration">
+    <DashboardLayout title="API Integration" description="Manage API keys and external integrations">
       <ApiKeyManagement />
     </DashboardLayout>
   );

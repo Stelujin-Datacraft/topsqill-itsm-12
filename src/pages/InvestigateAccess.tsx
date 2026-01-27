@@ -50,16 +50,13 @@ export default function InvestigateAccess() {
   }
 
   return (
-    <DashboardLayout title={isAdmin ? 'Investigate Access' : 'My Access'}>
+    <DashboardLayout 
+      title={isAdmin ? 'Investigate Access' : 'My Access'}
+      description={isAdmin ? 'View comprehensive access rights for any user in the system' : 'View your access permissions, roles, and security settings'}
+    >
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <p className="text-muted-foreground">
-            {isAdmin 
-              ? 'View comprehensive access rights for any user in the system'
-              : 'View your access permissions, roles, and security settings'
-            }
-          </p>
+        <div className="flex items-center justify-end">
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
             {/* Export All Users - Only for admins */}

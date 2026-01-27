@@ -178,7 +178,7 @@ export default function QueryPage() {
   const resultsError = queryResult.errors.length > 0 ? queryResult.errors[0] : null;
 
   return (
-    <DashboardLayout title="Query Builder">
+    <DashboardLayout title="Query Builder" description="Execute SQL queries and explore your data">
       <div className="h-[calc(100vh-8rem)] flex overflow-hidden">
         <ResizablePanelGroup direction="horizontal" className="w-full">
           {/* Forms Sidebar */}

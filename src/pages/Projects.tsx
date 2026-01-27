@@ -55,11 +55,8 @@ const Projects = () => {
   });
 
   return (
-    <DashboardLayout title="Projects">
+    <DashboardLayout title="Projects" description="Manage your projects and collaborate with team members">
       <div className="space-y-6">
-        <p className="text-muted-foreground">
-          Manage your projects and collaborate with team members
-        </p>
 
         {/* Project Invitations */}
         <ProjectInvitationsCard onInvitationAccepted={handleInvitationAccepted} />

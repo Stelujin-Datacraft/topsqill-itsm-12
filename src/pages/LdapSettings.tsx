@@ -531,13 +531,10 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
   );
 
   return (
-    <DashboardLayout title="LDAP / Active Directory">
+    <DashboardLayout title="LDAP / Active Directory" description="Configure enterprise authentication and user synchronization">
       <div className="space-y-6">
         {/* Header Section */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <p className="text-muted-foreground">
-            Configure enterprise authentication and user synchronization
-          </p>
+        <div className="flex justify-end">
           
         {configurations.length > 0 && (
             <Dialog open={showCreateDialog} onOpenChange={(open) => {

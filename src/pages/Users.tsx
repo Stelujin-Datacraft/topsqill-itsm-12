@@ -200,7 +200,7 @@ const Users = () => {
   }
 
   return (
-    <DashboardLayout title="Team Members">
+    <DashboardLayout title="Team Members" description="Manage your organization's team members">
       <div className="space-y-6">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
