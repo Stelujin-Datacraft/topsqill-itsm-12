@@ -1,27 +1,35 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Edit3, Trash2, X, Users, Copy } from 'lucide-react';
+import { Edit3, Trash2, X, Users, Copy, Play, PlayCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface BulkActionsBarProps {
   selectedCount: number;
+  totalCount?: number;
   onBulkEdit: () => void;
   onMultiLineEdit: () => void;
   onCopyRecords: () => void;
   onBulkDelete: () => void;
   onClearSelection: () => void;
+  onRunAllWorkflows?: () => void;
+  onRetriggerSelected?: () => void;
   canDelete: boolean;
+  hasWorkflows?: boolean;
 }
 
 export function BulkActionsBar({ 
   selectedCount, 
+  totalCount,
   onBulkEdit, 
   onMultiLineEdit,
   onCopyRecords,
   onBulkDelete, 
   onClearSelection,
-  canDelete 
+  onRunAllWorkflows,
+  onRetriggerSelected,
+  canDelete,
+  hasWorkflows = false
 }: BulkActionsBarProps) {
   if (selectedCount === 0) return null;
 
@@ -62,6 +70,31 @@ export function BulkActionsBar({
             <Copy className="h-4 w-4" />
             Copy Record{selectedCount > 1 ? 's' : ''}
           </Button>
+
+          {/* Workflow Trigger Buttons */}
+          {hasWorkflows && onRetriggerSelected && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onRetriggerSelected}
+              className="flex items-center gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
+            >
+              <Play className="h-4 w-4" />
+              Run Workflow ({selectedCount})
+            </Button>
+          )}
+
+          {hasWorkflows && onRunAllWorkflows && totalCount && totalCount > 0 && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onRunAllWorkflows}
+              className="flex items-center gap-2 border-purple-300 text-purple-700 hover:bg-purple-50"
+            >
+              <PlayCircle className="h-4 w-4" />
+              Run All ({totalCount})
+            </Button>
+          )}
           
           {canDelete && (
             <Button 
