@@ -1805,12 +1805,12 @@ export function ComponentConfigDialog({
               id="query"
               value={config.query || ''}
               onChange={(e) => setConfig({ ...config, query: e.target.value })}
-              placeholder="Enter your SQL query. First column = labels, second column = values.&#10;&#10;Example:&#10;SELECT status, COUNT(*) as count&#10;FROM [Form Name]&#10;GROUP BY status"
+              placeholder="Enter your SQL query. First column = labels, second column = values.&#10;&#10;Example:&#10;SELECT FIELD(&quot;status-field-id&quot;), COUNT(*) as count&#10;FROM &quot;form-uuid&quot;&#10;GROUP BY FIELD(&quot;status-field-id&quot;)"
               rows={10}
               className="font-mono text-sm h-full min-h-[250px]"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Use [Form Name] syntax to reference forms. First column becomes X-axis labels, second column becomes Y-axis values.
+              Use "form-uuid" for forms and FIELD("field-id") for fields. First column becomes X-axis labels, second column becomes Y-axis values.
             </p>
           </div>
         </div>
