@@ -14,6 +14,131 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_keys: {
+        Row: {
+          allowed_ips: string[] | null
+          created_at: string
+          created_by: string
+          description: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          organization_id: string
+          permissions: Json
+          project_id: string | null
+          rate_limit_per_minute: number | null
+          updated_at: string
+        }
+        Insert: {
+          allowed_ips?: string[] | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          name: string
+          organization_id: string
+          permissions?: Json
+          project_id?: string | null
+          rate_limit_per_minute?: number | null
+          updated_at?: string
+        }
+        Update: {
+          allowed_ips?: string[] | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          key_hash?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          name?: string
+          organization_id?: string
+          permissions?: Json
+          project_id?: string | null
+          rate_limit_per_minute?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_keys_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      api_request_logs: {
+        Row: {
+          api_key_id: string | null
+          created_at: string
+          endpoint: string
+          error_message: string | null
+          id: string
+          ip_address: string | null
+          method: string
+          organization_id: string
+          request_body: Json | null
+          response_status: number | null
+          response_time_ms: number | null
+          user_agent: string | null
+        }
+        Insert: {
+          api_key_id?: string | null
+          created_at?: string
+          endpoint: string
+          error_message?: string | null
+          id?: string
+          ip_address?: string | null
+          method: string
+          organization_id: string
+          request_body?: Json | null
+          response_status?: number | null
+          response_time_ms?: number | null
+          user_agent?: string | null
+        }
+        Update: {
+          api_key_id?: string | null
+          created_at?: string
+          endpoint?: string
+          error_message?: string | null
+          id?: string
+          ip_address?: string | null
+          method?: string
+          organization_id?: string
+          request_body?: Json | null
+          response_status?: number | null
+          response_time_ms?: number | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_request_logs_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asset_permissions: {
         Row: {
           asset_id: string
@@ -3459,6 +3584,21 @@ export type Database = {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
       }
+      log_api_request: {
+        Args: {
+          p_api_key_id: string
+          p_endpoint: string
+          p_error_message?: string
+          p_ip_address: string
+          p_method: string
+          p_organization_id: string
+          p_request_body: Json
+          p_response_status: number
+          p_response_time_ms: number
+          p_user_agent: string
+        }
+        Returns: string
+      }
       reject_project_invitation: {
         Args: { invitation_id_param: string }
         Returns: Json
@@ -3471,6 +3611,17 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      validate_api_key: {
+        Args: { key_hash_param: string }
+        Returns: {
+          allowed_ips: string[]
+          api_key_id: string
+          organization_id: string
+          permissions: Json
+          project_id: string
+          rate_limit: number
+        }[]
       }
     }
     Enums: {
