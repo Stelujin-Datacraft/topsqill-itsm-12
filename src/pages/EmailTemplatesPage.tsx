@@ -326,14 +326,19 @@ export default function EmailTemplatesPage() {
   }
 
   return (
-    <DashboardLayout title="Email Templates">
+    <DashboardLayout 
+      title="Email Templates"
+      actions={
+        <Button onClick={() => setIsCreating(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Create Template
+        </Button>
+      }
+    >
       <div className="space-y-6">
-        <div className="flex justify-end">
-          <Button onClick={() => setIsCreating(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Template
-          </Button>
-        </div>
+        <p className="text-muted-foreground">
+          Create and manage email templates for automated notifications
+        </p>
 
         {/* Existing Templates */}
         <div className="grid gap-4">

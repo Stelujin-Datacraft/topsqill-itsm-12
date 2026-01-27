@@ -280,16 +280,12 @@ const AnalyticsDashboard = () => {
     return <AlertCircle className={`h-4 w-4 ${getQualityColor(quality)}`} />;
   };
 
-  const headerActions = (
-    <Button variant="outline" onClick={() => navigate('/reports')}>
-      <ArrowLeft className="h-4 w-4 mr-2" />
-      Back to Reports
-    </Button>
-  );
-
   return (
-    <DashboardLayout title="Analytics Dashboard" actions={headerActions}>
+    <DashboardLayout title="Analytics Dashboard">
       <div className="space-y-6">
+        <p className="text-muted-foreground">
+          Analyze form submissions and visualize your data
+        </p>
 
         {/* Form Selector */}
         <Card>
