@@ -1,19 +1,28 @@
-
 import React from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { WorkflowsList } from '@/components/workflows/WorkflowsList';
+import { CreateWorkflowDialog } from '@/components/workflows/CreateWorkflowDialog';
 import { useWorkflowData } from '@/hooks/useWorkflowData';
 import { useNavigate } from 'react-router-dom';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useProject } from '@/contexts/ProjectContext';
 import { Workflow } from '@/types/workflow';
 import NoProjectSelected from '@/components/NoProjectSelected';
+import { useToast } from '@/hooks/use-toast';
 
 const Workflows = () => {
   const navigate = useNavigate();
   const { workflows, deleteWorkflow } = useWorkflowData();
   const { hasPermission, checkPermissionWithAlert, getVisibleResources, loading: permissionLoading } = useUnifiedAccessControl();
   const { currentProject } = useProject();
+  const { toast } = useToast();
+
+  const handleWorkflowCreated = (workflowId: string) => {
+    toast({
+      title: "Success",
+      description: "Workflow created successfully",
+    });
+  };
 
   if (!currentProject) {
     return (
@@ -59,17 +68,14 @@ const Workflows = () => {
     }
   };
 
-  const getWorkflowPermissions = (workflow: Workflow) => ({
-    canEdit: hasPermission('workflows', 'update', workflow.id),
-    canDelete: hasPermission('workflows', 'delete', workflow.id),
-    canView: hasPermission('workflows', 'read', workflow.id)
-  });
-
   // Filter workflows based on user's permissions
   const visibleWorkflows = getVisibleResources('workflows', workflows);
 
   return (
-    <DashboardLayout title="Workflows">
+    <DashboardLayout 
+      title="Workflows"
+      actions={<CreateWorkflowDialog onWorkflowCreated={handleWorkflowCreated} />}
+    >
       <WorkflowsList
         workflows={visibleWorkflows}
         onView={handleViewWorkflow}

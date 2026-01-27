@@ -6,13 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Plus, MoreVertical, Play, Pencil, Trash2, History, Clock, RefreshCw, ArrowRightLeft } from 'lucide-react';
+import { MoreVertical, Play, Pencil, Trash2, History, Clock, RefreshCw, ArrowRightLeft } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface DataFeedListProps {
   feeds: DataFeed[];
   loading: boolean;
-  onCreateClick: () => void;
   onEditClick: (feed: DataFeed) => void;
   onViewHistory: (feed: DataFeed) => void;
   onExecute: (feedId: string) => Promise<boolean>;
@@ -23,7 +22,6 @@ interface DataFeedListProps {
 export function DataFeedList({
   feeds,
   loading,
-  onCreateClick,
   onEditClick,
   onViewHistory,
   onExecute,
@@ -72,28 +70,14 @@ export function DataFeedList({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          Sync data between forms using scheduled or manual feeds
-        </p>
-        <Button onClick={onCreateClick}>
-          <Plus className="mr-2 h-4 w-4" />
-          Create Data Feed
-        </Button>
-      </div>
-
       {feeds.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <ArrowRightLeft className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">No Data Feeds</h3>
-            <p className="text-sm text-muted-foreground text-center mb-4">
+            <p className="text-sm text-muted-foreground text-center">
               Create your first data feed to sync data between forms automatically.
             </p>
-            <Button onClick={onCreateClick}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Data Feed
-            </Button>
           </CardContent>
         </Card>
       ) : (

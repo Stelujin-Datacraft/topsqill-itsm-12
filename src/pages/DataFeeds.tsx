@@ -6,6 +6,8 @@ import { DataFeedHistoryDialog } from '@/components/data-feeds/DataFeedHistoryDi
 import { useDataFeeds } from '@/hooks/useDataFeeds';
 import { DataFeed, DataFeedFormData } from '@/types/dataFeed';
 import { useProject } from '@/contexts/ProjectContext';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 
 export default function DataFeeds() {
   const { currentProject } = useProject();
@@ -50,11 +52,18 @@ export default function DataFeeds() {
   };
 
   return (
-    <DashboardLayout title="Data Feeds">
+    <DashboardLayout 
+      title="Data Feeds"
+      actions={
+        <Button onClick={handleCreateClick}>
+          <Plus className="mr-2 h-4 w-4" />
+          Create Data Feed
+        </Button>
+      }
+    >
       <DataFeedList
         feeds={feeds}
         loading={loading}
-        onCreateClick={handleCreateClick}
         onEditClick={handleEditClick}
         onViewHistory={handleViewHistory}
         onExecute={executeFeed}

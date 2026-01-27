@@ -109,12 +109,6 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <p className="text-muted-foreground">
-          Automate your processes with visual workflows
-        </p>
-        <CreateWorkflowDialog onWorkflowCreated={handleCreateWorkflow} />
-      </div>
 
       {workflows.length === 0 ? (
         <Card>
