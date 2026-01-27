@@ -70,17 +70,12 @@ const Workflows = () => {
 
   return (
     <DashboardLayout title="Workflows">
-      <div className="space-y-6">
-        <p className="text-muted-foreground">
-          Design and manage automated workflows and business processes
-        </p>
-        <WorkflowsList
+      <WorkflowsList
         workflows={visibleWorkflows}
         onView={handleViewWorkflow}
         onEdit={handleEditWorkflow}
         onDelete={handleDeleteWorkflow}
-        />
-      </div>
+      />
     </DashboardLayout>
   );
 };
