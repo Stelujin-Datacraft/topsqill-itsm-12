@@ -11,6 +11,7 @@ import { Upload, Download, AlertCircle, CheckCircle2, FileText, MapPin } from 'l
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import { getFieldType } from '@/data/fieldTypeMapping';
 
 interface ImportDialogProps {
@@ -82,36 +83,71 @@ export function ImportDialog({ isOpen, onOpenChange, formId, formFields, onImpor
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-      toast({
-        title: "Invalid File",
-        description: "Please upload a CSV file.",
-        variant: "destructive",
-      });
-      return;
-    }
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
 
-    Papa.parse(file, {
-      complete: (results) => {
-        if (results.errors.length > 0) {
+    if (fileExtension === 'csv') {
+      Papa.parse(file, {
+        complete: (results) => {
+          if (results.errors.length > 0) {
+            toast({
+              title: "CSV Parse Error",
+              description: results.errors[0].message,
+              variant: "destructive",
+            });
+            return;
+          }
+
+          const headers = results.data[0] as string[];
+          const rows = results.data.slice(1) as any[][];
+          const preview = rows.slice(0, 5);
+
+          setCsvData({ headers, rows, preview });
+          setStep(2);
+        },
+        header: false,
+        skipEmptyLines: true,
+      });
+    } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+
+          if (jsonData.length === 0) {
+            toast({
+              title: "Empty File",
+              description: "The Excel file appears to be empty.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          const headers = jsonData[0] as string[];
+          const rows = jsonData.slice(1);
+          const preview = rows.slice(0, 5);
+
+          setCsvData({ headers, rows, preview });
+          setStep(2);
+        } catch (error) {
           toast({
-            title: "CSV Parse Error",
-            description: results.errors[0].message,
+            title: "Excel Parse Error",
+            description: "Error parsing Excel file. Please ensure it's a valid .xlsx or .xls file.",
             variant: "destructive",
           });
-          return;
         }
-
-        const headers = results.data[0] as string[];
-        const rows = results.data.slice(1) as any[][];
-        const preview = rows.slice(0, 5);
-
-        setCsvData({ headers, rows, preview });
-        setStep(2);
-      },
-      header: false,
-      skipEmptyLines: true,
-    });
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      toast({
+        title: "Invalid File",
+        description: "Please upload a CSV or Excel (.xlsx, .xls) file.",
+        variant: "destructive",
+      });
+    }
   }, []);
 
   const handleUrlImport = useCallback(async () => {
@@ -363,11 +399,11 @@ export function ImportDialog({ isOpen, onOpenChange, formId, formFields, onImpor
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-7xl h-[90vh] flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Import CSV Data
+            Import Data
             <Badge variant="outline">Step {step} of 3</Badge>
           </DialogTitle>
         </DialogHeader>
@@ -387,30 +423,23 @@ export function ImportDialog({ isOpen, onOpenChange, formId, formFields, onImpor
                   </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="upload" className="mt-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Upload CSV File</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
-                        <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                        <Label htmlFor="csv-upload" className="cursor-pointer">
-                          <span className="text-lg font-medium">Choose CSV file</span>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Click to browse or drag and drop
-                          </p>
-                        </Label>
-                        <Input
-                          id="csv-upload"
-                          type="file"
-                          accept=".csv"
-                          className="hidden"
-                          onChange={handleFileUpload}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
+                <TabsContent value="upload" className="mt-4">
+                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                    <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+                    <Label htmlFor="csv-upload" className="cursor-pointer">
+                      <span className="text-base font-medium">Choose CSV or Excel file</span>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Supports .csv, .xlsx, and .xls files
+                      </p>
+                    </Label>
+                    <Input
+                      id="csv-upload"
+                      type="file"
+                      accept=".csv,.xlsx,.xls"
+                      className="hidden"
+                      onChange={handleFileUpload}
+                    />
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="url" className="mt-6">

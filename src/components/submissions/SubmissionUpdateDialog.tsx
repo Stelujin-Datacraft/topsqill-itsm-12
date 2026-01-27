@@ -897,7 +897,7 @@ export function SubmissionUpdateDialog({
         if (!newOpen) resetDialog();
       }}
     >
-      <DialogContent className="max-w-7xl h-[90vh] flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />

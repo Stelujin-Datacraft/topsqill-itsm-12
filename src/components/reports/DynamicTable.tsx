@@ -876,6 +876,9 @@ export function DynamicTable({
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Column Selector - moved to left */}
+              <DynamicTableColumnSelector formFields={formFields} selectedColumns={selectedColumns} onColumnToggle={handleColumnToggle} />
+
               {/* Workflows Dropdown */}
               {hasWorkflows && filteredAndSortedData.length > 0 && (
                 <DropdownMenu>
@@ -922,8 +925,7 @@ export function DynamicTable({
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* View Dropdown - with Column Selector */}
-              <DynamicTableColumnSelector formFields={formFields} selectedColumns={selectedColumns} onColumnToggle={handleColumnToggle} />
+              {/* Column selector moved to the left of Workflows */}
 
               {/* View Options Dropdown */}
               <DropdownMenu>
