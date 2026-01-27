@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { MoreVertical, Play, Pencil, Trash2, History, Clock, RefreshCw, ArrowRightLeft } from 'lucide-react';
+import { MoreVertical, Play, Pencil, Trash2, History, Clock, RefreshCw, ArrowRightLeft, Plus } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface DataFeedListProps {
@@ -17,6 +17,7 @@ interface DataFeedListProps {
   onExecute: (feedId: string) => Promise<boolean>;
   onToggleActive: (feedId: string, isActive: boolean) => Promise<boolean>;
   onDelete: (feedId: string) => Promise<boolean>;
+  onCreateClick?: () => void;
 }
 
 export function DataFeedList({
@@ -27,6 +28,7 @@ export function DataFeedList({
   onExecute,
   onToggleActive,
   onDelete,
+  onCreateClick,
 }: DataFeedListProps) {
   const [executing, setExecuting] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DataFeed | null>(null);
@@ -75,9 +77,15 @@ export function DataFeedList({
           <CardContent className="flex flex-col items-center justify-center py-12">
             <ArrowRightLeft className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">No Data Feeds</h3>
-            <p className="text-sm text-muted-foreground text-center">
+            <p className="text-sm text-muted-foreground text-center mb-4">
               Create your first data feed to sync data between forms automatically.
             </p>
+            {onCreateClick && (
+              <Button onClick={onCreateClick}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Data Feed
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (

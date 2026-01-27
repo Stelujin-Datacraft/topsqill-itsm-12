@@ -26,7 +26,11 @@ const PERMISSION_OPTIONS = {
   reports: ['read', 'create', 'update', 'delete']
 };
 
-export function ApiKeyManagement() {
+interface ApiKeyManagementProps {
+  renderHeaderButton?: (onClick: () => void) => React.ReactNode;
+}
+
+export function ApiKeyManagement({ renderHeaderButton }: ApiKeyManagementProps = {}) {
   const navigate = useNavigate();
   const { apiKeys, requestLogs, loading, createApiKey, updateApiKey, deleteApiKey, revokeApiKey, fetchRequestLogs } = useApiKeys();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -219,136 +223,125 @@ export function ApiKeyManagement() {
 
   const apiBaseUrl = `https://fnmkczsvwpzpxyklztkt.supabase.co/functions/v1/public-api`;
 
+  const openCreateDialog = () => setShowCreateDialog(true);
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">API Integration</h2>
-          <p className="text-muted-foreground">
-            Manage API keys for external system integrations
-          </p>
-        </div>
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create API Key
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New API Key</DialogTitle>
-              <DialogDescription>
-                Generate a new API key for external integrations
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-6 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Key Name *</Label>
-                <Input
-                  id="name"
-                  placeholder="e.g., Production Integration"
-                  value={createForm.name}
-                  onChange={(e) => setCreateForm(prev => ({ ...prev, name: e.target.value }))}
-                />
-              </div>
+      {/* Create Dialog - opened by external button or internal triggers */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New API Key</DialogTitle>
+            <DialogDescription>
+              Generate a new API key for external integrations
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Key Name *</Label>
+              <Input
+                id="name"
+                placeholder="e.g., Production Integration"
+                value={createForm.name}
+                onChange={(e) => setCreateForm(prev => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Describe the purpose of this API key"
-                  value={createForm.description}
-                  onChange={(e) => setCreateForm(prev => ({ ...prev, description: e.target.value }))}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                placeholder="Describe the purpose of this API key"
+                value={createForm.description}
+                onChange={(e) => setCreateForm(prev => ({ ...prev, description: e.target.value }))}
+              />
+            </div>
 
-              <Separator />
+            <Separator />
 
-              <div className="space-y-4">
-                <Label className="text-base font-semibold">Permissions</Label>
-                <p className="text-sm text-muted-foreground">
-                  Select which operations this API key can perform
-                </p>
+            <div className="space-y-4">
+              <Label className="text-base font-semibold">Permissions</Label>
+              <p className="text-sm text-muted-foreground">
+                Select which operations this API key can perform
+              </p>
 
-                {Object.entries(PERMISSION_OPTIONS).map(([resource, actions]) => (
-                  <div key={resource} className="space-y-2">
-                    <Label className="capitalize font-medium">{resource}</Label>
-                    <div className="flex flex-wrap gap-4">
-                      {actions.map((action) => (
-                        <div key={action} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`${resource}-${action}`}
-                            checked={createForm.permissions[resource as keyof typeof createForm.permissions]?.includes(action)}
-                            onCheckedChange={() => togglePermission(resource, action)}
-                          />
-                          <Label htmlFor={`${resource}-${action}`} className="text-sm capitalize">
-                            {action}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
+              {Object.entries(PERMISSION_OPTIONS).map(([resource, actions]) => (
+                <div key={resource} className="space-y-2">
+                  <Label className="capitalize font-medium">{resource}</Label>
+                  <div className="flex flex-wrap gap-4">
+                    {actions.map((action) => (
+                      <div key={action} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`${resource}-${action}`}
+                          checked={createForm.permissions[resource as keyof typeof createForm.permissions]?.includes(action)}
+                          onCheckedChange={() => togglePermission(resource, action)}
+                        />
+                        <Label htmlFor={`${resource}-${action}`} className="text-sm capitalize">
+                          {action}
+                        </Label>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="rateLimit">Rate Limit (requests/min)</Label>
-                  <Input
-                    id="rateLimit"
-                    type="number"
-                    min="1"
-                    max="1000"
-                    value={createForm.rateLimit}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, rateLimit: parseInt(e.target.value) || 60 }))}
-                  />
                 </div>
+              ))}
+            </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="expiresIn">Expires In (days)</Label>
-                  <Input
-                    id="expiresIn"
-                    type="number"
-                    min="1"
-                    placeholder="Never"
-                    value={createForm.expiresInDays}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, expiresInDays: e.target.value }))}
-                  />
-                </div>
+            <Separator />
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="rateLimit">Rate Limit (requests/min)</Label>
+                <Input
+                  id="rateLimit"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  value={createForm.rateLimit}
+                  onChange={(e) => setCreateForm(prev => ({ ...prev, rateLimit: parseInt(e.target.value) || 60 }))}
+                />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="allowedIps">Allowed IPs (comma-separated, optional)</Label>
+                <Label htmlFor="expiresIn">Expires In (days)</Label>
                 <Input
-                  id="allowedIps"
-                  placeholder="e.g., 192.168.1.1, 10.0.0.0"
-                  value={createForm.allowedIps}
-                  onChange={(e) => setCreateForm(prev => ({ ...prev, allowedIps: e.target.value }))}
+                  id="expiresIn"
+                  type="number"
+                  min="1"
+                  placeholder="Never"
+                  value={createForm.expiresInDays}
+                  onChange={(e) => setCreateForm(prev => ({ ...prev, expiresInDays: e.target.value }))}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Leave empty to allow all IPs
-                </p>
               </div>
             </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleCreateKey}>
-                Create API Key
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+            <div className="space-y-2">
+              <Label htmlFor="allowedIps">Allowed IPs (comma-separated, optional)</Label>
+              <Input
+                id="allowedIps"
+                placeholder="e.g., 192.168.1.1, 10.0.0.0"
+                value={createForm.allowedIps}
+                onChange={(e) => setCreateForm(prev => ({ ...prev, allowedIps: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave empty to allow all IPs
+              </p>
+            </div>
+          </div>
 
-      {/* New Key Display */}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateKey}>
+              Create API Key
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Header button rendered by parent if provided */}
+      {renderHeaderButton && renderHeaderButton(openCreateDialog)}
       {newKeyValue && (
         <Card className="border-green-500 bg-green-50 dark:bg-green-950/20">
           <CardHeader>
