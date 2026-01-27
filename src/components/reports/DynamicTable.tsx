@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3, FileText, User, Calendar, CheckCircle, ExternalLink, Move, History } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3, FileText, User, Calendar, CheckCircle, ExternalLink, Move, History, PlayCircle } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
@@ -866,6 +866,18 @@ export function DynamicTable({
       </div>
 
       <div className="flex items-center space-x-2">
+        {/* Run All Workflows Button - always visible when workflows exist */}
+        {hasWorkflows && filteredAndSortedData.length > 0 && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRunAllWorkflows}
+            className="border-purple-300 text-purple-700 hover:bg-purple-50"
+          >
+            <PlayCircle className="h-4 w-4 mr-1" />
+            Run All Workflows ({filteredAndSortedData.length})
+          </Button>
+        )}
         <Button variant="default" size="sm" onClick={() => navigate(`/form/${config.formId}`)}>
           <FileText className="h-4 w-4 mr-1" />
           Create Record
@@ -1202,13 +1214,11 @@ export function DynamicTable({
       {selectedRows.size > 0 && (
         <BulkActionsBar 
           selectedCount={selectedRows.size} 
-          totalCount={filteredAndSortedData.length}
           onBulkEdit={handleBulkEdit} 
           onMultiLineEdit={handleMultiLineEdit} 
           onCopyRecords={handleCopyRecords} 
           onBulkDelete={handleBulkDelete} 
           onClearSelection={handleClearSelection} 
-          onRunAllWorkflows={handleRunAllWorkflows}
           onRetriggerSelected={handleRetriggerSelected}
           canDelete={canDeleteSubmissions}
           hasWorkflows={hasWorkflows}
