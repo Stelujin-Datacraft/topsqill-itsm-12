@@ -12,7 +12,14 @@ import { FormSubmissionsTable } from './FormSubmissionsTable';
 import { ChartPreview } from './ChartPreview';
 import { MetricCard } from './MetricCard';
 import { QueryChartComponent } from './QueryChartComponent';
-import { Plus, Save, BarChart3, Table as TableIcon, Hash, Type, FileText, Move, MousePointer, Edit2, Check, X, Image, Video, Link as LinkIcon, File, Database } from 'lucide-react';
+import { Plus, Save, BarChart3, Table as TableIcon, Hash, Type, FileText, Move, MousePointer, Edit2, Check, X, Image, Video, Link as LinkIcon, File, Database, ChevronDown } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { AddMediaDialog } from './AddMediaDialog';
 import { EditMediaDialog } from './EditMediaDialog';
 import { MediaComponent } from './MediaComponent';
@@ -647,50 +654,61 @@ export function ReportEditor({
         )}
       </div>
 
-      {/* Action Buttons */}
+      {/* Action Buttons - Consolidated */}
       <div className="flex items-center justify-end gap-2">
           {/* Drag Mode Toggle */}
-          <Button variant={isDragEnabled ? "default" : "outline"} onClick={toggleDragMode} className="flex items-center gap-2">
-            {isDragEnabled ? <>
-                <Move className="h-4 w-4" />
-                Drag Mode
-              </> : <>
-                <MousePointer className="h-4 w-4" />
-                Select Mode
-              </>}
+          <Button variant={isDragEnabled ? "default" : "outline"} size="sm" onClick={toggleDragMode} className="flex items-center gap-2">
+            {isDragEnabled ? <Move className="h-4 w-4" /> : <MousePointer className="h-4 w-4" />}
+            <span className="hidden sm:inline">{isDragEnabled ? 'Drag' : 'Select'}</span>
           </Button>
           
-          <Button variant="outline" onClick={() => handleAddComponent('chart')}>
-            <BarChart3 className="h-4 w-4 mr-2" />
-            Add Chart
-          </Button>
-          <Button variant="outline" onClick={() => handleAddComponent('table')}>
-            <TableIcon className="h-4 w-4 mr-2" />
-            Add Table
-          </Button>
-          <Button variant="outline" onClick={() => handleAddComponent('form-submissions')}>
-            <FileText className="h-4 w-4 mr-2" />
-            Form Submissions
-          </Button>
-          <Button variant="outline" onClick={() => handleAddComponent('metric-card')}>
-            <Hash className="h-4 w-4 mr-2" />
-            Add Metric
-          </Button>
-          <Button variant="outline" onClick={() => handleAddComponent('text')}>
-            <Type className="h-4 w-4 mr-2" />
-            Add Text
-          </Button>
-          <Button variant="outline" onClick={() => handleAddComponent('query-chart')}>
-            <Database className="h-4 w-4 mr-2" />
-            Query Chart
-          </Button>
-          <Button variant="outline" onClick={() => setIsMediaDialogOpen(true)}>
-            <Image className="h-4 w-4 mr-2" />
-            Add Media
-          </Button>
-          <Button onClick={onSave}>
+          {/* Add Component Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Component
+                <ChevronDown className="h-3 w-3 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => handleAddComponent('chart')}>
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Chart
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleAddComponent('query-chart')}>
+                <Database className="h-4 w-4 mr-2" />
+                Query Chart
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleAddComponent('table')}>
+                <TableIcon className="h-4 w-4 mr-2" />
+                Table
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleAddComponent('form-submissions')}>
+                <FileText className="h-4 w-4 mr-2" />
+                Form Submissions
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleAddComponent('metric-card')}>
+                <Hash className="h-4 w-4 mr-2" />
+                Metric Card
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleAddComponent('text')}>
+                <Type className="h-4 w-4 mr-2" />
+                Text Block
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setIsMediaDialogOpen(true)}>
+                <Image className="h-4 w-4 mr-2" />
+                Media
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button size="sm" onClick={onSave}>
             <Save className="h-4 w-4 mr-2" />
-            Save Report
+            Save
           </Button>
         </div>
 
