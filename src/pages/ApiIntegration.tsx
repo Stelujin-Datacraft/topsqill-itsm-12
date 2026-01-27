@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-export default function ApiIntegration() {
+const ApiIntegration: React.FC = () => {
   const navigate = useNavigate();
 
   return (
@@ -21,4 +21,6 @@ export default function ApiIntegration() {
       <ApiKeyManagement />
     </DashboardLayout>
   );
-}
+};
+
+export default ApiIntegration;
