@@ -51,32 +51,30 @@ export default function DataFeeds() {
 
   return (
     <DashboardLayout title="Data Feeds">
-      <div className="space-y-6">
-        <DataFeedList
-          feeds={feeds}
-          loading={loading}
-          onCreateClick={handleCreateClick}
-          onEditClick={handleEditClick}
-          onViewHistory={handleViewHistory}
-          onExecute={executeFeed}
-          onToggleActive={toggleFeedActive}
-          onDelete={deleteFeed}
-        />
+      <DataFeedList
+        feeds={feeds}
+        loading={loading}
+        onCreateClick={handleCreateClick}
+        onEditClick={handleEditClick}
+        onViewHistory={handleViewHistory}
+        onExecute={executeFeed}
+        onToggleActive={toggleFeedActive}
+        onDelete={deleteFeed}
+      />
 
-        <DataFeedDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          feed={selectedFeed}
-          projectId={projectId}
-          onSave={handleSave}
-        />
+      <DataFeedDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        feed={selectedFeed}
+        projectId={projectId}
+        onSave={handleSave}
+      />
 
-        <DataFeedHistoryDialog
-          open={historyOpen}
-          onOpenChange={setHistoryOpen}
-          feed={selectedFeed}
-        />
-      </div>
+      <DataFeedHistoryDialog
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        feed={selectedFeed}
+      />
     </DashboardLayout>
   );
 }

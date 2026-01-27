@@ -73,12 +73,9 @@ export function DataFeedList({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Data Feeds</h2>
-          <p className="text-sm text-muted-foreground">
-            Sync data between forms using scheduled or manual feeds
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          Sync data between forms using scheduled or manual feeds
+        </p>
         <Button onClick={onCreateClick}>
           <Plus className="mr-2 h-4 w-4" />
           Create Data Feed

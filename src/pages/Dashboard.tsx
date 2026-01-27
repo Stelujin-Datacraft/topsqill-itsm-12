@@ -61,23 +61,14 @@ const Dashboard = () => {
   try {
     return (
       <DashboardLayout 
-        title="Dashboard"
+        title={`Dashboard${currentProject ? ` - ${currentProject.name}` : ''}`}
         actions={
-          <div className="flex gap-2">
-            {userProfile?.role === 'admin' && (
-              <CreateProjectDialog onProjectCreated={handleProjectCreated} />
-            )}
-          </div>
+          userProfile?.role === 'admin' ? (
+            <CreateProjectDialog onProjectCreated={handleProjectCreated} />
+          ) : undefined
         }
       >
         <div className="space-y-6">
-          {/* Welcome Section */}
-          <p className="text-muted-foreground">
-            {currentProject 
-              ? `Currently working on: ${currentProject.name}`
-              : 'Select a project to get started or create a new one.'
-            }
-          </p>
 
           {/* Project Invitations */}
           <ProjectInvitationsCard 
