@@ -876,7 +876,19 @@ export function DynamicTable({
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Column Selector - moved to left */}
+              {/* Reorder Columns Button - standalone */}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowColumnOrderManager(true)}
+                disabled={selectedColumns.length === 0}
+                title="Reorder Columns"
+              >
+                <Move className="h-4 w-4 mr-1" />
+                Reorder
+              </Button>
+
+              {/* Column Selector */}
               <DynamicTableColumnSelector formFields={formFields} selectedColumns={selectedColumns} onColumnToggle={handleColumnToggle} />
 
               {/* Workflows Dropdown */}
@@ -921,30 +933,6 @@ export function DynamicTable({
                   <DropdownMenuItem onClick={() => setShowUpdateDialog(true)}>
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Update Records
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Column selector moved to the left of Workflows */}
-
-              {/* View Options Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Eye className="h-4 w-4 mr-1" />
-                    View
-                    <ChevronDown className="h-3 w-3 ml-1" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48 bg-popover">
-                  <DropdownMenuLabel>View Options</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onClick={() => setShowColumnOrderManager(true)}
-                    disabled={selectedColumns.length === 0}
-                  >
-                    <Move className="h-4 w-4 mr-2" />
-                    Reorder Columns
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -1005,7 +993,7 @@ export function DynamicTable({
           <div className="flex items-center justify-between gap-2 mt-2">
             {/* Left Side - Filter Controls */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-muted-foreground font-medium">Filter by:</span>
+              <span className="text-sm font-bold text-foreground">Filter by:</span>
               <SavedFiltersManager formId={config.formId} onApplyFilter={setAppliedFilters} currentFilters={appliedFilters} />
 
               {config.enableFiltering && (
