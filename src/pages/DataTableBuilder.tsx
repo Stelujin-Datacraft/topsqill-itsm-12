@@ -176,32 +176,23 @@ const DataTableBuilder = () => {
     );
   }
 
+  const headerActions = (
+    <div className="flex items-center gap-2">
+      <Button onClick={handleSave} disabled={loading || !selectedFormId}>
+        <Save className="h-4 w-4 mr-2" />
+        {loading ? 'Creating...' : 'Create Report'}
+      </Button>
+      <Button variant="outline" onClick={() => navigate('/reports')}>
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Reports
+      </Button>
+    </div>
+  );
+
   return (
-    <DashboardLayout title="Data Table Builder">
+    <DashboardLayout title="Data Table Builder" actions={headerActions}>
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="outline" 
-              onClick={() => navigate('/reports')}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Reports
-            </Button>
-            <div className="flex items-center gap-2">
-              <Database className="h-6 w-6 text-primary" />
-              <div>
-                <h1 className="text-2xl font-bold">Data Table Builder</h1>
-                <p className="text-muted-foreground">Create dynamic, filterable data tables from your forms</p>
-              </div>
-            </div>
-          </div>
-          <Button onClick={handleSave} disabled={loading || !selectedFormId}>
-            <Save className="h-4 w-4 mr-2" />
-            {loading ? 'Creating...' : 'Create Report'}
-          </Button>
-        </div>
+        <p className="text-muted-foreground">Create dynamic, filterable data tables from your forms</p>
 
         {/* Configuration Section */}
         <Card>
