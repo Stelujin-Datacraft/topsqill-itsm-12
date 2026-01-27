@@ -7,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 };
 
-const app = new Hono();
+const app = new Hono().basePath('/public-api');
 
 // Supabase client with service role for API operations
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
