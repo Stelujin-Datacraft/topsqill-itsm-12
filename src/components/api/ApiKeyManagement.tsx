@@ -339,7 +339,7 @@ export function ApiKeyManagement() {
               x-api-key: your_api_key_here
             </code>
           </div>
-          <Button variant="outline" onClick={() => navigate('/docs')}>
+          <Button variant="outline" onClick={() => navigate('/api-docs')}>
             <Book className="h-4 w-4 mr-2" />
             View Full API Docs
           </Button>
