@@ -219,90 +219,79 @@ const ReportViewerPage = () => {
     );
   }
 
-  return (
-    <DashboardLayout title="">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <Button 
-            variant="outline" 
-            onClick={() => navigate('/reports')}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Reports
+  const headerActions = (
+    <div className="flex items-center gap-2">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline">
+            <Share2 className="h-4 w-4 mr-2" />
+            Share
           </Button>
-          
-          <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <Share2 className="h-4 w-4 mr-2" />
-                  Share
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={handleCopyLink}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy Link
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleShareReport}>
-                  <Link className="h-4 w-4 mr-2" />
-                  Share Report
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleDownload}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => window.open(`/report-view/${id}`, '_blank')}>
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Open in New Tab
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            
-            <Button onClick={() => navigate(`/report-editor/${id}`)}>
-              Edit Report
-            </Button>
-          </div>
-        </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem onClick={handleCopyLink}>
+            <Copy className="h-4 w-4 mr-2" />
+            Copy Link
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleShareReport}>
+            <Link className="h-4 w-4 mr-2" />
+            Share Report
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleDownload}>
+            <Download className="h-4 w-4 mr-2" />
+            Download
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => window.open(`/report-view/${id}`, '_blank')}>
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Open in New Tab
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      
+      <Button onClick={() => navigate(`/report-editor/${id}`)}>
+        Edit Report
+      </Button>
+      
+      <Button variant="outline" onClick={() => navigate('/reports')}>
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Reports
+      </Button>
+    </div>
+  );
+
+  return (
+    <DashboardLayout title={report.name} actions={headerActions}>
+      <div className="space-y-6">
 
         {/* Report Metadata */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <div className="space-y-2">
-                <CardTitle className="text-2xl">{report.name}</CardTitle>
-                {report.description && (
-                  <p className="text-muted-foreground">{report.description}</p>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {report.is_public && (
-                  <Badge variant="secondary">
-                    <Eye className="h-3 w-3 mr-1" />
-                    Public
-                  </Badge>
-                )}
-              </div>
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            {report.description && (
+              <p className="text-muted-foreground">{report.description}</p>
+            )}
+            {report.is_public && (
+              <Badge variant="secondary">
+                <Eye className="h-3 w-3 mr-1" />
+                Public
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Calendar className="h-4 w-4" />
+              <span>Created {format(new Date(report.created_at), 'MMM d, yyyy')}</span>
             </div>
-            
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                <span>Created {format(new Date(report.created_at), 'MMM d, yyyy')}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                <span>Updated {format(new Date(report.updated_at), 'MMM d, yyyy')}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <User className="h-4 w-4" />
-                <span>By {report.created_by}</span>
-              </div>
+            <div className="flex items-center gap-1">
+              <Calendar className="h-4 w-4" />
+              <span>Updated {format(new Date(report.updated_at), 'MMM d, yyyy')}</span>
             </div>
-          </CardHeader>
-        </Card>
+            <div className="flex items-center gap-1">
+              <User className="h-4 w-4" />
+              <span>By {report.created_by}</span>
+            </div>
+          </div>
+        </div>
 
         {/* Report Components */}
         <div className="space-y-6">

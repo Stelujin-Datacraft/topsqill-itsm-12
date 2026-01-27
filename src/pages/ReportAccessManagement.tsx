@@ -37,24 +37,19 @@ const ReportAccessManagement = () => {
     );
   }
 
-  return (
-    <DashboardLayout title="Report Access Management">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <Button 
-            variant="outline" 
-            onClick={() => navigate('/reports')}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Reports
-          </Button>
-        </div>
+  const headerActions = (
+    <Button variant="outline" onClick={() => navigate('/reports')}>
+      <ArrowLeft className="h-4 w-4 mr-2" />
+      Back to Reports
+    </Button>
+  );
 
-        <ReportAccessManager 
-          reportId={report.id} 
-          reportName={report.name}
-        />
-      </div>
+  return (
+    <DashboardLayout title="Report Access Management" actions={headerActions}>
+      <ReportAccessManager 
+        reportId={report.id} 
+        reportName={report.name}
+      />
     </DashboardLayout>
   );
 };

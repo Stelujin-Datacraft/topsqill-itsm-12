@@ -135,35 +135,35 @@ const DashboardView = () => {
     </CreateReportDialog>
   );
 
+  const headerActions = (
+    <div className="flex items-center gap-2">
+      {createButtonState.disabled ? (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div><CreateReportButton /></div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{createButtonState.tooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ) : (
+        <CreateReportButton />
+      )}
+      <Button variant="outline" onClick={() => navigate('/reports')}>
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Dashboards
+      </Button>
+    </div>
+  );
+
   return (
-    <DashboardLayout title={dashboard.name}>
+    <DashboardLayout title={dashboard.name} actions={headerActions}>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/reports')}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Dashboards
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold">{dashboard.name}</h1>
-              {dashboard.description && <p className="text-muted-foreground">{dashboard.description}</p>}
-            </div>
-          </div>
-          {createButtonState.disabled ? (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div><CreateReportButton /></div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{createButtonState.tooltip}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ) : (
-            <CreateReportButton />
-          )}
-        </div>
+        {dashboard.description && (
+          <p className="text-muted-foreground">{dashboard.description}</p>
+        )}
 
         {dashboard.reports?.length === 0 ? (
           <Card>
