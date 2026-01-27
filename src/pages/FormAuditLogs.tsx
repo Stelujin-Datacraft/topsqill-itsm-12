@@ -308,11 +308,12 @@ const FormAuditLogs: React.FC = () => {
   );
 
   return (
-    <DashboardLayout title="Form History" actions={headerActions}>
+    <DashboardLayout 
+      title="Form History" 
+      description={userProfile?.role === 'admin' ? 'View all form changes and activity across the organization' : 'View your form activity history'}
+      actions={headerActions}
+    >
       <div className="space-y-6">
-        <p className="text-muted-foreground">
-          {userProfile?.role === 'admin' ? 'View all form changes and activity across the organization' : 'View your form activity history'}
-        </p>
 
         <Card>
           <CardHeader>

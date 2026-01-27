@@ -57,13 +57,8 @@ const Forms = () => {
   );
 
   return (
-    <DashboardLayout title="Forms" actions={actions}>
-      <div className="space-y-6">
-        <p className="text-muted-foreground">
-          Create and manage forms for data collection and submissions
-        </p>
-        <FormsList />
-      </div>
+    <DashboardLayout title="Forms" description="Create and manage forms for data collection and submissions" actions={actions}>
+      <FormsList />
     </DashboardLayout>
   );
 };

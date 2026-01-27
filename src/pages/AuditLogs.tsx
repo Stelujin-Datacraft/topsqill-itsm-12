@@ -188,11 +188,12 @@ const AuditLogs: React.FC = () => {
   );
 
   return (
-    <DashboardLayout title="Audit Logs" actions={headerActions}>
+    <DashboardLayout 
+      title="Audit Logs" 
+      description={effectiveRole === 'admin' ? 'View all security and activity logs across the organization' : 'View your activity logs'}
+      actions={headerActions}
+    >
       <div className="space-y-6">
-        <p className="text-muted-foreground">
-          {effectiveRole === 'admin' ? 'View all security and activity logs across the organization' : 'View your activity logs'}
-        </p>
 
         <Card>
           <CardHeader>

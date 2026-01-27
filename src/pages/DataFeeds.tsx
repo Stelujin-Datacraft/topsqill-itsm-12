@@ -54,6 +54,7 @@ export default function DataFeeds() {
   return (
     <DashboardLayout 
       title="Data Feeds"
+      description="Sync data between forms using scheduled or manual feeds"
       actions={
         <Button onClick={handleCreateClick}>
           <Plus className="mr-2 h-4 w-4" />

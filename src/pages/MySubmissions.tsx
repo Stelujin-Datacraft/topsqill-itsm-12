@@ -4,7 +4,7 @@ import { MySubmissions as MySubmissionsComponent } from '@/components/MySubmissi
 
 const MySubmissions = () => {
   return (
-    <DashboardLayout title="My Submissions">
+    <DashboardLayout title="My Submissions" description="View and manage your form submissions">
       <MySubmissionsComponent />
     </DashboardLayout>
   );

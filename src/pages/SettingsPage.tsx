@@ -133,11 +133,8 @@ export default function SettingsPage() {
   );
 
   return (
-    <DashboardLayout title="Email Configuration">
+    <DashboardLayout title="Email Configuration" description="Manage SMTP settings and email templates for your organization">
       <div className="space-y-8 max-w-7xl">
-        <p className="text-muted-foreground">
-          Manage SMTP settings and email templates for your organization
-        </p>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

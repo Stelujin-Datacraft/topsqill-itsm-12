@@ -165,11 +165,8 @@ const Organizations = () => {
   );
 
   return (
-    <DashboardLayout title="Organizations" actions={actions}>
+    <DashboardLayout title="Organizations" description="Manage your organizations and switch between workspaces" actions={actions}>
       <div className="space-y-6">
-        <p className="text-muted-foreground">
-          Manage your organizations and switch between workspaces
-        </p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {organizations.map((org) => (
           <Card key={org.id} className={`hover:shadow-lg transition-shadow ${

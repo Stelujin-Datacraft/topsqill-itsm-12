@@ -64,6 +64,7 @@ const Reports = () => {
   return (
     <DashboardLayout 
       title="Dashboards"
+      description="Create and manage analytics dashboards with reports and visualizations"
       actions={
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => navigate('/data-table-builder')}>

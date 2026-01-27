@@ -74,6 +74,7 @@ const Workflows = () => {
   return (
     <DashboardLayout 
       title="Workflows"
+      description="Design and manage automated workflows and business processes"
       actions={<CreateWorkflowDialog onWorkflowCreated={handleWorkflowCreated} />}
     >
       <WorkflowsList
