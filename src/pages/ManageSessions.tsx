@@ -258,9 +258,9 @@ const ManageSessions: React.FC = () => {
   return (
     <DashboardLayout title="Manage Sessions" actions={headerActions}>
       <div className="space-y-6">
-        <p className="text-muted-foreground">
-          View and manage your active sessions across devices
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-muted-foreground">View and manage your active sessions across devices</p>
+        </div>
 
         <Card>
           <CardHeader>

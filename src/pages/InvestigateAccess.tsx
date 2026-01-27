@@ -52,22 +52,22 @@ export default function InvestigateAccess() {
   return (
     <DashboardLayout title={isAdmin ? 'Investigate Access' : 'My Access'}>
       <div className="space-y-6">
-        <p className="text-muted-foreground">
-          {isAdmin 
-            ? 'View comprehensive access rights for any user in the system'
-            : 'View your access permissions, roles, and security settings'
-          }
-        </p>
-
-        {/* Action Buttons (when user is selected) */}
-        {data.profile && (
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <p className="text-muted-foreground">
+            {isAdmin 
+              ? 'View comprehensive access rights for any user in the system'
+              : 'View your access permissions, roles, and security settings'
+            }
+          </p>
+          {/* Action Buttons */}
           <div className="flex items-center gap-2">
             {/* Export All Users - Only for admins */}
             {isAdmin && (
               <ExportAllUsersReport />
             )}
             {/* Impersonate Button - Only for admins viewing non-admin users */}
-            {isAdmin && data.profile.role !== 'admin' && data.profile.id !== userProfile?.id && (
+            {isAdmin && data.profile && data.profile.role !== 'admin' && data.profile.id !== userProfile?.id && (
               <Button
                 variant="outline"
                 size="sm"
@@ -80,12 +80,14 @@ export default function InvestigateAccess() {
               </Button>
             )}
             {/* Export Single User Button */}
-            <ExportAccessReport 
-              data={data} 
-              userName={`${data.profile.first_name || ''} ${data.profile.last_name || ''}`.trim() || data.profile.email}
-            />
+            {data.profile && (
+              <ExportAccessReport 
+                data={data} 
+                userName={`${data.profile.first_name || ''} ${data.profile.last_name || ''}`.trim() || data.profile.email}
+              />
+            )}
           </div>
-        )}
+        </div>
 
         {/* User Selector - Only for admins */}
         {isAdmin && (

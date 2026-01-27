@@ -203,17 +203,14 @@ export default function EmailConfigPage() {
   return (
     <DashboardLayout 
       title="Email Configuration"
-      actions={
-        <Button onClick={() => setIsCreating(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add SMTP Config
-        </Button>
-      }
     >
       <div className="space-y-6">
-        <p className="text-muted-foreground">
-          Configure SMTP servers for sending emails from your organization
-        </p>
+        <div className="flex justify-end">
+          <Button onClick={() => setIsCreating(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add SMTP Config
+          </Button>
+        </div>
 
         {/* Existing Configurations */}
         <div className="grid gap-4">

@@ -179,11 +179,7 @@ export default function QueryPage() {
 
   return (
     <DashboardLayout title="Query Builder">
-      <div className="space-y-4">
-        <p className="text-muted-foreground">
-          Write and execute SQL queries against your form data
-        </p>
-        <div className="h-[calc(100vh-12rem)] flex overflow-hidden">
+      <div className="h-[calc(100vh-8rem)] flex overflow-hidden">
         <ResizablePanelGroup direction="horizontal" className="w-full">
           {/* Forms Sidebar */}
           <ResizablePanel defaultSize={15} minSize={12} maxSize={30} collapsible>
@@ -267,7 +263,6 @@ export default function QueryPage() {
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>
-        </div>
       </div>
       
       <SaveQueryDialog

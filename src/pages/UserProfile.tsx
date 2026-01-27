@@ -290,10 +290,6 @@ const UserProfile = () => {
   return (
     <DashboardLayout title="Profile">
       <div className="space-y-6">
-        <p className="text-muted-foreground">
-          View and manage your profile information
-        </p>
-        
         {/* Profile Header Card */}
         <Card className="overflow-hidden">
           <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 md:p-8">

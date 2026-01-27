@@ -202,10 +202,6 @@ const Users = () => {
   return (
     <DashboardLayout title="Team Members">
       <div className="space-y-6">
-        <p className="text-muted-foreground">
-          Manage your organization's team members, roles, and permissions
-        </p>
-
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <Card className="hover:shadow-md transition-shadow">
