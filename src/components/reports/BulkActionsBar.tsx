@@ -73,7 +73,7 @@ export function BulkActionsBar({
               variant="outline" 
               size="sm" 
               onClick={onRetriggerSelected}
-              className="flex items-center gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
+              className="flex items-center gap-2"
             >
               <Play className="h-4 w-4" />
               Run Workflow ({selectedCount})

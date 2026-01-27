@@ -872,7 +872,6 @@ export function DynamicTable({
             variant="outline" 
             size="sm" 
             onClick={handleRunAllWorkflows}
-            className="border-purple-300 text-purple-700 hover:bg-purple-50"
           >
             <PlayCircle className="h-4 w-4 mr-1" />
             Run All Workflows ({filteredAndSortedData.length})
