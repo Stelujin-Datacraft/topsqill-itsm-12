@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Key, Copy, Eye, EyeOff, Trash2, RefreshCw, Shield, Clock, Activity, Book, AlertCircle } from 'lucide-react';
+import { Plus, Key, Copy, Eye, EyeOff, Trash2, RefreshCw, Shield, Clock, Activity, Book, AlertCircle, Pencil } from 'lucide-react';
 import { useApiKeys, ApiKey } from '@/hooks/useApiKeys';
 import { toast } from '@/hooks/use-toast';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -30,6 +30,8 @@ export function ApiKeyManagement() {
   const navigate = useNavigate();
   const { apiKeys, requestLogs, loading, createApiKey, updateApiKey, deleteApiKey, revokeApiKey, fetchRequestLogs } = useApiKeys();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingKey, setEditingKey] = useState<ApiKey | null>(null);
   const [selectedKey, setSelectedKey] = useState<ApiKey | null>(null);
   const [newKeyValue, setNewKeyValue] = useState<string | null>(null);
   const [showNewKey, setShowNewKey] = useState(true);
@@ -47,6 +49,20 @@ export function ApiKeyManagement() {
     rateLimit: 60,
     allowedIps: '',
     expiresInDays: ''
+  });
+
+  // Edit form state
+  const [editForm, setEditForm] = useState({
+    name: '',
+    description: '',
+    permissions: {
+      forms: [] as string[],
+      submissions: [] as string[],
+      workflows: [] as string[],
+      reports: [] as string[]
+    },
+    rateLimit: 60,
+    allowedIps: ''
   });
 
   const handleCreateKey = async () => {
@@ -125,6 +141,70 @@ export function ApiKeyManagement() {
         }
       };
     });
+  };
+
+  const toggleEditPermission = (resource: string, action: string) => {
+    setEditForm(prev => {
+      const currentPerms = prev.permissions[resource as keyof typeof prev.permissions] || [];
+      const newPerms = currentPerms.includes(action)
+        ? currentPerms.filter(p => p !== action)
+        : [...currentPerms, action];
+      
+      return {
+        ...prev,
+        permissions: {
+          ...prev.permissions,
+          [resource]: newPerms
+        }
+      };
+    });
+  };
+
+  const handleEditKey = (key: ApiKey) => {
+    setEditingKey(key);
+    setEditForm({
+      name: key.name,
+      description: key.description || '',
+      permissions: {
+        forms: (key.permissions?.forms as string[]) || [],
+        submissions: (key.permissions?.submissions as string[]) || [],
+        workflows: (key.permissions?.workflows as string[]) || [],
+        reports: (key.permissions?.reports as string[]) || []
+      },
+      rateLimit: key.rate_limit_per_minute || 60,
+      allowedIps: key.allowed_ips?.join(', ') || ''
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleUpdateKey = async () => {
+    if (!editingKey) return;
+
+    if (!editForm.name.trim()) {
+      toast({
+        title: 'Validation Error',
+        description: 'API key name is required',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const allowedIps = editForm.allowedIps
+      ? editForm.allowedIps.split(',').map(ip => ip.trim()).filter(Boolean)
+      : null;
+
+    const success = await updateApiKey(editingKey.id, {
+      name: editForm.name,
+      description: editForm.description || null,
+      permissions: editForm.permissions,
+      rate_limit_per_minute: editForm.rateLimit,
+      allowed_ips: allowedIps
+    });
+
+    if (success) {
+      setShowEditDialog(false);
+      setEditingKey(null);
+    }
   };
 
   const getStatusBadge = (key: ApiKey) => {
@@ -427,6 +507,14 @@ export function ApiKeyManagement() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() => handleEditKey(key)}
+                          title="Edit"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => handleViewLogs(key)}
                           title="View Logs"
                         >
@@ -545,6 +633,108 @@ export function ApiKeyManagement() {
               </Table>
             )}
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit API Key Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={(open) => {
+        setShowEditDialog(open);
+        if (!open) setEditingKey(null);
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit API Key</DialogTitle>
+            <DialogDescription>
+              Update the settings for this API key
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Key Name *</Label>
+              <Input
+                id="edit-name"
+                placeholder="e.g., Production Integration"
+                value={editForm.name}
+                onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea
+                id="edit-description"
+                placeholder="Describe the purpose of this API key"
+                value={editForm.description}
+                onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+              />
+            </div>
+
+            <Separator />
+
+            <div className="space-y-4">
+              <Label className="text-base font-semibold">Permissions</Label>
+              <p className="text-sm text-muted-foreground">
+                Select which operations this API key can perform
+              </p>
+
+              {Object.entries(PERMISSION_OPTIONS).map(([resource, actions]) => (
+                <div key={resource} className="space-y-2">
+                  <Label className="capitalize font-medium">{resource}</Label>
+                  <div className="flex flex-wrap gap-4">
+                    {actions.map((action) => (
+                      <div key={action} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`edit-${resource}-${action}`}
+                          checked={editForm.permissions[resource as keyof typeof editForm.permissions]?.includes(action)}
+                          onCheckedChange={() => toggleEditPermission(resource, action)}
+                        />
+                        <Label htmlFor={`edit-${resource}-${action}`} className="text-sm capitalize">
+                          {action}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-rateLimit">Rate Limit (requests/min)</Label>
+              <Input
+                id="edit-rateLimit"
+                type="number"
+                min="1"
+                max="1000"
+                value={editForm.rateLimit}
+                onChange={(e) => setEditForm(prev => ({ ...prev, rateLimit: parseInt(e.target.value) || 60 }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-allowedIps">Allowed IPs (comma-separated, optional)</Label>
+              <Input
+                id="edit-allowedIps"
+                placeholder="e.g., 192.168.1.1, 10.0.0.0"
+                value={editForm.allowedIps}
+                onChange={(e) => setEditForm(prev => ({ ...prev, allowedIps: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave empty to allow all IPs
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateKey}>
+              Save Changes
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
