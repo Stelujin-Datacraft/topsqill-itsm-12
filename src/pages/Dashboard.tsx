@@ -72,17 +72,12 @@ const Dashboard = () => {
       >
         <div className="space-y-6">
           {/* Welcome Section */}
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold">
-              Welcome back, {userProfile?.first_name || userProfile?.email || 'User'}!
-            </h1>
-            <p className="text-muted-foreground">
-              {currentProject 
-                ? `Currently working on: ${currentProject.name}`
-                : 'Select a project to get started or create a new one.'
-              }
-            </p>
-          </div>
+          <p className="text-muted-foreground">
+            {currentProject 
+              ? `Currently working on: ${currentProject.name}`
+              : 'Select a project to get started or create a new one.'
+            }
+          </p>
 
           {/* Project Invitations */}
           <ProjectInvitationsCard 
