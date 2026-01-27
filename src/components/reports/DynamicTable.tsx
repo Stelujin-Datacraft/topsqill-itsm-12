@@ -44,8 +44,8 @@ import { BulkDeleteDialog } from './BulkDeleteDialog';
 import { CrossReferenceDialog } from './CrossReferenceDialog';
 import { ColumnOrderManager } from './ColumnOrderManager';
 import { CopyRecordsDialog } from './CopyRecordsDialog';
-import { ImportButton } from '@/components/ImportButton';
-import { SubmissionUpdateButton } from '@/components/submissions/SubmissionUpdateButton';
+import { ImportDialog } from '@/components/ImportDialog';
+import { SubmissionUpdateDialog } from '@/components/submissions/SubmissionUpdateDialog';
 import { RecordHistoryDialog } from '@/components/RecordHistoryDialog';
 import { ManualWorkflowTrigger } from '@/components/ManualWorkflowTrigger';
 import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
@@ -108,6 +108,8 @@ export function DynamicTable({
   const [recordHistorySubmission, setRecordHistorySubmission] = useState<{ id: string; refId: string } | null>(null);
   const [showBulkWorkflowTrigger, setShowBulkWorkflowTrigger] = useState(false);
   const [bulkWorkflowTriggerMode, setBulkWorkflowTriggerMode] = useState<'selected' | 'all'>('selected');
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showUpdateDialog, setShowUpdateDialog] = useState(false);
 
   // Custom hooks
   const {
@@ -908,29 +910,22 @@ export function DynamicTable({
                   <DropdownMenuLabel>Data Operations</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <ExportDropdown data={exportData} formId={config.formId} formName={currentForm?.name} asSubMenu />
-                  <DropdownMenuItem onClick={() => document.getElementById('import-trigger')?.click()}>
+                  <DropdownMenuItem onClick={() => setShowImportDialog(true)}>
                     <Upload className="h-4 w-4 mr-2" />
                     Import Data
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => document.getElementById('update-trigger')?.click()}>
+                  <DropdownMenuItem onClick={() => setShowUpdateDialog(true)}>
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Update Records
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Hidden triggers for Import and Update buttons */}
-              <div className="hidden">
-                <span id="import-trigger">
-                  <ImportButton formId={config.formId} formFields={formFields} onImportComplete={loadData} />
-                </span>
-                <span id="update-trigger">
-                  <SubmissionUpdateButton formId={config.formId} onUpdateComplete={loadData} />
-                </span>
-              </div>
+              {/* View Dropdown - with Column Selector */}
+              <DynamicTableColumnSelector formFields={formFields} selectedColumns={selectedColumns} onColumnToggle={handleColumnToggle} />
 
-              {/* View Dropdown */}
+              {/* View Options Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
@@ -942,10 +937,6 @@ export function DynamicTable({
                 <DropdownMenuContent align="end" className="w-48 bg-popover">
                   <DropdownMenuLabel>View Options</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => document.getElementById('column-selector-trigger')?.click()}>
-                    <Columns className="h-4 w-4 mr-2" />
-                    Manage Columns
-                  </DropdownMenuItem>
                   <DropdownMenuItem 
                     onClick={() => setShowColumnOrderManager(true)}
                     disabled={selectedColumns.length === 0}
@@ -1014,11 +1005,6 @@ export function DynamicTable({
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs text-muted-foreground font-medium">Filter by:</span>
               <SavedFiltersManager formId={config.formId} onApplyFilter={setAppliedFilters} currentFilters={appliedFilters} />
-              
-              {/* Hidden column selector trigger */}
-              <span id="column-selector-trigger" className="hidden">
-                <DynamicTableColumnSelector formFields={formFields} selectedColumns={selectedColumns} onColumnToggle={handleColumnToggle} />
-              </span>
 
               {config.enableFiltering && (
                 <ComplexFilter 
@@ -1394,6 +1380,23 @@ export function DynamicTable({
         onOpenChange={setShowRecordHistory}
         submissionId={recordHistorySubmission?.id || ''}
         submissionRefId={recordHistorySubmission?.refId}
+      />
+
+      {/* Import Dialog */}
+      <ImportDialog
+        isOpen={showImportDialog}
+        onOpenChange={setShowImportDialog}
+        formId={config.formId}
+        formFields={formFields || []}
+        onImportComplete={loadData}
+      />
+
+      {/* Update Dialog */}
+      <SubmissionUpdateDialog
+        open={showUpdateDialog}
+        onOpenChange={setShowUpdateDialog}
+        formId={config.formId}
+        onUpdateComplete={loadData}
       />
     </div>;
 }

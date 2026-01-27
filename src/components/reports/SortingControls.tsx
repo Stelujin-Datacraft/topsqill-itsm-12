@@ -35,7 +35,7 @@ export function SortingControls({
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-sm font-medium text-muted-foreground">Sort by:</span>
+      <span className="text-xs font-medium text-muted-foreground">Sort by:</span>
       
       {sortConfigs.map((config, index) => (
         <Badge key={`${config.field}-${index}`} variant="secondary" className="flex items-center gap-1">
