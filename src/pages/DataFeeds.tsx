@@ -50,8 +50,8 @@ export default function DataFeeds() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="container mx-auto py-6 px-4">
+    <DashboardLayout title="Data Feeds">
+      <div className="space-y-6">
         <DataFeedList
           feeds={feeds}
           loading={loading}

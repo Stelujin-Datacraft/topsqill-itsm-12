@@ -205,11 +205,7 @@ export default function EmailConfigPage() {
       title="Email Configuration"
     >
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Server className="h-5 w-5" />
-            <h2 className="text-xl font-semibold">SMTP Configurations</h2>
-          </div>
+        <div className="flex justify-end">
           <Button onClick={() => setIsCreating(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Add SMTP Config

@@ -85,24 +85,23 @@ export default function FormSubmissionsTable() {
       </DashboardLayout>;
   }
   return (
-    <div className="min-h-screen bg-background">
-      <DashboardLayout 
-        title="Form Submissions Data Table" 
-        actions={
-          <div className="flex items-center gap-2">
-            {selectedFormId && (
-              <Button variant="outline" onClick={() => setShowSaveDialog(true)} disabled={!selectedFormId}>
-                <Save className="h-4 w-4 mr-2" />
-                Save as Report
-              </Button>
-            )}
-            <Button variant="ghost" onClick={handleBack}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+    <DashboardLayout 
+      title="Form Submissions Data Table" 
+      actions={
+        <div className="flex items-center gap-2">
+          {selectedFormId && (
+            <Button variant="outline" onClick={() => setShowSaveDialog(true)} disabled={!selectedFormId}>
+              <Save className="h-4 w-4 mr-2" />
+              Save as Report
             </Button>
-          </div>
-        }
-      >
+          )}
+          <Button variant="outline" onClick={handleBack}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+        </div>
+      }
+    >
         <div className="space-y-6 h-full">
           {/* Form Selection Header */}
           <Card>
@@ -169,6 +168,5 @@ export default function FormSubmissionsTable() {
           formName={selectedForm?.name || ''} 
         />
       </DashboardLayout>
-    </div>
   );
 }

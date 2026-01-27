@@ -37,19 +37,16 @@ const WorkflowAccessManagement = () => {
     );
   }
 
-  return (
-    <DashboardLayout title="Workflow Access Management">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <Button 
-            variant="outline" 
-            onClick={() => navigate('/workflows')}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Workflows
-          </Button>
-        </div>
+  const headerActions = (
+    <Button variant="outline" onClick={() => navigate('/workflows')}>
+      <ArrowLeft className="h-4 w-4 mr-2" />
+      Back to Workflows
+    </Button>
+  );
 
+  return (
+    <DashboardLayout title="Workflow Access Management" actions={headerActions}>
+      <div className="space-y-6">
         <WorkflowAccessManager 
           workflowId={workflow.id} 
           workflowName={workflow.name}

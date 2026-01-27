@@ -107,26 +107,21 @@ const ReportEditorPage = () => {
     );
   }
 
-  return (
-    <DashboardLayout title="">
-      <div className="h-full flex flex-col">
-        <div className="flex items-center justify-between mb-4">
-          <Button 
-            variant="outline" 
-            onClick={() => navigate('/reports')}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Reports
-          </Button>
-        </div>
+  const headerActions = (
+    <Button variant="outline" onClick={() => navigate('/reports')}>
+      <ArrowLeft className="h-4 w-4 mr-2" />
+      Back to Reports
+    </Button>
+  );
 
-        <div className="flex-1">
-          <ReportEditor
-            reportId={report.id}
-            reportName={report.name}
-            onSave={handleSave}
-          />
-        </div>
+  return (
+    <DashboardLayout title={`Report: ${report.name}`} actions={headerActions}>
+      <div className="h-full flex flex-col">
+        <ReportEditor
+          reportId={report.id}
+          reportName={report.name}
+          onSave={handleSave}
+        />
       </div>
     </DashboardLayout>
   );

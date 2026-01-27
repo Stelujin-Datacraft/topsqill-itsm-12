@@ -535,17 +535,9 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
       <div className="space-y-6">
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Building2 className="h-6 w-6 text-primary" />
-              </div>
-              LDAP / Active Directory
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Configure enterprise authentication and user synchronization
-            </p>
-          </div>
+          <p className="text-muted-foreground">
+            Configure enterprise authentication and user synchronization
+          </p>
           
         {configurations.length > 0 && (
             <Dialog open={showCreateDialog} onOpenChange={(open) => {

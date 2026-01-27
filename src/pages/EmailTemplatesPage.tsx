@@ -328,11 +328,7 @@ export default function EmailTemplatesPage() {
   return (
     <DashboardLayout title="Email Templates">
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
-            <h2 className="text-xl font-semibold">Email Templates</h2>
-          </div>
+        <div className="flex justify-end">
           <Button onClick={() => setIsCreating(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Create Template
