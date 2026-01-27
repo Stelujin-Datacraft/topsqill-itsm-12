@@ -1,18 +1,16 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Edit3, Trash2, X, Users, Copy, Play, PlayCircle } from 'lucide-react';
+import { Edit3, Trash2, X, Users, Copy, Play } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface BulkActionsBarProps {
   selectedCount: number;
-  totalCount?: number;
   onBulkEdit: () => void;
   onMultiLineEdit: () => void;
   onCopyRecords: () => void;
   onBulkDelete: () => void;
   onClearSelection: () => void;
-  onRunAllWorkflows?: () => void;
   onRetriggerSelected?: () => void;
   canDelete: boolean;
   hasWorkflows?: boolean;
@@ -20,13 +18,11 @@ interface BulkActionsBarProps {
 
 export function BulkActionsBar({ 
   selectedCount, 
-  totalCount,
   onBulkEdit, 
   onMultiLineEdit,
   onCopyRecords,
   onBulkDelete, 
   onClearSelection,
-  onRunAllWorkflows,
   onRetriggerSelected,
   canDelete,
   hasWorkflows = false
@@ -71,7 +67,7 @@ export function BulkActionsBar({
             Copy Record{selectedCount > 1 ? 's' : ''}
           </Button>
 
-          {/* Workflow Trigger Buttons */}
+          {/* Run Workflow for Selected Records */}
           {hasWorkflows && onRetriggerSelected && (
             <Button 
               variant="outline" 
@@ -81,18 +77,6 @@ export function BulkActionsBar({
             >
               <Play className="h-4 w-4" />
               Run Workflow ({selectedCount})
-            </Button>
-          )}
-
-          {hasWorkflows && onRunAllWorkflows && totalCount && totalCount > 0 && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={onRunAllWorkflows}
-              className="flex items-center gap-2 border-purple-300 text-purple-700 hover:bg-purple-50"
-            >
-              <PlayCircle className="h-4 w-4" />
-              Run All ({totalCount})
             </Button>
           )}
           
@@ -122,3 +106,4 @@ export function BulkActionsBar({
     </Card>
   );
 }
+
