@@ -957,15 +957,6 @@ export function DynamicTable({
               </DropdownMenu>
 
               {/* Expand/Collapse Button */}
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setIsExpanded(!isExpanded)}
-                title={isExpanded ? 'Normal View' : 'Expand View'}
-              >
-                {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-              </Button>
-
               {/* Configure Button */}
               {onEdit && (
                 <Button variant="outline" size="sm" onClick={onEdit} title="Configure">
@@ -973,10 +964,20 @@ export function DynamicTable({
                 </Button>
               )}
 
-              {/* Primary Action - Create Record (right side) */}
+              {/* Primary Action - Create Record */}
               <Button variant="default" size="sm" onClick={() => navigate(`/form/${config.formId}`)}>
                 <FileText className="h-4 w-4 mr-1" />
                 Create Record
+              </Button>
+
+              {/* Expand/Collapse Button (right of Create Record) */}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setIsExpanded(!isExpanded)}
+                title={isExpanded ? 'Normal View' : 'Expand View'}
+              >
+                {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </Button>
             </div>
           </div>
@@ -1007,10 +1008,11 @@ export function DynamicTable({
             </div>
           )}
 
-          {/* Controls Row - Filters, Sort, Search */}
+          {/* Controls Row 1 - Filters and Search */}
           <div className="flex items-center justify-between gap-2 mt-2">
-            {/* Left Side Controls */}
+            {/* Left Side - Filter Controls */}
             <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-muted-foreground font-medium">Filter by:</span>
               <SavedFiltersManager formId={config.formId} onApplyFilter={setAppliedFilters} currentFilters={appliedFilters} />
               
               {/* Hidden column selector trigger */}
@@ -1028,26 +1030,15 @@ export function DynamicTable({
                   onClearFilters={handleClearFilters} 
                 />
               )}
-
-              {config.enableSorting && (
-                <SortingControls 
-                  availableFields={displayFields.map(f => ({ id: f.id, label: f.label }))} 
-                  sortConfigs={sortConfigs} 
-                  onAddSort={handleAddSort} 
-                  onRemoveSort={handleRemoveSort} 
-                  onToggleDirection={handleToggleDirection} 
-                />
-              )}
             </div>
 
-            {/* Right Side Controls */}
+            {/* Right Side - Search */}
             <div className="flex items-center gap-2">
-              {/* Search */}
               {config.enableSearch && (
-                <div className="relative w-64">
+                <div className="relative w-80">
                   <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
                   <Input 
-                    placeholder="Search..." 
+                    placeholder="Search records..." 
                     value={searchTerm} 
                     onChange={e => setSearchTerm(e.target.value)} 
                     className="pl-7 pr-8 h-8 text-xs" 
@@ -1075,6 +1066,19 @@ export function DynamicTable({
               </div>
             </div>
           </div>
+
+          {/* Controls Row 2 - Sort Controls */}
+          {config.enableSorting && (
+            <div className="flex items-center gap-2 mt-2">
+              <SortingControls 
+                availableFields={displayFields.map(f => ({ id: f.id, label: f.label }))} 
+                sortConfigs={sortConfigs} 
+                onAddSort={handleAddSort} 
+                onRemoveSort={handleRemoveSort} 
+                onToggleDirection={handleToggleDirection} 
+              />
+            </div>
+          )}
         </CardHeader>
       
         <CardContent className="p-0 flex flex-col h-full">
