@@ -192,7 +192,9 @@ const DataTableBuilder = () => {
   return (
     <DashboardLayout title="Data Table Builder" actions={headerActions}>
       <div className="max-w-7xl mx-auto space-y-6">
-        <p className="text-muted-foreground">Create dynamic, filterable data tables from your forms</p>
+        <p className="text-muted-foreground">
+          Create dynamic, filterable data tables from your forms
+        </p>
 
         {/* Configuration Section */}
         <Card>
