@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Copy, Key, Shield, FileText, GitBranch, BarChart3, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Copy, Key, Shield, FileText, GitBranch, BarChart3, ChevronRight, Layers } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const BASE_URL = 'https://fnmkczsvwpzpxyklztkt.supabase.co/functions/v1/public-api';
@@ -23,6 +23,8 @@ interface Endpoint {
   bodyParams?: { name: string; type: string; description: string; required?: boolean }[];
   requestExample?: string;
   responseExample: string;
+  curlExample?: string;
+  jsExample?: string;
   notes?: string[];
 }
 
@@ -37,6 +39,16 @@ const endpoints: Record<string, Endpoint[]> = {
       queryParams: [
         { name: 'status', type: 'string', description: 'Filter by status: active, draft, archived' },
       ],
+      curlExample: `curl -X GET '${BASE_URL}/forms?status=active' \\
+  -H 'x-api-key: tsk_your_api_key_here'`,
+      jsExample: `const response = await fetch(
+  '${BASE_URL}/forms?status=active',
+  {
+    headers: { 'x-api-key': 'tsk_your_api_key_here' }
+  }
+);
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "data": [
     {
@@ -61,6 +73,16 @@ const endpoints: Record<string, Endpoint[]> = {
       pathParams: [
         { name: 'id', type: 'string', description: 'Form UUID or reference_id' },
       ],
+      curlExample: `curl -X GET '${BASE_URL}/forms/CF00001234' \\
+  -H 'x-api-key: tsk_your_api_key_here'`,
+      jsExample: `const response = await fetch(
+  '${BASE_URL}/forms/CF00001234',
+  {
+    headers: { 'x-api-key': 'tsk_your_api_key_here' }
+  }
+);
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "data": {
     "id": "uuid",
@@ -84,6 +106,16 @@ const endpoints: Record<string, Endpoint[]> = {
       pathParams: [
         { name: 'id', type: 'string', description: 'Form UUID or reference_id' },
       ],
+      curlExample: `curl -X GET '${BASE_URL}/forms/CF00001234/fields' \\
+  -H 'x-api-key: tsk_your_api_key_here'`,
+      jsExample: `const response = await fetch(
+  '${BASE_URL}/forms/CF00001234/fields',
+  {
+    headers: { 'x-api-key': 'tsk_your_api_key_here' }
+  }
+);
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "data": [
     {
@@ -126,6 +158,30 @@ const endpoints: Record<string, Endpoint[]> = {
   "project_id": "project-uuid",
   "status": "draft"
 }`,
+      curlExample: `curl -X POST '${BASE_URL}/forms' \\
+  -H 'x-api-key: tsk_your_api_key_here' \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "name": "New Feedback Form",
+    "description": "Collect customer feedback",
+    "project_id": "project-uuid",
+    "status": "draft"
+  }'`,
+      jsExample: `const response = await fetch('${BASE_URL}/forms', {
+  method: 'POST',
+  headers: {
+    'x-api-key': 'tsk_your_api_key_here',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    name: 'New Feedback Form',
+    description: 'Collect customer feedback',
+    project_id: 'project-uuid',
+    status: 'draft'
+  })
+});
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "data": {
     "id": "new-uuid",
@@ -155,6 +211,29 @@ const endpoints: Record<string, Endpoint[]> = {
   "name": "Updated Form Name",
   "status": "active"
 }`,
+      curlExample: `curl -X PUT '${BASE_URL}/forms/NF00001234' \\
+  -H 'x-api-key: tsk_your_api_key_here' \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "name": "Updated Form Name",
+    "status": "active"
+  }'`,
+      jsExample: `const response = await fetch(
+  '${BASE_URL}/forms/NF00001234',
+  {
+    method: 'PUT',
+    headers: {
+      'x-api-key': 'tsk_your_api_key_here',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: 'Updated Form Name',
+      status: 'active'
+    })
+  }
+);
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "data": {
     "id": "uuid",
@@ -175,6 +254,17 @@ const endpoints: Record<string, Endpoint[]> = {
       pathParams: [
         { name: 'id', type: 'string', description: 'Form UUID or reference_id' },
       ],
+      curlExample: `curl -X DELETE '${BASE_URL}/forms/NF00001234' \\
+  -H 'x-api-key: tsk_your_api_key_here'`,
+      jsExample: `const response = await fetch(
+  '${BASE_URL}/forms/NF00001234',
+  {
+    method: 'DELETE',
+    headers: { 'x-api-key': 'tsk_your_api_key_here' }
+  }
+);
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "message": "Form deleted successfully"
 }`,
@@ -194,6 +284,16 @@ const endpoints: Record<string, Endpoint[]> = {
         { name: 'limit', type: 'number', description: 'Items per page (default: 100)' },
         { name: 'offset', type: 'number', description: 'Pagination offset (default: 0)' },
       ],
+      curlExample: `curl -X GET '${BASE_URL}/submissions?form_ref_id=CF00001234&limit=50' \\
+  -H 'x-api-key: tsk_your_api_key_here'`,
+      jsExample: `const response = await fetch(
+  '${BASE_URL}/submissions?form_ref_id=CF00001234&limit=50',
+  {
+    headers: { 'x-api-key': 'tsk_your_api_key_here' }
+  }
+);
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "data": [
     {
@@ -223,6 +323,16 @@ const endpoints: Record<string, Endpoint[]> = {
       pathParams: [
         { name: 'id', type: 'string', description: 'Submission UUID or submission_ref_id' },
       ],
+      curlExample: `curl -X GET '${BASE_URL}/submissions/CF01150001' \\
+  -H 'x-api-key: tsk_your_api_key_here'`,
+      jsExample: `const response = await fetch(
+  '${BASE_URL}/submissions/CF01150001',
+  {
+    headers: { 'x-api-key': 'tsk_your_api_key_here' }
+  }
+);
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "data": {
     "id": "uuid",
@@ -262,6 +372,34 @@ const endpoints: Record<string, Endpoint[]> = {
     "Rating": "Excellent"
   }
 }`,
+      curlExample: `curl -X POST '${BASE_URL}/submissions' \\
+  -H 'x-api-key: tsk_your_api_key_here' \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "form_ref_id": "CF00001234",
+    "use_labels": true,
+    "submission_data": {
+      "Full Name": "John Doe",
+      "Rating": "Excellent"
+    }
+  }'`,
+      jsExample: `const response = await fetch('${BASE_URL}/submissions', {
+  method: 'POST',
+  headers: {
+    'x-api-key': 'tsk_your_api_key_here',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    form_ref_id: 'CF00001234',
+    use_labels: true,
+    submission_data: {
+      'Full Name': 'John Doe',
+      'Rating': 'Excellent'
+    }
+  })
+});
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "data": {
     "id": "new-uuid",
@@ -292,6 +430,31 @@ const endpoints: Record<string, Endpoint[]> = {
   },
   "merge": true
 }`,
+      curlExample: `curl -X PUT '${BASE_URL}/submissions/CF01150001' \\
+  -H 'x-api-key: tsk_your_api_key_here' \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "use_labels": true,
+    "submission_data": { "Rating": "Good" },
+    "merge": true
+  }'`,
+      jsExample: `const response = await fetch(
+  '${BASE_URL}/submissions/CF01150001',
+  {
+    method: 'PUT',
+    headers: {
+      'x-api-key': 'tsk_your_api_key_here',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      use_labels: true,
+      submission_data: { Rating: 'Good' },
+      merge: true
+    })
+  }
+);
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "data": {
     "id": "uuid",
@@ -310,9 +473,187 @@ const endpoints: Record<string, Endpoint[]> = {
       pathParams: [
         { name: 'id', type: 'string', description: 'Submission UUID or submission_ref_id' },
       ],
+      curlExample: `curl -X DELETE '${BASE_URL}/submissions/CF01150001' \\
+  -H 'x-api-key: tsk_your_api_key_here'`,
+      jsExample: `const response = await fetch(
+  '${BASE_URL}/submissions/CF01150001',
+  {
+    method: 'DELETE',
+    headers: { 'x-api-key': 'tsk_your_api_key_here' }
+  }
+);
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "message": "Submission deleted successfully"
 }`,
+      notes: ['This action is irreversible'],
+    },
+  ],
+  bulkOperations: [
+    {
+      method: 'POST',
+      path: '/submissions/bulk',
+      title: 'Bulk Create Submissions',
+      description: 'Create multiple submission records in a single request. Maximum 100 records per request.',
+      permissions: ['submissions:create'],
+      bodyParams: [
+        { name: 'form_id', type: 'string', description: 'Form UUID (required if form_ref_id not provided)' },
+        { name: 'form_ref_id', type: 'string', description: 'Form reference_id (required if form_id not provided)' },
+        { name: 'submissions', type: 'array', description: 'Array of submission objects (max 100)', required: true },
+        { name: 'use_labels', type: 'boolean', description: 'Use field labels instead of field IDs' },
+      ],
+      requestExample: `{
+  "form_ref_id": "CF00001234",
+  "use_labels": true,
+  "submissions": [
+    { "Full Name": "John Doe", "Rating": "Excellent" },
+    { "Full Name": "Jane Smith", "Rating": "Good" },
+    { "Full Name": "Bob Wilson", "Rating": "Average" }
+  ]
+}`,
+      curlExample: `curl -X POST '${BASE_URL}/submissions/bulk' \\
+  -H 'x-api-key: tsk_your_api_key_here' \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "form_ref_id": "CF00001234",
+    "use_labels": true,
+    "submissions": [
+      { "Full Name": "John Doe", "Rating": "Excellent" },
+      { "Full Name": "Jane Smith", "Rating": "Good" }
+    ]
+  }'`,
+      jsExample: `const response = await fetch('${BASE_URL}/submissions/bulk', {
+  method: 'POST',
+  headers: {
+    'x-api-key': 'tsk_your_api_key_here',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    form_ref_id: 'CF00001234',
+    use_labels: true,
+    submissions: [
+      { 'Full Name': 'John Doe', Rating: 'Excellent' },
+      { 'Full Name': 'Jane Smith', Rating: 'Good' }
+    ]
+  })
+});
+const data = await response.json();
+console.log(data);`,
+      responseExample: `{
+  "data": {
+    "created": 2,
+    "submissions": [
+      { "id": "uuid-1", "submission_ref_id": "CF01150001" },
+      { "id": "uuid-2", "submission_ref_id": "CF01150002" }
+    ]
+  },
+  "message": "2 submissions created successfully"
+}`,
+      notes: [
+        'Maximum 100 records per request',
+        'All records are validated before insertion (atomic operation)',
+        'If validation fails, error includes details for each failed record',
+      ],
+    },
+    {
+      method: 'PUT',
+      path: '/submissions/bulk',
+      title: 'Bulk Update Submissions',
+      description: 'Update multiple submission records in a single request. Maximum 100 records per request.',
+      permissions: ['submissions:update'],
+      bodyParams: [
+        { name: 'submissions', type: 'array', description: 'Array of update objects with id and data', required: true },
+        { name: 'use_labels', type: 'boolean', description: 'Use field labels instead of field IDs' },
+        { name: 'merge', type: 'boolean', description: 'Merge with existing data (default: true)' },
+      ],
+      requestExample: `{
+  "use_labels": true,
+  "merge": true,
+  "submissions": [
+    { "id": "CF01150001", "submission_data": { "Rating": "Excellent" } },
+    { "id": "CF01150002", "submission_data": { "Rating": "Good" } }
+  ]
+}`,
+      curlExample: `curl -X PUT '${BASE_URL}/submissions/bulk' \\
+  -H 'x-api-key: tsk_your_api_key_here' \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "use_labels": true,
+    "merge": true,
+    "submissions": [
+      { "id": "CF01150001", "submission_data": { "Rating": "Excellent" } },
+      { "id": "CF01150002", "submission_data": { "Rating": "Good" } }
+    ]
+  }'`,
+      jsExample: `const response = await fetch('${BASE_URL}/submissions/bulk', {
+  method: 'PUT',
+  headers: {
+    'x-api-key': 'tsk_your_api_key_here',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    use_labels: true,
+    merge: true,
+    submissions: [
+      { id: 'CF01150001', submission_data: { Rating: 'Excellent' } },
+      { id: 'CF01150002', submission_data: { Rating: 'Good' } }
+    ]
+  })
+});
+const data = await response.json();
+console.log(data);`,
+      responseExample: `{
+  "data": {
+    "updated": 2
+  },
+  "message": "2 submissions updated successfully"
+}`,
+      notes: [
+        'Maximum 100 records per request',
+        'Each submission object requires an id (UUID or submission_ref_id)',
+        'Non-existent IDs will be skipped with a warning',
+      ],
+    },
+    {
+      method: 'DELETE',
+      path: '/submissions/bulk',
+      title: 'Bulk Delete Submissions',
+      description: 'Delete multiple submission records in a single request. Maximum 100 records per request.',
+      permissions: ['submissions:delete'],
+      bodyParams: [
+        { name: 'ids', type: 'array', description: 'Array of submission UUIDs or submission_ref_ids to delete', required: true },
+      ],
+      requestExample: `{
+  "ids": ["CF01150001", "CF01150002", "CF01150003"]
+}`,
+      curlExample: `curl -X DELETE '${BASE_URL}/submissions/bulk' \\
+  -H 'x-api-key: tsk_your_api_key_here' \\
+  -H 'Content-Type: application/json' \\
+  -d '{ "ids": ["CF01150001", "CF01150002"] }'`,
+      jsExample: `const response = await fetch('${BASE_URL}/submissions/bulk', {
+  method: 'DELETE',
+  headers: {
+    'x-api-key': 'tsk_your_api_key_here',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    ids: ['CF01150001', 'CF01150002']
+  })
+});
+const data = await response.json();
+console.log(data);`,
+      responseExample: `{
+  "data": {
+    "deleted": 2
+  },
+  "message": "2 submissions deleted successfully"
+}`,
+      notes: [
+        'Maximum 100 records per request',
+        'Non-existent IDs are silently ignored',
+        'This action is permanent and cannot be undone',
+      ],
     },
   ],
   workflows: [
@@ -679,7 +1020,7 @@ const ApiDocs: React.FC = () => {
             {endpoint.requestExample && (
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-semibold">Request Example</h4>
+                  <h4 className="text-sm font-semibold">Request Body</h4>
                   <Button variant="ghost" size="sm" onClick={() => handleCopy(endpoint.requestExample!)}>
                     <Copy className="h-4 w-4" />
                   </Button>
@@ -687,6 +1028,53 @@ const ApiDocs: React.FC = () => {
                 <pre className="bg-muted rounded-md p-3 overflow-x-auto text-xs">
                   {endpoint.requestExample}
                 </pre>
+              </div>
+            )}
+
+            {/* Code Examples with Tabs */}
+            {(endpoint.curlExample || endpoint.jsExample) && (
+              <div>
+                <h4 className="text-sm font-semibold mb-2">Code Examples</h4>
+                <Tabs defaultValue="curl" className="w-full">
+                  <TabsList className="mb-2">
+                    {endpoint.curlExample && <TabsTrigger value="curl">cURL</TabsTrigger>}
+                    {endpoint.jsExample && <TabsTrigger value="javascript">JavaScript</TabsTrigger>}
+                  </TabsList>
+                  {endpoint.curlExample && (
+                    <TabsContent value="curl">
+                      <div className="relative">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="absolute top-2 right-2 z-10"
+                          onClick={() => handleCopy(endpoint.curlExample!)}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <pre className="bg-muted rounded-md p-3 overflow-x-auto text-xs">
+                          {endpoint.curlExample}
+                        </pre>
+                      </div>
+                    </TabsContent>
+                  )}
+                  {endpoint.jsExample && (
+                    <TabsContent value="javascript">
+                      <div className="relative">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="absolute top-2 right-2 z-10"
+                          onClick={() => handleCopy(endpoint.jsExample!)}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <pre className="bg-muted rounded-md p-3 overflow-x-auto text-xs">
+                          {endpoint.jsExample}
+                        </pre>
+                      </div>
+                    </TabsContent>
+                  )}
+                </Tabs>
               </div>
             )}
 
@@ -701,6 +1089,17 @@ const ApiDocs: React.FC = () => {
                 {endpoint.responseExample}
               </pre>
             </div>
+
+            {endpoint.notes && endpoint.notes.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold mb-2">Notes</h4>
+                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                  {endpoint.notes.map((note, i) => (
+                    <li key={i}>{note}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </CardContent>
         )}
       </Card>
@@ -773,6 +1172,15 @@ const ApiDocs: React.FC = () => {
               >
                 <BarChart3 className="h-4 w-4 mr-2" />
                 Reports
+              </Button>
+              <Separator className="my-2" />
+              <Button
+                variant={activeSection === 'bulk-operations' ? 'secondary' : 'ghost'}
+                className="w-full justify-start"
+                onClick={() => setActiveSection('bulk-operations')}
+              >
+                <Layers className="h-4 w-4 mr-2" />
+                Bulk Operations
               </Button>
             </CardContent>
           </Card>
@@ -954,6 +1362,20 @@ const ApiDocs: React.FC = () => {
                   Reports Endpoints
                 </h2>
                 {endpoints.reports.map((endpoint, index) => renderEndpoint(endpoint, index))}
+              </div>
+            )}
+
+            {activeSection === 'bulk-operations' && (
+              <div className="space-y-4">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  <Layers className="h-5 w-5" />
+                  Bulk Operations
+                </h2>
+                <p className="text-muted-foreground">
+                  Perform batch operations on multiple records at once. These endpoints allow you to create, update, or delete 
+                  up to 100 records in a single API request, improving efficiency for large-scale data operations.
+                </p>
+                {endpoints.bulkOperations.map((endpoint, index) => renderEndpoint(endpoint, index))}
               </div>
             )}
           </ScrollArea>
