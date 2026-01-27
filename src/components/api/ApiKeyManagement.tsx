@@ -27,13 +27,18 @@ const PERMISSION_OPTIONS = {
 };
 
 interface ApiKeyManagementProps {
-  renderHeaderButton?: (onClick: () => void) => React.ReactNode;
+  showCreateDialog?: boolean;
+  onCreateDialogChange?: (open: boolean) => void;
 }
 
-export function ApiKeyManagement({ renderHeaderButton }: ApiKeyManagementProps = {}) {
+export function ApiKeyManagement({ showCreateDialog: externalShowCreate, onCreateDialogChange }: ApiKeyManagementProps = {}) {
   const navigate = useNavigate();
   const { apiKeys, requestLogs, loading, createApiKey, updateApiKey, deleteApiKey, revokeApiKey, fetchRequestLogs } = useApiKeys();
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [internalShowCreate, setInternalShowCreate] = useState(false);
+  
+  // Use external state if provided, otherwise use internal state
+  const showCreateDialog = externalShowCreate !== undefined ? externalShowCreate : internalShowCreate;
+  const setShowCreateDialog = onCreateDialogChange || setInternalShowCreate;
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingKey, setEditingKey] = useState<ApiKey | null>(null);
   const [selectedKey, setSelectedKey] = useState<ApiKey | null>(null);
@@ -223,8 +228,6 @@ export function ApiKeyManagement({ renderHeaderButton }: ApiKeyManagementProps =
 
   const apiBaseUrl = `https://fnmkczsvwpzpxyklztkt.supabase.co/functions/v1/public-api`;
 
-  const openCreateDialog = () => setShowCreateDialog(true);
-
   return (
     <div className="space-y-6">
       {/* Create Dialog - opened by external button or internal triggers */}
@@ -340,8 +343,7 @@ export function ApiKeyManagement({ renderHeaderButton }: ApiKeyManagementProps =
         </DialogContent>
       </Dialog>
 
-      {/* Header button rendered by parent if provided */}
-      {renderHeaderButton && renderHeaderButton(openCreateDialog)}
+      {/* New Key Display */}
       {newKeyValue && (
         <Card className="border-green-500 bg-green-50 dark:bg-green-950/20">
           <CardHeader>
