@@ -60,6 +60,9 @@ const Reports = () => {
   return (
     <DashboardLayout title="Dashboards">
       <div className="space-y-6">
+        <p className="text-muted-foreground">
+          Create and manage analytics dashboards with reports and visualizations
+        </p>
         <DashboardsList
           dashboards={dashboards}
           onView={handleViewDashboard}

@@ -275,13 +275,6 @@ const UserProfile = () => {
 
   const initials = `${formData.first_name?.[0] || ''}${formData.last_name?.[0] || ''}`.toUpperCase() || 'U';
 
-  const headerActions = (
-    <Button variant="outline" onClick={() => navigate('/dashboard')}>
-      <ArrowLeft className="h-4 w-4 mr-2" />
-      Back to Dashboard
-    </Button>
-  );
-
   const InfoCard = ({ icon: Icon, label, value, className = "" }: { icon: React.ElementType; label: string; value: string; className?: string }) => (
     <div className={`flex items-start gap-3 p-4 rounded-lg bg-muted/50 ${className}`}>
       <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -295,7 +288,7 @@ const UserProfile = () => {
   );
 
   return (
-    <DashboardLayout title="Profile" actions={headerActions}>
+    <DashboardLayout title="Profile">
       <div className="space-y-6">
         {/* Profile Header Card */}
         <Card className="overflow-hidden">

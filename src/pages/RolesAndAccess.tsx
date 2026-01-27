@@ -30,10 +30,9 @@ const RolesAndAccess = () => {
   return (
     <DashboardLayout title="Roles and Access">
       <div className="space-y-6">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Shield className="h-4 w-4" />
-          <span>Manage user roles and access permissions across your organization</span>
-        </div>
+        <p className="text-muted-foreground">
+          Manage user roles and access permissions across your organization
+        </p>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">

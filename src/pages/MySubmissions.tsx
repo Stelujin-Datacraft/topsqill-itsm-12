@@ -5,8 +5,13 @@ import { MySubmissions as MySubmissionsComponent } from '@/components/MySubmissi
 
 const MySubmissions = () => {
   return (
-    <DashboardLayout>
-      <MySubmissionsComponent />
+    <DashboardLayout title="My Submissions">
+      <div className="space-y-6">
+        <p className="text-muted-foreground">
+          View and manage your form submissions
+        </p>
+        <MySubmissionsComponent />
+      </div>
     </DashboardLayout>
   );
 };

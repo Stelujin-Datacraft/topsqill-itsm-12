@@ -132,29 +132,12 @@ export default function SettingsPage() {
     </Card>
   );
 
-  const headerActions = (
-    <Button variant="outline" onClick={() => navigate('/dashboard')}>
-      <ArrowLeft className="h-4 w-4 mr-2" />
-      Back to Dashboard
-    </Button>
-  );
-
   return (
-    <DashboardLayout title="Email Configuration" actions={headerActions}>
+    <DashboardLayout title="Email Configuration">
       <div className="space-y-8 max-w-7xl">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center">
-              <Mail className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <div>
-              <p className="text-muted-foreground">
-                Manage SMTP settings and email templates
-              </p>
-            </div>
-          </div>
-        </div>
+        <p className="text-muted-foreground">
+          Manage SMTP settings and email templates for your organization
+        </p>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
